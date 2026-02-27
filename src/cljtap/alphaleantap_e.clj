@@ -7,7 +7,7 @@
 ;;
 ;; The base prover implements classical semantic tableaux (Smullyan 1968):
 ;;   α-rule (conjunction), β-rule (disjunction), γ-rule (universal),
-;;   and complementary closure.
+;;   δ-rule (existential), and complementary closure.
 ;;
 ;; The equality extension adds rules for weak Herbrand models, in which
 ;; every function symbol is injective and distinct function symbols have
@@ -25,6 +25,7 @@
 ;;   Fml → (and Fml Fml)            — conjunction   (α)
 ;;        | (or Fml Fml)             — disjunction   (β)
 ;;        | (forall (tie Nom Fml))   — universal     (γ)
+;;        | (exists (tie Nom Fml))   — existential   (δ)
 ;;        | (pos Term)               — positive atom
 ;;        | (neg Term)               — negated atom
 ;;        | (eq Term Term)           — equality
@@ -43,6 +44,7 @@
 ;;   (conj . prf)      — conjunction rule
 ;;   (split prf1 prf2) — disjunction rule (both branches close)
 ;;   (univ . prf)      — universal instantiation
+;;   (exist . prf)     — existential witness introduction (δ-rule)
 ;;   (close)           — complementary closure: A and ¬A in lits
 ;;   (refl-close)      — reflexivity: (neq t t)
 ;;   (free-close)      — free closure: (eq f(...) g(...)), f ≠ g
@@ -313,6 +315,24 @@
          (== (lcons 'univ prf) proof)
          (appendo unexp (list fml) unexp1)
          (proveo body unexp1 lits (lcons [v x] env) prf)))]
+
+    ;; ========================================================================
+    ;; δ-rule: Existential Quantifier
+    ;; Introduce a single rigid Skolem witness: a fresh nom p wrapped as the
+    ;; term (app p).  Unlike the γ-rule, the formula is NOT re-enqueued —
+    ;; existentials are witnessed exactly once.
+    ;;
+    ;; The witness (app p) is a ground, globally unique term that cannot
+    ;; unify with other ground terms (distinct noms are not equal).  It CAN
+    ;; unify with logic variables introduced by the γ-rule, which is the
+    ;; mechanism for interactions like ∀x.P(x) ∧ ∃y.¬P(y).
+    ;; ========================================================================
+    [(nom v
+       (nom p
+         (fresh [body prf]
+           (== ['exists (tie v body)] fml)
+           (== (lcons 'exist prf) proof)
+           (proveo body unexp lits (lcons [v ['app p]] env) prf))))]
 
     ;; ========================================================================
     ;; Literal cases

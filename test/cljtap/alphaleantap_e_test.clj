@@ -409,6 +409,120 @@
                              (eq (app b) (app b)))))))
 
 ;; ============================================================================
+;; Section I: δ-Rule — Existential Quantifier
+;;
+;; The δ-rule handles (exists (tie Nom Fml)) by introducing a fresh rigid
+;; Skolem witness (a nom wrapped as (app p)) for the bound variable and
+;; processing the body exactly once — the formula is NOT re-enqueued.
+;;
+;; Key property: the witness (app p) is RIGID — it cannot unify with other
+;; ground terms (distinct noms are not equal), unlike the γ-rule's logic var.
+;; It CAN unify with γ-rule logic variables, enabling ∀/∃ interactions.
+;; ============================================================================
+
+(deftest test-I01-existential-internal-contradiction
+  (testing "∃x.(P(x) ∧ ¬P(x)) — witness irrelevant, body always closes"
+    ;; δ introduces p; body becomes P(p) ∧ ¬P(p), which closes by
+    ;; complementary closure regardless of the identity of p.
+    (is (seq
+          (run 1 [proof]
+            (nom v
+              (proveo ['exists (tie v ['and ['pos ['app 'P ['var v]]]
+                                            ['neg ['app 'P ['var v]]]])]
+                      '() '() '() proof)))))))
+
+(deftest test-I02-witness-rigidity
+  (testing "∃x.P(x) ∧ ¬P(c) — rigid witness cannot unify with concrete c"
+    ;; δ introduces nom p; P(p) and ¬P(c) do NOT close because the nom p
+    ;; and the symbol c are distinct ground terms.  This is the key
+    ;; difference from the γ-rule (which introduces a unifiable logic var).
+    (is (empty?
+          (run 1 [proof]
+            (nom v
+              (proveo ['and ['exists (tie v ['pos ['app 'P ['var v]]])]
+                            ['neg ['app 'P ['app 'c]]]]
+                      '() '() '() proof)))))))
+
+(deftest test-I03-witness-closes-via-equality
+  (testing "∃x.(x=c ∧ P(x)) ∧ ¬P(c) — equality bridges witness to concrete term"
+    ;; δ introduces p; body yields (eq p c) ∧ P(p).  After both are on the
+    ;; branch, ¬P(c) closes via paramodulation: rewrite c→p using (eq p c),
+    ;; yielding ¬P(p), which is the complement of P(p) in lits.
+    (is (seq
+          (run 1 [proof]
+            (nom v
+              (proveo ['and ['exists (tie v ['and ['eq ['var v] ['app 'c]]
+                                                  ['pos ['app 'P ['var v]]]])]
+                            ['neg ['app 'P ['app 'c]]]]
+                      '() '() '() proof)))))))
+
+(deftest test-I04-nested-existentials
+  (testing "∃x.∃y.(P(x) ∧ ¬P(x)) — two δ-rules fire, inner body closes on x"
+    ;; Outer δ: introduce p for x.  Inner δ: introduce q for y.
+    ;; Body uses only x (= p); P(p) ∧ ¬P(p) closes by complementary closure.
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (proveo ['exists (tie x
+                        ['exists (tie y
+                          ['and ['pos ['app 'P ['var x]]]
+                                ['neg ['app 'P ['var x]]]])])]
+                      '() '() '() proof)))))))
+
+(deftest test-I05-existential-reflexivity
+  (testing "∃x.(neq x x) — rigid witness still fires refl-close"
+    ;; δ introduces p; (neq (app p) (app p)) fires refl-close because
+    ;; the nom p unifies with itself: (neq t t) with t = (app p).
+    (is (seq
+          (run 1 [proof]
+            (nom v
+              (proveo ['exists (tie v ['neq ['var v] ['var v]])]
+                      '() '() '() proof)))))))
+
+(deftest test-I06-exist-proof-step
+  (testing "∃x.(neq x x) proof term records 'exist step"
+    (let [prf (first
+                (run 1 [proof]
+                  (nom v
+                    (proveo ['exists (tie v ['neq ['var v] ['var v]])]
+                            '() '() '() proof))))]
+      (is (some? prf))
+      (is (proof-contains? prf 'exist)))))
+
+(deftest test-I07-universal-existential-interaction
+  (testing "∀x.P(x) ∧ ∃y.¬P(y) — γ logic var unifies with δ rigid witness"
+    ;; γ introduces logic var X for ∀x.P(x); δ introduces rigid nom p for
+    ;; ∃y.¬P(y).  P(X) and ¬P(p) close because X (unbound logic var) can
+    ;; unify with (app p).
+    (is (seq
+          (run 1 [proof]
+            (nom v1 v2
+              (proveo ['and ['forall (tie v1 ['pos ['app 'P ['var v1]]])]
+                            ['exists (tie v2 ['neg ['app 'P ['var v2]]])]]
+                      '() '() '() proof)))))))
+
+(deftest test-I08-existential-eq-neq
+  (testing "∃x.(eq x a ∧ neq x a) — eq/neq complement on witness"
+    ;; δ introduces p; body becomes (eq p a) ∧ (neq p a).  The first is
+    ;; saved to lits; the second fires eq-neq-close when it finds (eq p a).
+    (is (seq
+          (run 1 [proof]
+            (nom v
+              (proveo ['exists (tie v ['and ['eq ['var v] ['app 'a]]
+                                            ['neq ['var v] ['app 'a]]])]
+                      '() '() '() proof)))))))
+
+(deftest test-I09-existential-alone-not-provable
+  (testing "∃x.P(x) alone — open formula, no contradiction, not provable"
+    ;; δ introduces p; P(p) is a positive literal with no complement.
+    ;; No closure rule fires and there are no more formulas to process.
+    (is (empty?
+          (run 1 [proof]
+            (nom v
+              (proveo ['exists (tie v ['pos ['app 'P ['var v]]])]
+                      '() '() '() proof)))))))
+
+;; ============================================================================
 ;; Run all tests
 ;; ============================================================================
 

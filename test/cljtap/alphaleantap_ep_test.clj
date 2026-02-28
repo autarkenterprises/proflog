@@ -1856,19 +1856,25 @@
                 (proveo ['pos ['app 'member ['app 'a] ['app 'nul]]]
                         '() '() '() prog proof))))))))
 (deftest test-Q07-member-singleton-wrong-element-fails
-  (testing "member(b, cons(a, nil)) — element not in singleton list"
-    ;; Positive proc call: body with l=cons(a,nil), x=b:
-    ;;   ∃h.∃t. (cons(a,nil) = cons(h,t) ∧ (b=h ∨ member(b,t)))
-    ;;   δ-witnesses p, q:
-    ;;     decompose: cons(a,nil)=cons(p,q) → a=p ∧ nil=q (saved to lits)
-    ;;     β-split:
-    ;;       Left: eq(b,p) — but a=p on branch, so via eq-neq-closeo...
-    ;;         Actually, eq(b,p) is satisfiable unless we can derive b=a.
-    ;;         We need: branch has eq(a,p) and current lit eq(b,p).
-    ;;         But b≠a doesn't arise from current rules alone.
-    ;;     This case requires paramodulated free closure (not yet implemented).
-    ;; SKIP: documented limitation — needs equality reasoning on eq+eq chains
-    ))
+  (testing "member(b, cons(a, nil)) — element not in singleton list, fails via para-free-close"
+    ;; Positive proc call: body[x:=b, l:=cons(a,nul)]:
+    ;;   δ p₁,p₂; decompose cons(a,nul)=cons(p₁,p₂) → a=p₁ ∧ nul=p₂ [lits]
+    ;;   β-split on (b=p₁ ∨ member(b,p₂)):
+    ;;     Left: (eq b p₁) — branch has (eq a p₁)
+    ;;           rewrite p₁→a: (eq b a) → para-free-close (b≠a) ✓
+    ;;     Right: member(b,p₂) — subst-call p₂→nul: body[l:=nul]
+    ;;            δ p₃,p₄; (eq nul (app cons ...)) → free-close ✓
+    (is (seq
+          (run 1 [proof]
+            (nom x l h t
+              (let [prog [['member [x l]
+                           ['exists (tie h
+                             ['exists (tie t
+                               ['and ['eq ['var l] ['app 'cons ['var h] ['var t]]]
+                                     ['or ['eq ['var x] ['var h]]
+                                          ['pos ['app 'member ['var x] ['var t]]]]])])]]]]
+                (proveo ['pos ['app 'member ['app 'b] ['app 'cons ['app 'a] ['app 'nul]]]]
+                        '() '() '() prog proof))))))))
 
 ;; --- Q8-Q10: Multi-Argument Substitutivity ---
 ;;
@@ -3614,19 +3620,25 @@
                 (proveo ['pos ['app 'member ['app 'a] ['app 'nul]]]
                         '() '() '() prog proof))))))))
 (deftest test-Q07-member-singleton-wrong-element-fails
-  (testing "member(b, cons(a, nil)) — element not in singleton list"
-    ;; Positive proc call: body with l=cons(a,nil), x=b:
-    ;;   ∃h.∃t. (cons(a,nil) = cons(h,t) ∧ (b=h ∨ member(b,t)))
-    ;;   δ-witnesses p, q:
-    ;;     decompose: cons(a,nil)=cons(p,q) → a=p ∧ nil=q (saved to lits)
-    ;;     β-split:
-    ;;       Left: eq(b,p) — but a=p on branch, so via eq-neq-closeo...
-    ;;         Actually, eq(b,p) is satisfiable unless we can derive b=a.
-    ;;         We need: branch has eq(a,p) and current lit eq(b,p).
-    ;;         But b≠a doesn't arise from current rules alone.
-    ;;     This case requires paramodulated free closure (not yet implemented).
-    ;; SKIP: documented limitation — needs equality reasoning on eq+eq chains
-    ))
+  (testing "member(b, cons(a, nil)) — element not in singleton list, fails via para-free-close"
+    ;; Positive proc call: body[x:=b, l:=cons(a,nul)]:
+    ;;   δ p₁,p₂; decompose cons(a,nul)=cons(p₁,p₂) → a=p₁ ∧ nul=p₂ [lits]
+    ;;   β-split on (b=p₁ ∨ member(b,p₂)):
+    ;;     Left: (eq b p₁) — branch has (eq a p₁)
+    ;;           rewrite p₁→a: (eq b a) → para-free-close (b≠a) ✓
+    ;;     Right: member(b,p₂) — subst-call p₂→nul: body[l:=nul]
+    ;;            δ p₃,p₄; (eq nul (app cons ...)) → free-close ✓
+    (is (seq
+          (run 1 [proof]
+            (nom x l h t
+              (let [prog [['member [x l]
+                           ['exists (tie h
+                             ['exists (tie t
+                               ['and ['eq ['var l] ['app 'cons ['var h] ['var t]]]
+                                     ['or ['eq ['var x] ['var h]]
+                                          ['pos ['app 'member ['var x] ['var t]]]]])])]]]]
+                (proveo ['pos ['app 'member ['app 'b] ['app 'cons ['app 'a] ['app 'nul]]]]
+                        '() '() '() prog proof))))))))
 
 ;; --- Q8-Q10: Multi-Argument Substitutivity ---
 ;;
@@ -3676,6 +3688,90 @@
                                     ['pos ['app 'S ['app 'p1] ['app 'p2]]]]]
                         '() '() '() prog proof))))))))
 
+
+;; ============================================================================
+;; Section R: Paramodulated Free Closure
+;; ============================================================================
+;;
+;; Tests for the para-free-close rule: when branch equalities can rewrite
+;; one side of an (eq t1 t2) literal in one or more steps to clash with
+;; the other side via free-closureo.
+;;
+;; Canonical pattern:
+;;   Branch: (eq a p)  — a is a constructor symbol, p is a nom (δ-witness)
+;;   Current: (eq b p) — b is a distinct constructor symbol
+;;   eqs from lits: {[(app p),(app a)], [(app a),(app p)]}
+;;   Rewrite t2=(app p) → (app a): (eq b a) → free-closureo fires (b≠a) ✓
+
+(deftest test-R01-para-free-close-t2-rewrite
+  (testing "a=p ∧ b=p — rewrite t2 toward clash with t1"
+    ;; Process (eq a p) first → lits.  Current: (eq b p).
+    ;; eqs include [(app p)(app a)].  Rewrite t2=p→a: (eq b a) → clash ✓
+    (is (seq
+          (run 1 [proof]
+            (nom p
+              (proveo ['and ['eq ['app 'a] ['app p]]
+                            ['eq ['app 'b] ['app p]]]
+                      '() '() '() '() proof)))))))
+
+(deftest test-R02-para-free-close-t1-rewrite
+  (testing "p=b ∧ p=a — rewrite t1 toward clash with t2"
+    ;; Process (eq p b) first → lits.  Current: (eq p a).
+    ;; eqs include [(app p)(app b)].  Rewrite t1=p→b: (eq b a) → clash ✓
+    (is (seq
+          (run 1 [proof]
+            (nom p
+              (proveo ['and ['eq ['app p] ['app 'b]]
+                            ['eq ['app p] ['app 'a]]]
+                      '() '() '() '() proof)))))))
+
+(deftest test-R03-para-free-close-two-step
+  (testing "p=q ∧ q=a ∧ b=p — two-step chain p→q→a detects clash with b"
+    ;; lits after first two eqs: (eq p q), (eq q a)
+    ;; eqs: [(app p)(app q)], [(app q)(app p)], [(app q)(app a)], [(app a)(app q)]
+    ;; Current: (eq b p).
+    ;; Step 1: rewrite t2=p→q: (eq b q).  q is nom, no direct clash.
+    ;; Step 2: rewrite q→a: (eq b a).  b≠a: clash ✓
+    (is (seq
+          (run 1 [proof]
+            (nom p q
+              (proveo ['and ['eq ['app p] ['app q]]
+                            ['and ['eq ['app q] ['app 'a]]
+                                  ['eq ['app 'b] ['app p]]]]
+                      '() '() '() '() proof)))))))
+
+(deftest test-R04-para-free-close-proof-step
+  (testing "para-free-close produces the correct proof step tag"
+    (let [proofs (run 1 [proof]
+                   (nom p
+                     (proveo ['and ['eq ['app 'a] ['app p]]
+                                   ['eq ['app 'b] ['app p]]]
+                             '() '() '() '() proof)))]
+      (is (seq proofs))
+      (is (proof-tree-contains? (first proofs) 'para-free-close)))))
+
+(deftest test-R05-para-free-close-no-false-fire-same-head
+  (testing "a=p ∧ a=p — rewrite yields (eq a a): same head, no clash (tableau stays open)"
+    ;; After rewriting p→a in (eq a p), both sides are (app a).
+    ;; free-closureo requires (not= a a) → false.  Formula is satisfiable.
+    (is (empty?
+          (run 1 [proof]
+            (nom p
+              (proveo ['and ['eq ['app 'a] ['app p]]
+                            ['eq ['app 'a] ['app p]]]
+                      '() '() '() '() proof)))))))
+
+(deftest test-R06-para-free-close-soundness-nom-result
+  (testing "p=q ∧ r=p — rewriting yields (eq r q): q is a nom, no clash (tableau stays open)"
+    ;; Rewrite t2=p→q in (eq r p): get (eq r q).
+    ;; q is a nom (not a Clojure symbol) → free-closureo symbol? guard blocks it.
+    ;; Formula is satisfiable (set p=q=r), so tableau must NOT close.
+    (is (empty?
+          (run 1 [proof]
+            (nom p q
+              (proveo ['and ['eq ['app p] ['app q]]
+                            ['eq ['app 'r] ['app p]]]
+                      '() '() '() '() proof)))))))
 
 ;; ============================================================================
 ;; Run all tests

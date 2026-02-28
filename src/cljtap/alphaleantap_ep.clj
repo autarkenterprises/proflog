@@ -83,6 +83,7 @@
 ;;   (free-close)             — free closure: distinct constructors clash
 ;;   (eq-neq-close)           — eq/neq complementary closure
 ;;   (decompose . prf)        — injectivity: decompose same-head eq into sub-eqs
+;;   (para-free-close)        — paramodulated free closure: rewrite one side of eq via branch eqs to clash
 ;;   (eq-refl-close)          — neq closed via one-one derived equalities
 ;;
 ;; ============================================================================
@@ -489,6 +490,53 @@
          [(== t1-rw t2)]
          [(eq-neq-closeo t1-rw t2 eqs depth-1)])))))
 
+;; --- 3h. Paramodulated free closure ---
+;;
+;; Detects transitive constructor clashes that require equality reasoning:
+;;
+;;   Branch: (eq (app a) (app p)) — saved to lits.
+;;   Current eq: (eq (app b) (app p)).
+;;   eqs include: [(app p), (app a)].
+;;   Rewrite t2=(app p) → (app a): yields (eq (app b) (app a)).
+;;   free-closureo fires: b ≠ a ✓
+;;
+;; Requires at least one rewriting step — direct clashes are already
+;; handled by the free-close rule.  Uses Peano depth bound to prevent
+;; cycling on bidirectional equality pairs.
+
+(defn para-free-closeo
+  "Paramodulated free closure: rewrite one side of (eq t1 t2) using branch
+   equalities in one or more steps until the result clashes with the other
+   side via free-closureo.
+
+   Tries rewriting t1 or t2 independently at each step.  Recursion handles
+   multi-step chains (e.g., p→q→a when branch has p=q and q=a).
+
+   Soundness: every rewriting step uses only equalities already on the branch,
+   and free-closureo's symbol? guard ensures only genuine constructor symbols
+   (not δ-parameters) are treated as distinct."
+  ([t1 t2 eqs]
+   (para-free-closeo t1 t2 eqs +rewrite-depth+))
+  ([t1 t2 eqs depth]
+   (fresh [depth-1]
+     (== ['s depth-1] depth)
+     (fresh [pair lhs rhs]
+       (membero pair eqs)
+       (== [lhs rhs] pair)
+       (conde
+         ;; Rewrite t1 one step, then clash-check or recurse
+         [(fresh [t1-rw]
+            (rewrite-termo t1 lhs rhs t1-rw)
+            (conde
+              [(free-closureo t1-rw t2)]
+              [(para-free-closeo t1-rw t2 eqs depth-1)]))]
+         ;; Rewrite t2 one step, then clash-check or recurse
+         [(fresh [t2-rw]
+            (rewrite-termo t2 lhs rhs t2-rw)
+            (conde
+              [(free-closureo t1 t2-rw)]
+              [(para-free-closeo t1 t2-rw eqs depth-1)]))])))))
+
 ;; ============================================================================
 ;; Part 4: Formula Negation (NNF-preserving)
 ;; ============================================================================
@@ -765,6 +813,30 @@
             (decompose-eq-argso args1 args2 decomposed)
             (== (lcons 'decompose prf) proof)
             (proveo decomposed unexp lits env program prf))]
+
+         ;; ============================================================
+         ;; PARAMODULATED FREE CLOSURE (transitive constructor clash)
+         ;; ============================================================
+         ;; When the current literal is (eq t1 t2) and branch equalities
+         ;; (from lits) can rewrite one side in one or more steps to
+         ;; clash with the other side, the branch is contradictory.
+         ;;
+         ;; Example:
+         ;;   lits: (eq (app a) (app p))      — a is symbol, p is nom
+         ;;   current: (eq (app b) (app p))
+         ;;   eqs: {[(app p),(app a)], [(app a),(app p)]}
+         ;;   Rewrite t2=(app p) → (app a): get (eq (app b) (app a))
+         ;;   free-closureo fires: b ≠ a ✓
+         ;;
+         ;; This enables member(b, cons(a, nil)) to fail when b≠a:
+         ;; after decomposing cons(a,nil)=cons(p,q) into a=p ∧ nil=q,
+         ;; the branch (eq b p) can be resolved via p→a to get (eq b a).
+         ;; ============================================================
+         [(fresh [t1 t2 eqs]
+            (== ['eq t1 t2] lit)
+            (== ['para-free-close] proof)
+            (collect-eqso lits eqs)
+            (para-free-closeo t1 t2 eqs))]
 
          ;; ============================================================
          ;; NEQ CLOSURE VIA EQUALITY REWRITING

@@ -1,0 +1,325 @@
+# αleanTAP-EP: Implementing Fitting's Proflog in αleanTAP
+
+## The Central Idea
+
+Fitting's 1994 paper poses a deceptively simple question: what does it take to turn a tableau *theorem prover* into a *programming language*? His answer is a single new rule — the **Procedure Call Rule** — which bridges the two worlds by allowing a tableau branch to close not just by finding contradictions, but by *invoking a program definition*.
+
+The result, Proflog, was proposed but never implemented. αleanTAP-EP is (to our knowledge) its first realization, and the fact that αleanTAP is a pure relation in nominal logic gives it capabilities Fitting only hinted at.
+
+## The Procedure Call Rule
+
+From Fitting's paper (Section 6), here is the rule verbatim:
+
+> **Procedure Call Rule.** A tableau branch is closed if:
+>
+> 1. it contains a ground atom R(t₁,...,tₙ) of L, there is a clause R(x₁,...,xₙ) ← φ(x₁,...,xₙ) in P, and there exists a closed tableau for φ(t₁,...,tₙ);
+>
+> 2. it contains a negated ground atom ¬R(t₁,...,tₙ) of L, there is a clause R(x₁,...,xₙ) ← φ(x₁,...,xₙ) in P, and there exists a closed tableau for ¬φ(t₁,...,tₙ).
+
+To understand why each part works, recall that a Proflog clause R(x) ← φ(x) is semantically biconditional: **R(t) is true iff φ(t) is true**, in the smallest supervaluation model.
+
+**Part 1 (positive call):** R(t) sits on the branch, asserting it is the case. The subsidiary tableau closes on φ(t), establishing that φ(t) is unsatisfiable. But R(t) ↔ φ(t), so R(t) must also be false. Contradiction — the branch closes.
+
+**Part 2 (negative call):** ¬R(t) sits on the branch, asserting R(t) is false. The subsidiary tableau closes on ¬φ(t), establishing that φ(t) is valid (always true). But R(t) ↔ φ(t), so R(t) must be true. Contradiction with ¬R(t) — the branch closes.
+
+The critical structural feature: each procedure call spawns a **fresh, independent subsidiary tableau**. It does not inherit the calling branch's literals, unexpanded formulas, or environment. It carries only the program P (for recursive calls) and the instantiated clause body. This isolation is what makes the soundness proof work (Fitting, Section 7, Lemma 7.5).
+
+## Architecture of a Procedure Call in αleanTAP-EP
+
+Here is the anatomy of what happens when `proveo` encounters a literal that matches a program clause head:
+
+```
+proveo encounters literal (pos (app R t₁ t₂ ...))
+  │
+  ├─ 1. subst-lito replaces noms with their values from current env
+  │
+  ├─ 2. lookup-clauseo finds:  [R [a₁ a₂ ...] body]  in program
+  │
+  ├─ 3. bind-argso creates fresh env:  {a₁→t₁, a₂→t₂, ...}
+  │
+  └─ 4. SPAWN SUBSIDIARY TABLEAU:
+         proveo body         ← clause body (or ¬body for negative call)
+                '()          ← empty unexp   (fresh obligation)
+                '()          ← empty lits    (no inherited context)
+                call-env     ← param→arg bindings only
+                program      ← same program  (recursion possible)
+                prf          ← subsidiary proof term
+         │
+         ├─ The subsidiary tableau expands body using all rules:
+         │   α (conjunction), β (disjunction), γ (universal),
+         │   δ (existential), complementary closure, equality,
+         │   AND further procedure calls (recursion!)
+         │
+         └─ If subsidiary closes → original branch closes
+            If subsidiary doesn't close → try other closure methods
+```
+
+## What Had to Change
+
+### 1. The `proveo` Signature Gains a `program` Argument
+
+Old: `(proveo fml unexp lits env proof)`
+
+New: `(proveo fml unexp lits env program proof)`
+
+The program is threaded through all recursive calls unchanged. Every expansion rule (α, β, γ, δ, literal) passes `program` along. Subsidiary tableaux receive the same program, enabling recursion.
+
+### 2. The δ-Rule (Existential Quantifier)
+
+αleanTAP originally only needed the γ-rule (∀) because inputs were pre-Skolemized. Proflog clause bodies contain ∃ (e.g., Fitting's `win(x) ← ∃y[...]`), and `negate-formulao` turns ∀ into ∃ (for negative calls). The δ-rule is therefore essential.
+
+Our δ-rule exploits nominal logic: a fresh nom is a globally unique name — precisely what Fitting calls a "parameter." We wrap it in `(app p)` to make it a term:
+
+```clojure
+;; δ-rule: (exists (tie a body))
+[(nom a
+   (nom p  ;; fresh parameter
+     (fresh [body prf]
+       (== ['exists (tie a body)] fml)
+       (== (lcons 'witness prf) proof)
+       (proveo body unexp lits
+               (lcons [a ['app p]] env)  ;; a → (app p)
+               program prf))))]
+```
+
+Key differences from the γ-rule:
+
+| | γ-rule (∀) | δ-rule (∃) |
+|---|---|---|
+| Introduces | Logic variable (unifiable) | Nom/parameter (rigid) |
+| Re-enqueues formula? | Yes (may need multiple instances) | No (one witness suffices) |
+| In proof term | `univ` | `witness` |
+
+### 3. `negate-formulao` — NNF-Preserving Negation
+
+The negative procedure call needs ¬φ for a clause body φ. Since our prover works in NNF, we push negation inward:
+
+```
+¬(and A B)          = (or ¬A ¬B)
+¬(or A B)           = (and ¬A ¬B)
+¬(forall a.P)       = (exists a.¬P)      ← this is why we need δ
+¬(exists a.P)       = (forall a.¬P)
+¬(pos t)            = (neg t)
+¬(neg t)            = (pos t)
+¬(eq t₁ t₂)        = (neq t₁ t₂)
+¬(neq t₁ t₂)       = (eq t₁ t₂)
+```
+
+Because this is a pure relation, it also works backwards: given a negated formula, synthesize the original. This supports αleanTAP-EP's backward-running capability.
+
+### 4. `lookup-clauseo` and `bind-argso`
+
+These are straightforward relational helpers. `lookup-clauseo` searches the program list for a clause matching a given relation symbol. `bind-argso` zips clause parameter noms with actual argument terms to produce an environment.
+
+### 5. Two New `conde` Clauses in `proveo`'s Literal Processing
+
+The procedure call rule adds two new ways to close a branch when processing a literal, alongside the existing complementary closure, reflexivity, and paramodulation:
+
+```clojure
+;; Positive procedure call
+[(fresh [R args params body call-env prf]
+   (== ['pos (lcons 'app (lcons R args))] lit)
+   (lookup-clauseo R program params body)
+   (bind-argso params args call-env)
+   (== (lcons 'proc-call (lcons R prf)) proof)
+   (proveo body '() '() call-env program prf))]
+
+;; Negative procedure call
+[(fresh [R args params body call-env neg-body prf]
+   (== ['neg (lcons 'app (lcons R args))] lit)
+   (lookup-clauseo R program params body)
+   (bind-argso params args call-env)
+   (negate-formulao body neg-body)
+   (== (lcons 'neg-proc-call (lcons R prf)) proof)
+   (proveo neg-body '() '() call-env program prf))]
+```
+
+## Fitting's Examples, Traced
+
+### Nim (Program P2)
+
+```
+win(x) ← ∃y. (x = s(y) ∨ x = s(s(y))) ∧ ¬win(y)
+```
+
+**Query: does win(3) fail?** We build a P-tableau for `win(s(s(s(0))))`.
+
+```
+proveo (pos (app win (app s (app s (app s (app zero))))))
+  │
+  └─ POSITIVE PROC-CALL on 'win:
+     └─ subsidiary: proveo body[x := s(s(s(0)))]
+        = (exists (tie b (and (or (eq s³(0) s(b)) (eq s³(0) s²(b)))
+                              (neg (app win (var b))))))
+        │
+        ├─ δ-rule: introduce witness parameter p for b
+        │  env: {b → (app p)}
+        │
+        ├─ α-rule (and): expand conjunction
+        │
+        ├─ β-rule (or): split on x = s(y) vs x = s(s(y))
+        │
+        ├─ Left branch: s³(0) = s(p)  →  p = s²(0)  →  ¬win(s²(0))
+        │   └─ NEGATIVE PROC-CALL on 'win:
+        │      └─ subsidiary: proveo ¬body[x := s²(0)]
+        │         = (forall (tie c (or (and (neq s²(0) s(c)) (neq s²(0) s²(c)))
+        │                              (pos (app win (var c))))))
+        │         │
+        │         ├─ γ-rule: instantiate c with logic variable
+        │         │  ... eventually c unifies with 0
+        │         │
+        │         └─ s²(0) = s²(0) is reflexively true
+        │            → win(0) must hold for this branch
+        │            → POSITIVE PROC-CALL on 'win with 0
+        │              → body[x:=0] has (0 = s(y) ∨ 0 = s²(y))
+        │              → both disjuncts closed by Free Closure (0 ≠ s(...))
+        │              → subsidiary closes → win(0) is false → branch closes
+        │
+        └─ Right branch: similar, reaching ¬win(s(0))
+           └─ ... eventually closes similarly
+```
+
+The proof term records the entire call tree, showing how recursive procedure calls bottom out at `win(0)`.
+
+### Even/Odd (Program P1)
+
+Fitting's P₁ (paper §2):
+```
+even(x) ← x = 0 ∨ (∃y)[x = s(y) ∧ odd(y)]
+odd(x)  ← (∀y)[even(y) ⊃ ¬(x = y)]
+```
+
+The `odd` clause uses a universal quantifier and implication, showcasing the full first-order expressiveness of Proflog. For the trace below we use the equivalent mutually-recursive formulation (simpler to follow; Fitting notes the two are interchangeable in the supervaluation model):
+```
+even(x) ← x = 0 ∨ ∃y. (x = s(y) ∧ odd(y))
+odd(x)  ← ∃y. (x = s(y) ∧ even(y))
+```
+
+**Query: does even(s(s(0))) succeed?** We build a closed P-tableau for `¬even(s²(0))`, which is `(neg (app even (app s (app s (app zero)))))`.
+
+```
+proveo (neg (app even (app s (app s (app zero)))))
+  │
+  └─ NEGATIVE PROC-CALL on 'even:
+     Need closed tableau for ¬body[x := s²(0)]
+     ¬(s²(0)=0 ∨ ∃y.(s²(0)=s(y) ∧ odd(y)))
+     = (s²(0)≠0 ∧ ∀y.(s²(0)≠s(y) ∨ ¬odd(y)))
+     │
+     ├─ α: expand conjunction
+     ├─ s²(0) ≠ 0: stays on branch (true by free closure)
+     ├─ γ: instantiate y with logic variable v
+     │  ∀y.(s²(0)≠s(y) ∨ ¬odd(y)) → s²(0)≠s(v) ∨ ¬odd(v)
+     │
+     ├─ β: split
+     │   ├─ Left:  s²(0) ≠ s(v)  — but v can unify with s(0)
+     │   │   → s(s(0)) = s(s(0)) — reflexivity closes via refl-close
+     │   │   Wait: neq, so it becomes (neq s²(0) s(v))
+     │   │   If v = s(0): (neq s²(0) s²(0)) → refl-close!
+     │   │
+     │   └─ Right: ¬odd(v)
+     │       v unifies with s(0)
+     │       (neg (app odd (app s (app zero))))
+     │       └─ NEGATIVE PROC-CALL on 'odd:
+     │          ¬body[x := s(0)] = ¬∃y.(s(0)=s(y) ∧ even(y))
+     │          = ∀y.(s(0)≠s(y) ∨ ¬even(y))
+     │          │
+     │          ├─ γ: instantiate y with v₂
+     │          ├─ β: split
+     │          │   ├─ s(0)≠s(v₂): if v₂=0, refl-close
+     │          │   └─ ¬even(v₂): v₂=0
+     │          │       (neg (app even (app zero)))
+     │          │       └─ NEGATIVE PROC-CALL on 'even:
+     │          │          ¬(0=0 ∨ ∃y.(0=s(y) ∧ odd(y)))
+     │          │          = (0≠0 ∧ ∀y.(0≠s(y) ∨ ¬odd(y)))
+     │          │          → 0≠0 → refl-close!
+     │          │          subsidiary CLOSES → even(0) is true
+     │          │          → ¬even(0) is contradicted → branch closes
+     │          ...
+     └─ All branches close → query succeeds: even(s²(0)) is true ✓
+```
+
+## Interaction with Equality
+
+Equality and procedure calls interact naturally in αleanTAP-EP because both are available in subsidiary tableaux:
+
+**Equality in clause bodies.** Clauses like `member(x,l) ← ∃h.∃t. l = cons(h,t) ∧ (x=h ∨ member(x,t))` use equality for pattern matching / destructuring — the same role `=` plays in Prolog unification, but expressed declaratively.
+
+**Fitting's Free Closure Rule (implemented).** Weak Herbrand models require that distinct constructors produce distinct values: `0 ≠ s(x)` and `f(x) ≠ g(y)` when f ≠ g, and that constructors are injective: `f(t) = f(s)` implies `t = s`. Our implementation provides six rules that fully realize Fitting's Section 5:
+
+1. **Free Closure (disjointness/clash):** `(eq (app f ...) (app g ...))` with f ≠ g closes the branch immediately (proof step `free-close`). A soundness guard uses `project` to verify both heads are genuine Clojure symbols, not δ-parameters — a nom introduced by the existential rule represents an arbitrary domain element and must not be treated as a distinct constructor.
+
+2. **Injectivity Decomposition (formula expansion):** `(eq (app f t₁..tₙ) (app f s₁..sₙ))` with same head f is expanded into a conjunction `(and (eq t₁ s₁) ... (eq tₙ sₙ))` which is then processed as a new formula (proof step `decompose`). This cascades: `f(g(a)) = f(g(b))` → `g(a) = g(b)` → `a = b` → free-close.
+
+3. **One-One Pairs in Paramodulation:** The same injectivity principle also injects pairwise sub-equality pairs `[tᵢ, sᵢ]` into the rewriting engine via enhanced `collect-eqso`, enabling paramodulation and substitutivity to use derived equalities without explicit formula expansion.
+
+4. **Eq/Neq Complementary Closure:** When `(eq t₁ t₂)` is the current literal and `(neq t₁ t₂)` or `(neq t₂ t₁)` is already on the branch, the contradiction is detected directly (proof step `eq-neq-close`). This prevents order-dependent failures where the neq was processed first and saved before the eq arrived.
+
+5. **NEQ Closure via Equality Rewriting:** `(neq t₁ t₂)` on the branch, combined with one-one derived equalities, can be rewritten so that t₁ becomes t₂, yielding `(neq t t)` → reflexivity closure (proof step `eq-refl-close`).
+
+6. **Substitutivity-Augmented Procedure Calls:** When branch equalities (including one-one pairs) can rewrite a literal's argument terms, the rewriting is applied before firing the procedure call (proof steps `subst-call`, `neg-subst-call`). Each argument position is independently rewritable using a different equality pair, via `rewrite-args-someo` / `rewrite-args-maybeo`. This handles both unary cases (e.g., `odd(p)` → `odd(zero)`) and multi-argument cases (e.g., `member(p₁, p₂)` → `member(a, cons(b, nil))` when both args have known equalities on the branch). At least one argument must be actually rewritten, preventing overlap with plain procedure call rules.
+
+**Equality + recursion.** The combination is powerful: a recursive clause can use equality to destructure its arguments and equality reasoning to close base cases, while procedure calls provide the recursive step. This is essentially what makes Proflog a programming language rather than just a prover.
+
+## Comparison: Prolog vs Proflog (αleanTAP-EP)
+
+| Dimension | Prolog | Proflog |
+|---|---|---|
+| **Clause bodies** | Conjunctions of atoms (Horn) | Any first-order formula |
+| **Proof engine** | SLD-resolution | Tableau expansion + procedure call |
+| **Negation** | Negation-as-failure (extralogical) | Classical ¬ in bodies (logical) |
+| **Semantics** | Minimal Herbrand model | Smallest supervaluation model |
+| **World assumption** | Closed (CWA) | Open (non-standard elements possible) |
+| **Equality** | Built-in unification | Tableau equality rules (paramodu­lation, free closure) |
+| **Directionality** | Forward only (input → output) | Pure relation (forward, backward, sideways) |
+| **Undefinedness** | Loops (operational) | ⊥ (semantic third truth value) |
+
+The cost of Proflog's generality is efficiency — full tableau expansion is more expensive than SLD-resolution. As Fitting notes in Section 8, practical use would require finding "the most natural compromises" — much as Prolog was extracted from the abstract logic programming paradigm by accepting incompleteness for efficiency.
+
+## New Proof Steps
+
+| Step | Meaning |
+|---|---|
+| `(proc-call R . prf)` | Positive call: R(t) on branch, closed subsidiary for body(t) |
+| `(neg-proc-call R . prf)` | Negative call: ¬R(t) on branch, closed subsidiary for ¬body(t) |
+| `(subst-call R . prf)` | Substitutivity-augmented positive proc call (args rewritten) |
+| `(neg-subst-call R . prf)` | Substitutivity-augmented negative proc call (args rewritten) |
+| `(witness . prf)` | Existential witness introduction (δ-rule) |
+| `(free-close)` | Free closure: distinct constructors clash |
+| `(eq-neq-close)` | Eq/neq complementary closure |
+| `(decompose . prf)` | Injectivity decomposition: same-head eq → sub-equalities |
+| `(eq-refl-close)` | Neq closed via one-one derived equalities |
+
+These nest naturally with existing steps (`conj`, `split`, `univ`, `close`, `refl-close`, `para-close`, `savefml`), producing proof terms that record the entire call tree including recursive invocations.
+
+## Open Questions from Fitting's Paper
+
+Fitting explicitly leaves several questions open (Section 8). Our implementation addresses some and inherits others:
+
+**"What restrictions on the language will lead to efficiency without losing naturalness?"** — This remains the central practical question. One natural restriction: limit clause bodies to the `∧`/`∨`/`¬`/`∃` fragment (no ∀ in bodies), which avoids the γ-rule's re-enqueueing in subsidiary tableaux.
+
+**Free variables in queries.** Fitting notes that free-variable queries require ensuring that answers are terms of L, not of L^par (the parameter-extended language). In our setting, core.logic's reification handles this: the `run` interface reports logic variable bindings, and noms introduced by δ-rules will appear as distinct symbols if they leak into answers, which is the correct behavior.
+
+**Disunification.** Fitting identifies the systematic generation of disunifiers as "perhaps the most intractable implementation issue." Our Free Closure Rule handles the structural cases (distinct constructors, injectivity). The remaining gap is disunification with free variables — e.g., proving that `∀x. f(x) ≠ g(x)` requires systematic generation of all possible counter-instantiations. For the programs we implement (even/odd, nim, member), the structural rules suffice.
+
+**Modal and many-valued extensions.** Fitting suggests that replacing classical tableaux with modal or many-valued ones could yield modal logic programming languages "as a uniform mechanism." αleanTAP-EP's architecture — a generic `proveo` relation parameterized by rules and a program — would naturally support this.
+
+## Demonstrated Capabilities
+
+**Backward running (tested).** Because proveo is a pure relation, queries with logic variable arguments generate satisfying values. For example, `(run 3 [x] ...)` with `color(x) ← x=red ∨ x=green ∨ x=blue` yields all three colors. With the even/odd program, `(run 1 [x] ...)` for `even(x)` yields `(app zero)`. The mechanism: `refl-close` on `(neq X (app zero))` unifies X with `(app zero)`, closing the branch and reporting the binding.
+
+**List membership (tested).** `member(x, l) ← ∃h.∃t. l = cons(h,t) ∧ (x=h ∨ member(x,t))` exercises binary constructors, nested existentials (two δ-rules per call), and recursive procedure calls through list structure. Tested for head and recursive membership, empty-list failure.
+
+## Known Limitations
+
+**Paramodulated free closure.** When multiple equality literals on a branch imply a derived equality between distinct constants (e.g., `a=p ∧ b=p` implies `a=b`), the prover does not detect this via transitivity on eq+eq chains. The current equality reasoning rewrites neq or pos/neg literals using branch equalities, but does not rewrite eq literals to detect transitive clashes. Consequence: `member(b, cons(a, nil))` with `b ≠ a` cannot be shown to fail, because the proof requires detecting that `a=p ∧ b=p → a=b → free-close`. This would require a "paramodulated free closure" rule that rewrites one side of an eq literal using branch equalities and then checks for a constructor clash.
+
+**Bounded rewriting depth.** Both `eq-membero` and `eq-neq-closeo` use a Peano-numeral depth bound (currently 6 steps) to prevent infinite cycling on bidirectional equality pairs such as `[(t₁,t₂),(t₂,t₁)]`. This is sound — any proof requiring more than 6 rewriting steps is correctly rejected — but not complete: transitivity chains longer than 6 hops will not be found. The bound suffices for the current test suite; programs with longer equality chains (e.g., a=b, b=c, c=d, d=e, e=f, f=g, g=h) would require increasing it.
+
+## References
+
+1. Fitting, M. "Tableaux for Logic Programming." *J. Automated Reasoning* 13, 175–188 (1994).
+2. Near, Byrd, Friedman. "αleanTAP: A Declarative Theorem Prover for First-Order Classical Logic." ICLP 2008.
+3. Fitting, M. *First-Order Logic and Automated Theorem Proving.* Springer, 1990/1996.
+4. Fitting, M. "Partial Models and Logic Programming." *Theoretical Computer Science* 48, 229–255 (1987).
+5. Smullyan, R.M. *First-Order Logic.* Springer, 1968.
+6. Van Fraassen, B. "Singular Terms, Truth-Value Gaps, and Free Logic." *J. Philosophy* 63, 481–485 (1966).

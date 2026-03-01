@@ -89,6 +89,8 @@ The `(par p)` term form is part of the term grammar:
 
 This distinction matters for `subst-termo` (which passes `(par p)` through unchanged) and for `free-closureo` (which only matches `(lcons 'app ...)` terms — so `(par p)` can never trigger free closure, eliminating the need for any non-relational guard).
 
+`subst-termo` uses `project`-based type dispatch to handle four cases: `(var nom)` → environment lookup; `(par p)` → pass-through; `(app f ...)` (LCons) → recursive substitution across args; raw logic variable (synthesis target from `run`) → pass-through unchanged. The fourth case is essential for program and query synthesis: without it, a synthesis-target LVar placed in a formula term position would be incorrectly consumed by the `(var nom)` branch. The `project` is sound here because `subst-termo` is always called in forward mode (formula → substituted formula), never in reverse.
+
 Key differences from the γ-rule:
 
 | | γ-rule (∀) | δ-rule (∃) |
@@ -120,20 +122,24 @@ These are straightforward relational helpers. `lookup-clauseo` searches the prog
 
 ### 5. Two New `conde` Clauses in `proveo`'s Literal Processing
 
-The procedure call rule adds two new ways to close a branch when processing a literal, alongside the existing complementary closure, reflexivity, and paramodulation:
+The procedure call rule adds two new ways to close a branch when processing a literal, alongside the existing complementary closure, reflexivity, and paramodulation.
+
+**The L-groundness guard** (Fitting §6 Definition 6.1): the plain call rules may only fire on ground atoms of L — atoms whose arguments contain no δ-parameters `(par p)`. The `l-ground-term*o` guard enforces this. It uses `project` to inspect argument terms without unifying them, so unbound γ-rule logic variables (which are not par-terms) pass through transparently. Substitutivity-augmented call rules (which rewrite `(par p)` to ground terms *before* firing) are exempt from this guard.
 
 ```clojure
-;; Positive procedure call
+;; Positive procedure call (plain — L-ground args required)
 [(fresh [R args params body call-env prf]
    (== ['pos (lcons 'app (lcons R args))] lit)
+   (l-ground-term*o args)                ;; Fitting §6 Def 6.1: no (par p) in args
    (lookup-clauseo R program params body)
    (bind-argso params args call-env)
    (== (lcons 'proc-call (lcons R prf)) proof)
    (proveo body '() '() call-env program prf))]
 
-;; Negative procedure call
+;; Negative procedure call (plain — L-ground args required)
 [(fresh [R args params body call-env neg-body prf]
    (== ['neg (lcons 'app (lcons R args))] lit)
+   (l-ground-term*o args)                ;; Fitting §6 Def 6.1: no (par p) in args
    (lookup-clauseo R program params body)
    (bind-argso params args call-env)
    (negate-formulao body neg-body)
@@ -313,6 +319,10 @@ Fitting explicitly leaves several questions open (Section 8). Our implementation
 ## Demonstrated Capabilities
 
 **Backward running (tested).** Because proveo is a pure relation, queries with logic variable arguments generate satisfying values. For example, `(run 3 [x] ...)` with `color(x) ← x=red ∨ x=green ∨ x=blue` yields all three colors. With the even/odd program, `(run 1 [x] ...)` for `even(x)` yields `(app zero)`. The mechanism: `refl-close` on `(neq X (app zero))` unifies X with `(app zero)`, closing the branch and reporting the binding.
+
+**Program synthesis (tested).** Placing a logic variable as the entire `program` argument synthesizes a program that proves the query — `proveo` finds the clause structure. Similarly, placing logic variables inside clause bodies synthesizes the body terms. Joint synthesis (`run 1 [prog q]` with both program and query unbound) finds a mutually consistent (program, query) pair. These modes exercise the relational core in full reverse: `lookup-clauseo`, `bind-argso`, `negate-formulao`, `subst-termo`, and all closure rules compose correctly when inputs are unbound. The `project`-based dispatch in `subst-termo` is the key enabler: it passes synthesis-target LVars through unchanged rather than consuming them as `(var nom)` forms.
+
+**Deep synthesis with procedure calls (tested).** Query and program LVars flow through recursive procedure call chains of arbitrary depth (Sections V and W of the test suite). The L-groundness guard is transparent to these LVars: `project` inspects the walked value and sees an `LVar` object, which `contains-par?` correctly classifies as ground. Tests V13 and V14 specifically verify that program-LVar arguments (not just query-LVar or γ-rule-LVar arguments) pass the guard at every nesting level.
 
 **List membership (tested).** `member(x, l) ← ∃h.∃t. l = cons(h,t) ∧ (x=h ∨ member(x,t))` exercises binary constructors, nested existentials (two δ-rules per call), and recursive procedure calls through list structure. Tested for head and recursive membership, empty-list failure.
 

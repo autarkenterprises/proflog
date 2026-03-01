@@ -145,19 +145,26 @@
 
 (defn subst-termo
   "Substitute values for tagged noms (var a) in a term, using environment.
-   (par p) terms are δ-parameters — already ground, pass through unchanged."
+   (par p) terms are δ-parameters — already ground, pass through unchanged.
+   Raw logic variables (synthesis targets from run) are passed through unchanged.
+   Uses project for type dispatch — subst-termo is always called fml→out (forward only)."
   [fml env out]
-  (conde
-    [(fresh [a]
-       (== ['var a] fml)
-       (lookupo a env out))]
-    [(fresh [p]
-       (== ['par p] fml)
-       (== ['par p] out))]
-    [(fresh [f d r]
-       (== (lcons 'app (lcons f d)) fml)
-       (== (lcons 'app (lcons f r)) out)
-       (subst-term*o d env r))]))
+  (project [fml]
+    (cond
+      (and (vector? fml) (= (first fml) 'var))
+      (lookupo (second fml) env out)
+
+      (and (vector? fml) (= (first fml) 'par))
+      (== fml out)
+
+      (sequential? fml)
+      (fresh [f d r]
+        (== (lcons 'app (lcons f d)) fml)
+        (== (lcons 'app (lcons f r)) out)
+        (subst-term*o d env r))
+
+      :else
+      (== fml out))))
 
 (defn subst-term*o
   "Substitute across a list of terms."
@@ -655,6 +662,44 @@
        (bind-argso ps as rest-env))]))
 
 ;; ============================================================================
+;; Part 5b: L-Groundness Guard (Fitting §6 Definition 6.1)
+;; ============================================================================
+;;
+;; The procedure call rule may only fire on L-ground atoms — atoms whose
+;; arguments contain no δ-parameters (par p).  These helpers implement
+;; that check.  `project` is intentional and correct here: the guard is
+;; one-directional (called with a walked term, never in synthesis mode for
+;; the term itself) and must not unify unbound γ-rule logic variables with
+;; anything.
+
+(defn contains-par?
+  "Returns true iff term t contains any (par ...) sub-term.
+   Safe on LVar objects (bare logic variables from the γ-rule or synthesis)."
+  [t]
+  (cond
+    (and (vector? t) (= (first t) 'par)) true
+    (vector? t)      (some contains-par? (rest t))
+    (sequential? t)  (some contains-par? t)
+    :else            false))
+
+(defn l-ground-termo
+  "Succeeds iff term t is L-ground: contains no (par ...) sub-terms.
+   Uses project — a one-directional meta-level check, not a structural relation."
+  [t]
+  (project [t]
+    (if (contains-par? t) fail succeed)))
+
+(defn l-ground-term*o
+  "Succeeds iff every term in the list is L-ground."
+  [terms]
+  (conde
+    [(== '() terms)]
+    [(fresh [t rest]
+       (== (lcons t rest) terms)
+       (l-ground-termo t)
+       (l-ground-term*o rest))]))
+
+;; ============================================================================
 ;; Part 6: The Main Prover — αleanTAP-EP (proveo)
 ;; ============================================================================
 ;;
@@ -874,6 +919,7 @@
          ;; ============================================================
          [(fresh [R args params body call-env prf]
             (== ['pos (lcons 'app (lcons R args))] lit)
+            (l-ground-term*o args)                ;; Fitting §6 Def 6.1: L-ground args only
             (lookup-clauseo R program params body)
             (bind-argso params args call-env)
             (== (lcons 'proc-call (lcons R prf)) proof)
@@ -887,6 +933,7 @@
          ;; ============================================================
          [(fresh [R args params body call-env neg-body prf]
             (== ['neg (lcons 'app (lcons R args))] lit)
+            (l-ground-term*o args)                ;; Fitting §6 Def 6.1: L-ground args only
             (lookup-clauseo R program params body)
             (bind-argso params args call-env)
             (negate-formulao body neg-body)

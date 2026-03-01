@@ -2237,6 +2237,540 @@
                       '() '() '() '() proof)))))))
 
 ;; ============================================================================
+;; Section V: Guard-Transparency Synthesis Tests (V01–V04, V06–V09, V13)
+;; Canary suite: written BEFORE the groundness guard is implemented.
+;; All 9 V tests must pass immediately on branch groundness-guard.
+;; After the guard is added (Step 4), all must still pass — demonstrating
+;; that the project-based guard is transparent to LVar arguments.
+;; ============================================================================
+
+(deftest test-V01-synth-lvar-arg-trivial
+  (testing "Synthesis: LVar in single arg position, guard must pass transparently"
+    ;; P(x) ← x = a.  Backward: (neg (P x)) succeeds iff P(x) holds.
+    ;; Guard fires: neg-call, args=[x] (LVar). project[x]=LVar → contains-par?=false → PASSES.
+    ;; x binds to (app 'a) via refl-close on (neq x (app 'a)).
+    (let [results (run 1 [x]
+                    (nom a
+                      (let [prog [['P [a] ['eq ['var a] ['app 'a]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'P x]] '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= ['app 'a] (first results))))))
+
+(deftest test-V02-synth-lvar-first-of-two-args
+  (testing "Synthesis: LVar in first arg of binary call, guard must pass transparently"
+    ;; pair(x,y) ← x=a ∧ y=b.  Query: (neg (pair x (app 'b))).
+    ;; Guard fires: neg-call, args=[x_lvar, (app 'b)]. LVar among args → guard passes.
+    ;; x binds to (app 'a).
+    (let [results (run 1 [x]
+                    (nom a b
+                      (let [prog [['pair [a b]
+                                   ['and ['eq ['var a] ['app 'a]]
+                                         ['eq ['var b] ['app 'b]]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'pair x ['app 'b]]] '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= ['app 'a] (first results))))))
+
+(deftest test-V03-synth-lvar-arg-recursive
+  (testing "Synthesis: LVar arg in recursive even/odd program, guard transparent at every call"
+    ;; even(x) ← x=0 ∨ ∃y.(x=s(y)∧odd(y))
+    ;; odd(y)  ← ∃z.(y=s(z)∧even(z))
+    ;; Query: (neg (even x)).  First result: x = (app 'zero).
+    ;; Guard fires on neg-call (even x), args=[x_lvar]. Passes. Then on recursive pos-call
+    ;; (odd y) with y fresh logic var — guard passes on LVar there too.
+    (let [results (run 1 [x]
+                    (nom a b c d
+                      (let [even-clause ['even [a]
+                                         ['or ['eq ['var a] ['app 'zero]]
+                                              ['exists (tie b
+                                                ['and ['eq ['var a] ['app 's ['var b]]]
+                                                      ['pos ['app 'odd ['var b]]]])]]]
+                            odd-clause  ['odd [c]
+                                         ['exists (tie d
+                                           ['and ['eq ['var c] ['app 's ['var d]]]
+                                                 ['pos ['app 'even ['var d]]]])]]
+                            prog [even-clause odd-clause]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'even x]] '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= ['app 'zero] (first results))))))
+
+(deftest test-V04-synth-lvar-predicate-name
+  (testing "Synthesis: LVar predicate name, concrete arg passes guard"
+    ;; Program: even(x) ← ..., odd(x) ← ...
+    ;; Query: (neg (R (app 'zero))) where R is LVar.
+    ;; Guard fires with args=[(app 'zero)] — concrete, passes. R synthesized as 'even via lookup.
+    (let [results (run 1 [R]
+                    (nom a b c d
+                      (let [even-clause ['even [a]
+                                         ['or ['eq ['var a] ['app 'zero]]
+                                              ['exists (tie b
+                                                ['and ['eq ['var a] ['app 's ['var b]]]
+                                                      ['pos ['app 'odd ['var b]]]])]]]
+                            odd-clause  ['odd [c]
+                                         ['exists (tie d
+                                           ['and ['eq ['var c] ['app 's ['var d]]]
+                                                 ['pos ['app 'even ['var d]]]])]]
+                            prog [even-clause odd-clause]]
+                        (fresh [proof]
+                          (proveo ['neg ['app R ['app 'zero]]] '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= 'even (first results))))))
+
+(deftest test-V05-synth-program-clause-body
+  (testing "Program synthesis: logic var inside clause body, guard fires on concrete query args"
+    ;; Synthesize term t such that clause R(x)←(x=t) makes R(zero) provable.
+    ;; prog = [['R [a] ['eq ['var a] t]]]  where t is a logic variable IN THE PROGRAM.
+    ;; Query: (neg (R (app 'zero))). neg-call fires.
+    ;; Guard fires on args=[(app 'zero)] — CONCRETE. The LVar t in the clause body is
+    ;; invisible to the guard (guard only inspects args from the query literal).
+    (let [results (run 1 [t]
+                    (nom a
+                      (let [prog [['R [a] ['eq ['var a] t]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R ['app 'zero]]] '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= ['app 'zero] (first results))))))
+
+(deftest test-V06-synth-query-and-program-simultaneously
+  (testing "Joint synthesis: LVar in query arg AND in clause body, guard transparent to query LVar"
+    ;; R(a,b) ← (a=s(b)) ∧ (b=t)   where t is a logic var IN THE PROGRAM.
+    ;; Query: (neg (R x zero))        where x is a logic var IN THE QUERY.
+    ;; Guard fires: neg-call, args=[x_lvar, (app 'zero)].
+    ;;   project[x_lvar]=LVar → contains-par?=false → guard PASSES.
+    ;;   t (in the clause body) is invisible to the guard.
+    (let [results (run 1 [x t]
+                    (nom a b
+                      (let [prog [['R [a b]
+                                   ['and ['eq ['var a] ['app 's ['var b]]]
+                                         ['eq ['var b] t]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R x ['app 'zero]]] '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= [['app 's ['app 'zero]] ['app 'zero]] (first results))))))
+
+(deftest test-V07-synth-depth-3-query
+  (testing "Query synthesis at depth 3: run 2 for even finds both zero and s²(zero)"
+    ;; Guard fires with γ-rule LVars at every recursive call — all pass transparently.
+    (let [results (run 2 [x]
+                    (nom a b c d
+                      (let [even-clause ['even [a]
+                                         ['or ['eq ['var a] ['app 'zero]]
+                                              ['exists (tie b
+                                                ['and ['eq ['var a] ['app 's ['var b]]]
+                                                      ['pos ['app 'odd ['var b]]]])]]]
+                            odd-clause  ['odd [c]
+                                         ['exists (tie d
+                                           ['and ['eq ['var c] ['app 's ['var d]]]
+                                                 ['pos ['app 'even ['var d]]]])]]
+                            prog [even-clause odd-clause]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'even x]] '() '() '() prog proof)))))]
+      (is (= 2 (count results)))
+      (is (some #{['app 'zero]} results))
+      (is (some #{['app 's ['app 's ['app 'zero]]]} results)))))
+
+(deftest test-V08-joint-synth-depth-2
+  (testing "Joint synthesis at depth 2: LVar in query AND inner clause body, guard fires at depth 0 and 1"
+    ;; outer(px, pn) ← ∃py. px=s(py) ∧ pos(inner(py, pn))
+    ;; inner(qy, qn) ← qy=qn ∧ qn=t          (t is LVar in program)
+    ;; Query: (neg (outer x zero))   where x is LVar in query.
+    ;; Guard depth 0: neg-call outer(x, zero), args=[x_lvar, zero]. LVar → passes.
+    ;; Guard depth 1: neg-call inner(v, zero), args=[v_lvar, zero]. γ-rule LVar → passes.
+    (let [results (run 1 [x t]
+                    (nom px pn py qy qn
+                      (let [outer-clause ['outer [px pn]
+                                           ['exists (tie py
+                                             ['and ['eq ['var px] ['app 's ['var py]]]
+                                                   ['pos ['app 'inner ['var py] ['var pn]]]])]]
+                            inner-clause ['inner [qy qn]
+                                           ['and ['eq ['var qy] ['var qn]]
+                                                 ['eq ['var qn] t]]]
+                            prog [outer-clause inner-clause]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'outer x ['app 'zero]]] '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= [['app 's ['app 'zero]] ['app 'zero]] (first results))))))
+
+(deftest test-V09-joint-synth-depth-3
+  (testing "Joint synthesis at depth 3: guard fires at 3 nesting levels, LVar in query AND bot clause body"
+    ;; top(px, pn) ← ∃py. px=s(py) ∧ pos(mid(py, pn))
+    ;; mid(qy, qn) ← ∃qz. qy=s(qz) ∧ pos(bot(qz, qn))
+    ;; bot(rz, rn) ← rz=rn ∧ rn=t            (t is LVar in program)
+    ;; Query: (neg (top x zero))   where x is LVar in query.
+    (let [results (run 1 [x t]
+                    (nom px pn py qy qn qz rz rn
+                      (let [top-clause ['top [px pn]
+                                         ['exists (tie py
+                                           ['and ['eq ['var px] ['app 's ['var py]]]
+                                                 ['pos ['app 'mid ['var py] ['var pn]]]])]]
+                            mid-clause ['mid [qy qn]
+                                         ['exists (tie qz
+                                           ['and ['eq ['var qy] ['app 's ['var qz]]]
+                                                 ['pos ['app 'bot ['var qz] ['var qn]]]])]]
+                            bot-clause ['bot [rz rn]
+                                         ['and ['eq ['var rz] ['var rn]]
+                                               ['eq ['var rn] t]]]
+                            prog [top-clause mid-clause bot-clause]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'top x ['app 'zero]]] '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= [['app 's ['app 's ['app 'zero]]] ['app 'zero]] (first results))))))
+
+(deftest test-V10-joint-synth-self-recursive-run-2
+  (testing "Joint synthesis: self-recursive P, anchor n=s(zero), run 2 gives depth-1 and depth-2 answers"
+    ;; P(pa, pn) ← pa=s(pn) ∧ pn=t              (base)
+    ;; P(qa, qn) ← ∃qb. qa=s(qb) ∧ pos(P(qb, qn)) (recursive)
+    ;; Query: (neg (P x s(zero))) — x is LVar, anchor is s(zero).
+    ;; Guard depth 0: args=[x_lvar, s(zero)]. x is LVar → passes.
+    ;; Guard depth 1 (recursive): args=[v_lvar, s(zero)]. γ-rule LVar → passes.
+    (let [results (run 2 [x t]
+                    (nom pa pn qa qn qb
+                      (let [base-clause ['P [pa pn]
+                                          ['and ['eq ['var pa] ['app 's ['var pn]]]
+                                                ['eq ['var pn] t]]]
+                            rec-clause  ['P [qa qn]
+                                          ['exists (tie qb
+                                            ['and ['eq ['var qa] ['app 's ['var qb]]]
+                                                  ['pos ['app 'P ['var qb] ['var qn]]]])]]
+                            prog [base-clause rec-clause]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'P x (nim-numeral 1)]]
+                                  '() '() '() prog proof)))))]
+      (is (= 2 (count results)))
+      (is (some #{[(nim-numeral 2) (nim-numeral 1)]} results))
+      (is (some #{[(nim-numeral 3) (nim-numeral 1)]} results)))))
+
+(deftest test-V11-joint-synth-self-recursive-deep-anchor
+  (testing "Joint synthesis: self-recursive P, anchor n=s²(zero), both x and t are depth-2 numerals"
+    ;; Same predicate P as V10. Query anchor n=s²(zero).
+    ;; Base clause: t=s²(zero), x=s³(zero). Guard depth 0: args=[x_lvar, s²(zero)] → passes.
+    (let [results (run 1 [x t]
+                    (nom pa pn qa qn qb
+                      (let [base-clause ['P [pa pn]
+                                          ['and ['eq ['var pa] ['app 's ['var pn]]]
+                                                ['eq ['var pn] t]]]
+                            rec-clause  ['P [qa qn]
+                                          ['exists (tie qb
+                                            ['and ['eq ['var qa] ['app 's ['var qb]]]
+                                                  ['pos ['app 'P ['var qb] ['var qn]]]])]]
+                            prog [base-clause rec-clause]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'P x (nim-numeral 2)]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= [(nim-numeral 3) (nim-numeral 2)] (first results))))))
+
+(deftest test-V12-joint-synth-double-step-outer
+  (testing "Joint synthesis: double-step outer3→inner3 chain, x=s⁴(zero), t=s(zero)"
+    ;; outer3(pa, pn) ← ∃pb. pa=s(s(pb)) ∧ pos(inner3(pb, pn))  (x steps by s²)
+    ;; inner3(qb, qn) ← qb=s(qn) ∧ qn=t
+    ;; Query: (neg (outer3 x s(zero))). Guard depth 0: args=[x_lvar, s(zero)] → passes.
+    ;; Guard depth 1: args=[v_lvar, s(zero)]. γ-rule LVar → passes.
+    (let [results (run 1 [x t]
+                    (nom pa pn pb qb qn
+                      (let [outer-clause ['outer3 [pa pn]
+                                           ['exists (tie pb
+                                             ['and ['eq ['var pa]
+                                                        ['app 's ['app 's ['var pb]]]]
+                                                   ['pos ['app 'inner3 ['var pb] ['var pn]]]])]]
+                            inner-clause ['inner3 [qb qn]
+                                           ['and ['eq ['var qb] ['app 's ['var qn]]]
+                                                 ['eq ['var qn] t]]]
+                            prog [outer-clause inner-clause]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'outer3 x (nim-numeral 1)]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= [(nim-numeral 4) (nim-numeral 1)] (first results))))))
+
+(deftest test-V13-synth-program-lvar-directly-in-guard-args
+  (testing "Program synthesis: program LVar t is directly in the guard's args — synthesis fails if guard blocks LVars"
+    ;; outer(pa)  ← pos(middle(t))                  t is LVar IN THE PROGRAM, in arg position
+    ;; middle(qb) ← ∃qc. qb=s(qc) ∧ pos(base(qc))
+    ;; base(rd)   ← rd = zero
+    ;; Query: (neg (outer (app 'anything))) — query arg is CONCRETE.
+    ;; Guard depth 1: neg-call middle, args=[t]. t IS THE PROGRAM LVar.
+    ;;   project[t] = LVar → contains-par? = false → PASSES.
+    ;;   If the guard incorrectly blocked LVars here, t cannot be synthesized.
+    (let [results (run 1 [t]
+                    (nom pa qb qc rd
+                      (let [outer-clause  ['outer [pa] ['pos ['app 'middle t]]]
+                            middle-clause ['middle [qb]
+                                            ['exists (tie qc
+                                              ['and ['eq ['var qb] ['app 's ['var qc]]]
+                                                    ['pos ['app 'base ['var qc]]]])]]
+                            base-clause   ['base [rd] ['eq ['var rd] ['app 'zero]]]
+                            prog [outer-clause middle-clause base-clause]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'outer ['app 'anything]]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= [(nim-numeral 1)] results)))))
+
+(deftest test-V14-synth-query-and-program-lvar-both-in-guard-args
+  (testing "Combined synthesis: guard fires on query LVar (depth 0) AND program LVar (depth 1) in same proof"
+    ;; outer(pa) ← ∃pb. pa=s(pb) ∧ pos(mid(pb, t))   t: program LVar, in sub-call arg pos.
+    ;; mid(qb, qc) ← qb=s(zero) ∧ qc=s(zero)
+    ;; Query: (neg (outer x))   x: query LVar.
+    ;; Guard depth 0: neg-call outer(x), args=[x_lvar]. x is query LVar → passes.
+    ;; Guard depth 1: neg-call mid(v, t), args=[v_lvar, t_lvar].
+    ;;   v is γ-rule LVar from outer's ∃; t IS THE PROGRAM LVar.
+    ;;   Both are LVars → guard must pass them simultaneously.
+    ;;   If the guard incorrectly blocked either, synthesis returns empty.
+    ;; Proof: γ: v. OR: (neq x s(v)) ∧ neg(mid(v,t)) must both close.
+    ;;   Branch 1: x=s(v). Branch 2: neg-call mid(v,t) → (neq v s(0)) ∨ (neq t s(0)).
+    ;;   β2a: v=s(zero). β2b: t=s(zero). Combined: x=s²(zero), t=s(zero).
+    (let [results (run 1 [x t]
+                    (nom pa pb qb qc
+                      (let [outer-clause ['outer [pa]
+                                           ['exists (tie pb
+                                             ['and ['eq ['var pa] ['app 's ['var pb]]]
+                                                   ['pos ['app 'mid ['var pb] t]]])]]
+                            mid-clause   ['mid [qb qc]
+                                           ['and ['eq ['var qb] ['app 's ['app 'zero]]]
+                                                 ['eq ['var qc] ['app 's ['app 'zero]]]]]
+                            prog [outer-clause mid-clause]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'outer x]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= [(nim-numeral 2) (nim-numeral 1)] (first results))))))
+
+;; ============================================================================
+;; Section W: Full Reverse Mode Synthesis Tests
+;;
+;; These tests verify that full reverse-mode synthesis — assigning a logic
+;; variable to the ENTIRETY of 'program' or 'query' — is not negatively
+;; impacted by any project-based or non-relational changes to subst-termo
+;; or other core relations.
+;;
+;; All tests are self-verifying: they synthesize a value, then re-run proveo
+;; with that value to confirm the synthesized result is actually correct.
+;;
+;; Design invariant:
+;;   - All W tests MUST PASS before any project-based fix is applied.
+;;   - All W tests MUST STILL PASS after any such fix is applied.
+;;   - Failure of any W test after a fix = regression in reverse mode.
+;;
+;; Coverage:
+;;   W01 — Entire 'program' argument is a single logic variable.
+;;   W02 — Entire query inner term (in ['neg t]) is a single logic variable.
+;;   W03 — Entire 'query' argument (via negate-formulao) is a logic variable.
+;;   W04 — Both 'program' and 'query' are simultaneously logic variables.
+;; ============================================================================
+
+(deftest test-W01-entire-program-as-lvar
+  (testing "Full reverse mode: entire 'program' argument is a logic variable"
+    ;; The ENTIRE program argument is an unbound logic variable.
+    ;; proveo synthesizes a program under which neg(P(zero)) is provable.
+    ;;
+    ;; Internally, lookup-clauseo, bind-argso, and negate-formulao all run
+    ;; relationally on unbound structures. subst-termo is called on the
+    ;; synthesized body terms; these arise from negate-formulao's fresh LVars,
+    ;; not from run variables placed directly in term positions.
+    ;;
+    ;; The self-verify step re-runs proveo with the synthesized (reified)
+    ;; program and confirms it still proves the query. This ensures the
+    ;; synthesized program is well-formed and not an artefact of lucky
+    ;; interleaving.
+    (let [progs (run 1 [prog]
+                  (fresh [proof]
+                    (proveo ['neg ['app 'P ['app 'zero]]] '() '() '() prog proof)))]
+      (is (seq progs) "Program synthesis must produce at least one result")
+      (let [synth-prog (first progs)]
+        (is (seq (run 1 [proof]
+                   (proveo ['neg ['app 'P ['app 'zero]]] '() '() '() synth-prog proof)))
+            "Synthesized program must actually prove the query when re-run")))))
+
+(deftest test-W02-entire-query-inner-term-as-lvar
+  (testing "Full reverse mode: entire inner term of query literal is a logic variable"
+    ;; The full application term t in ['neg t] is unbound.
+    ;; proveo synthesizes t — the complete term that makes the literal provable.
+    ;;
+    ;; subst-termo is called on t with the INITIAL env (empty at the top level).
+    ;; With empty env, branch 1 of subst-termo fails (lookupo on empty env).
+    ;; Branch 3 (LCons app) succeeds, giving t an app-term structure.
+    ;; The neg-call rule fires and the program closes the proof.
+    ;;
+    ;; This tests the 'entirety of query' at the term level.
+    (let [results (run 1 [t]
+                    (nom a
+                      (let [prog [['P [a] ['eq ['var a] ['app 'zero]]]]]
+                        (fresh [proof]
+                          (proveo ['neg t] '() '() '() prog proof)))))]
+      (is (seq results) "Query inner term synthesis must produce at least one result")
+      (let [synth-t (first results)]
+        (is (seq (run 1 [proof]
+                   (nom a
+                     (let [prog [['P [a] ['eq ['var a] ['app 'zero]]]]]
+                       (proveo ['neg synth-t] '() '() '() prog proof)))))
+            "Synthesized term must make the query provable when re-run")))))
+
+(deftest test-W03-entire-query-as-lvar-via-negate
+  (testing "Full reverse mode: entire 'query' argument is a logic variable"
+    ;; The ENTIRE query q is unbound. We use negate-formulao to link q to
+    ;; what proveo processes (Fitting's query_succeeds convention: prove ¬q).
+    ;;
+    ;; negate-formulao runs relationally in both directions, so it can
+    ;; synthesize q from neg-q and vice versa. proveo closes neg-q, which
+    ;; forces q to take the shape of something provable by the program.
+    ;;
+    ;; With branch 5 (pos↔neg) of negate-formulao: q = ['pos t], neg-q = ['neg t].
+    ;; proveo ['neg t] synthesizes t = (app 'P (app 'zero)) via neg-call.
+    ;; So q = ['pos ['app 'P ['app 'zero]]] — "P(zero) holds."
+    ;;
+    ;; This tests the 'entirety of query' at the Fitting interface level.
+    (let [queries (run 1 [q]
+                    (nom a
+                      (let [prog [['P [a] ['eq ['var a] ['app 'zero]]]]]
+                        (fresh [proof neg-q]
+                          (negate-formulao q neg-q)
+                          (proveo neg-q '() '() '() prog proof)))))]
+      (is (seq queries) "Full query synthesis must produce at least one result")
+      (let [synth-q (first queries)]
+        (is (seq (run 1 [proof]
+                   (nom a
+                     (let [prog [['P [a] ['eq ['var a] ['app 'zero]]]]]
+                       (fresh [neg-q]
+                         (negate-formulao synth-q neg-q)
+                         (proveo neg-q '() '() '() prog proof))))))
+            "Synthesized query must be provable when re-run")))))
+
+(deftest test-W04-entire-program-and-query-both-as-lvars
+  (testing "Full reverse mode: both 'program' and 'query' are simultaneously logic variables"
+    ;; The maximum synthesis case: both prog and q are entirely unbound.
+    ;; negate-formulao links q to neg-q; proveo closes neg-q with prog.
+    ;;
+    ;; The search must find a (prog, q) pair such that q is provable
+    ;; under prog. proveo synthesizes both simultaneously by exploring
+    ;; the space of (program, negated-query) pairs that close together.
+    ;;
+    ;; This is the hardest synthesis test. It passes iff the relational
+    ;; machinery (lookup-clauseo, bind-argso, negate-formulao, subst-termo,
+    ;; and all closure rules) compose correctly when ALL inputs are unbound.
+    ;;
+    ;; Self-verify: the synthesized (prog, q) pair must re-prove correctly.
+    (let [results (run 1 [prog q]
+                    (fresh [proof neg-q]
+                      (negate-formulao q neg-q)
+                      (proveo neg-q '() '() '() prog proof)))]
+      (is (seq results) "Joint program+query synthesis must produce at least one result")
+      (let [[synth-prog synth-q] (first results)]
+        (is (seq (run 1 [proof]
+                   (fresh [neg-q]
+                     (negate-formulao synth-q neg-q)
+                     (proveo neg-q '() '() '() synth-prog proof))))
+            "Synthesized (program, query) pair must be mutually provable when re-run")))))
+
+;; ============================================================================
+;; Section U: Groundness Guard Tests (U01–U08)
+;;
+;; TDD Step 2: written BEFORE contains-par?, l-ground-termo, l-ground-term*o exist.
+;;   U01–U05 fail (helpers absent).  U06–U08 fail (guard not in proveo).
+;; TDD Step 3: after helper fns added, U01–U05 pass; U06–U08 still fail.
+;; TDD Step 4: after guard wired into proveo, all U tests pass.
+;;
+;; U01–U05: unit tests for l-ground-termo / l-ground-term*o
+;; U06–U07: integration tests — plain pos/neg call blocked when arg is (par p)
+;; U08:     integration test  — subst-call fires after rewriting (par p) → ground
+;; ============================================================================
+
+;; --- U01–U05: unit tests for l-ground-termo ----------------------------------
+
+(deftest test-U01-ground-term-concrete-constant
+  (testing "U01: l-ground-termo succeeds on a concrete nullary constructor"
+    ;; (app 'zero) contains no (par .) sub-term → l-ground-termo succeeds.
+    (is (seq (run 1 [_]
+               (l-ground-termo ['app 'zero]))))))
+
+(deftest test-U02-ground-term-direct-par
+  (testing "U02: l-ground-termo fails on a direct (par p) term"
+    ;; (par p) is a δ-parameter — l-ground-termo must fail.
+    (is (empty? (run 1 [_]
+                  (nom p
+                    (l-ground-termo ['par p])))))))
+
+(deftest test-U03-ground-term-nested-constructor
+  (testing "U03: l-ground-termo succeeds on a nested constructor with no par"
+    ;; (app 's (app 'zero)) — two levels of constructor, no par → succeeds.
+    (is (seq (run 1 [_]
+               (l-ground-termo ['app 's ['app 'zero]]))))))
+
+(deftest test-U04-ground-term-par-inside-compound
+  (testing "U04: l-ground-termo fails when (par p) is nested inside a compound term"
+    ;; (app 's (par p)) — par appears at depth 1 → l-ground-termo must fail.
+    (is (empty? (run 1 [_]
+                  (nom p
+                    (l-ground-termo ['app 's ['par p]])))))))
+
+(deftest test-U05-ground-term-fresh-logic-var
+  (testing "U05: l-ground-termo succeeds on an unbound logic variable (γ-rule var)"
+    ;; An unbound LVar contains no (par .) sub-term → l-ground-termo succeeds.
+    ;; This is the critical transparency property: the guard must not block γ-rule variables.
+    (is (seq (run 1 [_]
+               (fresh [x]
+                 (l-ground-termo x)))))))
+
+;; --- U06–U08: integration through proveo ------------------------------------
+
+(deftest test-U06-plain-pos-call-blocked-with-par-arg
+  (testing "U06: plain positive call rule is blocked when arg contains (par p)"
+    ;; pos(R(par p)) with clause R(x) ← (neq x x):
+    ;; Body (neq x x) is always contradictory — substituting x→(par p) gives
+    ;; (neq (par p) (par p)), which closes by refl-close.  So WITHOUT the guard
+    ;; the plain pos-call fires and returns a proof.  WITH the guard, the call
+    ;; is blocked because (par p) is not L-ground.  Expected: empty.
+    (is (empty? (run 1 [_]
+                  (nom a p
+                    (let [prog [['R [a] ['neq ['var a] ['var a]]]]]
+                      (fresh [proof]
+                        (proveo ['pos ['app 'R ['par p]]]
+                                '() '() '() prog proof)))))))))
+
+(deftest test-U07-plain-neg-call-blocked-with-par-arg
+  (testing "U07: plain negative call rule is blocked when arg contains (par p)"
+    ;; neg(R(par p)) with clause R(x) ← (eq x x):
+    ;; Negating body (eq x x) gives (neq x x).  Substituting x→(par p) gives
+    ;; (neq (par p) (par p)), which closes by refl-close.  So WITHOUT the guard
+    ;; the plain neg-call fires and returns a proof.  WITH the guard, the call
+    ;; is blocked because (par p) is not L-ground.  Expected: empty.
+    (is (empty? (run 1 [_]
+                  (nom a p
+                    (let [prog [['R [a] ['eq ['var a] ['var a]]]]]
+                      (fresh [proof]
+                        (proveo ['neg ['app 'R ['par p]]]
+                                '() '() '() prog proof)))))))))
+
+(deftest test-U08-subst-call-rewrites-par-to-ground-then-fires
+  (testing "U08: subst-call path rewrites (par p) to a ground term then calls the clause"
+    ;; ∃a.(a=zero ∧ pos(R(a))), clause R(a) ← (neq a a).
+    ;;
+    ;; Flow:
+    ;;   1. δ-rule: fresh nom p, bind a→(par p) in env.
+    ;;   2. α-rule: processes (eq (var a) (app zero)) first.
+    ;;      subst-lito → (eq (par p) zero). Saved to branch lits via savefml.
+    ;;   3. Next: pos(R(var a)). subst-lito → lit = pos(R(par p)).
+    ;;   4. pos-subst-call: collect-eqso lits → {(par p)↔zero}.
+    ;;      rewrite-term-with-eqso pos(R(par p)) → pos(R(zero)).
+    ;;      pos-call on pos(R(zero)) with ground arg zero.
+    ;;      call-env = {a → (app zero)}.
+    ;;      proveo (neq (var a) (var a)) '() '() {a→zero} prog prf.
+    ;;      subst-lito → (neq zero zero). refl-close ✓.
+    ;;
+    ;; This test verifies the existing subst-call (para-call) path is unaffected by the
+    ;; guard. The plain pos-call on pos(R(par p)) IS blocked by the guard, but the
+    ;; subst-call rewrites par p → zero BEFORE firing the call, so it proceeds normally.
+    (is (seq (run 1 [_]
+               (nom a
+                 (let [prog [['R [a] ['neq ['var a] ['var a]]]]]
+                   (fresh [proof]
+                     (proveo ['exists (tie a ['and ['eq ['var a] ['app 'zero]]
+                                                   ['pos ['app 'R ['var a]]]])]
+                             '() '() '() prog proof)))))))))
+
+;; ============================================================================
 ;; Run all tests
 ;; ============================================================================
 

@@ -309,11 +309,18 @@ Fitting explicitly leaves several questions open (Section 8). Our implementation
 
 **List membership (tested).** `member(x, l) ← ∃h.∃t. l = cons(h,t) ∧ (x=h ∨ member(x,t))` exercises binary constructors, nested existentials (two δ-rules per call), and recursive procedure calls through list structure. Tested for head and recursive membership, empty-list failure.
 
-## Known Limitations
+**Nim game, full (tested).** `win(x) ← ∃y.((x=s(y) ∨ x=s(s(y))) ∧ ¬win(y))` exercises mutual recursion through the negative procedure call. win(0) fails, win(1) and win(2) succeed, win(3) fails — all verified. The correctness proof relies on the visited-set termination guarantee (see below).
 
-**Paramodulated free closure.** When multiple equality literals on a branch imply a derived equality between distinct constants (e.g., `a=p ∧ b=p` implies `a=b`), the prover does not detect this via transitivity on eq+eq chains. The current equality reasoning rewrites neq or pos/neg literals using branch equalities, but does not rewrite eq literals to detect transitive clashes. Consequence: `member(b, cons(a, nil))` with `b ≠ a` cannot be shown to fail, because the proof requires detecting that `a=p ∧ b=p → a=b → free-close`. This would require a "paramodulated free closure" rule that rewrites one side of an eq literal using branch equalities and then checks for a constructor clash.
+## Equality Rewriting Termination
 
-**Bounded rewriting depth.** Both `eq-membero` and `eq-neq-closeo` use a Peano-numeral depth bound (currently 6 steps) to prevent infinite cycling on bidirectional equality pairs such as `[(t₁,t₂),(t₂,t₁)]`. This is sound — any proof requiring more than 6 rewriting steps is correctly rejected — but not complete: transitivity chains longer than 6 hops will not be found. The bound suffices for the current test suite; programs with longer equality chains (e.g., a=b, b=c, c=d, d=e, e=f, f=g, g=h) would require increasing it.
+The equality reasoning helpers `eq-membero`, `eq-neq-closeo`, and `para-free-closeo` require multi-step rewriting chains (e.g., a=b ∧ b=c closes (neq a c) via a→b→c). The original implementation used a Peano-numeral depth bound (6 steps) to prevent infinite cycling on bidirectional equality pairs like `[(t₁,t₂),(t₂,t₁)]`.
+
+The current implementation replaces the depth bound with a **visited-set** approach via the `selecto` relation. `selecto x lst rest` non-deterministically picks an element `x` from `lst` and returns `rest` as the remainder with that one occurrence removed. The rewriting functions pass a `remaining` list of equality pairs; each step removes the used pair via `selecto`. Since `remaining` strictly shrinks at each recursive call, termination is guaranteed without any fixed step limit.
+
+Consequences:
+- **No false negatives from depth cutoff**: arbitrarily long transitivity chains are now provable. Tests S01 and S02 verify 7-step chains (which exceeded the old 6-step limit).
+- **Win(1) and win(2) now terminate**: the Nim game's proof search previously diverged due to the depth limit interacting with the γ-rule's re-enqueueing. With `selecto`, the search finds the refl-close path immediately, and both win(1) and win(2) complete in under 1ms.
+- **No spurious cycles**: each equality pair is used at most once per chain, so bidirectional pairs cannot create infinite loops.
 
 ## References
 

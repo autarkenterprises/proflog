@@ -363,35 +363,38 @@
 
 ;; --- 3f. Equality-aware membership (for closure) ---
 
-;; Peano depth bound used by eq-membero and eq-neq-closeo.
-;; Prevents infinite cycling when bidirectional equality pairs
-;; (e.g., [(t1 t2) (t2 t1)]) are in eqs.  Represented as a
-;; structurally decreasing term: z, [s z], [s [s z]], ...
-;; — purely relational, no project required.
-(def ^:private +rewrite-depth+
-  '[s [s [s [s [s [s z]]]]]])  ; 6 steps — sufficient for practical chains
+(defn selecto
+  "Non-deterministically select an element `x` from `lst`, with `rest`
+   being `lst` with that one occurrence of `x` removed.
+   Purely relational — uses only == and conde, no disequality constraints."
+  [x lst rest]
+  (conde
+    [(fresh [t]
+       (== (lcons x t) lst)
+       (== t rest))]
+    [(fresh [h t r]
+       (== (lcons h t) lst)
+       (== (lcons h r) rest)
+       (selecto x t r))]))
 
 (defn eq-membero
   "Check if `neg` (a literal) can be found in `lits` after zero or more
-   rewrite steps using equality pairs from `eqs`.
+   rewrite steps using equality pairs from `remaining`.
 
-   Non-deterministic: tries EVERY equality pair at each step via membero,
+   Non-deterministic: tries EVERY equality pair at each step via selecto,
    enabling multi-step rewriting chains (e.g., a→b→c via transitivity).
 
-   Uses a Peano-numeral depth bound to prevent infinite cycling on
-   bidirectional equality pairs such as [(t1 t2) (t2 t1)]."
-  ([neg lits eqs]
-   (eq-membero neg lits eqs +rewrite-depth+))
-  ([neg lits eqs depth]
-   (conde
-     [(membero neg lits)]
-     [(fresh [depth-1]
-        (== ['s depth-1] depth)
-        (fresh [pair lhs rhs neg-rewritten]
-          (membero pair eqs)
-          (== [lhs rhs] pair)
-          (rewrite-lito neg lhs rhs neg-rewritten)
-          (eq-membero neg-rewritten lits eqs depth-1)))])))
+   Each equality pair is used at most once per chain (selecto removes the
+   chosen pair from `remaining`), guaranteeing termination on cyclic equality
+   sets without an arbitrary step limit."
+  [neg lits remaining]
+  (conde
+    [(membero neg lits)]
+    [(fresh [pair lhs rhs neg-rewritten rest]
+       (selecto pair remaining rest)
+       (== [lhs rhs] pair)
+       (rewrite-lito neg lhs rhs neg-rewritten)
+       (eq-membero neg-rewritten lits rest))]))
 
 ;; --- 3g. Substitutivity for terms (multi-argument) ---
 ;;
@@ -475,20 +478,17 @@
    Also handles one-one derived pairs:
      Branch has s(a)=s(b).  (neq a b) → rewrite a→b via one-one → (neq b b) → close.
 
-   Uses a Peano-numeral depth bound to prevent infinite cycling on
-   bidirectional equality pairs such as [(t1 t2) (t2 t1)]."
-  ([t1 t2 eqs]
-   (eq-neq-closeo t1 t2 eqs +rewrite-depth+))
-  ([t1 t2 eqs depth]
-   (fresh [depth-1]
-     (== ['s depth-1] depth)
-     (fresh [pair lhs rhs t1-rw]
-       (membero pair eqs)
-       (== [lhs rhs] pair)
-       (rewrite-termo t1 lhs rhs t1-rw)
-       (conde
-         [(== t1-rw t2)]
-         [(eq-neq-closeo t1-rw t2 eqs depth-1)])))))
+   Each equality pair is used at most once per chain (`remaining` shrinks at
+   each step via selecto), guaranteeing termination on cyclic equality sets
+   without an arbitrary step limit."
+  [t1 t2 remaining]
+  (fresh [pair lhs rhs t1-rw rest]
+    (selecto pair remaining rest)
+    (== [lhs rhs] pair)
+    (rewrite-termo t1 lhs rhs t1-rw)
+    (conde
+      [(== t1-rw t2)]
+      [(eq-neq-closeo t1-rw t2 rest)])))
 
 ;; --- 3h. Paramodulated free closure ---
 ;;
@@ -501,8 +501,8 @@
 ;;   free-closureo fires: b ≠ a ✓
 ;;
 ;; Requires at least one rewriting step — direct clashes are already
-;; handled by the free-close rule.  Uses Peano depth bound to prevent
-;; cycling on bidirectional equality pairs.
+;; handled by the free-close rule.  Each equality pair is used at most once
+;; per chain (selecto shrinks remaining), preventing cycling.
 
 (defn para-free-closeo
   "Paramodulated free closure: rewrite one side of (eq t1 t2) using branch
@@ -512,30 +512,30 @@
    Tries rewriting t1 or t2 independently at each step.  Recursion handles
    multi-step chains (e.g., p→q→a when branch has p=q and q=a).
 
+   Each equality pair is used at most once per chain (selecto removes the
+   chosen pair from `remaining`), guaranteeing termination without an
+   arbitrary step limit.
+
    Soundness: every rewriting step uses only equalities already on the branch,
    and free-closureo's symbol? guard ensures only genuine constructor symbols
    (not δ-parameters) are treated as distinct."
-  ([t1 t2 eqs]
-   (para-free-closeo t1 t2 eqs +rewrite-depth+))
-  ([t1 t2 eqs depth]
-   (fresh [depth-1]
-     (== ['s depth-1] depth)
-     (fresh [pair lhs rhs]
-       (membero pair eqs)
-       (== [lhs rhs] pair)
-       (conde
-         ;; Rewrite t1 one step, then clash-check or recurse
-         [(fresh [t1-rw]
-            (rewrite-termo t1 lhs rhs t1-rw)
-            (conde
-              [(free-closureo t1-rw t2)]
-              [(para-free-closeo t1-rw t2 eqs depth-1)]))]
-         ;; Rewrite t2 one step, then clash-check or recurse
-         [(fresh [t2-rw]
-            (rewrite-termo t2 lhs rhs t2-rw)
-            (conde
-              [(free-closureo t1 t2-rw)]
-              [(para-free-closeo t1 t2-rw eqs depth-1)]))])))))
+  [t1 t2 remaining]
+  (fresh [pair lhs rhs rest]
+    (selecto pair remaining rest)
+    (== [lhs rhs] pair)
+    (conde
+      ;; Rewrite t1 one step, then clash-check or recurse
+      [(fresh [t1-rw]
+         (rewrite-termo t1 lhs rhs t1-rw)
+         (conde
+           [(free-closureo t1-rw t2)]
+           [(para-free-closeo t1-rw t2 rest)]))]
+      ;; Rewrite t2 one step, then clash-check or recurse
+      [(fresh [t2-rw]
+         (rewrite-termo t2 lhs rhs t2-rw)
+         (conde
+           [(free-closureo t1 t2-rw)]
+           [(para-free-closeo t1 t2-rw rest)]))])))
 
 ;; ============================================================================
 ;; Part 4: Formula Negation (NNF-preserving)

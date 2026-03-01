@@ -1082,34 +1082,35 @@
   (testing "win(s(zero)) succeeds — move to 0, opponent has no move"
     ;; ¬win(s(0)): neg call → ¬body[s(0)]
     ;; = ∀y.((s(0)≠s(y) ∧ s(0)≠s(s(y))) ∨ win(y))
-    ;; The γ-rule introduces logic variable v.
-    ;; Right branch: win(v) → positive proc call, which needs to
-    ;; close body[v] = ∃y.((v=s(y)∨v=s(s(y)))∧¬win(y)).
-    ;; The δ-witness gives p; then v=s(p)∨v=s(s(p)) constrains v.
-    ;; With v=s(p) and p unifying to 0, we reach ¬win(0).
-    ;; ¬win(0) is a neg-proc-call that spawns ¬body[0], which closes
-    ;; because ¬body[0] = ∀y.((0≠s(y)∧0≠s(s(y)))∨win(y)), and
-    ;; the left branch of the disjunction closes both conjuncts by
-    ;; free closure.
-    ;;
-    ;; NOTE: This proof requires the γ-rule to fire productively
-    ;; and the search to navigate multiple nested procedure calls.
-    ;; Whether it terminates within bounded search depends on the
-    ;; exploration strategy; run with a generous bound.
-    ;; left as integration test — uncomment when running full suite:
-    ;; (is (seq
-    ;;       (run 1 [proof]
-    ;;         (nom x y
-    ;;           (let [prog (nim-program x y)
-    ;;                 query ['neg ['app 'win (nim-numeral 1)]]]
-    ;;             (proveo query '() '() '() prog proof))))))
-    ))
+    ;; γ-rule: introduces v; left branch closes via refl-close (v=0);
+    ;; right branch: win(v=0) → positive proc call; body[0] closes by
+    ;; free closure (0≠s(...)).
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog (nim-program x y)
+                    query ['neg ['app 'win (nim-numeral 1)]]]
+                (proveo query '() '() '() prog proof))))))));; J04 follows J02 intentionally; J03 is the structure check below.
 
 (deftest test-J03-nim-structure
   (testing "Nim program constructs correctly"
     (is (= (nim-numeral 0) ['app 'zero]))
     (is (= (nim-numeral 1) ['app 's ['app 'zero]]))
     (is (= (nim-numeral 3) ['app 's ['app 's ['app 's ['app 'zero]]]]))))
+
+(deftest test-J04-win-2-succeeds
+  (testing "win(s(s(zero))) succeeds — can jump to 0, opponent has no move"
+    ;; ¬win(s²(0)): neg call → ¬body[s²(0)]
+    ;; = ∀y.((s²(0)≠s(y) ∧ s²(0)≠s²(y)) ∨ win(y))
+    ;; γ-rule with v; right β-branch: win(v) — with v constrained by left branch.
+    ;; Left branch: (s²(0)≠s(v) ∧ s²(0)≠s²(v)) closes via refl-close (v=s(0)).
+    ;; Right branch: win(v=s(0)) → same as win(1) proof → closes.
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog (nim-program x y)
+                    query ['neg ['app 'win (nim-numeral 2)]]]
+                (proveo query '() '() '() prog proof))))))))
 
 
 ;; ============================================================================
@@ -2846,34 +2847,35 @@
   (testing "win(s(zero)) succeeds — move to 0, opponent has no move"
     ;; ¬win(s(0)): neg call → ¬body[s(0)]
     ;; = ∀y.((s(0)≠s(y) ∧ s(0)≠s(s(y))) ∨ win(y))
-    ;; The γ-rule introduces logic variable v.
-    ;; Right branch: win(v) → positive proc call, which needs to
-    ;; close body[v] = ∃y.((v=s(y)∨v=s(s(y)))∧¬win(y)).
-    ;; The δ-witness gives p; then v=s(p)∨v=s(s(p)) constrains v.
-    ;; With v=s(p) and p unifying to 0, we reach ¬win(0).
-    ;; ¬win(0) is a neg-proc-call that spawns ¬body[0], which closes
-    ;; because ¬body[0] = ∀y.((0≠s(y)∧0≠s(s(y)))∨win(y)), and
-    ;; the left branch of the disjunction closes both conjuncts by
-    ;; free closure.
-    ;;
-    ;; NOTE: This proof requires the γ-rule to fire productively
-    ;; and the search to navigate multiple nested procedure calls.
-    ;; Whether it terminates within bounded search depends on the
-    ;; exploration strategy; run with a generous bound.
-    ;; left as integration test — uncomment when running full suite:
-    ;; (is (seq
-    ;;       (run 1 [proof]
-    ;;         (nom x y
-    ;;           (let [prog (nim-program x y)
-    ;;                 query ['neg ['app 'win (nim-numeral 1)]]]
-    ;;             (proveo query '() '() '() prog proof))))))
-    ))
+    ;; γ-rule: introduces v; left branch closes via refl-close (v=0);
+    ;; right branch: win(v=0) → positive proc call; body[0] closes by
+    ;; free closure (0≠s(...)).
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog (nim-program x y)
+                    query ['neg ['app 'win (nim-numeral 1)]]]
+                (proveo query '() '() '() prog proof))))))));; J04 follows J02 intentionally; J03 is the structure check below.
 
 (deftest test-J03-nim-structure
   (testing "Nim program constructs correctly"
     (is (= (nim-numeral 0) ['app 'zero]))
     (is (= (nim-numeral 1) ['app 's ['app 'zero]]))
     (is (= (nim-numeral 3) ['app 's ['app 's ['app 's ['app 'zero]]]]))))
+
+(deftest test-J04-win-2-succeeds
+  (testing "win(s(s(zero))) succeeds — can jump to 0, opponent has no move"
+    ;; ¬win(s²(0)): neg call → ¬body[s²(0)]
+    ;; = ∀y.((s²(0)≠s(y) ∧ s²(0)≠s²(y)) ∨ win(y))
+    ;; γ-rule with v; right β-branch: win(v) — with v constrained by left branch.
+    ;; Left branch: (s²(0)≠s(v) ∧ s²(0)≠s²(v)) closes via refl-close (v=s(0)).
+    ;; Right branch: win(v=s(0)) → same as win(1) proof → closes.
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog (nim-program x y)
+                    query ['neg ['app 'win (nim-numeral 2)]]]
+                (proveo query '() '() '() prog proof))))))))
 
 
 ;; ============================================================================
@@ -3772,6 +3774,46 @@
               (proveo ['and ['eq ['app p] ['app q]]
                             ['eq ['app 'r] ['app p]]]
                       '() '() '() '() proof)))))))
+
+;; ============================================================================
+;; Section S: Visited-set cycle detection — chains exceeding the old depth-6 bound
+;; ============================================================================
+;;
+;; These tests require 7 rewriting steps to close a branch.  They would
+;; have failed with the Peano depth-6 bound and must pass with the
+;; visited-terms-set implementation.
+
+(deftest test-S01-eq-neq-close-7-step-chain
+  (testing "(neq a1 a8) with 7-link chain a1=a2=...=a8 closes in 7 steps"
+    ;; Branch: (eq a1 a2) ∧ (eq a2 a3) ∧ ... ∧ (eq a7 a8) ∧ (neq a1 a8)
+    ;; eq-neq-closeo must rewrite a1→a2→...→a8 (7 steps) to see a8=a8 → close.
+    (is (seq
+          (run 1 [proof]
+            (proveo ['and ['eq ['app 'a1] ['app 'a2]]
+                          ['and ['eq ['app 'a2] ['app 'a3]]
+                                ['and ['eq ['app 'a3] ['app 'a4]]
+                                      ['and ['eq ['app 'a4] ['app 'a5]]
+                                            ['and ['eq ['app 'a5] ['app 'a6]]
+                                                  ['and ['eq ['app 'a6] ['app 'a7]]
+                                                        ['and ['eq ['app 'a7] ['app 'a8]]
+                                                              ['neq ['app 'a1] ['app 'a8]]]]]]]]]
+                    '() '() '() '() proof))))))
+
+(deftest test-S02-para-free-close-7-step-chain
+  (testing "(eq b a1) with 7-link chain a1=a2=...=a8 closes in 7 steps via para-free-close"
+    ;; Branch: (eq a1 a2) ∧ ... ∧ (eq a7 a8) ∧ (eq b a1)
+    ;; para-free-closeo rewrites t2=a1→a2→...→a8 (7 steps) → free-close(b, a8): b≠a8.
+    (is (seq
+          (run 1 [proof]
+            (proveo ['and ['eq ['app 'a1] ['app 'a2]]
+                          ['and ['eq ['app 'a2] ['app 'a3]]
+                                ['and ['eq ['app 'a3] ['app 'a4]]
+                                      ['and ['eq ['app 'a4] ['app 'a5]]
+                                            ['and ['eq ['app 'a5] ['app 'a6]]
+                                                  ['and ['eq ['app 'a6] ['app 'a7]]
+                                                        ['and ['eq ['app 'a7] ['app 'a8]]
+                                                              ['eq ['app 'b] ['app 'a1]]]]]]]]]
+                    '() '() '() '() proof))))))
 
 ;; ============================================================================
 ;; Run all tests

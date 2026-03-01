@@ -68,7 +68,7 @@ The program is threaded through all recursive calls unchanged. Every expansion r
 
 αleanTAP originally only needed the γ-rule (∀) because inputs were pre-Skolemized. Proflog clause bodies contain ∃ (e.g., Fitting's `win(x) ← ∃y[...]`), and `negate-formulao` turns ∀ into ∃ (for negative calls). The δ-rule is therefore essential.
 
-Our δ-rule exploits nominal logic: a fresh nom is a globally unique name — precisely what Fitting calls a "parameter." We wrap it in `(app p)` to make it a term:
+Our δ-rule exploits nominal logic: a fresh nom is a globally unique name — precisely what Fitting calls a "parameter." We encode the Skolem witness as `(par p)` — a dedicated term form structurally distinct from `(app f ...)` constructor applications:
 
 ```clojure
 ;; δ-rule: (exists (tie a body))
@@ -78,9 +78,16 @@ Our δ-rule exploits nominal logic: a fresh nom is a globally unique name — pr
        (== ['exists (tie a body)] fml)
        (== (lcons 'witness prf) proof)
        (proveo body unexp lits
-               (lcons [a ['app p]] env)  ;; a → (app p)
+               (lcons [a ['par p]] env)  ;; a → (par p)
                program prf))))]
 ```
+
+The `(par p)` term form is part of the term grammar:
+- `(var nom)` — variable reference, substituted by γ/δ environment lookup
+- `(app symbol term*)` — constructor/function application (symbol is a Clojure symbol)
+- `(par nom)` — Skolem parameter, introduced by δ-rule, globally unique and rigid
+
+This distinction matters for `subst-termo` (which passes `(par p)` through unchanged) and for `free-closureo` (which only matches `(lcons 'app ...)` terms — so `(par p)` can never trigger free closure, eliminating the need for any non-relational guard).
 
 Key differences from the γ-rule:
 
@@ -246,9 +253,9 @@ Equality and procedure calls interact naturally in αleanTAP-EP because both are
 
 **Fitting's Free Closure Rule (implemented).** Weak Herbrand models require that distinct constructors produce distinct values: `0 ≠ s(x)` and `f(x) ≠ g(y)` when f ≠ g, and that constructors are injective: `f(t) = f(s)` implies `t = s`. Our implementation provides six rules that fully realize Fitting's Section 5:
 
-1. **Free Closure (disjointness/clash):** `(eq (app f ...) (app g ...))` with f ≠ g closes the branch immediately (proof step `free-close`). A soundness guard uses `project` to verify both heads are genuine Clojure symbols, not δ-parameters — a nom introduced by the existential rule represents an arbitrary domain element and must not be treated as a distinct constructor.
+1. **Free Closure (disjointness/clash):** `(eq (app f ...) (app g ...))` with f ≠ g closes the branch immediately (proof step `free-close`). The implementation uses the purely relational disequality constraint `(!= f g)` — no non-relational `project` is needed because δ-parameters are encoded as `(par p)` (not `(app p)`), so they structurally cannot match the `(lcons 'app ...)` pattern in `free-closureo`.
 
-2. **Injectivity Decomposition (formula expansion):** `(eq (app f t₁..tₙ) (app f s₁..sₙ))` with same head f is expanded into a conjunction `(and (eq t₁ s₁) ... (eq tₙ sₙ))` which is then processed as a new formula (proof step `decompose`). This cascades: `f(g(a)) = f(g(b))` → `g(a) = g(b)` → `a = b` → free-close.
+2. **Injectivity Decomposition (formula expansion):** `(eq (app f t₁..tₙ) (app f s₁..sₙ))` with same head f is expanded into a conjunction `(and (eq t₁ s₁) ... (eq tₙ sₙ))` which is then processed as a new formula (proof step `decompose`). This cascades: `f(g(a)) = f(g(b))` → `g(a) = g(b)` → `a = b` → free-close. The `(par p)` encoding means δ-parameters never appear as heads of `(app ...)` terms, so no `project` guard is needed to distinguish constructor symbols from parameters.
 
 3. **One-One Pairs in Paramodulation:** The same injectivity principle also injects pairwise sub-equality pairs `[tᵢ, sᵢ]` into the rewriting engine via enhanced `collect-eqso`, enabling paramodulation and substitutivity to use derived equalities without explicit formula expansion.
 

@@ -255,7 +255,8 @@
   (testing "δ-parameter (nom) does NOT trigger free closure with symbol"
     ;; A δ-parameter p in (eq (app p) (app s x)) must NOT clash,
     ;; because p could denote any domain element including s(x).
-    ;; The soundness guard (project + symbol? check) prevents this.
+    ;; With (par p) encoding, (par p) terms do not match (lcons 'app ...) in
+    ;; free-closureo, so free closure is structurally prevented.
     ;; We test this by trying to close ∃x.(x = s(0)) — which should
     ;; NOT close because the witness p could equal s(0).
     (is (empty?
@@ -304,14 +305,15 @@
 
 (deftest test-Bpp05-eq-refl-close-proof-step
   (testing "eq-refl-close produces the correct proof step tag"
-    ;; Use noms p,q so (eq p q) after one-one decompose is not free-closeable
-    ;; (noms are not Clojure symbols, so free-close's symbol? guard blocks it).
+    ;; Use noms p,q so (eq p q) after one-one decompose is not free-closeable.
+    ;; With (par p) encoding, (par p) terms do not match (lcons 'app ...) in
+    ;; free-closureo, so free closure is structurally prevented.
     ;; Path: (eq s(p) s(q)) → decompose → (eq p q) → savefml → lits
     ;;       (neq p q) → eq-refl-close: collect eqs {p,q}, rewrite p→q ✓
     (let [proofs (run 1 [proof]
                    (nom p q
-                     (proveo ['and ['eq ['app 's ['app p]] ['app 's ['app q]]]
-                                   ['neq ['app p] ['app q]]]
+                     (proveo ['and ['eq ['app 's ['par p]] ['app 's ['par q]]]
+                                   ['neq ['par p] ['par q]]]
                              '() '() '() '() proof)))]
       (is (seq proofs))
       (is (proof-tree-contains? (first proofs) 'eq-refl-close)))))
@@ -1430,14 +1432,14 @@
 
 (deftest test-O05-proof-has-para-close
   (testing "Paramodulation closure produces 'para-close'"
-    ;; Use nom p so (eq p b) is not free-closeable (p is a nom, not a symbol).
-    ;; savefml saves (eq p b) to lits; (pos P(p)) saved to lits;
-    ;; (neg P(b)) → para-close: collect eqs [(p→b),(b→p)], rewrite (pos P(b))→(pos P(p))
-    ;; found in lits ✓
+    ;; Use nom p encoded as (par p) so (eq (par p) (app b)) is not free-closeable.
+    ;; savefml saves (eq (par p) (app b)) to lits; (pos P(par p)) saved to lits;
+    ;; (neg P(app b)) → para-close: collect eqs [(par p)→(app b),(app b)→(par p)],
+    ;; rewrite (pos P(app b))→(pos P(par p)) found in lits ✓
     (let [proofs (run 1 [proof]
                    (nom p
-                     (proveo ['and ['eq ['app p] ['app 'b]]
-                                   ['and ['pos ['app 'P ['app p]]]
+                     (proveo ['and ['eq ['par p] ['app 'b]]
+                                   ['and ['pos ['app 'P ['par p]]]
                                          ['neg ['app 'P ['app 'b]]]]]
                              '() '() '() '() proof)))]
       (is (seq proofs))
@@ -1533,8 +1535,8 @@
     ;; Path: decompose s(p)=s(q) → (eq p q) → lits; (neq p q) → eq-refl-close ✓
     (let [proofs (run 1 [proof]
                    (nom p q
-                     (proveo ['and ['eq ['app 's ['app p]] ['app 's ['app q]]]
-                                   ['neq ['app p] ['app q]]]
+                     (proveo ['and ['eq ['app 's ['par p]] ['app 's ['par q]]]
+                                   ['neq ['par p] ['par q]]]
                              '() '() '() '() proof)))]
       (is (seq proofs))
       (is (proof-tree-contains? (first proofs) 'eq-refl-close)))))
@@ -1549,8 +1551,8 @@
                    (nom x p
                      (let [prog [['R [x] ['and ['pos ['app 'P ['app 'a]]]
                                               ['neg ['app 'P ['var x]]]]]]]
-                       (proveo ['and ['eq ['app 's ['app 'a]] ['app 's ['app p]]]
-                                     ['pos ['app 'R ['app p]]]]
+                       (proveo ['and ['eq ['app 's ['app 'a]] ['app 's ['par p]]]
+                                     ['pos ['app 'R ['par p]]]]
                                '() '() '() prog proof))))]
       (is (seq proofs))
       (is (proof-tree-contains? (first proofs) 'subst-call)))))
@@ -1565,8 +1567,8 @@
                    (nom x p
                      (let [prog [['R [x] ['or ['pos ['app 'P ['app 'a]]]
                                              ['neg ['app 'P ['var x]]]]]]]
-                       (proveo ['and ['eq ['app 's ['app 'a]] ['app 's ['app p]]]
-                                     ['neg ['app 'R ['app p]]]]
+                       (proveo ['and ['eq ['app 's ['app 'a]] ['app 's ['par p]]]
+                                     ['neg ['app 'R ['par p]]]]
                                '() '() '() prog proof))))]
       (is (seq proofs))
       (is (proof-tree-contains? (first proofs) 'neg-subst-call)))))
@@ -1894,9 +1896,9 @@
           (run 1 [proof]
             (nom x y p1 p2
               (let [prog [['R [x y] ['neq ['var x] ['var y]]]]]
-                (proveo ['and ['eq ['app 'a] ['app p1]]
-                              ['and ['eq ['app 'b] ['app p2]]
-                                    ['neg ['app 'R ['app p1] ['app p2]]]]]
+                (proveo ['and ['eq ['app 'a] ['par p1]]
+                              ['and ['eq ['app 'b] ['par p2]]
+                                    ['neg ['app 'R ['par p1] ['par p2]]]]]
                         '() '() '() prog proof))))))))
 (deftest test-Q09-multi-arg-subst-proof-step
   (testing "Multi-arg substitutivity uses 'neg-subst-call proof step"
@@ -1904,9 +1906,9 @@
     (let [proofs (run 1 [proof]
                    (nom x y p1 p2
                      (let [prog [['R [x y] ['neq ['var x] ['var y]]]]]
-                       (proveo ['and ['eq ['app 'a] ['app p1]]
-                                     ['and ['eq ['app 'b] ['app p2]]
-                                           ['neg ['app 'R ['app p1] ['app p2]]]]]
+                       (proveo ['and ['eq ['app 'a] ['par p1]]
+                                     ['and ['eq ['app 'b] ['par p2]]
+                                           ['neg ['app 'R ['par p1] ['par p2]]]]]
                                '() '() '() prog proof))))]
       (is (seq proofs))
       (is (proof-tree-contains? (first proofs) 'neg-subst-call)))))
@@ -1921,9 +1923,9 @@
           (run 1 [proof]
             (nom x y p1 p2
               (let [prog [['S [x y] ['eq ['var x] ['var y]]]]]
-                (proveo ['and ['eq ['app 'a] ['app p1]]
-                              ['and ['eq ['app 'b] ['app p2]]
-                                    ['pos ['app 'S ['app p1] ['app p2]]]]]
+                (proveo ['and ['eq ['app 'a] ['par p1]]
+                              ['and ['eq ['app 'b] ['par p2]]
+                                    ['pos ['app 'S ['par p1] ['par p2]]]]]
                         '() '() '() prog proof))))))))
 
 
@@ -2020,7 +2022,8 @@
   (testing "δ-parameter (nom) does NOT trigger free closure with symbol"
     ;; A δ-parameter p in (eq (app p) (app s x)) must NOT clash,
     ;; because p could denote any domain element including s(x).
-    ;; The soundness guard (project + symbol? check) prevents this.
+    ;; With (par p) encoding, (par p) terms do not match (lcons 'app ...) in
+    ;; free-closureo, so free closure is structurally prevented.
     ;; We test this by trying to close ∃x.(x = s(0)) — which should
     ;; NOT close because the witness p could equal s(0).
     (is (empty?
@@ -2069,14 +2072,15 @@
 
 (deftest test-Bpp05-eq-refl-close-proof-step
   (testing "eq-refl-close produces the correct proof step tag"
-    ;; Use noms p,q so (eq p q) after one-one decompose is not free-closeable
-    ;; (noms are not Clojure symbols, so free-close's symbol? guard blocks it).
+    ;; Use noms p,q so (eq p q) after one-one decompose is not free-closeable.
+    ;; With (par p) encoding, (par p) terms do not match (lcons 'app ...) in
+    ;; free-closureo, so free closure is structurally prevented.
     ;; Path: (eq s(p) s(q)) → decompose → (eq p q) → savefml → lits
     ;;       (neq p q) → eq-refl-close: collect eqs {p,q}, rewrite p→q ✓
     (let [proofs (run 1 [proof]
                    (nom p q
-                     (proveo ['and ['eq ['app 's ['app p]] ['app 's ['app q]]]
-                                   ['neq ['app p] ['app q]]]
+                     (proveo ['and ['eq ['app 's ['par p]] ['app 's ['par q]]]
+                                   ['neq ['par p] ['par q]]]
                              '() '() '() '() proof)))]
       (is (seq proofs))
       (is (proof-tree-contains? (first proofs) 'eq-refl-close)))))
@@ -3195,14 +3199,14 @@
 
 (deftest test-O05-proof-has-para-close
   (testing "Paramodulation closure produces 'para-close'"
-    ;; Use nom p so (eq p b) is not free-closeable (p is a nom, not a symbol).
-    ;; savefml saves (eq p b) to lits; (pos P(p)) saved to lits;
-    ;; (neg P(b)) → para-close: collect eqs [(p→b),(b→p)], rewrite (pos P(b))→(pos P(p))
-    ;; found in lits ✓
+    ;; Use nom p encoded as (par p) so (eq (par p) (app b)) is not free-closeable.
+    ;; savefml saves (eq (par p) (app b)) to lits; (pos P(par p)) saved to lits;
+    ;; (neg P(app b)) → para-close: collect eqs [(par p)→(app b),(app b)→(par p)],
+    ;; rewrite (pos P(app b))→(pos P(par p)) found in lits ✓
     (let [proofs (run 1 [proof]
                    (nom p
-                     (proveo ['and ['eq ['app p] ['app 'b]]
-                                   ['and ['pos ['app 'P ['app p]]]
+                     (proveo ['and ['eq ['par p] ['app 'b]]
+                                   ['and ['pos ['app 'P ['par p]]]
                                          ['neg ['app 'P ['app 'b]]]]]
                              '() '() '() '() proof)))]
       (is (seq proofs))
@@ -3298,8 +3302,8 @@
     ;; Path: decompose s(p)=s(q) → (eq p q) → lits; (neq p q) → eq-refl-close ✓
     (let [proofs (run 1 [proof]
                    (nom p q
-                     (proveo ['and ['eq ['app 's ['app p]] ['app 's ['app q]]]
-                                   ['neq ['app p] ['app q]]]
+                     (proveo ['and ['eq ['app 's ['par p]] ['app 's ['par q]]]
+                                   ['neq ['par p] ['par q]]]
                              '() '() '() '() proof)))]
       (is (seq proofs))
       (is (proof-tree-contains? (first proofs) 'eq-refl-close)))))
@@ -3314,8 +3318,8 @@
                    (nom x p
                      (let [prog [['R [x] ['and ['pos ['app 'P ['app 'a]]]
                                               ['neg ['app 'P ['var x]]]]]]]
-                       (proveo ['and ['eq ['app 's ['app 'a]] ['app 's ['app p]]]
-                                     ['pos ['app 'R ['app p]]]]
+                       (proveo ['and ['eq ['app 's ['app 'a]] ['app 's ['par p]]]
+                                     ['pos ['app 'R ['par p]]]]
                                '() '() '() prog proof))))]
       (is (seq proofs))
       (is (proof-tree-contains? (first proofs) 'subst-call)))))
@@ -3330,8 +3334,8 @@
                    (nom x p
                      (let [prog [['R [x] ['or ['pos ['app 'P ['app 'a]]]
                                              ['neg ['app 'P ['var x]]]]]]]
-                       (proveo ['and ['eq ['app 's ['app 'a]] ['app 's ['app p]]]
-                                     ['neg ['app 'R ['app p]]]]
+                       (proveo ['and ['eq ['app 's ['app 'a]] ['app 's ['par p]]]
+                                     ['neg ['app 'R ['par p]]]]
                                '() '() '() prog proof))))]
       (is (seq proofs))
       (is (proof-tree-contains? (first proofs) 'neg-subst-call)))))
@@ -3659,9 +3663,9 @@
           (run 1 [proof]
             (nom x y p1 p2
               (let [prog [['R [x y] ['neq ['var x] ['var y]]]]]
-                (proveo ['and ['eq ['app 'a] ['app p1]]
-                              ['and ['eq ['app 'b] ['app p2]]
-                                    ['neg ['app 'R ['app p1] ['app p2]]]]]
+                (proveo ['and ['eq ['app 'a] ['par p1]]
+                              ['and ['eq ['app 'b] ['par p2]]
+                                    ['neg ['app 'R ['par p1] ['par p2]]]]]
                         '() '() '() prog proof))))))))
 (deftest test-Q09-multi-arg-subst-proof-step
   (testing "Multi-arg substitutivity uses 'neg-subst-call proof step"
@@ -3669,9 +3673,9 @@
     (let [proofs (run 1 [proof]
                    (nom x y p1 p2
                      (let [prog [['R [x y] ['neq ['var x] ['var y]]]]]
-                       (proveo ['and ['eq ['app 'a] ['app p1]]
-                                     ['and ['eq ['app 'b] ['app p2]]
-                                           ['neg ['app 'R ['app p1] ['app p2]]]]]
+                       (proveo ['and ['eq ['app 'a] ['par p1]]
+                                     ['and ['eq ['app 'b] ['par p2]]
+                                           ['neg ['app 'R ['par p1] ['par p2]]]]]
                                '() '() '() prog proof))))]
       (is (seq proofs))
       (is (proof-tree-contains? (first proofs) 'neg-subst-call)))))
@@ -3712,8 +3716,8 @@
     (is (seq
           (run 1 [proof]
             (nom p
-              (proveo ['and ['eq ['app 'a] ['app p]]
-                            ['eq ['app 'b] ['app p]]]
+              (proveo ['and ['eq ['app 'a] ['par p]]
+                            ['eq ['app 'b] ['par p]]]
                       '() '() '() '() proof)))))))
 
 (deftest test-R02-para-free-close-t1-rewrite
@@ -3723,8 +3727,8 @@
     (is (seq
           (run 1 [proof]
             (nom p
-              (proveo ['and ['eq ['app p] ['app 'b]]
-                            ['eq ['app p] ['app 'a]]]
+              (proveo ['and ['eq ['par p] ['app 'b]]
+                            ['eq ['par p] ['app 'a]]]
                       '() '() '() '() proof)))))))
 
 (deftest test-R03-para-free-close-two-step
@@ -3737,17 +3741,17 @@
     (is (seq
           (run 1 [proof]
             (nom p q
-              (proveo ['and ['eq ['app p] ['app q]]
-                            ['and ['eq ['app q] ['app 'a]]
-                                  ['eq ['app 'b] ['app p]]]]
+              (proveo ['and ['eq ['par p] ['par q]]
+                            ['and ['eq ['par q] ['app 'a]]
+                                  ['eq ['app 'b] ['par p]]]]
                       '() '() '() '() proof)))))))
 
 (deftest test-R04-para-free-close-proof-step
   (testing "para-free-close produces the correct proof step tag"
     (let [proofs (run 1 [proof]
                    (nom p
-                     (proveo ['and ['eq ['app 'a] ['app p]]
-                                   ['eq ['app 'b] ['app p]]]
+                     (proveo ['and ['eq ['app 'a] ['par p]]
+                                   ['eq ['app 'b] ['par p]]]
                              '() '() '() '() proof)))]
       (is (seq proofs))
       (is (proof-tree-contains? (first proofs) 'para-free-close)))))
@@ -3759,20 +3763,20 @@
     (is (empty?
           (run 1 [proof]
             (nom p
-              (proveo ['and ['eq ['app 'a] ['app p]]
-                            ['eq ['app 'a] ['app p]]]
+              (proveo ['and ['eq ['app 'a] ['par p]]
+                            ['eq ['app 'a] ['par p]]]
                       '() '() '() '() proof)))))))
 
 (deftest test-R06-para-free-close-soundness-nom-result
   (testing "p=q ∧ r=p — rewriting yields (eq r q): q is a nom, no clash (tableau stays open)"
     ;; Rewrite t2=p→q in (eq r p): get (eq r q).
-    ;; q is a nom (not a Clojure symbol) → free-closureo symbol? guard blocks it.
+    ;; q is a nom → (par q) does not match (lcons 'app ...) → free-closureo blocks it.
     ;; Formula is satisfiable (set p=q=r), so tableau must NOT close.
     (is (empty?
           (run 1 [proof]
             (nom p q
-              (proveo ['and ['eq ['app p] ['app q]]
-                            ['eq ['app 'r] ['app p]]]
+              (proveo ['and ['eq ['par p] ['par q]]
+                            ['eq ['app 'r] ['par p]]]
                       '() '() '() '() proof)))))))
 
 ;; ============================================================================

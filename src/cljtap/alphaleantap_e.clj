@@ -35,6 +35,7 @@
 ;;
 ;;   Term → (var Nom)               — variable (Nom from nominal logic)
 ;;         | (app Symbol Term*)     — function/constant application
+;;         | (par Nom)              — δ-parameter (Skolem witness, atomic)
 ;;
 ;;   Constants are nullary: (app 'zero), (app 'nil), etc.
 ;;   Functions:             (app 's (app 'zero)), (app 'cons x xs), etc.
@@ -120,6 +121,9 @@
     [(fresh [a]
        (== ['var a] t)
        (lookupo a env out))]
+    [(fresh [p]
+       (== ['par p] t)
+       (== ['par p] out))]
     [(fresh [f args args-out]
        (== (lcons 'app (lcons f args)) t)
        (== (lcons 'app (lcons f args-out)) out)
@@ -168,10 +172,7 @@
   (fresh [f g args1 args2]
     (== (lcons 'app (lcons f args1)) t1)
     (== (lcons 'app (lcons g args2)) t2)
-    (project [f g]
-      (if (and (symbol? f) (symbol? g) (not= f g))
-        succeed
-        fail))))
+    (!= f g)))
 
 ;; --- Collect Equality Pairs ---
 ;;
@@ -319,20 +320,21 @@
     ;; ========================================================================
     ;; δ-rule: Existential Quantifier
     ;; Introduce a single rigid Skolem witness: a fresh nom p wrapped as the
-    ;; term (app p).  Unlike the γ-rule, the formula is NOT re-enqueued —
-    ;; existentials are witnessed exactly once.
+    ;; term (par p) — a dedicated parameter form, structurally distinct from
+    ;; (app f ...) constructors.  Unlike the γ-rule, the formula is NOT
+    ;; re-enqueued — existentials are witnessed exactly once.
     ;;
-    ;; The witness (app p) is a ground, globally unique term that cannot
+    ;; The witness (par p) is a ground, globally unique term that cannot
     ;; unify with other ground terms (distinct noms are not equal).  It CAN
-    ;; unify with logic variables introduced by the γ-rule, which is the
-    ;; mechanism for interactions like ∀x.P(x) ∧ ∃y.¬P(y).
+    ;; unify with logic variables introduced by the γ-rule.  The (par p) form
+    ;; does not match (lcons 'app ...), so free-closureo never fires on it.
     ;; ========================================================================
     [(nom v
        (nom p
          (fresh [body prf]
            (== ['exists (tie v body)] fml)
            (== (lcons 'exist prf) proof)
-           (proveo body unexp lits (lcons [v ['app p]] env) prf))))]
+           (proveo body unexp lits (lcons [v ['par p]] env) prf))))]
 
     ;; ========================================================================
     ;; Literal cases
@@ -386,7 +388,6 @@
             (== ['eq (lcons 'app (lcons f args1))
                      (lcons 'app (lcons f args2))] lit)
             (fresh [_ __] (== (lcons _ __) args1))
-            (project [f] (if (symbol? f) succeed fail))
             (decompose-eq-argso args1 args2 decomposed)
             (== (lcons 'decompose prf) proof)
             (proveo decomposed unexp lits env prf))]

@@ -58,7 +58,7 @@
 ;;        | (forall (tie Nom Fml)) | (exists (tie Nom Fml))
 ;;        | Lit
 ;;   Lit  → (pos Term) | (neg Term) | (eq Term Term) | (neq Term Term)
-;;   Term → (var Nom) | (app Symbol Term*)
+;;   Term → (var Nom) | (app Symbol Term*) | (par Nom)
 ;;
 ;; PROGRAM CLAUSE:
 ;;
@@ -144,12 +144,16 @@
 (declare subst-term*o)
 
 (defn subst-termo
-  "Substitute values for tagged noms (var a) in a term, using environment."
+  "Substitute values for tagged noms (var a) in a term, using environment.
+   (par p) terms are δ-parameters — already ground, pass through unchanged."
   [fml env out]
   (conde
     [(fresh [a]
        (== ['var a] fml)
        (lookupo a env out))]
+    [(fresh [p]
+       (== ['par p] fml)
+       (== ['par p] out))]
     [(fresh [f d r]
        (== (lcons 'app (lcons f d)) fml)
        (== (lcons 'app (lcons f r)) out)
@@ -225,19 +229,15 @@
 (defn free-closureo
   "Succeed if (eq t1 t2) is unsatisfiable in any weak Herbrand model.
    Two terms with different head constructor symbols can never be equal.
-   
-   SOUNDNESS GUARD: both heads must be genuine Clojure symbols (not noms).
-   A nom (δ-parameter) represents an arbitrary domain element and could
-   denote any term, so (eq (app p) (app s x)) must NOT be treated as
-   a clash — p might equal s(x) in some model."
+
+   With (par p) encoding, δ-parameters never appear inside (app ...) terms,
+   so both s1 and s2 are always Clojure symbols. The relational disequality
+   constraint (!= s1 s2) enforces that they are distinct — no project needed."
   [t1 t2]
   (fresh [s1 s2 a1 a2]
     (== (lcons 'app (lcons s1 a1)) t1)
     (== (lcons 'app (lcons s2 a2)) t2)
-    (project [s1 s2]
-      (if (and (symbol? s1) (symbol? s2) (not= s1 s2))
-        succeed
-        fail))))
+    (!= s1 s2)))
 
 ;; --- 3b. One-One Decomposition ---
 
@@ -709,9 +709,11 @@
     ;; introduce a new parameter (Skolem constant) for the witness.
     ;;
     ;; In nominal logic, a fresh nom IS a new, globally unique name.
-    ;; We create a fresh nom `p` and bind a → (app p) in env,
-    ;; representing the Skolem witness as a nullary application of
-    ;; the fresh parameter symbol.
+    ;; We create a fresh nom `p` and bind a → (par p) in env.
+    ;; The (par p) form is a dedicated parameter term, structurally
+    ;; distinct from (app f ...) constructor applications.  This
+    ;; eliminates the need for any non-relational (project) guard
+    ;; in free-closureo: (par p) simply does not match (lcons 'app ...).
     ;;
     ;; Unlike the γ-rule, we do NOT re-enqueue the formula:
     ;; an existential is used exactly once.
@@ -721,7 +723,7 @@
          (fresh [body prf]
            (== ['exists (tie a body)] fml)
            (== (lcons 'witness prf) proof)
-           (proveo body unexp lits (lcons [a ['app p]] env) program prf))))]
+           (proveo body unexp lits (lcons [a ['par p]] env) program prf))))]
 
     ;; ================================================================
     ;; LITERAL CASES (including Free Closure & Procedure Call Rules)
@@ -804,12 +806,11 @@
          [(fresh [f args1 args2 decomposed prf]
             (== ['eq (lcons 'app (lcons f args1))
                      (lcons 'app (lcons f args2))] lit)
-            ;; Must have arguments to decompose (not just (app f) = (app f))
+            ;; Must have arguments to decompose (not just (app f) = (app f)).
+            ;; With (par p) encoding, δ-parameters never appear as app heads,
+            ;; so f is always a constructor symbol — no project guard needed.
             (fresh [_ __]
               (== (lcons _ __) args1))
-            ;; Head must be a genuine symbol
-            (project [f]
-              (if (symbol? f) succeed fail))
             (decompose-eq-argso args1 args2 decomposed)
             (== (lcons 'decompose prf) proof)
             (proveo decomposed unexp lits env program prf))]

@@ -328,6 +328,8 @@ Fitting explicitly leaves several questions open (Section 8). Our implementation
 
 **Nim game, full (tested).** `win(x) ← ∃y.((x=s(y) ∨ x=s(s(y))) ∧ ¬win(y))` exercises mutual recursion through the negative procedure call. win(0) fails, win(1) and win(2) succeed, win(3) fails — all verified. The correctness proof relies on the visited-set termination guarantee (see below).
 
+**Fitting's original P1 — ∀-based odd clause (tested, Section X).** Fitting's §2 gives `odd(x) ← (∀y)[even(y) ⊃ ¬(x = y)]`. In NNF this is `∀y.(¬even(y) ∨ x≠y)`. However, the tableau requires the *commuted* form `∀y.(x≠y ∨ ¬even(y))` for correctness. The reason: negating the body for neg-call yields `∃y.(eq(x,y) ∧ pos(even(y)))`. The α-rule processes the AND left-to-right; with the commuted form, `eq(x,y)` is processed first and saved to `lits`, enabling the subst-call to rewrite `(par p)→ground` before firing pos-call on `even(par p)`. In the non-commuted form, `pos(even(par p))` is processed first and blocked by the L-groundness guard, with the equality still in `unexp` — subst-call cannot help. **Rule:** in clause body disjunctions where one disjunct is `¬P(y)` and another is `x≠y`, place the equality constraint first.
+
 ## Equality Rewriting Termination
 
 The equality reasoning helpers `eq-membero`, `eq-neq-closeo`, and `para-free-closeo` require multi-step rewriting chains (e.g., a=b ∧ b=c closes (neq a c) via a→b→c). The original implementation used a Peano-numeral depth bound (6 steps) to prevent infinite cycling on bidirectional equality pairs like `[(t₁,t₂),(t₂,t₁)]`.

@@ -2771,6 +2771,151 @@
                              '() '() '() prog proof)))))))))
 
 ;; ============================================================================
+;; Section X: Fitting's Original P1 — ∀-Based odd Clause
+;; ============================================================================
+;;
+;; Fitting's paper (§2) gives two programs for even/odd:
+;;
+;;   P1:  even(x) ← x = 0 ∨ ∃y. (x = s(y) ∧ odd(y))
+;;        odd(x)  ← (∀y)[even(y) ⊃ ¬(x = y)]
+;;
+;; The simplified mutually-recursive P1' used in Section I is:
+;;
+;;   P1': even(x) ← x = 0 ∨ ∃y. (x = s(y) ∧ odd(y))
+;;        odd(x)  ← ∃y. (x = s(y) ∧ even(y))
+;;
+;; The two are semantically equivalent in Fitting's supervaluation model.
+;; However, the ∀-based odd clause requires care about disjunct ordering.
+;;
+;; NNF ENCODING CONSTRAINT
+;; ──────────────────────
+;; The implication even(y) ⊃ x≠y expands to ¬even(y) ∨ x≠y.  In NNF for
+;; our tableau: (or (neg (app even (var y))) (neq (var x) (var y))).
+;;
+;; When the neg-call rule negates this body to ∃y.(even(y) ∧ x=y), the α-rule
+;; processes the AND left-to-right: pos(even(y)) first, eq(x,y) second.
+;; pos(even(par p)) is then blocked by the L-groundness guard, and the eq
+;; constraint is still in unexp — not yet in lits — so the subst-call cannot
+;; rewrite par p to a ground term.  The subsidiary fails to close.
+;;
+;; The COMMUTED form (x≠y ∨ ¬even(y)) = (or (neq (var x) (var y)) (neg even(y)))
+;; negates to ∃y.(eq(x,y) ∧ pos(even(y))).  Now eq(x,y) is processed first →
+;; saved to lits → pos(even(par p)) is processed next WITH the equality available
+;; → subst-call rewrites par p → ground → pos-call fires.  The subsidiary closes.
+;;
+;; RULE: In clause body disjunctions where one disjunct is ¬P(y) (a relational
+;; literal) and another is x≠y (an equality constraint), place the equality
+;; constraint FIRST.  This ensures that when the body is negated (for neg-call),
+;; the AND processes the equality before the pos literal.
+;;
+;; Section I uses the simplified P1' (no ∀ in odd) and all I tests pass.
+;; Section X uses the commuted ∀-based P1, confirming fidelity to Fitting's
+;; semantics via the correct NNF disjunct ordering.
+;; ============================================================================
+
+(deftest test-X01-original-p1-even-zero-succeeds
+  (testing "X01: even(0) succeeds — base case, commuted ∀-odd clause"
+    ;; neg-call on even(0): negate body[x:=0] = (and (neq 0 zero) (forall ...))
+    ;; First conjunct (neq 0 zero) closes by refl-close immediately. ✓
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['even [x]
+                           ['or ['eq ['var x] ['app 'zero]]
+                                ['exists (tie y
+                                  ['and ['eq ['var x] ['app 's ['var y]]]
+                                        ['pos ['app 'odd ['var y]]]])]]]
+                          ['odd [x]
+                           ['forall (tie y
+                             ['or ['neq ['var x] ['var y]]
+                                  ['neg ['app 'even ['var y]]]])]]]
+                    query ['neg ['app 'even ['app 'zero]]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-X02-original-p1-odd-one-succeeds
+  (testing "X02: odd(s(0)) succeeds — commuted ∀-odd clause, subst-call path"
+    ;; neg-call on odd(1): negate commuted body[x:=1] = ∃y.(eq(1,y) ∧ pos(even(y)))
+    ;; AND order: eq(1, par p) first → lits; then pos(even(par p)) with eq in lits.
+    ;; subst-call rewrites par p → 1 → pos(even(1)) → pos-call on even(1).
+    ;; pos-call(even(1)): body[x:=1] = or(1=0, ∃y.(1=s(y)∧odd(y))).
+    ;;   Left: 1=0 → free-close ✓.  Right: ∃y.(1=s(y)∧odd(y)):
+    ;;     δ: y→par q; eq(1,s(par q)) → decompose → eq(0,par q) → lits.
+    ;;     pos(odd(par q)) → subst-call rewrites par q→0 → pos(odd(0)).
+    ;;     pos-call(odd(0)): body = ∀y.(0≠y ∨ ¬even(y)).
+    ;;       γ: y→v; β: left=(0≠v) → v=0 → refl-close ✓; right=(neg even(v=0)) → closes ✓.
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['even [x]
+                           ['or ['eq ['var x] ['app 'zero]]
+                                ['exists (tie y
+                                  ['and ['eq ['var x] ['app 's ['var y]]]
+                                        ['pos ['app 'odd ['var y]]]])]]]
+                          ['odd [x]
+                           ['forall (tie y
+                             ['or ['neq ['var x] ['var y]]
+                                  ['neg ['app 'even ['var y]]]])]]]
+                    query ['neg ['app 'odd ['app 's ['app 'zero]]]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-X03-original-p1-even-two-succeeds
+  (testing "X03: even(s²(0)) succeeds — commuted ∀-odd clause"
+    ;; neg-call on even(2): negate body[x:=2] = (and (neq 2 zero) (forall ...))
+    ;; (neq 2 zero) = (neq s²(0) zero) → free-close (s vs zero constructor). ✓
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['even [x]
+                           ['or ['eq ['var x] ['app 'zero]]
+                                ['exists (tie y
+                                  ['and ['eq ['var x] ['app 's ['var y]]]
+                                        ['pos ['app 'odd ['var y]]]])]]]
+                          ['odd [x]
+                           ['forall (tie y
+                             ['or ['neq ['var x] ['var y]]
+                                  ['neg ['app 'even ['var y]]]])]]]
+                    query ['neg ['app 'even ['app 's ['app 's ['app 'zero]]]]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-X04-original-p1-odd-zero-fails
+  (testing "X04: odd(0) fails — pos-call on odd(0) closes by γ+β+refl-close"
+    ;; pos-call on odd(0): body = ∀y.(0≠y ∨ ¬even(y)).
+    ;; γ-rule instantiates y→v; β-splits into:
+    ;;   Left: (0≠v) → v=0 → refl-close ✓
+    ;;   Right: (neg even(v=0)) → neg-call(even(0)) → (neq 0 0) → refl-close ✓
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['even [x]
+                           ['or ['eq ['var x] ['app 'zero]]
+                                ['exists (tie y
+                                  ['and ['eq ['var x] ['app 's ['var y]]]
+                                        ['pos ['app 'odd ['var y]]]])]]]
+                          ['odd [x]
+                           ['forall (tie y
+                             ['or ['neq ['var x] ['var y]]
+                                  ['neg ['app 'even ['var y]]]])]]]]
+                (proveo ['pos ['app 'odd ['app 'zero]]] '() '() '() prog proof))))))))
+
+(deftest test-X05-original-p1-even-one-fails
+  (testing "X05: even(s(0)) fails — pos-call on even(1) closes"
+    ;; pos-call on even(1): body[x:=1] = or(1=0, ∃y.(1=s(y)∧odd(y))).
+    ;;   Left: free-close ✓.  Right: subst-call chain → pos(odd(0)) → closes ✓.
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['even [x]
+                           ['or ['eq ['var x] ['app 'zero]]
+                                ['exists (tie y
+                                  ['and ['eq ['var x] ['app 's ['var y]]]
+                                        ['pos ['app 'odd ['var y]]]])]]]
+                          ['odd [x]
+                           ['forall (tie y
+                             ['or ['neq ['var x] ['var y]]
+                                  ['neg ['app 'even ['var y]]]])]]]]
+                (proveo ['pos ['app 'even ['app 's ['app 'zero]]]] '() '() '() prog proof))))))))
+
+;; ============================================================================
 ;; Run all tests
 ;; ============================================================================
 

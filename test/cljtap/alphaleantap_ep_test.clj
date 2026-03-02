@@ -2916,6 +2916,319 @@
                 (proveo ['pos ['app 'even ['app 's ['app 'zero]]]] '() '() '() prog proof))))))))
 
 ;; ============================================================================
+;; Section Y: List Programs — append and reverse (Fitting §6 examples)
+;; ============================================================================
+;;
+;; Tests for two classic list programs encoded as single OR-body clauses
+;; per Fitting's one-clause-per-relation constraint (Definition 2.1).
+;;
+;; List constructors:
+;;   empty list : ['app 'nul]              ('nul, not 'nil — Clojure nil issue)
+;;   cons(h, t) : ['app 'cons h t]
+;;
+;; NNF ordering rule: equality constraints precede pos-calls in every AND-chain.
+;;
+;; append(a1, a2, a3):
+;;   (a1=nul ∧ a3=a2) ∨ ∃ah.∃at.∃ar.(a1=cons(ah,at) ∧ a3=cons(ah,ar) ∧ pos(append(at,a2,ar)))
+;;
+;; reverse(r1, r2):
+;;   (r1=nul ∧ r2=nul) ∨ ∃rh.∃rt.∃rrp.(r1=cons(rh,rt) ∧ pos(reverse(rt,rrp)) ∧ pos(append(rrp,cons(rh,nul),r2)))
+;;
+;; Convention: "succeeds" tests use (proveo ['neg ...] ...) — neg-call with L-ground
+;; concrete args.  "fails" tests use (proveo ['pos ...] ...) — pos-call, both branches
+;; of the OR close (base via free-close, recursive via free-close on eq(nul,cons)).
+;; Synthesis tests use a logic variable in the query argument position.
+;; ============================================================================
+
+;; --- Y01-Y05: append ---
+
+(deftest test-Y01-append-base-nil-nil-nul
+  (testing "Y01: append(nul, [b], [b]) succeeds — base case"
+    ;; neg-call: negate body, a1=nul, a2=[b], a3=[b].
+    ;; not(base) = or(neq(nul,nul), neq([b],[b])) — both refl-close ✓ immediately.
+    ;; The not(recursive) conjunct in unexp is never reached.
+    (is (seq
+          (run 1 [proof]
+            (nom a1 a2 a3 ah at ar
+              (let [prog [['append [a1 a2 a3]
+                           ['or ['and ['eq ['var a1] ['app 'nul]]
+                                      ['eq ['var a3] ['var a2]]]
+                                ['exists (tie ah
+                                  ['exists (tie at
+                                    ['exists (tie ar
+                                      ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                            ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                  ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                (proveo ['neg ['app 'append
+                               ['app 'nul]
+                               ['app 'cons ['app 'b] ['app 'nul]]
+                               ['app 'cons ['app 'b] ['app 'nul]]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-Y02-append-one-step
+  (testing "Y02: append([a], [b], [a,b]) succeeds — one recursive step"
+    ;; neg-call: a1=[a], a2=[b], a3=[a,b].
+    ;; not(base): or(neq([a],nul), neq([a,b],[b])).
+    ;;   Branch 1: neq([a],nul) → savefml; γ Ah,At,Ar → neq([a],cons(Ah,At)) refl-closes:
+    ;;     Ah=a, At=nul; then neg(append(nul,[b],[b])) fires — base case closes ✓.
+    ;;   Branch 2: neq([a,b],[b]) → savefml; same γ path closes ✓.
+    (is (seq
+          (run 1 [proof]
+            (nom a1 a2 a3 ah at ar
+              (let [prog [['append [a1 a2 a3]
+                           ['or ['and ['eq ['var a1] ['app 'nul]]
+                                      ['eq ['var a3] ['var a2]]]
+                                ['exists (tie ah
+                                  ['exists (tie at
+                                    ['exists (tie ar
+                                      ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                            ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                  ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                (proveo ['neg ['app 'append
+                               ['app 'cons ['app 'a] ['app 'nul]]
+                               ['app 'cons ['app 'b] ['app 'nul]]
+                               ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-Y03-append-wrong-result-fails
+  (testing "Y03: append(nul, nul, [a]) fails — base case: eq([a],nul) free-closes"
+    ;; pos-call: a1=nul, a2=nul, a3=[a].
+    ;; Branch 1 (base): and(eq(nul,nul), eq([a],nul)) → eq([a],nul) free-closes ✓.
+    ;; Branch 2 (recursive): eq(nul,cons(par_h,par_t)) → free-closes ✓.
+    (is (seq
+          (run 1 [proof]
+            (nom a1 a2 a3 ah at ar
+              (let [prog [['append [a1 a2 a3]
+                           ['or ['and ['eq ['var a1] ['app 'nul]]
+                                      ['eq ['var a3] ['var a2]]]
+                                ['exists (tie ah
+                                  ['exists (tie at
+                                    ['exists (tie ar
+                                      ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                            ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                  ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                (proveo ['pos ['app 'append
+                               ['app 'nul]
+                               ['app 'nul]
+                               ['app 'cons ['app 'a] ['app 'nul]]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-Y04-append-two-steps
+  (testing "Y04: append([a,b], nul, [a,b]) succeeds — two recursive steps"
+    ;; neg-call: a1=[a,b], a2=nul, a3=[a,b].
+    ;; Two recursive neg-calls before the base case append(nul,nul,nul) closes.
+    (is (seq
+          (run 1 [proof]
+            (nom a1 a2 a3 ah at ar
+              (let [prog [['append [a1 a2 a3]
+                           ['or ['and ['eq ['var a1] ['app 'nul]]
+                                      ['eq ['var a3] ['var a2]]]
+                                ['exists (tie ah
+                                  ['exists (tie at
+                                    ['exists (tie ar
+                                      ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                            ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                  ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                (proveo ['neg ['app 'append
+                               ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]
+                               ['app 'nul]
+                               ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-Y05-append-synth-result
+  (testing "Y05: synthesize Z s.t. append([a], [b], Z) — expected Z=[a,b]"
+    ;; neg-call: a1=[a], a2=[b], a3=Z (LVar).
+    ;; L-ground guard: Z is LVar → project[Z]=LVar → contains-par?=false → PASSES.
+    ;; Recursive neg-call binds Z=cons(a,cons(b,nul)) via refl-close on neq(Z,cons(a,Ar)).
+    (let [results (run 1 [z]
+                    (nom a1 a2 a3 ah at ar
+                      (let [prog [['append [a1 a2 a3]
+                                   ['or ['and ['eq ['var a1] ['app 'nul]]
+                                              ['eq ['var a3] ['var a2]]]
+                                        ['exists (tie ah
+                                          ['exists (tie at
+                                            ['exists (tie ar
+                                              ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                                    ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                          ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'append
+                                         ['app 'cons ['app 'a] ['app 'nul]]
+                                         ['app 'cons ['app 'b] ['app 'nul]]
+                                         z]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]
+             (first results))))))
+
+;; --- Y06-Y10: reverse (depends on append) ---
+
+(deftest test-Y06-reverse-base-nil
+  (testing "Y06: reverse(nul, nul) succeeds — base case"
+    ;; neg-call: r1=nul, r2=nul.
+    ;; not(base) = or(neq(nul,nul), neq(nul,nul)) — both refl-close ✓ immediately.
+    (is (seq
+          (run 1 [proof]
+            (nom a1 a2 a3 ah at ar r1 r2 rh rt rrp
+              (let [prog [['append [a1 a2 a3]
+                           ['or ['and ['eq ['var a1] ['app 'nul]]
+                                      ['eq ['var a3] ['var a2]]]
+                                ['exists (tie ah
+                                  ['exists (tie at
+                                    ['exists (tie ar
+                                      ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                            ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                  ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]
+                          ['reverse [r1 r2]
+                           ['or ['and ['eq ['var r1] ['app 'nul]]
+                                      ['eq ['var r2] ['app 'nul]]]
+                                ['exists (tie rh
+                                  ['exists (tie rt
+                                    ['exists (tie rrp
+                                      ['and ['eq ['var r1] ['app 'cons ['var rh] ['var rt]]]
+                                            ['and ['pos ['app 'reverse ['var rt] ['var rrp]]]
+                                                  ['pos ['app 'append ['var rrp]
+                                                                      ['app 'cons ['var rh] ['app 'nul]]
+                                                                      ['var r2]]]]])])])]]]]]
+                (proveo ['neg ['app 'reverse ['app 'nul] ['app 'nul]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-Y07-reverse-singleton
+  (testing "Y07: reverse([a], [a]) succeeds — singleton list"
+    ;; neg-call: r1=[a], r2=[a].
+    ;; not(base) branch 1: neq([a],nul) → savefml; γ Rh,Rt,Rp:
+    ;;   neq([a],cons(Rh,Rt)) → refl-closes: Rh=a, Rt=nul.
+    ;;   neg(reverse(nul,Rp)): binds Rp=nul via refl-close.
+    ;;   neg(append(nul,cons(a,nul),[a])): base case closes ✓.
+    (is (seq
+          (run 1 [proof]
+            (nom a1 a2 a3 ah at ar r1 r2 rh rt rrp
+              (let [prog [['append [a1 a2 a3]
+                           ['or ['and ['eq ['var a1] ['app 'nul]]
+                                      ['eq ['var a3] ['var a2]]]
+                                ['exists (tie ah
+                                  ['exists (tie at
+                                    ['exists (tie ar
+                                      ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                            ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                  ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]
+                          ['reverse [r1 r2]
+                           ['or ['and ['eq ['var r1] ['app 'nul]]
+                                      ['eq ['var r2] ['app 'nul]]]
+                                ['exists (tie rh
+                                  ['exists (tie rt
+                                    ['exists (tie rrp
+                                      ['and ['eq ['var r1] ['app 'cons ['var rh] ['var rt]]]
+                                            ['and ['pos ['app 'reverse ['var rt] ['var rrp]]]
+                                                  ['pos ['app 'append ['var rrp]
+                                                                      ['app 'cons ['var rh] ['app 'nul]]
+                                                                      ['var r2]]]]])])])]]]]]
+                (proveo ['neg ['app 'reverse
+                               ['app 'cons ['app 'a] ['app 'nul]]
+                               ['app 'cons ['app 'a] ['app 'nul]]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-Y08-reverse-two-elements
+  (testing "Y08: reverse([a,b], [b,a]) succeeds — two elements"
+    ;; neg-call: r1=[a,b], r2=[b,a].
+    ;; Two recursive neg-calls before base case closes.
+    (is (seq
+          (run 1 [proof]
+            (nom a1 a2 a3 ah at ar r1 r2 rh rt rrp
+              (let [prog [['append [a1 a2 a3]
+                           ['or ['and ['eq ['var a1] ['app 'nul]]
+                                      ['eq ['var a3] ['var a2]]]
+                                ['exists (tie ah
+                                  ['exists (tie at
+                                    ['exists (tie ar
+                                      ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                            ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                  ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]
+                          ['reverse [r1 r2]
+                           ['or ['and ['eq ['var r1] ['app 'nul]]
+                                      ['eq ['var r2] ['app 'nul]]]
+                                ['exists (tie rh
+                                  ['exists (tie rt
+                                    ['exists (tie rrp
+                                      ['and ['eq ['var r1] ['app 'cons ['var rh] ['var rt]]]
+                                            ['and ['pos ['app 'reverse ['var rt] ['var rrp]]]
+                                                  ['pos ['app 'append ['var rrp]
+                                                                      ['app 'cons ['var rh] ['app 'nul]]
+                                                                      ['var r2]]]]])])])]]]]]
+                (proveo ['neg ['app 'reverse
+                               ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]
+                               ['app 'cons ['app 'b] ['app 'cons ['app 'a] ['app 'nul]]]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-Y09-reverse-wrong-result-fails
+  (testing "Y09: reverse(nul, [a]) fails — base case: eq([a],nul) free-closes"
+    ;; pos-call: r1=nul, r2=[a].
+    ;; Branch 1 (base): and(eq(nul,nul), eq([a],nul)) → eq([a],nul) free-closes ✓.
+    ;; Branch 2 (recursive): eq(nul,cons(par_h,par_t)) → free-closes ✓.
+    (is (seq
+          (run 1 [proof]
+            (nom a1 a2 a3 ah at ar r1 r2 rh rt rrp
+              (let [prog [['append [a1 a2 a3]
+                           ['or ['and ['eq ['var a1] ['app 'nul]]
+                                      ['eq ['var a3] ['var a2]]]
+                                ['exists (tie ah
+                                  ['exists (tie at
+                                    ['exists (tie ar
+                                      ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                            ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                  ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]
+                          ['reverse [r1 r2]
+                           ['or ['and ['eq ['var r1] ['app 'nul]]
+                                      ['eq ['var r2] ['app 'nul]]]
+                                ['exists (tie rh
+                                  ['exists (tie rt
+                                    ['exists (tie rrp
+                                      ['and ['eq ['var r1] ['app 'cons ['var rh] ['var rt]]]
+                                            ['and ['pos ['app 'reverse ['var rt] ['var rrp]]]
+                                                  ['pos ['app 'append ['var rrp]
+                                                                      ['app 'cons ['var rh] ['app 'nul]]
+                                                                      ['var r2]]]]])])])]]]]]
+                (proveo ['pos ['app 'reverse
+                               ['app 'nul]
+                               ['app 'cons ['app 'a] ['app 'nul]]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-Y10-reverse-synth-result
+  (testing "Y10: synthesize R s.t. reverse([a,b], R) — expected R=[b,a]"
+    ;; neg-call: r1=[a,b], r2=R (LVar).
+    ;; L-ground guard: R is LVar → passes. Recursive neg-calls bind R=[b,a].
+    (let [results (run 1 [r]
+                    (nom a1 a2 a3 ah at ar r1 r2 rh rt rrp
+                      (let [prog [['append [a1 a2 a3]
+                                   ['or ['and ['eq ['var a1] ['app 'nul]]
+                                              ['eq ['var a3] ['var a2]]]
+                                        ['exists (tie ah
+                                          ['exists (tie at
+                                            ['exists (tie ar
+                                              ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                                    ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                          ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]
+                                  ['reverse [r1 r2]
+                                   ['or ['and ['eq ['var r1] ['app 'nul]]
+                                              ['eq ['var r2] ['app 'nul]]]
+                                        ['exists (tie rh
+                                          ['exists (tie rt
+                                            ['exists (tie rrp
+                                              ['and ['eq ['var r1] ['app 'cons ['var rh] ['var rt]]]
+                                                    ['and ['pos ['app 'reverse ['var rt] ['var rrp]]]
+                                                          ['pos ['app 'append ['var rrp]
+                                                                              ['app 'cons ['var rh] ['app 'nul]]
+                                                                              ['var r2]]]]])])])]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'reverse
+                                         ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]
+                                         r]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= ['app 'cons ['app 'b] ['app 'cons ['app 'a] ['app 'nul]]]
+             (first results))))))
+
+;; ============================================================================
 ;; Run all tests
 ;; ============================================================================
 

@@ -1057,6 +1057,28 @@
             (== (lcons 'eq-triggered-neg-call (lcons R prf)) proof)
             (proveo neg-body '() '() call-env program prf))]
 
+         ;; ============================================================
+         ;; EQ-TRIGGERED NEQ CLOSURE
+         ;; ============================================================
+         ;; When the current literal is an equality and a neq literal
+         ;; is saved in lits, use the equality (plus any others in lits)
+         ;; to rewrite the neq's args toward reflexivity.
+         ;;
+         ;; Example: neq(f(g(p)), f(g(a))) saved to lits, then eq(p, a)
+         ;; arrives.  eq-neq-closeo rewrites f(g(p)) → f(g(a)) via p→a,
+         ;; reaching neq(f(g(a)), f(g(a))) → contradiction.
+         ;;
+         ;; This completes the general substitutivity rule (Fitting §5)
+         ;; for neq literals, making proof search order-independent for
+         ;; eq/neq conjunctions.
+         ;; ============================================================
+         [(fresh [t1 t2 n1 n2 eqs]
+            (== ['eq t1 t2] lit)
+            (membero ['neq n1 n2] lits)
+            (collect-eqso (lcons lit lits) eqs)
+            (eq-neq-closeo n1 n2 eqs)
+            (== ['eq-triggered-neq-close] proof))]
+
          ;; ---- Continue expansion (savefml) ----
          [(fresh [next unexp1 prf]
             (== (lcons next unexp1) unexp)

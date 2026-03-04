@@ -4385,15 +4385,12 @@
 
 (deftest test-ADV12-eq-par-par-different-pars
   (testing "ADV12: (eq (par p) (par q)) — two different parameters.
-            In the tableau, pars are distinct witnesses. eq between them
-            should be closable (they denote different entities). But:
-            free-closureo requires (lcons 'app ...) pattern — par is ['par nom],
-            not app → fails. decompose also fails. No closure possible.
-            Category: EXPECTED-FAIL (par-par equality not closable)"
-    ;; Cannot close eq between two different parameters.
-    ;; (They MIGHT denote the same entity in some models, so this is
-    ;; actually SOUND — the issue is that pars are arbitrary domain elements,
-    ;; not necessarily distinct.)
+            δ-parameters are constants of L^par, NOT L. Fitting's Free
+            Closure Rule only applies to constants of L. Two different
+            δ-parameters CAN denote the same domain element (e.g.,
+            ∃x.∃y.x=y is satisfiable — take x=y=a). So eq(par p, par q)
+            is NOT closable. This is CORRECT, not an incompleteness.
+            Category: PASS (correctly stays open — sound)"
     (is (empty?
           (run 1 [proof]
             (nom p q
@@ -4411,6 +4408,67 @@
           (run 1 [proof]
             (nom p
               (proveo ['neq ['par p] ['app 'a]]
+                      '() '() '() '() proof)))))))
+
+;; --- Section SUB: General Substitutivity (Fitting §5) ---
+;;
+;; Tests verifying that the general substitutivity rule is fully captured
+;; by the combination of existing rules + eq-triggered variants.
+;; The key gap: when neq arrives before eq, eq-neq-closeo has no equality
+;; pairs to work with. The eq-triggered-neq-close rule fixes this.
+
+(deftest test-SUB01-neq-before-eq-closes
+  (testing "SUB01: neq(f(g(p)),f(g(a))) ∧ eq(p,a) — neq arrives first.
+            Without eq-triggered-neq-close: neq saved to lits, eq arrives
+            but can't retroactively close the neq. With the rule: eq as
+            current lit triggers eq-neq-closeo on the saved neq, rewrites
+            f(g(p)) → f(g(a)) → reflexivity → closes.
+            Category: PASS (eq-triggered-neq-close)"
+    (is (seq
+          (run 1 [proof]
+            (nom p
+              (proveo ['and ['neq ['app 'f ['app 'g ['par p]]]
+                                  ['app 'f ['app 'g ['app 'a]]]]
+                            ['eq ['par p] ['app 'a]]]
+                      '() '() '() '() proof)))))))
+
+(deftest test-SUB02-eq-before-neq-closes
+  (testing "SUB02: eq(p,a) ∧ neq(f(g(p)),f(g(a))) — eq arrives first.
+            Standard path: eq saved to lits, neq uses eq-neq-closeo with
+            equality pairs from lits. No new rule needed.
+            Category: PASS (baseline — eq-refl-close)"
+    (is (seq
+          (run 1 [proof]
+            (nom p
+              (proveo ['and ['eq ['par p] ['app 'a]]
+                            ['neq ['app 'f ['app 'g ['par p]]]
+                                  ['app 'f ['app 'g ['app 'a]]]]]
+                      '() '() '() '() proof)))))))
+
+(deftest test-SUB03-nested-eq-decompose-para
+  (testing "SUB03: eq(f(p),f(a)) ∧ eq(p,b) — decompose + para-free-close.
+            eq(f(p),f(a)) decomposes to eq(p,a), saved to lits.
+            eq(p,b) arrives, para-free-close: eq(p,a) + eq(p,b) → eq(a,b)
+            → free-close (a≠b). Both orderings work.
+            Category: PASS (decompose + para-free-close)"
+    (is (seq
+          (run 1 [proof]
+            (nom p
+              (proveo ['and ['eq ['app 'f ['par p]] ['app 'f ['app 'a]]]
+                            ['eq ['par p] ['app 'b]]]
+                      '() '() '() '() proof)))))))
+
+(deftest test-SUB04-transitive-par-chain
+  (testing "SUB04: eq(p,q) ∧ eq(p,a) ∧ eq(q,b) — transitive par chain.
+            para-free-closeo handles multi-step: eq(p,q) + eq(p,a) → eq(a,q)
+            + eq(q,b) → eq(a,b) → free-close. Both orderings work.
+            Category: PASS (para-free-close transitivity)"
+    (is (seq
+          (run 1 [proof]
+            (nom p q
+              (proveo ['and ['eq ['par p] ['par q]]
+                            ['and ['eq ['par p] ['app 'a]]
+                                  ['eq ['par q] ['app 'b]]]]
                       '() '() '() '() proof)))))))
 
 ;; ============================================================================

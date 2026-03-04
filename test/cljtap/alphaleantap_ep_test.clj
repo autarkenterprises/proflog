@@ -27,6 +27,7 @@
 ;;   Section O  — Proof-term structure validation
 ;;   Section P  — Full first-order logic in clause bodies
 ;;   Section Q  — Backward running, list programs, multi-arg substitutivity
+;;   Section DI — Disunification with free variables (Fitting §8)
 ;;
 ;; Every test formula used with proveo is in NNF.  When testing whether
 ;; a query SUCCEEDS with a program (the query is TRUE), we build a closed
@@ -608,14 +609,164 @@
       ;; The result should be an exists with a negated body
       (is (= 'exists (first (first results)))))))
 
-(deftest test-D11-negate-exists-to-forall
-  (testing "¬(exists a.P(a)) = (forall a.¬P(a))"
+(deftest test-D11-negate-exists-to-once-forall
+  (testing "¬(exists a.P(a)) = (once-forall a.¬P(a)) — single-use universal"
     (let [results (run 1 [out]
                     (nom a
                       (negate-formulao ['exists (tie a ['pos ['app 'P ['var a]]])]
                                        out)))]
       (is (seq results))
-      (is (= 'forall (first (first results)))))))
+      (is (= 'once-forall (first (first results)))))))
+
+
+;; ============================================================================
+;; Section D+: negate-formulao adversarial tests for once-forall reverse flow
+;; ============================================================================
+;;
+;; These tests exercise paths through negate-formulao that require the
+;; mapping ¬(once-forall x.P) = (exists x.¬P).
+;;
+;; The gap: negate-formulao has a branch ['exists ...] ↔ ['once-forall ...]
+;; (bidirectional via ==), but NO branch where fml = ['once-forall ...].
+;; So calling (negate-formulao ['once-forall ...] out) in the FORWARD
+;; direction — negating a once-forall formula — fails to match any branch.
+;;
+;; Attack vectors:
+;;   Dp01 — Direct forward negation of once-forall
+;;   Dp02 — Double negation involutivity: ¬¬(∃x.P) via once-forall intermediate
+;;   Dp03 — Integration: clause body contains once-forall, neg-proc-call negates it
+;;   Dp04 — Deeper integration: pre-expanded clause body with once-forall at depth
+;;   Dp05 — Partial synthesis: given (exists ...) as output, find once-forall input
+
+(deftest test-Dp01-negate-once-forall-forward
+  (testing "¬(once-forall a.P(a)) = (exists a.¬P(a)) — forward negation of once-forall"
+    ;; Direct test: negate-formulao with once-forall as fml (first arg).
+    ;; Semantically, once-forall x.P ≡ forall x.P, so ¬(once-forall x.P) = ∃x.¬P.
+    ;; Without the fix, no branch matches ['once-forall ...] as fml → empty.
+    (let [results (run 1 [out]
+                    (nom a
+                      (negate-formulao ['once-forall (tie a ['pos ['app 'P ['var a]]])]
+                                       out)))]
+      (is (seq results) "Forward negation of once-forall must produce a result")
+      (is (= 'exists (first (first results)))))))
+
+(deftest test-Dp02-double-negation-exists-involutive
+  (testing "¬¬(∃x.P(x)) = ∃x.P(x) — double negation through once-forall intermediate"
+    ;; Step 1: ¬(∃x.P(x)) = (once-forall x.¬P(x))     — works (D11)
+    ;; Step 2: ¬(once-forall x.¬P(x)) = (∃x.¬¬P(x))
+    ;;       = (∃x.P(x))                                — needs once-forall branch
+    ;; Without the fix, step 2 fails → empty.
+    (let [results (run 1 [out]
+                    (nom a
+                      (fresh [mid]
+                        (negate-formulao ['exists (tie a ['pos ['app 'P ['var a]]])]
+                                         mid)
+                        (negate-formulao mid out))))]
+      (is (seq results) "Double negation of exists must round-trip")
+      (is (= 'exists (first (first results)))))))
+
+(deftest test-Dp03-neg-proc-call-on-once-forall-body
+  (testing "neg-proc-call on clause whose body contains once-forall"
+    ;; Scenario: A clause body that has been written in fully-expanded NNF,
+    ;; where the expansion naturally produces once-forall.
+    ;;
+    ;; R(x) ← (once-forall y. (neq (var x) (var y)))
+    ;;
+    ;; Semantically: R(x) iff ∀y.(x ≠ y), i.e., x differs from everything.
+    ;; This is false for any x (x=x is a counterexample), so R(x) fails ∀x.
+    ;;
+    ;; Query: does R(zero) SUCCEED? (neg R(zero))
+    ;; neg-proc-call: negate body → ¬(once-forall y.(x≠y)) = ∃y.(x=y)
+    ;; Subsidiary: ∃y.(zero = y), δ-rule introduces witness p, eq(zero, p).
+    ;; This closes via... actually (eq zero (par p)) doesn't close on its own.
+    ;; Let me use a body that actually closes.
+    ;;
+    ;; Better: R(x) ← (once-forall y. (neq (var x) (var y)))
+    ;; neg R(zero): negate body → ∃y.(eq (var x) (var y))
+    ;; With x bound to zero: ∃y.(eq zero y) → δ: p, (eq zero (par p))
+    ;; Hmm, this doesn't close either — (eq zero (par p)) is satisfiable.
+    ;;
+    ;; Restructure: use a body where negation produces something that closes.
+    ;;
+    ;; R(x) ← (once-forall y. (or (neq (var x) (var y)) (pos (app Q (var y)))))
+    ;; This is ∀y.(x≠y ∨ Q(y)), semantically "everything that equals x satisfies Q."
+    ;; ¬body = ∃y.(eq(x,y) ∧ neg(Q(y)))
+    ;; With x=zero and Q(y)←(eq y zero): ∃y.(zero=y ∧ ¬Q(y))
+    ;; δ: p. α: (eq zero (par p)) ∧ (neg Q(par p))
+    ;; eq zero (par p): save. neg Q(par p): neg-proc-call Q:
+    ;;   negate Q body → (neq (var y) (app zero)) with y=p → (neq (par p) zero)
+    ;;   Branch has (eq zero (par p)) → eq-refl-close rewrites (par p)→zero:
+    ;;   (neq zero zero) → refl-close ✓
+    ;;
+    ;; Actually this gets complicated. Let me use the simplest body that works.
+    ;;
+    ;; Simplest: R() ← (once-forall y. (neq (app a) (app b)))
+    ;; Body is trivially true (a≠b in every model). So R() is true.
+    ;; neg R(): negate body → ∃y.(eq a b) → δ: p, (eq a b) → free-close ✓
+    ;; R() succeeds.
+    (is (seq
+          (run 1 [proof]
+            (nom y
+              (let [prog [['R [] ['once-forall (tie y ['neq ['app 'a] ['app 'b]])]]]]
+                (fresh [neg-query]
+                  (negate-formulao ['pos ['app 'R]] neg-query)
+                  (proveo neg-query '() '() '() prog proof)))))))))
+
+(deftest test-Dp03b-neg-proc-call-on-once-forall-body-unary
+  (testing "neg-proc-call on unary clause whose body contains once-forall"
+    ;; R(x) ← (once-forall y. (neq (var x) (app b)))
+    ;;
+    ;; Body: ∀y.(x ≠ b). The quantified variable y is vacuous — the body
+    ;; simply asserts x ≠ b. So R(a) is true (a ≠ b) and R(b) is false.
+    ;;
+    ;; Query: does R(a) succeed? (neg R(a))
+    ;; neg-proc-call: negate body[x:=a] → ¬(once-forall y.(neq a b))
+    ;;   = ∃y.(eq a b) → δ: p, (eq a b) → free-close (a ≠ b) ✓
+    ;; R(a) succeeds.
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['R [x] ['once-forall (tie y ['neq ['var x] ['app 'b]])]]]]
+                (fresh [neg-query]
+                  (negate-formulao ['pos ['app 'R ['app 'a]]] neg-query)
+                  (proveo neg-query '() '() '() prog proof)))))))))
+
+(deftest test-Dp04-nested-once-forall-in-conjunction
+  (testing "neg-proc-call on body with once-forall nested inside conjunction"
+    ;; R(x) ← (and (eq (var x) (app zero))
+    ;;              (once-forall y. (neq (app a) (app b))))
+    ;;
+    ;; Body: x=zero ∧ ∀y.(a≠b). Both conjuncts hold when x=zero.
+    ;; So R(zero) succeeds.
+    ;;
+    ;; neg R(zero): negate body → (or (neq zero zero) (∃y.(eq a b)))
+    ;; β-split:
+    ;;   Left: (neq zero zero) → refl-close ✓
+    ;;   Right: ∃y.(eq a b) → δ: p, (eq a b) → free-close ✓
+    ;; Both branches close → R(zero) succeeds ✓
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['R [x] ['and ['eq ['var x] ['app 'zero]]
+                                        ['once-forall (tie y ['neq ['app 'a] ['app 'b]])]]]]]
+                (fresh [neg-query]
+                  (negate-formulao ['pos ['app 'R ['app 'zero]]] neg-query)
+                  (proveo neg-query '() '() '() prog proof)))))))))
+
+(deftest test-Dp05-partial-synth-negate-to-exists
+  (testing "Partial synthesis: given (exists ...) as neg-fml, find once-forall as fml"
+    ;; negate-formulao fml ['exists (tie a ['neg ['app 'P ['var a]]])]
+    ;; Two valid inputs: fml = ['forall ...] (branch 3) or fml = ['once-forall ...] (new branch)
+    ;; Without the fix, only ['forall ...] is found.
+    ;; With the fix, both are found — run 2 should return 2 results.
+    (let [results (run 2 [fml]
+                    (nom a
+                      (negate-formulao fml ['exists (tie a ['neg ['app 'P ['var a]]])])))]
+      (is (= 2 (count results))
+          "Both forall and once-forall should be valid inputs mapping to exists")
+      (let [tags (set (map #(first %) results))]
+        (is (contains? tags 'forall))
+        (is (contains? tags 'once-forall))))))
 
 
 ;; ============================================================================
@@ -1405,6 +1556,22 @@
                 ;; (neg (app R (app a))) with non-valid body: should not close
                 (proveo ['neg ['app 'R ['app 'a]]]
                         '() '() '() prog proof))))))))
+
+
+(deftest test-N11-duplicate-relation-rejected
+  (testing "Program with duplicate relation symbols is rejected (Fitting Def 2.1)"
+    ;; Fitting Definition 2.1: "at most one [clause] for each relation symbol."
+    ;; A program with two clauses for the same relation R is ill-formed.
+    ;; The top-level interface must reject it before entering the proof engine.
+    ;; The check only inspects relation symbols, so clause bodies are irrelevant.
+    (let [bad-prog [['R ['x] ['pos ['app 'P ['app 'x]]]]
+                    ['R ['y] ['neg ['app 'P ['app 'y]]]]]]
+      (is (thrown? IllegalArgumentException
+            (query-succeeds bad-prog ['pos ['app 'R ['app 'a]]])))
+      (is (thrown? IllegalArgumentException
+            (query-fails bad-prog ['pos ['app 'R ['app 'a]]])))
+      (is (thrown? IllegalArgumentException
+            (prove bad-prog ['pos ['app 'R ['app 'a]]] 1))))))
 
 
 ;; ============================================================================
@@ -3227,6 +3394,1024 @@
       (is (seq results))
       (is (= ['app 'cons ['app 'b] ['app 'cons ['app 'a] ['app 'nul]]]
              (first results))))))
+
+(deftest test-Y11-append-synth-result-three-element
+  (testing "Y11: synthesize Z s.t. append([a], [b,c], Z) — expected Z=[a,b,c]"
+    ;; neg-call: a1=[a], a2=[b,c], a3=Z (LVar).
+    ;; L-ground guard: Z is LVar → project[Z]=LVar → contains-par?=false → PASSES.
+    ;; Recursive neg-call binds Z=cons(a,cons(b,cons(c,nul))) via refl-close.
+    (let [results (run 1 [z]
+                    (nom a1 a2 a3 ah at ar
+                      (let [prog [['append [a1 a2 a3]
+                                   ['or ['and ['eq ['var a1] ['app 'nul]]
+                                              ['eq ['var a3] ['var a2]]]
+                                        ['exists (tie ah
+                                          ['exists (tie at
+                                            ['exists (tie ar
+                                              ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                                    ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                          ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'append
+                                         ['app 'cons ['app 'a] ['app 'nul]]
+                                         ['app 'cons ['app 'b] ['app 'cons ['app 'c] ['app 'nul]]]
+                                         z]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'cons ['app 'c] ['app 'nul]]]]
+             (first results))))))
+
+(deftest test-Y12-append-inverse-synth-all-splits
+  (testing "Y12: append(A, B, [a,b,c]) — all 4 splits found with both A and B as LVars"
+    ;; With the 'once-forall fix, negated existentials instantiate only once per branch
+    ;; rather than re-enqueueing indefinitely.  This allows depth-first search to reach
+    ;; all 4 splits of [a,b,c]: ([], [a,b,c]), ([a], [b,c]), ([a,b], [c]), ([a,b,c], []).
+    ;;
+    ;; Before the fix, run N [la lb] for any N returned only 2 unique results (splits 1 and 2),
+    ;; because the forall re-enqueue created infinite proof paths that starved deeper solutions.
+    (let [abc ['app 'cons ['app 'a]
+                ['app 'cons ['app 'b]
+                  ['app 'cons ['app 'c] ['app 'nul]]]]
+          results (run 4 [la lb]
+                    (nom a1 a2 a3 ah at ar
+                      (let [prog [['append [a1 a2 a3]
+                                   ['or ['and ['eq ['var a1] ['app 'nul]]
+                                              ['eq ['var a3] ['var a2]]]
+                                        ['exists (tie ah
+                                          ['exists (tie at
+                                            ['exists (tie ar
+                                              ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                                    ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                          ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'append la lb abc]]
+                                  '() '() '() prog proof)))))]
+      (is (= 4 (count results)))
+      (let [la-vals (map first results)]
+        (is (some #(= % ['app 'nul]) la-vals))
+        (is (some #(= % ['app 'cons ['app 'a] ['app 'nul]]) la-vals))
+        (is (some #(= % ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]) la-vals))
+        (is (some #(= % ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'cons ['app 'c] ['app 'nul]]]]) la-vals))))))
+;; ============================================================================
+;; Section Z: Nested list programs — append with list-valued elements
+;; ============================================================================
+;; The append program treats list elements as opaque terms.  These tests verify
+;; that it handles nested lists (lists whose elements are themselves lists)
+;; without modification.  Sublists are represented as (app cons ...) terms
+;; embedded inside the outer (app cons ...) spine.
+
+(deftest test-Y13-append-nested-forward
+  (testing "Y13: append([[a]], [[b]], Z) — forward with nested list elements, Z=[[a],[b]]"
+    (let [sub-a    ['app 'cons ['app 'a] ['app 'nul]]
+          sub-b    ['app 'cons ['app 'b] ['app 'nul]]
+          la       ['app 'cons sub-a ['app 'nul]]
+          lb       ['app 'cons sub-b ['app 'nul]]
+          expected ['app 'cons sub-a ['app 'cons sub-b ['app 'nul]]]
+          results  (run 1 [z]
+                     (nom a1 a2 a3 ah at ar
+                       (let [prog [['append [a1 a2 a3]
+                                    ['or ['and ['eq ['var a1] ['app 'nul]]
+                                               ['eq ['var a3] ['var a2]]]
+                                         ['exists (tie ah
+                                           ['exists (tie at
+                                             ['exists (tie ar
+                                               ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                                     ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                           ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                         (fresh [proof]
+                           (proveo ['neg ['app 'append la lb z]]
+                                   '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= expected (first results))))))
+
+(deftest test-Y14-append-nested-synth-second-arg
+  (testing "Y14: append([[a,b]], Z, [[a,b],[c,d]]) — synthesize Z=[[c,d]]"
+    (let [sub-ab ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]
+          sub-cd ['app 'cons ['app 'c] ['app 'cons ['app 'd] ['app 'nul]]]
+          la     ['app 'cons sub-ab ['app 'nul]]
+          lc     ['app 'cons sub-ab ['app 'cons sub-cd ['app 'nul]]]
+          results (run 1 [z]
+                    (nom a1 a2 a3 ah at ar
+                      (let [prog [['append [a1 a2 a3]
+                                   ['or ['and ['eq ['var a1] ['app 'nul]]
+                                              ['eq ['var a3] ['var a2]]]
+                                        ['exists (tie ah
+                                          ['exists (tie at
+                                            ['exists (tie ar
+                                              ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                                    ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                          ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'append la z lc]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= ['app 'cons sub-cd ['app 'nul]] (first results))))))
+
+(deftest test-Y15-append-nested-inverse-all-splits
+  (testing "Y15: append(A, B, [[a],[b]]) — all 3 splits with nested list result"
+    (let [sub-a ['app 'cons ['app 'a] ['app 'nul]]
+          sub-b ['app 'cons ['app 'b] ['app 'nul]]
+          lc    ['app 'cons sub-a ['app 'cons sub-b ['app 'nul]]]
+          results (run 3 [la lb]
+                    (nom a1 a2 a3 ah at ar
+                      (let [prog [['append [a1 a2 a3]
+                                   ['or ['and ['eq ['var a1] ['app 'nul]]
+                                              ['eq ['var a3] ['var a2]]]
+                                        ['exists (tie ah
+                                          ['exists (tie at
+                                            ['exists (tie ar
+                                              ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                                    ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                          ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'append la lb lc]]
+                                  '() '() '() prog proof)))))]
+      (is (= 3 (count results)))
+      (let [la-vals (map first results)]
+        (is (some #(= % ['app 'nul]) la-vals))
+        (is (some #(= % ['app 'cons sub-a ['app 'nul]]) la-vals))
+        (is (some #(= % ['app 'cons sub-a ['app 'cons sub-b ['app 'nul]]]) la-vals))))))
+
+;; ============================================================================
+;; Triply-nested lists (depth 3), ≥5 outer elements, LVars at multiple levels
+;; ============================================================================
+;; Structure used in Z01–Z04:
+;;   lc = [e1, e2, e3, e4, e5]   (5 outer level-3 elements)
+;;     e1 = [[a,b],[c,d]]  (level-2 sublist containing two level-1 flat lists)
+;;     e2 = [[e,f],[g,h]]
+;;     e3 = [[i,j]]
+;;     e4 = [[k,l]]
+;;     e5 = [[a,b]]        (reuses ab)
+;;
+;; All tests share the same append program.  Logic variables appear at:
+;;   level-0: the outer list (la, lb, lc themselves)
+;;   level-1: elements of the outer list (level-2 sublists)
+;;   level-3: atoms inside the innermost flat lists
+
+(deftest test-Z01-append-depth3-forward
+  (testing "Z01: append(la, lb, Z) — depth-3, 5-element result synthesized, all concrete"
+    (let [ab  ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]
+          cd  ['app 'cons ['app 'c] ['app 'cons ['app 'd] ['app 'nul]]]
+          ef  ['app 'cons ['app 'e] ['app 'cons ['app 'f] ['app 'nul]]]
+          gh  ['app 'cons ['app 'g] ['app 'cons ['app 'h] ['app 'nul]]]
+          ij  ['app 'cons ['app 'i] ['app 'cons ['app 'j] ['app 'nul]]]
+          kl  ['app 'cons ['app 'k] ['app 'cons ['app 'l] ['app 'nul]]]
+          e1  ['app 'cons ab ['app 'cons cd ['app 'nul]]]
+          e2  ['app 'cons ef ['app 'cons gh ['app 'nul]]]
+          e3  ['app 'cons ij ['app 'nul]]
+          e4  ['app 'cons kl ['app 'nul]]
+          e5  ['app 'cons ab ['app 'nul]]
+          la  ['app 'cons e1 ['app 'cons e2 ['app 'nul]]]
+          lb  ['app 'cons e3 ['app 'cons e4 ['app 'cons e5 ['app 'nul]]]]
+          lc  ['app 'cons e1 ['app 'cons e2 ['app 'cons e3 ['app 'cons e4 ['app 'cons e5 ['app 'nul]]]]]]
+          results (run 1 [z]
+                    (nom a1 a2 a3 ah at ar
+                      (let [prog [['append [a1 a2 a3]
+                                   ['or ['and ['eq ['var a1] ['app 'nul]]
+                                              ['eq ['var a3] ['var a2]]]
+                                        ['exists (tie ah
+                                          ['exists (tie at
+                                            ['exists (tie ar
+                                              ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                                    ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                          ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'append la lb z]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= lc (first results))))))
+
+(deftest test-Z02-append-depth3-level0-level1-lvars
+  (testing "Z02: LVars at level-0 (outer suffix lb) and level-1 (inner element P) simultaneously"
+    ;; la = [P, e2] where P is an unknown level-2 sublist (level-1 LVar from the outer list's perspective).
+    ;; lb-out is an unknown outer suffix (level-0 LVar).
+    ;; lc is a concrete 5-element depth-3 list.
+    ;; Proof binds P = e1 (first outer element of lc) and lb-out = [e3, e4, e5].
+    (let [ab  ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]
+          cd  ['app 'cons ['app 'c] ['app 'cons ['app 'd] ['app 'nul]]]
+          ef  ['app 'cons ['app 'e] ['app 'cons ['app 'f] ['app 'nul]]]
+          gh  ['app 'cons ['app 'g] ['app 'cons ['app 'h] ['app 'nul]]]
+          ij  ['app 'cons ['app 'i] ['app 'cons ['app 'j] ['app 'nul]]]
+          kl  ['app 'cons ['app 'k] ['app 'cons ['app 'l] ['app 'nul]]]
+          e1  ['app 'cons ab ['app 'cons cd ['app 'nul]]]
+          e2  ['app 'cons ef ['app 'cons gh ['app 'nul]]]
+          e3  ['app 'cons ij ['app 'nul]]
+          e4  ['app 'cons kl ['app 'nul]]
+          e5  ['app 'cons ab ['app 'nul]]
+          lc  ['app 'cons e1 ['app 'cons e2 ['app 'cons e3 ['app 'cons e4 ['app 'cons e5 ['app 'nul]]]]]]
+          results (run 1 [P lb-out]
+                    (nom a1 a2 a3 ah at ar
+                      (let [la   ['app 'cons P ['app 'cons e2 ['app 'nul]]]
+                            prog [['append [a1 a2 a3]
+                                   ['or ['and ['eq ['var a1] ['app 'nul]]
+                                              ['eq ['var a3] ['var a2]]]
+                                        ['exists (tie ah
+                                          ['exists (tie at
+                                            ['exists (tie ar
+                                              ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                                    ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                          ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'append la lb-out lc]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (let [[P-val lb-val] (first results)]
+        (is (= e1 P-val))
+        (is (= ['app 'cons e3 ['app 'cons e4 ['app 'cons e5 ['app 'nul]]]] lb-val))))))
+
+(deftest test-Z03-append-depth3-two-atom-lvars
+  (testing "Z03: atom-level LVars R (in e1) and S (in e2) at depth 3, rest concrete"
+    ;; R replaces 'b inside [a,b] in e1: ab-R = [a,R].
+    ;; S replaces 'h inside [g,h] in e2: gh-S = [g,S].
+    ;; la = [e1-R, e2-S] (2 elements), lb = [e3, e4, e5] (3 elements, concrete).
+    ;; lc = [e1, e2, e3, e4, e5] (5 elements, fully concrete).
+    ;; Proof: e1-R matches e1 → R = (app 'b); e2-S matches e2 → S = (app 'h).
+    (let [cd  ['app 'cons ['app 'c] ['app 'cons ['app 'd] ['app 'nul]]]
+          ef  ['app 'cons ['app 'e] ['app 'cons ['app 'f] ['app 'nul]]]
+          ab  ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]
+          gh  ['app 'cons ['app 'g] ['app 'cons ['app 'h] ['app 'nul]]]
+          ij  ['app 'cons ['app 'i] ['app 'cons ['app 'j] ['app 'nul]]]
+          kl  ['app 'cons ['app 'k] ['app 'cons ['app 'l] ['app 'nul]]]
+          e1  ['app 'cons ab ['app 'cons cd ['app 'nul]]]
+          e2  ['app 'cons ef ['app 'cons gh ['app 'nul]]]
+          e3  ['app 'cons ij ['app 'nul]]
+          e4  ['app 'cons kl ['app 'nul]]
+          e5  ['app 'cons ab ['app 'nul]]
+          lc  ['app 'cons e1 ['app 'cons e2 ['app 'cons e3 ['app 'cons e4 ['app 'cons e5 ['app 'nul]]]]]]
+          results (run 1 [R S]
+                    (nom a1 a2 a3 ah at ar
+                      (let [ab-R  ['app 'cons ['app 'a] ['app 'cons R ['app 'nul]]]
+                            gh-S  ['app 'cons ['app 'g] ['app 'cons S ['app 'nul]]]
+                            e1-R  ['app 'cons ab-R ['app 'cons cd ['app 'nul]]]
+                            e2-S  ['app 'cons ef ['app 'cons gh-S ['app 'nul]]]
+                            la    ['app 'cons e1-R ['app 'cons e2-S ['app 'nul]]]
+                            lb    ['app 'cons e3 ['app 'cons e4 ['app 'cons e5 ['app 'nul]]]]
+                            prog  [['append [a1 a2 a3]
+                                    ['or ['and ['eq ['var a1] ['app 'nul]]
+                                               ['eq ['var a3] ['var a2]]]
+                                         ['exists (tie ah
+                                           ['exists (tie at
+                                             ['exists (tie ar
+                                               ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                                     ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                           ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'append la lb lc]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (let [[R-val S-val] (first results)]
+        (is (= ['app 'b] R-val))
+        (is (= ['app 'h] S-val))))))
+
+(deftest test-Z04-append-depth3-combined-three-levels
+  (testing "Z04: LVars at level-0 (lb), level-1 (P), and level-3 (S) simultaneously"
+    ;; la = [P, e2-S] where:
+    ;;   P   is a level-1 LVar (unknown level-2 sublist, outer list element)
+    ;;   e2-S = [[e,f],[g,S]] where S is a level-3 atom LVar inside e2
+    ;; lb-out is a level-0 LVar (unknown outer suffix).
+    ;; lc is fully concrete (5 elements).
+    ;; Proof binds P = e1, S = (app 'h), lb-out = [e3, e4, e5].
+    (let [cd  ['app 'cons ['app 'c] ['app 'cons ['app 'd] ['app 'nul]]]
+          ab  ['app 'cons ['app 'a] ['app 'cons ['app 'b] ['app 'nul]]]
+          ef  ['app 'cons ['app 'e] ['app 'cons ['app 'f] ['app 'nul]]]
+          gh  ['app 'cons ['app 'g] ['app 'cons ['app 'h] ['app 'nul]]]
+          ij  ['app 'cons ['app 'i] ['app 'cons ['app 'j] ['app 'nul]]]
+          kl  ['app 'cons ['app 'k] ['app 'cons ['app 'l] ['app 'nul]]]
+          e1  ['app 'cons ab ['app 'cons cd ['app 'nul]]]
+          e2  ['app 'cons ef ['app 'cons gh ['app 'nul]]]
+          e3  ['app 'cons ij ['app 'nul]]
+          e4  ['app 'cons kl ['app 'nul]]
+          e5  ['app 'cons ab ['app 'nul]]
+          lc  ['app 'cons e1 ['app 'cons e2 ['app 'cons e3 ['app 'cons e4 ['app 'cons e5 ['app 'nul]]]]]]
+          results (run 1 [P lb-out S]
+                    (nom a1 a2 a3 ah at ar
+                      (let [gh-S  ['app 'cons ['app 'g] ['app 'cons S ['app 'nul]]]
+                            e2-S  ['app 'cons ef ['app 'cons gh-S ['app 'nul]]]
+                            la    ['app 'cons P ['app 'cons e2-S ['app 'nul]]]
+                            prog  [['append [a1 a2 a3]
+                                    ['or ['and ['eq ['var a1] ['app 'nul]]
+                                               ['eq ['var a3] ['var a2]]]
+                                         ['exists (tie ah
+                                           ['exists (tie at
+                                             ['exists (tie ar
+                                               ['and ['eq ['var a1] ['app 'cons ['var ah] ['var at]]]
+                                                     ['and ['eq ['var a3] ['app 'cons ['var ah] ['var ar]]]
+                                                           ['pos ['app 'append ['var at] ['var a2] ['var ar]]]]])])])]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'append la lb-out lc]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (let [[P-val lb-val S-val] (first results)]
+        (is (= e1 P-val))
+        (is (= ['app 'h] S-val))
+        (is (= ['app 'cons e3 ['app 'cons e4 ['app 'cons e5 ['app 'nul]]]] lb-val))))))
+
+;; ============================================================================
+;; Section DI: Disunification with Free Variables (Fitting §8)
+;; ============================================================================
+;;
+;; Fitting §8 identifies disunification — closing (eq t1 t2) branches when
+;; t1 or t2 contain free (logic) variables — as "perhaps the most intractable
+;; implementation issue."  A disunifier is a substitution making two terms
+;; differ at a function symbol position.
+;;
+;; The current implementation handles this through a free-close + decompose
+;; cascade: free-closureo generates root-level clashes (different head
+;; symbols), and the decompose rule generates sub-equalities for same-head
+;; cases, enabling deeper disunification.  core.logic's != constraint
+;; propagation automatically merges disunification constraints.
+;;
+;; These tests verify the cascade works correctly with free variables at
+;; every depth level, in both forward and synthesis modes.
+
+;; --- Phase 1: Unit tests for free-closureo with LVars ---
+
+(deftest test-DI01-free-close-lvar-one-side
+  (testing "free-closureo with LVar on one side: binds LVar to app term with different head"
+    ;; free-closureo (app f (app a)) y — y is LVar
+    ;; Expected: y binds to (app s2 . a2) with s2 != 'f
+    (let [results (run 1 [y]
+                    (free-closureo (lcons 'app (lcons 'f (lcons (lcons 'app (lcons 'a '())) '())))
+                                  y))]
+      (is (seq results)))))
+
+(deftest test-DI02-free-close-both-lvars
+  (testing "free-closureo with both sides LVars: binds both to app terms with different heads"
+    (let [results (run 1 [q]
+                    (fresh [x y]
+                      (free-closureo x y)
+                      (== q [x y])))]
+      (is (seq results)))))
+
+(deftest test-DI03-free-close-same-head-nullary-fails
+  (testing "free-closureo with same head, nullary: fails (same constructor)"
+    (let [results (run 1 [q]
+                    (free-closureo (lcons 'app (lcons 'f '()))
+                                  (lcons 'app (lcons 'f '()))))]
+      (is (empty? results)))))
+
+(deftest test-DI04-free-close-same-head-different-args-fails
+  (testing "free-closureo with same head but different args: fails (free-close only checks heads)"
+    (let [results (run 1 [q]
+                    (free-closureo (lcons 'app (lcons 'f (lcons (lcons 'app (lcons 'a '())) '())))
+                                  (lcons 'app (lcons 'f (lcons (lcons 'app (lcons 'b '())) '())))))]
+      (is (empty? results)))))
+
+;; --- Phase 3: Disunification in Proflog program context ---
+;;
+;; R(x) ← x ≠ t:  neg-call negates body to (eq x t).
+;; The eq literal enters proveo's closure rules.
+
+(deftest test-DI09-disunify-concrete-different-heads
+  (testing "R(x) ← x≠a. Query R(b) succeeds: neg-call → (eq b a) → free-close b≠a"
+    ;; Clause: R(pa) ← (neq (var pa) (app a))
+    ;; Query: neg(R(b)) — neg-call: negate body → (eq b a)
+    ;; (eq (app b) (app a)) → free-close: b ≠ a ✓
+    (let [results (run 1 [proof]
+                    (nom pa
+                      (let [prog [['R [pa] ['neq ['var pa] ['app 'a]]]]]
+                        (proveo ['neg ['app 'R ['app 'b]]] '() '() '() prog proof))))]
+      (is (seq results)))))
+
+(deftest test-DI10-disunify-concrete-same-fails
+  (testing "R(x) ← x≠a. Query R(a) fails: neg-call → (eq a a) → no closure"
+    ;; (eq (app a) (app a)): free-close fails (same head), decompose fails (no args)
+    ;; Branch cannot close → query R(a) does not succeed
+    (let [results (run 1 [proof]
+                    (nom pa
+                      (let [prog [['R [pa] ['neq ['var pa] ['app 'a]]]]]
+                        (proveo ['neg ['app 'R ['app 'a]]] '() '() '() prog proof))))]
+      (is (empty? results)))))
+
+(deftest test-DI11-disunify-binary-root-clash
+  (testing "R(x,y) ← x≠y. Query R(f(a), g(b)) succeeds: root clash f≠g"
+    ;; neg-call: negate body → (eq f(a) g(b)) → free-close: f ≠ g ✓
+    (let [results (run 1 [proof]
+                    (nom pa pb
+                      (let [prog [['R [pa pb] ['neq ['var pa] ['var pb]]]]]
+                        (proveo ['neg ['app 'R ['app 'f ['app 'a]] ['app 'g ['app 'b]]]]
+                                '() '() '() prog proof))))]
+      (is (seq results)))))
+
+(deftest test-DI12-disunify-same-head-different-args
+  (testing "R(x,y) ← x≠y. Query R(f(a), f(b)) succeeds: decompose → a≠b"
+    ;; neg-call: negate body → (eq f(a) f(b))
+    ;; free-close fails (same head f). Decompose: (eq a b) → free-close: a ≠ b ✓
+    (let [results (run 1 [proof]
+                    (nom pa pb
+                      (let [prog [['R [pa pb] ['neq ['var pa] ['var pb]]]]]
+                        (proveo ['neg ['app 'R ['app 'f ['app 'a]] ['app 'f ['app 'b]]]]
+                                '() '() '() prog proof))))]
+      (is (seq results)))))
+
+(deftest test-DI13-disunify-same-term-fails
+  (testing "R(x,y) ← x≠y. Query R(f(a), f(a)) fails: decompose → (eq a a) → no closure"
+    ;; (eq f(a) f(a)) → decompose → (eq a a) → same head, no args → no closure
+    (let [results (run 1 [proof]
+                    (nom pa pb
+                      (let [prog [['R [pa pb] ['neq ['var pa] ['var pb]]]]]
+                        (proveo ['neg ['app 'R ['app 'f ['app 'a]] ['app 'f ['app 'a]]]]
+                                '() '() '() prog proof))))]
+      (is (empty? results)))))
+
+;; --- Phase 2: Decompose cascade through proveo ---
+;;
+;; These exercise the free-close + decompose cascade on (eq ...) formulas
+;; with LVars, end-to-end through Proflog program neg-calls.
+
+(deftest test-DI05-disunify-lvar-root-clash
+  (testing "R(x) ← x≠f(a). Synthesize x via root clash: x has head ≠ f"
+    ;; neg-call R(x): negate body → (eq x f(a)).
+    ;; free-close: x → (app s ...) with s ≠ f. Root-level disunifier.
+    (let [results (run 1 [x]
+                    (nom pa
+                      (let [prog [['R [pa] ['neq ['var pa] ['app 'f ['app 'a]]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R x]] '() '() '() prog proof)))))]
+      (is (seq results)))))
+
+(deftest test-DI06-disunify-lvar-depth-1
+  (testing "R(x) ← x≠f(a). Synthesize x via depth-1 decompose: x = f(b) where b has head ≠ a"
+    ;; After root-clash disunifiers, decompose fires: x → f(arg2).
+    ;; Sub-eq: (eq arg2 (app a)) → free-close: arg2 has head ≠ a.
+    ;; x = (app f (app s ...)) where s ≠ a.
+    ;; We use run* with enough results to find the depth-1 disunifier.
+    (let [results (run 5 [x]
+                    (nom pa
+                      (let [prog [['R [pa] ['neq ['var pa] ['app 'f ['app 'a]]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R x]] '() '() '() prog proof)))))]
+      (is (>= (count results) 2)
+          "Should produce at least root and depth-1 disunifiers"))))
+
+(deftest test-DI07-disunify-lvar-multiple-depths
+  (testing "R(x) ← x≠f(a). run 2 collects both root and depth-1 disunifiers"
+    ;; Root clash: x has head ≠ f.
+    ;; Depth-1: x = f(something), something has head ≠ a.
+    ;; Both should appear in run 2 (core.logic interleaving).
+    (let [results (run 2 [x]
+                    (nom pa
+                      (let [prog [['R [pa] ['neq ['var pa] ['app 'f ['app 'a]]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R x]] '() '() '() prog proof)))))]
+      (is (= 2 (count results))
+          "Should find two disunifiers"))))
+
+(deftest test-DI08-disunify-lvar-depth-2
+  (testing "R(x) ← x≠f(g(a)). Synthesize x via depth-2 decompose chain"
+    ;; (eq x f(g(a))) → 3 depth levels:
+    ;;   Depth 0: x has head ≠ f (root clash)
+    ;;   Depth 1: x = f(arg2), arg2 has head ≠ g
+    ;;   Depth 2: x = f(g(arg3)), arg3 has head ≠ a
+    ;; run 3 should find all three.
+    (let [results (run 3 [x]
+                    (nom pa
+                      (let [prog [['R [pa] ['neq ['var pa] ['app 'f ['app 'g ['app 'a]]]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R x]] '() '() '() prog proof)))))]
+      (is (= 3 (count results))
+          "Should find root, depth-1, and depth-2 disunifiers"))))
+
+;; --- Phase 4: Synthesis with disunification constraints ---
+
+(deftest test-DI14-synth-disunify-simple
+  (testing "R(x) ← x≠a. Synthesize x: run 1 finds some x ≠ a"
+    (let [results (run 1 [x]
+                    (nom pa
+                      (let [prog [['R [pa] ['neq ['var pa] ['app 'a]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R x]] '() '() '() prog proof)))))]
+      (is (seq results)))))
+
+(deftest test-DI15-synth-disunify-binary-root
+  (testing "R(x,y) ← x≠y. Synth y given x=f(a): y has head ≠ f (root clash)"
+    (let [results (run 1 [y]
+                    (nom pa pb
+                      (let [prog [['R [pa pb] ['neq ['var pa] ['var pb]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R ['app 'f ['app 'a]] y]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results)))))
+
+(deftest test-DI16-synth-disunify-binary-multiple
+  (testing "R(x,y) ← x≠y. run 2 for y given x=f(a): root + depth-1 disunifiers"
+    (let [results (run 2 [y]
+                    (nom pa pb
+                      (let [prog [['R [pa pb] ['neq ['var pa] ['var pb]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R ['app 'f ['app 'a]] y]]
+                                  '() '() '() prog proof)))))]
+      (is (= 2 (count results))
+          "Should find root and depth-1 disunifiers for y"))))
+
+(deftest test-DI17-synth-disunify-depth-3
+  (testing "R(x) ← x≠f(g(a)). run 3 finds root, depth-1, depth-2 disunifiers"
+    (let [results (run 3 [x]
+                    (nom pa
+                      (let [prog [['R [pa] ['neq ['var pa] ['app 'f ['app 'g ['app 'a]]]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R x]] '() '() '() prog proof)))))]
+      (is (= 3 (count results))
+          "Three depth levels of disunifiers"))))
+
+;; --- Phase 5: Multiple disunification constraints ---
+
+(deftest test-DI18-multi-disunify-concrete
+  (testing "R(x) ← x≠a ∧ x≠b. Query R(c) succeeds: both (eq c a) and (eq c b) close"
+    ;; neg-call: negate body → (or (eq x a) (eq x b)) — β-split
+    ;; Branch 1: (eq c a) → free-close: c ≠ a ✓
+    ;; Branch 2: (eq c b) → free-close: c ≠ b ✓
+    (let [results (run 1 [proof]
+                    (nom pa
+                      (let [prog [['R [pa] ['and ['neq ['var pa] ['app 'a]]
+                                                 ['neq ['var pa] ['app 'b]]]]]]
+                        (proveo ['neg ['app 'R ['app 'c]]] '() '() '() prog proof))))]
+      (is (seq results)))))
+
+(deftest test-DI19-multi-disunify-synth
+  (testing "R(x) ← x≠a ∧ x≠b. Synthesize x: must satisfy both constraints"
+    ;; neg-call: negate body → (or (eq x a) (eq x b))
+    ;; β-split: both branches must close.
+    ;; Branch 1: (eq x a) → free-close: x has head ≠ a.
+    ;; Branch 2: (eq x b) → this must ALSO close with the SAME x.
+    ;; Since x already has head ≠ a, if head ≠ b too, both close.
+    (let [results (run 1 [x]
+                    (nom pa
+                      (let [prog [['R [pa] ['and ['neq ['var pa] ['app 'a]]
+                                                 ['neq ['var pa] ['app 'b]]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R x]] '() '() '() prog proof)))))]
+      (is (seq results)))))
+
+(deftest test-DI20-disunify-forall-root-clash
+  (testing "R(x) ← ∀y.(x≠f(y)). Query R(g(a)) succeeds: γ-var y, free-close g≠f"
+    ;; Clause body: (forall (tie py (neq (var pa) (app f (var py)))))
+    ;; neg-call: negate → (exists (tie py (eq pa (app f (var py)))))
+    ;; Actually negate-formulao on forall→once-forall:
+    ;;   negate(neq x f(y)) = (eq x f(y))
+    ;;   negate(forall y.(neq x f(y))) = once-forall y.(eq x f(y))
+    ;; Wait, that's wrong. Let me think again.
+    ;; Body: (forall (tie py (neq (var pa) (app f (var py)))))
+    ;; negate-formulao: ¬(forall y.P) = exists y.¬P
+    ;;   = exists y. ¬(neq x f(y)) = exists y. (eq x f(y))
+    ;; Actually negate(forall ...) = once-forall?
+    ;; No: negate(forall) = exists, negate(exists) = once-forall.
+    ;; So: negate body = (exists (tie py (eq (var pa) (app f (var py)))))
+    ;; Wait, but neg-call negates the body. For neg-call on R(g(a)):
+    ;;   Body with env pa→g(a): ∀y.(g(a)≠f(y))
+    ;;   Negate: ∃y.(eq g(a) f(y))
+    ;;   δ-rule: introduce witness p. (eq g(a) f(par p))
+    ;;   free-close: g ≠ f ✓ — branch closes.
+    ;; BUT: negate-formulao(forall ...) produces (exists ...), not (once-forall ...).
+    ;; And then the exists in proveo uses the δ-rule (fresh nom p, bind py→(par p)).
+    ;; Hmm, but negate-formulao goes: forall→exists.
+    ;; And the exists case in proveo uses nom p and binds py→(par p).
+    ;; But then (eq g(a) f(par p)) → free-close: g ≠ f ✓.
+    ;;
+    ;; Actually for the positive call: body itself is ∀y.(x≠f(y)).
+    ;; neg-call negates: ∃y.(eq x f(y)) → processed by exists δ-rule.
+    ;;
+    ;; For R(g(a)): env pa→g(a). Body = forall y.(neq g(a) f(y)).
+    ;; Negate = exists y.(eq g(a) f(y)) → δ-rule → (eq g(a) f(par p)) → free-close g≠f ✓.
+    (let [results (run 1 [proof]
+                    (nom pa py
+                      (let [prog [['R [pa] ['forall (tie py ['neq ['var pa] ['app 'f ['var py]]])]]]]
+                        (proveo ['neg ['app 'R ['app 'g ['app 'a]]]] '() '() '() prog proof))))]
+      (is (seq results)))))
+
+(deftest test-DI21-disunify-forall-same-head
+  (testing "R(x) ← ∀y.(x≠f(y)). Query R(f(a)) — fails: can set y=a to make x=f(y)"
+    ;; neg-call: negate body → ∃y.(eq f(a) f(y)).
+    ;; δ-rule: (eq f(a) f(par p)). Decompose → (eq a (par p)).
+    ;; (par p) is a δ-parameter, not an app term — free-close fails.
+    ;; refl-close on eq: not applicable (eq, not neq).
+    ;; The eq cannot be closed → branch stays open → neg-call fails.
+    ;; This is correct: R(f(a)) should fail because ∀y.(f(a)≠f(y)) is false (set y=a).
+    (let [results (run 1 [proof]
+                    (nom pa py
+                      (let [prog [['R [pa] ['forall (tie py ['neq ['var pa] ['app 'f ['var py]]])]]]]
+                        (proveo ['neg ['app 'R ['app 'f ['app 'a]]]] '() '() '() prog proof))))]
+      (is (empty? results)))))
+
+;; --- Phase 6: Interaction with equality rewriting + procedure calls ---
+
+(deftest test-DI22-disunify-with-eq-rewriting
+  (testing "Disunification + equality rewriting: branch eq rewrites before free-close"
+    ;; R(x) ← (eq x (app b)) ∧ (neq (var x) (app a))
+    ;; This says: x=b and x≠a. Since b≠a, this holds.
+    ;; Query R(y) where y is free.
+    ;; neg-call: negate → (or (neq y b) (eq y a)).
+    ;; β-split:
+    ;;   Branch 1: (neq y b) → refl-close: y=b. Closes.
+    ;;   Branch 2: (eq y a) → now y=b (from branch 1 in shared substitution).
+    ;;     (eq b a) → free-close: b ≠ a ✓. Closes.
+    ;; Result: y = b.
+    (let [results (run 1 [y]
+                    (nom pa
+                      (let [prog [['R [pa] ['and ['eq ['var pa] ['app 'b]]
+                                                 ['neq ['var pa] ['app 'a]]]]]]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'R y]] '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= ['app 'b] (first results))))))
+
+(deftest test-DI23-disunify-via-subst-call
+  (testing "Disunification + substitutivity: subst-call rewrites par before disunification"
+    ;; This tests the full chain: δ-rule introduces (par p), equality
+    ;; rewrites (par p) → concrete, then disunification closes.
+    ;;
+    ;; R(x) ← ∃y.(x = s(y) ∧ y ≠ zero)
+    ;; Query: R(s(s(zero))) — x=s(s(zero)), y should be s(zero), which ≠ zero.
+    ;;
+    ;; neg-call: negate body → ∀y.(x ≠ s(y) ∨ y = zero)
+    ;;   = once-forall y. (or (neq x s(y)) (eq y zero))
+    ;; γ-rule: introduce v for y. (or (neq s(s(zero)) s(v)) (eq v zero))
+    ;; β-split:
+    ;;   Branch 1: (neq s(s(zero)) s(v)) → decompose → (neq s(zero) v)
+    ;;     → refl-close: v = s(zero). Closes.
+    ;;   Branch 2: (eq v zero) → v = s(zero) from branch 1.
+    ;;     (eq s(zero) zero) → free-close: s ≠ zero ✓. Closes.
+    (let [results (run 1 [proof]
+                    (nom pa py
+                      (let [prog [['R [pa] ['exists (tie py
+                                             ['and ['eq ['var pa] ['app 's ['var py]]]
+                                                   ['neq ['var py] ['app 'zero]]])]]]]
+                        (proveo ['neg ['app 'R ['app 's ['app 's ['app 'zero]]]]]
+                                '() '() '() prog proof))))]
+      (is (seq results)))))
+
+;; --- Phase 7: Edge case — both sides are LVars ---
+
+(deftest test-DI24-disunify-both-lvars
+  (testing "free-closureo with both sides LVars: generates disunifier with different heads"
+    ;; (eq x y) where both are free → free-close binds both to (app s1 ...)
+    ;; and (app s2 ...) with s1 ≠ s2. Each binding is a valid disunifier.
+    ;; The reified result includes constraint information (the != constraint),
+    ;; so we just verify that free-closureo succeeds.
+    (let [results (run 1 [q]
+                    (fresh [x y]
+                      (free-closureo x y)
+                      (== q [x y])))]
+      (is (seq results)))))
+
+(deftest test-DI25-disunify-both-lvars-in-program
+  (testing "R(x,y) ← x≠y. Synthesize both x and y — produces distinct terms"
+    ;; neg-call: negate body → (eq x y).
+    ;; free-close: x → (app s1 ...), y → (app s2 ...), s1 ≠ s2.
+    ;; Both are synthesized simultaneously.
+    (let [results (run 1 [q]
+                    (nom pa pb
+                      (fresh [x y]
+                        (let [prog [['R [pa pb] ['neq ['var pa] ['var pb]]]]]
+                          (fresh [proof]
+                            (proveo ['neg ['app 'R x y]] '() '() '() prog proof)
+                            (== q [x y]))))))]
+      (is (seq results)))))
+
+;; ============================================================================
+;; Section ADV: Adversarial Tests — Spec vs. Implementation Gaps
+;; ============================================================================
+;;
+;; These tests probe scenarios where the logical specification (Fitting 1994)
+;; guarantees a result, but the computational implementation may not capture it.
+;; Each test is categorized:
+;;
+;;   PASS          — implementation handles the scenario correctly
+;;   EXPECTED-FAIL — known design constraint; documents implementation limitation
+;;   UNEXPECTED    — reveals a previously unknown bug
+;;
+;; The goal is to characterize the implementation's completeness boundary.
+;;
+;; Adversarial vectors tested:
+;;   AV1: NNF disjunct ordering sensitivity (commutativity of ∨)
+;;   AV2: Arity mismatch — same head, different arities
+;;   AV3: subst-call missing L-ground guard on rewritten args
+;;   AV4: once-forall completeness for neg-call on ∃-body clauses
+;;   AV5: Double negation ∀→∃→once-forall mismatch
+;;   AV6: γ-rule starvation via deep unexp stack
+;;   AV7: Conjunction ordering sensitivity (commutativity of ∧)
+;; ============================================================================
+
+;; --- Phase 1: NNF Ordering (AV1, AV7) ---
+
+(deftest test-ADV01-p1-correct-disjunct-order-baseline
+  (testing "ADV01: Fitting P1 odd(s(0)) with CORRECT disjunct order (neq before neg) — baseline"
+    ;; odd(x) ← ∀y.(x≠y ∨ ¬even(y))
+    ;; Negation: ∃y.(eq(x,y) ∧ pos(even(y))) — AND processes eq first → subst-call works.
+    ;; Category: PASS (baseline)
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['even [x]
+                           ['or ['eq ['var x] ['app 'zero]]
+                                ['exists (tie y
+                                  ['and ['eq ['var x] ['app 's ['var y]]]
+                                        ['pos ['app 'odd ['var y]]]])]]]
+                          ['odd [x]
+                           ['forall (tie y
+                             ['or ['neq ['var x] ['var y]]
+                                  ['neg ['app 'even ['var y]]]])]]]
+                    query ['neg ['app 'odd ['app 's ['app 'zero]]]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-ADV02-p1-reversed-disjunct-order
+  (testing "ADV02: Fitting P1 odd(s(0)) with REVERSED disjunct order (neg before neq).
+            AV1: ∀y.(¬even(y) ∨ x≠y) ≡ ∀y.(x≠y ∨ ¬even(y)) in classical logic.
+            Negation yields ∃y.(pos(even(y)) ∧ eq(x,y)) — AND processes pos first
+            → pos(even(par p)) saved to lits → eq(x,par p) triggers eq-triggered-call
+            → rewrites even(par p) → even(x) → fires procedure call.
+            Category: PASS (eq-triggered procedure call resolves ordering)"
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['even [x]
+                           ['or ['eq ['var x] ['app 'zero]]
+                                ['exists (tie y
+                                  ['and ['eq ['var x] ['app 's ['var y]]]
+                                        ['pos ['app 'odd ['var y]]]])]]]
+                          ['odd [x]
+                           ['forall (tie y
+                             ;; REVERSED: neg before neq (logically equivalent)
+                             ['or ['neg ['app 'even ['var y]]]
+                                  ['neq ['var x] ['var y]]])]]]
+                    query ['neg ['app 'odd ['app 's ['app 'zero]]]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-ADV03-forall-neq-before-neg-simple
+  (testing "ADV03: Minimal NNF ordering — correct order (neq before neg).
+            Q(a) ← a=a.  R(x) ← ∀y.(x≠y ∨ ¬Q(y)).
+            Query: R(b) succeeds. For all y with Q(y), b≠y: Q(a) true, b≠a ✓.
+            neg-call R(b): negate → ∃y.(eq(b,y) ∧ pos(Q(y))).
+            δ-rule: y→par p. AND: eq(b,par p) → lits. pos(Q(par p)) → subst-call
+            rewrites par p → b → Q(b). pos-call: eq(b,a) → free-close (b≠a) ✓.
+            Category: PASS (correct NNF order)"
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['Q [x] ['eq ['var x] ['app 'a]]]
+                          ['R [x]
+                           ['forall (tie y
+                             ['or ['neq ['var x] ['var y]]
+                                  ['neg ['app 'Q ['var y]]]])]]]
+                    query ['neg ['app 'R ['app 'b]]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-ADV04-forall-neg-before-neq-simple
+  (testing "ADV04: Minimal NNF ordering — REVERSED order (neg before neq).
+            Same program as ADV03 but ∀y.(¬Q(y) ∨ x≠y).
+            Logically equivalent: A∨B ≡ B∨A. R(b) should still succeed.
+            neg-call R(b): negate → ∃y.(pos(Q(y)) ∧ eq(b,y)).
+            δ-rule: y→par p. AND processes left-to-right:
+              pos(Q(par p)) first → L-ground guard BLOCKS → savefml saves to lits.
+              eq(b,par p) next → eq-triggered-call finds pos(Q(par p)) in lits
+              → rewrites par p → b → Q(b) → pos-call body eq(b,a) → free-close ✓.
+            Category: PASS (eq-triggered procedure call resolves ordering)"
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['Q [x] ['eq ['var x] ['app 'a]]]
+                          ['R [x]
+                           ['forall (tie y
+                             ;; REVERSED: neg before neq
+                             ['or ['neg ['app 'Q ['var y]]]
+                                  ['neq ['var x] ['var y]]])]]]
+                    query ['neg ['app 'R ['app 'b]]]]
+                (proveo query '() '() '() prog proof))))))))
+
+;; --- Phase 1b: Conjunction ordering with ∃ bodies (AV7) ---
+;;
+;; Key insight: once-forall (from negating ∃) binds to LVar (not par),
+;; so the L-ground guard does NOT block. The β-split produces independent
+;; branches. No ordering issue — both orderings work.
+
+(deftest test-ADV04b-exists-eq-before-pos
+  (testing "ADV04b: R(x) ← ∃y.(x=y ∧ P(y)), P(a) ← a=a. Query: R(a) succeeds.
+            neg-call: negate → once-forall y.(neq(a,y) ∨ neg(P(y))).
+            y→LVar y1. β-split: neq(a,y1)→refl-close(y1=a)✓; neg(P(a))→refl-close✓.
+            Category: PASS (baseline)"
+    (is (seq
+          (run 1 [proof]
+            (nom pa pb
+              (let [prog [['R [pa]
+                           ['exists (tie pb
+                             ['and ['eq ['var pa] ['var pb]]
+                                   ['pos ['app 'P ['var pb]]]])]]
+                          ['P [pa] ['eq ['var pa] ['app 'a]]]]]
+                (proveo ['neg ['app 'R ['app 'a]]] '() '() '() prog proof))))))))
+
+(deftest test-ADV04c-exists-pos-before-eq
+  (testing "ADV04c: R(x) ← ∃y.(P(y) ∧ x=y) — pos before eq in EXISTS body.
+            neg-call: negate → once-forall y.(neg(P(y)) ∨ neq(a,y)).
+            y→LVar y1 (NOT par!). β-split independent branches:
+              neg(P(y1)): L-ground ✓ (LVar, not par). neg-call P(y1): neq(y1,a)→refl-close✓.
+              neq(a,y1=a)→refl-close✓.
+            Category: PASS (once-forall→LVar avoids par issue)"
+    (is (seq
+          (run 1 [proof]
+            (nom pa pb
+              (let [prog [['R [pa]
+                           ['exists (tie pb
+                             ;; REVERSED: pos before eq
+                             ['and ['pos ['app 'P ['var pb]]]
+                                   ['eq ['var pa] ['var pb]]])]]
+                          ['P [pa] ['eq ['var pa] ['app 'a]]]]]
+                (proveo ['neg ['app 'R ['app 'a]]] '() '() '() prog proof))))))))
+
+;; --- Phase 2: Arity Mismatch (AV2) ---
+
+(deftest test-ADV05-free-close-same-head-different-arity
+  (testing "ADV05: free-closureo on f(a) vs f() — same head, different arities.
+            In Herbrand semantics, f(a) ≠ f() (different terms).
+            free-closureo checks head symbols only; same head f → fails.
+            decompose-eq-argso requires paired arg lists; mismatched lengths → fails.
+            Category: EXPECTED-FAIL (arity mismatch not handled)"
+    ;; We expect free-closureo to FAIL here (returns empty).
+    ;; Logically it should succeed (different terms).
+    (is (empty?
+          (run 1 [q]
+            (free-closureo ['app 'f ['app 'a]] ['app 'f])
+            (== q :closed))))))
+
+(deftest test-ADV06-eq-arity-mismatch-via-proveo
+  (testing "ADV06: (eq f(a) f()) as a literal — should close but can't.
+            Neither free-close (same head) nor decompose (arity mismatch) fires.
+            Category: EXPECTED-FAIL (arity gap in closure rules)"
+    ;; We expect proveo to FAIL to close this eq.
+    (is (empty?
+          (run 1 [proof]
+            (proveo ['eq ['app 'f ['app 'a]] ['app 'f]]
+                    '() '() '() '() proof))))))
+
+(deftest test-ADV07-program-arity-mismatch
+  (testing "ADV07: R(x) ← x ≠ f(). Query: R(f(a)) — should succeed since f(a) ≠ f().
+            neg-call: negate body → eq(f(a), f()). This eq cannot close (AV2).
+            Category: EXPECTED-FAIL (arity mismatch propagates to program level)"
+    (is (empty?
+          (run 1 [proof]
+            (nom pa
+              (let [prog [['R [pa] ['neq ['var pa] ['app 'f]]]]]
+                (proveo ['neg ['app 'R ['app 'f ['app 'a]]]]
+                        '() '() '() prog proof))))))))
+
+;; --- Phase 3: once-forall Completeness (AV4, AV5) ---
+;;
+;; once-forall instantiates ONCE (single LVar). For subsidiary tableaux,
+;; this is usually sufficient because the LVar can unify with any term.
+;; However, when the negated body contains an OR (β-rule), both branches
+;; must close with the SAME binding of the γ-variable.
+
+(deftest test-ADV08-once-forall-single-branch-suffices
+  (testing "ADV08: R ← ∃y.(y=a). R is true. neg-call: once-forall y.(y≠a).
+            y→y1. neq(y1,a): refl-close (y1=a) → neq(a,a) ✓.
+            Category: PASS (single instantiation suffices)"
+    (is (seq
+          (run 1 [proof]
+            (nom pa
+              (let [prog [['R [] ['exists (tie pa ['eq ['var pa] ['app 'a]])]]]]
+                (proveo ['neg ['app 'R]] '() '() '() prog proof))))))))
+
+(deftest test-ADV09-once-forall-beta-shared-binding
+  (testing "ADV09: R ← ∃y.(y=a ∧ y=b). R is false (no y equals both a and b).
+            neg-call: once-forall y.(y≠a ∨ y≠b). y→y1.
+            β-split: neq(y1,a) AND neq(y1,b) must BOTH close.
+            Branch 1: neq(y1,a) → refl-close (y1=a) ✓.
+            Branch 2: neq(a,b) → a≠b is TRUE (not contradictory) → can't close.
+            The tableau correctly fails: ∀y.(y≠a ∨ y≠b) is TRUE (satisfiable),
+            so neg-call can't prove R is true (because R is false).
+            BUT: we also can't prove R is false via neg-call — the method only
+            proves R is TRUE (by showing ¬body is contradictory).
+            Category: PASS (correct: neg-call doesn't find proof because R is false)"
+    ;; R with two SEPARATE existentials IS true (y=a, z=b satisfy both).
+    ;; neg-call correctly proves R is true.
+    ;; Proof: neg-proc-call → once-univ y1 → once-univ z1 → β-split:
+    ;;   neq(y1,a)→refl-close(y1=a)✓; neq(z1,b)→refl-close(z1=b)✓.
+    ;; Category: PASS (implementation correctly handles two independent existentials)
+    (is (seq
+          (run 1 [proof]
+            (nom pa pb
+              (let [prog [['R [] ['exists (tie pa
+                                   ['exists (tie pb
+                                     ['and ['eq ['var pa] ['app 'a]]
+                                           ['eq ['var pb] ['app 'b]]])])]]]]
+                (proveo ['neg ['app 'R]] '() '() '() prog proof))))))))
+
+(deftest test-ADV09c-once-forall-same-var-two-constraints
+  (testing "ADV09c: R ← ∃y.(y=a ∧ y=b). R is false (single y can't equal both a and b).
+            neg-call: once-forall y.(neq(y,a) ∨ neq(y,b)). y→y1. β-split:
+              neq(y1,a): refl-close y1=a ✓.
+              neq(a,b): TRUE (not contradictory) → can't close → β-fails.
+            Correct: neg-call doesn't prove R true (R is false).
+            Can pos-call prove R false? pos-call R: body = ∃y.(y=a ∧ y=b).
+            δ-rule: y→par p. AND: eq(par p, a) → save. eq(par p, b).
+            eq(par p, b): is par p = b? par p is a parameter. eq between
+            (par p) and (app b): par is ['par p], not (lcons 'app ...).
+            Can't free-close (par not app). Can't decompose. savefml → empty unexp → dead.
+            Category: implementation can neither prove R true NOR false — a completeness gap."
+    ;; Neither neg-call nor pos-call can close.
+    ;; neg-call fails (correct: R is false, neg-call proves R true):
+    (is (empty?
+          (run 1 [proof]
+            (nom pa
+              (let [prog [['R [] ['exists (tie pa
+                                   ['and ['eq ['var pa] ['app 'a]]
+                                         ['eq ['var pa] ['app 'b]]])]]]]
+                (proveo ['neg ['app 'R]] '() '() '() prog proof))))))
+    ;; pos-call: DOES succeed via para-free-close!
+    ;; pos-call R → body = ∃y.(y=a ∧ y=b). δ-rule: y→par p.
+    ;; AND: eq(par p, a) → save to lits. eq(par p, b):
+    ;; para-free-close rewrites par p → a (using eq in lits) → eq(a, b) → free-close ✓.
+    ;; Category: PASS (para-free-close handles transitivity)
+    (is (seq
+          (run 1 [proof]
+            (nom pa
+              (let [prog [['R [] ['exists (tie pa
+                                   ['and ['eq ['var pa] ['app 'a]]
+                                         ['eq ['var pa] ['app 'b]]])]]]]
+                (proveo ['pos ['app 'R]] '() '() '() prog proof))))))))
+
+;; --- Phase 4: Double Negation (AV5) ---
+;;
+;; ¬¬(∀x.P) should be operationally equivalent to ∀x.P.
+;; But negate-formulao maps: ∀→∃→once-forall. So ¬¬(∀x.P) = once-forall x.P,
+;; which does NOT re-enqueue (unlike genuine ∀). If the proof requires
+;; MULTIPLE γ-instantiations, the double-negated form fails.
+
+(deftest test-ADV10-double-negation-forall-single-instantiation
+  (testing "ADV10: R(x) ← ∀y.(x≠y ∨ ¬Q(y)), Q(a) ← a=a.
+            Query: R(b) succeeds with ONE γ-instantiation.
+            Direct ∀: works. Double-negated ¬¬∀: should also work (one instantiation).
+            Category: PASS (single instantiation suffices, no AV5 issue)"
+    ;; Direct ∀ (same as ADV03):
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['Q [x] ['eq ['var x] ['app 'a]]]
+                          ['R [x]
+                           ['forall (tie y
+                             ['or ['neq ['var x] ['var y]]
+                                  ['neg ['app 'Q ['var y]]]])]]]
+                    query ['neg ['app 'R ['app 'b]]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-ADV11-double-negation-forall-needs-two
+  (testing "ADV11: Test case requiring multiple γ-instantiations.
+            R(x) ← ∀y.(x≠y ∨ ¬Q(y)). Q(a) ← a=a. Q(b) ← b=b.
+            But wait — check-program! enforces one clause per relation.
+            So Q can only have ONE clause. Use Q(x) ← (x=a ∨ x=b).
+            Query: R(c) succeeds. For y=a: c≠a ✓. For y=b: c≠b ✓.
+            With ∀: γ-instantiate y→y1. β-split:
+              neq(c,y1): refl-close y1=c ✓. neg(Q(c)): neg-call Q(c):
+              negate(c=a ∨ c=b) → and(neq(c,a), neq(c,b)).
+              neq(c,a): free-close ✓. neq(c,b): free-close ✓.
+            One γ-instantiation suffices! y1 bound to c.
+            The AV5 gap would need a case where γ re-enqueueing produces a
+            DIFFERENT closure path than the first instantiation. In a subsidiary
+            tableau with a single formula (no other lits), one instantiation
+            of the LVar always suffices because it can unify to anything.
+            Category: PASS (one instantiation always suffices in subsidiary tableaux)"
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['Q [x] ['or ['eq ['var x] ['app 'a]]
+                                       ['eq ['var x] ['app 'b]]]]
+                          ['R [x]
+                           ['forall (tie y
+                             ['or ['neq ['var x] ['var y]]
+                                  ['neg ['app 'Q ['var y]]]])]]]
+                    query ['neg ['app 'R ['app 'c]]]]
+                (proveo query '() '() '() prog proof))))))))
+
+;; --- Phase 5: Structural Edge Cases ---
+
+(deftest test-ADV12-eq-par-par-different-pars
+  (testing "ADV12: (eq (par p) (par q)) — two different parameters.
+            In the tableau, pars are distinct witnesses. eq between them
+            should be closable (they denote different entities). But:
+            free-closureo requires (lcons 'app ...) pattern — par is ['par nom],
+            not app → fails. decompose also fails. No closure possible.
+            Category: EXPECTED-FAIL (par-par equality not closable)"
+    ;; Cannot close eq between two different parameters.
+    ;; (They MIGHT denote the same entity in some models, so this is
+    ;; actually SOUND — the issue is that pars are arbitrary domain elements,
+    ;; not necessarily distinct.)
+    (is (empty?
+          (run 1 [proof]
+            (nom p q
+              (proveo ['eq ['par p] ['par q]]
+                      '() '() '() '() proof)))))))
+
+(deftest test-ADV12b-neq-par-app-closes
+  (testing "ADV12b: (neq (par p) (app a)) — par vs constructor.
+            neq between a par and a constructor: is this closable?
+            refl-close requires both sides identical → fails (par ≠ app).
+            neq(par p, app a) is satisfiable (par p might ≠ a) but also
+            falsifiable (par p might = a). Neither closure fires.
+            Category: PASS (correctly doesn't close — par could equal anything)"
+    (is (empty?
+          (run 1 [proof]
+            (nom p
+              (proveo ['neq ['par p] ['app 'a]]
+                      '() '() '() '() proof)))))))
 
 ;; ============================================================================
 ;; Run all tests

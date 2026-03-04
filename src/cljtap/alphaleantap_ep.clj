@@ -560,7 +560,8 @@
    ¬(and A B)           = (or ¬A ¬B)             — De Morgan
    ¬(or A B)            = (and ¬A ¬B)            — De Morgan
    ¬(forall (tie a P))  = (exists (tie a ¬P))    — quantifier dual
-   ¬(exists (tie a P))  = (forall (tie a ¬P))    — quantifier dual
+   ¬(exists (tie a P))  = (once-forall (tie a ¬P)) — quantifier dual (single-use instantiation)
+   ¬(once-forall (tie a P)) = (exists (tie a ¬P)) — once-forall negation (same as forall)
    ¬(pos t)             = (neg t)                — literal negation
    ¬(neg t)             = (pos t)
    ¬(eq t1 t2)          = (neq t1 t2)
@@ -588,11 +589,21 @@
          (== ['exists (tie a neg-body)] neg-fml)
          (negate-formulao body neg-body)))]
 
-    ;; Existential ↔ Universal
+    ;; Existential ↔ Once-Universal (negated existential: instantiate once, no re-enqueue)
     [(nom a
        (fresh [body neg-body]
          (== ['exists (tie a body)] fml)
-         (== ['forall (tie a neg-body)] neg-fml)
+         (== ['once-forall (tie a neg-body)] neg-fml)
+         (negate-formulao body neg-body)))]
+
+    ;; Once-Universal → Existential (forward negation of once-forall)
+    ;; Semantically once-forall x.P ≡ forall x.P, so ¬(once-forall x.P) = ∃x.¬P.
+    ;; This branch is needed when a clause body contains a once-forall sub-formula
+    ;; (e.g., a pre-expanded NNF body) and a neg-proc-call must negate it.
+    [(nom a
+       (fresh [body neg-body]
+         (== ['once-forall (tie a body)] fml)
+         (== ['exists (tie a neg-body)] neg-fml)
          (negate-formulao body neg-body)))]
 
     ;; Positive literal ↔ Negative literal
@@ -746,6 +757,17 @@
          (== (lcons 'univ prf) proof)
          (appendo unexp (list fml) unexp1)
          (proveo body unexp1 lits (lcons [a x] env) program prf)))]
+
+    ;; ================================================================
+    ;; ONCE-UNIVERSAL (γ-rule, single-use): instantiate (once-forall (tie a body))
+    ;; Produced by negate-formulao for negated existentials.
+    ;; Differs from 'forall: does NOT re-enqueue — one instantiation per branch.
+    ;; ================================================================
+    [(nom a
+       (fresh [x body prf]
+         (== ['once-forall (tie a body)] fml)
+         (== (lcons 'once-univ prf) proof)
+         (proveo body unexp lits (lcons [a x] env) program prf)))]
 
     ;; ================================================================
     ;; EXISTENTIAL QUANTIFIER (δ-rule): witness (exists (tie a body))
@@ -989,6 +1011,52 @@
             (== (lcons 'neg-subst-call (lcons R prf)) proof)
             (proveo neg-body '() '() call-env program prf))]
 
+         ;; ============================================================
+         ;; EQ-TRIGGERED PROCEDURE CALL — POSITIVE
+         ;; ============================================================
+         ;; When the current literal is an equality and a positive
+         ;; procedure literal is saved in lits, use the equality (plus
+         ;; any others in lits) to rewrite the saved literal's args,
+         ;; then fire the procedure call.
+         ;;
+         ;; This makes proof search commutative w.r.t. eq/pos ordering
+         ;; in conjunctions: the existing subst-call handles the case
+         ;; where pos is current and eqs are in lits; this rule handles
+         ;; the reverse (eq is current, pos is in lits).
+         ;; ============================================================
+         [(fresh [R args params body call-env prf
+                  t1 t2 tm new-tm new-args eqs]
+            (== ['eq t1 t2] lit)
+            (membero ['pos tm] lits)
+            (== (lcons 'app (lcons R args)) tm)
+            (collect-eqso (lcons lit lits) eqs)
+            (rewrite-term-with-eqso tm eqs new-tm)
+            (== (lcons 'app (lcons R new-args)) new-tm)
+            (lookup-clauseo R program params body)
+            (bind-argso params new-args call-env)
+            (== (lcons 'eq-triggered-call (lcons R prf)) proof)
+            (proveo body '() '() call-env program prf))]
+
+         ;; ============================================================
+         ;; EQ-TRIGGERED PROCEDURE CALL — NEGATIVE
+         ;; ============================================================
+         ;; Same as positive variant, but for negative procedure
+         ;; literals saved in lits.
+         ;; ============================================================
+         [(fresh [R args params body call-env neg-body prf
+                  t1 t2 tm new-tm new-args eqs]
+            (== ['eq t1 t2] lit)
+            (membero ['neg tm] lits)
+            (== (lcons 'app (lcons R args)) tm)
+            (collect-eqso (lcons lit lits) eqs)
+            (rewrite-term-with-eqso tm eqs new-tm)
+            (== (lcons 'app (lcons R new-args)) new-tm)
+            (lookup-clauseo R program params body)
+            (bind-argso params new-args call-env)
+            (negate-formulao body neg-body)
+            (== (lcons 'eq-triggered-neg-call (lcons R prf)) proof)
+            (proveo neg-body '() '() call-env program prf))]
+
          ;; ---- Continue expansion (savefml) ----
          [(fresh [next unexp1 prf]
             (== (lcons next unexp1) unexp)
@@ -999,14 +1067,29 @@
 ;; Part 7: Top-Level Interface
 ;; ============================================================================
 
+(defn- check-program!
+  "Validate that a Proflog program conforms to Fitting's Definition 2.1:
+   at most one clause per relation symbol of L (except equality).
+   Throws IllegalArgumentException on violation."
+  [program]
+  (let [rels (map first program)
+        dups (into {} (filter #(> (val %) 1) (frequencies rels)))]
+    (when (seq dups)
+      (throw (IllegalArgumentException.
+               (str "Invalid Proflog program (Fitting Def 2.1): "
+                    "duplicate clause(s) for relation(s) "
+                    (pr-str (keys dups))
+                    ". Each relation symbol may have at most one clause."))))))
+
 (defn query-succeeds
   "A query A succeeds with program P if there is a closed P-tableau for ¬A.
    (Fitting, Definition 6.1)
-   
+
    Returns proof(s) if the query succeeds, nil otherwise."
   ([program query]
    (query-succeeds program query 1))
   ([program query n]
+   (check-program! program)
    (run n [proof]
      (fresh [neg-query]
        (negate-formulao query neg-query)
@@ -1015,11 +1098,12 @@
 (defn query-fails
   "A query A fails with program P if there is a closed P-tableau for A.
    (Fitting, Definition 6.1)
-   
+
    Returns proof(s) if the query fails, nil otherwise."
   ([program query]
    (query-fails program query 1))
   ([program query n]
+   (check-program! program)
    (run n [proof]
      (proveo query '() '() '() program proof))))
 
@@ -1031,6 +1115,7 @@
   ([formula n]
    (prove '() formula n))
   ([program formula n]
+   (check-program! program)
    (run n [proof]
      (proveo formula '() '() '() program proof))))
 

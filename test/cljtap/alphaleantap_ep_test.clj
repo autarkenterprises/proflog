@@ -4218,6 +4218,22 @@
                 (proveo ['neg ['app 'R ['app 'a]]] '() '() '() prog proof))))))))
 
 ;; --- Phase 2: Arity Mismatch (AV2) ---
+;;
+;; Fitting assumes fixed arities per function symbol — a given symbol f
+;; always has the same number of arguments in any well-formed program.
+;; The implementation's untyped term grammar (app symbol term*) allows
+;; variable arity, but the closure rules don't handle the mixed-arity
+;; case: free-closureo only checks head symbols (same f → fails), and
+;; decompose-eq-argso requires paired argument lists (length mismatch
+;; → fails).  Neither rule fires on eq(f(a), f()).
+;;
+;; This is out of spec (no well-formed Proflog program uses f with two
+;; different arities), but it is a validation gap — a user could stumble
+;; into it.  A future fix could either:
+;;   (a) add argument-length comparison to free-closureo when heads match, or
+;;   (b) add arity checking at program validation time (check-program!).
+;;
+;; See task list for a future ticket to revisit this question.
 
 (deftest test-ADV05-free-close-same-head-different-arity
   (testing "ADV05: free-closureo on f(a) vs f() — same head, different arities.

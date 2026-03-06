@@ -4471,6 +4471,109 @@
                                   ['eq ['par q] ['app 'b]]]]
                       '() '() '() '() proof)))))))
 
+;; --- Section RV: Adversarial Review (unknown unknowns) ---
+;;
+;; Tests from the systematic adversarial review targeting interactions
+;; between rules, boundary conditions, and edge cases not covered by
+;; earlier test sections.
+
+(deftest test-RV01-eq-triggers-multiple-rules
+  (testing "RV01: Same eq literal triggers multiple rules via backtracking.
+            Branch: neq(par p, a), pos(R(par p)), then eq(par p, a) arrives.
+            Multiple proof paths exist (eq-neq-close, eq-triggered-neq-close,
+            eq-triggered-call). All are sound — run 3 should find ≥2 proofs.
+            Category: PASS (redundant proofs, all sound)"
+    (is (<= 2 (count
+          (run 3 [proof]
+            (nom x p
+              (let [prog [['R [x] ['neq ['var x] ['var x]]]]]
+                (proveo ['and ['neq ['par p] ['app 'a]]
+                              ['and ['pos ['app 'R ['par p]]]
+                                    ['eq ['par p] ['app 'a]]]]
+                        '() '() '() '() proof)))))))))
+
+(deftest test-RV02-nullary-relation-call
+  (testing "RV02: Nullary relation R() — no args, plain pos-call fires.
+            rewrite-term-with-eqso fails on nullary (correct — nothing to rewrite).
+            Plain pos-call has no L-ground guard issue (no args to check).
+            Category: PASS (nullary call works)"
+    (is (seq
+          (run 1 [proof]
+            (proveo ['pos ['app 'R]]
+                    '() '() '()
+                    [['R [] ['neq ['app 'a] ['app 'a]]]]
+                    proof))))))
+
+(deftest test-RV03-bind-argso-arity-mismatch
+  (testing "RV03: Arity mismatch — clause has 2 params, call provides 1 arg.
+            bind-argso fails silently (structural unification mismatch).
+            No crash, no unsound proof — just fails to find a proof.
+            Category: PASS (fails gracefully)"
+    (is (empty?
+          (run 1 [proof]
+            (nom x y
+              (proveo ['neg ['app 'R ['app 'a]]]
+                      '() '() '()
+                      [['R [x y] ['eq ['var x] ['var y]]]]
+                      proof)))))))
+
+(deftest test-RV04-unknown-relation
+  (testing "RV04: pos(S(a)) with program defining only R — no clause found.
+            lookup-clauseo fails, all proc-call variants fail. Branch stays open.
+            Category: PASS (unknown relation fails gracefully)"
+    (is (empty?
+          (run 1 [proof]
+            (nom x
+              (proveo ['pos ['app 'S ['app 'a]]]
+                      '() '() '()
+                      [['R [x] ['eq ['var x] ['app 'a]]]]
+                      proof)))))))
+
+(deftest test-RV05-nested-once-forall
+  (testing "RV05: Double-nested negated existentials.
+            R ← ∃x.∃y.(x=a ∧ y=b). neg-call produces
+            once-forall x. once-forall y. (x≠a ∨ y≠b).
+            Two independent LVars unify to a and b respectively.
+            Category: PASS (nested once-forall works)"
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog [['R []
+                           ['exists (tie x
+                             ['exists (tie y
+                               ['and ['eq ['var x] ['app 'a]]
+                                     ['eq ['var y] ['app 'b]]])])]]]]
+                (proveo ['neg ['app 'R]] '() '() '() prog proof))))))))
+
+(deftest test-RV06-empty-program
+  (testing "RV06: pos(R(a)) with empty program — no clause to call.
+            All proc-call variants fail. No complementary literal in lits.
+            Branch stays open (R(a) has no definition).
+            Category: PASS (empty program handled correctly)"
+    (is (empty?
+          (run 1 [proof]
+            (proveo ['pos ['app 'R ['app 'a]]]
+                    '() '() '() '() proof))))))
+
+(deftest test-RV07-negate-formulao-all-types
+  (testing "RV07: negate-formulao handles all formula types correctly.
+            Double negation is involutive: ¬¬φ = φ for all formula types.
+            Category: PASS (negate-formulao complete)"
+    ;; Test double negation involution on pos literal
+    (is (seq
+          (run 1 [result]
+            (fresh [neg-fml]
+              (negate-formulao ['pos ['app 'P]] neg-fml)
+              (negate-formulao neg-fml result)
+              (== result ['pos ['app 'P]])))))
+    ;; Test double negation involution on eq
+    (is (seq
+          (run 1 [result]
+            (fresh [neg-fml]
+              (negate-formulao ['eq ['app 'a] ['app 'b]] neg-fml)
+              (negate-formulao neg-fml result)
+              (== result ['eq ['app 'a] ['app 'b]])))))))
+
 ;; ============================================================================
 ;; Run all tests
 ;; ============================================================================

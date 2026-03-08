@@ -28,6 +28,12 @@
 ;;   Section P  — Full first-order logic in clause bodies
 ;;   Section Q  — Backward running, list programs, multi-arg substitutivity
 ;;   Section DI — Disunification with free variables (Fitting §8)
+;;   Section MV — Fitting's Move Warning (§8): auxiliary relation factoring
+;;   Section OC — Occurs Check (Fitting §3 / supervaluation semantics)
+;;   Section TC — Transitive Closure (graph a→b→c)
+;;   Section PA — Peano Arithmetic: Addition
+;;   Section SO — Sorted Predicate (∀ in body, inline ordering)
+;;   Section SS — Subset Relations (∀ in body, inline membership)
 ;;
 ;; Every test formula used with proveo is in NNF.  When testing whether
 ;; a query SUCCEEDS with a program (the query is TRUE), we build a closed
@@ -4589,6 +4595,687 @@
               (negate-formulao ['eq ['app 'a] ['app 'b]] neg-fml)
               (negate-formulao neg-fml result)
               (== result ['eq ['app 'a] ['app 'b]])))))))
+
+;; ============================================================================
+;; Section MV: Fitting's Move Warning (§8) — Auxiliary Relation Factoring
+;; ============================================================================
+;;
+;; Fitting §8 warns that factoring win(x) ← ∃y.((x=s(y) ∨ x=s(s(y))) ∧ ¬win(y))
+;; into win(x) ← ∃y.(move(x,y) ∧ ¬win(y)) with move(x,y) ← x=s(y) ∨ x=s(s(y))
+;; DOES NOT WORK. Reason: equality's interpretation is fixed in weak Herbrand
+;; models, but move's is not — there could be "non-standard moves." This is a
+;; fundamental property of supervaluation semantics, not an implementation bug.
+;;
+;; In our implementation, this manifests as the L-ground guard (Fitting §6
+;; Def 6.1) blocking procedure calls to `move` when the argument is a
+;; δ-parameter (par p). The inline version processes equalities directly (no
+;; procedure call needed), while the factored version requires a procedure
+;; call that can't fire on par arguments.
+;;
+;; Contrast with J01-J04 (inline version, all pass).
+
+(defn move-program
+  "Build the factored win+move program (Fitting §8 warning).
+   wx is win's clause param, wy is win's existential witness,
+   mx and my are move's clause params."
+  [wx wy mx my]
+  [['win [wx]
+    ['exists (tie wy
+      ['and ['pos ['app 'move ['var wx] ['var wy]]]
+            ['neg ['app 'win ['var wy]]]])]]
+   ['move [mx my]
+    ['or ['eq ['var mx] ['app 's ['var my]]]
+         ['eq ['var mx] ['app 's ['app 's ['var my]]]]]]])
+
+(deftest test-MV01-move-succeeds-l-ground
+  (testing "MV01: move(s(0), 0) is true — neg-call closes with L-ground args.
+            Confirms the move relation itself works correctly when args are
+            L-ground. neg move(1,0) → negate body → neq(1,s(0)) ∧ neq(1,s(s(0)))
+            → refl-close on first neq (1=s(0)) closes the branch."
+    (is (seq
+          (run 1 [proof]
+            (nom mx my
+              (let [prog [['move [mx my]
+                           ['or ['eq ['var mx] ['app 's ['var my]]]
+                                ['eq ['var mx] ['app 's ['app 's ['var my]]]]]]]
+                    query ['neg ['app 'move (nim-numeral 1) (nim-numeral 0)]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-MV02-move-fails-l-ground
+  (testing "MV02: move(0, s(0)) is false — pos-call closes (no valid move from 0).
+            pos move(0, s(0)) → body = eq(0,s(s(0))) ∨ eq(0,s(s(s(0))))
+            → both branches close by free-closure (zero ≠ s)."
+    (is (seq
+          (run 1 [proof]
+            (nom mx my
+              (let [prog [['move [mx my]
+                           ['or ['eq ['var mx] ['app 's ['var my]]]
+                                ['eq ['var mx] ['app 's ['app 's ['var my]]]]]]]
+                    query ['pos ['app 'move (nim-numeral 0) (nim-numeral 1)]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-MV03-factored-win0-fails
+  (testing "MV03: EXPECTED FAILURE — factored win(0) can't be proven false.
+            pos win(0) → subsidiary ∃y.(move(0,y) ∧ ¬win(y)) → δ introduces
+            par p → pos move(0, par p) blocked by L-ground guard (par p is
+            not an L-term). Branch stays open.
+            Compare: J01 succeeds because inline equalities (0=s(p), 0=s(s(p)))
+            close by free-closure without needing a procedure call."
+    (is (empty?
+          (run 1 [proof]
+            (nom wx wy mx my
+              (let [prog (move-program wx wy mx my)
+                    query ['pos ['app 'win (nim-numeral 0)]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-MV04-factored-win1-fails
+  (testing "MV04: EXPECTED FAILURE — factored win(1) can't be proven true.
+            neg win(1) → once-forall y → or(neg move(1,y), pos win(y)).
+            Branch 1: neg move(1, v) closes (v is LVar, passes L-ground),
+            binding v=0. Branch 2: pos win(v=0) → subsidiary needs
+            pos move(0, par p), but par p blocks L-ground guard. Fails.
+            Compare: J02 succeeds because inline equalities close directly."
+    (is (empty?
+          (run 1 [proof]
+            (nom wx wy mx my
+              (let [prog (move-program wx wy mx my)
+                    query ['neg ['app 'win (nim-numeral 1)]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-MV05-inline-vs-factored-win0
+  (testing "MV05: Direct comparison — inline win(0) closes, factored doesn't.
+            This is Fitting's §8 warning made concrete: the same logical
+            content expressed as inline equalities vs. auxiliary relation
+            gives different results under supervaluation semantics."
+    ;; Inline version succeeds (same as J01)
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog (nim-program x y)
+                    query ['pos ['app 'win (nim-numeral 0)]]]
+                (proveo query '() '() '() prog proof))))))
+    ;; Factored version fails
+    (is (empty?
+          (run 1 [proof]
+            (nom wx wy mx my
+              (let [prog (move-program wx wy mx my)
+                    query ['pos ['app 'win (nim-numeral 0)]]]
+                (proveo query '() '() '() prog proof))))))))
+
+(deftest test-MV06-inline-vs-factored-win1
+  (testing "MV06: Direct comparison — inline win(1) closes, factored doesn't.
+            win(1) is true in both formulations (semantically), but the
+            factored version can't prove it because the proof requires
+            establishing win(0)=false, which needs move(0, par p) — blocked."
+    ;; Inline version succeeds (same as J02)
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog (nim-program x y)
+                    query ['neg ['app 'win (nim-numeral 1)]]]
+                (proveo query '() '() '() prog proof))))))
+    ;; Factored version fails
+    (is (empty?
+          (run 1 [proof]
+            (nom wx wy mx my
+              (let [prog (move-program wx wy mx my)
+                    query ['neg ['app 'win (nim-numeral 1)]]]
+                (proveo query '() '() '() prog proof))))))))
+
+;; ============================================================================
+;; Section OC: Occurs Check (Fitting §3 / Supervaluation Semantics)
+;; ============================================================================
+;;
+;; In Fitting's system, no element of the Herbrand universe equals a proper
+;; application of a function to itself: ∀x.(x ≠ f(x)). The negation
+;; ∃x.(x = f(x)) is semantically false. However, the tableau rules (free
+;; closure, one-one, etc.) CANNOT prove this directly: the δ-rule introduces
+;; (par p), and eq(par p, f(par p)) has no applicable closure rule because
+;; (par p) is not an (app ...) term. This is a known limitation of tableaux
+;; with equality — you'd need an explicit "no term equals a proper subterm"
+;; axiom.
+;;
+;; These tests demonstrate:
+;;   - Ground occurs-check IS provable (free-closure on head mismatch)
+;;   - Existential occurs-check is NOT provable (par blocks free-closure)
+;;   - Transitivity CAN derive occurs-check indirectly when two eqs provide
+;;     a bridge through a concrete constant
+
+(deftest test-OC01-ground-occurs-check
+  (testing "OC01: a = f(a) is unsatisfiable — free-closure (a ≠ f).
+            Ground terms: head mismatch is immediately visible."
+    (is (seq
+          (run 1 [proof]
+            (proveo '(eq (app a) (app f (app a)))
+                    '() '() '() '() proof))))))
+
+(deftest test-OC02-ground-nested-occurs-check
+  (testing "OC02: f(a) = f(f(a)) — one-one decomposition gives a = f(a),
+            then free-closure. Two-step proof."
+    (is (seq
+          (run 1 [proof]
+            (proveo '(eq (app f (app a)) (app f (app f (app a))))
+                    '() '() '() '() proof))))))
+
+(deftest test-OC03-existential-occurs-check-blocked
+  (testing "OC03: ∃x.(x = f(x)) — CANNOT close. δ-rule gives eq(par p, f(par p)).
+            (par p) is not an (app ...) term, so free-closure can't fire.
+            One-one needs matching heads — also blocked. Branch stays open.
+            This is a known limitation, not a bug (Fitting §3)."
+    (is (empty?
+          (run 1 [proof]
+            (nom a
+              (proveo ['exists (tie a ['eq ['var a] ['app 'f ['var a]]])]
+                      '() '() '() '() proof)))))))
+
+(deftest test-OC04-existential-occurs-check-nested-blocked
+  (testing "OC04: ∃x.(f(x) = f(f(x))) — one-one gives eq(par p, f(par p)),
+            then stuck (same as OC03). Wrapping in f doesn't help."
+    (is (empty?
+          (run 1 [proof]
+            (nom a
+              (proveo ['exists (tie a ['eq ['app 'f ['var a]]
+                                           ['app 'f ['app 'f ['var a]]]])]
+                      '() '() '() '() proof)))))))
+
+(deftest test-OC05-transitivity-bridge
+  (testing "OC05: ∃x.(x = a ∧ x = f(a)) — transitivity via concrete constant.
+            δ gives eq(par p, a) ∧ eq(par p, f(a)).
+            para-free-closeo rewrites eq(par p, f(a)) using par p=a → eq(a, f(a))
+            → free-closure (a ≠ f). The concrete constant 'a' bridges the gap."
+    (is (seq
+          (run 1 [proof]
+            (nom a
+              (proveo ['exists (tie a ['and ['eq ['var a] ['app 'a]]
+                                            ['eq ['var a] ['app 'f ['app 'a]]]])]
+                      '() '() '() '() proof)))))))
+
+(deftest test-OC06-transitivity-two-witnesses
+  (testing "OC06: ∃x.∃y.(x = a ∧ y = f(a) ∧ x = y) — two witnesses,
+            transitivity through equality chain. x=a, y=f(a), x=y →
+            a=f(a) → free-closure."
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (proveo ['exists (tie x
+                        ['exists (tie y
+                          ['and ['eq ['var x] ['app 'a]]
+                                ['and ['eq ['var y] ['app 'f ['app 'a]]]
+                                      ['eq ['var x] ['var y]]]])])]
+                      '() '() '() '() proof)))))))
+
+(deftest test-OC07-deep-ground-occurs-check
+  (testing "OC07: g(a, f(a)) = g(a, f(f(a))) — deep nested occurs check.
+            One-one on g: eq(a,a) (trivial) ∧ eq(f(a), f(f(a))).
+            One-one on f: eq(a, f(a)) → free-closure."
+    (is (seq
+          (run 1 [proof]
+            (proveo '(eq (app g (app a) (app f (app a)))
+                         (app g (app a) (app f (app f (app a)))))
+                    '() '() '() '() proof))))))
+
+;; ============================================================================
+;; Section TC: Transitive Closure
+;; ============================================================================
+;;
+;; Transitive closure over a concrete graph, expressed as a single Proflog
+;; clause with inline equality constraints (per Fitting §8 — auxiliary
+;; relations cannot be factored out).
+;;
+;; Graph: a→b→c (two edges, three nodes, acyclic)
+;;
+;; tc(x,y) ← (x=a ∧ y=b)                          -- direct edge a→b
+;;          ∨ (x=b ∧ y=c)                          -- direct edge b→c
+;;          ∨ ∃z.((x=a∧z=b ∨ x=b∧z=c) ∧ tc(z,y)) -- recursive step
+;;
+;; The edge relation is inlined as equalities in both the base cases and the
+;; recursive case, avoiding the "move" factoring problem (Section MV).
+
+(defn tc-abc-program
+  "Transitive closure over graph a→b→c.
+   x, y are clause params, z is existential witness."
+  [x y z]
+  [['tc [x y]
+    ['or ['and ['eq ['var x] ['app 'a]] ['eq ['var y] ['app 'b]]]
+         ['or ['and ['eq ['var x] ['app 'b]] ['eq ['var y] ['app 'c]]]
+              ['exists (tie z
+                ['and ['or ['and ['eq ['var x] ['app 'a]] ['eq ['var z] ['app 'b]]]
+                           ['and ['eq ['var x] ['app 'b]] ['eq ['var z] ['app 'c]]]]
+                      ['pos ['app 'tc ['var z] ['var y]]]])]]]]])
+
+(deftest test-TC01-direct-edge-ab
+  (testing "TC01: tc(a,b) is true — direct edge. neg-call closes because the
+            first base case (x=a ∧ y=b) negates to (a≠a ∨ b≠b), both
+            contradictions (refl-close)."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z
+              (let [prog (tc-abc-program x y z)]
+                (proveo ['neg ['app 'tc ['app 'a] ['app 'b]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-TC02-direct-edge-bc
+  (testing "TC02: tc(b,c) is true — direct edge. neg-call closes via the
+            second base case (x=b ∧ y=c) → (b≠b ∨ c≠c) → refl-close."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z
+              (let [prog (tc-abc-program x y z)]
+                (proveo ['neg ['app 'tc ['app 'b] ['app 'c]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-TC03-transitive-ac
+  (testing "TC03: tc(a,c) is true — transitive path a→b→c. neg-call must
+            close the recursive case: once-forall z introduces LVar v,
+            negated edge binds v=b, then neg tc(b,c) closes as a direct edge."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z
+              (let [prog (tc-abc-program x y z)]
+                (proveo ['neg ['app 'tc ['app 'a] ['app 'c]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-TC04-no-path-ca
+  (testing "TC04: tc(c,a) is false — no outgoing edges from c. pos-call closes
+            because base cases give eq(c,a)/eq(c,b) → free-closure, and the
+            recursive case's edge part also closes by free-closure on eq(c,a)/eq(c,b)."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z
+              (let [prog (tc-abc-program x y z)]
+                (proveo ['pos ['app 'tc ['app 'c] ['app 'a]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-TC05-no-self-loop-aa
+  (testing "TC05: tc(a,a) is false — no cycle. pos-call closes: base cases
+            fail (eq(a,b)/eq(a,c) by free-closure). Recursive case: edge a→b
+            gives subst-call tc(b,a), then edge b→c gives tc(c,a), then no
+            outgoing edges from c → closes."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z
+              (let [prog (tc-abc-program x y z)]
+                (proveo ['pos ['app 'tc ['app 'a] ['app 'a]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-TC06-no-path-ba
+  (testing "TC06: tc(b,a) is false — b→c but c has no outgoing edges.
+            pos-call closes similarly to TC05."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z
+              (let [prog (tc-abc-program x y z)]
+                (proveo ['pos ['app 'tc ['app 'b] ['app 'a]]]
+                        '() '() '() prog proof))))))))
+
+;; ============================================================================
+;; Section PA: Peano Arithmetic — Addition
+;; ============================================================================
+;;
+;; Peano addition as a single Proflog clause:
+;;   add(x,y,z) ← (y=0 ∧ z=x) ∨ ∃w.∃v.(y=s(w) ∧ z=s(v) ∧ add(x,w,v))
+;;
+;; Base case: x + 0 = x.
+;; Recursive: x + s(w) = s(v) if x + w = v.
+;;
+;; Recursion is on the second argument (y). Each recursive step peels one
+;; s() from y and z simultaneously, bottoming out at y=0 ∧ z=x.
+;;
+;; Note: neg-call (proving truth) is efficient — the negated body's neq
+;; formulas close quickly via refl-close. pos-call (proving falsity) is
+;; slower due to search space explosion from decomposition + recursive
+;; procedure calls, so falsity tests use small numbers only.
+
+(defn peano-add-program
+  "Peano addition: add(x,y,z) means x + y = z.
+   x, y, z are clause params; w, v are existential witnesses."
+  [x y z w v]
+  [['add [x y z]
+    ['or ['and ['eq ['var y] ['app 'zero]] ['eq ['var z] ['var x]]]
+         ['exists (tie w
+           ['exists (tie v
+             ['and ['eq ['var y] ['app 's ['var w]]]
+                   ['and ['eq ['var z] ['app 's ['var v]]]
+                         ['pos ['app 'add ['var x] ['var w] ['var v]]]]])])]]]])
+
+(defn peano [n]
+  "Build Peano numeral for n."
+  (if (zero? n) ['app 'zero] ['app 's (peano (dec n))]))
+
+(deftest test-PA01-base-case-0plus0
+  (testing "PA01: 0+0=0 — base case (y=0, z=x=0). neg-call closes via
+            refl-close on neq(0,0) and neq(0,0)."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['neg ['app 'add (peano 0) (peano 0) (peano 0)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-PA02-base-case-1plus0
+  (testing "PA02: 1+0=1 — base case (y=0, z=x=s(0)). Structural equality
+            s(0)=s(0) closes via refl-close after decomposition."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['neg ['app 'add (peano 1) (peano 0) (peano 1)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-PA03-one-step-1plus1
+  (testing "PA03: 1+1=2 — one recursive step. s(0) peeled from y and z,
+            then base case add(1,0,1)."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['neg ['app 'add (peano 1) (peano 1) (peano 2)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-PA04-one-step-2plus1
+  (testing "PA04: 2+1=3 — one recursive step with larger first arg."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['neg ['app 'add (peano 2) (peano 1) (peano 3)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-PA05-multi-step-2plus3
+  (testing "PA05: 2+3=5 — three recursive steps. Proof tree has depth 3,
+            each level peeling s() from 2nd and 3rd args."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['neg ['app 'add (peano 2) (peano 3) (peano 5)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-PA06-commutativity-3plus2
+  (testing "PA06: 3+2=5 — same sum as PA05 but args swapped. Confirms
+            addition works regardless of which arg is larger."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['neg ['app 'add (peano 3) (peano 2) (peano 5)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-PA07-false-1plus1neq1
+  (testing "PA07: 1+1≠1 — pos-call proves add(1,1,1) false. Recursive step
+            gives add(1,0,0), base case eq(0,1) closes by free-closure."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['pos ['app 'add (peano 1) (peano 1) (peano 1)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-PA08-false-0plus1neq0
+  (testing "PA08: 0+1≠0 — pos-call. Recursive step gives add(0,0,par v),
+            base case eq(par v, 0) not contradictory but eq(s(0),s(par v))
+            path closes via free-closure on eq(0, par v) decomposition."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['pos ['app 'add (peano 0) (peano 1) (peano 0)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-PA09-false-1plus2neq2
+  (testing "PA09: 1+2≠2 — pos-call with two recursive steps. Terminates
+            at add(1,0,0), base case eq(0,1) → free-closure."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['pos ['app 'add (peano 1) (peano 2) (peano 2)]]
+                        '() '() '() prog proof))))))))
+
+;; ============================================================================
+;; Section SO: Sorted Predicate (∀ in clause body, inline ordering)
+;; ============================================================================
+;;
+;; A sorted-list predicate using ∀ in the clause body and inline ordering
+;; over the domain {0, s(0), s(s(0))}. The ordering relation leq is
+;; expressed directly as equalities (per Fitting §8 — cannot be factored
+;; into an auxiliary relation).
+;;
+;; sorted2(l) ← ∀a.∀b.∀t.(l ≠ cons(a, cons(b, t)) ∨ le_inline(a, b))
+;;
+;; "For all adjacent pairs (a, b) in l, a ≤ b."
+;;
+;; le_inline(a,b) = a=0 ∨ (a=s(0) ∧ (b=s(0) ∨ b=s(s(0)))) ∨ (a=s(s(0)) ∧ b=s(s(0)))
+;;
+;; This is a non-recursive clause with ∀ in body — exercises the γ-rule
+;; with re-enqueueing in a real program context.
+
+(defn le-inline
+  "a ≤ b over domain {0, s(0), s(s(0))}, expressed as equalities."
+  [a b]
+  ['or ['eq a ['app 'zero]]
+       ['or ['and ['eq a ['app 's ['app 'zero]]]
+                  ['or ['eq b ['app 's ['app 'zero]]]
+                       ['eq b ['app 's ['app 's ['app 'zero]]]]]]
+            ['and ['eq a ['app 's ['app 's ['app 'zero]]]]
+                  ['eq b ['app 's ['app 's ['app 'zero]]]]]]])
+
+(defn sorted2-program
+  "sorted2(l) ← ∀a.∀b.∀t.(l ≠ cons(a, cons(b, t)) ∨ le(a,b))
+   l is clause param; a, b, t are universally quantified."
+  [l a b t]
+  [['sorted2 [l]
+    ['forall (tie a
+      ['forall (tie b
+        ['forall (tie t
+          ['or ['neq ['var l] ['app 'cons ['var a] ['app 'cons ['var b] ['var t]]]]
+               (le-inline ['var a] ['var b])])])])]]])
+
+(defn plist
+  "Build a Proflog list from Peano numerals."
+  [& nums]
+  (reduce (fn [acc n] ['app 'cons (peano n) acc]) ['app 'nul] (reverse nums)))
+
+(deftest test-SO01-empty-list
+  (testing "SO01: sorted2([]) is true — no adjacent pairs to violate ordering.
+            γ-rule introduces free vars, neq closes by free-closure
+            (nul ≠ cons(...))."
+    (is (seq
+          (run 1 [proof]
+            (nom l a b t
+              (let [prog (sorted2-program l a b t)]
+                (proveo ['neg ['app 'sorted2 (plist)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-SO02-singleton
+  (testing "SO02: sorted2([1]) is true — singleton list has no adjacent pairs.
+            γ-rule vars: neq(cons(1,nul), cons(a,cons(b,t))) closes because
+            nul ≠ cons(b,t) after decomposition."
+    (is (seq
+          (run 1 [proof]
+            (nom l a b t
+              (let [prog (sorted2-program l a b t)]
+                (proveo ['neg ['app 'sorted2 (plist 1)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-SO03-sorted-012
+  (testing "SO03: sorted2([0,1,2]) is true — all adjacent pairs ordered
+            (0≤1, 1≤2). neg-call closes via eq-refl-close on the ∀ body."
+    (is (seq
+          (run 1 [proof]
+            (nom l a b t
+              (let [prog (sorted2-program l a b t)]
+                (proveo ['neg ['app 'sorted2 (plist 0 1 2)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-SO04-unsorted-21
+  (testing "SO04: sorted2([2,1]) is false — 2 > 1. pos-call closes:
+            γ-rule instantiation with a=2, b=1 gives le(2,1) which fails
+            (all le_inline branches close by free-closure/decomposition)."
+    (is (seq
+          (run 1 [proof]
+            (nom l a b t
+              (let [prog (sorted2-program l a b t)]
+                (proveo ['pos ['app 'sorted2 (plist 2 1)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-SO05-sorted-12
+  (testing "SO05: sorted2([1,2]) is true — 1 ≤ 2. neg-call closes via
+            decomposition + eq-refl-close showing the ∀ body is contradictory
+            for the given list."
+    (is (seq
+          (run 1 [proof]
+            (nom l a b t
+              (let [prog (sorted2-program l a b t)]
+                (proveo ['neg ['app 'sorted2 (plist 1 2)]]
+                        '() '() '() prog proof))))))))
+
+;; ============================================================================
+;; Section SS: Subset Relations (∀ in body, inline membership)
+;; ============================================================================
+;;
+;; Subset checking for finite sets over domain {a, b, c}. Membership is
+;; inlined as equalities (Fitting §8 — no auxiliary relations).
+;;
+;; subset(S, T) ← ∀x.(¬in_S(x) ∨ in_T(x))
+;;   where ¬in_S(x) = (x≠a ∧ x≠b ∧ ...) and in_T(x) = (x=a ∨ x=b ∨ ...)
+;;
+;; Exercises ∀ in clause body with purely equality-based set operations.
+
+(defn subset-ab-abc-program
+  "sub_ab_abc() ← ∀x.((x≠a ∧ x≠b) ∨ (x=a ∨ x=b ∨ x=c))
+   True iff {a,b} ⊆ {a,b,c}."
+  [x]
+  [['sub_ab_abc []
+    ['forall (tie x
+      ['or ['and ['neq ['var x] ['app 'a]] ['neq ['var x] ['app 'b]]]
+           ['or ['eq ['var x] ['app 'a]]
+                ['or ['eq ['var x] ['app 'b]]
+                     ['eq ['var x] ['app 'c]]]]])]]])
+
+(defn subset-abc-ab-program
+  "sub_abc_ab() ← ∀x.((x≠a ∧ x≠b ∧ x≠c) ∨ (x=a ∨ x=b))
+   True iff {a,b,c} ⊆ {a,b}. This is FALSE (c ∉ {a,b})."
+  [x]
+  [['sub_abc_ab []
+    ['forall (tie x
+      ['or ['and ['neq ['var x] ['app 'a]]
+                 ['and ['neq ['var x] ['app 'b]]
+                       ['neq ['var x] ['app 'c]]]]
+           ['or ['eq ['var x] ['app 'a]]
+                ['eq ['var x] ['app 'b]]]])]]])
+
+(deftest test-SS01-subset-true
+  (testing "SS01: {a,b} ⊆ {a,b,c} is true. neg-call closes: γ-rule
+            instantiation with x bound to either a or b finds matching
+            eq in the right disjunct."
+    (is (seq
+          (run 1 [proof]
+            (nom x
+              (let [prog (subset-ab-abc-program x)]
+                (proveo ['neg ['app 'sub_ab_abc]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-SS02-subset-false
+  (testing "SS02: {a,b,c} ⊆ {a,b} is false. pos-call closes: γ-rule finds
+            x=c where ¬in_S(c)=(c≠a ∧ c≠b ∧ c≠c) gives refl-close on c≠c,
+            and in_T(c)=(c=a ∨ c=b) gives free-closure on both branches."
+    (is (seq
+          (run 1 [proof]
+            (nom x
+              (let [prog (subset-abc-ab-program x)]
+                (proveo ['pos ['app 'sub_abc_ab]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-SS03-reflexive-subset
+  (testing "SS03: {a} ⊆ {a} is true — reflexive subset."
+    (is (seq
+          (run 1 [proof]
+            (nom x
+              (let [prog [['sub_a_a []
+                           ['forall (tie x
+                             ['or ['neq ['var x] ['app 'a]]
+                                  ['eq ['var x] ['app 'a]]])]]]]
+                (proveo ['neg ['app 'sub_a_a]]
+                        '() '() '() prog proof))))))))
+
+;; ============================================================================
+;; Section GP: Graph Properties (acyclic, ∀/∃/¬ combinations)
+;; ============================================================================
+;;
+;; Graph properties expressed as Proflog programs with inline reachability.
+;;
+;; For graph a→b→c (acyclic):
+;;   reach(x,y) = (x=a∧y=b) ∨ (x=b∧y=c) ∨ (x=a∧y=c)  [full TC]
+;;   acyclic ← ∀x.¬reach(x,x)
+;;   = ∀x.((x≠a∨x≠b) ∧ (x≠b∨x≠c) ∧ (x≠a∨x≠c))
+;;
+;; For graph a→b→a (cyclic):
+;;   reach(x,x) includes (x=a∧x=a) ∨ (x=b∧x=b) [every node reaches itself]
+;;   acyclic ← ∀x.(x≠a ∧ x≠b)  [simplified from full negation]
+;;
+;; Note: "connected" properties with ∀x.∀y in bodies require negating
+;; to ∃x.∃y with δ-parameters, which produces neq(par, constant) that
+;; can't close (par could denote that constant). This is a semantic
+;; limitation, not a bug.
+
+(defn acyclic-abc-program
+  "acyclic_abc() ← ∀x.¬reach(x,x) for acyclic graph a→b→c.
+   ¬reach(x,x) = (x≠a∨x≠b) ∧ (x≠b∨x≠c) ∧ (x≠a∨x≠c)"
+  [x]
+  [['acyclic_abc []
+    ['forall (tie x
+      ['and ['or ['neq ['var x] ['app 'a]] ['neq ['var x] ['app 'b]]]
+            ['and ['or ['neq ['var x] ['app 'b]] ['neq ['var x] ['app 'c]]]
+                  ['or ['neq ['var x] ['app 'a]] ['neq ['var x] ['app 'c]]]]])]]])
+
+(defn acyclic-aba-program
+  "acyclic_aba() ← ∀x.¬reach(x,x) for cyclic graph a→b→a.
+   reach(x,x) includes (x=a) ∨ (x=b) [every node reaches itself via cycle].
+   ¬reach(x,x) = x≠a ∧ x≠b."
+  [x]
+  [['acyclic_aba []
+    ['forall (tie x
+      ['and ['neq ['var x] ['app 'a]]
+            ['neq ['var x] ['app 'b]]])]]])
+
+(deftest test-GP01-acyclic-true
+  (testing "GP01: acyclic(a→b→c) is true — no cycles. neg-call produces
+            ∃x.((x=a∧x=b) ∨ (x=b∧x=c) ∨ (x=a∧x=c)). δ-rule gives par p.
+            Each disjunct pairs eq(par p, X) with eq(par p, Y) where X≠Y,
+            closing via para-free-close."
+    (is (seq
+          (run 1 [proof]
+            (nom x
+              (let [prog (acyclic-abc-program x)]
+                (proveo ['neg ['app 'acyclic_abc]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-GP02-acyclic-false-cycle
+  (testing "GP02: acyclic(a→b→a) is false — cycle exists. pos-call:
+            body = ∀x.(x≠a ∧ x≠b). γ-rule introduces LVar v.
+            neq(v, a) → refl-close binds v=a → neq(a, a) → contradiction."
+    (is (seq
+          (run 1 [proof]
+            (nom x
+              (let [prog (acyclic-aba-program x)]
+                (proveo ['pos ['app 'acyclic_aba]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-GP03-acyclic-three-node-cycle
+  (testing "GP03: acyclic(a→b→c→a) is false — 3-node cycle.
+            reach(x,x) = (x=a) ∨ (x=b) ∨ (x=c). acyclic = ∀x.(x≠a ∧ x≠b ∧ x≠c).
+            pos-call: γ-rule LVar binds to a → contradiction."
+    (is (seq
+          (run 1 [proof]
+            (nom x
+              (let [prog [['acyclic_abca []
+                           ['forall (tie x
+                             ['and ['neq ['var x] ['app 'a]]
+                                   ['and ['neq ['var x] ['app 'b]]
+                                         ['neq ['var x] ['app 'c]]]])]]]]
+                (proveo ['pos ['app 'acyclic_abca]]
+                        '() '() '() prog proof))))))))
 
 ;; ============================================================================
 ;; Run all tests

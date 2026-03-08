@@ -5032,6 +5032,187 @@
                 (proveo ['pos ['app 'add (peano 1) (peano 2) (peano 2)]]
                         '() '() '() prog proof))))))))
 
+;; --- Larger numbers ---
+
+(deftest test-PA10-larger-3plus4eq7
+  (testing "PA10: 3+4=7 — four recursive steps peeling s() from 2nd and 3rd args."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['neg ['app 'add (peano 3) (peano 4) (peano 7)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-PA11-larger-4plus3eq7
+  (testing "PA11: 4+3=7 — commuted version of PA10. Three recursive steps."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['neg ['app 'add (peano 4) (peano 3) (peano 7)]]
+                        '() '() '() prog proof))))))))
+
+;; --- Reverse mode: determine addends from sums ---
+
+(deftest test-PA12-synth-first-arg
+  (testing "PA12: ?+3=5 — synthesis on first argument. Finds 2 (= s(s(zero)))."
+    (let [results (run 1 [x-val]
+                    (nom x y z w v
+                      (let [prog (peano-add-program x y z w v)]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'add x-val (peano 3) (peano 5)]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= (peano 2) (first results))))))
+
+(deftest test-PA13-synth-second-arg
+  (testing "PA13: 3+?=5 — synthesis on second argument. Finds 2."
+    (let [results (run 1 [x-val]
+                    (nom x y z w v
+                      (let [prog (peano-add-program x y z w v)]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'add (peano 3) x-val (peano 5)]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= (peano 2) (first results))))))
+
+(deftest test-PA14-synth-sum
+  (testing "PA14: 3+4=? — synthesis on sum. Finds 7."
+    (let [results (run 1 [x-val]
+                    (nom x y z w v
+                      (let [prog (peano-add-program x y z w v)]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'add (peano 3) (peano 4) x-val]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= (peano 7) (first results))))))
+
+;; --- Existential queries via synthesis ---
+
+(deftest test-PA15-exists-addend
+  (testing "PA15: ∃x. add(3,x,5) — there exists x such that 3+x=5.
+            Existential is implicit in the LVar binding. Finds x=2."
+    (let [results (run 1 [x-val]
+                    (nom x y z w v
+                      (let [prog (peano-add-program x y z w v)]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'add (peano 3) x-val (peano 5)]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= (peano 2) (first results))))))
+
+(deftest test-PA16-exists-half
+  (testing "PA16: ∃x. add(x,x,4) — find x such that x+x=4 (halving).
+            4 is even, so x=2 exists."
+    (let [results (run 1 [x-val]
+                    (nom x y z w v
+                      (let [prog (peano-add-program x y z w v)]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'add x-val x-val (peano 4)]]
+                                  '() '() '() prog proof)))))]
+      (is (seq results))
+      (is (= (peano 2) (first results))))))
+
+(deftest test-PA17-no-half-odd
+  (testing "PA17: ∃x. add(x,x,3) has no solution — 3 is odd, not halvable.
+            Synthesis correctly returns empty (no x satisfies x+x=3)."
+    (is (empty?
+          (run 1 [x-val]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (fresh [proof]
+                  (proveo ['neg ['app 'add x-val x-val (peano 3)]]
+                          '() '() '() prog proof)))))))))
+
+(deftest test-PA18-no-half-odd-5
+  (testing "PA18: ∃x. add(x,x,5) has no solution — 5 is odd."
+    (is (empty?
+          (run 1 [x-val]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (fresh [proof]
+                  (proveo ['neg ['app 'add x-val x-val (peano 5)]]
+                          '() '() '() prog proof)))))))))
+
+;; --- All pairs summing to a given number ---
+
+(deftest test-PA19-all-pairs-summing-to-3
+  (testing "PA19: find all (a,b) where a+b=3. Expects 4 pairs:
+            (3,0), (2,1), (1,2), (0,3) — exhaustive decomposition."
+    (let [results (run 4 [a b]
+                    (nom x y z w v
+                      (let [prog (peano-add-program x y z w v)]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'add a b (peano 3)]]
+                                  '() '() '() prog proof)))))]
+      (is (= 4 (count results)))
+      ;; Check that each expected pair appears (using element-wise = for LCons)
+      (let [a-vals (map first results)]
+        (is (some #(= (peano 3) %) a-vals) "Should find a=3")
+        (is (some #(= (peano 2) %) a-vals) "Should find a=2")
+        (is (some #(= (peano 1) %) a-vals) "Should find a=1")
+        (is (some #(= (peano 0) %) a-vals) "Should find a=0")))))
+
+;; --- Enumerate (y,z) pairs for a fixed first addend ---
+
+(deftest test-PA20-pairs-2plusY
+  (testing "PA20: find 4 (y,z) pairs where 2+y=z. Should find
+            (0,2), (1,3), (2,4), (3,5) — infinitely many exist."
+    (let [results (run 4 [y-val z-val]
+                    (nom x y z w v
+                      (let [prog (peano-add-program x y z w v)]
+                        (fresh [proof]
+                          (proveo ['neg ['app 'add (peano 2) y-val z-val]]
+                                  '() '() '() prog proof)))))]
+      (is (= 4 (count results)))
+      ;; First result should be y=0, z=2 (base case)
+      (is (= (peano 0) (first (first results))))
+      (is (= (peano 2) (second (first results)))))))
+
+;; --- Falsity: x+1≠x for specific values (successor ≠ identity) ---
+
+(deftest test-PA21-succ-neq-identity-0
+  (testing "PA21: add(0,1,0) is false — 0+1≠0. pos-call: base case
+            gives eq(0, s(0)) → free-closure (zero ≠ s)."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['pos ['app 'add (peano 0) (peano 1) (peano 0)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-PA22-succ-neq-identity-1
+  (testing "PA22: add(1,1,1) is false — 1+1≠1. Recursive step gives
+            add(1,0,0), base case eq(0,1) → free-closure."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['pos ['app 'add (peano 1) (peano 1) (peano 1)]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-PA23-succ-neq-identity-2
+  (testing "PA23: add(2,1,2) is false — 2+1≠2. Recursive step gives
+            add(2,0,1), base case eq(1,2) → free-closure (s(0) vs s(s(0)))."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w v
+              (let [prog (peano-add-program x y z w v)]
+                (proveo ['pos ['app 'add (peano 2) (peano 1) (peano 2)]]
+                        '() '() '() prog proof))))))))
+
+;; --- ∀x.∃y.add(x,1,y)∧x≠y: L-ground guard limitation ---
+;;
+;; The statement "for all x, there exists y such that add(x,1,y) and x≠y"
+;; cannot be expressed as a single ∀-quantified query with procedure calls,
+;; because the δ-parameter introduced by ∃ (after negating ∀) is not L-ground,
+;; blocking the procedure call rule (Fitting §6 Def 6.1).
+;;
+;; We verify the statement holds for specific instances instead: each test
+;; above (PA21-PA23) proves add(n,1,n) is FALSE for n∈{0,1,2}, which is
+;; equivalent to "n+1 ≠ n" — confirming the successor function is not the
+;; identity for these values.
+
 ;; ============================================================================
 ;; Section SO: Sorted Predicate (∀ in clause body, inline ordering)
 ;; ============================================================================

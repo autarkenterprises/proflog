@@ -246,6 +246,42 @@
     (== (lcons 'app (lcons s2 a2)) t2)
     (!= s1 s2)))
 
+(defn different-lengtho
+  "Succeed if two lists have different lengths. Purely relational.
+   Used for arity-mismatch detection: f(a,b) vs f(a) have arg lists
+   of length 2 vs 1."
+  [l1 l2]
+  (conde
+    ;; l1 empty, l2 non-empty
+    [(== l1 '())
+     (fresh [h t] (== (lcons h t) l2))]
+    ;; l1 non-empty, l2 empty
+    [(fresh [h t] (== (lcons h t) l1))
+     (== l2 '())]
+    ;; both non-empty: recurse on tails
+    [(fresh [h1 t1 h2 t2]
+       (== (lcons h1 t1) l1)
+       (== (lcons h2 t2) l2)
+       (different-lengtho t1 t2))]))
+
+(defn arity-mismatch-closureo
+  "Succeed if (eq t1 t2) is unsatisfiable due to arity mismatch.
+   Two terms with the SAME head symbol but different numbers of arguments
+   are structurally distinct in any Herbrand model.
+
+   Covers Fitting §5 Free Closure Rule cases 2 and 3:
+     f(t₁,...,tₙ) = c      — function vs constant (same name, n>0 vs 0 args)
+     f(t₁,...,tₙ) = f(u₁,...,uₖ) — same head, n ≠ k
+
+   In standard FOL, function symbols have fixed arity, so f/0 and f/1
+   are distinct symbols. Our implementation allows the same Clojure symbol
+   with varying arg counts, so this check is needed explicitly."
+  [t1 t2]
+  (fresh [f args1 args2]
+    (== (lcons 'app (lcons f args1)) t1)
+    (== (lcons 'app (lcons f args2)) t2)
+    (different-lengtho args1 args2)))
+
 ;; --- 3b. One-One Decomposition ---
 
 (defn one-one-pairso
@@ -828,6 +864,19 @@
             (== ['eq t1 t2] lit)
             (== ['free-close] proof)
             (free-closureo t1 t2))]
+
+         ;; ============================================================
+         ;; ARITY MISMATCH CLOSURE (Fitting §5 — Free Closure cases 2/3)
+         ;; ============================================================
+         ;; (eq (app f t₁…tₙ) (app f s₁…sₖ)) with n ≠ k is unsatisfiable.
+         ;; Same head symbol but different number of arguments means the
+         ;; terms are structurally distinct in any Herbrand model.
+         ;; E.g., f(a) ≠ f() because f/1 and f/0 are different terms.
+         ;; ============================================================
+         [(fresh [t1 t2]
+            (== ['eq t1 t2] lit)
+            (== ['arity-mismatch-close] proof)
+            (arity-mismatch-closureo t1 t2))]
 
          ;; ============================================================
          ;; EQ/NEQ COMPLEMENTARY CLOSURE

@@ -4241,34 +4241,28 @@
 ;;
 ;; See task list for a future ticket to revisit this question.
 
-(deftest test-ADV05-free-close-same-head-different-arity
-  (testing "ADV05: free-closureo on f(a) vs f() — same head, different arities.
-            In Herbrand semantics, f(a) ≠ f() (different terms).
-            free-closureo checks head symbols only; same head f → fails.
-            decompose-eq-argso requires paired arg lists; mismatched lengths → fails.
-            Category: EXPECTED-FAIL (arity mismatch not handled)"
-    ;; We expect free-closureo to FAIL here (returns empty).
-    ;; Logically it should succeed (different terms).
-    (is (empty?
+(deftest test-ADV05-arity-mismatch-close
+  (testing "ADV05: arity-mismatch-closureo on f(a) vs f() — same head, different arities.
+            In Herbrand semantics, f(a) ≠ f() (structurally different terms).
+            free-closureo doesn't fire (same head), but arity-mismatch-closureo does."
+    (is (seq
           (run 1 [q]
-            (free-closureo ['app 'f ['app 'a]] ['app 'f])
+            (arity-mismatch-closureo ['app 'f ['app 'a]] ['app 'f])
             (== q :closed))))))
 
 (deftest test-ADV06-eq-arity-mismatch-via-proveo
-  (testing "ADV06: (eq f(a) f()) as a literal — should close but can't.
-            Neither free-close (same head) nor decompose (arity mismatch) fires.
-            Category: EXPECTED-FAIL (arity gap in closure rules)"
-    ;; We expect proveo to FAIL to close this eq.
-    (is (empty?
+  (testing "ADV06: (eq f(a) f()) as a literal — closes via arity-mismatch-close.
+            free-close doesn't fire (same head f), but arity-mismatch-close
+            detects that f/1 ≠ f/0 (different arg counts)."
+    (is (seq
           (run 1 [proof]
             (proveo ['eq ['app 'f ['app 'a]] ['app 'f]]
                     '() '() '() '() proof))))))
 
 (deftest test-ADV07-program-arity-mismatch
-  (testing "ADV07: R(x) ← x ≠ f(). Query: R(f(a)) — should succeed since f(a) ≠ f().
-            neg-call: negate body → eq(f(a), f()). This eq cannot close (AV2).
-            Category: EXPECTED-FAIL (arity mismatch propagates to program level)"
-    (is (empty?
+  (testing "ADV07: R(x) ← x ≠ f(). Query: R(f(a)) — succeeds since f(a) ≠ f().
+            neg-call: negate body → eq(f(a), f()). Closes via arity-mismatch-close."
+    (is (seq
           (run 1 [proof]
             (nom pa
               (let [prog [['R [pa] ['neq ['var pa] ['app 'f]]]]]

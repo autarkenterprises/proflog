@@ -2888,28 +2888,26 @@
 
 ;; --- U06–U08: integration through proveo ------------------------------------
 
-(deftest test-U06-plain-pos-call-blocked-with-par-arg
-  (testing "U06: plain positive call rule is blocked when arg contains (par p)"
-    ;; pos(R(par p)) with clause R(x) ← (neq x x):
-    ;; Body (neq x x) is always contradictory — substituting x→(par p) gives
-    ;; (neq (par p) (par p)), which closes by refl-close.  So WITHOUT the guard
-    ;; the plain pos-call fires and returns a proof.  WITH the guard, the call
-    ;; is blocked because (par p) is not L-ground.  Expected: empty.
-    (is (empty? (run 1 [_]
+(deftest test-U06-pos-call-with-par-arg
+  (testing "U06: positive call rule fires with par arg (L-ground guard removed).
+            pos(R(par p)) with clause R(x) ← (neq x x):
+            Body (neq x x) is always contradictory — substituting x→(par p) gives
+            (neq (par p) (par p)), which closes by refl-close.  The subsidiary
+            correctly determines R(par p) is false regardless of par p's denotation."
+    (is (seq (run 1 [_]
                   (nom a p
                     (let [prog [['R [a] ['neq ['var a] ['var a]]]]]
                       (fresh [proof]
                         (proveo ['pos ['app 'R ['par p]]]
                                 '() '() '() prog proof)))))))))
 
-(deftest test-U07-plain-neg-call-blocked-with-par-arg
-  (testing "U07: plain negative call rule is blocked when arg contains (par p)"
-    ;; neg(R(par p)) with clause R(x) ← (eq x x):
-    ;; Negating body (eq x x) gives (neq x x).  Substituting x→(par p) gives
-    ;; (neq (par p) (par p)), which closes by refl-close.  So WITHOUT the guard
-    ;; the plain neg-call fires and returns a proof.  WITH the guard, the call
-    ;; is blocked because (par p) is not L-ground.  Expected: empty.
-    (is (empty? (run 1 [_]
+(deftest test-U07-neg-call-with-par-arg
+  (testing "U07: negative call rule fires with par arg (L-ground guard removed).
+            neg(R(par p)) with clause R(x) ← (eq x x):
+            Negating body (eq x x) gives (neq x x).  Substituting x→(par p) gives
+            (neq (par p) (par p)), which closes by refl-close.  The subsidiary
+            correctly determines R(par p) is true regardless of par p's denotation."
+    (is (seq (run 1 [_]
                   (nom a p
                     (let [prog [['R [a] ['eq ['var a] ['var a]]]]]
                       (fresh [proof]
@@ -4596,17 +4594,19 @@
 ;;
 ;; Fitting §8 warns that factoring win(x) ← ∃y.((x=s(y) ∨ x=s(s(y))) ∧ ¬win(y))
 ;; into win(x) ← ∃y.(move(x,y) ∧ ¬win(y)) with move(x,y) ← x=s(y) ∨ x=s(s(y))
-;; DOES NOT WORK. Reason: equality's interpretation is fixed in weak Herbrand
-;; models, but move's is not — there could be "non-standard moves." This is a
-;; fundamental property of supervaluation semantics, not an implementation bug.
+;; DOES NOT WORK under strict supervaluation semantics: equality's interpretation
+;; is fixed in weak Herbrand models, but move's is not.
 ;;
-;; In our implementation, this manifests as the L-ground guard (Fitting §6
-;; Def 6.1) blocking procedure calls to `move` when the argument is a
-;; δ-parameter (par p). The inline version processes equalities directly (no
-;; procedure call needed), while the factored version requires a procedure
-;; call that can't fire on par arguments.
+;; With L-ground guard REMOVED: the factored version now produces the SAME
+;; correct results as the inline version. The subsidiary tableau for
+;; move(0, par p) correctly determines move is false for all par p values
+;; via free-closure (0 ≠ s(anything)), which is sound — the refutation is
+;; independent of what par p denotes. This is operationally equivalent to
+;; Clark completion / CWA for defined predicates, and more complete than
+;; strict supervaluation semantics.
 ;;
-;; Contrast with J01-J04 (inline version, all pass).
+;; MV01-MV02: move relation itself (L-ground args, always worked).
+;; MV03-MV06: factored win — now match inline J01-J04 results.
 
 (defn move-program
   "Build the factored win+move program (Fitting §8 warning).
@@ -4648,28 +4648,27 @@
                     query ['pos ['app 'move (nim-numeral 0) (nim-numeral 1)]]]
                 (proveo query '() '() '() prog proof))))))))
 
-(deftest test-MV03-factored-win0-fails
-  (testing "MV03: EXPECTED FAILURE — factored win(0) can't be proven false.
+(deftest test-MV03-factored-win0-succeeds
+  (testing "MV03: factored win(0) proven false (L-ground guard removed).
             pos win(0) → subsidiary ∃y.(move(0,y) ∧ ¬win(y)) → δ introduces
-            par p → pos move(0, par p) blocked by L-ground guard (par p is
-            not an L-term). Branch stays open.
-            Compare: J01 succeeds because inline equalities (0=s(p), 0=s(s(p)))
-            close by free-closure without needing a procedure call."
-    (is (empty?
+            par p → pos move(0, par p) fires → body eq(0,s(par_p)) ∨ eq(0,s(s(par_p)))
+            closes by free-closure (0 ≠ s regardless of par p).
+            Same result as inline J01."
+    (is (seq
           (run 1 [proof]
             (nom wx wy mx my
               (let [prog (move-program wx wy mx my)
                     query ['pos ['app 'win (nim-numeral 0)]]]
                 (proveo query '() '() '() prog proof))))))))
 
-(deftest test-MV04-factored-win1-fails
-  (testing "MV04: EXPECTED FAILURE — factored win(1) can't be proven true.
+(deftest test-MV04-factored-win1-succeeds
+  (testing "MV04: factored win(1) proven true (L-ground guard removed).
             neg win(1) → once-forall y → or(neg move(1,y), pos win(y)).
-            Branch 1: neg move(1, v) closes (v is LVar, passes L-ground),
-            binding v=0. Branch 2: pos win(v=0) → subsidiary needs
-            pos move(0, par p), but par p blocks L-ground guard. Fails.
-            Compare: J02 succeeds because inline equalities close directly."
-    (is (empty?
+            Branch 1: neg move(1, v) closes binding v=0.
+            Branch 2: pos win(0) → subsidiary ∃y.(move(0,y) ∧ ...) → par p →
+            pos move(0, par p) fires → body closes by free-closure.
+            Same result as inline J02."
+    (is (seq
           (run 1 [proof]
             (nom wx wy mx my
               (let [prog (move-program wx wy mx my)
@@ -4677,10 +4676,9 @@
                 (proveo query '() '() '() prog proof))))))))
 
 (deftest test-MV05-inline-vs-factored-win0
-  (testing "MV05: Direct comparison — inline win(0) closes, factored doesn't.
-            This is Fitting's §8 warning made concrete: the same logical
-            content expressed as inline equalities vs. auxiliary relation
-            gives different results under supervaluation semantics."
+  (testing "MV05: Direct comparison — inline and factored win(0) both close.
+            With L-ground guard removed, the factored version produces the
+            same correct result as inline: win(0) is false."
     ;; Inline version succeeds (same as J01)
     (is (seq
           (run 1 [proof]
@@ -4688,8 +4686,8 @@
               (let [prog (nim-program x y)
                     query ['pos ['app 'win (nim-numeral 0)]]]
                 (proveo query '() '() '() prog proof))))))
-    ;; Factored version fails
-    (is (empty?
+    ;; Factored version now also succeeds
+    (is (seq
           (run 1 [proof]
             (nom wx wy mx my
               (let [prog (move-program wx wy mx my)
@@ -4697,10 +4695,9 @@
                 (proveo query '() '() '() prog proof))))))))
 
 (deftest test-MV06-inline-vs-factored-win1
-  (testing "MV06: Direct comparison — inline win(1) closes, factored doesn't.
-            win(1) is true in both formulations (semantically), but the
-            factored version can't prove it because the proof requires
-            establishing win(0)=false, which needs move(0, par p) — blocked."
+  (testing "MV06: Direct comparison — inline and factored win(1) both close.
+            With L-ground guard removed, the factored version proves win(1)
+            is true, matching the inline result."
     ;; Inline version succeeds (same as J02)
     (is (seq
           (run 1 [proof]
@@ -4708,8 +4705,8 @@
               (let [prog (nim-program x y)
                     query ['neg ['app 'win (nim-numeral 1)]]]
                 (proveo query '() '() '() prog proof))))))
-    ;; Factored version fails
-    (is (empty?
+    ;; Factored version now also succeeds
+    (is (seq
           (run 1 [proof]
             (nom wx wy mx my
               (let [prog (move-program wx wy mx my)

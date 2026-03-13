@@ -1,5 +1,8 @@
 # αleanTAP-EP: Implementing Fitting's Proflog in αleanTAP
 
+**Semantic variant: CWA / Clark Completion** (L-ground guard removed).
+See `main` branch for Fitting's supervaluation semantics with guard.
+
 ## The Central Idea
 
 Fitting's 1994 paper poses a deceptively simple question: what does it take to turn a tableau *theorem prover* into a *programming language*? His answer is a single new rule — the **Procedure Call Rule** — which bridges the two worlds by allowing a tableau branch to close not just by finding contradictions, but by *invoking a program definition*.
@@ -16,7 +19,7 @@ From Fitting's paper (Section 6), here is the rule verbatim:
 >
 > 2. it contains a negated ground atom ¬R(t₁,...,tₙ) of L, there is a clause R(x₁,...,xₙ) ← φ(x₁,...,xₙ) in P, and there exists a closed tableau for ¬φ(t₁,...,tₙ).
 
-To understand why each part works, recall that a Proflog clause R(x) ← φ(x) is semantically biconditional: **R(t) is true iff φ(t) is true**, in the smallest supervaluation model.
+To understand why each part works, recall that a Proflog clause R(x) ← φ(x) is semantically biconditional: **R(t) is true iff φ(t) is true**. In the supervaluation model (`main` branch), this holds for L-ground terms only. In the CWA model (this branch), this extends to all terms including δ-parameters.
 
 **Part 1 (positive call):** R(t) sits on the branch, asserting it is the case. The subsidiary tableau closes on φ(t), establishing that φ(t) is unsatisfiable. But R(t) ↔ φ(t), so R(t) must also be false. Contradiction — the branch closes.
 
@@ -124,22 +127,20 @@ These are straightforward relational helpers. `lookup-clauseo` searches the prog
 
 The procedure call rule adds two new ways to close a branch when processing a literal, alongside the existing complementary closure, reflexivity, and paramodulation.
 
-**The L-groundness guard** (Fitting §6 Definition 6.1): the plain call rules may only fire on ground atoms of L — atoms whose arguments contain no δ-parameters `(par p)`. The `l-ground-term*o` guard enforces this. It uses `project` to inspect argument terms without unifying them, so unbound γ-rule logic variables (which are not par-terms) pass through transparently. Substitutivity-augmented call rules (which rewrite `(par p)` to ground terms *before* firing) are exempt from this guard.
+**The L-groundness guard** (Fitting §6 Definition 6.1): Fitting requires that procedure calls fire only on ground atoms of L — atoms whose arguments contain no δ-parameters `(par p)`. This is a soundness requirement for supervaluation semantics (see `main` branch). **On this branch (CWA), the guard is removed** — procedure calls fire on all arguments, including parameter-containing ones. The `l-ground-term*o` and `contains-par?` functions are retained in source but not called from `proveo`.
 
 ```clojure
-;; Positive procedure call (plain — L-ground args required)
+;; Positive procedure call (CWA: no L-ground guard)
 [(fresh [R args params body call-env prf]
    (== ['pos (lcons 'app (lcons R args))] lit)
-   (l-ground-term*o args)                ;; Fitting §6 Def 6.1: no (par p) in args
    (lookup-clauseo R program params body)
    (bind-argso params args call-env)
    (== (lcons 'proc-call (lcons R prf)) proof)
    (proveo body '() '() call-env program prf))]
 
-;; Negative procedure call (plain — L-ground args required)
+;; Negative procedure call (CWA: no L-ground guard)
 [(fresh [R args params body call-env neg-body prf]
    (== ['neg (lcons 'app (lcons R args))] lit)
-   (l-ground-term*o args)                ;; Fitting §6 Def 6.1: no (par p) in args
    (lookup-clauseo R program params body)
    (bind-argso params args call-env)
    (negate-formulao body neg-body)
@@ -280,8 +281,8 @@ Equality and procedure calls interact naturally in αleanTAP-EP because both are
 | **Clause bodies** | Conjunctions of atoms (Horn) | Any first-order formula |
 | **Proof engine** | SLD-resolution | Tableau expansion + procedure call |
 | **Negation** | Negation-as-failure (extralogical) | Classical ¬ in bodies (logical) |
-| **Semantics** | Minimal Herbrand model | Smallest supervaluation model |
-| **World assumption** | Closed (CWA) | Open (non-standard elements possible) |
+| **Semantics** | Minimal Herbrand model | Clark completion / free Herbrand model (CWA variant) |
+| **World assumption** | Closed (CWA) | Closed (CWA — guard removed; see `main` for open/supervaluation) |
 | **Equality** | Built-in unification | Tableau equality rules (paramodu­lation, free closure) |
 | **Directionality** | Forward only (input → output) | Pure relation (forward, backward, sideways) |
 | **Undefinedness** | Loops (operational) | ⊥ (semantic third truth value) |
@@ -322,13 +323,13 @@ Fitting explicitly leaves several questions open (Section 8). Our implementation
 
 **Program synthesis (tested).** Placing a logic variable as the entire `program` argument synthesizes a program that proves the query — `proveo` finds the clause structure. Similarly, placing logic variables inside clause bodies synthesizes the body terms. Joint synthesis (`run 1 [prog q]` with both program and query unbound) finds a mutually consistent (program, query) pair. These modes exercise the relational core in full reverse: `lookup-clauseo`, `bind-argso`, `negate-formulao`, `subst-termo`, and all closure rules compose correctly when inputs are unbound. The `project`-based dispatch in `subst-termo` is the key enabler: it passes synthesis-target LVars through unchanged rather than consuming them as `(var nom)` forms.
 
-**Deep synthesis with procedure calls (tested).** Query and program LVars flow through recursive procedure call chains of arbitrary depth (Sections V and W of the test suite). The L-groundness guard is transparent to these LVars: `project` inspects the walked value and sees an `LVar` object, which `contains-par?` correctly classifies as ground. Tests V13 and V14 specifically verify that program-LVar arguments (not just query-LVar or γ-rule-LVar arguments) pass the guard at every nesting level.
+**Deep synthesis with procedure calls (tested).** Query and program LVars flow through recursive procedure call chains of arbitrary depth (Sections V and W of the test suite). On this CWA branch, no L-ground guard is present, so LVars and par-containing terms pass through to subsidiary tableaux without restriction. Tests V13 and V14 verify that program-LVar arguments work at every nesting level. (On the `main` branch, the L-ground guard is transparent to LVars via `project` inspection.)
 
 **List membership (tested).** `member(x, l) ← ∃h.∃t. l = cons(h,t) ∧ (x=h ∨ member(x,t))` exercises binary constructors, nested existentials (two δ-rules per call), and recursive procedure calls through list structure. Tested for head and recursive membership, empty-list failure.
 
 **Nim game, full (tested).** `win(x) ← ∃y.((x=s(y) ∨ x=s(s(y))) ∧ ¬win(y))` exercises mutual recursion through the negative procedure call. win(0) fails, win(1) and win(2) succeed, win(3) fails — all verified. The correctness proof relies on the visited-set termination guarantee (see below).
 
-**List programs — append and reverse (tested, Section Y).** `append(a1,a2,a3)` and `reverse(r1,r2)` are encoded as single OR-body clauses per Fitting's Definition 2.1. Each Prolog two-clause definition becomes `or(base-case, ∃-recursive-case)`. The empty-list constant is `(app nul)` — the symbol `'nul` rather than `'nil`, because Clojure evaluates `'nil` to the null value rather than a symbol. "Succeeds" tests use neg-call with L-ground concrete arguments; the closed tableau is found via refl-close on `or(neq(nul,nul), neq([x],[x]))` in the negated base case without even reaching the negated recursive case. "Fails" tests use pos-call; the base branch closes via free-close (`eq([a],nul)` — distinct constructors), and the recursive branch closes via free-close (`eq(nul,cons(par_h,par_t))`). Synthesis tests (Y05 for append, Y10 for reverse) place a logic variable as the result argument; the L-groundness guard passes it (project→LVar→contains-par?=false), and the recursive neg-call chain binds it via refl-close. **NNF ordering rule applies:** equality constraints must precede pos-calls in every AND-chain (see Section X / Fitting's P1 note below).
+**List programs — append and reverse (tested, Section Y).** `append(a1,a2,a3)` and `reverse(r1,r2)` are encoded as single OR-body clauses per Fitting's Definition 2.1. Each Prolog two-clause definition becomes `or(base-case, ∃-recursive-case)`. The empty-list constant is `(app nul)` — the symbol `'nul` rather than `'nil`, because Clojure evaluates `'nil` to the null value rather than a symbol. "Succeeds" tests use neg-call with L-ground concrete arguments; the closed tableau is found via refl-close on `or(neq(nul,nul), neq([x],[x]))` in the negated base case without even reaching the negated recursive case. "Fails" tests use pos-call; the base branch closes via free-close (`eq([a],nul)` — distinct constructors), and the recursive branch closes via free-close (`eq(nul,cons(par_h,par_t))`). Synthesis tests (Y05 for append, Y10 for reverse) place a logic variable as the result argument; on this CWA branch no guard is present (on `main`, the L-groundness guard passes LVars transparently), and the recursive neg-call chain binds it via refl-close. **NNF ordering rule applies:** equality constraints must precede pos-calls in every AND-chain (see Section X / Fitting's P1 note below).
 
 **Disunification with free variables (tested, Section DI).** When `(eq t1 t2)` appears on a branch and one or both sides contain free logic variables (from γ-rule instantiation or synthesis queries), the free-close + decompose cascade generates disunifiers at every depth. For `(eq (app f (app a)) y)` where `y` is an LVar: free-close generates root-level clashes (`y` has head ≠ `f`), decompose generates depth-1 clashes (`y = f(b)` where `b` has head ≠ `a`), and deeper decomposition continues recursively. Tests verify: root/depth-1/depth-2 disunifiers (DI05–DI08), concrete forward proofs (DI09–DI13), synthesis with single and multiple disunification constraints (DI14–DI19), interaction with universally quantified bodies (DI20–DI21), combined equality rewriting and disunification (DI22–DI23), and both-LVar edge cases (DI24–DI25).
 

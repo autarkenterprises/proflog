@@ -1,6 +1,9 @@
 ;; ============================================================================
 ;; αleanTAP-EP: A Declarative Logic Programming Language
 ;;              based on Tableau Methods, with Equality
+;;
+;; SEMANTIC VARIANT: CWA / CLARK COMPLETION
+;; (L-ground guard removed — see `main` branch for supervaluation variant)
 ;; ============================================================================
 ;;
 ;; This extends αleanTAP-E with Fitting's Procedure Call Rule, transforming
@@ -987,10 +990,33 @@
          ;; ============================================================
          ;; Branch has (pos (app R args...)).  Look up clause for R,
          ;; bind params→args, close if subsidiary tableau on body closes.
+         ;;
+         ;; SEMANTIC VARIANT: CWA / CLARK COMPLETION (this branch)
+         ;;
+         ;; Fitting's Def 6.1 requires args to be L-ground (no δ-parameters).
+         ;; This branch REMOVES that restriction, implementing CWA semantics.
+         ;;
+         ;; The subsidiary tableau treats (par p) as an opaque constant.
+         ;; It only closes when the body's truth value is INDEPENDENT of
+         ;; par's denotation — (par p) cannot be decomposed or free-closed
+         ;; against (app ...) terms. This is sound with respect to the
+         ;; free Herbrand model (Clark completion), but NOT with respect to
+         ;; Fitting's supervaluation model s_P (Theorem 7.2).
+         ;;
+         ;; The difference: in supervaluation, R(par p) is UNDEFINED (⊥)
+         ;; because non-standard elements aren't constrained by the program.
+         ;; In CWA, R(par p) is determined by the body's behavior on par —
+         ;; the biconditional R(t) ↔ φ(t) extends to ALL terms.
+         ;;
+         ;; Practical effect: ∀x.R(x) with R(x)←x=x is now provable
+         ;; (par p in args, body neq(par_p,par_p) closes by refl).
+         ;; Factored programs (Fitting §8) equivalent to inline versions.
+         ;;
+         ;; See `main` branch for supervaluation-faithful implementation
+         ;; with L-ground guard.
          ;; ============================================================
          [(fresh [R args params body call-env prf]
             (== ['pos (lcons 'app (lcons R args))] lit)
-            (l-ground-term*o args)                ;; Fitting §6 Def 6.1: L-ground args only
             (lookup-clauseo R program params body)
             (bind-argso params args call-env)
             (== (lcons 'proc-call (lcons R prf)) proof)
@@ -1001,10 +1027,11 @@
          ;; ============================================================
          ;; Branch has (neg (app R args...)).  Look up clause, negate
          ;; body, close if subsidiary tableau on ¬body closes.
+         ;; Same CWA relaxation as positive: par-containing args allowed.
+         ;; See positive rule comment above for full rationale.
          ;; ============================================================
          [(fresh [R args params body call-env neg-body prf]
             (== ['neg (lcons 'app (lcons R args))] lit)
-            (l-ground-term*o args)                ;; Fitting §6 Def 6.1: L-ground args only
             (lookup-clauseo R program params body)
             (bind-argso params args call-env)
             (negate-formulao body neg-body)
@@ -1464,64 +1491,76 @@
 ;;    cons and multi-arity relations.
 ;;
 ;;
-;; THREE-VALUED SEMANTICS AND DIVERGENCE
-;; ======================================
+;; SEMANTICS: CWA / CLARK COMPLETION (this branch)
+;; =================================================
 ;;
-;; Fitting's Proflog uses three-valued supervaluation semantics:
+;; This branch implements Closed-World Assumption semantics via the
+;; removal of Fitting's L-ground guard (§6 Def 6.1).
+;;
+;; Operationally, the system is still three-valued:
 ;;   - true:  query succeeds (closed tableau for ¬A exists)
 ;;   - false: query fails    (closed tableau for A exists)
-;;   - ⊥:     undefined      (neither tableau closes — infinite search)
+;;   - ⊥:     undefined      (neither tableau closes — non-termination)
 ;;
-;; In our implementation, the ⊥ case manifests as non-termination of
-;; the core.logic search.  This is analogous to how Prolog loops on
-;; undefined queries.  The key example from Fitting:
+;; But the denotational model differs from Fitting's supervaluation:
 ;;
-;;   p ← ¬p
+;;   SUPERVALUATION (main branch):
+;;     v(R(t)) = v(φ(t)) only for ground L-terms t (Def 3.5).
+;;     For non-standard d (named only by parameters), R(d) is
+;;     unconstrained — different models disagree → v(R(d)) = ⊥.
+;;     Theorem 7.2 guarantees t_P = s_P.
 ;;
-;; Neither p nor ¬p can be established — the procedure call creates
-;; an infinite chain of subsidiary tableaux.  In our relational
-;; setting, `run 1` will simply not return.
+;;   CWA (this branch):
+;;     R(t) ↔ φ(t) for ALL terms t including parameters.
+;;     Parameters denote opaque elements in the free Herbrand model.
+;;     The biconditional extends to them because CWA treats the
+;;     Herbrand universe (including parameters) as the whole domain.
+;;     Sound w.r.t. the free Herbrand model. Theorem 7.2 does NOT apply.
+;;
+;; Example showing the difference:
+;;   R(x) ← x=x.  Query: ∀x.R(x).
+;;   Supervaluation: ⊥ (models with non-standard d where R(d)=false exist)
+;;   CWA: true (R holds for all Herbrand terms, including parameters)
+;;   This branch: true (neg-call on R(p), subsidiary neq(p,p) closes)
+;;
+;; The p ← ¬p paradox still yields ⊥ under both semantics.
 ;;
 ;;
-;; ON FITTING'S "GROUND ATOM OF L" RESTRICTION
-;; =============================================
+;; ON FITTING'S "GROUND ATOM OF L" RESTRICTION (REMOVED)
+;; =====================================================
 ;;
 ;; Fitting requires that procedure calls apply only to ground atoms
 ;; of L (not Lpar — the language extended with parameters).  This
 ;; prevents "program P from knowing about" Skolem constants introduced
 ;; during tableau expansion.
 ;;
-;; In our free-variable setting, this restriction is relaxed for
-;; LOGIC VARIABLES: procedure calls can apply to terms containing
-;; logic variables, and the subsidiary tableau may instantiate them
-;; via unification.  This enables backward-running queries.
+;; This branch REMOVES the restriction for both logic variables AND
+;; nominal parameters.  The justification:
 ;;
-;; However, the restriction is CRITICAL for NOMINAL PARAMETERS
-;; introduced by the δ-rule.  When a subsidiary tableau receives
-;; an argument containing a nom (e.g., from ∃-elimination in a
-;; negated body), the procedure call enters Lpar territory.  The
-;; subsidiary tableau then reasons about a "parameter" that has no
-;; definition in the program's Herbrand universe.
+;; 1. LOGIC VARIABLES: procedure calls on terms containing LVars enable
+;;    backward-running queries (synthesis).  The subsidiary tableau
+;;    may instantiate them via unification.
 ;;
-;; Example: In the nim game, ¬win(p) where p is a δ-witness:
-;;   - The neg proc-call negates the body and introduces ∀y over
-;;     neq-expressions involving p.
-;;   - Since p is a rigid nom distinct from all constructors (zero, s),
-;;     the neq expressions (neq (app p) (app s ...)) are trivially
-;;     true — but the tableau cannot CLOSE on trivially true formulas.
-;;   - The proof search diverges exploring the universal quantifier.
+;; 2. NOMINAL PARAMETERS: the subsidiary tableau treats (par p) as an
+;;    opaque constant.  Since (par p) cannot be free-closed against
+;;    (app ...) terms, the subsidiary only closes when the body's
+;;    truth value is INDEPENDENT of par's denotation.  This gives
+;;    CWA semantics: R(par p) is evaluated, not left undefined.
 ;;
-;; This is Fitting's Section 8 open problem: restricting procedure
-;; calls to ground atoms of L.  Our free closure rules (clash and
-;; decomposition) resolve the GROUND cases completely — e.g.,
-;; win(0) fails, win(s(0)) succeeds, odd(0) fails — but the
-;; parameter cases require either:
-;;   (a) A groundness check before procedure calls, or
-;;   (b) "Trivially true" neq closure rules for parameter terms,
-;;       which would need careful soundness analysis.
+;; The removal is UNSOUND w.r.t. supervaluation (breaks Lemma 7.5),
+;; but SOUND w.r.t. Clark completion / free Herbrand model.  Inductive
+;; argument: subsidiary tableau rules are all sound in weak Herbrand
+;; models (including the free one); recursive calls are sound by
+;; induction on subsidiary depth.
 ;;
-;; Nominal logic's scoping helps: noms introduced in subsidiary
-;; tableaux cannot "leak" into the caller's context via unification.
+;; Practical gains from removal:
+;;   - ∀x.R(x) provable when body is tautological
+;;   - Factored programs (Fitting §8) equivalent to inline versions
+;;   - No "move" warning: move(0, par p) closes by free-closure
+;;
+;; Practical cost:
+;;   - Loss of Fitting's t_P = s_P theorem
+;;   - Some ⊥ → non-termination that the guard would prune away
 ;;
 ;;
 ;; COMPARISON WITH PROLOG
@@ -1529,13 +1568,13 @@
 ;;
 ;; Proflog differs from Prolog in several fundamental ways:
 ;;
-;;   PROLOG                          PROFLOG (αleanTAP-EP)
+;;   PROLOG                          PROFLOG (αleanTAP-EP, CWA variant)
 ;;   ─────                           ──────
 ;;   Horn clauses only               Full first-order logic in bodies
 ;;   SLD-resolution                  Tableau expansion + procedure call
-;;   Closed-world assumption         Open-world (supervaluation)
+;;   Closed-world assumption         Closed-world (Clark completion)
 ;;   Negation as failure             Classical negation (¬ in bodies)
-;;   Definite clause semantics       Three-valued supervaluation model
+;;   Definite clause semantics       Clark completion model
 ;;   One direction (forward only)    Pure relation (forward, backward,
 ;;                                    sideways)
 ;;

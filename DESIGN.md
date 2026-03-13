@@ -126,6 +126,8 @@ The procedure call rule adds two new ways to close a branch when processing a li
 
 **The L-groundness guard** (Fitting §6 Definition 6.1): the plain call rules may only fire on ground atoms of L — atoms whose arguments contain no δ-parameters `(par p)`. The `l-ground-term*o` guard enforces this. It uses `project` to inspect argument terms without unifying them, so unbound γ-rule logic variables (which are not par-terms) pass through transparently. Substitutivity-augmented call rules (which rewrite `(par p)` to ground terms *before* firing) are exempt from this guard.
 
+**Why the guard is essential for supervaluation soundness:** The biconditional R(t) ↔ φ(t) holds only for ground terms t of L (Definition 3.5), not for δ-parameters in L^par. A parameter p can denote a "non-standard" domain element where R(p) is unconstrained by the program. Without the guard, the system could prove ∀x.R(x) for R(x)←x=x (via neg-call on R(p), subsidiary neq(p,p) closes by refl), but this is ⊥ under supervaluation because some weak Herbrand models have non-standard d with R(d)=false. The guard blocks this, preserving Theorem 7.2 (t_P = s_P). The `closed-world-assumption` branch removes this guard, implementing CWA/Clark completion semantics instead.
+
 ```clojure
 ;; Positive procedure call (plain — L-ground args required)
 [(fresh [R args params body call-env prf]

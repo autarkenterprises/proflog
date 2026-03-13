@@ -987,6 +987,21 @@
          ;; ============================================================
          ;; Branch has (pos (app R args...)).  Look up clause for R,
          ;; bind params→args, close if subsidiary tableau on body closes.
+         ;;
+         ;; L-GROUND GUARD (Fitting §6 Def 6.1):
+         ;; The l-ground-term*o guard is a SOUNDNESS REQUIREMENT for
+         ;; supervaluation semantics. The biconditional R(t) ↔ φ(t) holds
+         ;; only for ground terms t of L (Def 3.5), not for δ-parameters
+         ;; in L^par. A parameter p can denote a "non-standard" element
+         ;; where R(p) is unconstrained by the program. Calling R(p)
+         ;; would violate Lemma 7.5 (a v-satisfiable P-tableau is not
+         ;; closed) and break the t_P = s_P theorem (Theorem 7.2).
+         ;;
+         ;; Logic variables (LVars) pass through: project sees an LVar
+         ;; object, contains-par? returns false. This enables synthesis.
+         ;;
+         ;; See `closed-world-assumption` branch for a variant that
+         ;; removes this guard (CWA / Clark completion semantics).
          ;; ============================================================
          [(fresh [R args params body call-env prf]
             (== ['pos (lcons 'app (lcons R args))] lit)
@@ -1001,6 +1016,7 @@
          ;; ============================================================
          ;; Branch has (neg (app R args...)).  Look up clause, negate
          ;; body, close if subsidiary tableau on ¬body closes.
+         ;; Same L-ground guard as positive rule — see rationale above.
          ;; ============================================================
          [(fresh [R args params body call-env neg-body prf]
             (== ['neg (lcons 'app (lcons R args))] lit)
@@ -1488,40 +1504,38 @@
 ;;
 ;; Fitting requires that procedure calls apply only to ground atoms
 ;; of L (not Lpar — the language extended with parameters).  This
-;; prevents "program P from knowing about" Skolem constants introduced
-;; during tableau expansion.
+;; restriction is enforced by l-ground-term*o on the plain call rules.
 ;;
-;; In our free-variable setting, this restriction is relaxed for
-;; LOGIC VARIABLES: procedure calls can apply to terms containing
-;; logic variables, and the subsidiary tableau may instantiate them
-;; via unification.  This enables backward-running queries.
+;; WHY THE GUARD IS A SOUNDNESS REQUIREMENT:
 ;;
-;; However, the restriction is CRITICAL for NOMINAL PARAMETERS
-;; introduced by the δ-rule.  When a subsidiary tableau receives
-;; an argument containing a nom (e.g., from ∃-elimination in a
-;; negated body), the procedure call enters Lpar territory.  The
-;; subsidiary tableau then reasons about a "parameter" that has no
-;; definition in the program's Herbrand universe.
+;; The supervaluation biconditional R(t) ↔ φ(t) holds only for
+;; ground terms t of L (Definition 3.5).  For a δ-parameter p
+;; (element of L^par \ L), R(p) is UNCONSTRAINED — different weak
+;; Herbrand models may assign R(p) different truth values.  The
+;; supervaluation assigns R(p) = ⊥ (undefined).
 ;;
-;; Example: In the nim game, ¬win(p) where p is a δ-witness:
-;;   - The neg proc-call negates the body and introduces ∀y over
-;;     neq-expressions involving p.
-;;   - Since p is a rigid nom distinct from all constructors (zero, s),
-;;     the neq expressions (neq (app p) (app s ...)) are trivially
-;;     true — but the tableau cannot CLOSE on trivially true formulas.
-;;   - The proof search diverges exploring the universal quantifier.
+;; Without the guard, a procedure call on R(p) would treat R(p) ↔ φ(p)
+;; as holding, which can produce results that are true in the free
+;; Herbrand model (CWA) but NOT true in all weak Herbrand models
+;; (supervaluation).  This violates Lemma 7.5 and breaks Theorem 7.2
+;; (t_P = s_P).
 ;;
-;; This is Fitting's Section 8 open problem: restricting procedure
-;; calls to ground atoms of L.  Our free closure rules (clash and
-;; decomposition) resolve the GROUND cases completely — e.g.,
-;; win(0) fails, win(s(0)) succeeds, odd(0) fails — but the
-;; parameter cases require either:
-;;   (a) A groundness check before procedure calls, or
-;;   (b) "Trivially true" neq closure rules for parameter terms,
-;;       which would need careful soundness analysis.
+;; Concrete example: R(x) ← x=x.  Query: ∀x.R(x).
+;;   Without guard: ∃x.¬R(x) → δ → ¬R(p) → neg-call fires →
+;;     subsidiary for neq(p,p) → refl-close → closes → true.
+;;   With guard: ¬R(p) → neg-call blocked (p not L-ground) → ⊥.
+;;   Under s_P: ⊥ (models exist where R(d)=false for non-standard d).
+;;   Under CWA: true (biconditional extends to all terms).
 ;;
-;; Nominal logic's scoping helps: noms introduced in subsidiary
-;; tableaux cannot "leak" into the caller's context via unification.
+;; LOGIC VARIABLES pass through the guard transparently: project
+;; inspects the walked value and sees an LVar, which contains-par?
+;; correctly classifies as not containing par.  This enables synthesis.
+;;
+;; SUBSTITUTIVITY-AUGMENTED call rules are exempt: they rewrite par
+;; terms to L-ground terms before firing, so the call arguments are
+;; L-ground by construction after rewriting.
+;;
+;; See `closed-world-assumption` branch for CWA variant (guard removed).
 ;;
 ;;
 ;; COMPARISON WITH PROLOG

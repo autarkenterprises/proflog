@@ -764,7 +764,15 @@
 ;;   proof   — proof term recording steps taken
 
 (defn proveo
-  [fml unexp lits env program proof]
+  "Main tableau prover. Expands formula `fml` on a branch with unexpanded
+   formulas `unexp`, literals `lits`, environment `env`, program `program`.
+   Produces `proof` term.  Optional `gamma-budget` bounds γ-rule applications:
+     nil  → unbounded (original behavior)
+     0    → γ-rule disabled (must close with existing formulas)
+     n>0  → n remaining γ-applications on this branch"
+  ([fml unexp lits env program proof]
+   (proveo fml unexp lits env program proof nil))
+  ([fml unexp lits env program proof gamma-budget]
   (conde
     ;; ================================================================
     ;; CONJUNCTION (α-rule): expand (and e1 e2)
@@ -772,38 +780,49 @@
     [(fresh [e1 e2 prf]
        (== ['and e1 e2] fml)
        (== (lcons 'conj prf) proof)
-       (proveo e1 (lcons e2 unexp) lits env program prf))]
+       (proveo e1 (lcons e2 unexp) lits env program prf gamma-budget))]
 
     ;; ================================================================
     ;; DISJUNCTION (β-rule): split (or e1 e2) into two branches
+    ;; Both branches get the same remaining gamma-budget.
     ;; ================================================================
     [(fresh [e1 e2 prf1 prf2]
        (== ['or e1 e2] fml)
        (== ['split prf1 prf2] proof)
-       (proveo e1 unexp lits env program prf1)
-       (proveo e2 unexp lits env program prf2))]
+       (proveo e1 unexp lits env program prf1 gamma-budget)
+       (proveo e2 unexp lits env program prf2 gamma-budget))]
 
     ;; ================================================================
     ;; UNIVERSAL QUANTIFIER (γ-rule): instantiate (forall (tie a body))
-    ;; Generate fresh logic variable, bind a→x, re-enqueue formula
+    ;; Generate fresh logic variable, bind a→x, re-enqueue formula.
+    ;; BOUNDED: consumes 1 unit of gamma-budget.  When budget is 0,
+    ;; this branch of the conde fails, forcing the prover to close
+    ;; with existing formulas or try other rules.
     ;; ================================================================
     [(nom a
-       (fresh [x body unexp1 prf]
+       (fresh [x body unexp1 prf new-budget]
          (== ['forall (tie a body)] fml)
+         ;; Budget check: nil = unbounded, 0 = fail, n>0 = decrement
+         (project [gamma-budget]
+           (cond
+             (nil? gamma-budget)   (== new-budget nil)
+             (> gamma-budget 0)    (== new-budget (dec gamma-budget))
+             :else                 fail))
          (== (lcons 'univ prf) proof)
          (appendo unexp (list fml) unexp1)
-         (proveo body unexp1 lits (lcons [a x] env) program prf)))]
+         (proveo body unexp1 lits (lcons [a x] env) program prf new-budget)))]
 
     ;; ================================================================
     ;; ONCE-UNIVERSAL (γ-rule, single-use): instantiate (once-forall (tie a body))
     ;; Produced by negate-formulao for negated existentials.
     ;; Differs from 'forall: does NOT re-enqueue — one instantiation per branch.
+    ;; Does NOT consume gamma-budget (it's already single-use).
     ;; ================================================================
     [(nom a
        (fresh [x body prf]
          (== ['once-forall (tie a body)] fml)
          (== (lcons 'once-univ prf) proof)
-         (proveo body unexp lits (lcons [a x] env) program prf)))]
+         (proveo body unexp lits (lcons [a x] env) program prf gamma-budget)))]
 
     ;; ================================================================
     ;; EXISTENTIAL QUANTIFIER (δ-rule): witness (exists (tie a body))
@@ -820,13 +839,14 @@
     ;;
     ;; Unlike the γ-rule, we do NOT re-enqueue the formula:
     ;; an existential is used exactly once.
+    ;; Does NOT consume gamma-budget.
     ;; ================================================================
     [(nom a
        (nom p  ;; fresh parameter — the Skolem witness
          (fresh [body prf]
            (== ['exists (tie a body)] fml)
            (== (lcons 'witness prf) proof)
-           (proveo body unexp lits (lcons [a ['par p]] env) program prf))))]
+           (proveo body unexp lits (lcons [a ['par p]] env) program prf gamma-budget))))]
 
     ;; ================================================================
     ;; LITERAL CASES (including Free Closure & Procedure Call Rules)
@@ -929,7 +949,7 @@
               (== (lcons _ __) args1))
             (decompose-eq-argso args1 args2 decomposed)
             (== (lcons 'decompose prf) proof)
-            (proveo decomposed unexp lits env program prf))]
+            (proveo decomposed unexp lits env program prf gamma-budget))]
 
          ;; ============================================================
          ;; PARAMODULATED FREE CLOSURE (transitive constructor clash)
@@ -1009,7 +1029,7 @@
             (lookup-clauseo R program params body)
             (bind-argso params args call-env)
             (== (lcons 'proc-call (lcons R prf)) proof)
-            (proveo body '() '() call-env program prf))]
+            (proveo body '() '() call-env program prf gamma-budget))]
 
          ;; ============================================================
          ;; PROCEDURE CALL RULE — NEGATIVE (Fitting §6, Part 2)
@@ -1025,7 +1045,7 @@
             (bind-argso params args call-env)
             (negate-formulao body neg-body)
             (== (lcons 'neg-proc-call (lcons R prf)) proof)
-            (proveo neg-body '() '() call-env program prf))]
+            (proveo neg-body '() '() call-env program prf gamma-budget))]
 
          ;; ============================================================
          ;; SUBSTITUTIVITY-AUGMENTED PROCEDURE CALL — POSITIVE
@@ -1055,7 +1075,7 @@
             (lookup-clauseo R program params body)
             (bind-argso params new-args call-env)
             (== (lcons 'subst-call (lcons R prf)) proof)
-            (proveo body '() '() call-env program prf))]
+            (proveo body '() '() call-env program prf gamma-budget))]
 
          ;; ============================================================
          ;; SUBSTITUTIVITY-AUGMENTED PROCEDURE CALL — NEGATIVE
@@ -1074,7 +1094,7 @@
             (bind-argso params new-args call-env)
             (negate-formulao body neg-body)
             (== (lcons 'neg-subst-call (lcons R prf)) proof)
-            (proveo neg-body '() '() call-env program prf))]
+            (proveo neg-body '() '() call-env program prf gamma-budget))]
 
          ;; ============================================================
          ;; EQ-TRIGGERED PROCEDURE CALL — POSITIVE
@@ -1100,7 +1120,7 @@
             (lookup-clauseo R program params body)
             (bind-argso params new-args call-env)
             (== (lcons 'eq-triggered-call (lcons R prf)) proof)
-            (proveo body '() '() call-env program prf))]
+            (proveo body '() '() call-env program prf gamma-budget))]
 
          ;; ============================================================
          ;; EQ-TRIGGERED PROCEDURE CALL — NEGATIVE
@@ -1120,7 +1140,7 @@
             (bind-argso params new-args call-env)
             (negate-formulao body neg-body)
             (== (lcons 'eq-triggered-neg-call (lcons R prf)) proof)
-            (proveo neg-body '() '() call-env program prf))]
+            (proveo neg-body '() '() call-env program prf gamma-budget))]
 
          ;; ============================================================
          ;; EQ-TRIGGERED NEQ CLOSURE
@@ -1148,7 +1168,7 @@
          [(fresh [next unexp1 prf]
             (== (lcons next unexp1) unexp)
             (== (lcons 'savefml prf) proof)
-            (proveo next unexp1 (lcons lit lits) env program prf))]))]))
+            (proveo next unexp1 (lcons lit lits) env program prf gamma-budget))]))])))
 
 ;; ============================================================================
 ;; Part 7: Top-Level Interface
@@ -1172,39 +1192,91 @@
   "A query A succeeds with program P if there is a closed P-tableau for ¬A.
    (Fitting, Definition 6.1)
 
-   Returns proof(s) if the query succeeds, nil otherwise."
+   Returns proof(s) if the query succeeds, nil otherwise.
+   Optional gamma-budget bounds γ-rule applications (nil = unbounded)."
   ([program query]
    (query-succeeds program query 1))
   ([program query n]
+   (query-succeeds program query n nil))
+  ([program query n gamma-budget]
    (check-program! program)
    (run n [proof]
      (fresh [neg-query]
        (negate-formulao query neg-query)
-       (proveo neg-query '() '() '() program proof)))))
+       (proveo neg-query '() '() '() program proof gamma-budget)))))
 
 (defn query-fails
   "A query A fails with program P if there is a closed P-tableau for A.
    (Fitting, Definition 6.1)
 
-   Returns proof(s) if the query fails, nil otherwise."
+   Returns proof(s) if the query fails, nil otherwise.
+   Optional gamma-budget bounds γ-rule applications (nil = unbounded)."
   ([program query]
    (query-fails program query 1))
   ([program query n]
+   (query-fails program query n nil))
+  ([program query n gamma-budget]
    (check-program! program)
    (run n [proof]
-     (proveo query '() '() '() program proof))))
+     (proveo query '() '() '() program proof gamma-budget))))
 
 (defn prove
   "Direct tableau proof: find closed P-tableau for formula.
-   For backward compatibility with αleanTAP-E (empty program)."
+   For backward compatibility with αleanTAP-E (empty program).
+   Optional gamma-budget bounds γ-rule applications (nil = unbounded)."
   ([formula]
    (prove formula 1))
   ([formula n]
    (prove '() formula n))
   ([program formula n]
+   (prove program formula n nil))
+  ([program formula n gamma-budget]
    (check-program! program)
    (run n [proof]
-     (proveo formula '() '() '() program proof))))
+     (proveo formula '() '() '() program proof gamma-budget))))
+
+;; ============================================================================
+;; Part 7b: Iterative Deepening Interface
+;; ============================================================================
+;;
+;; Iterative deepening on γ-budget: try budget 1, 2, 4, 8, ... up to max-budget.
+;; Returns the first successful result, or nil if no budget succeeds.
+;;
+;; This is SOUND at every depth (every proof found is valid) and COMPLETE
+;; in the limit for finite domains: if a proof exists at some depth d,
+;; iterative deepening will find it at budget ≥ d.
+;;
+;; The exponential budget sequence (1, 2, 4, 8, ...) ensures that the total
+;; work is at most 2x the work of the final successful budget, since
+;; 1 + 2 + 4 + ... + 2^k = 2^(k+1) - 1 < 2 * 2^k.
+
+(defn query-succeeds-id
+  "Iterative deepening: try query-succeeds with gamma-budget 1, 2, 4, ...
+   up to max-budget.  Returns the first proof found, or nil.
+   Default max-budget is 64."
+  ([program query]
+   (query-succeeds-id program query 64))
+  ([program query max-budget]
+   (loop [budget 1]
+     (when (<= budget max-budget)
+       (let [result (query-succeeds program query 1 budget)]
+         (if (seq result)
+           result
+           (recur (* 2 budget))))))))
+
+(defn query-fails-id
+  "Iterative deepening: try query-fails with gamma-budget 1, 2, 4, ...
+   up to max-budget.  Returns the first proof found, or nil.
+   Default max-budget is 64."
+  ([program query]
+   (query-fails-id program query 64))
+  ([program query max-budget]
+   (loop [budget 1]
+     (when (<= budget max-budget)
+       (let [result (query-fails program query 1 budget)]
+         (if (seq result)
+           result
+           (recur (* 2 budget))))))))
 
 ;; ============================================================================
 ;; Part 8: Program Construction Helpers

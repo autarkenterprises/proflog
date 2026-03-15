@@ -851,324 +851,183 @@
     ;; ================================================================
     ;; LITERAL CASES (including Free Closure & Procedure Call Rules)
     ;; ================================================================
+    ;; ================================================================
+    ;; LITERAL CASES (Type-Dispatched)
+    ;; ================================================================
+    ;; Branches are grouped by literal type (pos/neg/neq/eq) so the
+    ;; type-dispatch unification happens once per group instead of
+    ;; once per branch.  Empty streams from non-matching groups are
+    ;; transparent to mplus, so result ordering is preserved exactly.
+    ;; ================================================================
     [(fresh [lit]
        (subst-lito fml env lit)
        (conde
-         ;; ---- Standard complementary closure ----
-         [(fresh [tm neg]
-            (== ['close] proof)
-            (conde
-              [(== ['pos tm] lit) (== ['neg tm] neg)]
-              [(== ['neg tm] lit) (== ['pos tm] neg)])
-            (membero neg lits))]
 
-         ;; ---- Reflexivity closure ----
-         [(fresh [t]
-            (== ['neq t t] lit)
-            (== ['refl-close] proof))]
-
-         ;; ============================================================
-         ;; FREE CLOSURE RULE (Fitting §5 — Disjointness)
-         ;; ============================================================
-         ;; (eq (app f ...) (app g ...)) with f ≠ g is unsatisfiable.
-         ;; Distinct constructors have disjoint ranges in weak Herbrand
-         ;; models, so the equation can never hold.
-         ;;
-         ;; SOUNDNESS GUARD: Both f and g must be genuine constructor
-         ;; symbols (Clojure symbols), NOT δ-parameters (noms).
-         ;; A δ-parameter p represents an arbitrary domain element
-         ;; and could denote any term, so (eq (app p) (app s x))
-         ;; must NOT clash.
-         ;; ============================================================
-         [(fresh [t1 t2]
-            (== ['eq t1 t2] lit)
-            (== ['free-close] proof)
-            (free-closureo t1 t2))]
-
-         ;; ============================================================
-         ;; ARITY MISMATCH CLOSURE (Fitting §5 — Free Closure cases 2/3)
-         ;; ============================================================
-         ;; (eq (app f t₁…tₙ) (app f s₁…sₖ)) with n ≠ k is unsatisfiable.
-         ;; Same head symbol but different number of arguments means the
-         ;; terms are structurally distinct in any Herbrand model.
-         ;; E.g., f(a) ≠ f() because f/1 and f/0 are different terms.
-         ;; ============================================================
-         [(fresh [t1 t2]
-            (== ['eq t1 t2] lit)
-            (== ['arity-mismatch-close] proof)
-            (arity-mismatch-closureo t1 t2))]
-
-         ;; ============================================================
-         ;; EQ/NEQ COMPLEMENTARY CLOSURE
-         ;; ============================================================
-         ;; When the current literal is (eq t1 t2) and (neq t1 t2) or
-         ;; (neq t2 t1) is already on the branch, the branch is
-         ;; contradictory — we assert both t1=t2 and t1≠t2.
-         ;;
-         ;; This is the dual of "neq on branch + eq in lits" which is
-         ;; already handled by eq-refl-close.  Without this rule, the
-         ;; conjunction (and (neq ...) (eq ...)) with the neq processed
-         ;; first would fail to close, creating an order-dependence bug.
-         ;; ============================================================
-         [(fresh [t1 t2]
-            (== ['eq t1 t2] lit)
-            (== ['eq-neq-close] proof)
-            (conde
-              [(membero ['neq t1 t2] lits)]
-              [(membero ['neq t2 t1] lits)]))]
-
-         ;; ============================================================
-         ;; INJECTIVITY DECOMPOSITION (Fitting §5 — One-One Expansion)
-         ;; ============================================================
-         ;; When the current literal is (eq (app f t₁…tₙ) (app f s₁…sₙ))
-         ;; with the SAME head f and at least one argument, we exploit
-         ;; injectivity: f(t) = f(s) iff t₁=s₁ ∧ … ∧ tₙ=sₙ.
-         ;;
-         ;; The equality is REPLACED by the conjunction of sub-equalities,
-         ;; which proveo then processes as a new formula.  This cascades:
-         ;; f(g(a)) = f(g(b)) decomposes to g(a) = g(b), which itself
-         ;; decomposes to a = b, which free-closes if a ≠ b.
-         ;;
-         ;; Unlike the ephemeral one-one pairs in collect-eqso (which
-         ;; only aid rewriting), this rule creates ACTUAL sub-formulas
-         ;; that enter the proof search — enabling nested decomposition
-         ;; and interaction with other rules.
-         ;;
-         ;; SOUNDNESS GUARD: head must be a genuine constructor symbol,
-         ;; not a δ-parameter nom.  (δ-parameters are always nullary
-         ;; (app p) so the argument-presence check suffices, but we
-         ;; guard explicitly for safety.)
-         ;; ============================================================
-         [(fresh [f args1 args2 decomposed prf]
-            (== ['eq (lcons 'app (lcons f args1))
-                     (lcons 'app (lcons f args2))] lit)
-            ;; Must have arguments to decompose (not just (app f) = (app f)).
-            ;; With (par p) encoding, δ-parameters never appear as app heads,
-            ;; so f is always a constructor symbol — no project guard needed.
-            (fresh [_ __]
-              (== (lcons _ __) args1))
-            (decompose-eq-argso args1 args2 decomposed)
-            (== (lcons 'decompose prf) proof)
-            (proveo decomposed unexp lits env program prf gamma-budget))]
-
-         ;; ============================================================
-         ;; PARAMODULATED FREE CLOSURE (transitive constructor clash)
-         ;; ============================================================
-         ;; When the current literal is (eq t1 t2) and branch equalities
-         ;; (from lits) can rewrite one side in one or more steps to
-         ;; clash with the other side, the branch is contradictory.
-         ;;
-         ;; Example:
-         ;;   lits: (eq (app a) (app p))      — a is symbol, p is nom
-         ;;   current: (eq (app b) (app p))
-         ;;   eqs: {[(app p),(app a)], [(app a),(app p)]}
-         ;;   Rewrite t2=(app p) → (app a): get (eq (app b) (app a))
-         ;;   free-closureo fires: b ≠ a ✓
-         ;;
-         ;; This enables member(b, cons(a, nil)) to fail when b≠a:
-         ;; after decomposing cons(a,nil)=cons(p,q) into a=p ∧ nil=q,
-         ;; the branch (eq b p) can be resolved via p→a to get (eq b a).
-         ;; ============================================================
-         [(fresh [t1 t2 eqs]
-            (== ['eq t1 t2] lit)
-            (== ['para-free-close] proof)
-            (collect-eqso lits eqs)
-            (para-free-closeo t1 t2 eqs))]
-
-         ;; ============================================================
-         ;; NEQ CLOSURE VIA EQUALITY REWRITING
-         ;; ============================================================
-         ;; If the current literal is (neq t1 t2) and branch equalities
-         ;; (including one-one derived pairs) can rewrite t1 to t2 in
-         ;; one or more steps, then we have (neq t t) → contradiction.
-         ;;
-         ;; Uses eq-neq-closeo for multi-step rewriting, enabling
-         ;; transitivity chains: a=b, b=c closes (neq a c) via a→b→c.
-         ;; ============================================================
-         [(fresh [t1 t2 eqs]
-            (== ['neq t1 t2] lit)
-            (== ['eq-refl-close] proof)
-            (collect-eqso lits eqs)
-            (eq-neq-closeo t1 t2 eqs))]
-
-         ;; ---- Paramodulation closure (pos/neg) ----
-         ;; Now enhanced: collect-eqso produces one-one derived pairs,
-         ;; so paramodulation automatically uses injectivity.
-         [(fresh [tm neg eqs]
-            (== ['para-close] proof)
-            (conde
-              [(== ['pos tm] lit) (== ['neg tm] neg)]
-              [(== ['neg tm] lit) (== ['pos tm] neg)])
-            (collect-eqso lits eqs)
-            (eq-membero neg lits eqs))]
-
-         ;; ============================================================
-         ;; PROCEDURE CALL RULE — POSITIVE (Fitting §6, Part 1)
-         ;; ============================================================
-         ;; Branch has (pos (app R args...)).  Look up clause for R,
-         ;; bind params→args, close if subsidiary tableau on body closes.
-         ;;
-         ;; L-GROUND GUARD (Fitting §6 Def 6.1):
-         ;; The l-ground-term*o guard is a SOUNDNESS REQUIREMENT for
-         ;; supervaluation semantics. The biconditional R(t) ↔ φ(t) holds
-         ;; only for ground terms t of L (Def 3.5), not for δ-parameters
-         ;; in L^par. A parameter p can denote a "non-standard" element
-         ;; where R(p) is unconstrained by the program. Calling R(p)
-         ;; would violate Lemma 7.5 (a v-satisfiable P-tableau is not
-         ;; closed) and break the t_P = s_P theorem (Theorem 7.2).
-         ;;
-         ;; Logic variables (LVars) pass through: project sees an LVar
-         ;; object, contains-par? returns false. This enables synthesis.
-         ;;
-         ;; See `closed-world-assumption` branch for a variant that
-         ;; removes this guard (CWA / Clark completion semantics).
-         ;; ============================================================
-         [(fresh [R args params body call-env prf]
-            (== ['pos (lcons 'app (lcons R args))] lit)
-            (l-ground-term*o args)                ;; Fitting §6 Def 6.1: L-ground args only
-            (lookup-clauseo R program params body)
-            (bind-argso params args call-env)
-            (== (lcons 'proc-call (lcons R prf)) proof)
-            (proveo body '() '() call-env program prf gamma-budget))]
-
-         ;; ============================================================
-         ;; PROCEDURE CALL RULE — NEGATIVE (Fitting §6, Part 2)
-         ;; ============================================================
-         ;; Branch has (neg (app R args...)).  Look up clause, negate
-         ;; body, close if subsidiary tableau on ¬body closes.
-         ;; Same L-ground guard as positive rule — see rationale above.
-         ;; ============================================================
-         [(fresh [R args params body call-env neg-body prf]
-            (== ['neg (lcons 'app (lcons R args))] lit)
-            (l-ground-term*o args)                ;; Fitting §6 Def 6.1: L-ground args only
-            (lookup-clauseo R program params body)
-            (bind-argso params args call-env)
-            (negate-formulao body neg-body)
-            (== (lcons 'neg-proc-call (lcons R prf)) proof)
-            (proveo neg-body '() '() call-env program prf gamma-budget))]
-
-         ;; ============================================================
-         ;; SUBSTITUTIVITY-AUGMENTED PROCEDURE CALL — POSITIVE
-         ;; ============================================================
-         ;; When branch equalities (including one-one derived pairs) can
-         ;; rewrite one or more of the literal's arguments, apply the
-         ;; rewrites and fire the proc call with rewritten args.
-         ;;
-         ;; Multi-argument: each argument position is independently
-         ;; rewritable using a different equality pair.  R(p₁, p₂)
-         ;; with eqs p₁=a, p₂=b rewrites to R(a, b) in one step.
-         ;;
-         ;; This bridges δ-parameters and concrete constructors:
-         ;;   Branch: (eq (app s (app zero)) (app s (app p)))
-         ;;   One-one: pair [(app zero), (app p)]
-         ;;   Literal: (pos (app odd (app p)))
-         ;;   Rewrite: (app odd (app p)) → (app odd (app zero))
-         ;;   Proc call: odd(zero) instead of odd(p)
-         ;; ============================================================
-         [(fresh [R args params body call-env prf
-                  tm new-tm new-args eqs]
+         ;; ---- POS LITERAL GROUP ----
+         [(fresh [tm]
             (== ['pos tm] lit)
-            (== (lcons 'app (lcons R args)) tm)
-            (collect-eqso lits eqs)
-            (rewrite-term-with-eqso tm eqs new-tm)
-            (== (lcons 'app (lcons R new-args)) new-tm)
-            (lookup-clauseo R program params body)
-            (bind-argso params new-args call-env)
-            (== (lcons 'subst-call (lcons R prf)) proof)
-            (proveo body '() '() call-env program prf gamma-budget))]
+            (conde
+              ;; Complementary closure
+              [(== ['close] proof)
+               (membero ['neg tm] lits)]
+              ;; Paramodulation closure
+              [(fresh [eqs]
+                 (== ['para-close] proof)
+                 (collect-eqso lits eqs)
+                 (eq-membero ['neg tm] lits eqs))]
+              ;; Procedure call (Fitting §6, Part 1)
+              ;; L-GROUND GUARD: soundness requirement for supervaluation
+              ;; semantics (Fitting §6 Def 6.1, Theorem 7.2).
+              [(fresh [R args params body call-env prf]
+                 (== (lcons 'app (lcons R args)) tm)
+                 (l-ground-term*o args)
+                 (lookup-clauseo R program params body)
+                 (bind-argso params args call-env)
+                 (== (lcons 'proc-call (lcons R prf)) proof)
+                 (proveo body '() '() call-env program prf gamma-budget))]
+              ;; Substitutivity-augmented procedure call
+              [(fresh [R args params body call-env prf
+                       new-tm new-args eqs]
+                 (== (lcons 'app (lcons R args)) tm)
+                 (collect-eqso lits eqs)
+                 (rewrite-term-with-eqso tm eqs new-tm)
+                 (== (lcons 'app (lcons R new-args)) new-tm)
+                 (lookup-clauseo R program params body)
+                 (bind-argso params new-args call-env)
+                 (== (lcons 'subst-call (lcons R prf)) proof)
+                 (proveo body '() '() call-env program prf gamma-budget))]
+              ;; Continue expansion (savefml)
+              [(fresh [next unexp1 prf]
+                 (== (lcons next unexp1) unexp)
+                 (== (lcons 'savefml prf) proof)
+                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget))]))]
 
-         ;; ============================================================
-         ;; SUBSTITUTIVITY-AUGMENTED PROCEDURE CALL — NEGATIVE
-         ;; ============================================================
-         ;; Same as positive, but for (neg (app R args...)).
-         ;; Each argument independently rewritable.
-         ;; ============================================================
-         [(fresh [R args params body call-env neg-body prf
-                  tm new-tm new-args eqs]
+         ;; ---- NEG LITERAL GROUP ----
+         [(fresh [tm]
             (== ['neg tm] lit)
-            (== (lcons 'app (lcons R args)) tm)
-            (collect-eqso lits eqs)
-            (rewrite-term-with-eqso tm eqs new-tm)
-            (== (lcons 'app (lcons R new-args)) new-tm)
-            (lookup-clauseo R program params body)
-            (bind-argso params new-args call-env)
-            (negate-formulao body neg-body)
-            (== (lcons 'neg-subst-call (lcons R prf)) proof)
-            (proveo neg-body '() '() call-env program prf gamma-budget))]
+            (conde
+              ;; Complementary closure
+              [(== ['close] proof)
+               (membero ['pos tm] lits)]
+              ;; Paramodulation closure
+              [(fresh [eqs]
+                 (== ['para-close] proof)
+                 (collect-eqso lits eqs)
+                 (eq-membero ['pos tm] lits eqs))]
+              ;; Procedure call (Fitting §6, Part 2)
+              [(fresh [R args params body call-env neg-body prf]
+                 (== (lcons 'app (lcons R args)) tm)
+                 (l-ground-term*o args)
+                 (lookup-clauseo R program params body)
+                 (bind-argso params args call-env)
+                 (negate-formulao body neg-body)
+                 (== (lcons 'neg-proc-call (lcons R prf)) proof)
+                 (proveo neg-body '() '() call-env program prf gamma-budget))]
+              ;; Substitutivity-augmented procedure call
+              [(fresh [R args params body call-env neg-body prf
+                       new-tm new-args eqs]
+                 (== (lcons 'app (lcons R args)) tm)
+                 (collect-eqso lits eqs)
+                 (rewrite-term-with-eqso tm eqs new-tm)
+                 (== (lcons 'app (lcons R new-args)) new-tm)
+                 (lookup-clauseo R program params body)
+                 (bind-argso params new-args call-env)
+                 (negate-formulao body neg-body)
+                 (== (lcons 'neg-subst-call (lcons R prf)) proof)
+                 (proveo neg-body '() '() call-env program prf gamma-budget))]
+              ;; Continue expansion (savefml)
+              [(fresh [next unexp1 prf]
+                 (== (lcons next unexp1) unexp)
+                 (== (lcons 'savefml prf) proof)
+                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget))]))]
 
-         ;; ============================================================
-         ;; EQ-TRIGGERED PROCEDURE CALL — POSITIVE
-         ;; ============================================================
-         ;; When the current literal is an equality and a positive
-         ;; procedure literal is saved in lits, use the equality (plus
-         ;; any others in lits) to rewrite the saved literal's args,
-         ;; then fire the procedure call.
-         ;;
-         ;; This makes proof search commutative w.r.t. eq/pos ordering
-         ;; in conjunctions: the existing subst-call handles the case
-         ;; where pos is current and eqs are in lits; this rule handles
-         ;; the reverse (eq is current, pos is in lits).
-         ;; ============================================================
-         [(fresh [R args params body call-env prf
-                  t1 t2 tm new-tm new-args eqs]
+         ;; ---- NEQ LITERAL GROUP ----
+         [(fresh [t1 t2]
+            (== ['neq t1 t2] lit)
+            (conde
+              ;; Reflexivity closure
+              [(== t1 t2)
+               (== ['refl-close] proof)]
+              ;; NEQ closure via equality rewriting
+              ;; Transitivity chains: a=b, b=c closes (neq a c) via a→b→c.
+              [(fresh [eqs]
+                 (== ['eq-refl-close] proof)
+                 (collect-eqso lits eqs)
+                 (eq-neq-closeo t1 t2 eqs))]
+              ;; Continue expansion (savefml)
+              [(fresh [next unexp1 prf]
+                 (== (lcons next unexp1) unexp)
+                 (== (lcons 'savefml prf) proof)
+                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget))]))]
+
+         ;; ---- EQ LITERAL GROUP ----
+         [(fresh [t1 t2]
             (== ['eq t1 t2] lit)
-            (membero ['pos tm] lits)
-            (== (lcons 'app (lcons R args)) tm)
-            (collect-eqso (lcons lit lits) eqs)
-            (rewrite-term-with-eqso tm eqs new-tm)
-            (== (lcons 'app (lcons R new-args)) new-tm)
-            (lookup-clauseo R program params body)
-            (bind-argso params new-args call-env)
-            (== (lcons 'eq-triggered-call (lcons R prf)) proof)
-            (proveo body '() '() call-env program prf gamma-budget))]
-
-         ;; ============================================================
-         ;; EQ-TRIGGERED PROCEDURE CALL — NEGATIVE
-         ;; ============================================================
-         ;; Same as positive variant, but for negative procedure
-         ;; literals saved in lits.
-         ;; ============================================================
-         [(fresh [R args params body call-env neg-body prf
-                  t1 t2 tm new-tm new-args eqs]
-            (== ['eq t1 t2] lit)
-            (membero ['neg tm] lits)
-            (== (lcons 'app (lcons R args)) tm)
-            (collect-eqso (lcons lit lits) eqs)
-            (rewrite-term-with-eqso tm eqs new-tm)
-            (== (lcons 'app (lcons R new-args)) new-tm)
-            (lookup-clauseo R program params body)
-            (bind-argso params new-args call-env)
-            (negate-formulao body neg-body)
-            (== (lcons 'eq-triggered-neg-call (lcons R prf)) proof)
-            (proveo neg-body '() '() call-env program prf gamma-budget))]
-
-         ;; ============================================================
-         ;; EQ-TRIGGERED NEQ CLOSURE
-         ;; ============================================================
-         ;; When the current literal is an equality and a neq literal
-         ;; is saved in lits, use the equality (plus any others in lits)
-         ;; to rewrite the neq's args toward reflexivity.
-         ;;
-         ;; Example: neq(f(g(p)), f(g(a))) saved to lits, then eq(p, a)
-         ;; arrives.  eq-neq-closeo rewrites f(g(p)) → f(g(a)) via p→a,
-         ;; reaching neq(f(g(a)), f(g(a))) → contradiction.
-         ;;
-         ;; This completes the general substitutivity rule (Fitting §5)
-         ;; for neq literals, making proof search order-independent for
-         ;; eq/neq conjunctions.
-         ;; ============================================================
-         [(fresh [t1 t2 n1 n2 eqs]
-            (== ['eq t1 t2] lit)
-            (membero ['neq n1 n2] lits)
-            (collect-eqso (lcons lit lits) eqs)
-            (eq-neq-closeo n1 n2 eqs)
-            (== ['eq-triggered-neq-close] proof))]
-
-         ;; ---- Continue expansion (savefml) ----
-         [(fresh [next unexp1 prf]
-            (== (lcons next unexp1) unexp)
-            (== (lcons 'savefml prf) proof)
-            (proveo next unexp1 (lcons lit lits) env program prf gamma-budget))]))])))
+            (conde
+              ;; Free closure (Fitting §5 — Disjointness)
+              ;; (eq (app f ...) (app g ...)) with f ≠ g: unsatisfiable.
+              ;; Guard: f, g must be constructor symbols, not δ-parameters.
+              [(== ['free-close] proof)
+               (free-closureo t1 t2)]
+              ;; Arity mismatch closure (Fitting §5 — Free Closure cases 2/3)
+              [(== ['arity-mismatch-close] proof)
+               (arity-mismatch-closureo t1 t2)]
+              ;; EQ/NEQ complementary closure
+              [(== ['eq-neq-close] proof)
+               (conde
+                 [(membero ['neq t1 t2] lits)]
+                 [(membero ['neq t2 t1] lits)])]
+              ;; Injectivity decomposition (Fitting §5 — One-One)
+              ;; eq(f(t₁…tₙ), f(s₁…sₙ)) → t₁=s₁ ∧ … ∧ tₙ=sₙ
+              [(fresh [f args1 args2 decomposed prf]
+                 (== (lcons 'app (lcons f args1)) t1)
+                 (== (lcons 'app (lcons f args2)) t2)
+                 (fresh [_ __]
+                   (== (lcons _ __) args1))
+                 (decompose-eq-argso args1 args2 decomposed)
+                 (== (lcons 'decompose prf) proof)
+                 (proveo decomposed unexp lits env program prf gamma-budget))]
+              ;; Paramodulated free closure (transitive constructor clash)
+              [(fresh [eqs]
+                 (== ['para-free-close] proof)
+                 (collect-eqso lits eqs)
+                 (para-free-closeo t1 t2 eqs))]
+              ;; EQ-triggered procedure call — positive
+              [(fresh [R args params body call-env prf
+                       tm new-tm new-args eqs]
+                 (membero ['pos tm] lits)
+                 (== (lcons 'app (lcons R args)) tm)
+                 (collect-eqso (lcons lit lits) eqs)
+                 (rewrite-term-with-eqso tm eqs new-tm)
+                 (== (lcons 'app (lcons R new-args)) new-tm)
+                 (lookup-clauseo R program params body)
+                 (bind-argso params new-args call-env)
+                 (== (lcons 'eq-triggered-call (lcons R prf)) proof)
+                 (proveo body '() '() call-env program prf gamma-budget))]
+              ;; EQ-triggered procedure call — negative
+              [(fresh [R args params body call-env neg-body prf
+                       tm new-tm new-args eqs]
+                 (membero ['neg tm] lits)
+                 (== (lcons 'app (lcons R args)) tm)
+                 (collect-eqso (lcons lit lits) eqs)
+                 (rewrite-term-with-eqso tm eqs new-tm)
+                 (== (lcons 'app (lcons R new-args)) new-tm)
+                 (lookup-clauseo R program params body)
+                 (bind-argso params new-args call-env)
+                 (negate-formulao body neg-body)
+                 (== (lcons 'eq-triggered-neg-call (lcons R prf)) proof)
+                 (proveo neg-body '() '() call-env program prf gamma-budget))]
+              ;; EQ-triggered NEQ closure
+              [(fresh [n1 n2 eqs]
+                 (membero ['neq n1 n2] lits)
+                 (collect-eqso (lcons lit lits) eqs)
+                 (eq-neq-closeo n1 n2 eqs)
+                 (== ['eq-triggered-neq-close] proof))]
+              ;; Continue expansion (savefml)
+              [(fresh [next unexp1 prf]
+                 (== (lcons next unexp1) unexp)
+                 (== (lcons 'savefml prf) proof)
+                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget))]))]))])))
 
 ;; ============================================================================
 ;; Part 7: Top-Level Interface

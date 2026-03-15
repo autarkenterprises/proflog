@@ -769,10 +769,17 @@
    Produces `proof` term.  Optional `gamma-budget` bounds γ-rule applications:
      nil  → unbounded (original behavior)
      0    → γ-rule disabled (must close with existing formulas)
-     n>0  → n remaining γ-applications on this branch"
+     n>0  → n remaining γ-applications on this branch
+   Optional `lem-in`/`lem-out` thread lemmas through the proof for reuse:
+     At β-rule, left branch's lem-out feeds right branch's lem-in.
+     At closure, the proved literal is added to lem-out.
+     Subsidiary tableaux (proc calls) start with empty lemmas."
   ([fml unexp lits env program proof]
    (proveo fml unexp lits env program proof nil))
   ([fml unexp lits env program proof gamma-budget]
+   (fresh [lem-out]
+     (proveo fml unexp lits env program proof gamma-budget '() lem-out)))
+  ([fml unexp lits env program proof gamma-budget lem-in lem-out]
   (conde
     ;; ================================================================
     ;; CONJUNCTION (α-rule): expand (and e1 e2)
@@ -780,17 +787,18 @@
     [(fresh [e1 e2 prf]
        (== ['and e1 e2] fml)
        (== (lcons 'conj prf) proof)
-       (proveo e1 (lcons e2 unexp) lits env program prf gamma-budget))]
+       (proveo e1 (lcons e2 unexp) lits env program prf gamma-budget lem-in lem-out))]
 
     ;; ================================================================
     ;; DISJUNCTION (β-rule): split (or e1 e2) into two branches
     ;; Both branches get the same remaining gamma-budget.
+    ;; Lemmas thread left→right: left's lem-out feeds right's lem-in.
     ;; ================================================================
-    [(fresh [e1 e2 prf1 prf2]
+    [(fresh [e1 e2 prf1 prf2 lem-mid]
        (== ['or e1 e2] fml)
        (== ['split prf1 prf2] proof)
-       (proveo e1 unexp lits env program prf1 gamma-budget)
-       (proveo e2 unexp lits env program prf2 gamma-budget))]
+       (proveo e1 unexp lits env program prf1 gamma-budget lem-in lem-mid)
+       (proveo e2 unexp lits env program prf2 gamma-budget lem-mid lem-out))]
 
     ;; ================================================================
     ;; UNIVERSAL QUANTIFIER (γ-rule): instantiate (forall (tie a body))
@@ -810,7 +818,7 @@
              :else                 fail))
          (== (lcons 'univ prf) proof)
          (appendo unexp (list fml) unexp1)
-         (proveo body unexp1 lits (lcons [a x] env) program prf new-budget)))]
+         (proveo body unexp1 lits (lcons [a x] env) program prf new-budget lem-in lem-out)))]
 
     ;; ================================================================
     ;; ONCE-UNIVERSAL (γ-rule, single-use): instantiate (once-forall (tie a body))
@@ -822,7 +830,7 @@
        (fresh [x body prf]
          (== ['once-forall (tie a body)] fml)
          (== (lcons 'once-univ prf) proof)
-         (proveo body unexp lits (lcons [a x] env) program prf gamma-budget)))]
+         (proveo body unexp lits (lcons [a x] env) program prf gamma-budget lem-in lem-out)))]
 
     ;; ================================================================
     ;; EXISTENTIAL QUANTIFIER (δ-rule): witness (exists (tie a body))
@@ -846,7 +854,7 @@
          (fresh [body prf]
            (== ['exists (tie a body)] fml)
            (== (lcons 'witness prf) proof)
-           (proveo body unexp lits (lcons [a ['par p]] env) program prf gamma-budget))))]
+           (proveo body unexp lits (lcons [a ['par p]] env) program prf gamma-budget lem-in lem-out))))]
 
     ;; ================================================================
     ;; LITERAL CASES (including Free Closure & Procedure Call Rules)
@@ -869,25 +877,32 @@
             (conde
               ;; Complementary closure
               [(== ['close] proof)
-               (membero ['neg tm] lits)]
+               (membero ['neg tm] lits)
+               (== lem-out (lcons ['pos tm] lem-in))]
+              ;; Lemma closure (complement found in lemma list)
+              [(== ['lem-close] proof)
+               (membero ['neg tm] lem-in)
+               (== lem-out (lcons ['pos tm] lem-in))]
               ;; Paramodulation closure
               [(fresh [eqs]
                  (== ['para-close] proof)
                  (collect-eqso lits eqs)
-                 (eq-membero ['neg tm] lits eqs))]
+                 (eq-membero ['neg tm] lits eqs)
+                 (== lem-out (lcons ['pos tm] lem-in)))]
               ;; Procedure call (Fitting §6, Part 1)
               ;; L-GROUND GUARD: soundness requirement for supervaluation
               ;; semantics (Fitting §6 Def 6.1, Theorem 7.2).
-              [(fresh [R args params body call-env prf]
+              [(fresh [R args params body call-env prf sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
                  (l-ground-term*o args)
                  (lookup-clauseo R program params body)
                  (bind-argso params args call-env)
                  (== (lcons 'proc-call (lcons R prf)) proof)
-                 (proveo body '() '() call-env program prf gamma-budget))]
+                 (proveo body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (== lem-out (lcons ['pos tm] lem-in)))]
               ;; Substitutivity-augmented procedure call
               [(fresh [R args params body call-env prf
-                       new-tm new-args eqs]
+                       new-tm new-args eqs sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
                  (collect-eqso lits eqs)
                  (rewrite-term-with-eqso tm eqs new-tm)
@@ -895,12 +910,13 @@
                  (lookup-clauseo R program params body)
                  (bind-argso params new-args call-env)
                  (== (lcons 'subst-call (lcons R prf)) proof)
-                 (proveo body '() '() call-env program prf gamma-budget))]
+                 (proveo body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (== lem-out (lcons ['pos tm] lem-in)))]
               ;; Continue expansion (savefml)
               [(fresh [next unexp1 prf]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget))]))]
+                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget lem-in lem-out))]))]
 
          ;; ---- NEG LITERAL GROUP ----
          [(fresh [tm]
@@ -908,24 +924,31 @@
             (conde
               ;; Complementary closure
               [(== ['close] proof)
-               (membero ['pos tm] lits)]
+               (membero ['pos tm] lits)
+               (== lem-out (lcons ['neg tm] lem-in))]
+              ;; Lemma closure (complement found in lemma list)
+              [(== ['lem-close] proof)
+               (membero ['pos tm] lem-in)
+               (== lem-out (lcons ['neg tm] lem-in))]
               ;; Paramodulation closure
               [(fresh [eqs]
                  (== ['para-close] proof)
                  (collect-eqso lits eqs)
-                 (eq-membero ['pos tm] lits eqs))]
+                 (eq-membero ['pos tm] lits eqs)
+                 (== lem-out (lcons ['neg tm] lem-in)))]
               ;; Procedure call (Fitting §6, Part 2)
-              [(fresh [R args params body call-env neg-body prf]
+              [(fresh [R args params body call-env neg-body prf sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
                  (l-ground-term*o args)
                  (lookup-clauseo R program params body)
                  (bind-argso params args call-env)
                  (negate-formulao body neg-body)
                  (== (lcons 'neg-proc-call (lcons R prf)) proof)
-                 (proveo neg-body '() '() call-env program prf gamma-budget))]
+                 (proveo neg-body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (== lem-out (lcons ['neg tm] lem-in)))]
               ;; Substitutivity-augmented procedure call
               [(fresh [R args params body call-env neg-body prf
-                       new-tm new-args eqs]
+                       new-tm new-args eqs sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
                  (collect-eqso lits eqs)
                  (rewrite-term-with-eqso tm eqs new-tm)
@@ -934,12 +957,13 @@
                  (bind-argso params new-args call-env)
                  (negate-formulao body neg-body)
                  (== (lcons 'neg-subst-call (lcons R prf)) proof)
-                 (proveo neg-body '() '() call-env program prf gamma-budget))]
+                 (proveo neg-body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (== lem-out (lcons ['neg tm] lem-in)))]
               ;; Continue expansion (savefml)
               [(fresh [next unexp1 prf]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget))]))]
+                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget lem-in lem-out))]))]
 
          ;; ---- NEQ LITERAL GROUP ----
          [(fresh [t1 t2]
@@ -947,18 +971,20 @@
             (conde
               ;; Reflexivity closure
               [(== t1 t2)
-               (== ['refl-close] proof)]
+               (== ['refl-close] proof)
+               (== lem-out lem-in)]
               ;; NEQ closure via equality rewriting
               ;; Transitivity chains: a=b, b=c closes (neq a c) via a→b→c.
               [(fresh [eqs]
                  (== ['eq-refl-close] proof)
                  (collect-eqso lits eqs)
-                 (eq-neq-closeo t1 t2 eqs))]
+                 (eq-neq-closeo t1 t2 eqs)
+                 (== lem-out lem-in))]
               ;; Continue expansion (savefml)
               [(fresh [next unexp1 prf]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget))]))]
+                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget lem-in lem-out))]))]
 
          ;; ---- EQ LITERAL GROUP ----
          [(fresh [t1 t2]
@@ -968,15 +994,18 @@
               ;; (eq (app f ...) (app g ...)) with f ≠ g: unsatisfiable.
               ;; Guard: f, g must be constructor symbols, not δ-parameters.
               [(== ['free-close] proof)
-               (free-closureo t1 t2)]
+               (free-closureo t1 t2)
+               (== lem-out lem-in)]
               ;; Arity mismatch closure (Fitting §5 — Free Closure cases 2/3)
               [(== ['arity-mismatch-close] proof)
-               (arity-mismatch-closureo t1 t2)]
+               (arity-mismatch-closureo t1 t2)
+               (== lem-out lem-in)]
               ;; EQ/NEQ complementary closure
               [(== ['eq-neq-close] proof)
                (conde
                  [(membero ['neq t1 t2] lits)]
-                 [(membero ['neq t2 t1] lits)])]
+                 [(membero ['neq t2 t1] lits)])
+               (== lem-out lem-in)]
               ;; Injectivity decomposition (Fitting §5 — One-One)
               ;; eq(f(t₁…tₙ), f(s₁…sₙ)) → t₁=s₁ ∧ … ∧ tₙ=sₙ
               [(fresh [f args1 args2 decomposed prf]
@@ -986,15 +1015,16 @@
                    (== (lcons _ __) args1))
                  (decompose-eq-argso args1 args2 decomposed)
                  (== (lcons 'decompose prf) proof)
-                 (proveo decomposed unexp lits env program prf gamma-budget))]
+                 (proveo decomposed unexp lits env program prf gamma-budget lem-in lem-out))]
               ;; Paramodulated free closure (transitive constructor clash)
               [(fresh [eqs]
                  (== ['para-free-close] proof)
                  (collect-eqso lits eqs)
-                 (para-free-closeo t1 t2 eqs))]
+                 (para-free-closeo t1 t2 eqs)
+                 (== lem-out lem-in))]
               ;; EQ-triggered procedure call — positive
               [(fresh [R args params body call-env prf
-                       tm new-tm new-args eqs]
+                       tm new-tm new-args eqs sub-lem]
                  (membero ['pos tm] lits)
                  (== (lcons 'app (lcons R args)) tm)
                  (collect-eqso (lcons lit lits) eqs)
@@ -1003,10 +1033,11 @@
                  (lookup-clauseo R program params body)
                  (bind-argso params new-args call-env)
                  (== (lcons 'eq-triggered-call (lcons R prf)) proof)
-                 (proveo body '() '() call-env program prf gamma-budget))]
+                 (proveo body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (== lem-out lem-in))]
               ;; EQ-triggered procedure call — negative
               [(fresh [R args params body call-env neg-body prf
-                       tm new-tm new-args eqs]
+                       tm new-tm new-args eqs sub-lem]
                  (membero ['neg tm] lits)
                  (== (lcons 'app (lcons R args)) tm)
                  (collect-eqso (lcons lit lits) eqs)
@@ -1016,18 +1047,20 @@
                  (bind-argso params new-args call-env)
                  (negate-formulao body neg-body)
                  (== (lcons 'eq-triggered-neg-call (lcons R prf)) proof)
-                 (proveo neg-body '() '() call-env program prf gamma-budget))]
+                 (proveo neg-body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (== lem-out lem-in))]
               ;; EQ-triggered NEQ closure
               [(fresh [n1 n2 eqs]
                  (membero ['neq n1 n2] lits)
                  (collect-eqso (lcons lit lits) eqs)
                  (eq-neq-closeo n1 n2 eqs)
-                 (== ['eq-triggered-neq-close] proof))]
+                 (== ['eq-triggered-neq-close] proof)
+                 (== lem-out lem-in))]
               ;; Continue expansion (savefml)
               [(fresh [next unexp1 prf]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget))]))]))])))
+                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget lem-in lem-out))]))]))])))
 
 ;; ============================================================================
 ;; Part 7: Top-Level Interface

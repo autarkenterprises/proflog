@@ -5803,7 +5803,7 @@
                 (proveo ['pos ['app 'gv_identity]]
                         '() '() '() prog proof))))))))
 
-;; GV09 — NON-GROUP ASSOCIATIVITY: DOCUMENTED PERFORMANCE LIMITATION
+;; GV09 — NON-GROUP ASSOCIATIVITY (7-UNIVERSAL VERSION)
 ;;
 ;; The non-group magma is NOT associative.
 ;; Counterexample: x=1,y=0,z=1.
@@ -5811,26 +5811,44 @@
 ;;   op(1,op(0,1)) = op(1,1) = 0
 ;;   1 ≠ 0.
 ;;
-;; BOTH directions are intractable with the current prover:
+;; pos-call (is assoc FALSE?): NOW WORKS — completes in ~1ms.
+;;   The prover finds the counterexample instantiation (x=one, y=zero,
+;;   z=one) via γ-rule, then all β-branches close via neq-reflexivity
+;;   or free-closure on eq(one,zero).  Previously documented as
+;;   "INTRACTABLE (4^8 = 65,536 β-paths)" — lemma reuse and
+;;   type-dispatched grouping made the search tractable.
 ;;
-;; neg-call (is assoc TRUE?): DIVERGES. The negated body introduces
-;;   ∃x.∃y.∃z with δ-parameters, then the assoc-check conjunction
-;;   generates 8 clauses. Since the formula is NOT valid, the prover
-;;   searches indefinitely via γ-expansion without closing.
+;; neg-call (is assoc TRUE?): STILL INTRACTABLE for |domain|≥2.
+;;   The negated body introduces 7 ∃-quantifiers (δ-parameters), then
+;;   4 positive op-lookups × 4 entries = 256+ β-path combinations.
+;;   Since the formula is NOT valid, the prover must exhaustively
+;;   explore all paths to return EMPTY — inherently exponential.
+;;   With γ-budget this terminates but takes >60s for |domain|=2.
 ;;
-;; pos-call (is assoc FALSE?): INTRACTABLE. A closing tableau exists
-;;   (instantiate x=one, y=zero, z=one; then all β-branches close via
-;;   neq-reflexivity or free-closure on eq(one,zero)). However, the
-;;   search space is too large: 8 assoc-check clauses × 4 disjuncts
-;;   each = 4^8 = 65,536 β-paths, and the γ-rule re-instantiates.
+;; neg-call on Z₂ (is assoc TRUE? — yes): STILL INTRACTABLE.
+;;   Even though a closing tableau exists, the 7 δ-parameters and
+;;   256+ β-paths with paramodulation make the search space too large.
 ;;
-;; Making this tractable is the goal of the performance-optimizations
-;; branch (tasks #5-#9). Specific techniques needed:
-;;   - Constraint propagation: eagerly substitute v_x=one after
-;;     γ-instantiation, pruning infeasible branches
-;;   - Connection tableaux: goal-directed β-choice guided by closure
-;;     conditions, avoiding blind exploration of 65K paths
-;;   - γ-bounding: limit re-instantiation depth for finite domains
+;; The asymmetry: pos-call needs ONE closing instantiation (existential),
+;; neg-call needs ALL β-paths to close (universal).  Techniques that
+;; could help the neg-call cases:
+;;   - Constraint propagation: eagerly propagate eq constraints from
+;;     δ-rule parameters to prune infeasible β-branches
+;;   - Connection tableaux: goal-directed β-choice
+;;   - Finite model enumeration: exploit known finite domain
+
+(deftest test-GV09-non-group-assoc-refuted
+  (testing "GV09: Non-group magma is provably NOT associative.
+            Uses the FULL 7-universal formulation (not pre-computed).
+            pos-call closes: γ-rule instantiates x=one, y=zero, z=one
+            (and appropriate w1-w4), then all β-branches of the 4 ¬op
+            disjuncts close via neq-reflexivity or free-closure."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w1 w2 w3 w4
+              (let [prog (gv-assoc-program gv-non-group x y z w1 w2 w3 w4)]
+                (proveo ['pos ['app 'gv_assoc]]
+                        '() '() '() prog proof))))))))
 
 
 ;; ============================================================================

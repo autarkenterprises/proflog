@@ -14,7 +14,21 @@ The new engine is not intended to replace the reference prover immediately. It i
 - easier to instrument and optimize
 - checked against the existing prover on bounded cases
 
-## Non-Goals
+## Architectural Correction
+
+Forward proving alone is not a sufficient architecture for Proflog.
+
+Reverse use and synthesis remain essential because partially specified
+queries and programs are part of the language model. The correct structure
+is therefore a dual engine:
+
+- the fast engine for fully specified forward proof search
+- the relational reference engine for symbolic use, reverse inference,
+  and synthesis
+
+That execution-layer dispatch lives in `cljtap.alphaleantap-ep-exec`.
+
+## Non-Goals For The Fast Engine Itself
 
 The first version does not try to preserve the full relational character of `alphaleantap_ep.clj`.
 
@@ -23,6 +37,9 @@ In particular, it does not target:
 - backward query generation
 - sideways program synthesis
 - exact proof-stream ordering parity with the reference prover
+
+Those capabilities remain part of the overall architecture via the
+relational engine, not part of the explicit fast engine.
 
 ## Core Design
 
@@ -116,7 +133,7 @@ This matches the operational effect of the current prover, where branch closures
 
 ## Planned Public Interface
 
-The new namespace should expose forward-oriented entry points parallel to the reference API:
+The fast namespace exposes forward-oriented entry points parallel to the reference API:
 
 - `prove-fast`
 - `query-succeeds-fast`
@@ -125,6 +142,17 @@ The new namespace should expose forward-oriented entry points parallel to the re
 - `query-fails-id-fast`
 
 Each function should accept the same formula/program syntax as the current engine.
+
+The unified execution namespace exposes:
+
+- `prove`
+- `query-succeeds`
+- `query-fails`
+- `query-succeeds-id`
+- `query-fails-id`
+- `reference-proveo`
+
+`reference-proveo` is the explicit entry point for symbolic use inside `run`.
 
 ## Validation Strategy
 

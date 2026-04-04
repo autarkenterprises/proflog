@@ -34,6 +34,8 @@ prover itself:
 - outer search stays symbolic when the overall problem is partial
 - once a current branch has an explicit executable shape, the residual branch
   is discharged by the fast engine
+- the branch's incoming lemma thread is passed across the cutover boundary and
+  the fast engine returns the outgoing lemma thread to the symbolic caller
 
 This is implemented conservatively in `cljtap.alphaleantap-ep` via
 `fast-cutovero`.
@@ -72,6 +74,7 @@ Each branch carries explicit state:
 - current environment
 - deque of unexpanded formulas
 - saved literals
+- incoming lemma thread
 - cached indexes over those literals
 - gamma budget
 
@@ -79,6 +82,8 @@ The literal cache separates:
 
 - positive atoms by relation symbol
 - negative atoms by relation symbol
+- positive lemmas by relation symbol
+- negative lemmas by relation symbol
 - equalities
 - disequalities
 - derived equality pairs
@@ -150,6 +155,10 @@ The important difference is operational:
 ### Beta
 
 At a split, both branches start from the same structural branch state, but the right branch receives the substitution produced by the left branch.
+
+The right branch also receives the left branch's outgoing lemma thread. This
+matches the reference prover's `lem-in`/`lem-out` discipline rather than
+treating lemmas as a global cache.
 
 This matches the operational effect of the current prover, where branch closures may instantiate shared gamma variables.
 

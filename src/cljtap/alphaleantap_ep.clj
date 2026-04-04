@@ -759,25 +759,23 @@
 
    Cooperative cutover is intentionally conservative:
    - the whole current branch state must be fast-compatible
-   - lemma input must be empty, because the fast engine does not model lemma
-     reuse yet
+   - lemma threading is preserved, but only for explicit branch-local lemmas
 
    This gives true mixed-mode execution inside symbolic runs: partial programs
    and queries remain relational until enough structure is determined, then the
    remaining ground subgoal is proved by the explicit engine."
   [fml unexp lits env program proof gamma-budget lem-in lem-out]
   (project [fml unexp lits env program gamma-budget lem-in]
-    (if (and (= lem-in '())
-             (fast/explicit-branch-compatible? fml unexp lits env program gamma-budget))
-      (let [proofs (seq
-                     (fast/prove-branch-fast
-                       program fml unexp lits env
-                       *fast-cutover-proof-limit*
-                       gamma-budget))]
-        (if (seq proofs)
-          (all
-            (membero proof (apply list proofs))
-            (== lem-out lem-in))
+    (if (fast/explicit-branch-compatible? fml unexp lits env program gamma-budget lem-in)
+      (let [results (seq
+                      (map (fn [{:keys [proof lem-out]}]
+                             [proof lem-out])
+                           (fast/prove-branch-fast-results
+                             program fml unexp lits env lem-in
+                             *fast-cutover-proof-limit*
+                             gamma-budget)))]
+        (if (seq results)
+          (membero [proof lem-out] (apply list results))
           fail))
       fail)))
 

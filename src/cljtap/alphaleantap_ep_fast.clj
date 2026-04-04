@@ -211,14 +211,17 @@
    This is weaker than `fast-compatible-data?`: raw lvars may still appear in
    term positions, which lets the cooperative engine cut over mid-proof after
    structure is known but before all terms are ground."
-  [fml unexp lits env program gamma-budget]
-  (and (explicit-formula? fml)
-       (every? explicit-formula? unexp)
-       (every? explicit-literal? lits)
-       (explicit-env? env)
-       (explicit-program? program)
-       (or (nil? gamma-budget)
-           (integer? gamma-budget))))
+  ([fml unexp lits env program gamma-budget]
+   (explicit-branch-compatible? fml unexp lits env program gamma-budget '()))
+  ([fml unexp lits env program gamma-budget lemmas]
+   (and (explicit-formula? fml)
+        (every? explicit-formula? unexp)
+        (every? explicit-literal? lits)
+        (every? explicit-literal? lemmas)
+        (explicit-env? env)
+        (explicit-program? program)
+        (or (nil? gamma-budget)
+            (integer? gamma-budget)))))
 
 ;; ============================================================================
 ;; Part 2: Fresh Values and Unification
@@ -490,23 +493,33 @@
    :env          {}
    :unexp        (dq-empty)
    :lits         []
+   :lemmas       '()
    :cache        nil
    :gamma-budget gamma-budget})
 
 (defn- branch-state
-  [unexp lits env gamma-budget]
-  {:subst        (empty-subst)
-   :env          (into {} env)
-   :unexp        (dq-from-seq unexp)
-   :lits         (vec lits)
-   :cache        nil
-   :gamma-budget gamma-budget})
+  ([unexp lits env gamma-budget]
+   (branch-state unexp lits env gamma-budget '()))
+  ([unexp lits env gamma-budget lemmas]
+   {:subst        (empty-subst)
+    :env          (into {} env)
+    :unexp        (dq-from-seq unexp)
+    :lits         (vec lits)
+    :lemmas       lemmas
+    :cache        nil
+    :gamma-budget gamma-budget}))
 
 (defn- state-with-subst
   [state subst]
   (if (identical? subst (:subst state))
     state
     (assoc state :subst subst :cache nil)))
+
+(defn- state-with-lemmas
+  [state lemmas]
+  (if (= lemmas (:lemmas state))
+    state
+    (assoc state :lemmas lemmas :cache nil)))
 
 (defn- state-push-front
   [state fml]
@@ -528,6 +541,7 @@
    :env          env
    :unexp        (dq-empty)
    :lits         []
+   :lemmas       '()
    :cache        nil
    :gamma-budget (:gamma-budget state)})
 
@@ -546,6 +560,8 @@
   (let [subst (:subst state)
         cache0 {:pos-index {}
                 :neg-index {}
+                :lemma-pos-index {}
+                :lemma-neg-index {}
                 :eq-lits   []
                 :neq-lits  []}
         cache1
@@ -570,8 +586,25 @@
                 :else
                 cache)))
           cache0
-          (:lits state))]
-    (assoc cache1 :eq-pairs (collect-eq-pairs (:eq-lits cache1)))))
+          (:lits state))
+        cache2
+        (reduce
+          (fn [cache lit]
+            (let [lit (normalize-lit subst lit)]
+              (cond
+                (pos-lit? lit)
+                (update-in cache [:lemma-pos-index (rel-head-key (second lit))]
+                           (fnil conj []) (second lit))
+
+                (neg-lit? lit)
+                (update-in cache [:lemma-neg-index (rel-head-key (second lit))]
+                           (fnil conj []) (second lit))
+
+                :else
+                cache)))
+          cache1
+          (:lemmas state))]
+    (assoc cache2 :eq-pairs (collect-eq-pairs (:eq-lits cache2)))))
 
 (defn- ensure-cache
   [state]
@@ -756,14 +789,23 @@
     (let [next-state (-> state
                          (assoc :unexp unexp)
                          (state-add-lit lit))]
-      (map (fn [{:keys [subst proof]}]
-             {:subst subst
-              :proof [proof-tag proof]})
+      (map (fn [{:keys [proof] :as result}]
+             (assoc result :proof [proof-tag proof]))
            (prove* ctx next-fml next-state)))))
 
-(defn- closure-result
-  [subst proof]
-  {:subst subst :proof proof})
+(defn- result
+  [subst proof lem-out]
+  {:subst subst :proof proof :lem-out lem-out})
+
+(defn- preserve-lemmas-result
+  [state subst proof]
+  (result subst proof (:lemmas state)))
+
+(defn- extend-lemmas-result
+  [state subst proof lit]
+  (result subst
+          proof
+          (cons (normalize-lit subst lit) (:lemmas state))))
 
 (defn- lookup-clause
   [ctx rel]
@@ -775,7 +817,8 @@
         call-env (zipmap params args)
         substate (subsidiary-state state call-env)]
     (map (fn [{:keys [subst proof]}]
-           (closure-result subst [proof-tag rel proof]))
+           {:subst subst
+            :proof [proof-tag rel proof]})
          (prove* ctx body substate))))
 
 (defn- pos-candidates
@@ -793,31 +836,39 @@
         tm    (normalize-term subst (second lit))
         head  (rel-head-key tm)
         negs  (get-in state [:cache :neg-index head] [])
+        lemma-negs (get-in state [:cache :lemma-neg-index head] [])
         eqs   (get-in state [:cache :eq-pairs] [])]
     (lazy-cat
       ;; Complementary closure.
-      (map #(closure-result % ['close])
+      (map #(extend-lemmas-result state % ['close] lit)
            (candidate-unifiers subst tm negs))
+      ;; Lemma closure.
+      (map #(extend-lemmas-result state % ['lem-close] lit)
+           (candidate-unifiers subst tm lemma-negs))
       ;; Paramodulated complementary closure.
-      (map #(closure-result % ['para-close])
+      (map #(extend-lemmas-result state % ['para-close] lit)
            (eq-member-search subst (make-pos tm) negs eqs 3))
       ;; Plain procedure call.
       (when (app-term? tm)
         (when-let [clause (lookup-clause ctx (app-head tm))]
           (let [args (app-args tm)]
             (when (l-ground-args? args)
-              (call-results ctx state (app-head tm) args (:body clause) 'proc-call)))))
+              (map (fn [{:keys [subst proof]}]
+                     (extend-lemmas-result state subst proof lit))
+                   (call-results ctx state (app-head tm) args (:body clause) 'proc-call))))))
       ;; Equality-rewritten procedure call.
       (when (app-term? tm)
         (when-let [clause (lookup-clause ctx (app-head tm))]
           (mapcat
             (fn [[s1 new-tm]]
-              (call-results ctx
-                            (state-with-subst state s1)
-                            (app-head new-tm)
-                            (app-args new-tm)
-                            (:body clause)
-                            'subst-call))
+              (map (fn [{:keys [subst proof]}]
+                     (extend-lemmas-result state subst proof lit))
+                   (call-results ctx
+                                 (state-with-subst state s1)
+                                 (app-head new-tm)
+                                 (app-args new-tm)
+                                 (:body clause)
+                                 'subst-call)))
             (rewrite-term-with-eqs subst tm eqs))))
       ;; Save and continue.
       (continue-with-next ctx state 'savefml lit))))
@@ -829,33 +880,41 @@
         tm    (normalize-term subst (second lit))
         head  (rel-head-key tm)
         poss  (get-in state [:cache :pos-index head] [])
+        lemma-poss (get-in state [:cache :lemma-pos-index head] [])
         eqs   (get-in state [:cache :eq-pairs] [])]
     (lazy-cat
       ;; Complementary closure.
-      (map #(closure-result % ['close])
+      (map #(extend-lemmas-result state % ['close] lit)
            (candidate-unifiers subst tm poss))
+      ;; Lemma closure.
+      (map #(extend-lemmas-result state % ['lem-close] lit)
+           (candidate-unifiers subst tm lemma-poss))
       ;; Paramodulated complementary closure.
-      (map #(closure-result % ['para-close])
+      (map #(extend-lemmas-result state % ['para-close] lit)
            (eq-member-search subst (make-neg tm) poss eqs 3))
       ;; Plain negative procedure call.
       (when (app-term? tm)
         (when-let [clause (lookup-clause ctx (app-head tm))]
           (let [args (app-args tm)]
             (when (l-ground-args? args)
-              (call-results ctx state (app-head tm) args
-                            (negate-formula (:body clause))
-                            'neg-proc-call)))))
+              (map (fn [{:keys [subst proof]}]
+                     (extend-lemmas-result state subst proof lit))
+                   (call-results ctx state (app-head tm) args
+                                 (negate-formula (:body clause))
+                                 'neg-proc-call))))))
       ;; Equality-rewritten negative procedure call.
       (when (app-term? tm)
         (when-let [clause (lookup-clause ctx (app-head tm))]
           (mapcat
             (fn [[s1 new-tm]]
-              (call-results ctx
-                            (state-with-subst state s1)
-                            (app-head new-tm)
-                            (app-args new-tm)
-                            (negate-formula (:body clause))
-                            'neg-subst-call))
+              (map (fn [{:keys [subst proof]}]
+                     (extend-lemmas-result state subst proof lit))
+                   (call-results ctx
+                                 (state-with-subst state s1)
+                                 (app-head new-tm)
+                                 (app-args new-tm)
+                                 (negate-formula (:body clause))
+                                 'neg-subst-call)))
             (rewrite-term-with-eqs subst tm eqs))))
       ;; Save and continue.
       (continue-with-next ctx state 'savefml lit))))
@@ -870,9 +929,9 @@
     (lazy-cat
       ;; Reflexivity closure.
       (when-let [s1 (unify subst t1 t2)]
-        (list (closure-result s1 ['refl-close])))
+        (list (preserve-lemmas-result state s1 ['refl-close])))
       ;; Equality-driven closure.
-      (map #(closure-result % ['eq-refl-close])
+      (map #(preserve-lemmas-result state % ['eq-refl-close])
            (eq-neq-close-search subst t1 t2 eqs 3))
       ;; Save and continue.
       (continue-with-next ctx state 'savefml lit))))
@@ -935,15 +994,15 @@
     (lazy-cat
       ;; Free closure.
       (when (free-closure? t1 t2)
-        (list (closure-result subst ['free-close])))
+        (list (preserve-lemmas-result state subst ['free-close])))
       ;; Arity mismatch.
       (when (arity-mismatch-closure? t1 t2)
-        (list (closure-result subst ['arity-mismatch-close])))
+        (list (preserve-lemmas-result state subst ['arity-mismatch-close])))
       ;; Eq/Neq complementary closure.
-      (map #(closure-result % ['eq-neq-close])
+      (map #(preserve-lemmas-result state % ['eq-neq-close])
            (eq-neq-complements subst t1 t2 neq-lits))
       ;; Eq conflict closure.
-      (map #(closure-result % ['eq-conflict-close])
+      (map #(preserve-lemmas-result state % ['eq-conflict-close])
            (eq-conflicts subst t1 t2 eq-lits))
       ;; One-one decomposition.
       (when (and (app-term? t1)
@@ -951,11 +1010,11 @@
                  (= (app-head t1) (app-head t2))
                  (seq (app-args t1)))
         (when-let [decomposed (decompose-eq-args (app-args t1) (app-args t2))]
-          (map (fn [{:keys [subst proof]}]
-                 (closure-result subst ['decompose proof]))
+          (map (fn [{:keys [proof] :as result}]
+                 (assoc result :proof ['decompose proof]))
                (prove* ctx decomposed state))))
       ;; Paramodulated free closure.
-      (map #(closure-result % ['para-free-close])
+      (map #(preserve-lemmas-result state % ['para-free-close])
            (para-free-close-search subst t1 t2 (:eq-pairs eqs+) 3))
       ;; Eq-triggered positive procedure call.
       (mapcat
@@ -965,12 +1024,14 @@
               (mapcat
                 (fn [[s1 new-tm]]
                   (when-let [clause (lookup-clause ctx rel)]
-                    (call-results ctx
-                                  (state-with-subst state s1)
-                                  rel
-                                  (app-args new-tm)
-                                  (:body clause)
-                                  'eq-triggered-call)))
+                    (map (fn [{:keys [subst proof]}]
+                           (preserve-lemmas-result state subst proof))
+                         (call-results ctx
+                                       (state-with-subst state s1)
+                                       rel
+                                       (app-args new-tm)
+                                       (:body clause)
+                                       'eq-triggered-call))))
                 (rewrite-term-with-eqs subst tm (:eq-pairs eqs+))))
             terms))
         (get-in state [:cache :pos-index] {}))
@@ -982,19 +1043,21 @@
               (mapcat
                 (fn [[s1 new-tm]]
                   (when-let [clause (lookup-clause ctx rel)]
-                    (call-results ctx
-                                  (state-with-subst state s1)
-                                  rel
-                                  (app-args new-tm)
-                                  (negate-formula (:body clause))
-                                  'eq-triggered-neg-call)))
+                    (map (fn [{:keys [subst proof]}]
+                           (preserve-lemmas-result state subst proof))
+                         (call-results ctx
+                                       (state-with-subst state s1)
+                                       rel
+                                       (app-args new-tm)
+                                       (negate-formula (:body clause))
+                                       'eq-triggered-neg-call))))
                 (rewrite-term-with-eqs subst tm (:eq-pairs eqs+))))
             terms))
         (get-in state [:cache :neg-index] {}))
       ;; Eq-triggered disequality closure.
       (mapcat
         (fn [[n1 n2]]
-          (map #(closure-result % ['eq-triggered-neq-close])
+          (map #(preserve-lemmas-result state % ['eq-triggered-neq-close])
                (eq-neq-close-search subst n1 n2 (:eq-pairs eqs+) 3)))
         neq-lits)
       ;; Save and continue.
@@ -1008,8 +1071,8 @@
       (let [e1 (second fml)
             e2 (nth fml 2)
             next-state (state-push-front state e2)]
-        (map (fn [{:keys [subst proof]}]
-               (closure-result subst ['conj proof]))
+        (map (fn [{:keys [proof] :as result}]
+               (assoc result :proof ['conj proof]))
              (prove* ctx e1 next-state)))
 
       (or-fml? fml)
@@ -1017,11 +1080,14 @@
             e2 (nth fml 2)
             base-state state]
         (mapcat
-          (fn [{left-subst :subst left-proof :proof}]
-            (let [right-state (state-with-subst base-state left-subst)]
-              (map (fn [{right-subst :subst right-proof :proof}]
-                     (closure-result right-subst
-                                     ['split left-proof right-proof]))
+          (fn [{left-subst :subst left-proof :proof left-lem-out :lem-out}]
+            (let [right-state (-> base-state
+                                  (state-with-subst left-subst)
+                                  (state-with-lemmas left-lem-out))]
+              (map (fn [{right-subst :subst right-proof :proof right-lem-out :lem-out}]
+                     (result right-subst
+                             ['split left-proof right-proof]
+                             right-lem-out))
                    (prove* ctx e2 right-state))))
           (prove* ctx e1 base-state)))
 
@@ -1034,24 +1100,24 @@
                           (assoc :env (assoc (:env state) (tie-binding t) x)
                                  :gamma-budget (when budget (dec budget)))
                           (state-push-back fml))]
-            (map (fn [{:keys [subst proof]}]
-                   (closure-result subst ['univ proof]))
+            (map (fn [{:keys [proof] :as result}]
+                   (assoc result :proof ['univ proof]))
                  (prove* ctx (tie-body t) state)))))
 
       (once-forall-fml? fml)
       (let [t     (second fml)
             x     (fresh-lvar)
             state (assoc state :env (assoc (:env state) (tie-binding t) x))]
-        (map (fn [{:keys [subst proof]}]
-               (closure-result subst ['once-univ proof]))
+        (map (fn [{:keys [proof] :as result}]
+               (assoc result :proof ['once-univ proof]))
              (prove* ctx (tie-body t) state)))
 
       (exists-fml? fml)
       (let [t     (second fml)
             p     (fresh-par)
             state (assoc state :env (assoc (:env state) (tie-binding t) p))]
-        (map (fn [{:keys [subst proof]}]
-               (closure-result subst ['witness proof]))
+        (map (fn [{:keys [proof] :as result}]
+               (assoc result :proof ['witness proof]))
              (prove* ctx (tie-body t) state)))
 
       :else
@@ -1084,6 +1150,20 @@
              (map :proof
                   (prove* ctx formula state)))))))
 
+(defn prove-branch-fast-results
+  "Explicit forward tableau proof search from an already-developed branch
+   state. Returns result maps with `:proof` and `:lem-out`."
+  ([program formula unexp lits env]
+   (prove-branch-fast-results program formula unexp lits env '() 1 nil))
+  ([program formula unexp lits env n gamma-budget]
+   (prove-branch-fast-results program formula unexp lits env '() n gamma-budget))
+  ([program formula unexp lits env lemmas n gamma-budget]
+   (let [ctx   {:program (compile-program program)}
+         state (branch-state unexp lits env gamma-budget lemmas)]
+     (vec
+       (take n
+             (prove* ctx formula state))))))
+
 (defn prove-branch-fast
   "Explicit forward tableau proof search from an already-developed branch
    state. `unexp`, `lits`, and `env` use the same surface representation
@@ -1091,12 +1171,9 @@
   ([program formula unexp lits env]
    (prove-branch-fast program formula unexp lits env 1 nil))
   ([program formula unexp lits env n gamma-budget]
-   (let [ctx   {:program (compile-program program)}
-         state (branch-state unexp lits env gamma-budget)]
-     (vec
-       (take n
-             (map :proof
-                  (prove* ctx formula state)))))))
+   (vec
+     (map :proof
+          (prove-branch-fast-results program formula unexp lits env n gamma-budget)))))
 
 (defn query-succeeds-fast
   "A query succeeds iff there is a closed tableau for its negation."

@@ -82,3 +82,29 @@
           program (fixtures/gv-assoc-precomputed-program fixtures/gv-z2 x y z)
           formula ['neg ['app 'gv_assoc_pre]]]
       (is (provable-fast? program formula 1 nil)))))
+
+(deftest test-F08-lemma-threaded-beta-split
+  (testing "Fast engine agrees with the reference when beta splits reuse lemmas."
+    (let [formula ['or
+                   ['and ['pos ['app 'p]]
+                    ['neg ['app 'p]]]
+                   ['pos ['app 'p]]]]
+      (is (= (provable-ref? formula)
+             (provable-fast? formula))))))
+
+(deftest test-F09-branch-results-return-lemmas
+  (testing "Branch execution returns the outgoing lemma thread for cutover."
+    (let [results (fast/prove-branch-fast-results
+                    '()
+                    ['pos ['app 'p]]
+                    '()
+                    '()
+                    '()
+                    (list ['neg ['app 'p]])
+                    1
+                    nil)
+          result  (first results)]
+      (is (= ['lem-close] (:proof result)))
+      (is (= (list ['pos ['app 'p]]
+                   ['neg ['app 'p]])
+             (:lem-out result))))))

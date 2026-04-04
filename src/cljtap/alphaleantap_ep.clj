@@ -91,7 +91,8 @@
 (ns cljtap.alphaleantap-ep
   (:refer-clojure :exclude [==])
   (:require [clojure.core.logic :refer :all :rename {appendo logic-appendo, membero logic-membero}]
-            [clojure.core.logic.nominal :refer [tie hash]]))
+            [clojure.core.logic.nominal :refer [tie hash]]
+            [cljtap.alphaleantap-ep-fast :as fast]))
 
 ;; In core.logic.nominal 1.0.1, `nom` is a constructor function, not a macro.
 ;; We define `nom` as a macro that introduces fresh nominal bindings using the
@@ -746,6 +747,40 @@
        (l-ground-termo t)
        (l-ground-term*o rest))]))
 
+(def ^:dynamic *fast-cutover-proof-limit*
+  "Maximum number of proofs the cooperative cutover will materialize from the
+   explicit fast engine for a fully specified branch. One proof is enough for
+   closure; the small bound keeps cutover predictable."
+  1)
+
+(defn fast-cutovero
+  "If the current branch state is fully specified, discharge it with the
+   explicit fast engine instead of continuing symbolic search.
+
+   Cooperative cutover is intentionally conservative:
+   - the whole current branch state must be fast-compatible
+   - lemma input must be empty, because the fast engine does not model lemma
+     reuse yet
+
+   This gives true mixed-mode execution inside symbolic runs: partial programs
+   and queries remain relational until enough structure is determined, then the
+   remaining ground subgoal is proved by the explicit engine."
+  [fml unexp lits env program proof gamma-budget lem-in lem-out]
+  (project [fml unexp lits env program gamma-budget lem-in]
+    (if (and (= lem-in '())
+             (fast/explicit-branch-compatible? fml unexp lits env program gamma-budget))
+      (let [proofs (seq
+                     (fast/prove-branch-fast
+                       program fml unexp lits env
+                       *fast-cutover-proof-limit*
+                       gamma-budget))]
+        (if (seq proofs)
+          (all
+            (membero proof (apply list proofs))
+            (== lem-out lem-in))
+          fail))
+      fail)))
+
 ;; ============================================================================
 ;; Part 6: The Main Prover — αleanTAP-EP (proveo)
 ;; ============================================================================
@@ -781,6 +816,16 @@
      (proveo fml unexp lits env program proof gamma-budget '() lem-out)))
   ([fml unexp lits env program proof gamma-budget lem-in lem-out]
   (conde
+    ;; ================================================================
+    ;; COOPERATIVE CUTOVER
+    ;; ================================================================
+    ;; When a symbolic run reaches a fully specified branch state, switch
+    ;; to the explicit fast engine to close that branch directly.
+    ;; This enables mixed forward/reverse execution inside a single proof:
+    ;; symbolic search on the outer partial problem, explicit proving once
+    ;; the residual subgoal is determined.
+    [(fast-cutovero fml unexp lits env program proof gamma-budget lem-in lem-out)]
+
     ;; ================================================================
     ;; CONJUNCTION (α-rule): expand (and e1 e2)
     ;; ================================================================

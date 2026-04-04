@@ -28,6 +28,16 @@ is therefore a dual engine:
 
 That execution-layer dispatch lives in `cljtap.alphaleantap-ep-exec`.
 
+The next layer of cooperation is branch-local cutover inside the relational
+prover itself:
+
+- outer search stays symbolic when the overall problem is partial
+- once a current branch has an explicit executable shape, the residual branch
+  is discharged by the fast engine
+
+This is implemented conservatively in `cljtap.alphaleantap-ep` via
+`fast-cutovero`.
+
 ## Non-Goals For The Fast Engine Itself
 
 The first version does not try to preserve the full relational character of `alphaleantap_ep.clj`.
@@ -98,6 +108,18 @@ A procedure call still starts a fresh subsidiary tableau with:
 - the caller's substitution state
 
 This preserves the key soundness property from Fitting: subsidiary tableaux do not inherit the caller's branch formulas.
+
+### 5. Cooperative cutover criterion
+
+Top-level dispatch and branch-level dispatch use different criteria.
+
+- top-level fast dispatch requires fully specified inputs
+- branch-level cutover is weaker: raw logic variables may still appear in
+  term positions as long as the formula/program shape is explicit
+
+That matters for mixed-mode synthesis: the symbolic engine can determine the
+structure of a clause body or subgoal, and the fast engine can then finish the
+remaining first-order proof search over those term variables.
 
 ## Equality Strategy
 

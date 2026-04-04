@@ -112,9 +112,147 @@
   [tie]
   (:body tie))
 
+(declare explicit-formula?)
+
+(defn explicit-term?
+  "True iff term has an explicit shape the fast engine can execute.
+   Raw logic vars are allowed in term positions."
+  [term]
+  (cond
+    (logic/lvar? term)
+    true
+
+    (var-term? term)
+    true
+
+    (par-term? term)
+    true
+
+    (app-term? term)
+    (and (not (logic/lvar? (app-head term)))
+         (every? explicit-term? (app-args term)))
+
+    :else
+    false))
+
+(defn- explicit-literal?
+  [fml]
+  (cond
+    (pos-lit? fml)
+    (explicit-term? (second fml))
+
+    (neg-lit? fml)
+    (explicit-term? (second fml))
+
+    (eq-lit? fml)
+    (and (explicit-term? (second fml))
+         (explicit-term? (nth fml 2)))
+
+    (neq-lit? fml)
+    (and (explicit-term? (second fml))
+         (explicit-term? (nth fml 2)))
+
+    :else
+    false))
+
+(defn explicit-formula?
+  "True iff the formula shape is explicit enough for the fast engine.
+   Raw logic vars are not allowed at formula-connective positions, but are
+   allowed inside term positions."
+  [fml]
+  (cond
+    (logic/lvar? fml)
+    false
+
+    (and-fml? fml)
+    (and (explicit-formula? (second fml))
+         (explicit-formula? (nth fml 2)))
+
+    (or-fml? fml)
+    (and (explicit-formula? (second fml))
+         (explicit-formula? (nth fml 2)))
+
+    (forall-fml? fml)
+    (explicit-formula? (tie-body (second fml)))
+
+    (once-forall-fml? fml)
+    (explicit-formula? (tie-body (second fml)))
+
+    (exists-fml? fml)
+    (explicit-formula? (tie-body (second fml)))
+
+    :else
+    (explicit-literal? fml)))
+
+(defn explicit-program?
+  "True iff every clause in the program has a fixed executable shape."
+  [program]
+  (every?
+    (fn [clause]
+      (and (vector? clause)
+           (= 3 (count clause))
+           (not (logic/lvar? (first clause)))
+           (sequential? (second clause))
+           (explicit-formula? (nth clause 2))))
+    program))
+
+(defn explicit-env?
+  "True iff each environment entry maps a parameter nom to an executable term."
+  [env]
+  (every?
+    (fn [entry]
+      (and (sequential? entry)
+           (= 2 (count entry))
+           (explicit-term? (second entry))))
+    env))
+
+(defn explicit-branch-compatible?
+  "True iff the current branch has a fixed enough shape for fast execution.
+   This is weaker than `fast-compatible-data?`: raw lvars may still appear in
+   term positions, which lets the cooperative engine cut over mid-proof after
+   structure is known but before all terms are ground."
+  [fml unexp lits env program gamma-budget]
+  (and (explicit-formula? fml)
+       (every? explicit-formula? unexp)
+       (every? explicit-literal? lits)
+       (explicit-env? env)
+       (explicit-program? program)
+       (or (nil? gamma-budget)
+           (integer? gamma-budget))))
+
 ;; ============================================================================
 ;; Part 2: Fresh Values and Unification
 ;; ============================================================================
+
+(defn contains-lvar?
+  "True iff x contains any raw core.logic logic variable."
+  [x]
+  (cond
+    (logic/lvar? x)
+    true
+
+    (nominal/tie? x)
+    (contains-lvar? (:body x))
+
+    (map? x)
+    (boolean
+      (or (some contains-lvar? (keys x))
+          (some contains-lvar? (vals x))))
+
+    (vector? x)
+    (boolean (some contains-lvar? x))
+
+    (sequential? x)
+    (boolean (some contains-lvar? x))
+
+    :else
+    false))
+
+(defn fast-compatible-data?
+  "True iff every supplied value is fully specified enough for the explicit
+   fast engine."
+  [& xs]
+  (not-any? contains-lvar? xs))
 
 (defn- empty-subst
   []
@@ -342,12 +480,25 @@
     :else
     nil))
 
+(defn- dq-from-seq
+  [xs]
+  {:front (seq xs) :back '()})
+
 (defn- initial-state
   [gamma-budget]
   {:subst        (empty-subst)
    :env          {}
    :unexp        (dq-empty)
    :lits         []
+   :cache        nil
+   :gamma-budget gamma-budget})
+
+(defn- branch-state
+  [unexp lits env gamma-budget]
+  {:subst        (empty-subst)
+   :env          (into {} env)
+   :unexp        (dq-from-seq unexp)
+   :lits         (vec lits)
    :cache        nil
    :gamma-budget gamma-budget})
 
@@ -928,6 +1079,20 @@
   ([program formula n gamma-budget]
    (let [ctx   {:program (compile-program program)}
          state (initial-state gamma-budget)]
+     (vec
+       (take n
+             (map :proof
+                  (prove* ctx formula state)))))))
+
+(defn prove-branch-fast
+  "Explicit forward tableau proof search from an already-developed branch
+   state. `unexp`, `lits`, and `env` use the same surface representation
+   as the relational prover."
+  ([program formula unexp lits env]
+   (prove-branch-fast program formula unexp lits env 1 nil))
+  ([program formula unexp lits env n gamma-budget]
+   (let [ctx   {:program (compile-program program)}
+         state (branch-state unexp lits env gamma-budget)]
      (vec
        (take n
              (map :proof

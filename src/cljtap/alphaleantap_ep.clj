@@ -138,25 +138,79 @@
       [(== a x)]
       [(membero x d)])))
 
+(defn logic-ground?
+  "Pure Clojure groundness check used only to enable deterministic caches.
+   If unresolved core.logic vars remain, the prover stays on the original
+   relational path so reverse-mode synthesis behavior is unchanged."
+  [x]
+  (cond
+    (lvar? x) false
+    (vector? x) (every? logic-ground? x)
+    (sequential? x) (every? logic-ground? x)
+    (map? x) (every? logic-ground? (mapcat identity x))
+    :else true))
+
+(defn- ordered-list
+  "Realize `xs` as a proper list so membero/selecto can consume it directly."
+  [xs]
+  (if (seq xs)
+    (apply list xs)
+    '()))
+
+(defn- app-term?
+  [term]
+  (and (vector? term) (= 'app (first term))))
+
+(defn- par-term?
+  [term]
+  (and (vector? term) (= 'par (first term))))
+
+(defn- term-head
+  [term]
+  (second term))
+
+(defn- term-args
+  [term]
+  (nnext term))
+
 ;; ============================================================================
 ;; Part 2: Substitution Relations
 ;; ============================================================================
 
 (declare subst-term*o)
 
+(defn- lookup-walked-env
+  "Pure Clojure: search a walked env (lcons chain or seq) for a binding
+   whose key matches `nom`.  Returns the bound value, or nil if not found."
+  [nom env]
+  (when (seq env)
+    (let [entry (first env)]
+      (if (and (vector? entry) (= (first entry) nom))
+        (second entry)
+        (recur nom (next env))))))
+
 (defn subst-termo
   "Substitute values for tagged noms (var a) in a term, using environment.
-   (par p) terms are δ-parameters — already ground, pass through unchanged.
+   (par p) terms are δ-parameters — resolved through env if a par-eq binding
+   exists (constraint propagation), otherwise passed through unchanged.
    Raw logic variables (synthesis targets from run) are passed through unchanged.
    Uses project for type dispatch — subst-termo is always called fml→out (forward only)."
   [fml env out]
-  (project [fml]
+  (project [fml env]
     (cond
       (and (vector? fml) (= (first fml) 'var))
-      (lookupo (second fml) env out)
+      (let [val (lookup-walked-env (second fml) env)]
+        (if val
+          ;; If var resolved to (par p), check for propagated binding
+          (if (and (vector? val) (= (first val) 'par))
+            (let [par-val (lookup-walked-env (second val) env)]
+              (== (or par-val val) out))
+            (== val out))
+          fail))
 
       (and (vector? fml) (= (first fml) 'par))
-      (== fml out)
+      (let [par-val (lookup-walked-env (second fml) env)]
+        (== (or par-val fml) out))
 
       (sequential? fml)
       (fresh [f d r]
@@ -372,6 +426,190 @@
            [(== ['neg tag] lit)]
            [(== ['neq tag _] lit)])
          (collect-eqso rest-lits eqs)))]))
+
+;; --- 3d+. Incremental equality cache ---
+;;
+;; collect-eqso is relational and still needed for reverse-mode runs, but in
+;; forward proofs it repeatedly rescans the whole branch.  The helpers below
+;; maintain the same pair order incrementally as literals are saved.  When a
+;; branch stops being ground enough for safe meta-level inspection, the cache
+;; is disabled and the prover falls back to collect-eqso automatically.
+
+(def empty-eq-cache {:pairs '() :best-map {}})
+
+(defn- one-one-pairs*
+  [args1 args2]
+  (when (= (count args1) (count args2))
+    (mapcat (fn [t u] [[t u] [u t]]) args1 args2)))
+
+(defn- eq-literal-pairs
+  "Pure Clojure equivalent of the forward collect-eqso case for one eq lit."
+  [lit]
+  (let [[_ t1 t2] lit
+        base [[t1 t2] [t2 t1]]
+        extra (if (and (app-term? t1)
+                       (app-term? t2)
+                       (= (term-head t1) (term-head t2)))
+                (or (one-one-pairs* (vec (term-args t1))
+                                    (vec (term-args t2)))
+                    '())
+                '())]
+    (ordered-list (concat base extra))))
+
+(defn- term-priority
+  [term]
+  (cond
+    (app-term? term) 0
+    (par-term? term) 1
+    :else 2))
+
+(defn- preferred-term
+  [t1 t2]
+  (let [k1 [(term-priority t1) (pr-str t1)]
+        k2 [(term-priority t2) (pr-str t2)]]
+    (if (neg? (compare k1 k2))
+      t1
+      t2)))
+
+(defn- connected-component
+  [graph start]
+  (loop [stack (list start)
+         seen #{}]
+    (if-let [node (first stack)]
+      (if (contains? seen node)
+        (recur (next stack) seen)
+        (recur (concat (next stack) (get graph node))
+               (conj seen node)))
+      seen)))
+
+(defn- build-best-term-map
+  "Choose a deterministic representative per equality-connected component.
+   Preferring constructor terms over parameters makes free-clash checks visible
+   after par→term equalities, which is the common hot path in GV neg-calls."
+  [pairs]
+  (let [graph (reduce (fn [g [lhs rhs]]
+                        (-> g
+                            (update lhs (fnil conj #{}) rhs)
+                            (update rhs (fnil conj #{}) lhs)))
+                      {}
+                      pairs)]
+    (loop [nodes (seq (keys graph))
+           seen #{}
+           best-map {}]
+      (if-let [node (first nodes)]
+        (if (contains? seen node)
+          (recur (next nodes) seen best-map)
+          (let [component (connected-component graph node)
+                best      (reduce preferred-term component)]
+            (recur (next nodes)
+                   (into seen component)
+                   (reduce (fn [m term] (assoc m term best))
+                           best-map
+                           component))))
+        best-map))))
+
+(declare normalize-ground-term)
+
+(defn- normalize-ground-term
+  "Normalize a closed term against cached branch equalities.
+   This is intentionally deterministic and used only as a fast path before
+   falling back to the original relational rewrite search."
+  [term best-map]
+  (loop [current term
+         seen #{}]
+    (let [repr (or (get best-map current) current)
+          normalized (if (app-term? repr)
+                       (let [rebuilt (vec (cons 'app
+                                                (cons (term-head repr)
+                                                      (map #(normalize-ground-term % best-map)
+                                                           (term-args repr)))))]
+                         (or (get best-map rebuilt) rebuilt))
+                       repr)]
+      (if (or (= normalized current)
+              (contains? seen normalized))
+        normalized
+        (recur normalized (conj seen current))))))
+
+(defn- extend-eq-cache*
+  [eq-cache lit]
+  (cond
+    (nil? eq-cache)
+    nil
+
+    (and (vector? lit) (= 'eq (first lit)) (logic-ground? lit))
+    (let [pairs (ordered-list (concat (eq-literal-pairs lit)
+                                      (:pairs eq-cache)))]
+      {:pairs pairs
+       :best-map (build-best-term-map pairs)})
+
+    (and (vector? lit) (#{'pos 'neg 'neq} (first lit)))
+    eq-cache
+
+    :else
+    nil))
+
+(defn- build-eq-cache
+  [lits]
+  (when (sequential? lits)
+    (reduce (fn [eq-cache lit]
+              (extend-eq-cache* eq-cache lit))
+            empty-eq-cache
+            (reverse lits))))
+
+(defn init-eq-cacheo
+  [lits eq-cache]
+  (project [lits]
+    (== eq-cache (build-eq-cache lits))))
+
+(defn extend-eq-cacheo
+  [lit eq-cache-in eq-cache-out]
+  (project [lit eq-cache-in]
+    (== eq-cache-out (extend-eq-cache* eq-cache-in lit))))
+
+(defn eq-cache-pairso
+  "Use cached branch equalities when available; otherwise recover them from lits."
+  [lits eq-cache eqs]
+  (conde
+    [(project [eq-cache]
+       (if (map? eq-cache)
+         (== eqs (:pairs eq-cache))
+         fail))]
+    [(collect-eqso lits eqs)]))
+
+(defn- eq-neq-close-fast?
+  [t1 t2 eq-cache]
+  (when (and (map? eq-cache)
+             (not= t1 t2)
+             (logic-ground? t1)
+             (logic-ground? t2))
+    (= (normalize-ground-term t1 (:best-map eq-cache))
+       (normalize-ground-term t2 (:best-map eq-cache)))))
+
+(defn fast-eq-neq-closeo
+  [t1 t2 eq-cache]
+  (project [t1 t2 eq-cache]
+    (if (eq-neq-close-fast? t1 t2 eq-cache)
+      succeed
+      fail)))
+
+(defn- para-free-close-fast?
+  [t1 t2 eq-cache]
+  (when (and (map? eq-cache)
+             (logic-ground? t1)
+             (logic-ground? t2))
+    (let [n1 (normalize-ground-term t1 (:best-map eq-cache))
+          n2 (normalize-ground-term t2 (:best-map eq-cache))]
+      (and (not= [t1 t2] [n1 n2])
+           (app-term? n1)
+           (app-term? n2)
+           (not= (term-head n1) (term-head n2))))))
+
+(defn fast-para-free-closeo
+  [t1 t2 eq-cache]
+  (project [t1 t2 eq-cache]
+    (if (para-free-close-fast? t1 t2 eq-cache)
+      succeed
+      fail)))
 
 ;; --- 3e. Rewriting (paramodulation engine) ---
 
@@ -659,6 +897,87 @@
        (== ['neq t1 t2] fml)
        (== ['eq t1 t2] neg-fml))]))
 
+(defn- negate-formula*
+  "Pure helper for cache preparation. This mirrors negate-formulao's forward
+   cases without paying the relational search cost at top-level cache build."
+  [fml]
+  (cond
+    (and (vector? fml) (= 'and (first fml)))
+    (let [na (negate-formula* (second fml))
+          nb (negate-formula* (nth fml 2))]
+      (when (and na nb)
+        ['or na nb]))
+
+    (and (vector? fml) (= 'or (first fml)))
+    (let [na (negate-formula* (second fml))
+          nb (negate-formula* (nth fml 2))]
+      (when (and na nb)
+        ['and na nb]))
+
+    (and (vector? fml) (= 'forall (first fml)))
+    (let [tie-form (second fml)
+          neg-body (negate-formula* (:body tie-form))]
+      (when neg-body
+        ['exists (tie (:binding-nom tie-form) neg-body)]))
+
+    (and (vector? fml) (= 'exists (first fml)))
+    (let [tie-form (second fml)
+          neg-body (negate-formula* (:body tie-form))]
+      (when neg-body
+        ['once-forall (tie (:binding-nom tie-form) neg-body)]))
+
+    (and (vector? fml) (= 'once-forall (first fml)))
+    (let [tie-form (second fml)
+          neg-body (negate-formula* (:body tie-form))]
+      (when neg-body
+        ['exists (tie (:binding-nom tie-form) neg-body)]))
+
+    (and (vector? fml) (= 'pos (first fml)))
+    ['neg (second fml)]
+
+    (and (vector? fml) (= 'neg (first fml)))
+    ['pos (second fml)]
+
+    (and (vector? fml) (= 'eq (first fml)))
+    ['neq (second fml) (nth fml 2)]
+
+    (and (vector? fml) (= 'neq (first fml)))
+    ['eq (second fml) (nth fml 2)]
+
+    :else
+    nil))
+
+(defn- build-program-cache
+  "Precompute clause lookup and negated clause bodies once per top-level run.
+   This removes repeated negate-formulao work from neg-proc-call-heavy traces
+   while leaving synthesized/non-ground programs on the original lookup path."
+  [program]
+  (when (and (sequential? program)
+             (logic-ground? program))
+    (reduce (fn [cache clause]
+              (cond
+                (nil? cache)
+                nil
+
+                (and (vector? clause) (= 3 (count clause)))
+                (let [[rel params body] clause]
+                  (if (contains? cache rel)
+                    cache
+                    (when-let [neg-body (negate-formula* body)]
+                      (assoc cache rel {:params params
+                                        :body body
+                                        :neg-body neg-body}))))
+
+                :else
+                nil))
+            {}
+            program)))
+
+(defn init-program-cacheo
+  [program program-cache]
+  (project [program]
+    (== program-cache (build-program-cache program))))
+
 ;; ============================================================================
 ;; Part 5: Program Clause Lookup and Instantiation
 ;; ============================================================================
@@ -708,6 +1027,32 @@
        (== (lcons a as) args)
        (== (lcons [p a] rest-env) env)
        (bind-argso ps as rest-env))]))
+
+(defn lookup-cached-clauseo
+  [rel program-cache params body neg-body]
+  (project [rel program-cache]
+    (if-let [entry (and (map? program-cache)
+                        (symbol? rel)
+                        (get program-cache rel))]
+      (all
+        (== params (:params entry))
+        (== body (:body entry))
+        (== neg-body (:neg-body entry)))
+      fail)))
+
+(defn lookup-program-bodyo
+  [rel program program-cache params body]
+  (conde
+    [(fresh [neg-body]
+       (lookup-cached-clauseo rel program-cache params body neg-body))]
+    [(lookup-clauseo rel program params body)]))
+
+(defn lookup-program-neg-bodyo
+  [rel program program-cache params body neg-body]
+  (conde
+    [(lookup-cached-clauseo rel program-cache params body neg-body)]
+    [(lookup-clauseo rel program params body)
+     (negate-formulao body neg-body)]))
 
 ;; ============================================================================
 ;; Part 5b: L-Groundness Guard (Fitting §6 Definition 6.1)
@@ -779,6 +1124,31 @@
           fail))
       fail)))
 
+;; --- 5b. Par-Eq Constraint Propagation ---
+
+(defn propagate-par-eqo
+  "When an eq literal binds a δ-parameter to a concrete term, add the
+   binding [par-nom, term] to env so that subsequent subst-termo calls
+   resolve the par eagerly.  This is the core of constraint propagation:
+   it turns 'deferred' par-vs-concrete clashes into immediate free-closures,
+   pruning dead β-branches before they are explored.
+
+   Only fires when exactly one side is (par p) and the other is not a par.
+   Leaves env unchanged otherwise (both pars, neither par, etc.)."
+  [t1 t2 env new-env]
+  (project [t1 t2]
+    (cond
+      (and (vector? t1) (= (first t1) 'par)
+           (not (and (vector? t2) (= (first t2) 'par))))
+      (== new-env (lcons [(second t1) t2] env))
+
+      (and (vector? t2) (= (first t2) 'par)
+           (not (and (vector? t1) (= (first t1) 'par))))
+      (== new-env (lcons [(second t2) t1] env))
+
+      :else
+      (== new-env env))))
+
 ;; ============================================================================
 ;; Part 6: The Main Prover — αleanTAP-EP (proveo)
 ;; ============================================================================
@@ -795,6 +1165,8 @@
 ;;   env     — nom → value mappings (for ∀/∃ instantiation)
 ;;   program — the Proflog program (list of clauses)
 ;;   proof   — proof term recording steps taken
+
+(declare proveo*)
 
 (defn proveo
   "Main tableau prover. Expands formula `fml` on a branch with unexpanded
@@ -813,6 +1185,17 @@
    (fresh [lem-out]
      (proveo fml unexp lits env program proof gamma-budget '() lem-out)))
   ([fml unexp lits env program proof gamma-budget lem-in lem-out]
+   (fresh [eq-cache program-cache]
+     (init-eq-cacheo lits eq-cache)
+     (init-program-cacheo program program-cache)
+     (proveo* fml unexp lits env program program-cache eq-cache
+              proof gamma-budget lem-in lem-out))))
+
+(defn proveo*
+  "Internal prover worker. Threads branch-local caches so forward runs avoid
+   rescanning saved equalities and re-negating clause bodies, while reverse
+   runs transparently fall back to the original relational rules."
+  [fml unexp lits env program program-cache eq-cache proof gamma-budget lem-in lem-out]
   (conde
     ;; ================================================================
     ;; COOPERATIVE CUTOVER
@@ -830,7 +1213,8 @@
     [(fresh [e1 e2 prf]
        (== ['and e1 e2] fml)
        (== (lcons 'conj prf) proof)
-       (proveo e1 (lcons e2 unexp) lits env program prf gamma-budget lem-in lem-out))]
+       (proveo* e1 (lcons e2 unexp) lits env program program-cache eq-cache
+                prf gamma-budget lem-in lem-out))]
 
     ;; ================================================================
     ;; DISJUNCTION (β-rule): split (or e1 e2) into two branches
@@ -840,8 +1224,10 @@
     [(fresh [e1 e2 prf1 prf2 lem-mid]
        (== ['or e1 e2] fml)
        (== ['split prf1 prf2] proof)
-       (proveo e1 unexp lits env program prf1 gamma-budget lem-in lem-mid)
-       (proveo e2 unexp lits env program prf2 gamma-budget lem-mid lem-out))]
+       (proveo* e1 unexp lits env program program-cache eq-cache
+                prf1 gamma-budget lem-in lem-mid)
+       (proveo* e2 unexp lits env program program-cache eq-cache
+                prf2 gamma-budget lem-mid lem-out))]
 
     ;; ================================================================
     ;; UNIVERSAL QUANTIFIER (γ-rule): instantiate (forall (tie a body))
@@ -861,7 +1247,8 @@
              :else                 fail))
          (== (lcons 'univ prf) proof)
          (appendo unexp (list fml) unexp1)
-         (proveo body unexp1 lits (lcons [a x] env) program prf new-budget lem-in lem-out)))]
+         (proveo* body unexp1 lits (lcons [a x] env) program program-cache eq-cache
+                  prf new-budget lem-in lem-out)))]
 
     ;; ================================================================
     ;; ONCE-UNIVERSAL (γ-rule, single-use): instantiate (once-forall (tie a body))
@@ -873,7 +1260,8 @@
        (fresh [x body prf]
          (== ['once-forall (tie a body)] fml)
          (== (lcons 'once-univ prf) proof)
-         (proveo body unexp lits (lcons [a x] env) program prf gamma-budget lem-in lem-out)))]
+         (proveo* body unexp lits (lcons [a x] env) program program-cache eq-cache
+                  prf gamma-budget lem-in lem-out)))]
 
     ;; ================================================================
     ;; EXISTENTIAL QUANTIFIER (δ-rule): witness (exists (tie a body))
@@ -897,7 +1285,8 @@
          (fresh [body prf]
            (== ['exists (tie a body)] fml)
            (== (lcons 'witness prf) proof)
-           (proveo body unexp lits (lcons [a ['par p]] env) program prf gamma-budget lem-in lem-out))))]
+           (proveo* body unexp lits (lcons [a ['par p]] env) program program-cache eq-cache
+                    prf gamma-budget lem-in lem-out))))]
 
     ;; ================================================================
     ;; LITERAL CASES (including Free Closure & Procedure Call Rules)
@@ -929,7 +1318,7 @@
               ;; Paramodulation closure
               [(fresh [eqs]
                  (== ['para-close] proof)
-                 (collect-eqso lits eqs)
+                 (eq-cache-pairso lits eq-cache eqs)
                  (eq-membero ['neg tm] lits eqs)
                  (== lem-out (lcons ['pos tm] lem-in)))]
               ;; Procedure call (Fitting §6, Part 1)
@@ -938,28 +1327,31 @@
               [(fresh [R args params body call-env prf sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
                  (l-ground-term*o args)
-                 (lookup-clauseo R program params body)
+                 (lookup-program-bodyo R program program-cache params body)
                  (bind-argso params args call-env)
                  (== (lcons 'proc-call (lcons R prf)) proof)
-                 (proveo body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (proveo* body '() '() call-env program program-cache empty-eq-cache
+                          prf gamma-budget '() sub-lem)
                  (== lem-out (lcons ['pos tm] lem-in)))]
               ;; Substitutivity-augmented procedure call
               [(fresh [R args params body call-env prf
                        new-tm new-args eqs sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
-                 (collect-eqso lits eqs)
+                 (eq-cache-pairso lits eq-cache eqs)
                  (rewrite-term-with-eqso tm eqs new-tm)
                  (== (lcons 'app (lcons R new-args)) new-tm)
-                 (lookup-clauseo R program params body)
+                 (lookup-program-bodyo R program program-cache params body)
                  (bind-argso params new-args call-env)
                  (== (lcons 'subst-call (lcons R prf)) proof)
-                 (proveo body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (proveo* body '() '() call-env program program-cache empty-eq-cache
+                          prf gamma-budget '() sub-lem)
                  (== lem-out (lcons ['pos tm] lem-in)))]
               ;; Continue expansion (savefml)
               [(fresh [next unexp1 prf]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget lem-in lem-out))]))]
+                 (proveo* next unexp1 (lcons lit lits) env program program-cache eq-cache
+                          prf gamma-budget lem-in lem-out))]))]
 
          ;; ---- NEG LITERAL GROUP ----
          [(fresh [tm]
@@ -976,37 +1368,38 @@
               ;; Paramodulation closure
               [(fresh [eqs]
                  (== ['para-close] proof)
-                 (collect-eqso lits eqs)
+                 (eq-cache-pairso lits eq-cache eqs)
                  (eq-membero ['pos tm] lits eqs)
                  (== lem-out (lcons ['neg tm] lem-in)))]
               ;; Procedure call (Fitting §6, Part 2)
               [(fresh [R args params body call-env neg-body prf sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
                  (l-ground-term*o args)
-                 (lookup-clauseo R program params body)
+                 (lookup-program-neg-bodyo R program program-cache params body neg-body)
                  (bind-argso params args call-env)
-                 (negate-formulao body neg-body)
                  (== (lcons 'neg-proc-call (lcons R prf)) proof)
-                 (proveo neg-body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (proveo* neg-body '() '() call-env program program-cache empty-eq-cache
+                          prf gamma-budget '() sub-lem)
                  (== lem-out (lcons ['neg tm] lem-in)))]
               ;; Substitutivity-augmented procedure call
               [(fresh [R args params body call-env neg-body prf
                        new-tm new-args eqs sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
-                 (collect-eqso lits eqs)
+                 (eq-cache-pairso lits eq-cache eqs)
                  (rewrite-term-with-eqso tm eqs new-tm)
                  (== (lcons 'app (lcons R new-args)) new-tm)
-                 (lookup-clauseo R program params body)
+                 (lookup-program-neg-bodyo R program program-cache params body neg-body)
                  (bind-argso params new-args call-env)
-                 (negate-formulao body neg-body)
                  (== (lcons 'neg-subst-call (lcons R prf)) proof)
-                 (proveo neg-body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (proveo* neg-body '() '() call-env program program-cache empty-eq-cache
+                          prf gamma-budget '() sub-lem)
                  (== lem-out (lcons ['neg tm] lem-in)))]
               ;; Continue expansion (savefml)
               [(fresh [next unexp1 prf]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget lem-in lem-out))]))]
+                 (proveo* next unexp1 (lcons lit lits) env program program-cache eq-cache
+                          prf gamma-budget lem-in lem-out))]))]
 
          ;; ---- NEQ LITERAL GROUP ----
          [(fresh [t1 t2]
@@ -1018,20 +1411,24 @@
                (== lem-out lem-in)]
               ;; NEQ closure via equality rewriting
               ;; Transitivity chains: a=b, b=c closes (neq a c) via a→b→c.
-              [(fresh [eqs]
-                 (== ['eq-refl-close] proof)
-                 (collect-eqso lits eqs)
-                 (eq-neq-closeo t1 t2 eqs)
-                 (== lem-out lem-in))]
+              [(== ['eq-refl-close] proof)
+               (conde
+                 [(fast-eq-neq-closeo t1 t2 eq-cache)]
+                 [(fresh [eqs]
+                    (eq-cache-pairso lits eq-cache eqs)
+                    (eq-neq-closeo t1 t2 eqs))])
+               (== lem-out lem-in)]
               ;; Continue expansion (savefml)
               [(fresh [next unexp1 prf]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget lem-in lem-out))]))]
+                 (proveo* next unexp1 (lcons lit lits) env program program-cache eq-cache
+                          prf gamma-budget lem-in lem-out))]))]
 
          ;; ---- EQ LITERAL GROUP ----
-         [(fresh [t1 t2]
+         [(fresh [t1 t2 next-eq-cache]
             (== ['eq t1 t2] lit)
+            (extend-eq-cacheo lit eq-cache next-eq-cache)
             (conde
               ;; Free closure (Fitting §5 — Disjointness)
               ;; (eq (app f ...) (app g ...)) with f ≠ g: unsatisfiable.
@@ -1058,52 +1455,63 @@
                    (== (lcons _ __) args1))
                  (decompose-eq-argso args1 args2 decomposed)
                  (== (lcons 'decompose prf) proof)
-                 (proveo decomposed unexp lits env program prf gamma-budget lem-in lem-out))]
+                 (proveo* decomposed unexp lits env program program-cache eq-cache
+                          prf gamma-budget lem-in lem-out))]
               ;; Paramodulated free closure (transitive constructor clash)
-              [(fresh [eqs]
-                 (== ['para-free-close] proof)
-                 (collect-eqso lits eqs)
-                 (para-free-closeo t1 t2 eqs)
-                 (== lem-out lem-in))]
+              [(== ['para-free-close] proof)
+               (conde
+                 [(fast-para-free-closeo t1 t2 eq-cache)]
+                 [(fresh [eqs]
+                    (eq-cache-pairso lits eq-cache eqs)
+                    (para-free-closeo t1 t2 eqs))])
+               (== lem-out lem-in)]
               ;; EQ-triggered procedure call — positive
               [(fresh [R args params body call-env prf
                        tm new-tm new-args eqs sub-lem]
                  (membero ['pos tm] lits)
                  (== (lcons 'app (lcons R args)) tm)
-                 (collect-eqso (lcons lit lits) eqs)
+                 (eq-cache-pairso (lcons lit lits) next-eq-cache eqs)
                  (rewrite-term-with-eqso tm eqs new-tm)
                  (== (lcons 'app (lcons R new-args)) new-tm)
-                 (lookup-clauseo R program params body)
+                 (lookup-program-bodyo R program program-cache params body)
                  (bind-argso params new-args call-env)
                  (== (lcons 'eq-triggered-call (lcons R prf)) proof)
-                 (proveo body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (proveo* body '() '() call-env program program-cache empty-eq-cache
+                          prf gamma-budget '() sub-lem)
                  (== lem-out lem-in))]
               ;; EQ-triggered procedure call — negative
               [(fresh [R args params body call-env neg-body prf
                        tm new-tm new-args eqs sub-lem]
                  (membero ['neg tm] lits)
                  (== (lcons 'app (lcons R args)) tm)
-                 (collect-eqso (lcons lit lits) eqs)
+                 (eq-cache-pairso (lcons lit lits) next-eq-cache eqs)
                  (rewrite-term-with-eqso tm eqs new-tm)
                  (== (lcons 'app (lcons R new-args)) new-tm)
-                 (lookup-clauseo R program params body)
+                 (lookup-program-neg-bodyo R program program-cache params body neg-body)
                  (bind-argso params new-args call-env)
-                 (negate-formulao body neg-body)
                  (== (lcons 'eq-triggered-neg-call (lcons R prf)) proof)
-                 (proveo neg-body '() '() call-env program prf gamma-budget '() sub-lem)
+                 (proveo* neg-body '() '() call-env program program-cache empty-eq-cache
+                          prf gamma-budget '() sub-lem)
                  (== lem-out lem-in))]
               ;; EQ-triggered NEQ closure
-              [(fresh [n1 n2 eqs]
+              [(fresh [n1 n2]
                  (membero ['neq n1 n2] lits)
-                 (collect-eqso (lcons lit lits) eqs)
-                 (eq-neq-closeo n1 n2 eqs)
                  (== ['eq-triggered-neq-close] proof)
+                 (conde
+                   [(fast-eq-neq-closeo n1 n2 next-eq-cache)]
+                   [(fresh [eqs]
+                      (eq-cache-pairso (lcons lit lits) next-eq-cache eqs)
+                      (eq-neq-closeo n1 n2 eqs))])
                  (== lem-out lem-in))]
-              ;; Continue expansion (savefml)
-              [(fresh [next unexp1 prf]
+              ;; Continue expansion (savefml) — update the eq cache in lockstep
+              ;; with par-eq propagation so later closure checks see both.
+              [(fresh [next unexp1 prf new-env]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget lem-in lem-out))]))]))])))
+                 (propagate-par-eqo t1 t2 env new-env)
+                 (proveo* next unexp1 (lcons lit lits) new-env
+                          program program-cache next-eq-cache
+                          prf gamma-budget lem-in lem-out))]))]))]))
 
 ;; ============================================================================
 ;; Part 7: Top-Level Interface

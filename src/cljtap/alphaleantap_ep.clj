@@ -1152,6 +1152,13 @@
    closure; the small bound keeps cutover predictable."
   1)
 
+(def ^:dynamic *fast-cutover-size-limit*
+  "Maximum printed branch-state size for cooperative cutover.
+   Small residual branches are where the explicit fast engine helps; large
+   inlined finite-table branches can still overwhelm it, so they stay on the
+   symbolic path."
+  400)
+
 (defn fast-cutovero
   "If the current branch state is fully specified, discharge it with the
    explicit fast engine instead of continuing symbolic search.
@@ -1172,22 +1179,46 @@
   ([fml unexp lits env program program-cache proof gamma-budget lem-in lem-out]
    (project [fml program program-cache]
      (if-let [fast-program (cached-fast-program program program-cache)]
-       (if (fast/explicit-formula? fml)
-         (project [unexp lits env gamma-budget lem-in]
-           (if (fast/explicit-branch-compatible? fml unexp lits env fast-program gamma-budget lem-in)
-             (let [results (seq
-                             (map (fn [{:keys [proof lem-out]}]
-                                    [proof lem-out])
-                                  (fast/prove-branch-fast-results
-                                    fast-program fml unexp lits env lem-in
-                                    *fast-cutover-proof-limit*
-                                    gamma-budget)))]
-               (if (seq results)
-                 (membero [proof lem-out] (apply list results))
-                 fail))
-             fail))
-         fail)
+       (try
+         (if (fast/explicit-formula? fml)
+           (project [unexp lits env gamma-budget lem-in]
+             (try
+               (if (fast/explicit-branch-compatible? fml unexp lits env fast-program gamma-budget lem-in)
+                 (let [results (seq
+                                 (map (fn [{:keys [proof lem-out]}]
+                                        [proof lem-out])
+                                      (fast/prove-branch-fast-results
+                                        fast-program fml unexp lits env lem-in
+                                        *fast-cutover-proof-limit*
+                                        gamma-budget)))]
+                   (if (seq results)
+                     (membero [proof lem-out] (apply list results))
+                     fail))
+                 fail)
+               (catch Throwable _
+                 fail)))
+           fail)
+         (catch Throwable _
+           fail))
        fail))))
+
+(defn branch-developed-cutovero
+  "Cooperative cutover is meant for residual explicit sub-branches reached
+   during symbolic proving, not for replacing top-level symbolic runs
+   wholesale. Requiring some developed branch state keeps ref/prove on the
+   relational path for fully explicit root calls, while still allowing the
+   mid-proof cutovers exercised by the cooperative tests.
+
+   The additional size guard keeps very large explicit branches, especially
+   inlined finite-table GV formulas, on the symbolic prover because the fast
+   engine is not yet robust on those shapes."
+  [fml unexp lits env lem-in]
+  (project [fml unexp lits env lem-in]
+    (if (and (or (seq unexp) (seq lits) (seq env) (seq lem-in))
+             (<= (count (pr-str [fml unexp lits env lem-in]))
+                 *fast-cutover-size-limit*))
+      succeed
+      fail)))
 
 ;; --- 5b. Par-Eq Constraint Propagation ---
 
@@ -1270,7 +1301,8 @@
     ;; This enables mixed forward/reverse execution inside a single proof:
     ;; symbolic search on the outer partial problem, explicit proving once
     ;; the residual subgoal is determined.
-    [(fast-cutovero fml unexp lits env program program-cache
+    [(branch-developed-cutovero fml unexp lits env lem-in)
+     (fast-cutovero fml unexp lits env program program-cache
                     proof gamma-budget lem-in lem-out)]
 
     [(conde

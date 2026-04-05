@@ -179,16 +179,6 @@
 
 (declare subst-term*o)
 
-(defn- lookup-walked-env
-  "Pure Clojure: search a walked env (lcons chain or seq) for a binding
-   whose key matches `nom`.  Returns the bound value, or nil if not found."
-  [nom env]
-  (when (seq env)
-    (let [entry (first env)]
-      (if (and (vector? entry) (= (first entry) nom))
-        (second entry)
-        (recur nom (next env))))))
-
 (defn subst-termo
   "Substitute values for tagged noms (var a) in a term, using environment.
    (par p) terms are δ-parameters — resolved through env if a par-eq binding
@@ -196,21 +186,15 @@
    Raw logic variables (synthesis targets from run) are passed through unchanged.
    Uses project for type dispatch — subst-termo is always called fml→out (forward only)."
   [fml env out]
-  (project [fml env]
+  (project [fml]
     (cond
       (and (vector? fml) (= (first fml) 'var))
-      (let [val (lookup-walked-env (second fml) env)]
-        (if val
-          ;; If var resolved to (par p), check for propagated binding
-          (if (and (vector? val) (= (first val) 'par))
-            (let [par-val (lookup-walked-env (second val) env)]
-              (== (or par-val val) out))
-            (== val out))
-          fail))
+      (lookupo (second fml) env out)
 
       (and (vector? fml) (= (first fml) 'par))
-      (let [par-val (lookup-walked-env (second fml) env)]
-        (== (or par-val fml) out))
+      (conde
+        [(lookupo (second fml) env out)]
+        [(== fml out)])
 
       (sequential? fml)
       (fresh [f d r]
@@ -668,15 +652,23 @@
 
    Each equality pair is used at most once per chain (selecto removes the
    chosen pair from `remaining`), guaranteeing termination on cyclic equality
-   sets without an arbitrary step limit."
-  [neg lits remaining]
-  (conde
-    [(membero neg lits)]
-    [(fresh [pair lhs rhs neg-rewritten rest]
-       (selecto pair remaining rest)
-       (== [lhs rhs] pair)
-       (rewrite-lito neg lhs rhs neg-rewritten)
-       (eq-membero neg-rewritten lits rest))]))
+   sets without an arbitrary step limit.
+
+   Depth-limited by default so hot relational closure paths do not explode
+   factorially when the deterministic cache fast paths do not apply."
+  ([neg lits remaining]
+   (eq-membero neg lits remaining 3))
+  ([neg lits remaining depth-limit]
+   (conde
+     [(membero neg lits)]
+     [(fresh [pair lhs rhs neg-rewritten rest]
+        (selecto pair remaining rest)
+        (== [lhs rhs] pair)
+        (rewrite-lito neg lhs rhs neg-rewritten)
+        (project [depth-limit]
+          (if (> depth-limit 0)
+            (eq-membero neg-rewritten lits rest (dec depth-limit))
+            (membero neg-rewritten lits))))])))
 
 ;; --- 3g. Substitutivity for terms (multi-argument) ---
 ;;
@@ -761,16 +753,24 @@
      Branch has s(a)=s(b).  (neq a b) → rewrite a→b via one-one → (neq b b) → close.
 
    Each equality pair is used at most once per chain (`remaining` shrinks at
-   each step via selecto), guaranteeing termination on cyclic equality sets
-   without an arbitrary step limit."
-  [t1 t2 remaining]
-  (fresh [pair lhs rhs t1-rw rest]
-    (selecto pair remaining rest)
-    (== [lhs rhs] pair)
-    (rewrite-termo t1 lhs rhs t1-rw)
-    (conde
-      [(== t1-rw t2)]
-      [(eq-neq-closeo t1-rw t2 rest)])))
+   each step via selecto), guaranteeing termination on cyclic equality sets.
+
+   The relational fallback is depth-limited because the cache-based fast path
+   now handles the long ground chains directly; the residual search cases are
+   the short non-ground ones."
+  ([t1 t2 remaining]
+   (eq-neq-closeo t1 t2 remaining 3))
+  ([t1 t2 remaining depth-limit]
+   (fresh [pair lhs rhs t1-rw rest]
+     (selecto pair remaining rest)
+     (== [lhs rhs] pair)
+     (rewrite-termo t1 lhs rhs t1-rw)
+     (conde
+       [(== t1-rw t2)]
+       [(project [depth-limit]
+          (if (> depth-limit 0)
+            (eq-neq-closeo t1-rw t2 rest (dec depth-limit))
+            fail))]))))
 
 ;; --- 3h. Paramodulated free closure ---
 ;;
@@ -795,29 +795,39 @@
    multi-step chains (e.g., p→q→a when branch has p=q and q=a).
 
    Each equality pair is used at most once per chain (selecto removes the
-   chosen pair from `remaining`), guaranteeing termination without an
-   arbitrary step limit.
+   chosen pair from `remaining`), guaranteeing termination.
+
+   As with eq-neq-closeo, the remaining relational search cases are the short
+   non-ground ones, so the fallback is depth-limited by default.
 
    Soundness: every rewriting step uses only equalities already on the branch,
    and free-closureo's symbol? guard ensures only genuine constructor symbols
    (not δ-parameters) are treated as distinct."
-  [t1 t2 remaining]
-  (fresh [pair lhs rhs rest]
-    (selecto pair remaining rest)
-    (== [lhs rhs] pair)
-    (conde
-      ;; Rewrite t1 one step, then clash-check or recurse
-      [(fresh [t1-rw]
-         (rewrite-termo t1 lhs rhs t1-rw)
-         (conde
-           [(free-closureo t1-rw t2)]
-           [(para-free-closeo t1-rw t2 rest)]))]
-      ;; Rewrite t2 one step, then clash-check or recurse
-      [(fresh [t2-rw]
-         (rewrite-termo t2 lhs rhs t2-rw)
-         (conde
-           [(free-closureo t1 t2-rw)]
-           [(para-free-closeo t1 t2-rw rest)]))])))
+  ([t1 t2 remaining]
+   (para-free-closeo t1 t2 remaining 3))
+  ([t1 t2 remaining depth-limit]
+   (fresh [pair lhs rhs rest]
+     (selecto pair remaining rest)
+     (== [lhs rhs] pair)
+     (conde
+       ;; Rewrite t1 one step, then clash-check or recurse
+       [(fresh [t1-rw]
+          (rewrite-termo t1 lhs rhs t1-rw)
+          (conde
+            [(free-closureo t1-rw t2)]
+            [(project [depth-limit]
+               (if (> depth-limit 0)
+                 (para-free-closeo t1-rw t2 rest (dec depth-limit))
+                 fail))]))]
+       ;; Rewrite t2 one step, then clash-check or recurse
+       [(fresh [t2-rw]
+          (rewrite-termo t2 lhs rhs t2-rw)
+          (conde
+            [(free-closureo t1 t2-rw)]
+            [(project [depth-limit]
+               (if (> depth-limit 0)
+                 (para-free-closeo t1 t2-rw rest (dec depth-limit))
+                 fail))]))]))))
 
 ;; ============================================================================
 ;; Part 4: Formula Negation (NNF-preserving)
@@ -947,10 +957,21 @@
     :else
     nil))
 
-(defn- build-program-cache
-  "Precompute clause lookup and negated clause bodies once per top-level run.
-   This removes repeated negate-formulao work from neg-proc-call-heavy traces
-   while leaving synthesized/non-ground programs on the original lookup path."
+(def ^:private fast-program-key ::fast-program)
+
+(defn- explicit-fast-program
+  "Return the current walked program when it is explicit enough for the fast
+   engine. This is pure meta-level inspection, so callers cache the answer
+   and only fall back to recomputing it when no cache is available."
+  [program]
+  (when (sequential? program)
+    (try
+      (when (fast/explicit-program? program)
+        program)
+      (catch Throwable _
+        nil))))
+
+(defn- build-neg-body-cache
   [program]
   (when (and (sequential? program)
              (logic-ground? program))
@@ -973,10 +994,43 @@
             {}
             program)))
 
+(defn- build-program-cache
+  "Precompute program facts that are stable for a whole top-level proof:
+   - cached negated clause bodies for ground programs
+   - the walked program value when cooperative cutover can use the fast engine
+
+   The cutover metadata is stored alongside the clause cache so recursive
+   proveo* calls can reuse it without dynamic scope tricks."
+  [program]
+  (let [neg-body-cache (build-neg-body-cache program)
+        fast-program   (explicit-fast-program program)]
+    (cond
+      (and neg-body-cache fast-program)
+      (assoc neg-body-cache fast-program-key fast-program)
+
+      fast-program
+      {fast-program-key fast-program}
+
+      :else
+      neg-body-cache)))
+
 (defn init-program-cacheo
   [program program-cache]
   (project [program]
     (== program-cache (build-program-cache program))))
+
+(defn- cached-fast-program
+  "Recover the explicit program for cooperative cutover.
+   Direct calls to fast-cutovero may not have a threaded program-cache yet, so
+   they fall back to a one-off explicitness check here."
+  [program program-cache]
+  (cond
+    (and (map? program-cache)
+         (contains? program-cache fast-program-key))
+    (get program-cache fast-program-key)
+
+    :else
+    (explicit-fast-program program)))
 
 ;; ============================================================================
 ;; Part 5: Program Clause Lookup and Instantiation
@@ -1108,21 +1162,32 @@
 
    This gives true mixed-mode execution inside symbolic runs: partial programs
    and queries remain relational until enough structure is determined, then the
-   remaining ground subgoal is proved by the explicit engine."
-  [fml unexp lits env program proof gamma-budget lem-in lem-out]
-  (project [fml unexp lits env program gamma-budget lem-in]
-    (if (fast/explicit-branch-compatible? fml unexp lits env program gamma-budget lem-in)
-      (let [results (seq
-                      (map (fn [{:keys [proof lem-out]}]
-                             [proof lem-out])
-                           (fast/prove-branch-fast-results
-                             program fml unexp lits env lem-in
-                             *fast-cutover-proof-limit*
-                             gamma-budget)))]
-        (if (seq results)
-          (membero [proof lem-out] (apply list results))
-          fail))
-      fail)))
+   remaining ground subgoal is proved by the explicit engine.
+
+   Recursive proveo* calls normally reuse the explicit walked program threaded
+   through program-cache. Standalone calls still work by recomputing the
+   explicit-program check from `program`."
+  ([fml unexp lits env program proof gamma-budget lem-in lem-out]
+   (fast-cutovero fml unexp lits env program nil proof gamma-budget lem-in lem-out))
+  ([fml unexp lits env program program-cache proof gamma-budget lem-in lem-out]
+   (project [fml program program-cache]
+     (if-let [fast-program (cached-fast-program program program-cache)]
+       (if (fast/explicit-formula? fml)
+         (project [unexp lits env gamma-budget lem-in]
+           (if (fast/explicit-branch-compatible? fml unexp lits env fast-program gamma-budget lem-in)
+             (let [results (seq
+                             (map (fn [{:keys [proof lem-out]}]
+                                    [proof lem-out])
+                                  (fast/prove-branch-fast-results
+                                    fast-program fml unexp lits env lem-in
+                                    *fast-cutover-proof-limit*
+                                    gamma-budget)))]
+               (if (seq results)
+                 (membero [proof lem-out] (apply list results))
+                 fail))
+             fail))
+         fail)
+       fail))))
 
 ;; --- 5b. Par-Eq Constraint Propagation ---
 
@@ -1196,7 +1261,7 @@
    rescanning saved equalities and re-negating clause bodies, while reverse
    runs transparently fall back to the original relational rules."
   [fml unexp lits env program program-cache eq-cache proof gamma-budget lem-in lem-out]
-  (conde
+  (conda
     ;; ================================================================
     ;; COOPERATIVE CUTOVER
     ;; ================================================================
@@ -1205,8 +1270,10 @@
     ;; This enables mixed forward/reverse execution inside a single proof:
     ;; symbolic search on the outer partial problem, explicit proving once
     ;; the residual subgoal is determined.
-    [(fast-cutovero fml unexp lits env program proof gamma-budget lem-in lem-out)]
+    [(fast-cutovero fml unexp lits env program program-cache
+                    proof gamma-budget lem-in lem-out)]
 
+    [(conde
     ;; ================================================================
     ;; CONJUNCTION (α-rule): expand (and e1 e2)
     ;; ================================================================
@@ -1446,6 +1513,17 @@
                  [(membero ['neq t1 t2] lits)]
                  [(membero ['neq t2 t1] lits)])
                (== lem-out lem-in)]
+              ;; Shortcut for the common pattern p=a already on the branch and
+              ;; current eq is p=b. This avoids sending an obvious constructor
+              ;; conflict through the heavier paramodulation machinery.
+              [(fresh [other]
+                 (== ['eq-conflict-close] proof)
+                 (conde
+                   [(membero ['eq t1 other] lits) (free-closureo t2 other)]
+                   [(membero ['eq other t1] lits) (free-closureo t2 other)]
+                   [(membero ['eq t2 other] lits) (free-closureo t1 other)]
+                   [(membero ['eq other t2] lits) (free-closureo t1 other)])
+                 (== lem-out lem-in))]
               ;; Injectivity decomposition (Fitting §5 — One-One)
               ;; eq(f(t₁…tₙ), f(s₁…sₙ)) → t₁=s₁ ∧ … ∧ tₙ=sₙ
               [(fresh [f args1 args2 decomposed prf]
@@ -1511,7 +1589,7 @@
                  (propagate-par-eqo t1 t2 env new-env)
                  (proveo* next unexp1 (lcons lit lits) new-env
                           program program-cache next-eq-cache
-                          prf gamma-budget lem-in lem-out))]))]))]))
+                          prf gamma-budget lem-in lem-out))]))]))])]))
 
 ;; ============================================================================
 ;; Part 7: Top-Level Interface

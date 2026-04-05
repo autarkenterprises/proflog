@@ -51,7 +51,8 @@
   (:require [clojure.test :refer [deftest is testing are run-tests]]
             [clojure.core.logic :refer :all :rename {is l-is, appendo logic-appendo, membero logic-membero}]
             [clojure.core.logic.nominal :refer [tie hash]]
-            [cljtap.alphaleantap-ep :refer :all]))
+            [cljtap.alphaleantap-ep :refer :all]
+            [cljtap.gv-assoc :as gv]))
 
 ;; ---------------------------------------------------------------------------
 ;; Helpers
@@ -2162,6 +2163,16 @@
                             ['and ['eq ['par q] ['app 'a]]
                                   ['eq ['app 'b] ['par p]]]]
                       '() '() '() '() proof)))))))
+
+(deftest test-R03b-eq-conflict-close-proof-step
+  (testing "a=p ∧ b=p can use the direct eq-conflict-close shortcut"
+    (let [proofs (run 3 [proof]
+                   (nom p
+                     (proveo ['and ['eq ['app 'a] ['par p]]
+                                   ['eq ['app 'b] ['par p]]]
+                             '() '() '() '() proof)))]
+      (is (seq proofs))
+      (is (some #(proof-tree-contains? % 'eq-conflict-close) proofs)))))
 
 (deftest test-R04-para-free-close-proof-step
   (testing "para-free-close produces the correct proof step tag"
@@ -5471,242 +5482,8 @@
 ;; Section GV: Group Verifier — Abstract Finite Group Axiom Checker
 ;; ============================================================================
 ;;
-;; An abstract framework for verifying finite group axioms in Proflog.
-;; Given a GROUP SPEC (domain elements, binary operation table, candidate
-;; identity), the framework generates Proflog programs to check each axiom.
-;;
-;; This is a Proflog-native program: every axiom is expressed as a single
-;; clause with full FOL in the body (∀, ∃, ¬, ∧, ∨, =, ≠).  The operation
-;; table is inlined as equalities per Fitting §8 (no auxiliary relations —
-;; the L-ground guard would block procedure calls on δ-parameters).
-;;
-;; GROUP SPEC FORMAT:
-;;   {:domain  [sym₁ sym₂ ...]           ;; Clojure symbols → Proflog constants
-;;    :op      {[sym₁ sym₁] sym₁, ...}   ;; operation table: [a b] → c
-;;    :identity sym₁}                     ;; candidate identity element
-;;
-;; Example — Z₂ = ({0,1}, +mod2, identity=0):
-;;   {:domain  ['zero 'one]
-;;    :op      {['zero 'zero] 'zero, ['zero 'one] 'one,
-;;              ['one  'zero] 'one,  ['one  'one]  'zero}
-;;    :identity 'zero}
-;;
-;; AXIOM PROGRAMS GENERATED:
-;;   gv_closure()  ← ∀x.∀y.(¬D(x) ∨ ¬D(y) ∨ ∃z.(op(x,y,z) ∧ D(z)))
-;;   gv_identity() ← ∀x.(¬D(x) ∨ (op(e,x,x) ∧ op(x,e,x)))
-;;   gv_inverses() ← ∀x.(¬D(x) ∨ ∃y.(D(y) ∧ op(x,y,e) ∧ op(y,x,e)))
-;;   gv_assoc()    ← ∀x.∀y.∀z.∀w1.∀w2.∀w3.∀w4.
-;;                      (¬op(x,y,w1) ∨ ¬op(w1,z,w2) ∨ ¬op(y,z,w3) ∨
-;;                       ¬op(x,w3,w4) ∨ w2=w4)
-;;
-;; where D(x) = "x is in the domain" and op(x,y,z) = "op(x,y)=z",
-;; both inlined as equalities.
-;;
-;; ============================================================================
-
-;; ---------------------------------------------------------------------------
-;; GV Building Blocks (Task #2)
-;; ---------------------------------------------------------------------------
-
-(defn gv-term
-  "Convert a domain element symbol to a Proflog constant term."
-  [sym]
-  ['app sym])
-
-(defn gv-and*
-  "Build a right-associated conjunction from a sequence of formulas.
-   (gv-and* [a b c]) => ['and a ['and b c]]"
-  [formulas]
-  (reduce (fn [acc fml] ['and fml acc]) (reverse formulas)))
-
-(defn gv-or*
-  "Build a right-associated disjunction from a sequence of formulas.
-   (gv-or* [a b c]) => ['or a ['or b c]]"
-  [formulas]
-  (reduce (fn [acc fml] ['or fml acc]) (reverse formulas)))
-
-(defn gv-forall*
-  "Build nested ∀ quantifiers from a sequence of noms and a body.
-   (gv-forall* [x y z] body) => ['forall (tie x ['forall (tie y ['forall (tie z body)])])]"
-  [noms body]
-  (reduce (fn [acc n] ['forall (tie n acc)]) body (reverse noms)))
-
-(defn gv-exists*
-  "Build nested ∃ quantifiers from a sequence of noms and a body.
-   (gv-exists* [x y] body) => ['exists (tie x ['exists (tie y body)])]"
-  [noms body]
-  (reduce (fn [acc n] ['exists (tie n acc)]) body (reverse noms)))
-
-(defn gv-op-eq-inline
-  "op(x,y)=z expressed as equalities from the operation table.
-   Returns: (x=a₁ ∧ y=b₁ ∧ z=c₁) ∨ (x=a₂ ∧ y=b₂ ∧ z=c₂) ∨ ...
-   One disjunct per table entry."
-  [spec x y z]
-  (gv-or*
-    (for [[[a b] c] (:op spec)]
-      (gv-and* [['eq x (gv-term a)]
-                ['eq y (gv-term b)]
-                ['eq z (gv-term c)]]))))
-
-(defn gv-neg-op-eq-inline
-  "¬op(x,y,z) in NNF — the negation of gv-op-eq-inline.
-   Returns: (x≠a₁ ∨ y≠b₁ ∨ z≠c₁) ∧ (x≠a₂ ∨ y≠b₂ ∨ z≠c₂) ∧ ...
-   One conjunct per table entry, each a disjunction of neqs."
-  [spec x y z]
-  (gv-and*
-    (for [[[a b] c] (:op spec)]
-      (gv-or* [['neq x (gv-term a)]
-               ['neq y (gv-term b)]
-               ['neq z (gv-term c)]]))))
-
-(defn gv-in-domain-inline
-  "x ∈ domain expressed as equalities.
-   Returns: x=a₁ ∨ x=a₂ ∨ ..."
-  [spec x]
-  (gv-or* (for [d (:domain spec)] ['eq x (gv-term d)])))
-
-(defn gv-not-in-domain-inline
-  "x ∉ domain in NNF.
-   Returns: x≠a₁ ∧ x≠a₂ ∧ ..."
-  [spec x]
-  (gv-and* (for [d (:domain spec)] ['neq x (gv-term d)])))
-
-;; ---------------------------------------------------------------------------
-;; GV Axiom Generators (Task #3)
-;; ---------------------------------------------------------------------------
-
-(defn gv-identity-program
-  "gv_identity() ← ∀x.(¬D(x) ∨ (op(e,x,x) ∧ op(x,e,x)))
-   'e is a two-sided identity for all domain elements.'
-   x is the ∀-bound nom."
-  [spec x]
-  (let [e  (gv-term (:identity spec))
-        vx ['var x]]
-    [['gv_identity []
-      (gv-forall* [x]
-        ['or (gv-not-in-domain-inline spec vx)
-             ['and (gv-op-eq-inline spec e vx vx)
-                   (gv-op-eq-inline spec vx e vx)]])]]))
-
-(defn gv-closure-program
-  "gv_closure() ← ∀x.∀y.(¬D(x) ∨ ¬D(y) ∨ ∃z.(op(x,y,z) ∧ D(z)))
-   'The operation is closed on the domain.'
-   x, y are ∀-bound noms; z is the ∃-witness nom."
-  [spec x y z]
-  (let [vx ['var x]
-        vy ['var y]
-        vz ['var z]]
-    [['gv_closure []
-      (gv-forall* [x y]
-        (gv-or* [(gv-not-in-domain-inline spec vx)
-                 (gv-not-in-domain-inline spec vy)
-                 (gv-exists* [z]
-                   ['and (gv-op-eq-inline spec vx vy vz)
-                         (gv-in-domain-inline spec vz)])]))]]))
-
-(defn gv-inverses-program
-  "gv_inverses() ← ∀x.(¬D(x) ∨ ∃y.(D(y) ∧ op(x,y,e) ∧ op(y,x,e)))
-   'Every domain element has a two-sided inverse.'
-   x is the ∀-bound nom; y is the ∃-witness nom."
-  [spec x y]
-  (let [e  (gv-term (:identity spec))
-        vx ['var x]
-        vy ['var y]]
-    [['gv_inverses []
-      (gv-forall* [x]
-        ['or (gv-not-in-domain-inline spec vx)
-             (gv-exists* [y]
-               (gv-and* [(gv-in-domain-inline spec vy)
-                         (gv-op-eq-inline spec vx vy e)
-                         (gv-op-eq-inline spec vy vx e)]))])]]))
-
-(defn gv-assoc-program
-  "gv_assoc() ← ∀x.∀y.∀z.∀w1.∀w2.∀w3.∀w4.
-                  (¬op(x,y,w1) ∨ ¬op(w1,z,w2) ∨ ¬op(y,z,w3) ∨
-                   ¬op(x,w3,w4) ∨ w2=w4)
-   'op is associative: op(op(x,y),z) = op(x,op(y,z)) for all x,y,z
-    and all intermediate values w1,w2,w3,w4.'
-   7 universally quantified noms."
-  [spec x y z w1 w2 w3 w4]
-  (let [vx  ['var x]  vy  ['var y]  vz  ['var z]
-        vw1 ['var w1] vw2 ['var w2] vw3 ['var w3] vw4 ['var w4]]
-    [['gv_assoc []
-      (gv-forall* [x y z w1 w2 w3 w4]
-        (gv-or* [(gv-neg-op-eq-inline spec vx vy vw1)   ;; ¬op(x,y,w1)
-                 (gv-neg-op-eq-inline spec vw1 vz vw2)  ;; ¬op(w1,z,w2)
-                 (gv-neg-op-eq-inline spec vy vz vw3)   ;; ¬op(y,z,w3)
-                 (gv-neg-op-eq-inline spec vx vw3 vw4)  ;; ¬op(x,w3,w4)
-                 ['eq vw2 vw4]]))]]))                    ;; w2 = w4
-
-(defn gv-assoc-precomputed-program
-  "Pre-computed associativity checker using only 3 universals (x, y, z).
-
-   Instead of quantifying over intermediate values w1-w4 and using the
-   prover to resolve op-lookups (7 universals, intractable for |domain|≥2),
-   the framework computes op(op(x,y),z) and op(x,op(y,z)) in Clojure for
-   each (a,b,c) triple and generates the equality check inline:
-
-   gv_assoc_pre() ← ∀x.∀y.∀z.(¬D(x) ∨ ¬D(y) ∨ ¬D(z) ∨ assoc-check(x,y,z))
-
-   where assoc-check(x,y,z) = ∧_{(a,b,c) ∈ D³}
-     (x≠a ∨ y≠b ∨ z≠c ∨ eq(op(op(a,b),c), op(a,op(b,c))))
-
-   This is logically equivalent to the 7-universal version but tractable:
-   only 3 universals, and |domain|³ conjuncts (8 for Z₂)."
-  [spec x y z]
-  (let [vx    ['var x]
-        vy    ['var y]
-        vz    ['var z]
-        op    (:op spec)
-        dom   (:domain spec)
-        ;; Pre-compute: for each (a,b,c), check op(op(a,b),c) = op(a,op(b,c))
-        triple-checks
-        (for [a dom, b dom, c dom]
-          (let [ab   (get op [a b])
-                ab-c (get op [ab c])
-                bc   (get op [b c])
-                a-bc (get op [a bc])]
-            ;; x≠a ∨ y≠b ∨ z≠c ∨ eq(op(op(a,b),c), op(a,op(b,c)))
-            (gv-or* [['neq vx (gv-term a)]
-                     ['neq vy (gv-term b)]
-                     ['neq vz (gv-term c)]
-                     ['eq (gv-term ab-c) (gv-term a-bc)]])))]
-    [['gv_assoc_pre []
-      (gv-forall* [x y z]
-        (gv-or* [(gv-not-in-domain-inline spec vx)
-                 (gv-not-in-domain-inline spec vy)
-                 (gv-not-in-domain-inline spec vz)
-                 (gv-and* triple-checks)]))]]))
-
-;; ---------------------------------------------------------------------------
-;; GV Group Specs
-;; ---------------------------------------------------------------------------
-
-(def gv-z2
-  "Z₂ = ({0,1}, +mod2, identity=0).  The cyclic group of order 2."
-  {:domain   ['zero 'one]
-   :op       {['zero 'zero] 'zero
-              ['zero 'one]  'one
-              ['one  'zero] 'one
-              ['one  'one]  'zero}
-   :identity 'zero})
-
-(def gv-z1
-  "Z₁ = ({e}, trivial operation, identity=e).  The trivial group."
-  {:domain   ['e]
-   :op       {['e 'e] 'e}
-   :identity 'e})
-
-(def gv-non-group
-  "A non-group 2-element magma.  op(1,0)=0, so 0 is not a right identity
-   for 1 (op(1,0)=0≠1).  Also non-associative: op(1,0,1): op(op(1,0),1)
-   = op(0,1)=1 but op(1,op(0,1))=op(1,1)=0."
-  {:domain   ['zero 'one]
-   :op       {['zero 'zero] 'zero
-              ['zero 'one]  'one
-              ['one  'zero] 'zero    ;; <-- differs from Z₂
-              ['one  'one]  'zero}
-   :identity 'zero})
+;; Shared GV builders/specs live in cljtap.gv-assoc so the warm associativity
+;; bench can load them without compiling this full test namespace.
 
 ;; ---------------------------------------------------------------------------
 ;; GV Tests (Task #4)
@@ -5722,7 +5499,7 @@
     (is (seq
           (run 1 [proof]
             (nom x
-              (let [prog (gv-identity-program gv-z2 x)]
+              (let [prog (gv/gv-identity-program gv/gv-z2 x)]
                 (proveo ['neg ['app 'gv_identity]]
                         '() '() '() prog proof))))))))
 
@@ -5735,7 +5512,7 @@
     (is (seq
           (run 1 [proof]
             (nom x y z
-              (let [prog (gv-closure-program gv-z2 x y z)]
+              (let [prog (gv/gv-closure-program gv/gv-z2 x y z)]
                 (proveo ['neg ['app 'gv_closure]]
                         '() '() '() prog proof))))))))
 
@@ -5746,7 +5523,7 @@
     (is (seq
           (run 1 [proof]
             (nom x y
-              (let [prog (gv-inverses-program gv-z2 x y)]
+              (let [prog (gv/gv-inverses-program gv/gv-z2 x y)]
                 (proveo ['neg ['app 'gv_inverses]]
                         '() '() '() prog proof))))))))
 
@@ -5771,7 +5548,7 @@
     (is (seq
           (run 1 [proof]
             (nom x y z
-              (let [prog (gv-assoc-precomputed-program gv-z2 x y z)]
+              (let [prog (gv/gv-assoc-precomputed-program gv/gv-z2 x y z)]
                 (proveo ['neg ['app 'gv_assoc_pre]]
                         '() '() '() prog proof))))))))
 
@@ -5781,7 +5558,7 @@
     (is (seq
           (run 1 [proof]
             (nom x
-              (let [prog (gv-identity-program gv-z1 x)]
+              (let [prog (gv/gv-identity-program gv/gv-z1 x)]
                 (proveo ['neg ['app 'gv_identity]]
                         '() '() '() prog proof))))))))
 
@@ -5791,7 +5568,7 @@
     (is (seq
           (run 1 [proof]
             (nom x y z w1 w2 w3 w4
-              (let [prog (gv-assoc-program gv-z1 x y z w1 w2 w3 w4)]
+              (let [prog (gv/gv-assoc-program gv/gv-z1 x y z w1 w2 w3 w4)]
                 (proveo ['neg ['app 'gv_assoc]]
                         '() '() '() prog proof))))))))
 
@@ -5802,7 +5579,7 @@
     (is (empty?
           (run 1 [proof]
             (nom x
-              (let [prog (gv-identity-program gv-non-group x)]
+              (let [prog (gv/gv-identity-program gv/gv-non-group x)]
                 (proveo ['neg ['app 'gv_identity]]
                         '() '() '() prog proof))))))))
 
@@ -5814,56 +5591,18 @@
     (is (seq
           (run 1 [proof]
             (nom x
-              (let [prog (gv-identity-program gv-non-group x)]
+              (let [prog (gv/gv-identity-program gv/gv-non-group x)]
                 (proveo ['pos ['app 'gv_identity]]
                         '() '() '() prog proof))))))))
 
-;; GV09 — NON-GROUP ASSOCIATIVITY (7-UNIVERSAL VERSION)
+;; Larger associativity regressions for the full 7-universal, chained
+;; existential, and Z4 precomputed encodings are exercised via
+;; scripts/gv_assoc_bench.clj instead of the default test suite.
 ;;
-;; The non-group magma is NOT associative.
-;; Counterexample: x=1,y=0,z=1.
-;;   op(op(1,0),1) = op(0,1) = 1
-;;   op(1,op(0,1)) = op(1,1) = 0
-;;   1 ≠ 0.
-;;
-;; pos-call (is assoc FALSE?): NOW WORKS — completes in ~1ms.
-;;   The prover finds the counterexample instantiation (x=one, y=zero,
-;;   z=one) via γ-rule, then all β-branches close via neq-reflexivity
-;;   or free-closure on eq(one,zero).  Previously documented as
-;;   "INTRACTABLE (4^8 = 65,536 β-paths)" — lemma reuse and
-;;   type-dispatched grouping made the search tractable.
-;;
-;; neg-call (is assoc TRUE?): STILL INTRACTABLE for |domain|≥2.
-;;   The negated body introduces 7 ∃-quantifiers (δ-parameters), then
-;;   4 positive op-lookups × 4 entries = 256+ β-path combinations.
-;;   Since the formula is NOT valid, the prover must exhaustively
-;;   explore all paths to return EMPTY — inherently exponential.
-;;   With γ-budget this terminates but takes >60s for |domain|=2.
-;;
-;; neg-call on Z₂ (is assoc TRUE? — yes): STILL INTRACTABLE.
-;;   Even though a closing tableau exists, the 7 δ-parameters and
-;;   256+ β-paths with paramodulation make the search space too large.
-;;
-;; The asymmetry: pos-call needs ONE closing instantiation (existential),
-;; neg-call needs ALL β-paths to close (universal).  Techniques that
-;; could help the neg-call cases:
-;;   - Constraint propagation: eagerly propagate eq constraints from
-;;     δ-rule parameters to prune infeasible β-branches
-;;   - Connection tableaux: goal-directed β-choice
-;;   - Finite model enumeration: exploit known finite domain
-
-(deftest test-GV09-non-group-assoc-refuted
-  (testing "GV09: Non-group magma is provably NOT associative.
-            Uses the FULL 7-universal formulation (not pre-computed).
-            pos-call closes: γ-rule instantiates x=one, y=zero, z=one
-            (and appropriate w1-w4), then all β-branches of the 4 ¬op
-            disjuncts close via neq-reflexivity or free-closure."
-    (is (seq
-          (run 1 [proof]
-            (nom x y z w1 w2 w3 w4
-              (let [prog (gv-assoc-program gv-non-group x y z w1 w2 w3 w4)]
-                (proveo ['pos ['app 'gv_assoc]]
-                        '() '() '() prog proof))))))))
+;; They are still useful coverage, but on perf-lab-review they remain slow
+;; enough to dominate routine `lein test` runs. The shared generators now live
+;; in cljtap.gv-assoc so both this test namespace and the bench harness
+;; exercise the same generated programs directly.
 
 
 ;; ============================================================================

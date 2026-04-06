@@ -5593,14 +5593,16 @@
                             (gv/gv-op-eq-inline gv/gv-non-group one zero one)]
                       '() '() '() '() proof)))))))
 
-;; Larger associativity regressions for the full 7-universal, chained
-;; existential, and Z4 precomputed encodings are exercised via
-;; scripts/gv_assoc_bench.clj instead of the default test suite.
+;; Larger associativity regressions for the full 7-universal and chained
+;; existential encodings are still exercised via scripts/gv_assoc_bench.clj
+;; instead of the default test suite.
 ;;
-;; They are still useful coverage, but on perf-lab-review they remain slow
-;; enough to dominate routine `lein test` runs. The shared generators now live
-;; in cljtap.gv-assoc so both this test namespace and the bench harness
-;; exercise the same generated programs directly.
+;; The Z4 group-axiom checks now live in the explicit non-default suite
+;; (`lein test-nondefault`). They are still useful coverage, but on
+;; perf-lab-review they remain slow enough to dominate routine `lein test`
+;; runs. The shared generators now live in cljtap.gv-assoc so the default
+;; suite, the non-default suite, and the bench harness exercise the same
+;; generated programs directly.
 
 
 ;; ============================================================================

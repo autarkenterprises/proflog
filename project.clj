@@ -4,6 +4,9 @@
                  [org.clojure/core.logic "1.0.1"]]
   :source-paths ["src"]
   :test-paths ["test"]
+  :profiles
+  {:nondefault
+   {:test-paths ^:replace ["test" "test-nondefault"]}}
   :test-selectors
   {:A    (fn [m] (re-find #"^test-A\d" (str (:name m))))
    :B    (fn [m] (re-find #"^test-B\d" (str (:name m))))
@@ -49,5 +52,7 @@
    :GP   (fn [m] (re-find #"^test-GP\d" (str (:name m))))
    :GV   (fn [m] (re-find #"^test-GV\d" (str (:name m))))
    :FD   (fn [m] (re-find #"^test-FD\d" (str (:name m))))}
-  :aliases {"test-section"   ["run" "-m" "cljtap.run-section"]
-            "test-all-timed" ["run" "-m" "cljtap.run-section" "--all"]})
+  :aliases {"test-section"    ["run" "-m" "cljtap.run-section"]
+            "test-all-timed"  ["run" "-m" "cljtap.run-section" "--all"]
+            "test-nondefault" ["with-profile" "+nondefault"
+                               "test" "cljtap.alphaleantap-ep-nondefault-test"]})

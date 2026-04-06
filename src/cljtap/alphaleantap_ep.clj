@@ -173,6 +173,59 @@
   [term]
   (nnext term))
 
+;; The hot substitution path repeatedly walks the same branch environment to
+;; resolve `(var a)` and propagated `(par p)` bindings. Forward runs can reuse
+;; an incremental env cache, while reverse-mode synthesis falls back to the
+;; original relational lookup whenever no concrete cache is available.
+
+(def empty-env-cache {})
+
+(defn- extend-env-cache*
+  [env-cache binding]
+  (cond
+    (nil? env-cache)
+    nil
+
+    (and (vector? binding) (= 2 (count binding)))
+    (assoc env-cache (first binding) (second binding))
+
+    :else
+    nil))
+
+(defn- build-env-cache
+  [env]
+  (when (sequential? env)
+    ;; `env` is a stack: the first binding shadows any later duplicates.
+    ;; Build from tail to head so the head binding wins in the cache too.
+    (reduce (fn [env-cache binding]
+              (extend-env-cache* env-cache binding))
+            empty-env-cache
+            (reverse env))))
+
+(defn init-env-cacheo
+  [env env-cache]
+  (project [env]
+    (== env-cache (build-env-cache env))))
+
+(defn extend-env-cacheo
+  [binding env-cache-in env-cache-out]
+  (project [binding env-cache-in]
+    (== env-cache-out (extend-env-cache* env-cache-in binding))))
+
+(defn cached-lookupo
+  "Use the deterministic env cache when available; otherwise fall back to the
+   original relational environment walk."
+  [a env env-cache out]
+  (project [a env-cache]
+    (cond
+      (map? env-cache)
+      (if (contains? env-cache a)
+        (== out (get env-cache a))
+        fail)
+
+      :else
+      (lookupo a env out))))
+
 ;; ============================================================================
 ;; Part 2: Substitution Relations
 ;; ============================================================================
@@ -185,59 +238,65 @@
    exists (constraint propagation), otherwise passed through unchanged.
    Raw logic variables (synthesis targets from run) are passed through unchanged.
    Uses project for type dispatch — subst-termo is always called fml→out (forward only)."
-  [fml env out]
-  (project [fml]
-    (cond
-      (and (vector? fml) (= (first fml) 'var))
-      (lookupo (second fml) env out)
+  ([fml env out]
+   (subst-termo fml env nil out))
+  ([fml env env-cache out]
+   (project [fml]
+     (cond
+       (and (vector? fml) (= (first fml) 'var))
+       (cached-lookupo (second fml) env env-cache out)
 
-      (and (vector? fml) (= (first fml) 'par))
-      (conde
-        [(lookupo (second fml) env out)]
-        [(== fml out)])
+       (and (vector? fml) (= (first fml) 'par))
+       (conde
+         [(cached-lookupo (second fml) env env-cache out)]
+         [(== fml out)])
 
-      (sequential? fml)
-      (fresh [f d r]
-        (== (lcons 'app (lcons f d)) fml)
-        (== (lcons 'app (lcons f r)) out)
-        (subst-term*o d env r))
+       (sequential? fml)
+       (fresh [f d r]
+         (== (lcons 'app (lcons f d)) fml)
+         (== (lcons 'app (lcons f r)) out)
+         (subst-term*o d env env-cache r))
 
-      :else
-      (== fml out))))
+       :else
+       (== fml out)))))
 
 (defn subst-term*o
   "Substitute across a list of terms."
-  [tm* env out]
-  (conde
-    [(== '() tm*) (== '() out)]
-    [(fresh [e1 e2 r1 r2]
-       (== (lcons e1 e2) tm*)
-       (== (lcons r1 r2) out)
-       (subst-termo e1 env r1)
-       (subst-term*o e2 env r2))]))
+  ([tm* env out]
+   (subst-term*o tm* env nil out))
+  ([tm* env env-cache out]
+   (conde
+     [(== '() tm*) (== '() out)]
+     [(fresh [e1 e2 r1 r2]
+        (== (lcons e1 e2) tm*)
+        (== (lcons r1 r2) out)
+        (subst-termo e1 env env-cache r1)
+        (subst-term*o e2 env env-cache r2))])))
 
 (defn subst-lito
   "Substitute in a literal: (pos t), (neg t), (eq t1 t2), (neq t1 t2)."
-  [fml env out]
-  (conde
-    [(fresh [l r]
-       (== ['pos l] fml)
-       (== ['pos r] out)
-       (subst-termo l env r))]
-    [(fresh [l r]
-       (== ['neg l] fml)
-       (== ['neg r] out)
-       (subst-termo l env r))]
-    [(fresh [l1 l2 r1 r2]
-       (== ['eq l1 l2] fml)
-       (== ['eq r1 r2] out)
-       (subst-termo l1 env r1)
-       (subst-termo l2 env r2))]
-    [(fresh [l1 l2 r1 r2]
-       (== ['neq l1 l2] fml)
-       (== ['neq r1 r2] out)
-       (subst-termo l1 env r1)
-       (subst-termo l2 env r2))]))
+  ([fml env out]
+   (subst-lito fml env nil out))
+  ([fml env env-cache out]
+   (conde
+     [(fresh [l r]
+        (== ['pos l] fml)
+        (== ['pos r] out)
+        (subst-termo l env env-cache r))]
+     [(fresh [l r]
+        (== ['neg l] fml)
+        (== ['neg r] out)
+        (subst-termo l env env-cache r))]
+     [(fresh [l1 l2 r1 r2]
+        (== ['eq l1 l2] fml)
+        (== ['eq r1 r2] out)
+        (subst-termo l1 env env-cache r1)
+        (subst-termo l2 env env-cache r2))]
+     [(fresh [l1 l2 r1 r2]
+        (== ['neq l1 l2] fml)
+        (== ['neq r1 r2] out)
+        (subst-termo l1 env env-cache r1)
+        (subst-termo l2 env env-cache r2))])))
 
 ;; ============================================================================
 ;; Part 3: Equality Reasoning — Free Closure, Injectivity, Paramodulation
@@ -1245,6 +1304,26 @@
       :else
       (== new-env env))))
 
+(defn- propagate-par-cache*
+  [t1 t2 env-cache]
+  (cond
+    (nil? env-cache)
+    nil
+
+    (and (par-term? t1) (not (par-term? t2)))
+    (assoc env-cache (second t1) t2)
+
+    (and (par-term? t2) (not (par-term? t1)))
+    (assoc env-cache (second t2) t1)
+
+    :else
+    env-cache))
+
+(defn propagate-par-cacheo
+  [t1 t2 env-cache-in env-cache-out]
+  (project [t1 t2 env-cache-in]
+    (== env-cache-out (propagate-par-cache* t1 t2 env-cache-in))))
+
 ;; ============================================================================
 ;; Part 6: The Main Prover — αleanTAP-EP (proveo)
 ;; ============================================================================
@@ -1281,17 +1360,19 @@
    (fresh [lem-out]
      (proveo fml unexp lits env program proof gamma-budget '() lem-out)))
   ([fml unexp lits env program proof gamma-budget lem-in lem-out]
-   (fresh [eq-cache program-cache]
+   (fresh [env-cache eq-cache program-cache]
+     (init-env-cacheo env env-cache)
      (init-eq-cacheo lits eq-cache)
      (init-program-cacheo program program-cache)
-     (proveo* fml unexp lits env program program-cache eq-cache
+     (proveo* fml unexp lits env env-cache program program-cache eq-cache
               proof gamma-budget lem-in lem-out))))
 
 (defn proveo*
   "Internal prover worker. Threads branch-local caches so forward runs avoid
-   rescanning saved equalities and re-negating clause bodies, while reverse
-   runs transparently fall back to the original relational rules."
-  [fml unexp lits env program program-cache eq-cache proof gamma-budget lem-in lem-out]
+   rescanning saved equalities, rewalking the same env on every substitution,
+   and re-negating clause bodies, while reverse runs transparently fall back
+   to the original relational rules."
+  [fml unexp lits env env-cache program program-cache eq-cache proof gamma-budget lem-in lem-out]
   (conda
     ;; ================================================================
     ;; COOPERATIVE CUTOVER
@@ -1312,7 +1393,7 @@
     [(fresh [e1 e2 prf]
        (== ['and e1 e2] fml)
        (== (lcons 'conj prf) proof)
-       (proveo* e1 (lcons e2 unexp) lits env program program-cache eq-cache
+       (proveo* e1 (lcons e2 unexp) lits env env-cache program program-cache eq-cache
                 prf gamma-budget lem-in lem-out))]
 
     ;; ================================================================
@@ -1323,9 +1404,9 @@
     [(fresh [e1 e2 prf1 prf2 lem-mid]
        (== ['or e1 e2] fml)
        (== ['split prf1 prf2] proof)
-       (proveo* e1 unexp lits env program program-cache eq-cache
+       (proveo* e1 unexp lits env env-cache program program-cache eq-cache
                 prf1 gamma-budget lem-in lem-mid)
-       (proveo* e2 unexp lits env program program-cache eq-cache
+       (proveo* e2 unexp lits env env-cache program program-cache eq-cache
                 prf2 gamma-budget lem-mid lem-out))]
 
     ;; ================================================================
@@ -1336,7 +1417,7 @@
     ;; with existing formulas or try other rules.
     ;; ================================================================
     [(nom a
-       (fresh [x body unexp1 prf new-budget]
+       (fresh [x body unexp1 prf new-budget next-env-cache]
          (== ['forall (tie a body)] fml)
          ;; Budget check: nil = unbounded, 0 = fail, n>0 = decrement
          (project [gamma-budget]
@@ -1346,7 +1427,9 @@
              :else                 fail))
          (== (lcons 'univ prf) proof)
          (appendo unexp (list fml) unexp1)
-         (proveo* body unexp1 lits (lcons [a x] env) program program-cache eq-cache
+         (extend-env-cacheo [a x] env-cache next-env-cache)
+         (proveo* body unexp1 lits (lcons [a x] env) next-env-cache
+                  program program-cache eq-cache
                   prf new-budget lem-in lem-out)))]
 
     ;; ================================================================
@@ -1356,10 +1439,12 @@
     ;; Does NOT consume gamma-budget (it's already single-use).
     ;; ================================================================
     [(nom a
-       (fresh [x body prf]
+       (fresh [x body prf next-env-cache]
          (== ['once-forall (tie a body)] fml)
          (== (lcons 'once-univ prf) proof)
-         (proveo* body unexp lits (lcons [a x] env) program program-cache eq-cache
+         (extend-env-cacheo [a x] env-cache next-env-cache)
+         (proveo* body unexp lits (lcons [a x] env) next-env-cache
+                  program program-cache eq-cache
                   prf gamma-budget lem-in lem-out)))]
 
     ;; ================================================================
@@ -1381,10 +1466,12 @@
     ;; ================================================================
     [(nom a
        (nom p  ;; fresh parameter — the Skolem witness
-         (fresh [body prf]
+         (fresh [body prf next-env-cache]
            (== ['exists (tie a body)] fml)
            (== (lcons 'witness prf) proof)
-           (proveo* body unexp lits (lcons [a ['par p]] env) program program-cache eq-cache
+           (extend-env-cacheo [a ['par p]] env-cache next-env-cache)
+           (proveo* body unexp lits (lcons [a ['par p]] env) next-env-cache
+                    program program-cache eq-cache
                     prf gamma-budget lem-in lem-out))))]
 
     ;; ================================================================
@@ -1399,7 +1486,7 @@
     ;; transparent to mplus, so result ordering is preserved exactly.
     ;; ================================================================
     [(fresh [lit]
-       (subst-lito fml env lit)
+       (subst-lito fml env env-cache lit)
        (conde
 
          ;; ---- POS LITERAL GROUP ----
@@ -1423,17 +1510,19 @@
               ;; Procedure call (Fitting §6, Part 1)
               ;; L-GROUND GUARD: soundness requirement for supervaluation
               ;; semantics (Fitting §6 Def 6.1, Theorem 7.2).
-              [(fresh [R args params body call-env prf sub-lem]
+              [(fresh [R args params body call-env call-env-cache prf sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
                  (l-ground-term*o args)
                  (lookup-program-bodyo R program program-cache params body)
                  (bind-argso params args call-env)
+                 (init-env-cacheo call-env call-env-cache)
                  (== (lcons 'proc-call (lcons R prf)) proof)
-                 (proveo* body '() '() call-env program program-cache empty-eq-cache
+                 (proveo* body '() '() call-env call-env-cache
+                          program program-cache empty-eq-cache
                           prf gamma-budget '() sub-lem)
                  (== lem-out (lcons ['pos tm] lem-in)))]
               ;; Substitutivity-augmented procedure call
-              [(fresh [R args params body call-env prf
+              [(fresh [R args params body call-env call-env-cache prf
                        new-tm new-args eqs sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
                  (eq-cache-pairso lits eq-cache eqs)
@@ -1441,15 +1530,18 @@
                  (== (lcons 'app (lcons R new-args)) new-tm)
                  (lookup-program-bodyo R program program-cache params body)
                  (bind-argso params new-args call-env)
+                 (init-env-cacheo call-env call-env-cache)
                  (== (lcons 'subst-call (lcons R prf)) proof)
-                 (proveo* body '() '() call-env program program-cache empty-eq-cache
+                 (proveo* body '() '() call-env call-env-cache
+                          program program-cache empty-eq-cache
                           prf gamma-budget '() sub-lem)
                  (== lem-out (lcons ['pos tm] lem-in)))]
               ;; Continue expansion (savefml)
               [(fresh [next unexp1 prf]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo* next unexp1 (lcons lit lits) env program program-cache eq-cache
+                 (proveo* next unexp1 (lcons lit lits) env env-cache
+                          program program-cache eq-cache
                           prf gamma-budget lem-in lem-out))]))]
 
          ;; ---- NEG LITERAL GROUP ----
@@ -1471,17 +1563,19 @@
                  (eq-membero ['pos tm] lits eqs)
                  (== lem-out (lcons ['neg tm] lem-in)))]
               ;; Procedure call (Fitting §6, Part 2)
-              [(fresh [R args params body call-env neg-body prf sub-lem]
+              [(fresh [R args params body call-env call-env-cache neg-body prf sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
                  (l-ground-term*o args)
                  (lookup-program-neg-bodyo R program program-cache params body neg-body)
                  (bind-argso params args call-env)
+                 (init-env-cacheo call-env call-env-cache)
                  (== (lcons 'neg-proc-call (lcons R prf)) proof)
-                 (proveo* neg-body '() '() call-env program program-cache empty-eq-cache
+                 (proveo* neg-body '() '() call-env call-env-cache
+                          program program-cache empty-eq-cache
                           prf gamma-budget '() sub-lem)
                  (== lem-out (lcons ['neg tm] lem-in)))]
               ;; Substitutivity-augmented procedure call
-              [(fresh [R args params body call-env neg-body prf
+              [(fresh [R args params body call-env call-env-cache neg-body prf
                        new-tm new-args eqs sub-lem]
                  (== (lcons 'app (lcons R args)) tm)
                  (eq-cache-pairso lits eq-cache eqs)
@@ -1489,15 +1583,18 @@
                  (== (lcons 'app (lcons R new-args)) new-tm)
                  (lookup-program-neg-bodyo R program program-cache params body neg-body)
                  (bind-argso params new-args call-env)
+                 (init-env-cacheo call-env call-env-cache)
                  (== (lcons 'neg-subst-call (lcons R prf)) proof)
-                 (proveo* neg-body '() '() call-env program program-cache empty-eq-cache
+                 (proveo* neg-body '() '() call-env call-env-cache
+                          program program-cache empty-eq-cache
                           prf gamma-budget '() sub-lem)
                  (== lem-out (lcons ['neg tm] lem-in)))]
               ;; Continue expansion (savefml)
               [(fresh [next unexp1 prf]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo* next unexp1 (lcons lit lits) env program program-cache eq-cache
+                 (proveo* next unexp1 (lcons lit lits) env env-cache
+                          program program-cache eq-cache
                           prf gamma-budget lem-in lem-out))]))]
 
          ;; ---- NEQ LITERAL GROUP ----
@@ -1521,7 +1618,8 @@
               [(fresh [next unexp1 prf]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo* next unexp1 (lcons lit lits) env program program-cache eq-cache
+                 (proveo* next unexp1 (lcons lit lits) env env-cache
+                          program program-cache eq-cache
                           prf gamma-budget lem-in lem-out))]))]
 
          ;; ---- EQ LITERAL GROUP ----
@@ -1565,7 +1663,8 @@
                    (== (lcons _ __) args1))
                  (decompose-eq-argso args1 args2 decomposed)
                  (== (lcons 'decompose prf) proof)
-                 (proveo* decomposed unexp lits env program program-cache eq-cache
+                 (proveo* decomposed unexp lits env env-cache
+                          program program-cache eq-cache
                           prf gamma-budget lem-in lem-out))]
               ;; Paramodulated free closure (transitive constructor clash)
               [(== ['para-free-close] proof)
@@ -1576,7 +1675,7 @@
                     (para-free-closeo t1 t2 eqs))])
                (== lem-out lem-in)]
               ;; EQ-triggered procedure call — positive
-              [(fresh [R args params body call-env prf
+              [(fresh [R args params body call-env call-env-cache prf
                        tm new-tm new-args eqs sub-lem]
                  (membero ['pos tm] lits)
                  (== (lcons 'app (lcons R args)) tm)
@@ -1585,12 +1684,14 @@
                  (== (lcons 'app (lcons R new-args)) new-tm)
                  (lookup-program-bodyo R program program-cache params body)
                  (bind-argso params new-args call-env)
+                 (init-env-cacheo call-env call-env-cache)
                  (== (lcons 'eq-triggered-call (lcons R prf)) proof)
-                 (proveo* body '() '() call-env program program-cache empty-eq-cache
+                 (proveo* body '() '() call-env call-env-cache
+                          program program-cache empty-eq-cache
                           prf gamma-budget '() sub-lem)
                  (== lem-out lem-in))]
               ;; EQ-triggered procedure call — negative
-              [(fresh [R args params body call-env neg-body prf
+              [(fresh [R args params body call-env call-env-cache neg-body prf
                        tm new-tm new-args eqs sub-lem]
                  (membero ['neg tm] lits)
                  (== (lcons 'app (lcons R args)) tm)
@@ -1599,8 +1700,10 @@
                  (== (lcons 'app (lcons R new-args)) new-tm)
                  (lookup-program-neg-bodyo R program program-cache params body neg-body)
                  (bind-argso params new-args call-env)
+                 (init-env-cacheo call-env call-env-cache)
                  (== (lcons 'eq-triggered-neg-call (lcons R prf)) proof)
-                 (proveo* neg-body '() '() call-env program program-cache empty-eq-cache
+                 (proveo* neg-body '() '() call-env call-env-cache
+                          program program-cache empty-eq-cache
                           prf gamma-budget '() sub-lem)
                  (== lem-out lem-in))]
               ;; EQ-triggered NEQ closure
@@ -1615,11 +1718,12 @@
                  (== lem-out lem-in))]
               ;; Continue expansion (savefml) — update the eq cache in lockstep
               ;; with par-eq propagation so later closure checks see both.
-              [(fresh [next unexp1 prf new-env]
+              [(fresh [next unexp1 prf new-env next-env-cache]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
                  (propagate-par-eqo t1 t2 env new-env)
-                 (proveo* next unexp1 (lcons lit lits) new-env
+                 (propagate-par-cacheo t1 t2 env-cache next-env-cache)
+                 (proveo* next unexp1 (lcons lit lits) new-env next-env-cache
                           program program-cache next-eq-cache
                           prf gamma-budget lem-in lem-out))]))]))])]))
 

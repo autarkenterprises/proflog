@@ -188,7 +188,8 @@
         compiled-body (reduce ast/or-form compiled-bodies)]
     {:relation relation
      :params fresh-params
-     :body compiled-body}))
+     :body compiled-body
+     :negated-body (normalize/negate-formula compiled-body)}))
 
 (defn compile-program
   "Validate and compile a surface program into the greenfield core form.
@@ -199,9 +200,13 @@
   (doseq [clause clauses]
     (validate-clause lang clause))
   (let [groups (group-by :relation clauses)]
-    {:language lang
-     :clauses (into {}
-                    (map (fn [[relation same-relation-clauses]]
-                           [relation (clause-group->core-clause
-                                       lang relation same-relation-clauses)]))
-                    groups)}))
+    (let [compiled-clauses
+          (into {}
+                (map (fn [[relation same-relation-clauses]]
+                       [relation (clause-group->core-clause
+                                   lang relation same-relation-clauses)]))
+                groups)]
+      {:language lang
+       :clauses compiled-clauses
+       ;; Keep a sequential view for the purely relational procedure-call rule.
+       :clause-list (apply list (vals compiled-clauses))})))

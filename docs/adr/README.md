@@ -13,5 +13,5 @@ Use ADRs for every feature-sized decision before implementation starts. Each ADR
 | [ADR-0002](ADR-0002-language-and-semantic-boundary.md) | completed | `adr-0002-language-boundary` | language declaration, AST, NNF, substitution | [AAR-0002](../aar/AAR-0002-language-and-semantic-boundary.md) |
 | [ADR-0003](ADR-0003-pure-relational-kernel.md) | completed | `adr-0003-kernel` | base tableau kernel and proof terms | [AAR-0003](../aar/AAR-0003-pure-relational-kernel.md) |
 | [ADR-0004](ADR-0004-equality-kernel.md) | completed | `adr-0004-equality` | equality and disequality kernel | [AAR-0004](../aar/AAR-0004-equality-kernel.md) |
-| [ADR-0005](ADR-0005-procedure-calls-and-query-api.md) | proposed | `adr-0005-calls-query` | calls, programs, query race | pending |
+| [ADR-0005](ADR-0005-procedure-calls-and-query-api.md) | completed | `adr-0005-calls-query` | calls, programs, query race | [AAR-0005](../aar/AAR-0005-procedure-calls-and-query-api.md) |
 | [ADR-0006](ADR-0006-answer-discipline-and-variant-boundary.md) | proposed | `adr-0006-answers-variants` | answer admissibility and variant control | pending |

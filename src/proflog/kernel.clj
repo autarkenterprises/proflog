@@ -10,6 +10,7 @@
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
+            [proflog.program :as program]
             [proflog.subst :as subst]))
 
 (defn complementary-lito
@@ -39,22 +40,23 @@
    - `env`: nominal substitution for lexical binders
    - `sigma`: explicit substitution for free proof variables `(var nom)`
    - `neqs`: saved symbolic disequalities
+   - `prog`: compiled Proflog program, or nil for theorem-proving mode
    - `proof`: proof term describing the closure"
-  [fml unexpanded lits env sigma neqs proof]
+  [fml unexpanded lits env sigma neqs prog proof]
   (conde
     ;; α-rule: both conjuncts must close on the same branch, so the second
     ;; conjunct is pushed onto the branch work stack.
     [(fresh [left right prf]
        (== (list 'and left right) fml)
        (== (list 'conj prf) proof)
-       (prove-stateo left (lcons right unexpanded) lits env sigma neqs prf))]
+       (prove-stateo left (lcons right unexpanded) lits env sigma neqs prog prf))]
 
     ;; β-rule: both branches of the disjunction must close independently.
     [(fresh [left right left-proof right-proof]
        (== (list 'or left right) fml)
        (== (list 'split left-proof right-proof) proof)
-       (prove-stateo left unexpanded lits env sigma neqs left-proof)
-       (prove-stateo right unexpanded lits env sigma neqs right-proof))]
+       (prove-stateo left unexpanded lits env sigma neqs prog left-proof)
+       (prove-stateo right unexpanded lits env sigma neqs prog right-proof))]
 
     ;; γ-rule: instantiate a universal with an explicit free variable term and
     ;; re-enqueue the original universal so later instantiations remain
@@ -71,6 +73,7 @@
                          (lcons [binding-nom (ast/var-term free-var-nom)] env)
                          sigma
                          neqs
+                         prog
                          prf))))]
 
     ;; δ-rule: instantiate an existential exactly once with a rigid internal
@@ -86,6 +89,7 @@
                          (lcons [binding-nom (ast/par-term parameter-nom)] env)
                          sigma
                          neqs
+                         prog
                          prf))))]
 
     ;; Positive equality closes immediately when the two terms cannot denote
@@ -117,7 +121,7 @@
        (equality/unify-termo left right sigma sigma-out step-proof)
        (== (lcons next rest) unexpanded)
        (== (list 'eq-step step-proof prf) proof)
-       (prove-stateo next rest lits env sigma-out neqs prf))]
+       (prove-stateo next rest lits env sigma-out neqs prog prf))]
 
     ;; Negative equality closes only once its two walked sides are forced equal.
     ;; Otherwise it is stored symbolically and rechecked after later bindings.
@@ -131,30 +135,44 @@
        (== (list 'neq left right) lit)
        (== (lcons next rest) unexpanded)
        (== (list 'neq-store prf) proof)
-       (prove-stateo next rest lits env sigma (lcons [left right] neqs) prf))]
+       (prove-stateo next rest lits env sigma (lcons [left right] neqs) prog prf))]
 
     ;; Positive and negative atoms close against a saved complementary atom if
-    ;; their walked arguments can be unified. Otherwise they are saved.
+    ;; their walked arguments can be unified. If no direct complement exists,
+    ;; the Procedure Call Rule may close the branch through a fresh subsidiary
+    ;; tableau over the compiled clause body.
     [(fresh [lit atom]
        (subst/subst-formulao fml env lit)
        (== (list 'pos atom) lit)
        (complementary-lito lit lits sigma proof))]
+    [(fresh [lit atom call-env body negated-body subproof]
+       (subst/subst-formulao fml env lit)
+       (== (list 'pos atom) lit)
+       (program/call-clauseo prog atom call-env body negated-body)
+       (== (list 'pos-call subproof) proof)
+       (prove-stateo body '() '() call-env sigma neqs prog subproof))]
     [(fresh [lit atom]
        (subst/subst-formulao fml env lit)
        (== (list 'neg atom) lit)
        (complementary-lito lit lits sigma proof))]
+    [(fresh [lit atom call-env body negated-body subproof]
+       (subst/subst-formulao fml env lit)
+       (== (list 'neg atom) lit)
+       (program/call-clauseo prog atom call-env body negated-body)
+       (== (list 'neg-call subproof) proof)
+       (prove-stateo negated-body '() '() call-env sigma neqs prog subproof))]
     [(fresh [lit atom next rest prf]
        (subst/subst-formulao fml env lit)
        (== (list 'pos atom) lit)
        (== (lcons next rest) unexpanded)
        (== (list 'savefml prf) proof)
-       (prove-stateo next rest (lcons lit lits) env sigma neqs prf))]
+       (prove-stateo next rest (lcons lit lits) env sigma neqs prog prf))]
     [(fresh [lit atom next rest prf]
        (subst/subst-formulao fml env lit)
        (== (list 'neg atom) lit)
        (== (lcons next rest) unexpanded)
        (== (list 'savefml prf) proof)
-       (prove-stateo next rest (lcons lit lits) env sigma neqs prf))]))
+       (prove-stateo next rest (lcons lit lits) env sigma neqs prog prf))]))
 
 (defn proveo
   "Public five-argument kernel relation.
@@ -162,7 +180,12 @@
    Existing callers see the same surface signature, but each branch now starts
    with an empty equality substitution and empty disequality store."
   [fml unexpanded lits env proof]
-  (prove-stateo fml unexpanded lits env '() '() proof))
+  (prove-stateo fml unexpanded lits env '() '() nil proof))
+
+(defn prove-programo
+  "Kernel relation with an explicit compiled program for procedure calls."
+  [fml unexpanded lits env prog proof]
+  (prove-stateo fml unexpanded lits env '() '() prog proof))
 
 (defn prove
   "Return up to `n` proof terms closing the given greenfield formula."
@@ -170,3 +193,9 @@
   ([fml n]
    (run n [proof]
      (proveo fml '() '() '() proof))))
+
+(defn prove-program
+  "Return up to `n` proof terms closing `fml` relative to `prog`."
+  [prog fml n]
+  (run n [proof]
+    (prove-programo fml '() '() '() prog proof)))

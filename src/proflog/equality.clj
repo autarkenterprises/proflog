@@ -30,8 +30,9 @@
        (!= other binding-nom)
        (unboundo binding-nom rest))]))
 
-(declare walko walk*o walk-term*o
+(declare walko walk*o walk-term*o walk-atomo
          absent-termo absent-term*o
+         absent-paro absent-par*o
          occurs-termo occurs-term*o
          same-termo same-term*o
          unify-termo unify-term*o
@@ -49,6 +50,10 @@
        (== (list 'var binding-nom) term)
        (unboundo binding-nom sigma)
        (== term out))]
+    [(fresh [binding-nom value]
+       (== (list 'par binding-nom) term)
+       (lookupo binding-nom sigma value)
+       (walko value sigma out))]
     [(fresh [binding-nom]
        (== (list 'par binding-nom) term)
        (== term out))]
@@ -84,6 +89,14 @@
        (walk*o head sigma head-out)
        (walk-term*o tail sigma tail-out))]))
 
+(defn walk-atomo
+  "Deep walk over one atomic application."
+  [atom sigma out]
+  (fresh [head args args-out]
+    (== (lcons 'app (lcons head args)) atom)
+    (== (lcons 'app (lcons head args-out)) out)
+    (walk-term*o args sigma args-out)))
+
 (defn absent-termo
   "Succeed when `(var binding-nom)` does not occur anywhere in `term`."
   [binding-nom term sigma]
@@ -108,6 +121,31 @@
        (== (lcons head tail) terms)
        (absent-termo binding-nom head sigma)
        (absent-term*o binding-nom tail sigma))]))
+
+(defn absent-paro
+  "Succeed when `(par binding-nom)` does not occur anywhere in `term`."
+  [binding-nom term sigma]
+  (fresh [root]
+    (walko term sigma root)
+    (conde
+      [(fresh [other]
+         (== (list 'var other) root))]
+      [(fresh [other]
+         (== (list 'par other) root)
+         (!= other binding-nom))]
+      [(fresh [head args]
+         (== (lcons 'app (lcons head args)) root)
+         (absent-par*o binding-nom args sigma))])))
+
+(defn absent-par*o
+  "Succeed when `(par binding-nom)` is absent from every term in `terms`."
+  [binding-nom terms sigma]
+  (conde
+    [(== '() terms)]
+    [(fresh [head tail]
+       (== (lcons head tail) terms)
+       (absent-paro binding-nom head sigma)
+       (absent-par*o binding-nom tail sigma))]))
 
 (defn occurs-termo
   "Succeed when `(var binding-nom)` occurs somewhere inside `term`."
@@ -173,19 +211,6 @@
          (== (list 'var binding-nom) right-root)
          (occurs-termo binding-nom left-root sigma)
          (== '(occurs-close) proof))]
-      [(fresh [left-nom right-nom]
-         (== (list 'par left-nom) left-root)
-         (== (list 'par right-nom) right-root)
-         (!= left-nom right-nom)
-         (== '(free-close) proof))]
-      [(fresh [parameter-nom head args]
-         (== (list 'par parameter-nom) left-root)
-         (== (lcons 'app (lcons head args)) right-root)
-         (== '(free-close) proof))]
-      [(fresh [parameter-nom head args]
-         (== (lcons 'app (lcons head args)) left-root)
-         (== (list 'par parameter-nom) right-root)
-         (== '(free-close) proof))]
       [(fresh [left-head left-args right-head right-args]
          (== (lcons 'app (lcons left-head left-args)) left-root)
          (== (lcons 'app (lcons right-head right-args)) right-root)
@@ -237,6 +262,16 @@
          (absent-termo binding-nom left-root sigma)
          (== (lcons [binding-nom left-root] sigma) sigma-out)
          (== '(eq-bind) proof))]
+      [(fresh [binding-nom]
+         (== (list 'par binding-nom) left-root)
+         (absent-paro binding-nom right-root sigma)
+         (== (lcons [binding-nom right-root] sigma) sigma-out)
+         (== '(par-bind) proof))]
+      [(fresh [binding-nom]
+         (== (list 'par binding-nom) right-root)
+         (absent-paro binding-nom left-root sigma)
+         (== (lcons [binding-nom left-root] sigma) sigma-out)
+         (== '(par-bind) proof))]
       [(fresh [head left-args right-args subproof]
          (== (lcons 'app (lcons head left-args)) left-root)
          (== (lcons 'app (lcons head right-args)) right-root)

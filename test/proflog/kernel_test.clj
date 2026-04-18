@@ -3,7 +3,8 @@
   (:require [clojure.test :refer [deftest is testing]]
             [clojure.core.logic :refer [run]]
             [proflog.ast :as ast]
-            [proflog.kernel :as kernel]))
+            [proflog.kernel :as kernel]
+            [proflog.language :as language]))
 
 (defn provable?
   "True when the greenfield kernel finds at least one closed tableau."
@@ -69,3 +70,54 @@
                  (ast/pos-lit (ast/app-term 'p))
                  (ast/neg-lit (ast/app-term 'p)))
                '() '() '() (list 'conj tail)))))))
+
+(def guarded-call-language
+  (language/language
+    {:constants ['zero]
+     :relations {'r 1}}))
+
+(defn guarded-call-program
+  []
+  (ast/nom x
+    (language/compile-program
+      guarded-call-language
+      [(ast/clause 'r [x]
+                   (ast/neq-lit (ast/var-term x)
+                                (ast/var-term x)))])))
+
+(deftest l-ground-helper-rejects-unresolved-parameters
+  (testing "L-groundness accepts object-language terms and rejects terms containing par"
+    (ast/nom p
+      (is (seq
+            (run 1 [_]
+              (kernel/l-ground-termo
+                (ast/app-term 'zero)))))
+      (is (seq
+            (run 1 [_]
+              (kernel/l-ground-termo
+                (ast/app-term 's (ast/app-term 'zero))))))
+      (is (empty?
+            (run 1 [_]
+              (kernel/l-ground-termo
+                (ast/par-term p)))))
+      (is (empty?
+            (run 1 [_]
+              (kernel/l-ground-termo
+                (ast/app-term 's (ast/par-term p)))))))))
+
+(deftest plain-procedure-calls-wait-for-parameter-equality-to-walk-into-l
+  (testing "plain calls are blocked on unresolved par arguments but reopen after equality walks them to L-terms"
+    (ast/nom p
+      (let [program (guarded-call-program)]
+        (is (empty?
+              (kernel/prove-program
+                program
+                (ast/pos-lit (ast/app-term 'r (ast/par-term p)))
+                1)))
+        (is (seq
+              (kernel/prove-program
+                program
+                (ast/and-form
+                  (ast/eq-lit (ast/par-term p) (ast/app-term 'zero))
+                  (ast/pos-lit (ast/app-term 'r (ast/par-term p))))
+                1)))))))

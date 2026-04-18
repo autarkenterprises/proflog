@@ -73,6 +73,22 @@
             (ast/eq-lit (ast/var-term x)
                         (ast/app-term 'f (ast/var-term x))))))))
 
+(deftest unresolved-parameters-do-not-close-by-constructor-clash-alone
+  (testing "an unresolved internal parameter stays open until some equality constrains it"
+    (ast/nom p q
+      (is (not-provable?
+            (ast/eq-lit (ast/par-term p)
+                        (ast/app-term 'zero))))
+      (is (not-provable?
+            (ast/eq-lit (ast/par-term p)
+                        (ast/par-term q))))
+      (is (provable?
+            (ast/and-form
+              (ast/eq-lit (ast/par-term p)
+                          (ast/app-term 'zero))
+              (ast/neq-lit (ast/par-term p)
+                           (ast/app-term 'zero))))))))
+
 (deftest equality-proof-tags-remain-inspectable
   (testing "equality closure leaves explicit proof tags for debugging"
     (ast/nom x

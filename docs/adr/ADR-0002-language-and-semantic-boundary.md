@@ -1,9 +1,9 @@
 # ADR-0002: Language And Semantic Boundary
 
-- Status: proposed
+- Status: completed
 - Date: 2026-04-18
 - Branch: `adr-0002-language-boundary`
-- AAR: pending
+- AAR: [AAR-0002](../aar/AAR-0002-language-and-semantic-boundary.md)
 
 ## Context
 
@@ -26,6 +26,8 @@ The deep research reports converge on a fixed semantic boundary:
 - The object-language boundary becomes explicit and testable early.
 - Later answer-admissibility checks have a concrete declaration to enforce.
 - Negative calls and open-query substitution can build on a shared internal grammar.
+- The greenfield implementation now has a list-based tagged core chosen specifically
+  to support later relational kernel work without projection-heavy rewrites.
 
 ## Test Obligations
 

@@ -10,3 +10,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 |---|---|---|
 | [AAR-0000](AAR-0000-template.md) | template | template |
 | [AAR-0001](AAR-0001-greenfield-foundation.md) | [ADR-0001](../adr/ADR-0001-greenfield-foundation.md) | completed |
+| [AAR-0002](AAR-0002-language-and-semantic-boundary.md) | [ADR-0002](../adr/ADR-0002-language-and-semantic-boundary.md) | completed |

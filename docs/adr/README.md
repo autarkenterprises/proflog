@@ -10,7 +10,7 @@ Use ADRs for every feature-sized decision before implementation starts. Each ADR
 |---|---|---|---|---|
 | [ADR-0000](ADR-0000-template.md) | template | n/a | template | n/a |
 | [ADR-0001](ADR-0001-greenfield-foundation.md) | completed | `greenfield` | process bootstrap and greenfield structure | [AAR-0001](../aar/AAR-0001-greenfield-foundation.md) |
-| [ADR-0002](ADR-0002-language-and-semantic-boundary.md) | proposed | `adr-0002-language-boundary` | language declaration, AST, NNF, substitution | pending |
+| [ADR-0002](ADR-0002-language-and-semantic-boundary.md) | completed | `adr-0002-language-boundary` | language declaration, AST, NNF, substitution | [AAR-0002](../aar/AAR-0002-language-and-semantic-boundary.md) |
 | [ADR-0003](ADR-0003-pure-relational-kernel.md) | proposed | `adr-0003-kernel` | base tableau kernel and proof terms | pending |
 | [ADR-0004](ADR-0004-equality-kernel.md) | proposed | `adr-0004-equality` | equality and disequality kernel | pending |
 | [ADR-0005](ADR-0005-procedure-calls-and-query-api.md) | proposed | `adr-0005-calls-query` | calls, programs, query race | pending |

@@ -1,9 +1,9 @@
 # ADR-0003: Pure Relational Kernel
 
-- Status: proposed
+- Status: completed
 - Date: 2026-04-18
 - Branch: `adr-0003-kernel`
-- AAR: pending
+- AAR: [AAR-0003](../aar/AAR-0003-pure-relational-kernel.md)
 
 ## Context
 
@@ -20,6 +20,8 @@ The greenfield implementation is supposed to inherit αleanTAP's key architectur
 - Baseline prover behavior can be validated independently of equality and procedure-call complexity.
 - Later failures can be localized to the feature ADR that introduced them.
 - Proof terms become a first-class deliverable instead of a debug afterthought.
+- The new kernel now provides a clean proving relation over the greenfield AST
+  without depending on the experimental `cljtap.*` namespace tree.
 
 ## Test Obligations
 

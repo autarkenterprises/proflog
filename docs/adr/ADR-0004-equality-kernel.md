@@ -1,9 +1,9 @@
 # ADR-0004: Equality Kernel
 
-- Status: proposed
+- Status: completed
 - Date: 2026-04-18
 - Branch: `adr-0004-equality`
-- AAR: pending
+- AAR: [AAR-0004](../aar/AAR-0004-equality-kernel.md)
 
 ## Context
 
@@ -20,6 +20,7 @@ The research stack supports implementing equality as free-constructor finite-ter
 
 - Equality remains aligned with the intended Herbrand-style reading.
 - The baseline theory stays finite-term rather than silently drifting into rational trees.
+- The kernel now carries explicit free-variable equality state instead of relying on host unification side effects alone.
 - Future performance work has a clean semantic baseline to preserve.
 
 ## Test Obligations

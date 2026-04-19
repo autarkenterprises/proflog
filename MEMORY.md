@@ -7,177 +7,239 @@
 ## Branch / Mission Context
 
 - Repository: `proflog`
-- Active remediation track: `ADR-0007` (`docs/adr/ADR-0007-nim-correctness-and-query-bounds.md`)
-- High-level goal: finish the greenfield Proflog kernel/query remediation without reintroducing normalize-order hacks.
-- User priority on this branch:
-  - semantic completeness matters more than bounded operational neatness
-  - long-running but correct theorem proving is acceptable
-  - inaccurate theorem proving is not acceptable
+- Active branch: `adr-0007-nim-correctness-query-bounds`
+- Active ADR: `docs/adr/ADR-0007-nim-correctness-and-query-bounds.md`
+- User priority on this branch remains:
+  - semantic correctness over operational neatness
+  - long-running proving is acceptable
+  - incorrect proving is not acceptable
 
-## State At Hand-Off
+## Latest Pushed Commits
 
-- The kernel/equality refactor from the prior turn is still in place:
-  - explicit branch substitution state in `src/proflog/kernel.clj`
-  - proof-variable-sensitive disequality closure
-  - saved-call closure reopened by equality state
-- The query layer is no longer in the broken `Thread.stop` state.
-- `src/proflog/query.clj` now treats bounded queries as operational probes built from finite fuel slices.
-- Semantic Nim checks in `test/proflog/query_test.clj` now use direct success/failure semidecision calls instead of bounded status races.
-- The focused green suites are green again.
+- `3fd9566` `Checkpoint ADR-0007 query remediation baseline`
+- `2988f4e` `Add recursive parity ground regression tests`
+- `12da63d` `Add recursive parity witness synthesis tests`
+- `8f927a2` `Split slow recursive regressions into an extended suite`
+- `ea13afe` `Add extended Nim synthesis regression tests`
 
-## Files Touched This Turn
+## Current State
 
-- `src/proflog/query.clj`
+- The ADR-0007 kernel/equality/query remediation is still in place.
+- Ground semantic checks for Fitting `P1`/`P2` are still present, but the slower recursive probes have been moved out of the fast path.
+- There is now an explicit split between:
+  - fast greenfield regression coverage
+  - extended recursive / synthesis / operational regression coverage
+- `development-practices.md` is now tracked and records the intended workflow:
+  - use `lein test-proflog-fast` for the normal greenfield loop
+  - use `lein test-proflog-extended` for deeper recursive and synthesis checks
+  - run them in parallel during active semantic work
+  - only block on the extended suite after major revisions
+  - prefer the Clojure MCP + nREPL for semantic probing
+
+## Files Touched In This Follow-On Round
+
+- `project.clj`
+- `development-practices.md`
 - `test/proflog/query_test.clj`
-- `test/proflog/program_test.clj`
-- `docs/adr/ADR-0007-nim-correctness-and-query-bounds.md`
-- `docs/EXECUTION_PLAN.md`
+- `test/proflog/query_extended_test.clj`
+- `test/proflog/recursive_synthesis_test.clj`
+- `test/proflog/nim_synthesis_test.clj`
 - `MEMORY.md`
 
-## Pre-Existing Dirty State I Did Not Revert
+## What Changed
 
-These were already modified or otherwise dirty and were left alone:
+### 1. Fast vs extended suite split
 
-- `docs/SEMANTIC_VARIANTS.md`
-- `docs/adr/README.md`
-- `src/cljtap/alphaleantap_ep.clj`
-- `src/proflog/equality.clj`
-- `src/proflog/kernel.clj`
-- `test/cljtap/alphaleantap_ep_test.clj`
-- several untracked scratch/reference files such as `debug_gv04*.clj`, `deep-research-report*.md`, `.nrepl-port`, `target/`, `META-INF/`, and related local artifacts
+`project.clj`
 
-## Concrete Changes Made This Turn
+- Added alias `lein test-proflog-fast`
+- Added alias `lein test-proflog-extended`
+- The fast alias runs the greenfield core namespaces:
+  - `proflog.ast-test`
+  - `proflog.language-test`
+  - `proflog.normalize-test`
+  - `proflog.subst-test`
+  - `proflog.kernel-test`
+  - `proflog.proof-test`
+  - `proflog.equality-test`
+  - `proflog.oracle.herbrand-test`
+  - `proflog.program-test`
+  - `proflog.query-test`
+- The extended alias runs:
+  - `proflog.query-extended-test`
+  - `proflog.recursive-synthesis-test`
+  - `proflog.nim-synthesis-test`
 
-### 1. Query boundary changed from thread-stopping to finite fuel slices
-
-`src/proflog/query.clj`
-
-- Removed the broken timeout approach that depended on daemon workers plus forced thread shutdown.
-- Bounded helpers now use a conservative fuel schedule `0, 1, 2, 4, ...`.
-- `query-succeeds-within` and `query-fails-within` repeatedly run finite-fuel proof searches until either:
-  - a proof is found, or
-  - the wall-clock budget is exhausted
-- `query-status` now interleaves bounded success/failure probes instead of launching unbounded runaway workers.
-- `query-status` short-circuits on a discovered success/failure path instead of always forcing both sides before returning.
-
-Important caveat:
-
-- This is an operationally bounded design, not a hard real-time timeout guarantee.
-- A final admitted fuel slice may run past the nominal deadline before returning.
-- That tradeoff is intentional for now because in-process core.logic search is not safely preemptible.
-
-### 2. Query tests now separate semantics from bounded API behavior
+### 2. Slow recursive parity coverage moved out of `query_test`
 
 `test/proflog/query_test.clj`
 
-- Added direct helpers:
-  - `succeeds-directly?`
-  - `fails-directly?`
-- Moved semantic P1/P2 checks onto direct proof search:
-  - `even(0)` uses direct success search
-  - `odd(1)` uses direct success search with explicit fuel `16`
-  - Nim checks use direct success/failure semidecision proofs instead of `query-status`
-- Current semantic coverage in that file:
-  - losing: `win(0)`, `win(3)`
-  - winning: `win(1)`, `win(2)`, `win(4)`
-  - extra winning check: `win(5)` with explicit fuel `16`
-- Kept the bounded regression:
-  - `bounded-success-query-helper-returns-control-on-timeout`
-- Kept the operational query-status regression, but with a larger timeout budget because the contract is now “bounded operational probe,” not “cold-process 200ms oracle.”
+- `query_test` is now the fast semantic core only:
+  - `query-status` operational checks
+  - `P1` direct checks `even(0)` and `odd(1)`
+  - `P2` fast ground checks `win(0)`, `win(1)`, `win(2)`, and separate `win(3)` failure
+- The heavier recursive parity checks were moved out:
+  - higher ground parity success/failure coverage now lives in `recursive_synthesis_test`
 
-### 3. Program tests adjusted to the new bounded-query contract
+### 3. Operational bounded-query regression moved to extended
 
-`test/proflog/program_test.clj`
+`test/proflog/query_extended_test.clj`
 
-- Raised the `query-status` timeout budget used by the simple procedure-call status assertions from `200` to `1000`.
-- This was needed because the status API is no longer being used as a microbenchmark target.
+- The old future/deref wall-clock assertion from `query_test` was too load-sensitive under concurrent heavy runs.
+- The extended version now checks the actual contract:
+  - `query/query-succeeds-within` eventually returns `()` after budget exhaustion
+  - it no longer asserts a sub-second wall-clock threshold under load
+- This matches the ADR-0007 contract: bounded helpers are operational, not hard real-time.
 
-### 4. ADR / plan docs updated
+### 4. Extended parity suite now covers both ground depth and witness synthesis
 
-- `docs/adr/ADR-0007-nim-correctness-and-query-bounds.md`
-  - now explicitly distinguishes:
-    - direct semidecision proof checks for semantic correctness
-    - bounded query helpers for operational timeout behavior
-- `docs/EXECUTION_PLAN.md`
-  - now states that ADR-0007 semantic Nim coverage should not treat bounded query races as the semantic authority
+`test/proflog/recursive_synthesis_test.clj`
+
+- Retains positive witness enumeration for:
+  - `even(x)` witnesses `0`, `2`
+  - `odd(x)` witnesses `1`, `3`
+- Also now contains the higher recursive ground checks moved out of the fast suite:
+  - succeeds: `even(2)`, `odd(3)`, `even(4)`
+  - fails: `odd(0)`, `even(1)`, `odd(2)`, `even(3)`
+- Important semantic/operational note:
+  - these are still witness-based and ground-based tests
+  - unrestricted open-answer generation remains too operationally unstable for committed greenfield regressions
+
+### 5. Extended Nim suite added
+
+`test/proflog/nim_synthesis_test.clj`
+
+- Added constrained winning-move generation coverage using witness formulas.
+- Positive move witnesses:
+  - from `1` to `0`
+  - from `2` to `0`
+  - from `4` to `3`
+  - from `5` to `3`
+- Negative move witnesses:
+  - `1 -> 1` fails
+  - `4 -> 2` fails
+- Added deeper ground Nim checks in extended coverage:
+  - `win(4)` succeeds
+  - `win(5)` succeeds with explicit fuel `16`
 
 ## Verification Performed
 
-This combined selector passes:
+Clean final verification was done after killing stale local `lein test` JVMs from earlier workflow experiments:
 
 ```bash
-lein test proflog.query-test proflog.program-test proflog.kernel-test proflog.equality-test
+pkill -f "lein test"
+```
+
+Then I ran the intended workflow commands.
+
+Fast suite:
+
+```bash
+lein test-proflog-fast
 ```
 
 Observed result:
 
-- `Ran 23 tests containing 50 assertions.`
+- `Ran 34 tests containing 110 assertions.`
 - `0 failures, 0 errors.`
 
-I also re-ran targeted selectors while debugging:
-
-- `lein test :only proflog.query-test/bounded-success-query-helper-returns-control-on-timeout`
-- `lein test :only proflog.query-test/query-status-distinguishes-success-failure-and-unresolved`
-- `lein test :only proflog.program-test/positive-and-negative-procedure-calls-close-literals`
-
-## Useful Direct Findings
-
-These shell probes were useful and are worth preserving:
-
-- `query-succeeds` for `status-program` / `p(0)` succeeds at fuel `1`
-- `query-status` had been returning `:unresolved` only because it was evaluating the expensive opposite side before checking the already-found success proof
-- `win(5)` is semantically provable, but:
-  - unbounded direct success search was about `9.3s` in a cold shell probe
-  - explicit fuel `16` reduced that to about `3.0s`
-- `win(6)` failure proof exists under direct search, but it was slow enough to omit from the committed regression suite for now:
-  - direct unbounded `query-fails` shell probe was about `19.8s`
-
-Those timings came from one-off shell entrypoints such as:
+Extended suite:
 
 ```bash
-CP=$(lein classpath) && java -cp "$CP" clojure.main -e "..."
+lein test-proflog-extended
 ```
 
-I did not rely on `clojure_eval` for this turn because the MCP tool call was blocked by safety handling in this conversation context.
+Observed result:
 
-## Open Problems / Next Likely Work
+- `Ran 8 tests containing 18 assertions.`
+- `0 failures, 0 errors.`
 
-### 1. Broader semantic coverage is still incomplete
+I also validated key expensive namespaces through the Clojure MCP / nREPL path:
 
-The current committed semantic suite is enough for ADR-0007’s stated `win(0..4)` obligations plus one extra `win(5)` check, but it is not the “deep semantic exercise” yet.
+- `proflog.recursive-synthesis-test`
+  - `Ran 2 tests containing 2 assertions.`
+  - before the later parity-ground migration, witness enumeration took about `19s`
+- `proflog.nim-synthesis-test`
+  - `Ran 2 tests containing 6 assertions.`
+  - before the later deep-ground addition, the namespace took about `52s` of prover time
+- Direct MCP probe:
+  - `query/query-succeeds-within` on `win(0)` with timeout `25` returned `()` in about `79ms` on an unloaded REPL
 
-Likely next probes:
+## Practical REPL Guidance
 
-- Nim `win(6)`, `win(7)`, `win(8)` with explicit fuel where helpful
-- additional P1 parity cases beyond `even(0)` / `odd(1)`
-- possibly a dedicated semantic harness namespace separate from `query_test`
+- The user explicitly reminded that the Clojure MCP and REPL are available; use them.
+- Use `list_nrepl_ports` first rather than assuming the port.
+- Use `clojure_eval` for:
+  - targeted semantic probes
+  - timing one expensive relation or test var
+  - confirming whether a slowdown is semantic or just `lein` process buildup
+- Prefer MCP/nREPL over shell one-offs for this repository unless the MCP path is insufficient.
 
-### 2. Bounded query helpers are operationally bounded, not strict wall-clock oracles
+Useful pattern:
 
-This is the biggest design caveat still on the branch.
+```clojure
+(require '[clojure.test :as t]
+         '[proflog.query-test :as qt] :reload)
+(time (t/test-vars [#'qt/fitting-p1-odd-one-succeeds]))
+```
 
-- Current behavior is good enough for the tests now in-tree.
-- It is not a true hard-timeout implementation.
-- If a future requirement demands strict wall-clock cutoffs, the likely fix is not more in-process thread tricks.
+## Important Findings / Limits
 
-Most plausible stricter options:
+### 1. Greenfield free-answer generation is still limited
 
-- subprocess isolation for bounded probes
-- a dedicated worker JVM model
-- or a more explicit “timeout is operational only” API contract
+- The greenfield prover can support committed recursive/synthesis regression tests when the witness set is constrained.
+- It is not yet stable enough for unrestricted open-answer enumeration regressions such as:
+  - blind `even(x)` generation over mixed candidate classes
+  - blind `odd(x)` generation
+  - blind Nim move enumeration over candidate ranges
 
-### 3. `query-status` inconsistency detection is best-effort
+That is why the committed extended tests use:
 
-Current behavior:
+- positive witness enumeration for expected answers
+- selected negative witness refutations
+- deeper ground checks where witness search is too unstable
 
-- it checks the opposite semidecision side only after finding a proof on the first side and only while budget remains
+### 2. Bounded query helpers are operational only
 
-That keeps the common success/failure cases fast enough, but it is not an exhaustive inconsistency detector under tight budgets.
+This remains the main query-boundary caveat:
 
-## Practical Guidance For The Next Agent
+- `query-succeeds-within`
+- `query-fails-within`
+- `query-status`
 
-1. Do not collapse the semantic tests back onto `query-status` or `query-succeeds-within`.
-2. Treat bounded query helpers as operational tools only.
-3. If you extend Nim coverage to larger positions, prefer explicit fuel when it materially reduces runtime.
-4. Preserve the existing kernel/equality refactor unless you have a concrete counterexample; the current green suites depend on it.
-5. Be careful with the already-dirty repo state. Do not revert unrelated files casually.
+all use finite fuel slices and may overshoot the nominal wall-clock budget while finishing the last admitted slice.
+
+Do not reintroduce hard wall-clock assumptions into the fast suite.
+
+### 3. Concurrent verification is the intended workflow now
+
+- Running fast and extended concurrently is useful and was validated.
+- If timings suddenly look much worse than expected, check for stale parallel `lein test` JVMs before concluding there is a semantic regression.
+
+## Pre-Existing Dirty State I Did Not Revert
+
+These were already dirty and were left alone:
+
+- `docs/SEMANTIC_VARIANTS.md`
+- `docs/adr/README.md`
+- `src/cljtap/alphaleantap_ep.clj`
+- `test/cljtap/alphaleantap_ep_test.clj`
+- several untracked local artifacts and scratch files such as:
+  - `.nrepl-port`
+  - `.lein-failures`
+  - `.lein-repl-history`
+  - `target/`
+  - `META-INF/`
+  - `debug_gv04*.clj`
+  - `deep-research-report*.md`
+  - `cljs/`
+  - `clojure/`
+
+## Likely Next Work
+
+1. Extend the greenfield semantic envelope beyond the current constrained witness checks:
+   - more parity witnesses
+   - more Nim positions
+   - possibly selected partial-synthesis cases beyond the current witness forms
+2. Decide whether `win(6)` / `win(7)` / `win(8)` belong in the extended suite or in ad hoc REPL validation only.
+3. If true open-answer generation becomes a requirement, add a dedicated answer-generation harness instead of overloading the current semidecision-oriented query helpers.

@@ -83,6 +83,26 @@
                                                                                 (ast/var-term y)))))
                                       (ast/neg-lit (ast/app-term 'win (ast/var-term y))))))])))
 
+(defn recursive-parity-program
+  []
+  (ast/nom x y z
+    (language/compile-program
+      query-language
+      [(ast/clause 'even [x]
+                   (ast/or-form
+                     (ast/eq-lit (ast/var-term x) (ast/app-term 'zero))
+                     (ast/exists-form y
+                                      (ast/and-form
+                                        (ast/eq-lit (ast/var-term x)
+                                                    (ast/app-term 's (ast/var-term y)))
+                                        (ast/pos-lit (ast/app-term 'odd (ast/var-term y)))))))
+       (ast/clause 'odd [x]
+                   (ast/exists-form z
+                                    (ast/and-form
+                                      (ast/eq-lit (ast/var-term x)
+                                                  (ast/app-term 's (ast/var-term z)))
+                                      (ast/pos-lit (ast/app-term 'even (ast/var-term z))))))])))
+
 (deftest query-status-distinguishes-success-failure-and-unresolved
   (testing "undefined declared relations stay unresolved while defined ones succeed or fail"
     (let [program (status-program)]
@@ -142,6 +162,42 @@
       (is (succeeds-directly?
             program
             (ast/pos-lit (ast/app-term 'win (numeral 5)))
+            16)))))
+
+(deftest recursive-parity-higher-ground-cases-succeed
+  (testing "the simpler mutually recursive parity program proves higher even and odd numerals"
+    (let [program (recursive-parity-program)]
+      (is (succeeds-directly?
+            program
+            (ast/pos-lit (ast/app-term 'even (numeral 2)))
+            8))
+      (is (succeeds-directly?
+            program
+            (ast/pos-lit (ast/app-term 'odd (numeral 3)))
+            8))
+      (is (succeeds-directly?
+            program
+            (ast/pos-lit (ast/app-term 'even (numeral 4)))
+            16)))))
+
+(deftest recursive-parity-opposite-ground-cases-fail
+  (testing "the simpler mutually recursive parity program refutes opposite-parity numerals"
+    (let [program (recursive-parity-program)]
+      (is (fails-directly?
+            program
+            (ast/pos-lit (ast/app-term 'odd (numeral 0)))
+            8))
+      (is (fails-directly?
+            program
+            (ast/pos-lit (ast/app-term 'even (numeral 1)))
+            8))
+      (is (fails-directly?
+            program
+            (ast/pos-lit (ast/app-term 'odd (numeral 2)))
+            8))
+      (is (fails-directly?
+            program
+            (ast/pos-lit (ast/app-term 'even (numeral 3)))
             16)))))
 
 (deftest bounded-success-query-helper-returns-control-on-timeout

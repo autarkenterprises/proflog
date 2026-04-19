@@ -51,6 +51,46 @@
                 %))
        vec))
 
+(defn formula-fails-directly?
+  [program formula fuel]
+  (seq (query/query-fails program formula 1 fuel)))
+
+(deftest recursive-parity-higher-ground-cases-succeed
+  (testing "the simpler mutually recursive parity program proves higher even and odd numerals"
+    (let [program (recursive-parity-program)]
+      (is (formula-succeeds-directly?
+            program
+            (ast/pos-lit (ast/app-term 'even (numeral 2)))
+            8))
+      (is (formula-succeeds-directly?
+            program
+            (ast/pos-lit (ast/app-term 'odd (numeral 3)))
+            8))
+      (is (formula-succeeds-directly?
+            program
+            (ast/pos-lit (ast/app-term 'even (numeral 4)))
+            16)))))
+
+(deftest recursive-parity-opposite-ground-cases-fail
+  (testing "the simpler mutually recursive parity program refutes opposite-parity numerals"
+    (let [program (recursive-parity-program)]
+      (is (formula-fails-directly?
+            program
+            (ast/pos-lit (ast/app-term 'odd (numeral 0)))
+            8))
+      (is (formula-fails-directly?
+            program
+            (ast/pos-lit (ast/app-term 'even (numeral 1)))
+            8))
+      (is (formula-fails-directly?
+            program
+            (ast/pos-lit (ast/app-term 'odd (numeral 2)))
+            8))
+      (is (formula-fails-directly?
+            program
+            (ast/pos-lit (ast/app-term 'even (numeral 3)))
+            16)))))
+
 (deftest recursive-parity-witness-enumeration-finds-even-numerals
   (testing "positive witness enumeration collects multiple even numerals"
     (let [program (recursive-parity-program)

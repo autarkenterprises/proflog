@@ -49,5 +49,19 @@
    :GP   (fn [m] (re-find #"^test-GP\d" (str (:name m))))
    :GV   (fn [m] (re-find #"^test-GV\d" (str (:name m))))
    :FD   (fn [m] (re-find #"^test-FD\d" (str (:name m))))}
-  :aliases {"test-section"   ["run" "-m" "cljtap.run-section"]
-            "test-all-timed" ["run" "-m" "cljtap.run-section" "--all"]})
+  :aliases {"test-section"         ["run" "-m" "cljtap.run-section"]
+            "test-all-timed"       ["run" "-m" "cljtap.run-section" "--all"]
+            "test-proflog-fast"    ["test"
+                                    "proflog.ast-test"
+                                    "proflog.language-test"
+                                    "proflog.normalize-test"
+                                    "proflog.subst-test"
+                                    "proflog.kernel-test"
+                                    "proflog.proof-test"
+                                    "proflog.equality-test"
+                                    "proflog.oracle.herbrand-test"
+                                    "proflog.program-test"
+                                    "proflog.query-test"]
+            "test-proflog-extended" ["test"
+                                     "proflog.query-extended-test"
+                                     "proflog.recursive-synthesis-test"]})

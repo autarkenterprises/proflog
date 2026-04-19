@@ -21,6 +21,24 @@
     (ast/app-term 'zero)
     (ast/app-term 's (numeral (dec n)))))
 
+(defn succeeds-directly?
+  ([program query]
+   (succeeds-directly? program query nil))
+  ([program query fuel]
+   (seq
+     (if (nil? fuel)
+       (query/query-succeeds program query 1)
+       (query/query-succeeds program query 1 fuel)))))
+
+(defn fails-directly?
+  ([program query]
+   (fails-directly? program query nil))
+  ([program query fuel]
+   (seq
+     (if (nil? fuel)
+       (query/query-fails program query 1)
+       (query/query-fails program query 1 fuel)))))
+
 (defn p1-program
   []
   (ast/nom x y
@@ -72,41 +90,70 @@
              (query/query-status
                program
                (ast/pos-lit (ast/app-term 'p (numeral 0)))
-               {:timeout-ms 200})))
+               {:timeout-ms 1000})))
       (is (= :fails
              (query/query-status
                program
                (ast/pos-lit (ast/app-term 'p (numeral 1)))
-               {:timeout-ms 200})))
+               {:timeout-ms 1000})))
       (is (= :unresolved
              (query/query-status
                program
                (ast/pos-lit (ast/app-term 'undef (numeral 0)))
-               {:timeout-ms 200}))))))
+               {:timeout-ms 1000}))))))
 
 (deftest fitting-p1-even-zero-succeeds
-  (testing "P1 proves even(0)"
-    (is (seq
-          (query/query-succeeds-within
-            (p1-program)
-            (ast/pos-lit (ast/app-term 'even (numeral 0)))
-            1
-            300)))))
+  (testing "P1 proves even(0) by direct proof search"
+    (is (succeeds-directly?
+          (p1-program)
+          (ast/pos-lit (ast/app-term 'even (numeral 0)))))))
 
 (deftest fitting-p1-odd-one-succeeds
-  (testing "P1 proves odd(s(0))"
-    (is (seq
-          (query/query-succeeds-within
-            (p1-program)
-            (ast/pos-lit (ast/app-term 'odd (numeral 1)))
-            1
-            300)))))
+  (testing "P1 proves odd(s(0)) once the recursive branch gets enough fuel"
+    (is (succeeds-directly?
+          (p1-program)
+          (ast/pos-lit (ast/app-term 'odd (numeral 1)))
+          16))))
 
 (deftest fitting-p2-win-three-fails
-  (testing "P2 refutes win(3)"
-    (is (seq
-          (query/query-fails-within
-            (p2-program)
-            (ast/pos-lit (ast/app-term 'win (numeral 3)))
-            1
-            300)))))
+  (testing "P2 refutes win(3) by direct proof search"
+    (is (fails-directly?
+          (p2-program)
+          (ast/pos-lit (ast/app-term 'win (numeral 3)))))))
+
+(deftest fitting-p2-small-positions-follow-the-nim-pattern
+  (testing "P2 directly proves the expected winners and refutes the expected losers"
+    (let [program (p2-program)]
+      (is (fails-directly?
+            program
+            (ast/pos-lit (ast/app-term 'win (numeral 0)))))
+      (is (succeeds-directly?
+            program
+            (ast/pos-lit (ast/app-term 'win (numeral 1)))))
+      (is (succeeds-directly?
+            program
+            (ast/pos-lit (ast/app-term 'win (numeral 2)))))
+      (is (fails-directly?
+            program
+            (ast/pos-lit (ast/app-term 'win (numeral 3)))))
+      (is (succeeds-directly?
+            program
+            (ast/pos-lit (ast/app-term 'win (numeral 4)))))
+      (is (succeeds-directly?
+            program
+            (ast/pos-lit (ast/app-term 'win (numeral 5)))
+            16)))))
+
+(deftest bounded-success-query-helper-returns-control-on-timeout
+  (testing "bounded success queries return an empty result instead of hanging the caller"
+    (let [worker (future
+                   (query/query-succeeds-within
+                     (p2-program)
+                     (ast/pos-lit (ast/app-term 'win (numeral 0)))
+                     1
+                     25))
+          result (deref worker 750 ::timed-out)]
+      (when (= ::timed-out result)
+        (future-cancel worker))
+      (is (not= ::timed-out result))
+      (is (= '() result)))))

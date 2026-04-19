@@ -53,7 +53,8 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0003](adr/ADR-0003-pure-relational-kernel.md) | completed | `adr-0003-kernel` | proof terms, tableau kernel, base quantifier/connective rules | ADR-0002 | `kernel_test`, `proof_test` | αleanTAP-style pure relational kernel runs the base first-order tableau fragment |
 | [ADR-0004](adr/ADR-0004-equality-kernel.md) | completed | `adr-0004-equality` | free-constructor equality, occurs-check, disequality store | ADR-0003 | `equality_test`, `oracle/herbrand_test` | equality and disequality pass micro-tests and bounded Herbrand oracle checks |
 | [ADR-0005](adr/ADR-0005-procedure-calls-and-query-api.md) | completed | `adr-0005-calls-query` | program lookup/binding, subsidiary tableaux, succeed/fail race | ADR-0004 | `program_test`, `query_test` | Fitting `P1` and `P2` run end-to-end and query statuses are honest |
-| [ADR-0006](adr/ADR-0006-answer-discipline-and-variant-boundary.md) | proposed | `adr-0006-answers-variants` | answer projection, residual constraints, proof replay, variant gating | ADR-0005 | `answers_test`, `query_test` open-query cases | exported answers are admissible and semantic variants are explicit |
+| [ADR-0007](adr/ADR-0007-nim-correctness-and-query-bounds.md) | accepted | `adr-0007-nim-correctness-query-bounds` | remediate ADR-0005 on Nim correctness, L-ground calls, and bounded query control | ADR-0005 | `equality_test`, `kernel_test`, `query_test` | winning and losing Nim positions are distinguished correctly and bounded query helpers return predictably |
+| [ADR-0006](adr/ADR-0006-answer-discipline-and-variant-boundary.md) | proposed | `adr-0006-answers-variants` | answer projection, residual constraints, proof replay, variant gating | ADR-0007 | `answers_test`, `query_test` open-query cases | exported answers are admissible and semantic variants are explicit |
 
 ## Deferred Tracks
 
@@ -64,6 +65,19 @@ The following work is intentionally downstream of the baseline implementation an
 - bounded disunifier enumeration,
 - arithmetic extensions beyond symbolic Peano coverage,
 - any closed-world or Clark-completion semantic profile.
+
+## ADR-0007 Task List
+
+- Strengthen greenfield Nim coverage beyond the single `win(3)` regression.
+- Restore the L-ground call boundary for plain procedure calls.
+- Preserve branch-local equality information strong enough to rewrite a walked
+  `par` argument back into the object language before a call is attempted.
+- Replace the current force-stop timeout behavior with bounded helpers that
+  return control reliably.
+- Keep semantic Nim coverage on direct success/failure proof checks instead of
+  treating bounded query races as the semantic authority.
+- Correct the ADR trail so ADR-0006 does not build on an overstated ADR-0005
+  completion claim.
 
 Each deferred track should become its own ADR if it graduates from backlog to active work.
 

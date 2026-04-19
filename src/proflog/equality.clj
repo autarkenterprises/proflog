@@ -315,8 +315,8 @@
 
 (defn contradictory-atomso
   "Succeed when saved positive and negative atoms now unify under `sigma`."
-  [lits sigma proof]
-  (fresh [left-atom right-atom sigma-out atom-proof]
+  [lits sigma sigma-out proof]
+  (fresh [left-atom right-atom atom-proof]
     (conde
       [(membero (list 'pos left-atom) lits)
        (membero (list 'neg right-atom) lits)]

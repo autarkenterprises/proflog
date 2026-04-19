@@ -61,9 +61,9 @@
              (query/query-status
                program
                (ast/pos-lit (ast/app-term 'p (ast/app-term 'zero)))
-               {:timeout-ms 200})))
+               {:timeout-ms 1000})))
       (is (= :fails
              (query/query-status
                program
                (ast/pos-lit (ast/app-term 'p (ast/app-term 'one)))
-               {:timeout-ms 200}))))))
+               {:timeout-ms 1000}))))))

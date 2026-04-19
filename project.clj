@@ -64,4 +64,5 @@
                                     "proflog.query-test"]
             "test-proflog-extended" ["test"
                                      "proflog.query-extended-test"
-                                     "proflog.recursive-synthesis-test"]})
+                                     "proflog.recursive-synthesis-test"
+                                     "proflog.nim-synthesis-test"]})

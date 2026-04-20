@@ -164,6 +164,10 @@ I also validated key expensive namespaces through the Clojure MCP / nREPL path:
   - before the later deep-ground addition, the namespace took about `52s` of prover time
 - Direct MCP probe:
   - `query/query-succeeds-within` on `win(0)` with timeout `25` returned `()` in about `79ms` on an unloaded REPL
+- Direct JVM probe with a `15` minute ceiling:
+  - `win(6)` failure was confirmed on `2026-04-20`
+  - measured elapsed time was `522.93` seconds, about `8m 43s`
+  - this confirms the semantics extend to `win(6)` but also shows that deeper negative Nim cases remain too slow for the normal regression path
 
 ## Practical REPL Guidance
 
@@ -216,6 +220,13 @@ Do not reintroduce hard wall-clock assumptions into the fast suite.
 - Running fast and extended concurrently is useful and was validated.
 - If timings suddenly look much worse than expected, check for stale parallel `lein test` JVMs before concluding there is a semantic regression.
 
+### 4. `win(6)` is semantically confirmed, but operationally expensive
+
+- A direct JVM probe confirmed that `win(6)` fails.
+- The complete proof took about `8m 43s`.
+- That is within the user's suggested `15` minute ceiling for a non-trivial Proflog program, so it is not yet evidence of outright failure to handle the example.
+- It is still strong evidence that deeper recursive Nim evaluation needs optimization before cases like `win(6)` should be promoted into the committed extended suite.
+
 ## Pre-Existing Dirty State I Did Not Revert
 
 These were already dirty and were left alone:
@@ -237,9 +248,7 @@ These were already dirty and were left alone:
 
 ## Likely Next Work
 
-1. Extend the greenfield semantic envelope beyond the current constrained witness checks:
-   - more parity witnesses
-   - more Nim positions
-   - possibly selected partial-synthesis cases beyond the current witness forms
-2. Decide whether `win(6)` / `win(7)` / `win(8)` belong in the extended suite or in ad hoc REPL validation only.
-3. If true open-answer generation becomes a requirement, add a dedicated answer-generation harness instead of overloading the current semidecision-oriented query helpers.
+1. Keep `win(6)` recorded as a confirmed REPL/JVM semantic probe, not a committed extended regression, unless the prover is optimized enough to bring it down materially from the current `8m 43s`.
+2. Probe `win(7)` and `win(8)` next, preferably starting with witness-oriented or otherwise constrained checks before attempting another very expensive negative ground proof.
+3. If deeper Nim positions are meant to become regular extended regressions, prioritize optimization work on negative recursive search before adding them to the suite.
+4. If true open-answer generation becomes a requirement, add a dedicated answer-generation harness instead of overloading the current semidecision-oriented query helpers.

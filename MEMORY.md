@@ -168,6 +168,12 @@ I also validated key expensive namespaces through the Clojure MCP / nREPL path:
   - `win(6)` failure was confirmed on `2026-04-20`
   - measured elapsed time was `522.93` seconds, about `8m 43s`
   - this confirms the semantics extend to `win(6)` but also shows that deeper negative Nim cases remain too slow for the normal regression path
+- Additional direct JVM probes on `2026-04-20`:
+  - `win(7)` success was confirmed in `198.85` seconds, about `3m 19s`
+  - `win(8)` success was confirmed in `472.40` seconds, about `7m 52s`
+  - free-variable answer generation for `win(x)` was attempted through `kernel/prove-programo` because the public query API does not return substitutions
+  - `run 6 [x] ...` with fuel `16` timed out after `300.01` seconds with no answers
+  - `run 1 [x] ...` with fuel `16` timed out after `120.01` seconds with no first answer
 
 ## Practical REPL Guidance
 
@@ -227,6 +233,24 @@ Do not reintroduce hard wall-clock assumptions into the fast suite.
 - That is within the user's suggested `15` minute ceiling for a non-trivial Proflog program, so it is not yet evidence of outright failure to handle the example.
 - It is still strong evidence that deeper recursive Nim evaluation needs optimization before cases like `win(6)` should be promoted into the committed extended suite.
 
+### 5. `win(7)` and `win(8)` are semantically confirmed, but still too expensive for committed regression coverage
+
+- Direct JVM probes confirmed that `win(7)` and `win(8)` succeed.
+- Measured times were about `3m 19s` for `win(7)` and `7m 52s` for `win(8)`.
+- This extends the greenfield semantic envelope through `win(8)`.
+- It does not justify adding `win(7)` or `win(8)` to the committed extended suite yet; both remain in the REPL/JVM exploration tier for now.
+
+### 6. Free-variable Nim answer generation is not currently operational
+
+- The public `proflog.query` layer returns proofs only, not answer substitutions.
+- A lower-level kernel probe using `run` plus `kernel/prove-programo` was used to test `win(x)` with `x` free.
+- That probe produced no answers within:
+  - `120.01` seconds for the first requested answer
+  - `300.01` seconds for the first six requested answers
+- Current conclusion:
+  - ground and constrained-witness Nim semantics extend through `win(8)`
+  - open-answer generation for `win(x)` is still not operationally usable in the greenfield prover
+
 ## Pre-Existing Dirty State I Did Not Revert
 
 These were already dirty and were left alone:
@@ -248,7 +272,7 @@ These were already dirty and were left alone:
 
 ## Likely Next Work
 
-1. Keep `win(6)` recorded as a confirmed REPL/JVM semantic probe, not a committed extended regression, unless the prover is optimized enough to bring it down materially from the current `8m 43s`.
-2. Probe `win(7)` and `win(8)` next, preferably starting with witness-oriented or otherwise constrained checks before attempting another very expensive negative ground proof.
-3. If deeper Nim positions are meant to become regular extended regressions, prioritize optimization work on negative recursive search before adding them to the suite.
-4. If true open-answer generation becomes a requirement, add a dedicated answer-generation harness instead of overloading the current semidecision-oriented query helpers.
+1. Keep `win(6)`, `win(7)`, and `win(8)` recorded as confirmed REPL/JVM semantic probes, not committed extended regressions, unless the prover is optimized enough to reduce their runtimes materially.
+2. Treat free-variable `win(x)` answer generation as a current implementation gap rather than a committed capability.
+3. If deeper Nim positions are meant to become regular extended regressions, prioritize optimization work on recursive search before adding them to the suite.
+4. If answer generation is required, design an explicit answer-oriented query layer or harness rather than trying to infer answers indirectly from proof-returning helpers.

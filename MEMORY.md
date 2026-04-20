@@ -174,6 +174,8 @@ I also validated key expensive namespaces through the Clojure MCP / nREPL path:
   - free-variable answer generation for `win(x)` was attempted through `kernel/prove-programo` because the public query API does not return substitutions
   - `run 6 [x] ...` with fuel `16` timed out after `300.01` seconds with no answers
   - `run 1 [x] ...` with fuel `16` timed out after `120.01` seconds with no first answer
+  - on the user's request, the same `run 1 [x] ...` probe was then allowed to run for the full `15` minute ceiling
+  - it still produced no first answer and timed out after `900.01` seconds
 
 ## Practical REPL Guidance
 
@@ -247,6 +249,7 @@ Do not reintroduce hard wall-clock assumptions into the fast suite.
 - That probe produced no answers within:
   - `120.01` seconds for the first requested answer
   - `300.01` seconds for the first six requested answers
+  - `900.01` seconds for a repeated first-answer probe run to the full `15` minute ceiling
 - Current conclusion:
   - ground and constrained-witness Nim semantics extend through `win(8)`
   - open-answer generation for `win(x)` is still not operationally usable in the greenfield prover

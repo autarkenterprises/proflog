@@ -42,8 +42,8 @@ discipline within the scope ADR-0005 already claimed.
   answers such as `:unresolved` on timeout.
 - Expand the flagship Nim coverage so ADR-0005's procedure-call claim is tested
   against both winning and losing positions, not only one representative loss.
-- Document the narrow host projection used by the L-ground guard as an explicit
-  exception rather than leaving it implicit.
+- Document that the greenfield L-ground guard stays structural; any projected
+  term inspection remains legacy-only and does not define the default kernel.
 
 ## Consequences
 

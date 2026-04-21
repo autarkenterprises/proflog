@@ -55,6 +55,7 @@
                                     "proflog.ast-test"
                                     "proflog.language-test"
                                     "proflog.normalize-test"
+                                    "proflog.pretty-test"
                                     "proflog.subst-test"
                                     "proflog.kernel-test"
                                     "proflog.proof-test"
@@ -63,6 +64,8 @@
                                     "proflog.program-test"
                                     "proflog.query-test"]
             "test-proflog-extended" ["test"
+                                     "proflog.answers-test"
                                      "proflog.query-extended-test"
                                      "proflog.recursive-synthesis-test"
+                                     "proflog.synthesis-modes-test"
                                      "proflog.nim-synthesis-test"]})

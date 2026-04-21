@@ -12,6 +12,8 @@ Open queries are the point where lifted relational use meets the semantic warnin
 ## Decision
 
 - Export answers as explicit records containing admissible substitutions, proof terms, and residual constraints when needed.
+  Residual constraints may include deferred procedure-call obligations, not only disequalities.
+- Treat bounded ground-term enumeration as a non-generic materialization helper, not as the baseline answer semantics.
 - Reject any answer that contains internal parameters or undeclared symbols.
 - Keep semantic and runtime variants documented in one place and off by default unless named.
 
@@ -29,6 +31,6 @@ Open queries are the point where lifted relational use meets the semantic warnin
 ## Exit Criteria
 
 - Exported answers respect the declared language boundary.
-- Residual disequalities are preserved when enumeration is not requested.
+- Residual disequalities and deferred call obligations are preserved when full materialization is not requested.
 - Proof evidence remains attached or replayable.
 - Any non-default execution profile is explicitly named and documented.

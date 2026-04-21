@@ -36,6 +36,9 @@ The default greenfield baseline is:
 - Language declarations define the export boundary for answer terms.
 - Search divergence is not silently reported as semantic falsity.
 - Any approximation added for performance must be visibly named in code and documentation.
+- The greenfield kernel keeps L-groundness structural rather than projected.
+- Any host projection used for term-shape inspection belongs to a named
+  non-default or legacy path, not to the default kernel baseline.
 
 ## Review Trigger
 

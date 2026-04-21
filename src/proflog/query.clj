@@ -14,9 +14,10 @@
 (defn- next-fuel
   "Conservative iterative-deepening schedule for bounded operational probes."
   [fuel]
-  (if (zero? fuel)
-    1
-    (* 2 fuel)))
+  (cond
+    (zero? fuel) 1
+    (>= fuel (quot Long/MAX_VALUE 2)) Long/MAX_VALUE
+    :else (* 2 fuel)))
 
 (defn- remaining-time-ms
   "Remaining wall-clock budget until `deadline-ms`, clamped at zero."

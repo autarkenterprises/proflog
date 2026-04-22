@@ -54,3 +54,9 @@ That is the current limitation: the internal compiled representation does not
 yet enforce coherence between `:body` and `:negated-body`. The fixed-shape
 reverse-synthesis result is real, but it is not yet a sound surface-program
 synthesis contract.
+
+Operationally, that is why this namespace belongs in the extended semantic
+surface rather than in any user-facing claim about relational source-program
+synthesis. It is a worked example of what the kernel can currently do with a
+directly supplied compiled shape, not evidence that arbitrary surface clauses
+can already be synthesized soundly.

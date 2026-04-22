@@ -53,6 +53,7 @@
             "test-all-timed"       ["run" "-m" "cljtap.run-section" "--all"]
             "test-proflog-fast"    ["test"
                                     "proflog.ast-test"
+                                    "proflog.adversarial-test"
                                     "proflog.language-test"
                                     "proflog.normalize-test"
                                     "proflog.pretty-test"
@@ -64,8 +65,12 @@
                                     "proflog.program-test"
                                     "proflog.query-test"]
             "test-proflog-extended" ["test"
-                                     "proflog.answers-test"
+                                    "proflog.answers-test"
+                                     "proflog.integration-families-test"
+                                     "proflog.list-programs-test"
+                                     "proflog.quantified-programs-test"
                                      "proflog.query-extended-test"
                                      "proflog.recursive-synthesis-test"
+                                     "proflog.reverse-program-synthesis-test"
                                      "proflog.synthesis-modes-test"
                                      "proflog.nim-synthesis-test"]})

@@ -15,3 +15,6 @@ Use ADRs for every feature-sized decision before implementation starts. Each ADR
 | [ADR-0004](ADR-0004-equality-kernel.md) | completed | `adr-0004-equality` | equality and disequality kernel | [AAR-0004](../aar/AAR-0004-equality-kernel.md) |
 | [ADR-0005](ADR-0005-procedure-calls-and-query-api.md) | completed | `adr-0005-calls-query` | calls, programs, query race | [AAR-0005](../aar/AAR-0005-procedure-calls-and-query-api.md) |
 | [ADR-0006](ADR-0006-answer-discipline-and-variant-boundary.md) | proposed | `adr-0006-answers-variants` | answer admissibility and variant control | pending |
+| [ADR-0007](ADR-0007-nim-correctness-and-query-bounds.md) | accepted | `adr-0007-nim-correctness-query-bounds` | ADR-0005 remediation for Nim correctness and bounded query control | pending |
+| [ADR-0008](ADR-0008-test-gap-closure.md) | accepted | `adr-0008-test-gap-closure` | greenfield test-gap closure and reverse-synthesis feasibility | pending |
+| [ADR-0009](ADR-0009-legacy-program-closure.md) | accepted | `adr-0009-legacy-program-closure` | legacy program-family closure, worked examples, and semantic/performance findings | pending |

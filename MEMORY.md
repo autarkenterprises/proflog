@@ -7,12 +7,33 @@
 ## Branch / Mission Context
 
 - Repository: `proflog`
-- Active branch: `adr-0007-nim-correctness-query-bounds`
-- Active ADR: `docs/adr/ADR-0007-nim-correctness-and-query-bounds.md`
+- Active branch: `adr-0008-test-gap-closure`
+- Active ADR: `docs/adr/ADR-0008-test-gap-closure.md`
 - User priority on this branch remains:
   - semantic correctness over operational neatness
   - long-running proving is acceptable
   - incorrect proving is not acceptable
+
+## Current ADR-0008 State
+
+- Added `docs/TEST_GAP_CLOSURE_CHECKLIST.md` as the tracked greenfield parity
+  and gap-closure checklist.
+- Added `docs/adr/ADR-0008-test-gap-closure.md` and registered it in:
+  - `docs/adr/README.md`
+  - `docs/EXECUTION_PLAN.md`
+- Added `test/proflog/reverse_program_synthesis_test.clj`.
+- Added `proflog.reverse-program-synthesis-test` to
+  `lein test-proflog-extended`.
+- Existing branch work in `test/proflog/synthesis_modes_test.clj` is now being
+  treated as part of ADR-0008 gap closure rather than as unrelated residue.
+  It already expands non-trivial greenfield coverage for structured recursive
+  reverse/partial answer export via `plus` and `append`.
+- Current feasibility finding:
+  - internal compiled-program synthesis is feasible under a fixed clause shape
+  - this is now covered by committed greenfield tests
+  - full surface-program synthesis is still unresolved because
+    `language/compile-program` is one-way and the internal compiled form does
+    not relationally enforce `body`/`negated-body` coherence
 
 ## Latest Pushed Commits
 
@@ -196,6 +217,103 @@ Useful pattern:
 ```
 
 ## Important Findings / Limits
+
+## 2026-04-21 ADR-0009 Program-Family Closure Kickoff
+
+- Active branch is now `adr-0009-legacy-program-closure`.
+- Active ADR is `docs/adr/ADR-0009-legacy-program-closure.md`.
+- This branch starts from the ADR-0008 parity/gap-closure state and turns the
+  remaining legacy comparison into:
+  - a maintained program-family parity matrix,
+  - worked examples for extant greenfield families,
+  - deeper closure for families already present but still weaker than legacy,
+  - and implementation of currently absent legacy families where justified.
+- New parity tracker:
+  - `docs/LEGACY_PROGRAM_PARITY_MATRIX.md`
+- Immediate execution order recorded in ADR-0009:
+  1. worked examples for extant greenfield families,
+  2. closure of present-but-not-comparable families,
+  3. implementation of absent families in mission-relevant order.
+- The user explicitly wants commit/push boundaries after each logical unit of
+  work, and semantic/performance findings recorded as they appear.
+
+## 2026-04-21 Resume Findings
+
+- The interrupted follow-on round had already added new ADR-0008 namespaces for
+  list programs, quantified programs, and broader integration families, and
+  wired them into `lein test-proflog-fast` / `lein test-proflog-extended`.
+- Direct resume validation showed those first drafts were too ambitious as
+  committed regressions:
+  - `member(a, [a])` and `member(c, [a,b])` stayed `:unresolved` under a
+    `1000ms` `query/query-status` budget, and the original direct
+    `query/query-succeeds` tests did not complete within `30s`.
+  - non-empty recursive list proofs such as `append([a],[b],[a,b])` and
+    `reverse([a],[a])` were likewise not prompt enough for baseline regressions.
+  - `tc(a,c)`, `plus(1,2,3)`, and mixed quantified `boxed-zero` style clause
+    bodies were still operationally unresolved in the same prompt regime.
+- Prompt greenfield boundaries confirmed through direct probing:
+  - list programs:
+    - `append([], [a], [a])` succeeds directly with fuel `8`
+    - `reverse([], [])` succeeds directly with fuel `8`
+    - `append([], [a], z)` exports `z = [a]` through `answers/query-answers`
+  - integration families:
+    - direct edges `tc(a,b)` and `tc(b,c)` succeed directly with fuel `8`
+    - base-case Peano addition `plus(0,2,2)` succeeds directly with fuel `8`
+  - quantified programs:
+    - `zero-only(0)` succeeds and `zero-only(1)` fails directly with fuel `8`
+    - original `P1` still directly refutes `odd(0)` with fuel `8`
+- Branch conclusion for the resumed round:
+  - keep those prompt cases as committed ADR-0008 regressions
+  - treat deeper recursive `member` / non-empty list proofs, recursive
+    transitive closure, non-base `plus`, and mixed `exists`/`forall`
+    integration as still exploratory, and document them in the checklist
+    rather than overstating them as baseline-green tests
+
+## 2026-04-21 Quantified Executability Follow-On
+
+- The user explicitly clarified the semantic bar:
+  exploratory programs, especially quantified ones, must remain executable even
+  if they are too slow or too large for the fast baseline suite.
+- I treated the legacy `once-forall` device only as a reference pointer, not as
+  authority. The greenfield justification is local and operational:
+  negating an existential clause body for a procedure call should yield a
+  single-use universal branch obligation, not an ordinary re-enqueued `forall`
+  that destroys executability.
+- Implemented a greenfield internal NNF form `once-forall` across:
+  - `src/proflog/ast.clj`
+  - `src/proflog/normalize.clj`
+  - `src/proflog/language.clj`
+  - `src/proflog/subst.clj`
+  - `src/proflog/answers.clj`
+  - `src/proflog/pretty.clj`
+  - `src/proflog/kernel.clj`
+- Added/updated greenfield tests for the new form in:
+  - `test/proflog/ast_test.clj`
+  - `test/proflog/normalize_test.clj`
+  - `test/proflog/kernel_test.clj`
+  - `test/proflog/proof_test.clj`
+- Restored executable quantified exploratory coverage in
+  `test/proflog/quantified_programs_test.clj`:
+  - original `P1` deeper ground success/failure:
+    - `even(2)` succeeds with fuel `32`
+    - `odd(0)` fails with fuel `8`
+  - mixed `exists`/`forall` clause body:
+    - `boxed-zero(0)` succeeds with fuel `32`
+    - `boxed-zero(1)` fails with fuel `32`
+- Direct fresh nREPL probes after the change:
+  - `P1` probe elapsed about `8.07s` total for `even(2)` success plus `odd(0)`
+    failure checks
+  - `boxed-zero` probe elapsed about `620.93ms` for success/failure checks
+- Verification after the change:
+  - `lein test proflog.quantified-programs-test`
+    - `Ran 3 tests containing 6 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test proflog.query-test proflog.normalize-test proflog.kernel-test proflog.proof-test`
+    - `Ran 25 tests containing 47 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test proflog.answers-test proflog.synthesis-modes-test proflog.recursive-synthesis-test proflog.query-extended-test`
+    - `Ran 22 tests containing 42 assertions.`
+    - `0 failures, 0 errors.`
 
 ### 1. Greenfield free-answer generation is still limited
 

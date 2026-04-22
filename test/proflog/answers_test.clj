@@ -68,6 +68,11 @@
           (-> record :bindings first second))
         records))
 
+(defn self-contradictory-neq?
+  [formula]
+  (and (= 'neq (ast/tag-of formula))
+       (= (second formula) (nth formula 2))))
+
 (deftest bounded-ground-enumerator-follows-constructor-depth
   (testing "ground term generation stays inside the declared language and depth bound"
     (is (= [(numeral 0) (numeral 1) (numeral 2) (numeral 3)]
@@ -96,6 +101,8 @@
             answer-terms (answer-terms records)]
         (is (= [(numeral 0) (numeral 1)]
                answer-terms))
+        (is (not-any? self-contradictory-neq?
+                      (mapcat :residuals records)))
         (is (= []
                (:residuals (first records))))
         (is (every? (fn [residual]

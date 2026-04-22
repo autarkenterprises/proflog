@@ -86,6 +86,9 @@ The current exporter now does two important things here:
 
 - it keeps searching raw proof states until it has the requested number of
   unique answer records, rather than truncating first and merging afterward,
+- the kernel now prunes saved disequalities that have already become false
+  under the current substitution, so stale artifacts such as `neq(0, 0)` do
+  not survive as residual constraints,
 - it drops impossible residual artifacts such as `neq(0, 0)` instead of
   exporting them as if they were meaningful side conditions.
 
@@ -101,7 +104,8 @@ So the current records are:
 
 The duplicated disequalities on the second answer are still redundant, but they
 are semantically harmless. The important correction is that the later distinct
-answer is no longer starved by earlier duplicate proof paths.
+answer is no longer starved by earlier duplicate proof paths, and already-false
+disequalities no longer leak out as residuals.
 
 ## Recursive Open Query: `even(x)`
 

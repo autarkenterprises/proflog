@@ -31,6 +31,66 @@
            (equality/atom-unifyo atom opposite sigma sigma-out atom-proof)
            (== '(close) proof))]))
 
+(defn- walk-term-pure
+  "Purely walk one term through the explicit substitution `sigma`."
+  [term sigma]
+  (case (ast/tag-of term)
+    var (if-let [value (subst/lookup-binding sigma (second term))]
+          (recur value sigma)
+          term)
+    par (if-let [value (subst/lookup-binding sigma (second term))]
+          (recur value sigma)
+          term)
+    app (apply ast/app-term
+               (second term)
+               (map #(walk-term-pure % sigma) (nnext term)))
+    term))
+
+(defn- same-walked-term?
+  "Host-side structural equality on already-walked terms."
+  [left right]
+  (let [left-tag (ast/tag-of left)
+        right-tag (ast/tag-of right)]
+    (and (= left-tag right-tag)
+         (case left-tag
+           var (= (second left) (second right))
+           par (= (second left) (second right))
+           app (and (= (second left) (second right))
+                    (= (count (nnext left)) (count (nnext right)))
+                    (every? true? (map same-walked-term? (nnext left) (nnext right))))
+           (= left right)))))
+
+(defn- contradictory-neq-pairs
+  "Return the saved disequalities that are already false under `sigma`."
+  [neqs sigma]
+  (vec
+    (filter (fn [[left right]]
+              (same-walked-term?
+                (walk-term-pure left sigma)
+                (walk-term-pure right sigma)))
+            neqs)))
+
+(defn- prune-contradictory-neqs
+  "Drop saved disequalities that have become false under `sigma`."
+  [neqs sigma]
+  (apply list
+         (remove (set (contradictory-neq-pairs neqs sigma))
+                 neqs)))
+
+(defn- prune-contradictory-neqso
+  "Relate `neqs-out` to `neqs` with all already-false disequalities removed."
+  [neqs sigma neqs-out]
+  (project [neqs sigma]
+    (== (prune-contradictory-neqs neqs sigma) neqs-out)))
+
+(defn- stable-neqso
+  "Succeed when every saved disequality remains genuinely open under `sigma`."
+  [neqs sigma]
+  (project [neqs sigma]
+    (if (empty? (contradictory-neq-pairs neqs sigma))
+      (== 'stable 'stable)
+      fail)))
+
 (declare l-ground-term*o)
 
 (defn l-ground-termo
@@ -413,7 +473,7 @@
             (equality/unify-termo left right sigma sigma-mid step-proof)
             (equality/neq-violatedo neqs sigma-mid branch-proof)
             (== sigma-mid sigma-out)
-            (== neqs neqs-out)
+            (prune-contradictory-neqso neqs sigma-mid neqs-out)
             (== residuals residuals-out)
             (== (list 'eq-step step-proof branch-proof) proof))]
     [(fresh [lit left right sigma-mid step-proof branch-proof]
@@ -421,7 +481,7 @@
             (== (list 'eq left right) lit)
             (equality/unify-termo left right sigma sigma-mid step-proof)
             (equality/contradictory-atomso lits sigma-mid sigma-out branch-proof)
-            (== neqs neqs-out)
+            (prune-contradictory-neqso neqs sigma-out neqs-out)
             (== residuals residuals-out)
             (== (list 'eq-step step-proof branch-proof) proof))]
     [(fresh [lit left right sigma-mid step-proof branch-proof]
@@ -436,6 +496,7 @@
             (equality/unify-termo left right sigma sigma-mid step-proof)
             (== (lcons next rest) unexpanded)
             (== (list 'eq-step step-proof prf) proof)
+            (stable-neqso neqs sigma-mid)
             (prove-stateo next
                           rest
                           lits
@@ -475,7 +536,7 @@
             (== (lcons binding rest) new-bindings)
             (proof-bindingso new-bindings proof-vars)
             (== sigma-mid sigma-out)
-            (== neqs neqs-out)
+            (prune-contradictory-neqso neqs sigma-mid neqs-out)
             (== residuals residuals-out)
             (== (list 'neq-close step-proof) proof))]
     [(fresh [lit left right next rest prf]
@@ -508,7 +569,7 @@
             (subst/subst-formulao fml env lit)
             (== (list 'pos atom) lit)
             (complementary-lito lit lits sigma sigma-out proof)
-            (== neqs neqs-out)
+            (prune-contradictory-neqso neqs sigma-out neqs-out)
             (== residuals residuals-out))]
     [(if defer-calls?
        (fresh [lit atom next rest prf]
@@ -574,7 +635,7 @@
             (subst/subst-formulao fml env lit)
             (== (list 'neg atom) lit)
             (complementary-lito lit lits sigma sigma-out proof)
-            (== neqs neqs-out)
+            (prune-contradictory-neqso neqs sigma-out neqs-out)
             (== residuals residuals-out))]
     [(if defer-calls?
        (fresh [lit atom next rest prf]

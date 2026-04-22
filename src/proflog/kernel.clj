@@ -263,12 +263,14 @@
     ;; available on the branch.
     [(nominal/fresh [binding-nom]
                     (nominal/fresh [free-var-nom]
-                                   (fresh [body next-fuel prf]
+                                   (fresh [body body-subst narrowed-env next-fuel prf]
                                           (== (list 'forall (nominal/tie binding-nom body)) fml)
                                           (== '() unexpanded)
                                           (== (list 'univ prf) proof)
+                                          (subst/remove-bindo binding-nom env narrowed-env)
+                                          (subst/subst-formulao body narrowed-env body-subst)
                                           (step-fuelo fuel next-fuel)
-                                          (prove-stateo body
+                                          (prove-stateo body-subst
                                                         '()
                                                         lits
                                                         (lcons [binding-nom (ast/var-term free-var-nom)] env)
@@ -286,12 +288,14 @@
                                                         prf))))]
     [(nominal/fresh [binding-nom]
                     (nominal/fresh [free-var-nom]
-                                   (fresh [body pending next-fuel prf]
+                                   (fresh [body body-subst narrowed-env pending next-fuel prf]
                                           (== (list 'forall (nominal/tie binding-nom body)) fml)
                                           (== (list 'univ prf) proof)
                                           (appendo unexpanded (list fml) pending)
+                                          (subst/remove-bindo binding-nom env narrowed-env)
+                                          (subst/subst-formulao body narrowed-env body-subst)
                                           (step-fuelo fuel next-fuel)
-                                          (prove-stateo body
+                                          (prove-stateo body-subst
                                                         pending
                                                         lits
                                                         (lcons [binding-nom (ast/var-term free-var-nom)] env)
@@ -313,10 +317,12 @@
     ;; existential clause body for procedure-call execution.
     [(nominal/fresh [binding-nom]
                     (nominal/fresh [free-var-nom]
-                                   (fresh [body prf]
+                                   (fresh [body body-subst narrowed-env prf]
                                           (== (list 'once-forall (nominal/tie binding-nom body)) fml)
                                           (== (list 'once-univ prf) proof)
-                                          (prove-stateo body
+                                          (subst/remove-bindo binding-nom env narrowed-env)
+                                          (subst/subst-formulao body narrowed-env body-subst)
+                                          (prove-stateo body-subst
                                                         unexpanded
                                                         lits
                                                         (lcons [binding-nom (ast/var-term free-var-nom)] env)
@@ -340,11 +346,13 @@
     [(if existentials-as-vars?
        (nominal/fresh [binding-nom]
                       (nominal/fresh [free-var-nom]
-                                     (fresh [body next-fuel prf]
+                                     (fresh [body body-subst narrowed-env next-fuel prf]
                                             (== (list 'exists (nominal/tie binding-nom body)) fml)
                                             (== (list 'witness prf) proof)
+                                            (subst/remove-bindo binding-nom env narrowed-env)
+                                            (subst/subst-formulao body narrowed-env body-subst)
                                             (step-fuelo fuel next-fuel)
-                                            (prove-stateo body
+                                            (prove-stateo body-subst
                                                           unexpanded
                                                           lits
                                                           (lcons [binding-nom (ast/var-term free-var-nom)] env)
@@ -362,11 +370,13 @@
                                                           prf))))
        (nominal/fresh [binding-nom]
                       (nominal/fresh [parameter-nom]
-                                     (fresh [body next-fuel prf]
+                                     (fresh [body body-subst narrowed-env next-fuel prf]
                                             (== (list 'exists (nominal/tie binding-nom body)) fml)
                                             (== (list 'witness prf) proof)
+                                            (subst/remove-bindo binding-nom env narrowed-env)
+                                            (subst/subst-formulao body narrowed-env body-subst)
                                             (step-fuelo fuel next-fuel)
-                                            (prove-stateo body
+                                            (prove-stateo body-subst
                                                           unexpanded
                                                           lits
                                                           (lcons [binding-nom (ast/par-term parameter-nom)] env)
@@ -453,12 +463,16 @@
             (== neqs neqs-out)
             (== residuals residuals-out)
             (== '(refl-close) proof))]
-    [(fresh [lit left right sigma-mid new-bindings binding step-proof]
+    [(fresh [lit left right sigma-mid new-bindings binding rest step-proof]
             (subst/subst-formulao fml env lit)
             (== (list 'neq left right) lit)
             (equality/unify-termo left right sigma sigma-mid step-proof)
             (appendo new-bindings sigma sigma-mid)
-            (== (lcons binding '()) new-bindings)
+            ;; A disequality closes when equality can force its two sides
+            ;; equal by instantiating one or more branch-local proof variables.
+            ;; Recursive constructor shapes such as pair/list disequalities may
+            ;; require multiple such bindings on the same step.
+            (== (lcons binding rest) new-bindings)
             (proof-bindingso new-bindings proof-vars)
             (== sigma-mid sigma-out)
             (== neqs neqs-out)

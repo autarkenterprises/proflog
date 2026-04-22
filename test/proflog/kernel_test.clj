@@ -108,6 +108,94 @@
             1
             2)))))
 
+(deftest disequality-can-close-by-binding-multiple-proof-variables
+  (testing "a universal disequality may need more than one fresh-variable binding to refute"
+    (ast/nom x y
+      (is (provable?
+            (ast/forall-form
+              x
+              (ast/forall-form
+                y
+                (ast/neq-lit
+                  (ast/app-term 'pair
+                                (ast/app-term 'a)
+                                (ast/app-term 'b))
+                  (ast/app-term 'pair
+                                (ast/var-term x)
+                                (ast/var-term y))))))))))
+
+(deftest nested-once-universals-can-share-list-shape-bindings-across-disjunctions
+  (testing "one append-shaped witness assignment can refute several disequalities on the same branch"
+    (ast/nom h t r
+      (is (provable?
+            (ast/once-forall-form
+              h
+              (ast/once-forall-form
+                t
+                (ast/once-forall-form
+                  r
+                  (ast/or-form
+                    (ast/neq-lit
+                      (ast/app-term 'cons
+                                    (ast/app-term 'a)
+                                    (ast/app-term 'null))
+                      (ast/app-term 'cons
+                                    (ast/var-term h)
+                                    (ast/var-term t)))
+                    (ast/or-form
+                      (ast/neq-lit
+                        (ast/app-term 'cons
+                                      (ast/app-term 'a)
+                                      (ast/app-term 'cons
+                                                    (ast/app-term 'b)
+                                                    (ast/app-term 'null)))
+                        (ast/app-term 'cons
+                                      (ast/var-term h)
+                                      (ast/var-term r)))
+                      (ast/neq-lit
+                        (ast/var-term r)
+                        (ast/app-term 'cons
+                                      (ast/app-term 'b)
+                                      (ast/app-term 'null)))))))))))))
+
+(deftest outer-env-bindings-flow-through-nested-once-universals
+  (testing "clause-parameter environments still substitute through nested single-use universals"
+    (ast/nom a0 a2 h t r
+      (let [env (list [a0 (ast/app-term 'cons
+                                        (ast/app-term 'a)
+                                        (ast/app-term 'null))]
+                      [a2 (ast/app-term 'cons
+                                        (ast/app-term 'a)
+                                        (ast/app-term 'cons
+                                                      (ast/app-term 'b)
+                                                      (ast/app-term 'null)))])
+            formula (ast/once-forall-form
+                      h
+                      (ast/once-forall-form
+                        t
+                        (ast/once-forall-form
+                          r
+                          (ast/or-form
+                            (ast/neq-lit
+                              (ast/var-term a0)
+                              (ast/app-term 'cons
+                                            (ast/var-term h)
+                                            (ast/var-term t)))
+                            (ast/or-form
+                              (ast/neq-lit
+                                (ast/var-term a2)
+                                (ast/app-term 'cons
+                                              (ast/var-term h)
+                                              (ast/var-term r)))
+                              (ast/neq-lit
+                                (ast/var-term r)
+                                (ast/app-term 'cons
+                                              (ast/app-term 'b)
+                                              (ast/app-term 'null))))))))]
+        (is (seq
+              (run 1 [proof]
+                (kernel/proveo formula '() '() env 32 proof))))))))
+
 (deftest proveo-accepts-a-partially-specified-proof-shape
   (testing "the kernel relation can fill the tail of a constrained proof skeleton"
     (is (= ['(savefml (close))]

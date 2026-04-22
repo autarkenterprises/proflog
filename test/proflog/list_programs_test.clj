@@ -152,3 +152,74 @@
             (ast/pos-lit (ast/app-term 'reverse empty-list empty-list))
             1
             8))))))
+
+(deftest member-covers-direct-hit-recursive-hit-and-miss
+  (testing "member reaches both the head case and a recursive tail case, and rejects a missing element"
+    (let [program (list-program)]
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit
+                (ast/app-term 'member
+                              (ast/app-term 'a)
+                              (list-term (ast/app-term 'a))))
+              1
+              32)))
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit
+                (ast/app-term 'member
+                              (ast/app-term 'a)
+                              (list-term (ast/app-term 'b)
+                                         (ast/app-term 'a))))
+              1
+              64)))
+      (is (seq
+            (query/query-fails
+              program
+              (ast/pos-lit
+                (ast/app-term 'member
+                              (ast/app-term 'c)
+                              (list-term (ast/app-term 'a)
+                                         (ast/app-term 'b))))
+              1
+              32))))))
+
+(deftest append-covers-one-step-recursion-and-a-wrong-result
+  (testing "append executes the first recursive case and refutes an incorrect target list"
+    (let [program (list-program)]
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit
+                (ast/app-term 'append
+                              (list-term (ast/app-term 'a))
+                              (list-term (ast/app-term 'b))
+                              (list-term (ast/app-term 'a)
+                                         (ast/app-term 'b))))
+              1
+              32)))
+      (is (seq
+            (query/query-fails
+              program
+              (ast/pos-lit
+                (ast/app-term 'append
+                              (list-term (ast/app-term 'a))
+                              (list-term (ast/app-term 'b))
+                              (list-term (ast/app-term 'a))))
+              1
+              32))))))
+
+(deftest reverse-singleton-list-succeeds
+  (testing "reverse([a], [a]) now closes through one recursive unfold plus base append"
+    (let [program (list-program)]
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit
+                (ast/app-term 'reverse
+                              (list-term (ast/app-term 'a))
+                              (list-term (ast/app-term 'a))))
+              1
+              64))))))

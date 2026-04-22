@@ -57,3 +57,30 @@
                    (list [x (ast/app-term 'zero)]
                          [y (ast/app-term 'one)])
                    expected))))))))
+
+(deftest subst-formulao-supports-once-forall-bodies
+  (testing "forward substitution also threads through the internal single-use universal form"
+    (ast/nom x y z
+      (let [formula (ast/once-forall-form
+                      x
+                      (ast/or-form
+                        (ast/neq-lit (ast/var-term y) (ast/var-term x))
+                        (ast/neg-lit (ast/app-term 'p (ast/var-term z)))))
+            expected (ast/once-forall-form
+                       x
+                       (ast/or-form
+                         (ast/neq-lit (ast/app-term 'zero) (ast/var-term x))
+                         (ast/neg-lit (ast/app-term 'p (ast/app-term 'one)))))]
+        (is (= expected
+               (subst/subst-formula
+                 formula
+                 (list [y (ast/app-term 'zero)]
+                       [z (ast/app-term 'one)]))))
+        (is (= [true]
+               (run* [q]
+                 (== q true)
+                 (subst/subst-formulao
+                   formula
+                   (list [y (ast/app-term 'zero)]
+                         [z (ast/app-term 'one)])
+                   expected))))))))

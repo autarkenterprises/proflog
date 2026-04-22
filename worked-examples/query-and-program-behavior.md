@@ -251,6 +251,12 @@ inline win(0) => fails
 inline win(1) => succeeds
 ```
 
+This is not just a greenfield implementation quirk. Section 8 of
+[LPTableaus.pdf](/home/jpt4/code/proflog/LPTableaus.pdf) on page 12 says the
+factored presentation "does not work as expected" because `move` can admit
+"non-standard moves" in weak Herbrand models. The current regression therefore
+matches the paper's semantic warning rather than contradicting it.
+
 Operationally, the warning is not that `move/2` is broken. It is that the
 factored `win/1` proof has to make subsidiary calls through `move/2` with
 non-ground branch parameters, and those calls do not enjoy the same direct

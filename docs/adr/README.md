@@ -18,3 +18,4 @@ Use ADRs for every feature-sized decision before implementation starts. Each ADR
 | [ADR-0007](ADR-0007-nim-correctness-and-query-bounds.md) | accepted | `adr-0007-nim-correctness-query-bounds` | ADR-0005 remediation for Nim correctness and bounded query control | pending |
 | [ADR-0008](ADR-0008-test-gap-closure.md) | accepted | `adr-0008-test-gap-closure` | greenfield test-gap closure and reverse-synthesis feasibility | pending |
 | [ADR-0009](ADR-0009-legacy-program-closure.md) | accepted | `adr-0009-legacy-program-closure` | legacy program-family closure, worked examples, and semantic/performance findings | pending |
+| [ADR-0010](ADR-0010-frontend-inlining-translation.md) | proposed | `adr-0010-frontend-inlining` | ergonomic helper-predicate translation into prover-amenable inline core form | pending |

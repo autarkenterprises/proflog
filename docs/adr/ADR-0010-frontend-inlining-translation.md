@@ -34,6 +34,31 @@ The current prover, however, is strongest on directly inlined equality and
 quantifier structure. Leaving users to discover the semantic gap case by case is
 not an acceptable long-term front-end story.
 
+One concrete example is a generic sortedness definition over a fixed comparator
+relation:
+
+```prolog
+sorted(l) :-
+  l = null
+  or exists x.
+       l = cons(x, null)
+  or exists x. exists y. exists t.
+       l = cons(x, cons(y, t))
+       and le(x, y)
+       and sorted(cons(y, t)).
+
+le(x, y) :-
+  x = zero
+  or exists x1. exists y1.
+       x = s(x1)
+       and y = s(y1)
+       and le(x1, y1).
+```
+
+This is the kind of source program users should be able to write at the front
+end even when the prover ultimately needs a more inlined or otherwise
+translation-mediated core representation to execute it well.
+
 ## Decision
 
 - Introduce a distinct front-end translation phase before prover compilation.
@@ -46,6 +71,9 @@ not an acceptable long-term front-end story.
   be restricted to helper predicates whose bodies can be substituted
   structurally into caller clause bodies without introducing recursive semantic
   ambiguity.
+- The intended front-end scope includes ordinary factored helper definitions
+  such as `sorted/1` over an auxiliary comparator `le/2`, provided the
+  translator can explain and justify the resulting core form.
 - The translator must preserve source-to-core traceability so errors, worked
   examples, and proof explanations can still refer back to user-facing source.
 - When a helper predicate is not eligible for safe translation, the front end

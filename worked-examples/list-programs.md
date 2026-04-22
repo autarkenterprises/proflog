@@ -219,6 +219,49 @@ Recorded successful runtime for the final committed iteration:
 276769.773115 ms
 ```
 
+## `append([[a]], [[b]], z)`
+
+Open query:
+
+```clojure
+append(cons(cons(a, null), null),
+       cons(cons(b, null), null),
+       z)
+```
+
+Current exported answer record:
+
+```clojure
+{:bindings [[z (app cons
+                    (app cons (app a) (app null))
+                    (app cons
+                     (app cons (app b) (app null))
+                     (app null)))]]
+ :residuals
+ [(neq (app cons (app cons (app a) (app null))
+             (app cons (app cons (app b) (app null)) (app null)))
+       (app cons (app cons (app b) (app null)) (app null)))
+  (neq (app cons (app cons (app a) (app null)) (app null))
+       (app null))]}
+```
+
+So the answer exporter does recover the intended nested list:
+
+```clojure
+z = [[a], [b]]
+```
+
+but it does not yet fully normalize away the supporting disequalities introduced
+while ruling out the wrong append branches. That is still a valid greenfield
+answer record: the constructive binding is concrete, and the residuals make the
+remaining proof obligations explicit instead of silently dropping them.
+
+Recorded successful runtime for the final committed iteration:
+
+```text
+41655.620203 ms
+```
+
 ## Current Boundary
 
 The greenfield list program itself already contains `member`, recursive
@@ -226,7 +269,7 @@ The greenfield list program itself already contains `member`, recursive
 stops short of:
 
 - inverse split enumeration,
-- nested-list families.
+- nested-list families beyond the first forward case.
 
 The main remaining gap inside the basic list family is inverse split
 enumeration for `append(x, y, [a, b, c])`. In the latest long successful probe,
@@ -238,10 +281,12 @@ that query took:
 
 and still returned only the base split plus the first recursive split family.
 So the semantic story is improving faster than the operational story: deeper
-ground append and reverse now close, but inverse list enumeration remains a
-serious performance boundary.
+ground append and reverse now close, and the first nested forward append answer
+binds correctly, but inverse list enumeration remains a serious performance
+boundary.
 
 This boundary is intentional for the committed baseline: the current slice now
 covers base cases, recovered recursive `member`, one- and two-step ground
-`append`, singleton and two-element ground `reverse`, without pretending that
-inverse enumeration and nested list families are already closed.
+`append`, singleton and two-element ground `reverse`, and the first nested
+forward append answer, without pretending that inverse enumeration and the
+deeper nested list families are already closed.

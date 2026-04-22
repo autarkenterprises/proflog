@@ -255,3 +255,30 @@
                                          (ast/app-term 'a))))
               1
               256))))))
+
+(deftest append-nested-forward-query-binds-the-concrete-result
+  (testing "append([[a]], [[b]], z) binds z = [[a], [b]] while the exporter still surfaces shallow disequalities"
+    (let [program (list-program)
+          sub-a (list-term (ast/app-term 'a))
+          sub-b (list-term (ast/app-term 'b))
+          left (list-term sub-a)
+          right (list-term sub-b)
+          expected (list-term sub-a sub-b)]
+      (ast/nom z
+               (let [records (answers/query-answers
+                              program
+                              (ast/pos-lit
+                               (ast/app-term 'append
+                                             left
+                                             right
+                                             (ast/var-term z)))
+                              [z]
+                              {:proof-limit 1
+                               :fuel 16
+                               :call-depth 2})]
+                 (is (= [expected]
+                        (mapv #(answers/binding-term % z) records)))
+                 (is (every? (fn [record]
+                               (every? #(= 'neq (ast/tag-of %))
+                                       (:residuals record)))
+                             records)))))))

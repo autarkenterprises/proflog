@@ -254,6 +254,34 @@
               1
               256))))))
 
+(deftest append-forward-query-binds-a-three-element-result
+  (testing "append([a], [b, c], z) binds z = [a, b, c] while the exporter still retains shallow disequalities"
+    (let [program (list-program)
+          left (list-term (ast/app-term 'a))
+          right (list-term (ast/app-term 'b)
+                           (ast/app-term 'c))
+          expected (list-term (ast/app-term 'a)
+                              (ast/app-term 'b)
+                              (ast/app-term 'c))]
+      (ast/nom z
+               (let [records (answers/query-answers
+                              program
+                              (ast/pos-lit
+                               (ast/app-term 'append
+                                             left
+                                             right
+                                             (ast/var-term z)))
+                              [z]
+                              {:proof-limit 1
+                               :fuel 16
+                               :call-depth 2})]
+                 (is (= [expected]
+                        (mapv #(answers/binding-term % z) records)))
+                 (is (every? (fn [record]
+                               (every? #(= 'neq (ast/tag-of %))
+                                       (:residuals record)))
+                             records)))))))
+
 (deftest reverse-two-element-list-succeeds
   (testing "reverse([a, b], [b, a]) is semantically reachable, though expensive"
     (let [program (list-program)]

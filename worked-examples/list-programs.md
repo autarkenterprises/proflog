@@ -222,6 +222,46 @@ Recorded successful runtime for the final committed iteration:
 154219.489533 ms
 ```
 
+## `append([a], [b, c], z)`
+
+Open query:
+
+```clojure
+append(cons(a, null),
+       cons(b, cons(c, null)),
+       z)
+```
+
+Current exported answer record:
+
+```clojure
+{:bindings [[z (app cons (app a)
+                    (app cons (app b)
+                              (app cons (app c) (app null))))]]
+ :residuals
+ [(neq (app cons (app a)
+             (app cons (app b) (app cons (app c) (app null))))
+       (app cons (app b) (app cons (app c) (app null))))
+  (neq (app cons (app a) (app null))
+       (app null))]}
+```
+
+So the exporter reconstructs the expected concrete result:
+
+```clojure
+z = [a, b, c]
+```
+
+As with the nested answer cases, the constructive binding is already ground but
+the exporter still leaves behind the disequalities that ruled out the wrong
+append branches.
+
+Recorded successful runtime for the final committed iteration:
+
+```text
+68873.149268 ms
+```
+
 ## `reverse([a, b], [b, a])`
 
 Query:
@@ -357,7 +397,8 @@ boundary.
 
 This boundary is intentional for the committed baseline: the current slice now
 covers base cases, recovered recursive `member`, one- and two-step ground
-`member` including the empty-list miss, `append`, singleton and two-element
-ground `reverse`, and the first nested forward and nested suffix append
-answers, without pretending that inverse enumeration and the deeper nested list
-families are already closed.
+`member` including the empty-list miss, `append` including a concrete
+three-element synthesized result, singleton and two-element ground `reverse`,
+and the first nested forward and nested suffix append answers, without
+pretending that inverse enumeration and the deeper nested list families are
+already closed.

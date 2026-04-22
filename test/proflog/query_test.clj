@@ -12,6 +12,7 @@
      :relations {'p 1
                  'even 1
                  'odd 1
+                 'move 2
                  'win 1
                  'undef 1}}))
 
@@ -83,6 +84,28 @@
                                                                                 (ast/var-term y)))))
                                       (ast/neg-lit (ast/app-term 'win (ast/var-term y))))))])))
 
+(defn factored-move-program
+  []
+  (ast/nom x y mx my
+    (language/compile-program
+      query-language
+      [(ast/clause 'win [x]
+                   (ast/exists-form y
+                                    (ast/and-form
+                                      (ast/pos-lit (ast/app-term 'move
+                                                                 (ast/var-term x)
+                                                                 (ast/var-term y)))
+                                      (ast/neg-lit (ast/app-term 'win
+                                                                 (ast/var-term y))))))
+       (ast/clause 'move [mx my]
+                   (ast/or-form
+                     (ast/eq-lit (ast/var-term mx)
+                                 (ast/app-term 's (ast/var-term my)))
+                     (ast/eq-lit (ast/var-term mx)
+                                 (ast/app-term 's
+                                               (ast/app-term 's
+                                                             (ast/var-term my))))))])))
+
 (deftest query-status-distinguishes-success-failure-and-unresolved
   (testing "undefined declared relations stay unresolved while defined ones succeed or fail"
     (let [program (status-program)]
@@ -133,3 +156,33 @@
       (is (succeeds-directly?
             program
             (ast/pos-lit (ast/app-term 'win (numeral 2))))))))
+
+(deftest factored-move-warning-leaves-small-win-positions-unresolved
+  (testing "ground move/2 stays decidable, but factoring Nim through move/2 leaves win(0) and win(1) unresolved"
+    (let [program (factored-move-program)
+          inline-program (p2-program)]
+      (is (succeeds-directly?
+            program
+            (ast/pos-lit (ast/app-term 'move (numeral 1) (numeral 0)))
+            16))
+      (is (fails-directly?
+            program
+            (ast/pos-lit (ast/app-term 'move (numeral 0) (numeral 1)))
+            16))
+      (is (= :unresolved
+             (query/query-status
+               program
+               (ast/pos-lit (ast/app-term 'win (numeral 0)))
+               {:timeout-ms 1000})))
+      (is (= :unresolved
+             (query/query-status
+               program
+               (ast/pos-lit (ast/app-term 'win (numeral 1)))
+               {:timeout-ms 1000})))
+      (is (fails-directly?
+            inline-program
+            (ast/pos-lit (ast/app-term 'win (numeral 0)))))
+      (is (succeeds-directly?
+            inline-program
+            (ast/pos-lit (ast/app-term 'win (numeral 1)))
+            16)))))

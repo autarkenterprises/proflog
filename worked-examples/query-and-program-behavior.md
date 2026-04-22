@@ -219,6 +219,45 @@ Representative proof shape:
 The prover must show that every move from `3` lands in a winning position.
 Both one-step and two-step move branches close.
 
+## Factored `move` Warning
+
+The factored program is:
+
+```clojure
+win(x)  :- exists y. move(x, y) and not win(y)
+move(x, y) :- x = s(y) or x = s(s(y))
+```
+
+Ground `move/2` itself behaves normally under direct proof search:
+
+```clojure
+move(1, 0) => :succeeds
+move(0, 1) => :fails
+```
+
+But the factored `win/1` no longer matches the inline Nim behavior on the
+smallest positions. Using the bounded public status helper with a `1000ms`
+probe budget:
+
+```clojure
+factored  win(0) => :unresolved
+factored  win(1) => :unresolved
+```
+
+The inline program remains directly decidable by ordinary proof search:
+
+```clojure
+inline win(0) => fails
+inline win(1) => succeeds
+```
+
+Operationally, the warning is not that `move/2` is broken. It is that the
+factored `win/1` proof has to make subsidiary calls through `move/2` with
+non-ground branch parameters, and those calls do not enjoy the same direct
+equality closure that the inline formulation gets. So the greenfield public API
+surfaces exactly the semantic warning Fitting points to: auxiliary factoring
+changes executability even when the ground relation itself looks fine.
+
 ### `win(1)` succeeds
 
 Representative proof shape:

@@ -19,3 +19,7 @@
 - Before the fix, same-head contradiction checking recursed on later arguments under the old substitution, so it missed constructor clashes that became visible only after an earlier `par-bind` or `eq-bind`.
 - The consequence was broader than `sorted2`: any proof depending on decomposition plus later contradiction under a refined substitution could stay spuriously open.
 - The regression that now locks this down is [test/proflog/equality_test.clj](./test/proflog/equality_test.clj), `decomposition-can-bind-earlier-arguments-before-finding-a-later-clash`.
+- Generic `sorted/1` is naturally first-order in Proflog when written against a fixed comparator relation such as `le/2`.
+- A comparator cannot currently be passed as an ordinary argument because the language and procedure-call rule are first-order: relation symbols are resolved from the declared program, while ordinary term arguments are not callable predicates.
+- If the frontend ever wants syntax like `sorted_by(le, xs)`, that should compile to a first-order specialized or inlined form rather than pretending the kernel already supports higher-order predicate arguments.
+- Compare this boundary explicitly against higher-order miniKanren designs before extending the language: the right question is not just ergonomics, but what semantic and operational commitments Proflog would inherit by admitting predicate-valued arguments or meta-calls.

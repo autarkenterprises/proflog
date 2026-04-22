@@ -4,16 +4,20 @@ This file covers `test/proflog/integration_families_test.clj`.
 
 ## Transitive Closure
 
-The current integration graph is:
+The current committed integration graph is:
 
 ```clojure
-edge(a, b)
-edge(b, c)
-tc(x, y) :- edge(x, y)
-         or exists z. edge(x, z) and tc(z, y)
+tc(x, y) :- (x = a and y = b)
+         or (x = b and y = c)
+         or exists z.
+              ((x = a and z = b) or (x = b and z = c))
+              and tc(z, y)
 ```
 
-The committed greenfield baseline currently checks only the direct edges.
+This stays inline intentionally. For this small graph, negative reachability is
+part of the semantic contract, and the inline edge facts keep the impossible
+edge cases available to the same tableau instead of hiding them behind another
+procedure call.
 
 ### `tc(a, b)` succeeds
 
@@ -43,6 +47,41 @@ Proof term:
 
 The proof is slightly larger because it first eliminates the `a -> b` base
 branch before closing the `b -> c` branch.
+
+### `tc(a, c)` succeeds
+
+This is the first genuinely recursive example in the namespace.
+
+Operationally:
+
+1. both direct-edge branches are ruled out,
+2. the recursive clause chooses the witness `z = b`,
+3. the remaining obligation is `tc(b, c)`,
+4. that subgoal closes through the direct `b -> c` branch.
+
+### No-path examples now refute directly
+
+Current negative examples:
+
+```clojure
+tc(c, a) => false
+tc(a, a) => false
+tc(b, a) => false
+```
+
+The shortest is `tc(c, a)`. Its proof term is:
+
+```clojure
+(pos-call
+ (split
+  (conj (free-close))
+  (split
+   (conj (free-close))
+   (witness (conj (split (conj (free-close)) (conj (free-close))))))))
+```
+
+Each branch closes because `c` cannot match either graph edge source, and the
+recursive clause can only reintroduce those same impossible edge shapes.
 
 ## Peano Addition
 
@@ -132,12 +171,14 @@ The positive call closes both branches:
 
 ## Current Boundary
 
-This namespace intentionally stops short of:
+The `tc/2` family now covers the same small-graph truth/falsity pattern as the
+legacy benchmark, while the `plus/3` family should still be read together with
+the open and partial `plus` examples in `worked-examples/synthesis-modes.md`.
 
-- recursive `tc` negative cases such as `tc(c, a)` or `tc(a, a)`.
+Operational note:
 
-The `plus/3` family now goes well beyond its original base-case placeholder and
-should be read together with the open and partial `plus` examples in
-`worked-examples/synthesis-modes.md`.
+- these deeper `tc/2` negatives and multi-step `plus/3` truths are no longer
+  smoke tests; they are extended-suite semantic regressions and should be
+  treated as such when budgeting run time.
 
 Those are phase-2 closure items on `ADR-0009`.

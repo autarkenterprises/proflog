@@ -7,8 +7,7 @@
 (def tc-language
   (language/language
     {:constants ['a 'b 'c]
-     :relations {'edge 2
-                 'tc 2}}))
+     :relations {'tc 2}}))
 
 (def arithmetic-language
   (language/language
@@ -25,30 +24,39 @@
 (defn tc-program
   []
   (ast/nom x y z
-    (language/compile-program
-      tc-language
-      [(ast/clause 'edge [x y]
-                   (ast/and-form
-                     (ast/eq-lit (ast/var-term x) (ast/app-term 'a))
-                     (ast/eq-lit (ast/var-term y) (ast/app-term 'b))))
-       (ast/clause 'edge [x y]
-                   (ast/and-form
-                     (ast/eq-lit (ast/var-term x) (ast/app-term 'b))
-                     (ast/eq-lit (ast/var-term y) (ast/app-term 'c))))
-       (ast/clause 'tc [x y]
-                   (ast/or-form
-                     (ast/pos-lit (ast/app-term 'edge
-                                                (ast/var-term x)
-                                                (ast/var-term y)))
-                     (ast/exists-form
-                       z
-                       (ast/and-form
-                         (ast/pos-lit (ast/app-term 'edge
-                                                    (ast/var-term x)
-                                                    (ast/var-term z)))
-                         (ast/pos-lit (ast/app-term 'tc
-                                                    (ast/var-term z)
-                                                    (ast/var-term y)))))))])))
+    (let [ab-edge
+          (ast/and-form
+            (ast/eq-lit (ast/var-term x) (ast/app-term 'a))
+            (ast/eq-lit (ast/var-term y) (ast/app-term 'b)))
+          bc-edge
+          (ast/and-form
+            (ast/eq-lit (ast/var-term x) (ast/app-term 'b))
+            (ast/eq-lit (ast/var-term y) (ast/app-term 'c)))
+          ab-step
+          (ast/and-form
+            (ast/eq-lit (ast/var-term x) (ast/app-term 'a))
+            (ast/eq-lit (ast/var-term z) (ast/app-term 'b)))
+          bc-step
+          (ast/and-form
+            (ast/eq-lit (ast/var-term x) (ast/app-term 'b))
+            (ast/eq-lit (ast/var-term z) (ast/app-term 'c)))
+          recursive-step
+          (ast/exists-form
+            z
+            (ast/and-form
+              (ast/or-form ab-step bc-step)
+              (ast/pos-lit
+                (ast/app-term 'tc
+                              (ast/var-term z)
+                              (ast/var-term y)))))]
+      (language/compile-program
+        tc-language
+        [(ast/clause 'tc [x y]
+                     (ast/or-form
+                       ab-edge
+                       (ast/or-form
+                         bc-edge
+                         recursive-step)))]))))
 
 (defn plus-program
   []
@@ -78,13 +86,13 @@
                                              (ast/var-term y)
                                              (ast/var-term z1)))))))))])))
 
-;; The transitive-closure family still has an operational boundary on its
-;; negative cases when expressed through a separate auxiliary `edge/2` relation.
-;; The Peano `plus/3` family, however, can already sustain a materially deeper
-;; ground regression slice and should use it.
+;; The small-graph transitive-closure example is kept inline rather than
+;; factored through an auxiliary `edge/2` relation. For this concrete family,
+;; the negative reachability cases are part of the semantic contract and the
+;; inline encoding keeps those edge impossibilities in the same tableau.
 
-(deftest transitive-closure-handles-direct-edges
-  (testing "transitive closure discharges the direct edge cases promptly"
+(deftest transitive-closure-handles-direct-recursive-and-negative-cases
+  (testing "transitive closure handles the direct edges, the recursive path, and the simple no-path cases"
     (let [program (tc-program)]
       (is (seq
             (query/query-succeeds
@@ -97,7 +105,31 @@
               program
               (ast/pos-lit (ast/app-term 'tc (ast/app-term 'b) (ast/app-term 'c)))
               1
-              8))))))
+              8)))
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit (ast/app-term 'tc (ast/app-term 'a) (ast/app-term 'c)))
+              1
+              64)))
+      (is (seq
+            (query/query-fails
+              program
+              (ast/pos-lit (ast/app-term 'tc (ast/app-term 'c) (ast/app-term 'a)))
+              1
+              64)))
+      (is (seq
+            (query/query-fails
+              program
+              (ast/pos-lit (ast/app-term 'tc (ast/app-term 'a) (ast/app-term 'a)))
+              1
+              128)))
+      (is (seq
+            (query/query-fails
+              program
+              (ast/pos-lit (ast/app-term 'tc (ast/app-term 'b) (ast/app-term 'a)))
+              1
+              64))))))
 
 (deftest peano-addition-handles-the-base-case
   (testing "addition discharges the zero-left base case promptly"

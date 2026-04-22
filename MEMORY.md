@@ -286,6 +286,35 @@ Useful pattern:
     cases push it into extended-suite territory, but they remain acceptable for
     committed semantic coverage.
 
+## 2026-04-21 ADR-0009 Phase 2 Pair 2: Inline Transitive Closure Closure
+
+- Reworked `tc-program` in `test/proflog/integration_families_test.clj` to use
+  an inline small-graph specification rather than an auxiliary `edge/2`
+  relation.
+- Independent greenfield justification:
+  - for this concrete benchmark, negative reachability is part of the semantic
+    contract under test,
+  - and the inline edge facts keep those impossible edge cases on the same
+    tableau instead of hiding them behind another procedure call.
+- New committed `tc/2` coverage:
+  - direct truths: `tc(a,b)`, `tc(b,c)`
+  - recursive truth: `tc(a,c)`
+  - negative cases: `tc(c,a)`, `tc(a,a)`, `tc(b,a)`
+- Updated `worked-examples/integration-families.md` with the recursive and
+  no-path `tc` walkthroughs.
+- Updated `docs/LEGACY_PROGRAM_PARITY_MATRIX.md` to mark both `tc` and `plus`
+  as comparable rows after the integration-family deepening work.
+- Verification:
+  - `lein test proflog.integration-families-test`
+  - `Ran 4 tests containing 14 assertions.`
+  - `0 failures, 0 errors.`
+- Performance finding:
+  - the namespace completed cleanly, but the full integration slice now runs in
+    multiple minutes rather than seconds.
+  - The semantic closure is good enough to commit; the runtime cost should be
+    treated as a follow-on performance concern rather than a reason to weaken
+    the regression.
+
 ## 2026-04-21 Resume Findings
 
 - The interrupted follow-on round had already added new ADR-0008 namespaces for

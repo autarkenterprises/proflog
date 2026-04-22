@@ -12,6 +12,7 @@ query walkthroughs for the current `test/proflog` suites.
 - [Quantified Programs](./quantified-programs.md)
 - [Boxed Zero](./boxed-zero.md)
 - [Program Calls](./program-calls.md)
+- [Query Boundaries](./query-boundaries.md)
 - [Answers API](./answers-api.md)
 - [Adversarial Cases](./adversarial-cases.md)
 - [Equality And Disequality](./equality-and-disequality.md)

@@ -24,6 +24,34 @@
                    (ast/eq-lit (ast/var-term x)
                                (ast/app-term 'zero)))])))
 
+(def isolation-language
+  (language/language
+    {:constants ['zero]
+     :relations {'p 1
+                 'q 1}}))
+
+(defn isolation-program
+  []
+  (ast/nom x
+    (language/compile-program
+      isolation-language
+      [(ast/clause 'p [x]
+                   (ast/pos-lit (ast/app-term 'q (ast/var-term x))))])))
+
+(def pair-language
+  (language/language
+    {:constants ['zero 'one]
+     :relations {'pair-eq 2}}))
+
+(defn pair-program
+  []
+  (ast/nom x y
+    (language/compile-program
+      pair-language
+      [(ast/clause 'pair-eq [x y]
+                   (ast/eq-lit (ast/var-term x)
+                               (ast/var-term y)))])))
+
 (deftest call-clauseo-binds-compiled-parameters-to-actual-arguments
   (testing "the program layer exposes the compiled body plus an argument-binding environment"
     (let [program (simple-program)
@@ -67,3 +95,55 @@
                program
                (ast/pos-lit (ast/app-term 'p (ast/app-term 'one)))
                {:timeout-ms 1000}))))))
+
+(deftest procedure-calls-do-not-borrow-the-caller-branch-context
+  (testing "subsidiary tableaux stay isolated from unrelated literals on the caller branch"
+    (let [program (isolation-program)]
+      (is (empty?
+            (kernel/prove-program
+              program
+              (ast/and-form
+                (ast/pos-lit (ast/app-term 'p (ast/app-term 'zero)))
+                (ast/neg-lit (ast/app-term 'q (ast/app-term 'zero))))
+              1)))
+      (is (empty?
+            (kernel/prove-program
+              program
+              (ast/and-form
+                (ast/neg-lit (ast/app-term 'p (ast/app-term 'zero)))
+                (ast/pos-lit (ast/app-term 'q (ast/app-term 'zero))))
+              1))))))
+
+(deftest multi-argument-procedure-calls-respect-the-clause-environment
+  (testing "compiled programs can bind and evaluate multi-argument relations"
+    (let [program (pair-program)]
+      (is (seq
+            (kernel/prove-program
+              program
+              (ast/pos-lit
+                (ast/app-term 'pair-eq
+                              (ast/app-term 'zero)
+                              (ast/app-term 'one)))
+              1)))
+      (is (seq
+            (kernel/prove-program
+              program
+              (ast/neg-lit
+                (ast/app-term 'pair-eq
+                              (ast/app-term 'zero)
+                              (ast/app-term 'zero)))
+              1))))))
+
+(deftest procedure-calls-do-not-close-when-the-clause-body-stays-satisfiable
+  (testing "plain calls only close when the subsidiary tableau actually closes"
+    (let [program (simple-program)]
+      (is (empty?
+            (kernel/prove-program
+              program
+              (ast/pos-lit (ast/app-term 'p (ast/app-term 'zero)))
+              1)))
+      (is (empty?
+            (kernel/prove-program
+              program
+              (ast/neg-lit (ast/app-term 'p (ast/app-term 'one)))
+              1))))))

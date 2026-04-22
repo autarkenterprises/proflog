@@ -223,3 +223,35 @@
                               (list-term (ast/app-term 'a))))
               1
               64))))))
+
+(deftest append-two-step-ground-case-succeeds
+  (testing "append([a, b], [c], [a, b, c]) is semantically reachable, though expensive"
+    (let [program (list-program)]
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit
+                (ast/app-term 'append
+                              (list-term (ast/app-term 'a)
+                                         (ast/app-term 'b))
+                              (list-term (ast/app-term 'c))
+                              (list-term (ast/app-term 'a)
+                                         (ast/app-term 'b)
+                                         (ast/app-term 'c))))
+              1
+              256))))))
+
+(deftest reverse-two-element-list-succeeds
+  (testing "reverse([a, b], [b, a]) is semantically reachable, though expensive"
+    (let [program (list-program)]
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit
+                (ast/app-term 'reverse
+                              (list-term (ast/app-term 'a)
+                                         (ast/app-term 'b))
+                              (list-term (ast/app-term 'b)
+                                         (ast/app-term 'a))))
+              1
+              256))))))

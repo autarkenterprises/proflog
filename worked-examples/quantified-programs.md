@@ -124,3 +124,27 @@ This family matters because it exercises quantified finite-domain reasoning
 without any recursive list structure. If it lands cleanly, it narrows the
 remaining quantified gap to the still-blocked sortedness and graph-property
 families rather than leaving quantified specifications absent altogether.
+
+## `acyclic`
+
+The greenfield graph-property family uses zero-arity relations:
+
+```clojure
+acyclic-abc()  :- forall x. not reach_abc(x, x)
+acyclic-aba()  :- forall x. not reach_aba(x, x)
+acyclic-abca() :- forall x. not reach_abca(x, x)
+```
+
+with each `not reach...` body inlined directly as equalities and disequalities.
+
+Current committed cases:
+
+```clojure
+acyclic-abc()  => succeeds
+acyclic-aba()  => fails
+acyclic-abca() => fails
+```
+
+This family matters because it extends the quantified specification surface
+from set membership to inline graph properties without introducing auxiliary
+reachability relations.

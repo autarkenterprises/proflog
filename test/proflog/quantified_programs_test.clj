@@ -19,6 +19,13 @@
                  'sub-ab-abc 0
                  'sub-abc-ab 0}}))
 
+(def graph-language
+  (language/language
+    {:constants ['a 'b 'c]
+     :relations {'acyclic-aba 0
+                 'acyclic-abc 0
+                 'acyclic-abca 0}}))
+
 (defn zero-only-program
   []
   (ast/nom x y
@@ -82,6 +89,40 @@
                      (ast/or-form
                        (ast/neq-lit (ast/var-term x) (ast/app-term 'a))
                        (ast/eq-lit (ast/var-term x) (ast/app-term 'a)))))])))
+
+(defn acyclic-program
+  []
+  (ast/nom x
+    (language/compile-program
+      graph-language
+      [(ast/clause 'acyclic-abc []
+                   (ast/forall-form
+                     x
+                     (ast/and-form
+                       (ast/or-form
+                         (ast/neq-lit (ast/var-term x) (ast/app-term 'a))
+                         (ast/neq-lit (ast/var-term x) (ast/app-term 'b)))
+                       (ast/and-form
+                         (ast/or-form
+                           (ast/neq-lit (ast/var-term x) (ast/app-term 'b))
+                           (ast/neq-lit (ast/var-term x) (ast/app-term 'c)))
+                         (ast/or-form
+                           (ast/neq-lit (ast/var-term x) (ast/app-term 'a))
+                           (ast/neq-lit (ast/var-term x) (ast/app-term 'c)))))))
+       (ast/clause 'acyclic-aba []
+                   (ast/forall-form
+                     x
+                     (ast/and-form
+                       (ast/neq-lit (ast/var-term x) (ast/app-term 'a))
+                       (ast/neq-lit (ast/var-term x) (ast/app-term 'b)))))
+       (ast/clause 'acyclic-abca []
+                   (ast/forall-form
+                     x
+                     (ast/and-form
+                       (ast/neq-lit (ast/var-term x) (ast/app-term 'a))
+                       (ast/and-form
+                         (ast/neq-lit (ast/var-term x) (ast/app-term 'b))
+                         (ast/neq-lit (ast/var-term x) (ast/app-term 'c))))))])))
 
 (deftest original-p1-quantified-clause-handles-deeper-ground-cases
   (testing "the original forall-based P1 clause now executes deeper success and failure cases directly"
@@ -152,3 +193,25 @@
               (ast/pos-lit (ast/app-term 'sub-a-a))
               1
               16))))))
+
+(deftest acyclic-quantified-spec-distinguishes-acyclic-and-cyclic-small-graphs
+  (testing "acyclic specifications distinguish the inline acyclic and cyclic finite graphs"
+    (let [program (acyclic-program)]
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit (ast/app-term 'acyclic-abc))
+              1
+              32)))
+      (is (seq
+            (query/query-fails
+              program
+              (ast/pos-lit (ast/app-term 'acyclic-aba))
+              1
+              32)))
+      (is (seq
+            (query/query-fails
+              program
+              (ast/pos-lit (ast/app-term 'acyclic-abca))
+              1
+              32))))))

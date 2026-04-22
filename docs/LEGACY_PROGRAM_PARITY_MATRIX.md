@@ -35,7 +35,7 @@ families.
 | Quantified singleton and mixed clause bodies | [X-family](../test/cljtap/alphaleantap_ep_test.clj), quantified spec families below | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Partial | Greenfield now executes quantified bodies directly, but still lacks richer quantified specification programs like sortedness and subset. |
 | Sortedness `sorted2` | [SO01-SO05](../test/cljtap/alphaleantap_ep_test.clj) | none | Absent | Recorded as a future quantified specification target. |
 | Subset relations | [SS01-SS03](../test/cljtap/alphaleantap_ep_test.clj) | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Comparable | Greenfield now covers the legacy true, false, and reflexive subset cases over the finite domain `{a, b, c}`. |
-| Graph properties `acyclic` | [GP01-GP03](../test/cljtap/alphaleantap_ep_test.clj) | none | Absent | No greenfield graph-property family exists yet. |
+| Graph properties `acyclic` | [GP01-GP03](../test/cljtap/alphaleantap_ep_test.clj) | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Comparable | Greenfield now covers the acyclic `a→b→c` case and the two cyclic counterexamples `a→b→a` and `a→b→c→a`. |
 | Group verifier `GV` | [GV01-GV09](../test/cljtap/alphaleantap_ep_test.clj) | none | Deferred | ADR-0008 treats this as a future greenfield experiment, not current baseline parity work. |
 | Finite-domain reasoning `FD` | [FD01-FD07](../test/cljtap/alphaleantap_ep_test.clj) | none | Deferred | ADR-0008 treats this as a future greenfield experiment, not current baseline parity work. |
 

@@ -1,0 +1,154 @@
+(ns proflog.list-programs-test
+  (:require [clojure.test :refer [deftest is testing]]
+            [proflog.answers :as answers]
+            [proflog.ast :as ast]
+            [proflog.language :as language]
+            [proflog.query :as query]))
+
+(def list-language
+  (language/language
+   {:constants ['a 'b 'c 'null]
+    :functions {'cons 2}
+    :relations {'append 3
+                'member 2
+                'reverse 2}}))
+
+(defn list-term
+  [& xs]
+  (reduce (fn [tail x]
+            (ast/app-term 'cons x tail))
+          (ast/app-term 'null)
+          (reverse xs)))
+
+(defn member-body
+  [x xs head tail]
+  (ast/exists-form
+   head
+   (ast/exists-form
+    tail
+    (ast/and-form
+     (ast/eq-lit
+      (ast/var-term xs)
+      (ast/app-term 'cons
+                    (ast/var-term head)
+                    (ast/var-term tail)))
+     (ast/or-form
+      (ast/eq-lit (ast/var-term x) (ast/var-term head))
+      (ast/pos-lit
+       (ast/app-term 'member
+                     (ast/var-term x)
+                     (ast/var-term tail))))))))
+
+(defn append-body
+  [xs ys zs head tail rest]
+  (ast/or-form
+   (ast/and-form
+    (ast/eq-lit (ast/var-term xs) (ast/app-term 'null))
+    (ast/eq-lit (ast/var-term zs) (ast/var-term ys)))
+   (ast/exists-form
+    head
+    (ast/exists-form
+     tail
+     (ast/exists-form
+      rest
+      (ast/and-form
+       (ast/eq-lit
+        (ast/var-term xs)
+        (ast/app-term 'cons
+                      (ast/var-term head)
+                      (ast/var-term tail)))
+       (ast/and-form
+        (ast/eq-lit
+         (ast/var-term zs)
+         (ast/app-term 'cons
+                       (ast/var-term head)
+                       (ast/var-term rest)))
+        (ast/pos-lit
+         (ast/app-term 'append
+                       (ast/var-term tail)
+                       (ast/var-term ys)
+                       (ast/var-term rest))))))))))
+
+(defn reverse-body
+  [r1 r2 head tail rrp]
+  (ast/or-form
+   (ast/and-form
+    (ast/eq-lit (ast/var-term r1) (ast/app-term 'null))
+    (ast/eq-lit (ast/var-term r2) (ast/app-term 'null)))
+   (ast/exists-form
+    head
+    (ast/exists-form
+     tail
+     (ast/exists-form
+      rrp
+      (ast/and-form
+       (ast/eq-lit
+        (ast/var-term r1)
+        (ast/app-term 'cons
+                      (ast/var-term head)
+                      (ast/var-term tail)))
+       (ast/and-form
+        (ast/pos-lit
+         (ast/app-term 'reverse
+                       (ast/var-term tail)
+                       (ast/var-term rrp)))
+        (ast/pos-lit
+         (ast/app-term 'append
+                       (ast/var-term rrp)
+                       (ast/app-term 'cons
+                                     (ast/var-term head)
+                                     (ast/app-term 'null))
+                       (ast/var-term r2))))))))))
+
+(defn list-program
+  []
+  (ast/nom x xs head tail ys zs rest r1 r2 rrp
+           (language/compile-program
+            list-language
+            [(ast/clause 'member [x xs] (member-body x xs head tail))
+             (ast/clause 'append [xs ys zs] (append-body xs ys zs head tail rest))
+             (ast/clause 'reverse [r1 r2] (reverse-body r1 r2 head tail rrp))])))
+
+;; Prompt greenfield list-program coverage is currently limited to the cases
+;; that close without the deeper recursive search costs seen in `member` and
+;; non-empty `reverse`/`append` proofs. Those heavier families stay documented
+;; in ADR-0008 as exploratory rather than baseline regressions for now.
+
+(deftest append-base-case-succeeds-and-exports-an-open-result
+  (testing "append([], [a], [a]) closes directly and append([], [a], z) exports z = [a]"
+    (let [program (list-program)
+          empty-list (list-term)
+          a-list (list-term (ast/app-term 'a))]
+      (is (seq
+           (query/query-succeeds
+            program
+            (ast/pos-lit (ast/app-term 'append empty-list a-list a-list))
+            1
+            8)))
+      (ast/nom z
+               (let [records (answers/query-answers
+                              program
+                              (ast/pos-lit
+                               (ast/app-term 'append
+                                             empty-list
+                                             a-list
+                                             (ast/var-term z)))
+                              [z]
+                              {:proof-limit 2
+                               :fuel 4
+                               :call-depth 1})]
+                 (is (= [a-list]
+                        (mapv #(answers/binding-term % z) records)))
+                 (is (= [[]]
+                        (mapv :residuals records))))))))
+
+(deftest reverse-empty-list-succeeds
+  (testing "reverse([], []) closes through the direct base case"
+    (let [program (list-program)
+          empty-list (list-term)]
+      (is (seq
+           (query/query-succeeds
+            program
+            (ast/pos-lit (ast/app-term 'reverse empty-list empty-list))
+            1
+            8))))))

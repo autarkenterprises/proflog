@@ -90,3 +90,7 @@ stops short of:
 - nested-list families.
 
 Those move into phase 2 of `ADR-0009`.
+
+This boundary is intentional for the committed baseline: the two current tests
+pin down the executable empty-list branch and the answer-export shape without
+pretending that the deeper recursive list families are already closed.

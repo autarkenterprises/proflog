@@ -186,6 +186,19 @@
               1
               32))))))
 
+(deftest member-empty-list-fails
+  (testing "member(a, []) fails immediately because [] cannot decompose as cons(head, tail)"
+    (let [program (list-program)]
+      (is (seq
+            (query/query-fails
+              program
+              (ast/pos-lit
+                (ast/app-term 'member
+                              (ast/app-term 'a)
+                              (list-term)))
+              1
+              8))))))
+
 (deftest append-covers-one-step-recursion-and-a-wrong-result
   (testing "append executes the first recursive case and refutes an incorrect target list"
     (let [program (list-program)]

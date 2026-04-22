@@ -112,6 +112,36 @@ This is the first non-trivial recursive `member` success. The proof descends
 through the tail after the head-case disjunct fails on `b`, then closes on the
 recursive call over `[a]`.
 
+## `member(a, [])`
+
+Query:
+
+```clojure
+member(a, null)
+```
+
+Proof term:
+
+```clojure
+(pos-call (witness (witness (conj (free-close))))))
+```
+
+This is the empty-list failure case:
+
+1. the positive call opens the clause body,
+2. the two existential witnesses stand for the would-be `head` and `tail`,
+3. the body immediately requires `null = cons(head, tail)`,
+4. that closes by constructor clash.
+
+So the relation does not need any recursive search to reject membership in the
+empty list.
+
+Recorded successful runtime for the final committed iteration:
+
+```text
+565.030374 ms
+```
+
 ## `append([a], [b], [a, b])`
 
 Query:
@@ -327,6 +357,7 @@ boundary.
 
 This boundary is intentional for the committed baseline: the current slice now
 covers base cases, recovered recursive `member`, one- and two-step ground
-`append`, singleton and two-element ground `reverse`, and the first nested
-forward and nested suffix append answers, without pretending that inverse
-enumeration and the deeper nested list families are already closed.
+`member` including the empty-list miss, `append`, singleton and two-element
+ground `reverse`, and the first nested forward and nested suffix append
+answers, without pretending that inverse enumeration and the deeper nested list
+families are already closed.

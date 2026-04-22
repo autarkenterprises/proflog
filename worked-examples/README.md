@@ -17,6 +17,7 @@ query walkthroughs for the current `test/proflog` suites.
 - [Adversarial Cases](./adversarial-cases.md)
 - [Equality And Disequality](./equality-and-disequality.md)
 - [Recursive Parity](./recursive-parity.md)
+- [Syntax And Normalization](./syntax-and-normalization.md)
 - [Nim Synthesis](./nim-synthesis.md)
 - [Synthesis Modes](./synthesis-modes.md)
 

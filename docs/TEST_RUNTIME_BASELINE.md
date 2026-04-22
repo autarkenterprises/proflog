@@ -27,3 +27,7 @@ justified the test.
 | Probe | Final successful runtime | Result | Operational note |
 |---|---:|---|---|
 | `append(xs, ys, [a, b, c])` answer enumeration | `1372558.603771 ms` | Returned only 2 answer records | Base split plus first recursive split family only; inverse list enumeration remains a major performance gap. |
+| `reverse([a, b], r)` answer synthesis | `>300000 ms` | No result before manual stop | Reverse synthesis is still materially worse than ground reverse truth checking. |
+| Nested `append(x, y, [[a], [b]])` split enumeration | `>180000 ms` | No result before manual stop | Even the short nested inverse family remains operationally expensive. |
+| Depth-3 forward `append(left, right, z)` answer synthesis | `>360000 ms` | No result before manual stop | Structural depth alone is enough to make open answer export impractical right now. |
+| `sorted2([1])` complementary failure search | `>120000 ms` | No result before manual stop | The singleton sortedness case is currently neither closing as true nor quickly refuting as false. |

@@ -94,12 +94,18 @@ query.
 
 This namespace proves that quantified clause bodies now execute directly in the
 greenfield kernel, but it is still lighter than the legacy quantified
-specification families such as:
+specification surface in one important respect: `sorted2` is still blocked.
+The attempted greenfield port exposed a concrete issue rather than a missing
+test harness:
 
-- `sorted2`
-- `subset`
+```clojure
+sorted2([1])
+```
 
-Those are phase-2 and phase-3 targets on `ADR-0009`.
+did not succeed even at fuel `128`, and the complementary failure search did
+not settle promptly. So the remaining quantified gap is no longer about whether
+the kernel can execute quantified programs at all; it is about a specific
+sortedness-shaped operational weakness that still needs independent treatment.
 
 ## `subset`
 
@@ -121,9 +127,9 @@ sub-a-a()    => succeeds
 ```
 
 This family matters because it exercises quantified finite-domain reasoning
-without any recursive list structure. If it lands cleanly, it narrows the
-remaining quantified gap to the still-blocked sortedness and graph-property
-families rather than leaving quantified specifications absent altogether.
+without any recursive list structure. Its closure narrows the remaining
+quantified gap to the still-blocked sortedness family rather than leaving
+quantified specifications absent altogether.
 
 ## `acyclic`
 

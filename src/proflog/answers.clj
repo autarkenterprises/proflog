@@ -99,6 +99,9 @@
     forall (let [tied (second formula)]
              (disj (free-vars-formula (:body tied))
                    (:binding-nom tied)))
+    once-forall (let [tied (second formula)]
+                  (disj (free-vars-formula (:body tied))
+                        (:binding-nom tied)))
     exists (let [tied (second formula)]
              (disj (free-vars-formula (:body tied))
                    (:binding-nom tied)))
@@ -171,6 +174,9 @@
     forall (let [tied (second formula)]
              (ast/forall-form (:binding-nom tied)
                               (unfold-call-obligations program (:body tied) call-depth)))
+    once-forall (let [tied (second formula)]
+                  (ast/once-forall-form (:binding-nom tied)
+                                        (unfold-call-obligations program (:body tied) call-depth)))
     exists (let [tied (second formula)]
              (ast/exists-form (:binding-nom tied)
                               (unfold-call-obligations program (:body tied) call-depth)))
@@ -210,6 +216,9 @@
                    (walk-term (nth formula 2) sigma))
     neq (ast/neq-lit (walk-term (second formula) sigma)
                      (walk-term (nth formula 2) sigma))
+    once-forall (let [tied (second formula)]
+                  (ast/once-forall-form (:binding-nom tied)
+                                        (walk-formula (:body tied) sigma)))
     formula))
 
 (defn- rename-term
@@ -234,6 +243,9 @@
                    (rename-term (nth formula 2) renaming))
     neq (ast/neq-lit (rename-term (second formula) renaming)
                      (rename-term (nth formula 2) renaming))
+    once-forall (let [tied (second formula)]
+                  (ast/once-forall-form (:binding-nom tied)
+                                        (rename-formula (:body tied) renaming)))
     formula))
 
 (defn- admissible-term?

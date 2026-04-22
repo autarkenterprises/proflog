@@ -13,9 +13,13 @@
 
 (defn not-provable?
   "True when the greenfield kernel finds no proof within the given bound."
-  ([formula] (not-provable? formula 1))
-  ([formula n]
-   (empty? (kernel/prove formula n))))
+  ([formula] (not-provable? formula 1 nil))
+  ([formula n] (not-provable? formula n nil))
+  ([formula n fuel]
+   (empty?
+     (if (nil? fuel)
+       (kernel/prove formula n)
+       (kernel/prove formula n fuel)))))
 
 (deftest direct-complementary-closure
   (testing "a positive and negative copy of the same atom close immediately"
@@ -60,6 +64,49 @@
               (ast/and-form
                 (ast/pos-lit (ast/app-term 'value (ast/var-term x)))
                 (ast/neg-lit (ast/app-term 'value (ast/var-term x))))))))))
+
+(deftest once-universal-instantiates-without-reenqueueing
+  (testing "a single-use universal closes its instantiated body once without needing an open-ended gamma loop"
+    (ast/nom x
+      (is (provable?
+            (ast/once-forall-form
+              x
+              (ast/and-form
+                (ast/pos-lit (ast/app-term 'value (ast/var-term x)))
+                (ast/neg-lit (ast/app-term 'value (ast/var-term x))))))))))
+
+(deftest nested-conjunctions-close-across-queued-literals
+  (testing "later literals can still close against atoms saved from outer conjunction frames"
+    (is (provable?
+          (ast/and-form
+            (ast/pos-lit (ast/app-term 'p))
+            (ast/and-form
+              (ast/pos-lit (ast/app-term 'q))
+              (ast/neg-lit (ast/app-term 'p))))))))
+
+(deftest universal-without-a-contrary-literal-stays-open
+  (testing "a universal formula alone is not enough to close a branch"
+    (ast/nom x
+      ;; This branch is semantically open, so keep the regression on a bounded
+      ;; search slice rather than asking unbounded proof search to terminate.
+      (is (not-provable?
+            (ast/forall-form
+              x
+              (ast/pos-lit (ast/app-term 'value (ast/var-term x))))
+            1
+            2)))))
+
+(deftest existential-with-a-satisfiable-body-stays-open
+  (testing "an existential whose body has no contradiction does not close the branch"
+    (ast/nom x
+      ;; Keep the open-branch check on a finite slice for the same reason as
+      ;; the universal test above.
+      (is (not-provable?
+            (ast/exists-form
+              x
+              (ast/pos-lit (ast/app-term 'value (ast/var-term x))))
+            1
+            2)))))
 
 (deftest proveo-accepts-a-partially-specified-proof-shape
   (testing "the kernel relation can fill the tail of a constrained proof skeleton"

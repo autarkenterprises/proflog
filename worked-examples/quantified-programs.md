@@ -81,6 +81,15 @@ boxed-zero(x) => x = 0
 with no residual obligations and explicit proof terms in the exported answer
 record.
 
+### Operational Note
+
+The greenfield kernel keeps `boxed-zero` executable by representing the
+negation of an existential clause body as an internal single-use universal
+`once-forall` form. The justification is operational and local to the
+greenfield prover: this branch obligation should instantiate once on the
+current branch, not re-enqueue as an ordinary `forall` and spin away the
+query.
+
 ## Current Boundary
 
 This namespace proves that quantified clause bodies now execute directly in the

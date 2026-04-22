@@ -52,6 +52,10 @@
              (pretty-term (nth formula 2)))
     neq (list 'neq (pretty-term (second formula))
               (pretty-term (nth formula 2)))
+    once-forall (let [tied (second formula)]
+                  (list 'once-forall
+                        (:binding-nom tied)
+                        (pretty-formula (:body tied))))
     and (list 'and (pretty-formula (second formula))
               (pretty-formula (nth formula 2)))
     or (list 'or (pretty-formula (second formula))

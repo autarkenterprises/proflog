@@ -71,6 +71,10 @@
                    narrowed-env (remove-binding env (:binding-nom tied))]
                (ast/forall-form (:binding-nom tied)
                                 (subst-formula (:body tied) narrowed-env)))
+      once-forall (let [tied (second formula)
+                        narrowed-env (remove-binding env (:binding-nom tied))]
+                    (ast/once-forall-form (:binding-nom tied)
+                                          (subst-formula (:body tied) narrowed-env)))
       exists (let [tied (second formula)
                    narrowed-env (remove-binding env (:binding-nom tied))]
                (ast/exists-form (:binding-nom tied)
@@ -197,6 +201,11 @@
        (remove-bindo binding-nom env narrowed-env)
        (subst-formulao body narrowed-env body-out)
        (== (list 'forall (nominal/tie binding-nom body-out)) out))]
+    [(fresh [binding-nom body narrowed-env body-out]
+       (== (list 'once-forall (nominal/tie binding-nom body)) formula)
+       (remove-bindo binding-nom env narrowed-env)
+       (subst-formulao body narrowed-env body-out)
+       (== (list 'once-forall (nominal/tie binding-nom body-out)) out))]
     [(fresh [binding-nom body narrowed-env body-out]
        (== (list 'exists (nominal/tie binding-nom body)) formula)
        (remove-bindo binding-nom env narrowed-env)

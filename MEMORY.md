@@ -237,6 +237,32 @@ Useful pattern:
 - The user explicitly wants commit/push boundaries after each logical unit of
   work, and semantic/performance findings recorded as they appear.
 
+## 2026-04-21 ADR-0009 Phase 1 Worked Examples
+
+- Added worked-example coverage for the current greenfield family/query/
+  synthesis namespaces:
+  - `worked-examples/README.md`
+  - `worked-examples/query-and-program-behavior.md`
+  - `worked-examples/reverse-program-synthesis.md`
+  - `worked-examples/integration-families.md`
+  - `worked-examples/list-programs.md`
+  - `worked-examples/quantified-programs.md`
+  - `worked-examples/answers-api.md`
+  - `worked-examples/recursive-parity.md`
+  - `worked-examples/nim-synthesis.md`
+  - `worked-examples/synthesis-modes.md`
+- Existing `worked-examples/boxed-zero.md` remains the detailed mixed-quantifier
+  example and is now linked from the worked-example index.
+- The worked examples were grounded in live headless nREPL probes rather than
+  just restating test names. Extracted artifacts included:
+  - query statuses for `p/1` and `undef/1`
+  - proof terms for direct procedure calls, `P1`, `P2`, direct `tc`, base
+    `plus`, `zero-only`, and `boxed-zero`
+  - exported answer records for open `append`, `even`, `win`, `step`, `jump`,
+    `down`, `plus`, and `append`
+- A temporary headless REPL was started for these probes on `2026-04-21`; shut
+  it down after this logical unit is committed.
+
 ## 2026-04-21 Resume Findings
 
 - The interrupted follow-on round had already added new ADR-0008 namespaces for

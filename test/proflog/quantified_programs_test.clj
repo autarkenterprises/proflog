@@ -26,6 +26,20 @@
                  'acyclic-abc 0
                  'acyclic-abca 0}}))
 
+(def sorted-language
+  (language/language
+    {:constants ['zero 'null]
+     :functions {'cons 2
+                 's 1}
+     :relations {'sorted2 1}}))
+
+(defn quantified-list
+  [& nums]
+  (reduce (fn [tail n]
+            (ast/app-term 'cons (qt/numeral n) tail))
+          (ast/app-term 'null)
+          (reverse nums)))
+
 (defn zero-only-program
   []
   (ast/nom x y
@@ -124,6 +138,43 @@
                          (ast/neq-lit (ast/var-term x) (ast/app-term 'b))
                          (ast/neq-lit (ast/var-term x) (ast/app-term 'c))))))])))
 
+(defn le-inline-form
+  [a-term b-term]
+  (ast/or-form
+    (ast/eq-lit a-term (qt/numeral 0))
+    (ast/or-form
+      (ast/and-form
+        (ast/eq-lit a-term (qt/numeral 1))
+        (ast/or-form
+          (ast/eq-lit b-term (qt/numeral 1))
+          (ast/eq-lit b-term (qt/numeral 2))))
+      (ast/and-form
+        (ast/eq-lit a-term (qt/numeral 2))
+        (ast/eq-lit b-term (qt/numeral 2))))))
+
+(defn sorted2-program
+  []
+  (ast/nom l a b t
+    (language/compile-program
+      sorted-language
+      [(ast/clause 'sorted2 [l]
+                   (ast/forall-form
+                     a
+                     (ast/forall-form
+                       b
+                       (ast/forall-form
+                         t
+                         (ast/or-form
+                           (ast/neq-lit
+                             (ast/var-term l)
+                             (ast/app-term 'cons
+                                           (ast/var-term a)
+                                           (ast/app-term 'cons
+                                                         (ast/var-term b)
+                                                         (ast/var-term t))))
+                           (le-inline-form (ast/var-term a)
+                                           (ast/var-term b)))))))])))
+
 (deftest original-p1-quantified-clause-handles-deeper-ground-cases
   (testing "the original forall-based P1 clause now executes deeper success and failure cases directly"
     (let [program (qt/p1-program)]
@@ -215,3 +266,37 @@
               (ast/pos-lit (ast/app-term 'acyclic-abca))
               1
               32))))))
+
+(deftest sorted2-quantified-spec-distinguishes-small-sorted-and-unsorted-lists
+  (testing "sorted2 handles the legacy empty, singleton, sorted, and unsorted small-list cases"
+    (let [program (sorted2-program)]
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit (ast/app-term 'sorted2 (quantified-list)))
+              1
+              32)))
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit (ast/app-term 'sorted2 (quantified-list 1)))
+              1
+              128)))
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit (ast/app-term 'sorted2 (quantified-list 0 1 2)))
+              1
+              128)))
+      (is (seq
+            (query/query-fails
+              program
+              (ast/pos-lit (ast/app-term 'sorted2 (quantified-list 2 1)))
+              1
+              64)))
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit (ast/app-term 'sorted2 (quantified-list 1 2)))
+              1
+              64))))))

@@ -93,19 +93,9 @@ query.
 ## Current Boundary
 
 This namespace proves that quantified clause bodies now execute directly in the
-greenfield kernel, but it is still lighter than the legacy quantified
-specification surface in one important respect: `sorted2` is still blocked.
-The attempted greenfield port exposed a concrete issue rather than a missing
-test harness:
-
-```clojure
-sorted2([1])
-```
-
-did not succeed even at fuel `128`, and the complementary failure search did
-not settle promptly. So the remaining quantified gap is no longer about whether
-the kernel can execute quantified programs at all; it is about a specific
-sortedness-shaped operational weakness that still needs independent treatment.
+greenfield kernel, and it now includes both finite-domain specification and
+graph-property families in addition to the earlier singleton and mixed
+quantifier examples.
 
 ## `subset`
 
@@ -127,9 +117,7 @@ sub-a-a()    => succeeds
 ```
 
 This family matters because it exercises quantified finite-domain reasoning
-without any recursive list structure. Its closure narrows the remaining
-quantified gap to the still-blocked sortedness family rather than leaving
-quantified specifications absent altogether.
+without any recursive list structure.
 
 ## `acyclic`
 
@@ -154,3 +142,30 @@ acyclic-abca() => fails
 This family matters because it extends the quantified specification surface
 from set membership to inline graph properties without introducing auxiliary
 reachability relations.
+
+## `sorted2`
+
+The greenfield `sorted2` program is:
+
+```clojure
+sorted2(l) :- forall a. forall b. forall t.
+                (l != cons(a, cons(b, t)) or le_inline(a, b))
+```
+
+where `le_inline` is expressed directly with equalities over the finite domain
+`{0, 1, 2}`.
+
+Current committed cases:
+
+```clojure
+sorted2([])        => succeeds
+sorted2([1])       => succeeds
+sorted2([0, 1, 2]) => succeeds
+sorted2([2, 1])    => fails
+sorted2([1, 2])    => succeeds
+```
+
+The important implementation point is that the singleton case only closes once
+equality decomposition is allowed to carry an earlier parameter binding forward
+to a later constructor clash. That was the defect fixed by the equality
+regression added alongside this family.

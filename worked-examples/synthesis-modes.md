@@ -155,3 +155,14 @@ So the answer exporter currently exposes:
 
 - the base alias family,
 - one recursive cons family with a deferred recursive call.
+
+## Why The Residuals Matter
+
+These structured `plus` and `append` examples are not incomplete by accident.
+They are the intended partial-answer contract for open recursive queries in the
+current greenfield exporter:
+
+- concrete base families come back fully discharged,
+- recursive families come back with explicit residual negated calls,
+- and the residuals show exactly what deeper work remains instead of hiding it
+  behind a flattened or overcommitted answer.

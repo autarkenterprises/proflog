@@ -3,6 +3,7 @@
             [proflog.answers :as answers]
             [proflog.ast :as ast]
             [proflog.language :as language]
+            [proflog.list-programs-test :as lp]
             [proflog.recursive-synthesis-test :as rst]))
 
 (def answer-language
@@ -110,6 +111,26 @@
                          residual))
                     (:residuals (second records))))))))
 
+(deftest query-answer-diagnostics-reports-raw-vs-unique-growth
+  (testing "diagnostics show duplicate raw proof paths before later unique answers surface"
+    (ast/nom x
+      (let [snapshots (answers/query-answer-diagnostics
+                        (duplicate-answer-program)
+                        (ast/pos-lit (ast/app-term 'dup (ast/var-term x)))
+                        [x]
+                        {:raw-limits [1 2 4]
+                         :sample-limit 2})
+            first-snapshot (first snapshots)
+            last-snapshot (last snapshots)]
+        (is (= [1 2 3]
+               (mapv :raw-count snapshots)))
+        (is (= 1
+               (:unique-count first-snapshot)))
+        (is (= 2
+               (:unique-count last-snapshot)))
+        (is (= [(numeral 0) (numeral 1)]
+               (answer-terms (:sample-records last-snapshot))))))))
+
 (deftest generic-formula-answers-preserve-residual-disequalities
   (testing "symbolic answer export keeps residual neq constraints when the proof closes elsewhere"
     (ast/nom x
@@ -176,6 +197,27 @@
         (is (ast/var-term? (nth x-term 2)))
         (is (= [(ast/pos-lit (ast/app-term 'win (nth x-term 2)))]
                (:residuals record)))))))
+
+(deftest query-answer-diagnostics-can-explain-a-recursive-symbolic-frontier
+  (testing "diagnostics expose the first exported reverse frontier before deeper unfolding is attempted"
+    (ast/nom r
+      (let [input (lp/list-term (ast/app-term 'a)
+                                (ast/app-term 'b))
+            snapshots (answers/query-answer-diagnostics
+                        (lp/list-program)
+                        (ast/pos-lit (ast/app-term 'reverse input (ast/var-term r)))
+                        [r]
+                        {:raw-limits [1]
+                         :fuel 32
+                         :call-depth 1
+                         :sample-limit 1})
+            snapshot (first snapshots)
+            record (first (:sample-records snapshot))]
+        (is (= 1 (:raw-count snapshot)))
+        (is (= 1 (:unique-count snapshot)))
+        (is (= (lp/list-term)
+               (answers/binding-term record r)))
+        (is (= 3 (count (:residuals record))))))))
 
 (deftest bounded-open-query-generation-finds-first-small-nim-winner
   (testing "the non-generic bounded materializer still recovers the first winning Nim position"

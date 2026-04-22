@@ -28,3 +28,6 @@
 - The right invariant is: saved disequalities should remain genuinely open under the current substitution. Binding-producing kernel steps must therefore prune already-false disequalities instead of carrying them forward into `neqs-out`.
 - The exporter still keeps a defensive top-level filter for obviously impossible residuals such as `neq(t, t)`, but that is a guardrail, not the main semantic fix.
 - This still does not prove that every exported residual set is globally satisfiable. It closes the direct stale-disequality leak, not all possible multi-formula inconsistency patterns.
+- `clojure.core.logic/run` result slices must be forced before timing or summarizing them. In the new diagnostics helper, leaving the raw slice lazy made the later export walk absorb the actual search cost and produced misleading timing attribution.
+- For the current list/search gap, the stable fresh-process measurements are:
+  `reverse([a,b], r)` at `call-depth 1` reaches one symbolic frontier quickly, but `call-depth 2` finds no first raw proof at the same fuel slice; `append(a,b,[a,b,c])` reaches the first two split families, then starts duplicating proof paths before the deeper splits surface.

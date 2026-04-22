@@ -437,6 +437,73 @@
            residuals-out
            proof))))))
 
+(defn query-answer-diagnostics
+  "Summarize how the raw proof stream grows for one open query.
+
+   This is a diagnostics helper for difficult symbolic queries. For each
+   requested `raw-limit`, it reports how many raw kernel proof states were
+   found, how many of those states exported into admissible answer records,
+   how many unique answer records remained after merging duplicates, and a
+   small sample of those unique exported answers."
+  ([program query answer-vars]
+   (query-answer-diagnostics program query answer-vars {}))
+  ([program query answer-vars {:keys [call-depth fuel raw-limits sample-limit]
+                               :or {call-depth 1
+                                    raw-limits [1 2 4 8]
+                                    sample-limit 2}}]
+   (let [checked-query (language/validate-query (:language program) query)
+         expansion-started (System/nanoTime)
+         expanded-query (unfold-call-obligations
+                          program
+                          (normalize/negate-formula checked-query)
+                          call-depth)
+         expansion-elapsed-ms (/ (- (System/nanoTime) expansion-started) 1000000.0)
+         checked-answer-vars (validate-answer-vars checked-query answer-vars)]
+     (mapv (fn [raw-limit]
+             (let [started (System/nanoTime)
+                   raw-results
+                   (vec
+                     (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
+                       (== answer-vars-out checked-answer-vars)
+                       (kernel/prove-program-answero
+                         expanded-query
+                         '()
+                         '()
+                         '()
+                         checked-answer-vars
+                         program
+                         sigma-out
+                         neqs-out
+                         residuals-out
+                         fuel
+                         0
+                         proof)))
+                   exported-records
+                   (->> raw-results
+                        (map (fn [[answer-vars-out sigma-out neqs-out residuals-out proof]]
+                               (export-answer-record
+                                 (:language program)
+                                 checked-answer-vars
+                                 answer-vars-out
+                                 sigma-out
+                                 neqs-out
+                                 residuals-out
+                                 proof)))
+                       (keep identity)
+                       vec)
+                   unique-records (merge-answer-records exported-records)
+                   search-elapsed-ms (/ (- (System/nanoTime) started) 1000000.0)]
+               {:raw-limit raw-limit
+                :expansion-elapsed-ms expansion-elapsed-ms
+                :search-elapsed-ms search-elapsed-ms
+                :elapsed-ms (+ expansion-elapsed-ms search-elapsed-ms)
+                :raw-count (count raw-results)
+                :search-exhausted? (< (count raw-results) raw-limit)
+                :exported-count (count exported-records)
+                :unique-count (count unique-records)
+                :sample-records (vec (take sample-limit unique-records))}))
+           raw-limits))))
+
 (defn query-ground-answers
   "Enumerate bounded ground answers for `query`.
 

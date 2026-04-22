@@ -50,6 +50,38 @@ The prover does not stop at the outer `pair/2` constructor. It decomposes the
 equality into argument equalities and then discovers the inner clash `b = c`,
 which closes by constructor mismatch.
 
+## Decomposition Can Need An Earlier Binding First
+
+Query:
+
+```clojure
+exists a. exists b. exists t.
+  [1] = cons(a, cons(b, t))
+```
+
+Representative proof term:
+
+```clojure
+(witness
+ (witness
+  (witness
+   (decompose
+    (args
+     (par-bind)
+     (free-close))))))
+```
+
+This is the shape that blocked `sorted2([1])` before the fix:
+
+1. the existential witnesses are introduced as branch-local parameters,
+2. decomposition first binds `a = 1`,
+3. only then does the tail comparison become `null = cons(b, t)`,
+4. that later constructor clash closes the branch.
+
+The important point is that contradiction is not always visible at the root.
+Sometimes the kernel must carry an earlier equality binding through the
+decomposition before the later constructor mismatch appears.
+
 ## Boundary Cases Also Covered
 
 The namespace now also records two complementary non-trivial boundaries:

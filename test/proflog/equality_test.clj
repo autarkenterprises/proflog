@@ -105,6 +105,31 @@
       (is (proof/contains-step? proof 'decompose))
       (is (proof/contains-step? proof 'free-close)))))
 
+(deftest decomposition-can-bind-earlier-arguments-before-finding-a-later-clash
+  (testing "same-head equality can become contradictory only after an earlier argument binds a proof-time parameter"
+    (ast/nom a b t
+      (let [formula
+            (ast/exists-form
+              a
+              (ast/exists-form
+                b
+                (ast/exists-form
+                  t
+                  (ast/eq-lit
+                    (ast/app-term 'cons
+                                  (ast/app-term 's (ast/app-term 'zero))
+                                  (ast/app-term 'null))
+                    (ast/app-term 'cons
+                                  (ast/var-term a)
+                                  (ast/app-term 'cons
+                                                (ast/var-term b)
+                                                (ast/var-term t)))))))
+            proof (first (kernel/prove formula 1))]
+        (is proof)
+        (is (proof/contains-step? proof 'par-bind))
+        (is (proof/contains-step? proof 'decompose))
+        (is (proof/contains-step? proof 'free-close))))))
+
 (deftest symbolic-disequalities-stay-open-when-no-conflict-is-forced
   (testing "a same-head disequality remains open until some branch equality violates it"
     (ast/nom x

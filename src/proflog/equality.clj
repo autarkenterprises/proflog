@@ -239,8 +239,14 @@
        (== (lcons right-head right-tail) right)
        (conde
          [(eq-contradictiono left-head right-head sigma proof)]
-         [(same-termo left-head right-head sigma)
-          (eq-contradiction-term*o left-tail right-tail sigma proof)]))]))
+         [(fresh [sigma-mid head-proof tail-proof]
+            ;; A contradiction can emerge only after earlier arguments bind
+            ;; proof-time variables or parameters. For example,
+            ;; cons(1, null) = cons(a, cons(b, t)) becomes contradictory only
+            ;; after binding a = 1 and then seeing null = cons(b, t).
+            (unify-termo left-head right-head sigma sigma-mid head-proof)
+            (eq-contradiction-term*o left-tail right-tail sigma-mid tail-proof)
+            (== (list 'args head-proof tail-proof) proof))]))]))
 
 (defn unify-termo
   "Extend `sigma` so `left` and `right` become equal in the free term algebra."

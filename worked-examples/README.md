@@ -13,6 +13,7 @@ query walkthroughs for the current `test/proflog` suites.
 - [Boxed Zero](./boxed-zero.md)
 - [Answers API](./answers-api.md)
 - [Adversarial Cases](./adversarial-cases.md)
+- [Equality And Disequality](./equality-and-disequality.md)
 - [Recursive Parity](./recursive-parity.md)
 - [Nim Synthesis](./nim-synthesis.md)
 - [Synthesis Modes](./synthesis-modes.md)

@@ -39,6 +39,22 @@
               (ast/eq-lit (ast/app-term 'succ (ast/var-term x))
                           (ast/app-term 'succ (ast/app-term 'a)))))))))
 
+(deftest equality-bindings-compose-through-transitive-chains
+  (testing "multiple equalities can propagate through a branch and violate a later disequality"
+    (ast/nom x y
+      (is (provable?
+            (ast/and-form
+              (ast/eq-lit (ast/var-term x) (ast/var-term y))
+              (ast/and-form
+                (ast/eq-lit (ast/var-term y) (ast/app-term 'a))
+                (ast/neq-lit (ast/var-term x) (ast/app-term 'a))))))
+      (is (provable?
+            (ast/and-form
+              (ast/neq-lit (ast/var-term x) (ast/app-term 'a))
+              (ast/and-form
+                (ast/eq-lit (ast/var-term y) (ast/app-term 'a))
+                (ast/eq-lit (ast/var-term x) (ast/var-term y)))))))))
+
 (deftest equality-supports-atom-congruence-on-the-branch
   (testing "equality bindings propagate into later atom closure checks"
     (ast/nom x
@@ -72,6 +88,44 @@
       (is (provable?
             (ast/eq-lit (ast/var-term x)
                         (ast/app-term 'f (ast/var-term x))))))))
+
+(deftest decomposition-finds-inner-constructor-clashes
+  (testing "same-head equalities recurse into their arguments to find contradictions"
+    (let [proof (first
+                  (kernel/prove
+                    (ast/eq-lit
+                      (ast/app-term 'pair
+                                    (ast/app-term 'a)
+                                    (ast/app-term 'b))
+                      (ast/app-term 'pair
+                                    (ast/app-term 'a)
+                                    (ast/app-term 'c)))
+                    1))]
+      (is proof)
+      (is (proof/contains-step? proof 'decompose))
+      (is (proof/contains-step? proof 'free-close)))))
+
+(deftest symbolic-disequalities-stay-open-when-no-conflict-is-forced
+  (testing "a same-head disequality remains open until some branch equality violates it"
+    (ast/nom x
+      (is (not-provable?
+            (ast/neq-lit
+              (ast/app-term 'pair
+                            (ast/var-term x)
+                            (ast/app-term 'a))
+              (ast/app-term 'pair
+                            (ast/var-term x)
+                            (ast/app-term 'b))))))))
+
+(deftest nested-occurs-checks-close-cyclic-equalities
+  (testing "occurs-check rejection also handles variables nested under multiple constructors"
+    (ast/nom x
+      (is (provable?
+            (ast/eq-lit
+              (ast/var-term x)
+              (ast/app-term 'f
+                            (ast/app-term 'g
+                                          (ast/var-term x)))))))))
 
 (deftest unresolved-parameters-do-not-close-by-constructor-clash-alone
   (testing "an unresolved internal parameter stays open until some equality constrains it"

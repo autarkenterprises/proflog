@@ -10,6 +10,7 @@
     {:constants ['zero]
      :functions {'s 1}
      :relations {'p 1
+                 'dup 1
                  'even 1
                  'odd 1
                  'win 1}}))
@@ -46,6 +47,21 @@
                                                                                 (ast/var-term y)))))
                                       (ast/neg-lit (ast/app-term 'win (ast/var-term y))))))])))
 
+(defn duplicate-answer-program
+  []
+  (ast/nom x
+    (language/compile-program
+      answer-language
+      [(ast/clause 'dup [x]
+                   (ast/eq-lit (ast/var-term x)
+                               (ast/app-term 'zero)))
+       (ast/clause 'dup [x]
+                   (ast/eq-lit (ast/var-term x)
+                               (ast/app-term 'zero)))
+       (ast/clause 'dup [x]
+                   (ast/eq-lit (ast/var-term x)
+                               (ast/app-term 's (ast/app-term 'zero))))])))
+
 (defn answer-terms
   [records]
   (mapv (fn [record]
@@ -68,6 +84,24 @@
         (is (= [(numeral 0)]
                (answer-terms records)))
         (is (= [] (:residuals (first records))))))))
+
+(deftest query-answers-collect-unique-answers-beyond-duplicate-proof-paths
+  (testing "duplicate proofs for one answer do not starve later distinct answers"
+    (ast/nom x
+      (let [records (answers/query-answers
+                      (duplicate-answer-program)
+                      (ast/pos-lit (ast/app-term 'dup (ast/var-term x)))
+                      [x]
+                      {:proof-limit 2})
+            answer-terms (answer-terms records)]
+        (is (= [(numeral 0) (numeral 1)]
+               answer-terms))
+        (is (= []
+               (:residuals (first records))))
+        (is (every? (fn [residual]
+                      (= (ast/neq-lit (numeral 1) (numeral 0))
+                         residual))
+                    (:residuals (second records))))))))
 
 (deftest generic-formula-answers-preserve-residual-disequalities
   (testing "symbolic answer export keeps residual neq constraints when the proof closes elsewhere"

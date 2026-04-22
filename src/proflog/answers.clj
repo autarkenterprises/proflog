@@ -266,6 +266,14 @@
     (catch Exception _
       false)))
 
+(defn- contradictory-residual?
+  "True when an exported residual is already impossible on its own shape."
+  [formula]
+  (case (ast/tag-of formula)
+    neq (= (second formula) (nth formula 2))
+    false true
+    false))
+
 (defn- export-answer-record
   "Project one kernel proof state into an answer record or nil if inadmissible."
   [lang answer-vars reified-answer-vars sigma neqs residual-formulas proof]
@@ -289,7 +297,8 @@
                                (walk-formula formula sigma)
                                renaming))
                            residual-formulas)))]
-    (when (and (every? (fn [[_ term]]
+    (when (and (not-any? contradictory-residual? residuals)
+               (every? (fn [[_ term]]
                          (admissible-term? lang term))
                        bindings)
                (every? (fn [formula]
@@ -300,16 +309,45 @@
        :proofs [proof]})))
 
 (defn- merge-answer-records
-  "Merge records with the same bindings and residuals, collecting proofs."
+  "Merge records with the same bindings and residuals, collecting proofs.
+
+   Preserve the first-seen answer order so callers can ask for the first `n`
+   unique answers without raw proof duplication scrambling the result set."
   [records]
-  (vals
-    (reduce (fn [merged {:keys [bindings residuals proofs] :as record}]
-              (let [key [bindings residuals]]
-                (if-let [existing (get merged key)]
-                  (assoc merged key (update existing :proofs into proofs))
-                  (assoc merged key record))))
-            {}
-            records)))
+  (let [{:keys [order merged]}
+        (reduce (fn [{:keys [order merged] :as acc}
+                     {:keys [bindings residuals proofs] :as record}]
+                  (let [key [bindings residuals]]
+                    (if-let [existing (get merged key)]
+                      (assoc acc :merged
+                             (assoc merged key (update existing :proofs into proofs)))
+                      {:order (conj order key)
+                       :merged (assoc merged key record)})))
+                {:order []
+                 :merged {}}
+                records)]
+    (mapv merged order)))
+
+(defn- collect-answer-records
+  "Search for up to `proof-limit` unique answer records.
+
+   `search` is a function from raw proof limit to raw reified proof states.
+   The raw proof stream may contain many duplicate witnesses for the same
+   exported answer shape, so the collector grows the raw limit until it either
+   has enough unique answers, exhausts the search, or hits `max-raw-proof-limit`."
+  [proof-limit max-raw-proof-limit search export]
+  (loop [raw-limit proof-limit]
+    (let [raw-results (search raw-limit)
+          merged (->> raw-results
+                      (map export)
+                      (keep identity)
+                      merge-answer-records
+                      vec)]
+      (if (or (>= (count merged) proof-limit)
+              (< (count raw-results) raw-limit)
+              (>= raw-limit max-raw-proof-limit))
+        (vec (take proof-limit merged))
+        (recur (min max-raw-proof-limit (* 2 raw-limit)))))))
 
 (defn formula-answers
   "Export symbolic answers for a closed tableau over `formula`.
@@ -318,35 +356,37 @@
    instantiated, and residual formulas are preserved in the answer records."
   ([lang formula answer-vars]
    (formula-answers lang formula answer-vars {}))
-  ([lang formula answer-vars {:keys [fuel proof-limit]
+  ([lang formula answer-vars {:keys [fuel proof-limit max-raw-proof-limit]
                               :or {proof-limit 10}}]
    (let [checked-formula (language/validate-formula lang formula)
-         checked-answer-vars (validate-answer-vars checked-formula answer-vars)]
-     (->> (run proof-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
-            (== answer-vars-out checked-answer-vars)
-            (kernel/prove-answero
-              checked-formula
-              '()
-              '()
-              '()
-              checked-answer-vars
-              sigma-out
-              neqs-out
-              residuals-out
-              fuel
-              proof))
-          (map (fn [[answer-vars-out sigma-out neqs-out residuals-out proof]]
-                 (export-answer-record
-                   lang
-                   checked-answer-vars
-                   answer-vars-out
-                   sigma-out
-                   neqs-out
-                   residuals-out
-                   proof)))
-          (keep identity)
-          merge-answer-records
-          vec))))
+         checked-answer-vars (validate-answer-vars checked-formula answer-vars)
+         max-raw-proof-limit (or max-raw-proof-limit (max proof-limit (* 8 proof-limit)))]
+     (collect-answer-records
+       proof-limit
+       max-raw-proof-limit
+       (fn [raw-limit]
+         (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
+           (== answer-vars-out checked-answer-vars)
+           (kernel/prove-answero
+             checked-formula
+             '()
+             '()
+             '()
+             checked-answer-vars
+             sigma-out
+             neqs-out
+             residuals-out
+             fuel
+             proof)))
+       (fn [[answer-vars-out sigma-out neqs-out residuals-out proof]]
+         (export-answer-record
+           lang
+           checked-answer-vars
+           answer-vars-out
+           sigma-out
+           neqs-out
+           residuals-out
+           proof))))))
 
 (defn query-answers
   "Export symbolic answers for `query` relative to `program`.
@@ -358,7 +398,7 @@
    unfolded before remaining calls are exported as residual obligations."
   ([program query answer-vars]
    (query-answers program query answer-vars {}))
-  ([program query answer-vars {:keys [call-depth fuel proof-limit]
+  ([program query answer-vars {:keys [call-depth fuel proof-limit max-raw-proof-limit]
                                :or {proof-limit 10
                                     call-depth 1}}]
    (let [checked-query (language/validate-query (:language program) query)
@@ -366,34 +406,36 @@
                           program
                           (normalize/negate-formula checked-query)
                           call-depth)
-         checked-answer-vars (validate-answer-vars checked-query answer-vars)]
-     (->> (run proof-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
-            (== answer-vars-out checked-answer-vars)
-            (kernel/prove-program-answero
-              expanded-query
-              '()
-              '()
-              '()
-              checked-answer-vars
-              program
-              sigma-out
-              neqs-out
-              residuals-out
-              fuel
-              0
-              proof))
-          (map (fn [[answer-vars-out sigma-out neqs-out residuals-out proof]]
-                 (export-answer-record
-                   (:language program)
-                   checked-answer-vars
-                   answer-vars-out
-                   sigma-out
-                   neqs-out
-                   residuals-out
-                   proof)))
-          (keep identity)
-          merge-answer-records
-          vec))))
+         checked-answer-vars (validate-answer-vars checked-query answer-vars)
+         max-raw-proof-limit (or max-raw-proof-limit (max proof-limit (* 8 proof-limit)))]
+     (collect-answer-records
+       proof-limit
+       max-raw-proof-limit
+       (fn [raw-limit]
+         (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
+           (== answer-vars-out checked-answer-vars)
+           (kernel/prove-program-answero
+             expanded-query
+             '()
+             '()
+             '()
+             checked-answer-vars
+             program
+             sigma-out
+             neqs-out
+             residuals-out
+             fuel
+             0
+             proof)))
+       (fn [[answer-vars-out sigma-out neqs-out residuals-out proof]]
+         (export-answer-record
+           (:language program)
+           checked-answer-vars
+           answer-vars-out
+           sigma-out
+           neqs-out
+           residuals-out
+           proof))))))
 
 (defn query-ground-answers
   "Enumerate bounded ground answers for `query`.

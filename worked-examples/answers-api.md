@@ -63,6 +63,46 @@ still preserves the surviving side condition:
 This is the current contract: symbolic answers keep residual constraints when
 they remain semantically relevant.
 
+## Duplicate Proofs Do Not Define Answer Cardinality
+
+For the intentionally duplicated program:
+
+```clojure
+dup(x) :- x = zero
+dup(x) :- x = zero
+dup(x) :- x = s(zero)
+```
+
+the open query:
+
+```clojure
+dup(x)
+```
+
+should return the two unique answers `x = 0` and `x = 1`, even though the
+first answer has two proof paths.
+
+The current exporter now does two important things here:
+
+- it keeps searching raw proof states until it has the requested number of
+  unique answer records, rather than truncating first and merging afterward,
+- it drops impossible residual artifacts such as `neq(0, 0)` instead of
+  exporting them as if they were meaningful side conditions.
+
+So the current records are:
+
+```clojure
+{:bindings [[x 0]]
+ :residuals []}
+
+{:bindings [[x 1]]
+ :residuals [1 != 0, 1 != 0]}
+```
+
+The duplicated disequalities on the second answer are still redundant, but they
+are semantically harmless. The important correction is that the later distinct
+answer is no longer starved by earlier duplicate proof paths.
+
 ## Recursive Open Query: `even(x)`
 
 Using the recursive parity program, the open query:

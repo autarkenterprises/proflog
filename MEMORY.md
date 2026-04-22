@@ -263,6 +263,29 @@ Useful pattern:
 - A temporary headless REPL was started for these probes on `2026-04-21`; shut
   it down after this logical unit is committed.
 
+## 2026-04-21 ADR-0009 Phase 2 Pair 1: Peano Plus Ground Closure
+
+- Deepened `test/proflog/integration_families_test.clj` on the `plus/3` side.
+- New committed ground truths:
+  - `plus(1,0,1)`
+  - `plus(1,1,2)`
+  - `plus(2,1,3)`
+  - `plus(2,3,5)`
+- New committed wrong-sum refutations:
+  - `plus(1,1,1)` fails
+  - `plus(0,1,0)` fails
+  - `plus(1,2,2)` fails
+- Updated `worked-examples/integration-families.md` to reflect the deeper
+  arithmetic slice and include a representative wrong-sum proof.
+- Verification:
+  - `lein test proflog.integration-families-test`
+  - `Ran 4 tests containing 10 assertions.`
+  - `0 failures, 0 errors.`
+- Operational finding:
+  - the namespace is no longer a prompt-only smoke test; the recursive arithmetic
+    cases push it into extended-suite territory, but they remain acceptable for
+    committed semantic coverage.
+
 ## 2026-04-21 Resume Findings
 
 - The interrupted follow-on round had already added new ADR-0008 namespaces for

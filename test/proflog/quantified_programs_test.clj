@@ -12,6 +12,13 @@
      :relations {'boxed-zero 1
                  'zero-only 1}}))
 
+(def subset-language
+  (language/language
+    {:constants ['a 'b 'c]
+     :relations {'sub-a-a 0
+                 'sub-ab-abc 0
+                 'sub-abc-ab 0}}))
+
 (defn zero-only-program
   []
   (ast/nom x y
@@ -39,6 +46,42 @@
                          (ast/or-form
                            (ast/neq-lit (ast/var-term y) (ast/var-term z))
                            (ast/eq-lit (ast/var-term z) (ast/app-term 'zero)))))))])))
+
+(defn subset-program
+  []
+  (ast/nom x
+    (language/compile-program
+      subset-language
+      [(ast/clause 'sub-ab-abc []
+                   (ast/forall-form
+                     x
+                     (ast/or-form
+                       (ast/and-form
+                         (ast/neq-lit (ast/var-term x) (ast/app-term 'a))
+                         (ast/neq-lit (ast/var-term x) (ast/app-term 'b)))
+                       (ast/or-form
+                         (ast/eq-lit (ast/var-term x) (ast/app-term 'a))
+                         (ast/or-form
+                           (ast/eq-lit (ast/var-term x) (ast/app-term 'b))
+                           (ast/eq-lit (ast/var-term x) (ast/app-term 'c)))))))
+       (ast/clause 'sub-abc-ab []
+                   (ast/forall-form
+                     x
+                     (ast/or-form
+                       (ast/and-form
+                         (ast/neq-lit (ast/var-term x) (ast/app-term 'a))
+                         (ast/and-form
+                           (ast/neq-lit (ast/var-term x) (ast/app-term 'b))
+                           (ast/neq-lit (ast/var-term x) (ast/app-term 'c))))
+                       (ast/or-form
+                         (ast/eq-lit (ast/var-term x) (ast/app-term 'a))
+                         (ast/eq-lit (ast/var-term x) (ast/app-term 'b))))))
+       (ast/clause 'sub-a-a []
+                   (ast/forall-form
+                     x
+                     (ast/or-form
+                       (ast/neq-lit (ast/var-term x) (ast/app-term 'a))
+                       (ast/eq-lit (ast/var-term x) (ast/app-term 'a)))))])))
 
 (deftest original-p1-quantified-clause-handles-deeper-ground-cases
   (testing "the original forall-based P1 clause now executes deeper success and failure cases directly"
@@ -87,3 +130,25 @@
               (ast/pos-lit (ast/app-term 'boxed-zero (qt/numeral 1)))
               1
               32))))))
+
+(deftest subset-quantified-spec-handles-true-false-and-reflexive-cases
+  (testing "subset specifications over the finite domain {a, b, c} execute as expected"
+    (let [program (subset-program)]
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit (ast/app-term 'sub-ab-abc))
+              1
+              32)))
+      (is (seq
+            (query/query-fails
+              program
+              (ast/pos-lit (ast/app-term 'sub-abc-ab))
+              1
+              32)))
+      (is (seq
+            (query/query-succeeds
+              program
+              (ast/pos-lit (ast/app-term 'sub-a-a))
+              1
+              16))))))

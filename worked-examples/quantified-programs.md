@@ -100,3 +100,27 @@ specification families such as:
 - `subset`
 
 Those are phase-2 and phase-3 targets on `ADR-0009`.
+
+## `subset`
+
+The greenfield subset family uses zero-arity relations over the finite domain
+`{a, b, c}`:
+
+```clojure
+sub-ab-abc() :- forall x. ((x != a and x != b) or (x = a or x = b or x = c))
+sub-abc-ab() :- forall x. ((x != a and x != b and x != c) or (x = a or x = b))
+sub-a-a()    :- forall x. (x != a or x = a)
+```
+
+Current committed cases:
+
+```clojure
+sub-ab-abc() => succeeds
+sub-abc-ab() => fails
+sub-a-a()    => succeeds
+```
+
+This family matters because it exercises quantified finite-domain reasoning
+without any recursive list structure. If it lands cleanly, it narrows the
+remaining quantified gap to the still-blocked sortedness and graph-property
+families rather than leaving quantified specifications absent altogether.

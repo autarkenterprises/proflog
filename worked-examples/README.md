@@ -12,6 +12,7 @@ query walkthroughs for the current `test/proflog` suites.
 - [Quantified Programs](./quantified-programs.md)
 - [Boxed Zero](./boxed-zero.md)
 - [Answers API](./answers-api.md)
+- [Adversarial Cases](./adversarial-cases.md)
 - [Recursive Parity](./recursive-parity.md)
 - [Nim Synthesis](./nim-synthesis.md)
 - [Synthesis Modes](./synthesis-modes.md)

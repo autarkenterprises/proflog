@@ -282,3 +282,30 @@
                                (every? #(= 'neq (ast/tag-of %))
                                        (:residuals record)))
                              records)))))))
+
+(deftest append-nested-suffix-query-binds-the-concrete-second-argument
+  (testing "append([[a, b]], z, [[a, b], [c]]) binds z = [[c]] while retaining shallow disequalities"
+    (let [program (list-program)
+          sub-ab (list-term (ast/app-term 'a)
+                            (ast/app-term 'b))
+          sub-c (list-term (ast/app-term 'c))
+          left (list-term sub-ab)
+          whole (list-term sub-ab sub-c)]
+      (ast/nom z
+               (let [records (answers/query-answers
+                              program
+                              (ast/pos-lit
+                               (ast/app-term 'append
+                                             left
+                                             (ast/var-term z)
+                                             whole))
+                              [z]
+                              {:proof-limit 1
+                               :fuel 16
+                               :call-depth 2})]
+                 (is (= [(list-term sub-c)]
+                        (mapv #(answers/binding-term % z) records)))
+                 (is (every? (fn [record]
+                               (every? #(= 'neq (ast/tag-of %))
+                                       (:residuals record)))
+                             records)))))))

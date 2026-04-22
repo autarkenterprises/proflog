@@ -262,6 +262,46 @@ Recorded successful runtime for the final committed iteration:
 41655.620203 ms
 ```
 
+## `append([[a, b]], z, [[a, b], [c]])`
+
+Open query:
+
+```clojure
+append(cons(cons(a, cons(b, null)), null),
+       z,
+       cons(cons(a, cons(b, null)),
+            cons(cons(c, null), null)))
+```
+
+Current exported answer record:
+
+```clojure
+{:bindings [[z (app cons (app cons (app c) (app null)) (app null))]]
+ :residuals
+ [(neq (app cons (app cons (app a) (app cons (app b) (app null)))
+             (app cons (app cons (app c) (app null)) (app null)))
+       (app cons (app cons (app c) (app null)) (app null)))
+  (neq (app cons (app cons (app a) (app cons (app b) (app null)))
+             (app null))
+       (app null))]}
+```
+
+So the exporter reconstructs the intended nested suffix:
+
+```clojure
+z = [[c]]
+```
+
+The residual shape is the same as the earlier nested forward case: the answer
+is concrete, but the current exporter still retains the disequalities used to
+exclude the wrong append branches.
+
+Recorded successful runtime for the final committed iteration:
+
+```text
+26539.838541 ms
+```
+
 ## Current Boundary
 
 The greenfield list program itself already contains `member`, recursive
@@ -288,5 +328,5 @@ boundary.
 This boundary is intentional for the committed baseline: the current slice now
 covers base cases, recovered recursive `member`, one- and two-step ground
 `append`, singleton and two-element ground `reverse`, and the first nested
-forward append answer, without pretending that inverse enumeration and the
-deeper nested list families are already closed.
+forward and nested suffix append answers, without pretending that inverse
+enumeration and the deeper nested list families are already closed.

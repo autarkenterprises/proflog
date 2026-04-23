@@ -349,6 +349,70 @@
         (vec (take proof-limit merged))
         (recur (min max-raw-proof-limit (* 2 raw-limit)))))))
 
+(defn- search-program-formula-answers
+  "Search one exact formula relative to `program` and export answer records.
+
+   The caller supplies an already-validated `formula`; no extra negation or
+   call unfolding happens here."
+  [program formula checked-answer-vars {:keys [fuel proof-limit max-raw-proof-limit]}]
+  (collect-answer-records
+    proof-limit
+    max-raw-proof-limit
+    (fn [raw-limit]
+      (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
+        (== answer-vars-out checked-answer-vars)
+        (kernel/prove-program-answero
+          formula
+          '()
+          '()
+          '()
+          checked-answer-vars
+          program
+          sigma-out
+          neqs-out
+          residuals-out
+          fuel
+          0
+          proof)))
+    (fn [[answer-vars-out sigma-out neqs-out residuals-out proof]]
+      (export-answer-record
+        (:language program)
+        checked-answer-vars
+        answer-vars-out
+        sigma-out
+        neqs-out
+        residuals-out
+        proof))))
+
+(defn- staged-query-answer-records
+  "Search progressively deeper unfolded query stages up to `call-depth`.
+
+   Rather than betting everything on one fully expanded query, the answer layer
+   searches stage 0, 1, 2, ... in order and keeps the deepest stage that
+   produces exportable answers. This preserves useful shallow symbolic answers
+   when a deeper stage goes dry, while still preferring deeper refinements
+   whenever they exist."
+  [program checked-query checked-answer-vars
+   {:keys [call-depth fuel proof-limit max-raw-proof-limit]}]
+  (let [negated-query (normalize/negate-formula checked-query)]
+    (loop [stage 0
+           deepest-records []]
+      (let [expanded-query (unfold-call-obligations program negated-query stage)
+            stage-records
+            (search-program-formula-answers
+              program
+              expanded-query
+              checked-answer-vars
+              {:fuel fuel
+               :proof-limit proof-limit
+               :max-raw-proof-limit max-raw-proof-limit})
+            next-deepest (if (seq stage-records)
+                           stage-records
+                           deepest-records)]
+        (if (= stage call-depth)
+          (vec (take proof-limit next-deepest))
+          (recur (inc stage) next-deepest))))))
+
 (defn formula-answers
   "Export symbolic answers for a closed tableau over `formula`.
 
@@ -394,48 +458,25 @@
    This is the generic solution for reverse and partial-mode query answering.
    Returned records may contain non-ground bindings, residual disequalities,
    and residual procedure-call obligations, but they never export internal
-   `par` terms. `:call-depth` controls how many call layers are eagerly
-   unfolded before remaining calls are exported as residual obligations."
+   `par` terms. `:call-depth` now controls how many staged residual-call
+   deepening rounds the answer layer performs before returning the remaining
+   residual call obligations."
   ([program query answer-vars]
    (query-answers program query answer-vars {}))
   ([program query answer-vars {:keys [call-depth fuel proof-limit max-raw-proof-limit]
                                :or {proof-limit 10
                                     call-depth 1}}]
    (let [checked-query (language/validate-query (:language program) query)
-         expanded-query (unfold-call-obligations
-                          program
-                          (normalize/negate-formula checked-query)
-                          call-depth)
          checked-answer-vars (validate-answer-vars checked-query answer-vars)
          max-raw-proof-limit (or max-raw-proof-limit (max proof-limit (* 8 proof-limit)))]
-     (collect-answer-records
-       proof-limit
-       max-raw-proof-limit
-       (fn [raw-limit]
-         (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
-           (== answer-vars-out checked-answer-vars)
-           (kernel/prove-program-answero
-             expanded-query
-             '()
-             '()
-             '()
-             checked-answer-vars
-             program
-             sigma-out
-             neqs-out
-             residuals-out
-             fuel
-             0
-             proof)))
-       (fn [[answer-vars-out sigma-out neqs-out residuals-out proof]]
-         (export-answer-record
-           (:language program)
-           checked-answer-vars
-           answer-vars-out
-           sigma-out
-           neqs-out
-           residuals-out
-           proof))))))
+     (staged-query-answer-records
+       program
+       checked-query
+       checked-answer-vars
+       {:call-depth call-depth
+        :fuel fuel
+        :proof-limit proof-limit
+        :max-raw-proof-limit max-raw-proof-limit}))))
 
 (defn query-answer-diagnostics
   "Summarize how the raw proof stream grows for one open query.

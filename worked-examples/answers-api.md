@@ -129,6 +129,18 @@ So the second raw proof is still just a duplicate witness for `x = 0`, and the
 later distinct answer `x = 1` only appears once the raw stream is allowed to
 grow past those duplicates.
 
+## Staged Deepening Policy
+
+`query-answers` no longer bets everything on one fully unfolded query shape.
+Instead, it searches call-depth stages `0`, `1`, `2`, ... up to the requested
+budget and keeps the deepest stage that still produces exportable answers.
+
+That gives two useful behaviors:
+
+- deeper productive stages override shallower ones,
+- but if a deeper stage goes dry, the API falls back to the last productive
+  frontier instead of returning `[]`.
+
 ## Recursive Open Query: `even(x)`
 
 Using the recursive parity program, the open query:
@@ -208,6 +220,11 @@ the first symbolic frontier. The remaining gap is that deeper unfolding and
 answer search still do not cheaply drive that frontier to the concrete answer
 `r = [b, a]`.
 
+With the staged fallback policy, asking for `call-depth 2` now keeps this
+depth-1 frontier rather than dropping to an empty result set when the deeper
+stage fails to produce an answer. On the current branch, that `call-depth 2`
+query returns the same two symbolic frontier records in about `35.9 s`.
+
 On the current `adr-0009` branch, the measured diagnostics are:
 
 ```clojure
@@ -264,6 +281,23 @@ So the current greenfield engine can recover the first two split families:
 But by the time the raw stream is exhausted at this fuel slice, the deeper
 `[a,b]` / `[c]` and `[a,b,c]` / `[]` splits still have not surfaced. The third
 raw proof is only a duplicate witness for the second unique answer.
+
+At the main `query-answers` API, the staged deepening policy now uses the
+depth-2 stage for this query because it is still productive. The current
+result is:
+
+```clojure
+{:bindings [[a []] [b [a,b,c]]]
+ :residuals []}
+
+{:bindings [[a [a]] [b [b,c]]]
+ :residuals [[a,b,c] != [b,c], [a] != []]}
+```
+
+So the answer layer now reaches the first recursive split family through a
+deeper productive stage. On the current branch, that `call-depth 2` query
+returns those two records in about `35.3 s`. It is still below legacy parity because the
+deeper `[a,b]` / `[c]` and `[a,b,c]` / `[]` solutions have not surfaced yet.
 
 ## Bounded Ground Materialization
 

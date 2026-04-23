@@ -219,6 +219,59 @@
                (answers/binding-term record r)))
         (is (= 3 (count (:residuals record))))))))
 
+(deftest query-answers-fall-back-to-the-last-productive-stage
+  (testing "when a deeper unfolded stage goes dry, query-answers keeps the last productive frontier"
+    (let [program (lp/list-program)
+          input (lp/list-term (ast/app-term 'a)
+                              (ast/app-term 'b))]
+      (ast/nom r
+        (let [depth-1 (answers/query-answers
+                        program
+                        (ast/pos-lit (ast/app-term 'reverse input (ast/var-term r)))
+                        [r]
+                        {:proof-limit 1
+                         :max-raw-proof-limit 16
+                         :fuel 32
+                         :call-depth 1})
+              depth-2 (answers/query-answers
+                        program
+                        (ast/pos-lit (ast/app-term 'reverse input (ast/var-term r)))
+                        [r]
+                        {:proof-limit 1
+                         :max-raw-proof-limit 16
+                         :fuel 32
+                         :call-depth 2})]
+          (is (= (mapv :bindings depth-1)
+                 (mapv :bindings depth-2)))
+          (is (= (mapv :residuals depth-1)
+                 (mapv :residuals depth-2))))))))
+
+(deftest query-answers-use-a-deeper-productive-stage-for-inverse-append
+  (testing "inverse append reaches the first recursive split family at call-depth 2"
+    (let [program (lp/list-program)
+          abc (lp/list-term (ast/app-term 'a)
+                            (ast/app-term 'b)
+                            (ast/app-term 'c))]
+      (ast/nom left right
+        (let [records (answers/query-answers
+                        program
+                        (ast/pos-lit (ast/app-term 'append
+                                                   (ast/var-term left)
+                                                   (ast/var-term right)
+                                                   abc))
+                        [left right]
+                        {:proof-limit 2
+                         :max-raw-proof-limit 64
+                         :fuel 16
+                         :call-depth 2})]
+          (is (= [[left (lp/list-term)]
+                   [right abc]]
+                 (:bindings (first records))))
+          (is (= [[left (lp/list-term (ast/app-term 'a))]
+                   [right (lp/list-term (ast/app-term 'b)
+                                        (ast/app-term 'c))]]
+                 (:bindings (second records)))))))))
+
 (deftest bounded-open-query-generation-finds-first-small-nim-winner
   (testing "the non-generic bounded materializer still recovers the first winning Nim position"
     (ast/nom x

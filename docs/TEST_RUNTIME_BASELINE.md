@@ -20,6 +20,8 @@ justified the test.
 | `query-answers-collect-unique-answers-beyond-duplicate-proof-paths` | `proflog.answers-test` | duplicate `dup(x)` proofs for `0` before distinct answer `1` | `7.03 s` | Answer search now collects unique records while the kernel prunes stale disequalities before they can surface as `neq(0, 0)`. |
 | `query-answer-diagnostics-reports-raw-vs-unique-growth` | `proflog.answers-test` | duplicate `dup(x)` diagnostics across raw limits `1`, `2`, `4` | `16.66 s` | Diagnostics helper now forces each raw slice eagerly so search time is measured honestly before export/merge analysis. |
 | `query-answer-diagnostics-can-explain-a-recursive-symbolic-frontier` | `proflog.answers-test` | `reverse([a,b], r)` diagnostics at `call-depth 1` | `17.67 s` | Captures the first symbolic frontier as `r = []` plus deferred `reverse/append` obligations. |
+| `query-answers-fall-back-to-the-last-productive-stage` | `proflog.answers-test` | `reverse([a,b], r)` at staged depths `1` and `2` | `74.93 s` | `call-depth 2` now falls back to the last productive stage instead of returning `[]` when the deeper stage goes dry. |
+| `query-answers-use-a-deeper-productive-stage-for-inverse-append` | `proflog.answers-test` | `append(a, b, [a,b,c])` inverse query at `call-depth 2` | `66.08 s` | Staged deepening reaches the first recursive split family, not just the base split. |
 | `member-empty-list-fails` | `proflog.list-programs-test` | `member(a, [])` | `565.030374 ms` | Immediate constructor-clash failure after opening the existential list shape. |
 | `append-two-step-ground-case-succeeds` | `proflog.list-programs-test` | `append([a, b], [c], [a, b, c])` | `154219.489533 ms` | Required fuel `256`; semantically closed but expensive. |
 | `append-forward-query-binds-a-three-element-result` | `proflog.list-programs-test` | `append([a], [b, c], z)` | `68873.149268 ms` | Concrete three-element result exported at call-depth `2`; shallow `neq` residuals remain. |
@@ -34,10 +36,10 @@ justified the test.
 | `append(xs, ys, [a, b, c])` diagnostics, `call-depth 2`, `raw-limit 1` | `28915.464495 ms` | 1 unique answer | Only the base split `([], [a,b,c])` is visible at the first raw frontier. |
 | `append(xs, ys, [a, b, c])` diagnostics, `call-depth 2`, `raw-limit 2` | `41559.381232 ms` | 2 unique answers | The first recursive split `([a], [b,c])` appears, but no deeper split yet. |
 | `append(xs, ys, [a, b, c])` diagnostics, `call-depth 2`, `raw-limit 4` | `53524.490474 ms` | 3 raw proofs, still only 2 unique answers | The third raw proof is a duplicate witness for the second split family. |
-| `append(xs, ys, [a, b, c])` answer enumeration | `1372558.603771 ms` | Returned only 2 answer records | Older long probe agrees with the diagnostics: inverse list enumeration remains a major performance gap. |
+| `append(xs, ys, [a, b, c])` `query-answers`, `call-depth 2` | `35258.2583 ms` | Returned 2 answer records | The stage policy now reaches the base split and the first recursive split family in one API call. |
 | `reverse([a, b], r)` diagnostics, `call-depth 1`, `raw-limit 1` | `1815.796755 ms` | 1 symbolic frontier | Exports `r = []` with deferred `reverse([b], a_3)` and `append(a_3, [a], [])` obligations. |
 | `reverse([a, b], r)` diagnostics, `call-depth 2`, `raw-limit 1` | `54681.940331 ms` | 0 raw proofs | The first fully unfolded raw proof does not appear at this fuel slice. |
-| `reverse([a, b], r)` answer synthesis | `>300000 ms` | No result before manual stop | Reverse synthesis is still materially worse than ground reverse truth checking. |
+| `reverse([a, b], r)` `query-answers`, `call-depth 2` | `35910.784284 ms` | Returned 2 fallback symbolic frontier records | The answer API now keeps the last productive stage instead of dropping to `[]`, but it still does not reach the concrete reverse answer. |
 | Nested `append(x, y, [[a], [b]])` split enumeration | `>180000 ms` | No result before manual stop | Even the short nested inverse family remains operationally expensive. |
 | Depth-3 forward `append(left, right, z)` answer synthesis | `>360000 ms` | No result before manual stop | Structural depth alone is enough to make open answer export impractical right now. |
 

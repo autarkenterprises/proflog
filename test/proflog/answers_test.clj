@@ -131,6 +131,29 @@
         (is (= [(numeral 0) (numeral 1)]
                (answer-terms (:sample-records last-snapshot))))))))
 
+(deftest query-stage-diagnostics-summarize-proof-families
+  (testing "stage diagnostics expose duplicate exported answers and proof-family summaries"
+    (ast/nom x
+      (let [stages (answers/query-stage-diagnostics
+                     (duplicate-answer-program)
+                     (ast/pos-lit (ast/app-term 'dup (ast/var-term x)))
+                     [x]
+                     {:call-depth 1
+                      :raw-limits [4]
+                      :sample-limit 2
+                      :proof-sample-limit 2
+                      :proof-step-limit 6})
+            stage (second stages)
+            snapshot (-> stage :snapshots first)]
+        (is (= 1 (:stage stage)))
+        (is (:productive? stage))
+        (is (= 2 (:best-unique-count stage)))
+        (is (= 1 (:duplicate-exported-count snapshot)))
+        (is (= (:raw-count snapshot)
+               (+ (:distinct-proof-signature-count snapshot)
+                  (:duplicate-proof-signature-count snapshot))))
+        (is (seq (:common-proof-signatures snapshot)))))))
+
 (deftest generic-formula-answers-preserve-residual-disequalities
   (testing "symbolic answer export keeps residual neq constraints when the proof closes elsewhere"
     (ast/nom x
@@ -218,6 +241,34 @@
         (is (= (lp/list-term)
                (answers/binding-term record r)))
         (is (= 3 (count (:residuals record))))))))
+
+(deftest query-stage-diagnostics-distinguish-productive-and-dry-reverse-stages
+  (testing "stage diagnostics show that reverse stays productive at depth 1 but goes dry at depth 2 for this fuel slice"
+    (ast/nom r
+      (let [input (lp/list-term (ast/app-term 'a)
+                                (ast/app-term 'b))
+            stages (answers/query-stage-diagnostics
+                     (lp/list-program)
+                     (ast/pos-lit (ast/app-term 'reverse input (ast/var-term r)))
+                     [r]
+                     {:call-depth 2
+                      :raw-limits [1]
+                      :fuel 32
+                      :sample-limit 1
+                      :proof-sample-limit 1
+                      :proof-step-limit 8})
+            stage-1 (nth stages 1)
+            stage-2 (nth stages 2)
+            snapshot-1 (-> stage-1 :snapshots first)
+            snapshot-2 (-> stage-2 :snapshots first)]
+        (is (:productive? stage-1))
+        (is (= 1 (:best-unique-count stage-1)))
+        (is (= 1 (:first-productive-raw-limit stage-1)))
+        (is (not (:productive? stage-2)))
+        (is (zero? (:best-unique-count stage-2)))
+        (is (nil? (:first-productive-raw-limit stage-2)))
+        (is (= 1 (:raw-count snapshot-1)))
+        (is (zero? (:raw-count snapshot-2)))))))
 
 (deftest query-answers-fall-back-to-the-last-productive-stage
   (testing "when a deeper unfolded stage goes dry, query-answers keeps the last productive frontier"

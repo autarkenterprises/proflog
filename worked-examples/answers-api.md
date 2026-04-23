@@ -129,6 +129,23 @@ So the second raw proof is still just a duplicate witness for `x = 0`, and the
 later distinct answer `x = 1` only appears once the raw stream is allowed to
 grow past those duplicates.
 
+The diagnostics now also summarize proof families, not just answer records. For
+the same `dup(x)` slice at raw limit `4`, the first unfolded stage reports:
+
+```clojure
+{:duplicate-exported-count 1
+ :distinct-proof-signature-count 3
+ :common-proof-signatures
+ [{:count 1, :steps [...]}
+  ...]}
+```
+
+So the helper can now separate:
+
+- repeated exported answers,
+- genuinely distinct raw proof families,
+- and identical proof signatures.
+
 ## Staged Deepening Policy
 
 `query-answers` no longer bets everything on one fully unfolded query shape.
@@ -298,6 +315,65 @@ So the answer layer now reaches the first recursive split family through a
 deeper productive stage. On the current branch, that `call-depth 2` query
 returns those two records in about `35.3 s`. It is still below legacy parity because the
 deeper `[a,b]` / `[c]` and `[a,b,c]` / `[]` solutions have not surfaced yet.
+
+## Stage Diagnostics: Where Search Goes Dry
+
+The stronger harness is:
+
+```clojure
+query-stage-diagnostics
+```
+
+It sweeps stage `0`, `1`, `2`, ... up to the requested `call-depth`, runs one
+or more raw-limit slices at each stage, and reports whether that stage is still
+productive at all.
+
+For `reverse([a,b], r)` at `fuel 32`, `raw-limit 1`, the current summary is:
+
+```clojure
+{:stage 0, :productive? true, :raw-count 1, :unique-count 1}
+{:stage 1, :productive? true, :raw-count 1, :unique-count 1}
+{:stage 2, :productive? false, :raw-count 0, :unique-count 0}
+```
+
+That matters because it shows the failure mode precisely:
+
+- stage `0` is only the trivial deferred-call frontier,
+- stage `1` reaches the first real recursive reverse frontier,
+- stage `2` is simply dry for this fuel slice.
+
+So the current reverse gap is not “the answer exporter ignored a deeper proof.”
+At this stage and fuel, no first raw proof state surfaces at all.
+
+For `append(a, b, [a,b,c])` at `fuel 16`, the staged summary is different:
+
+```clojure
+{:stage 0, :best-unique-count 1}
+{:stage 1, :best-unique-count 2}
+{:stage 2, :best-unique-count 2}
+```
+
+More specifically:
+
+- stage `0` only has the deferred-call frontier,
+- stage `1` reaches the base split plus a symbolic recursive cons-family,
+- stage `2` concretizes that recursive family into the second split
+  `([a],[b,c])`.
+
+At stage `2`, `raw-limit 4`, the improved diagnostics report:
+
+```clojure
+{:raw-count 3
+ :exported-count 3
+ :unique-count 2
+ :duplicate-exported-count 1
+ :distinct-proof-signature-count 3}
+```
+
+That is the key current finding. The third raw proof is not an identical proof
+duplicate. It is a distinct proof family that still collapses to the same
+second exported answer record. So plain raw-proof deduplication is unlikely to
+be enough by itself to unlock the deeper append splits.
 
 ## Bounded Ground Materialization
 

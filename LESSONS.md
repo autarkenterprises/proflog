@@ -31,5 +31,9 @@
 - `clojure.core.logic/run` result slices must be forced before timing or summarizing them. In the new diagnostics helper, leaving the raw slice lazy made the later export walk absorb the actual search cost and produced misleading timing attribution.
 - For the current list/search gap, the stable fresh-process measurements are:
   `reverse([a,b], r)` at `call-depth 1` reaches one symbolic frontier quickly, but `call-depth 2` finds no first raw proof at the same fuel slice; `append(a,b,[a,b,c])` reaches the first two split families, then starts duplicating proof paths before the deeper splits surface.
+- The stronger stage diagnostics sharpen that split:
+  `reverse([a,b], r)` is dry at stage `2` for the current fuel slice, while `append(a,b,[a,b,c])` remains productive through stage `2`.
+- For inverse append, the extra raw proof at stage `2` is not just a byte-for-byte proof duplicate. The diagnostics show `3` raw proofs, `3` distinct proof signatures, but only `2` unique exported answers.
+- That means plain raw-proof deduplication is unlikely to recover the missing deeper append splits by itself. The more promising direction is answer-equivalence-aware search prioritization or branch-state canonicalization that can recognize when distinct proof families are converging to the same exported frontier.
 - Reconstructing the next search stage from exported answer records was too lossy. The exported record keeps bindings, residuals, and proofs, but not the full branch-search context that produced them. In practice that broke constrained and composed queries such as `step(3,y) and y != 2` and `jump(x,0)`.
 - The safer general policy is staged deepening over increasingly unfolded query formulas, with fallback to the deepest productive stage. That keeps the improvement structure-agnostic, preserves useful shallow symbolic frontiers when a deeper stage goes dry, and still prefers deeper refinements when they exist.

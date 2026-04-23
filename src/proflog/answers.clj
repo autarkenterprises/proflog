@@ -14,6 +14,7 @@
             [proflog.kernel :as kernel]
             [proflog.language :as language]
             [proflog.normalize :as normalize]
+            [proflog.proof :as proof]
             [proflog.query :as query]
             [proflog.subst :as subst]))
 
@@ -349,6 +350,107 @@
         (vec (take proof-limit merged))
         (recur (min max-raw-proof-limit (* 2 raw-limit)))))))
 
+(defn- program-raw-answer-states
+  "Return up to `raw-limit` raw kernel proof states for one query formula."
+  [program formula checked-answer-vars fuel raw-limit]
+  (vec
+    (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
+      (== answer-vars-out checked-answer-vars)
+      (kernel/prove-program-answero
+        formula
+        '()
+        '()
+        '()
+        checked-answer-vars
+        program
+        sigma-out
+        neqs-out
+        residuals-out
+        fuel
+        0
+        proof))))
+
+(defn- export-program-answer-record
+  "Export one raw query proof state against `program`'s language."
+  [program checked-answer-vars [answer-vars-out sigma-out neqs-out residuals-out proof]]
+  (export-answer-record
+    (:language program)
+    checked-answer-vars
+    answer-vars-out
+    sigma-out
+    neqs-out
+    residuals-out
+    proof))
+
+(defn- summarize-proof-signature
+  "Trim a proof-step signature for diagnostics output."
+  [steps proof-step-limit]
+  (let [trimmed (vec (take proof-step-limit steps))]
+    (if (> (count steps) proof-step-limit)
+      (conj trimmed '...)
+      trimmed)))
+
+(defn- proof-root-tag
+  "Return the outermost proof tag when one is present."
+  [proof]
+  (when (coll? proof)
+    (first proof)))
+
+(defn- summarize-raw-proofs
+  "Summarize the raw proof families found in one diagnostics slice."
+  [raw-results proof-sample-limit proof-step-limit]
+  (let [proofs (map #(nth % 4) raw-results)
+        step-signatures (mapv (comp vec proof/collect-steps) proofs)
+        signature-counts (frequencies step-signatures)]
+    {:distinct-proof-signature-count (count signature-counts)
+     :duplicate-proof-signature-count (- (count step-signatures)
+                                         (count signature-counts))
+     :proof-root-counts (into (sorted-map-by #(compare (str %1) (str %2)))
+                              (frequencies (keep proof-root-tag proofs)))
+     :common-proof-signatures
+     (->> signature-counts
+          (sort-by (juxt (comp - val) (comp pr-str key)))
+          (take proof-sample-limit)
+          (mapv (fn [[steps count]]
+                  {:count count
+                   :steps (summarize-proof-signature steps proof-step-limit)})))}))
+
+(defn- program-answer-diagnostic-snapshot
+  "Collect one diagnostics snapshot for a fixed expanded query stage."
+  [program formula checked-answer-vars
+   {:keys [fuel raw-limit sample-limit proof-sample-limit proof-step-limit
+           expansion-elapsed-ms]}]
+  (let [started (System/nanoTime)
+        raw-results (program-raw-answer-states
+                      program
+                      formula
+                      checked-answer-vars
+                      fuel
+                      raw-limit)
+        exported-records (->> raw-results
+                              (map #(export-program-answer-record
+                                      program
+                                      checked-answer-vars
+                                      %))
+                              (keep identity)
+                              vec)
+        unique-records (merge-answer-records exported-records)
+        search-elapsed-ms (/ (- (System/nanoTime) started) 1000000.0)]
+    (merge
+      {:raw-limit raw-limit
+       :expansion-elapsed-ms expansion-elapsed-ms
+       :search-elapsed-ms search-elapsed-ms
+       :elapsed-ms (+ expansion-elapsed-ms search-elapsed-ms)
+       :raw-count (count raw-results)
+       :search-exhausted? (< (count raw-results) raw-limit)
+       :inadmissible-count (- (count raw-results) (count exported-records))
+       :exported-count (count exported-records)
+       :duplicate-exported-count (- (count exported-records)
+                                    (count unique-records))
+       :unique-count (count unique-records)
+       :sample-records (vec (take sample-limit unique-records))}
+      (summarize-raw-proofs raw-results proof-sample-limit proof-step-limit))))
+
 (defn- search-program-formula-answers
   "Search one exact formula relative to `program` and export answer records.
 
@@ -359,30 +461,17 @@
     proof-limit
     max-raw-proof-limit
     (fn [raw-limit]
-      (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
-        (== answer-vars-out checked-answer-vars)
-        (kernel/prove-program-answero
-          formula
-          '()
-          '()
-          '()
-          checked-answer-vars
-          program
-          sigma-out
-          neqs-out
-          residuals-out
-          fuel
-          0
-          proof)))
-    (fn [[answer-vars-out sigma-out neqs-out residuals-out proof]]
-      (export-answer-record
-        (:language program)
+      (program-raw-answer-states
+        program
+        formula
         checked-answer-vars
-        answer-vars-out
-        sigma-out
-        neqs-out
-        residuals-out
-        proof))))
+        fuel
+        raw-limit))
+    (fn [raw-state]
+      (export-program-answer-record
+        program
+        checked-answer-vars
+        raw-state))))
 
 (defn- staged-query-answer-records
   "Search progressively deeper unfolded query stages up to `call-depth`.
@@ -488,10 +577,13 @@
    small sample of those unique exported answers."
   ([program query answer-vars]
    (query-answer-diagnostics program query answer-vars {}))
-  ([program query answer-vars {:keys [call-depth fuel raw-limits sample-limit]
+  ([program query answer-vars {:keys [call-depth fuel raw-limits sample-limit
+                                      proof-sample-limit proof-step-limit]
                                :or {call-depth 1
                                     raw-limits [1 2 4 8]
-                                    sample-limit 2}}]
+                                    sample-limit 2
+                                    proof-sample-limit 3
+                                    proof-step-limit 12}}]
    (let [checked-query (language/validate-query (:language program) query)
          expansion-started (System/nanoTime)
          expanded-query (unfold-call-obligations
@@ -501,49 +593,74 @@
          expansion-elapsed-ms (/ (- (System/nanoTime) expansion-started) 1000000.0)
          checked-answer-vars (validate-answer-vars checked-query answer-vars)]
      (mapv (fn [raw-limit]
-             (let [started (System/nanoTime)
-                   raw-results
-                   (vec
-                     (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
-                       (== answer-vars-out checked-answer-vars)
-                       (kernel/prove-program-answero
-                         expanded-query
-                         '()
-                         '()
-                         '()
-                         checked-answer-vars
-                         program
-                         sigma-out
-                         neqs-out
-                         residuals-out
-                         fuel
-                         0
-                         proof)))
-                   exported-records
-                   (->> raw-results
-                        (map (fn [[answer-vars-out sigma-out neqs-out residuals-out proof]]
-                               (export-answer-record
-                                 (:language program)
-                                 checked-answer-vars
-                                 answer-vars-out
-                                 sigma-out
-                                 neqs-out
-                                 residuals-out
-                                 proof)))
-                       (keep identity)
-                       vec)
-                   unique-records (merge-answer-records exported-records)
-                   search-elapsed-ms (/ (- (System/nanoTime) started) 1000000.0)]
-               {:raw-limit raw-limit
-                :expansion-elapsed-ms expansion-elapsed-ms
-                :search-elapsed-ms search-elapsed-ms
-                :elapsed-ms (+ expansion-elapsed-ms search-elapsed-ms)
-                :raw-count (count raw-results)
-                :search-exhausted? (< (count raw-results) raw-limit)
-                :exported-count (count exported-records)
-                :unique-count (count unique-records)
-                :sample-records (vec (take sample-limit unique-records))}))
+             (program-answer-diagnostic-snapshot
+               program
+               expanded-query
+               checked-answer-vars
+               {:fuel fuel
+                :raw-limit raw-limit
+                :sample-limit sample-limit
+                :proof-sample-limit proof-sample-limit
+                :proof-step-limit proof-step-limit
+                :expansion-elapsed-ms expansion-elapsed-ms}))
            raw-limits))))
+
+(defn query-stage-diagnostics
+  "Summarize open-query search across every staged call-unfolding depth.
+
+   This helper answers the question that `query-answer-diagnostics` cannot:
+   whether deeper `call-depth` stages remain productive at all, and if they do,
+   whether they mainly surface new answers or duplicate proof families."
+  ([program query answer-vars]
+   (query-stage-diagnostics program query answer-vars {}))
+  ([program query answer-vars {:keys [call-depth fuel raw-limits sample-limit
+                                      proof-sample-limit proof-step-limit]
+                               :or {call-depth 1
+                                    raw-limits [1 2 4 8]
+                                    sample-limit 2
+                                    proof-sample-limit 3
+                                    proof-step-limit 12}}]
+   (let [checked-query (language/validate-query (:language program) query)
+         checked-answer-vars (validate-answer-vars checked-query answer-vars)
+         negated-query (normalize/negate-formula checked-query)]
+     (mapv
+       (fn [stage]
+         (let [expansion-started (System/nanoTime)
+               expanded-query (unfold-call-obligations
+                                program
+                                negated-query
+                                stage)
+               expansion-elapsed-ms (/ (- (System/nanoTime) expansion-started)
+                                       1000000.0)
+               snapshots
+               (mapv
+                 (fn [raw-limit]
+                   (program-answer-diagnostic-snapshot
+                     program
+                     expanded-query
+                     checked-answer-vars
+                     {:fuel fuel
+                      :raw-limit raw-limit
+                      :sample-limit sample-limit
+                      :proof-sample-limit proof-sample-limit
+                      :proof-step-limit proof-step-limit
+                      :expansion-elapsed-ms expansion-elapsed-ms}))
+                 raw-limits)
+               best-unique-count (apply max 0 (map :unique-count snapshots))
+               first-productive-raw-limit
+               (some->> snapshots
+                        (filter #(pos? (:unique-count %)))
+                        (sort-by :raw-limit)
+                        first
+                        :raw-limit)]
+           {:stage stage
+            :expanded-query expanded-query
+            :expansion-elapsed-ms expansion-elapsed-ms
+            :productive? (pos? best-unique-count)
+            :best-unique-count best-unique-count
+            :first-productive-raw-limit first-productive-raw-limit
+            :snapshots snapshots}))
+       (range (inc call-depth))))))
 
 (defn query-ground-answers
   "Enumerate bounded ground answers for `query`.

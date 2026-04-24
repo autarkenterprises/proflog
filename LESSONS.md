@@ -37,3 +37,21 @@
 - That means plain raw-proof deduplication is unlikely to recover the missing deeper append splits by itself. The more promising direction is answer-equivalence-aware search prioritization or branch-state canonicalization that can recognize when distinct proof families are converging to the same exported frontier.
 - Reconstructing the next search stage from exported answer records was too lossy. The exported record keeps bindings, residuals, and proofs, but not the full branch-search context that produced them. In practice that broke constrained and composed queries such as `step(3,y) and y != 2` and `jump(x,0)`.
 - The safer general policy is staged deepening over increasingly unfolded query formulas, with fallback to the deepest productive stage. That keeps the improvement structure-agnostic, preserves useful shallow symbolic frontiers when a deeper stage goes dry, and still prefers deeper refinements when they exist.
+
+## 2026-04-24
+
+- API-level parity is not the same thing as kernel-level closure. ADR-0013 let
+  `query-answers` return the closed reverse / append list-family answers by
+  reusing the ADR-0012 list-family materializer, while raw diagnostics still
+  expose the symbolic reverse frontier underneath.
+- When evaluating a hard relational family, the first question should be:
+  "At which layer does the desired answer first exist?" Distinguish between:
+  - raw kernel stream presence,
+  - generic stream sifting/post-processing,
+  - and specialty family handling.
+- That classification is more useful than undirected runtime tuning. It tells
+  the repo whether the next step is search fairness, answer-surface filtering,
+  or an explicit architectural decision to add a family-specific evaluator.
+- Family-specific materializers implicitly define supported structure families.
+  They may be justified, but they should never be mistaken for evidence that
+  Proflog has gained generic support for that data structure or theory.

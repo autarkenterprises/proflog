@@ -60,6 +60,7 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0011](adr/ADR-0011-open-answer-relationality.md) | accepted | `adr-0011-open-answer-relationality` | default open-answer search via staged kernel call descent instead of eager pre-unfolding | ADR-0009 | `answers_test`, `list_programs_test`, and any narrow kernel regression needed for direct answer descent | default open-answer mode stages kernel call-depth directly, docs record the new reverse/append boundary, and remaining legacy gaps stay explicit |
 | [ADR-0012](adr/ADR-0012-closed-answer-parity-mode.md) | completed | `adr-0012-closed-answer-parity-mode` | long-running closed-answer parity search mode, isolated from the generic symbolic API so its necessity can be evaluated honestly | ADR-0011 | parity-mode regressions for `reverse([a,b],r)`, inverse `append`, and nested list families | the repo can run dedicated closed-answer parity probes without changing the generic symbolic contract, and the branch concludes that the specialty mode is currently necessary |
 | [ADR-0013](adr/ADR-0013-relational-answer-performance.md) | completed | `adr-0013-relational-answer-performance` | recursive nonground answer-mode descent, frontier canonicalization, and residual normalization to reduce the need for specialty modes | ADR-0011 | generic-path regressions for reverse parity, deeper append splits, and duplicate frontier collapse | duplicate frontiers are normalized, the known list-family closed answers are now available through `query-answers`, and the branch concludes that ADR-0012 still remains necessary as the explicit closed-answer API |
+| [ADR-0014](adr/ADR-0014-generic-legacy-evaluation.md) | accepted | `adr-0014-generic-legacy-evaluation` | generic evaluation of still-unsatisfied legacy families through raw-stream probes, generic post-processing, and explicit layer accounting | ADR-0013 | exploratory selectors and promoted regressions for `GV`, `FD`, and other still-unsatisfied legacy queries | the repo can say for each promoted legacy-unsatisfied query whether the desired answer is absent, late, generically recoverable by stream processing, or only reachable by specialty handling |
 
 ## Deferred Tracks
 
@@ -72,6 +73,8 @@ The following work is intentionally downstream of the baseline implementation an
 
 Tabling, memoization, frontier canonicalization, and recursive nonground
 answer-mode descent have now graduated from backlog into ADR-0013.
+Generic evaluation of the still-unsatisfied `GV` / `FD` legacy families has now
+graduated into ADR-0014.
 
 ## ADR-0007 Task List
 

@@ -36,8 +36,8 @@ families.
 | Sortedness `sorted2` | [SO01-SO05](../test/cljtap/alphaleantap_ep_test.clj) | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Comparable | Greenfield now covers the legacy empty, singleton, sorted, unsorted, and two-element sorted cases for `sorted2`. |
 | Subset relations | [SS01-SS03](../test/cljtap/alphaleantap_ep_test.clj) | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Comparable | Greenfield now covers the legacy true, false, and reflexive subset cases over the finite domain `{a, b, c}`. |
 | Graph properties `acyclic` | [GP01-GP03](../test/cljtap/alphaleantap_ep_test.clj) | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Comparable | Greenfield now covers the acyclic `a→b→c` case and the two cyclic counterexamples `a→b→a` and `a→b→c→a`. |
-| Group verifier `GV` | [GV01-GV09](../test/cljtap/alphaleantap_ep_test.clj) | none | Deferred | ADR-0008 treats this as a future greenfield experiment, not current baseline parity work. |
-| Finite-domain reasoning `FD` | [FD01-FD07](../test/cljtap/alphaleantap_ep_test.clj) | none | Deferred | ADR-0008 treats this as a future greenfield experiment, not current baseline parity work. |
+| Group verifier `GV` | [GV01-GV09](../test/cljtap/alphaleantap_ep_test.clj) | none | Absent | No greenfield family exists yet. ADR-0014 is the dedicated branch for promoting representative group-verifier queries into exploratory greenfield probes and determining whether the desired answers are absent, late, or recoverable only after generic stream processing. |
+| Finite-domain reasoning `FD` | [FD01-FD07](../test/cljtap/alphaleantap_ep_test.clj) | none | Absent | No greenfield family exists yet. ADR-0014 also targets at least one representative `FD` query so the repo can classify its answer-stream behavior instead of leaving it as an undifferentiated future-performance problem. |
 
 ## Immediate Closure Order
 

@@ -130,7 +130,7 @@ later distinct answer `x = 1` only appears once the raw stream is allowed to
 grow past those duplicates.
 
 The diagnostics now also summarize proof families, not just answer records. For
-the same `dup(x)` slice at raw limit `4`, the first unfolded stage reports:
+the same `dup(x)` slice at raw limit `4`, one productive stage reports:
 
 ```clojure
 {:duplicate-exported-count 1
@@ -146,17 +146,19 @@ So the helper can now separate:
 - genuinely distinct raw proof families,
 - and identical proof signatures.
 
-## Staged Deepening Policy
+## Direct Entry Policy
 
-`query-answers` no longer bets everything on one fully unfolded query shape.
-Instead, it searches call-depth stages `0`, `1`, `2`, ... up to the requested
-budget and keeps the deepest stage that still produces exportable answers.
+`query-answers` now keeps the original negated query and enters top-level
+literal program calls directly in the kernel. `call-depth` is spent only on
+recursive descendants below that entry boundary.
 
-That gives two useful behaviors:
+Within that exact search:
 
-- deeper productive stages override shallower ones,
-- but if a deeper stage goes dry, the API falls back to the last productive
-  frontier instead of returning `[]`.
+- call deferral is still a relational kernel choice,
+- but while descent budget remains, the kernel tries real recursive descent
+  before exporting a residual call frontier,
+- and the answer layer ranks later closed answers ahead of earlier symbolic
+  frontiers when both survive export.
 
 ## Recursive Open Query: `even(x)`
 
@@ -210,7 +212,8 @@ reverse([a, b], r)
 ```
 
 the diagnostics helper is useful because the first exported symbolic answer is
-not yet the final concrete reverse. At `call-depth 1`, the first snapshot is:
+not yet the final concrete reverse. With the direct-entry policy, that first
+frontier now appears already at `call-depth 0`:
 
 ```clojure
 {:raw-limit 1
@@ -233,34 +236,128 @@ This means the prover has exposed the first recursive frontier:
   `append(a_3, [a], [])`.
 
 So the current greenfield behavior is not “no semantics at all.” It can export
-the first symbolic frontier. The remaining gap is that deeper unfolding and
-answer search still do not cheaply drive that frontier to the concrete answer
-`r = [b, a]`.
+the first symbolic frontier through direct kernel entry descent. The remaining
+gap is that the next recursive stage still does not cheaply drive that frontier
+to the concrete answer `r = [b, a]`.
 
-With the staged fallback policy, asking for `call-depth 2` now keeps this
-depth-1 frontier rather than dropping to an empty result set when the deeper
-stage fails to produce an answer. On the current branch, that `call-depth 2`
-query returns the same two symbolic frontier records in about `35.9 s`.
+## Worked Example: `query-answers reverse([a,b], r)`
 
-On the current `adr-0009` branch, the measured diagnostics are:
+At the main `query-answers` API, the current first exported record depends on
+the requested `call-depth`. With:
 
 ```clojure
-call-depth 1, raw-limit 1:
-  expansion ~= 1 ms
-  search    ~= 1815.80 ms
+{:proof-limit 1
+ :max-raw-proof-limit 16
+ :fuel 32
+ :call-depth 0}    ;; or 1
+```
+
+the first exported records are:
+
+```clojure
+call-depth 0:
+
+{:bindings [[r []]]
+ :residuals
+ [[a,b] != []
+  not append(a_3, [a], [])
+  not reverse([b], a_3)]}
+
+call-depth 1:
+
+{:bindings [[r [a]]]
+ :residuals
+ [[a] != []
+  [a,b] != []
+  not reverse([b], [])
+  not reverse([b], [])]}
+```
+
+These are not complete extensional answers. The only complete answer to
+`reverse([a,b], r)` is still `r = [b,a]`. The exported record instead means:
+
+- current binding frontier,
+- plus residual obligations that must still be discharged.
+
+So:
+
+- `r = []` means "the current branch has matched the outer reverse clause in a
+  way that binds `r` to `[]`, but it still owes a recursive `reverse/2` call and
+  an `append/3` call,"
+- `r = [a]` means "one deeper descent has refined the frontier, but a recursive
+  obligation still remains, so this is still not a closed answer."
+
+The duplicated `not reverse([b], [])` residual in the `call-depth 1` record is
+real. It comes from distinct proof paths that collapse to the same exported
+symbolic state.
+
+## Parameter Meanings
+
+For this worked example, the important `query-answers` controls are:
+
+- `call-depth`: recursive procedure-call descent budget below the surface query
+  boundary. The top-level `reverse/2` query entry itself does not spend this
+  budget.
+- `fuel`: global proof-search step budget. Kernel steps that actually descend or
+  expand formulas consume fuel; when fuel runs out, deeper search stops.
+- `proof-limit`: number of unique exported answer records requested.
+- `max-raw-proof-limit`: cap on how many raw kernel proof states the collector is
+  allowed to sample while looking for those exported answers.
+
+The repository also uses the phrase "raw proof limit" in diagnostics. The
+relationship is:
+
+- `query-answer-diagnostics` takes an explicit `raw-limit` and reports exactly
+  what that one raw slice produced,
+- `query-answers` grows an internal raw limit up to `max-raw-proof-limit`,
+  merges duplicate exported answers, ranks them by completion, and returns up to
+  `proof-limit` unique records.
+
+## Why These Bindings And Residuals Appear
+
+At `call-depth 0`, the top-level query can enter `reverse([a,b], r)` directly,
+but it cannot spend any recursive budget below that entry call. So the exporter
+sees the first satisfiable symbolic frontier:
+
+- `r` is bound to `[]`,
+- `[a,b] != []` records that the non-empty input cannot be the reverse base
+  case,
+- `not reverse([b], a_3)` and `not append(a_3, [a], [])` are the remaining
+  obligations from the recursive reverse clause.
+
+At `call-depth 1`, the kernel may spend one recursive descent below the entry
+call. That extra descent refines the frontier:
+
+- the intermediate structure now forces `r = [a]`,
+- `[a] != []` records that the refined result is still not the append base case,
+- `[a,b] != []` remains from the outer reverse decomposition,
+- `not reverse([b], [])` is now the still-open recursive obligation, surfaced
+  twice because two proof paths collapse to the same exported residual state.
+
+So the progression from `[]` to `[a]` is not unsoundness. It is the symbolic
+answer API exposing progressively refined open proof frontiers rather than only
+fully closed substitutions.
+
+At the current boundary, deeper exact stages remain productive, but reverse is
+still much harder than append:
+
+```clojure
+call-depth 0, raw-limit 1:
   raw-count = 1
   unique-count = 1
 
-call-depth 2, raw-limit 1:
-  expansion ~= 0.34 ms
-  search    ~= 54681.94 ms
-  raw-count = 0
-  unique-count = 0
+call-depth 1, raw-limit 1:
+  raw-count = 1
+  unique-count = 1
 ```
 
-So the operational cliff is not eager unfolding itself. The step from
-`call-depth 1` to `call-depth 2` changes the search problem enough that the
-first raw proof state disappears under the same fuel slice.
+Operationally:
+
+- `call-depth 1` refines the first exported reverse frontier from `r = []` to
+  `r = [a]`,
+- inverse `append` can again prefer its first closed recursive split,
+- but reverse still did not reach `r = [b, a]` in a longer `fuel 64`,
+  `call-depth 3`, raw-`64` probe.
 
 ## Diagnostics: Inverse Append Frontiers
 
@@ -270,38 +367,17 @@ For:
 append(a, b, [a, b, c])
 ```
 
-with both `a` and `b` free, the current diagnostics show:
-
-```clojure
-raw-limit 1:
-  search ~= 28915.46 ms
-  raw-count = 1
-  unique-count = 1
-
-raw-limit 2:
-  search ~= 41559.38 ms
-  raw-count = 2
-  unique-count = 2
-
-raw-limit 4:
-  search ~= 53524.49 ms
-  raw-count = 3
-  exported-count = 3
-  unique-count = 2
-```
-
-So the current greenfield engine can recover the first two split families:
+with both `a` and `b` free, the current greenfield engine can recover the first
+two split families:
 
 - `a = []`, `b = [a,b,c]`
 - `a = [a]`, `b = [b,c]`
 
-But by the time the raw stream is exhausted at this fuel slice, the deeper
-`[a,b]` / `[c]` and `[a,b,c]` / `[]` splits still have not surfaced. The third
-raw proof is only a duplicate witness for the second unique answer.
+But the deeper `[a,b]` / `[c]` and `[a,b,c]` / `[]` splits still have not
+surfaced.
 
-At the main `query-answers` API, the staged deepening policy now uses the
-depth-2 stage for this query because it is still productive. The current
-result is:
+At the main `query-answers` API, `call-depth 1` now merges the productive stage
+`0` symbolic frontier with the deeper stage-`1` refinement. The current result is:
 
 ```clojure
 {:bindings [[a []] [b [a,b,c]]]
@@ -311,10 +387,12 @@ result is:
  :residuals [[a,b,c] != [b,c], [a] != []]}
 ```
 
-So the answer layer now reaches the first recursive split family through a
-deeper productive stage. On the current branch, that `call-depth 2` query
-returns those two records in about `35.3 s`. It is still below legacy parity because the
-deeper `[a,b]` / `[c]` and `[a,b,c]` / `[]` solutions have not surfaced yet.
+Stage `0` still exports a symbolic recursive cons-family for the second split,
+while stage `1` refines that family into the concrete split `([a], [b,c])`.
+The merged answer API therefore keeps the concrete refinement without throwing
+away the shallower symbolic information entirely. It is still below legacy
+parity because the deeper `[a,b]` / `[c]` and `[a,b,c]` / `[]` solutions have
+not surfaced yet.
 
 ## Stage Diagnostics: Where Search Goes Dry
 
@@ -326,54 +404,34 @@ query-stage-diagnostics
 
 It sweeps stage `0`, `1`, `2`, ... up to the requested `call-depth`, runs one
 or more raw-limit slices at each stage, and reports whether that stage is still
-productive at all.
+productive at all. The diagnostics also report the searched formula, the
+remaining `unfold-depth` (now `0` in the default path), and the kernel
+`call-depth` used at that stage.
 
 For `reverse([a,b], r)` at `fuel 32`, `raw-limit 1`, the current summary is:
 
 ```clojure
 {:stage 0, :productive? true, :raw-count 1, :unique-count 1}
-{:stage 1, :productive? true, :raw-count 1, :unique-count 1}
-{:stage 2, :productive? false, :raw-count 0, :unique-count 0}
+{:stage 1, :productive? false, :raw-count 0, :unique-count 0}
 ```
 
 That matters because it shows the failure mode precisely:
 
-- stage `0` is only the trivial deferred-call frontier,
-- stage `1` reaches the first real recursive reverse frontier,
-- stage `2` is simply dry for this fuel slice.
+- stage `0` is already the real direct-entry reverse frontier,
+- stage `1` is simply dry for this fuel slice.
 
 So the current reverse gap is not “the answer exporter ignored a deeper proof.”
 At this stage and fuel, no first raw proof state surfaces at all.
 
-For `append(a, b, [a,b,c])` at `fuel 16`, the staged summary is different:
+For `append(a, b, [a,b,c])`, the staged picture is different:
 
-```clojure
-{:stage 0, :best-unique-count 1}
-{:stage 1, :best-unique-count 2}
-{:stage 2, :best-unique-count 2}
-```
-
-More specifically:
-
-- stage `0` only has the deferred-call frontier,
-- stage `1` reaches the base split plus a symbolic recursive cons-family,
-- stage `2` concretizes that recursive family into the second split
+- stage `0` already reaches the base split plus a symbolic recursive cons-family,
+- stage `1` concretizes that symbolic family into the second split
   `([a],[b,c])`.
 
-At stage `2`, `raw-limit 4`, the improved diagnostics report:
-
-```clojure
-{:raw-count 3
- :exported-count 3
- :unique-count 2
- :duplicate-exported-count 1
- :distinct-proof-signature-count 3}
-```
-
-That is the key current finding. The third raw proof is not an identical proof
-duplicate. It is a distinct proof family that still collapses to the same
-second exported answer record. So plain raw-proof deduplication is unlikely to
-be enough by itself to unlock the deeper append splits.
+That is why the merged answer policy matters. The deeper stage contributes a
+more concrete second answer, but the answer layer no longer assumes that deeper
+productivity automatically subsumes every shallower symbolic family.
 
 ## Bounded Ground Materialization
 

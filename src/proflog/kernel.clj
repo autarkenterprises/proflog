@@ -164,24 +164,8 @@
   [lits proof-vars sigma sigma-out neqs neqs-out residuals residuals-out prog fuel call-depth existentials-as-vars? proof]
   (let [can-descend? (or (nil? call-depth) (pos? call-depth))
         next-call-depth (next-call-depth call-depth)
-        defer-calls? (and existentials-as-vars? prog (zero? (or call-depth 0)))]
+        defer-calls? (and existentials-as-vars? prog)]
     (conde
-      [(if defer-calls?
-         (fresh [atom]
-           (membero (list 'pos atom) lits)
-           (== sigma sigma-out)
-           (== neqs neqs-out)
-           (== (lcons (list 'pos atom) residuals) residuals-out)
-           (== '(eq-triggered-residual-call) proof))
-         fail)]
-      [(if defer-calls?
-         (fresh [atom]
-           (membero (list 'neg atom) lits)
-           (== sigma sigma-out)
-           (== neqs neqs-out)
-           (== (lcons (list 'neg atom) residuals) residuals-out)
-           (== '(eq-triggered-residual-neg-call) proof))
-         fail)]
       [(fresh [atom walked-atom relation args call-env body negated-body next-fuel subproof]
          (membero (list 'pos atom) lits)
          (equality/walk-atomo atom sigma walked-atom)
@@ -209,6 +193,23 @@
                        next-call-depth
                        existentials-as-vars?
                        subproof))]
+      [(if defer-calls?
+         (fresh [atom]
+           (membero (list 'pos atom) lits)
+           (== sigma sigma-out)
+           (== neqs neqs-out)
+           (== (lcons (list 'pos atom) residuals) residuals-out)
+           (== '(eq-triggered-residual-call) proof))
+         fail)]
+      [(if defer-calls?
+         (fresh [atom]
+           (membero (list 'neg atom) lits)
+           (== sigma sigma-out)
+           (== neqs neqs-out)
+           (== (lcons (list 'neg atom) residuals) residuals-out)
+           (== '(eq-triggered-residual-neg-call) proof))
+         fail)]
+      
       [(fresh [atom walked-atom relation args call-env body negated-body next-fuel subproof]
          (membero (list 'neg atom) lits)
          (equality/walk-atomo atom sigma walked-atom)
@@ -254,7 +255,7 @@
   [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out residuals residuals-out prog fuel call-depth existentials-as-vars? proof]
   (let [can-descend? (or (nil? call-depth) (pos? call-depth))
         next-call-depth (next-call-depth call-depth)
-        defer-calls? (and existentials-as-vars? prog (zero? (or call-depth 0)))]
+        defer-calls? (and existentials-as-vars? prog)]
     (conde
       ;; α-rule: both conjuncts must close on the same branch, so the sibling
       ;; conjunct is pushed onto the branch work stack. Equality-triggered saved
@@ -571,38 +572,9 @@
             (complementary-lito lit lits sigma sigma-out proof)
             (prune-contradictory-neqso neqs sigma-out neqs-out)
             (== residuals residuals-out))]
-    [(if defer-calls?
-       (fresh [lit atom next rest prf]
-              (subst/subst-formulao fml env lit)
-              (== (list 'pos atom) lit)
-              (== (lcons next rest) unexpanded)
-              (== (list 'defer-call prf) proof)
-              (prove-stateo next
-                            rest
-                            lits
-                            env
-                            proof-vars
-                            sigma
-                            sigma-out
-                            neqs
-                            neqs-out
-                            (lcons lit residuals)
-                            residuals-out
-                            prog
-                            fuel
-                            call-depth
-                            existentials-as-vars?
-                            prf))
-       fail)]
-    [(if defer-calls?
-       (fresh [lit atom]
-              (subst/subst-formulao fml env lit)
-              (== (list 'pos atom) lit)
-              (== sigma sigma-out)
-              (== neqs neqs-out)
-              (== (lcons lit residuals) residuals-out)
-              (== '(defer-call) proof))
-       fail)]
+    ;; In answer mode, prefer consuming remaining call-depth budget before
+    ;; materializing a residual call frontier. The defer branches stay available
+    ;; and still win once `call-depth` reaches zero.
     [(fresh [lit atom walked-atom relation args call-env body negated-body next-fuel subproof]
             (subst/subst-formulao fml env lit)
             (== (list 'pos atom) lit)
@@ -631,12 +603,72 @@
                           next-call-depth
                           existentials-as-vars?
                           subproof))]
+    [(if defer-calls?
+       (fresh [lit atom next rest prf]
+              (subst/subst-formulao fml env lit)
+              (== (list 'pos atom) lit)
+              (== (lcons next rest) unexpanded)
+              (== (list 'defer-call prf) proof)
+              (prove-stateo next
+                            rest
+                            lits
+                            env
+                            proof-vars
+                            sigma
+                            sigma-out
+                            neqs
+                            neqs-out
+                            (lcons lit residuals)
+                            residuals-out
+                            prog
+                            fuel
+                            call-depth
+                            existentials-as-vars?
+                            prf))
+       fail)]
+    [(if defer-calls?
+       (fresh [lit atom]
+              (subst/subst-formulao fml env lit)
+              (== (list 'pos atom) lit)
+              (== sigma sigma-out)
+              (== neqs neqs-out)
+              (== (lcons lit residuals) residuals-out)
+              (== '(defer-call) proof))
+       fail)]
     [(fresh [lit atom]
             (subst/subst-formulao fml env lit)
             (== (list 'neg atom) lit)
             (complementary-lito lit lits sigma sigma-out proof)
             (prune-contradictory-neqso neqs sigma-out neqs-out)
             (== residuals residuals-out))]
+    [(fresh [lit atom walked-atom relation args call-env body negated-body next-fuel subproof]
+            (subst/subst-formulao fml env lit)
+            (== (list 'neg atom) lit)
+            (equality/walk-atomo atom sigma walked-atom)
+            (== (lcons 'app (lcons relation args)) walked-atom)
+            (l-ground-term*o args)
+            (program/call-clauseo prog walked-atom call-env body negated-body)
+            (== (list 'neg-call subproof) proof)
+            (== residuals residuals-out)
+            (if can-descend?
+              (step-fuelo fuel next-fuel)
+              fail)
+            (prove-stateo negated-body
+                          '()
+                          '()
+                          call-env
+                          proof-vars
+                          sigma
+                          sigma-out
+                          neqs
+                          neqs-out
+                          residuals
+                          residuals-out
+                          prog
+                          next-fuel
+                          next-call-depth
+                          existentials-as-vars?
+                          subproof))]
     [(if defer-calls?
        (fresh [lit atom next rest prf]
               (subst/subst-formulao fml env lit)
@@ -669,34 +701,6 @@
               (== (lcons lit residuals) residuals-out)
               (== '(defer-call) proof))
        fail)]
-    [(fresh [lit atom walked-atom relation args call-env body negated-body next-fuel subproof]
-            (subst/subst-formulao fml env lit)
-            (== (list 'neg atom) lit)
-            (equality/walk-atomo atom sigma walked-atom)
-            (== (lcons 'app (lcons relation args)) walked-atom)
-            (l-ground-term*o args)
-            (program/call-clauseo prog walked-atom call-env body negated-body)
-            (== (list 'neg-call subproof) proof)
-            (== residuals residuals-out)
-            (if can-descend?
-              (step-fuelo fuel next-fuel)
-              fail)
-            (prove-stateo negated-body
-                          '()
-                          '()
-                          call-env
-                          proof-vars
-                          sigma
-                          sigma-out
-                          neqs
-                          neqs-out
-                          residuals
-                          residuals-out
-                          prog
-                          next-fuel
-                          next-call-depth
-                          existentials-as-vars?
-                          subproof))]
     [(fresh [lit atom next rest prf]
             (subst/subst-formulao fml env lit)
             (== (list 'pos atom) lit)
@@ -783,6 +787,62 @@
    (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out prog fuel 1 true proof))
   ([fml unexpanded lits env answer-vars prog sigma-out neqs-out residuals-out fuel call-depth proof]
    (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out prog fuel call-depth true proof)))
+
+(defn prove-program-query-entryo
+  "Kernel relation for top-level literal query-answer export relative to `prog`.
+
+   The entry procedure call itself does not consume `call-depth`; that staged
+   budget is reserved for recursive descendants below the query boundary."
+  ([lit answer-vars prog sigma-out neqs-out residuals-out proof]
+   (prove-program-query-entryo lit answer-vars prog sigma-out neqs-out residuals-out nil 0 proof))
+  ([lit answer-vars prog sigma-out neqs-out residuals-out fuel proof]
+   (prove-program-query-entryo lit answer-vars prog sigma-out neqs-out residuals-out fuel 0 proof))
+  ([lit answer-vars prog sigma-out neqs-out residuals-out fuel call-depth proof]
+   (conde
+     [(fresh [atom relation args call-env body negated-body subproof]
+        (== (list 'pos atom) lit)
+        (== (lcons 'app (lcons relation args)) atom)
+        (l-ground-term*o args)
+        (program/call-clauseo prog atom call-env body negated-body)
+        (== (list 'query-pos-call subproof) proof)
+        (prove-stateo body
+                      '()
+                      '()
+                      call-env
+                      answer-vars
+                      '()
+                      sigma-out
+                      '()
+                      neqs-out
+                      '()
+                      residuals-out
+                      prog
+                      fuel
+                      call-depth
+                      true
+                      subproof))]
+     [(fresh [atom relation args call-env body negated-body subproof]
+        (== (list 'neg atom) lit)
+        (== (lcons 'app (lcons relation args)) atom)
+        (l-ground-term*o args)
+        (program/call-clauseo prog atom call-env body negated-body)
+        (== (list 'query-neg-call subproof) proof)
+        (prove-stateo negated-body
+                      '()
+                      '()
+                      call-env
+                      answer-vars
+                      '()
+                      sigma-out
+                      '()
+                      neqs-out
+                      '()
+                      residuals-out
+                      prog
+                      fuel
+                      call-depth
+                      true
+                      subproof))])))
 
 (defn prove
   "Return up to `n` proof terms closing the given greenfield formula."

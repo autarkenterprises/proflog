@@ -4,6 +4,7 @@
             [proflog.ast :as ast]
             [proflog.language :as language]
             [proflog.list-programs-test :as lp]
+            [proflog.normalize :as normalize]
             [proflog.recursive-synthesis-test :as rst]))
 
 (def answer-language
@@ -222,7 +223,7 @@
                (:residuals record)))))))
 
 (deftest query-answer-diagnostics-can-explain-a-recursive-symbolic-frontier
-  (testing "diagnostics expose the first exported reverse frontier before deeper unfolding is attempted"
+  (testing "diagnostics expose the same first reverse frontier at call-depth 1 through in-kernel deferral"
     (ast/nom r
       (let [input (lp/list-term (ast/app-term 'a)
                                 (ast/app-term 'b))
@@ -238,67 +239,85 @@
             record (first (:sample-records snapshot))]
         (is (= 1 (:raw-count snapshot)))
         (is (= 1 (:unique-count snapshot)))
+        (is (= 1 (:call-depth snapshot)))
         (is (= (lp/list-term)
                (answers/binding-term record r)))
         (is (= 3 (count (:residuals record))))))))
 
 (deftest query-stage-diagnostics-distinguish-productive-and-dry-reverse-stages
-  (testing "stage diagnostics show that reverse stays productive at depth 1 but goes dry at depth 2 for this fuel slice"
+  (testing "stage diagnostics show that reverse stays productive through one recursive stage under fully relational deferral"
     (ast/nom r
       (let [input (lp/list-term (ast/app-term 'a)
                                 (ast/app-term 'b))
+            query (ast/pos-lit (ast/app-term 'reverse input (ast/var-term r)))
+            negated-query (normalize/negate-formula query)
             stages (answers/query-stage-diagnostics
                      (lp/list-program)
-                     (ast/pos-lit (ast/app-term 'reverse input (ast/var-term r)))
+                     query
                      [r]
-                     {:call-depth 2
+                     {:call-depth 1
                       :raw-limits [1]
                       :fuel 32
                       :sample-limit 1
                       :proof-sample-limit 1
                       :proof-step-limit 8})
+            stage-0 (nth stages 0)
             stage-1 (nth stages 1)
-            stage-2 (nth stages 2)
-            snapshot-1 (-> stage-1 :snapshots first)
-            snapshot-2 (-> stage-2 :snapshots first)]
+            snapshot-0 (-> stage-0 :snapshots first)
+            snapshot-1 (-> stage-1 :snapshots first)]
+        (is (= negated-query (:query-formula stage-0)))
+        (is (zero? (:unfold-depth stage-0)))
+        (is (zero? (:kernel-call-depth stage-0)))
+        (is (= negated-query (:query-formula stage-1)))
+        (is (zero? (:unfold-depth stage-1)))
+        (is (= 1 (:kernel-call-depth stage-1)))
+        (is (= 0 (:call-depth snapshot-0)))
+        (is (= 1 (:call-depth snapshot-1)))
+        (is (:productive? stage-0))
+        (is (= 1 (:best-unique-count stage-0)))
+        (is (= 1 (:first-productive-raw-limit stage-0)))
         (is (:productive? stage-1))
         (is (= 1 (:best-unique-count stage-1)))
         (is (= 1 (:first-productive-raw-limit stage-1)))
-        (is (not (:productive? stage-2)))
-        (is (zero? (:best-unique-count stage-2)))
-        (is (nil? (:first-productive-raw-limit stage-2)))
-        (is (= 1 (:raw-count snapshot-1)))
-        (is (zero? (:raw-count snapshot-2)))))))
+        (is (= 1 (:raw-count snapshot-0)))
+        (is (= 1 (:raw-count snapshot-1)))))))
 
-(deftest query-answers-fall-back-to-the-last-productive-stage
-  (testing "when a deeper unfolded stage goes dry, query-answers keeps the last productive frontier"
-    (let [program (lp/list-program)
-          input (lp/list-term (ast/app-term 'a)
-                              (ast/app-term 'b))]
-      (ast/nom r
-        (let [depth-1 (answers/query-answers
-                        program
-                        (ast/pos-lit (ast/app-term 'reverse input (ast/var-term r)))
-                        [r]
-                        {:proof-limit 1
-                         :max-raw-proof-limit 16
-                         :fuel 32
-                         :call-depth 1})
-              depth-2 (answers/query-answers
-                        program
-                        (ast/pos-lit (ast/app-term 'reverse input (ast/var-term r)))
-                        [r]
-                        {:proof-limit 1
-                         :max-raw-proof-limit 16
-                         :fuel 32
-                         :call-depth 2})]
-          (is (= (mapv :bindings depth-1)
-                 (mapv :bindings depth-2)))
-          (is (= (mapv :residuals depth-1)
-                 (mapv :residuals depth-2))))))))
+(deftest query-answers-use-call-depth-1-to-refine-the-direct-reverse-frontier
+  (testing "call-depth 1 refines the reverse frontier instead of falling back to the stage-0 symbolic answer"
+    (ast/nom r
+      (let [program (lp/list-program)
+            input (lp/list-term (ast/app-term 'a)
+                                (ast/app-term 'b))
+            query (ast/pos-lit (ast/app-term 'reverse input (ast/var-term r)))
+            depth-0 (answers/query-answers
+                      program
+                      query
+                      [r]
+                      {:proof-limit 1
+                       :max-raw-proof-limit 16
+                       :fuel 32
+                       :call-depth 0})
+            depth-1 (answers/query-answers
+                      program
+                      query
+                      [r]
+                      {:proof-limit 1
+                       :max-raw-proof-limit 16
+                       :fuel 32
+                       :call-depth 1})
+            first-depth-0 (first depth-0)
+            first-depth-1 (first depth-1)]
+        (is (= (lp/list-term)
+               (answers/binding-term first-depth-0 r)))
+        (is (= (lp/list-term (ast/app-term 'a))
+               (answers/binding-term first-depth-1 r)))
+        (is (not= (:bindings first-depth-0)
+                  (:bindings first-depth-1)))
+        (is (< (count (:residuals first-depth-0))
+               (count (:residuals first-depth-1))))))))
 
-(deftest query-answers-use-a-deeper-productive-stage-for-inverse-append
-  (testing "inverse append reaches the first recursive split family at call-depth 2"
+(deftest query-answers-prefer-the-first-concrete-inverse-append-split-over-symbolic-frontiers
+  (testing "inverse append prefers the first closed recursive split over shallower symbolic frontiers"
     (let [program (lp/list-program)
           abc (lp/list-term (ast/app-term 'a)
                             (ast/app-term 'b)
@@ -314,13 +333,13 @@
                         {:proof-limit 2
                          :max-raw-proof-limit 64
                          :fuel 16
-                         :call-depth 2})]
+                         :call-depth 1})]
           (is (= [[left (lp/list-term)]
                    [right abc]]
                  (:bindings (first records))))
           (is (= [[left (lp/list-term (ast/app-term 'a))]
-                   [right (lp/list-term (ast/app-term 'b)
-                                        (ast/app-term 'c))]]
+                  [right (lp/list-term (ast/app-term 'b)
+                                       (ast/app-term 'c))]]
                  (:bindings (second records)))))))))
 
 (deftest bounded-open-query-generation-finds-first-small-nim-winner

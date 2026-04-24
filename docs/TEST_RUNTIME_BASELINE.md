@@ -8,6 +8,21 @@ promote a test into the committed greenfield suite. Timings are intentionally
 kept as observed wall-clock measurements from the exact successful run that
 justified the test.
 
+The reverse/append answer-mode entries below are historical timings from the
+pre-ADR-0011 hybrid staging policy. ADR-0011 later moved the default path to
+direct kernel entry-call descent and remapped the relevant stage numbers; those
+entries are kept here as branch-local runtime history until the new policy is
+re-baselined explicitly.
+
+Current post-ADR-0011 notes from the direct-entry / completion-ranked path:
+
+- Nested suffix `append([[a,b]], z, [[a,b],[c]])` does not recover the concrete
+  suffix at raw caps `8`, `16`, or `32`, but a longer exploratory probe showed
+  the concrete answer surfacing first at `max-raw-proof-limit 64`.
+- `reverse([a,b], r)` remained materially harder: a `>120 s` exploratory probe
+  at `fuel 64`, `call-depth 3`, and raw budgets up to `64` still did not return
+  an exported result slice before manual stop.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

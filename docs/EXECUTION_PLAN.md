@@ -57,16 +57,21 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0008](adr/ADR-0008-test-gap-closure.md) | accepted | `adr-0008-test-gap-closure` | close mission-relevant greenfield test gaps and determine reverse-program-synthesis feasibility | ADR-0007 | expand `kernel_test`, `equality_test`, `program_test`, `query_test`, `answers_test`, `synthesis_modes_test` | checklist is current, core gap families are either covered or explicitly deferred, and reverse program synthesis has a documented greenfield determination |
 | [ADR-0009](adr/ADR-0009-legacy-program-closure.md) | accepted | `adr-0009-legacy-program-closure` | turn the remaining legacy program-family comparison into parity tracking, worked examples, and family-by-family closure | ADR-0008 | `integration_families_test`, `list_programs_test`, `quantified_programs_test`, `synthesis_modes_test`, plus new family namespaces as needed | parity matrix is current, extant families have worked examples, present-but-weaker families are closed or bounded, and promoted legacy-only families are documented honestly |
 | [ADR-0006](adr/ADR-0006-answer-discipline-and-variant-boundary.md) | proposed | `adr-0006-answers-variants` | answer projection, residual constraints, proof replay, variant gating | ADR-0007 | `answers_test`, `query_test` open-query cases | exported answers are admissible and semantic variants are explicit |
+| [ADR-0011](adr/ADR-0011-open-answer-relationality.md) | accepted | `adr-0011-open-answer-relationality` | default open-answer search via staged kernel call descent instead of eager pre-unfolding | ADR-0009 | `answers_test`, `list_programs_test`, and any narrow kernel regression needed for direct answer descent | default open-answer mode stages kernel call-depth directly, docs record the new reverse/append boundary, and remaining legacy gaps stay explicit |
+| [ADR-0012](adr/ADR-0012-closed-answer-parity-mode.md) | accepted | `adr-0012-closed-answer-parity-mode` | long-running closed-answer parity search mode, isolated from the generic symbolic API so its necessity can be evaluated honestly | ADR-0011 | parity-mode regressions for `reverse([a,b],r)`, inverse `append`, and nested list families | the repo can run long closed-answer parity probes without changing the generic symbolic contract, and the branch concludes whether the specialty mode is actually necessary |
+| [ADR-0013](adr/ADR-0013-relational-answer-performance.md) | accepted | `adr-0013-relational-answer-performance` | recursive nonground answer-mode descent, frontier canonicalization, and residual normalization to reduce the need for specialty modes | ADR-0011 | generic-path regressions for reverse parity, deeper append splits, and duplicate frontier collapse | the generic answer path is remeasured after relational-performance work, duplicate frontiers are reduced, and the branch concludes whether ADR-0012 still needs to be pulled in |
 
 ## Deferred Tracks
 
 The following work is intentionally downstream of the baseline implementation and should not be folded into earlier ADRs by default:
 
-- tabling or memoization of calls,
 - congruence-cache acceleration,
 - bounded disunifier enumeration,
 - arithmetic extensions beyond symbolic Peano coverage,
 - any closed-world or Clark-completion semantic profile.
+
+Tabling, memoization, frontier canonicalization, and recursive nonground
+answer-mode descent have now graduated from backlog into ADR-0013.
 
 ## ADR-0007 Task List
 

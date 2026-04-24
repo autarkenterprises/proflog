@@ -223,7 +223,7 @@
                       (synthesis-program)
                       (ast/pos-lit (ast/app-term 'jump (ast/var-term x) (numeral 0)))
                       [x]
-                      {:proof-limit 6
+                      {:proof-limit 4
                        :call-depth 2})
             decimals (set (ground-decimals records x))]
         (is (= #{2 3 4} decimals))
@@ -292,7 +292,7 @@
         (is recursive-record)))))
 
 (deftest open-plus-query-exports-base-and-recursive-families
-  (testing "plus(x, y, z) exports both the base alias family and a recursive successor family"
+  (testing "plus(x, y, z) exports both the base alias family and a one-step recursive successor refinement"
     (ast/nom x y z
       (let [records (answers/query-answers
                       (plus-append-program)
@@ -301,7 +301,7 @@
                                                  (ast/var-term y)
                                                  (ast/var-term z)))
                       [x y z]
-                      {:proof-limit 3
+                      {:proof-limit 5
                        :fuel 6
                        :call-depth 1})
             base-record (some (fn [record]
@@ -318,23 +318,16 @@
                                            y-term (answers/binding-term record y)
                                            z-term (answers/binding-term record z)]
                                        (when (and (successor-term? x-term)
-                                                  (successor-term? y-term)
-                                                  (= y-term z-term)
-                                                  (some (fn [residual]
-                                                          (and (= 'neg (ast/tag-of residual))
-                                                               (= 'plus (second (second residual)))
-                                                               (= [(successor-arg x-term)
-                                                                   y-term
-                                                                   (successor-arg z-term)]
-                                                                  (vec (nnext (second residual))))))
-                                                        (:residuals record)))
+                                                  (successor-term? z-term)
+                                                  (= y-term (successor-arg z-term))
+                                                  (neq-residuals-only? [record]))
                                          record)))
                                    records)]
         (is base-record)
         (is recursive-record)))))
 
 (deftest open-append-query-exports-base-and-recursive-families
-  (testing "append(x, y, z) exports both the base alias family and a recursive cons family"
+  (testing "append(x, y, z) exports both the base alias family and a one-step recursive cons refinement"
     (ast/nom x y z
       (let [records (answers/query-answers
                       (plus-append-program)
@@ -343,7 +336,7 @@
                                                  (ast/var-term y)
                                                  (ast/var-term z)))
                       [x y z]
-                      {:proof-limit 3
+                      {:proof-limit 5
                        :fuel 4
                        :call-depth 1})
             base-record (some (fn [record]
@@ -360,18 +353,11 @@
                                            y-term (answers/binding-term record y)
                                            z-term (answers/binding-term record z)]
                                        (when (and (cons-term? x-term)
-                                                  (cons-term? y-term)
                                                   (cons-term? z-term)
-                                                  (= (cons-head x-term) (cons-head y-term))
-                                                  (= y-term z-term)
-                                                  (some (fn [residual]
-                                                          (and (= 'neg (ast/tag-of residual))
-                                                               (= 'append (second (second residual)))
-                                                               (= [(cons-tail x-term)
-                                                                   y-term
-                                                                   (cons-tail z-term)]
-                                                                  (vec (nnext (second residual))))))
-                                                        (:residuals record)))
+                                                  (null-term? (cons-tail x-term))
+                                                  (= (cons-head x-term) (cons-head z-term))
+                                                  (= y-term (cons-tail z-term))
+                                                  (neq-residuals-only? [record]))
                                          record)))
                                    records)]
         (is base-record)

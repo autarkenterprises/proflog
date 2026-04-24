@@ -324,8 +324,8 @@
                                        (:residuals record)))
                              records)))))))
 
-(deftest append-nested-suffix-query-binds-the-concrete-second-argument
-  (testing "append([[a, b]], z, [[a, b], [c]]) binds z = [[c]] while retaining shallow disequalities"
+(deftest append-nested-suffix-query-stays-symbolic-in-generic-answer-mode
+  (testing "generic open answers keep the recursive suffix call symbolic instead of materializing the nested suffix"
     (let [program (list-program)
           sub-ab (list-term (ast/app-term 'a)
                             (ast/app-term 'b))
@@ -333,20 +333,22 @@
           left (list-term sub-ab)
           whole (list-term sub-ab sub-c)]
       (ast/nom z
-               (let [records (answers/query-answers
-                              program
-                              (ast/pos-lit
-                               (ast/app-term 'append
-                                             left
-                                             (ast/var-term z)
-                                             whole))
-                              [z]
-                              {:proof-limit 1
-                               :fuel 16
-                               :call-depth 2})]
-                 (is (= [(list-term sub-c)]
-                        (mapv #(answers/binding-term % z) records)))
-                 (is (every? (fn [record]
-                               (every? #(= 'neq (ast/tag-of %))
-                                       (:residuals record)))
-                             records)))))))
+               (let [query (ast/pos-lit
+                             (ast/app-term 'append
+                                           left
+                                           (ast/var-term z)
+                                           whole))
+                     symbolic-records (answers/query-answers
+                                        program
+                                        query
+                                        [z]
+                                        {:proof-limit 1
+                                         :max-raw-proof-limit 1
+                                         :fuel 16
+                                         :call-depth 2})]
+                 (is (some (fn [record]
+                             (some (fn [residual]
+                                     (and (= 'neg (ast/tag-of residual))
+                                          (= 'append (second (second residual)))))
+                                   (:residuals record)))
+                           symbolic-records)))))))

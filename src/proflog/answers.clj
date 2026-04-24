@@ -136,53 +136,6 @@
             clause))
         (:clause-list program)))
 
-(defn- bind-args
-  "Create a pure environment mapping clause params to actual call args."
-  [params args]
-  (mapv vector params args))
-
-(declare unfold-call-obligations)
-
-(defn- unfold-call-literal
-  "Expand one procedure call literal up to `call-depth` levels."
-  [program lit call-depth]
-  (let [atom (second lit)
-        relation (second atom)
-        args (nnext atom)]
-    (if (pos? call-depth)
-      (if-let [{:keys [params body negated-body]} (lookup-clause program relation)]
-        (unfold-call-obligations
-          program
-          (subst/subst-formula
-            (case (ast/tag-of lit)
-              pos body
-              neg negated-body)
-            (bind-args params args))
-          (dec call-depth))
-        lit)
-      lit)))
-
-(defn- unfold-call-obligations
-  "Eagerly unfold procedure calls in `formula` before kernel answer export."
-  [program formula call-depth]
-  (case (ast/tag-of formula)
-    pos (unfold-call-literal program formula call-depth)
-    neg (unfold-call-literal program formula call-depth)
-    and (ast/and-form (unfold-call-obligations program (second formula) call-depth)
-                      (unfold-call-obligations program (nth formula 2) call-depth))
-    or (ast/or-form (unfold-call-obligations program (second formula) call-depth)
-                    (unfold-call-obligations program (nth formula 2) call-depth))
-    forall (let [tied (second formula)]
-             (ast/forall-form (:binding-nom tied)
-                              (unfold-call-obligations program (:body tied) call-depth)))
-    once-forall (let [tied (second formula)]
-                  (ast/once-forall-form (:binding-nom tied)
-                                        (unfold-call-obligations program (:body tied) call-depth)))
-    exists (let [tied (second formula)]
-             (ast/exists-form (:binding-nom tied)
-                              (unfold-call-obligations program (:body tied) call-depth)))
-    formula))
-
 (defn binding-term
   "Return the answer term bound to `binding-nom`, or nil when absent."
   [answer binding-nom]
@@ -329,13 +282,51 @@
                 records)]
     (mapv merged order)))
 
+(defn- neq-residual?
+  "True when an exported residual is a plain disequality."
+  [formula]
+  (= 'neq (ast/tag-of formula)))
+
+(defn- closed-answer-record?
+  "True when an exported answer has no deferred non-disequality obligations."
+  [record]
+  (every? neq-residual? (:residuals record)))
+
+(defn- answer-record-rank
+  "Prefer answers that have finished all procedure-call work.
+
+   Closed answers containing only disequalities sort ahead of records that still
+   carry residual literals. Within those groups, prefer fewer free vars and
+   fewer total residuals."
+  [{:keys [bindings residuals]}]
+  (let [open-residuals (remove neq-residual? residuals)
+        binding-var-count (reduce + (map (comp count free-vars-term second) bindings))
+        residual-var-count (reduce + (map (comp count free-vars-formula) residuals))]
+    [(if (seq open-residuals) 1 0)
+     (count open-residuals)
+     binding-var-count
+     residual-var-count
+     (count residuals)]))
+
+(defn- prioritize-answer-records
+  "Sort answer records by completion while preserving first-seen order on ties."
+  [records]
+  (->> records
+       (map-indexed vector)
+       (sort-by (fn [[idx record]]
+                  [(answer-record-rank record) idx]))
+       (mapv second)))
+
 (defn- collect-answer-records
   "Search for up to `proof-limit` unique answer records.
 
    `search` is a function from raw proof limit to raw reified proof states.
    The raw proof stream may contain many duplicate witnesses for the same
    exported answer shape, so the collector grows the raw limit until it either
-   has enough unique answers, exhausts the search, or hits `max-raw-proof-limit`."
+   has enough unique answers, exhausts the search, or hits
+   `max-raw-proof-limit`. When the current top `proof-limit` answers still carry
+   residual non-disequality formulas, the collector keeps deepening so a later
+   closed answer can displace a shallower symbolic frontier."
   [proof-limit max-raw-proof-limit search export]
   (loop [raw-limit proof-limit]
     (let [raw-results (search raw-limit)
@@ -343,32 +334,47 @@
                       (map export)
                       (keep identity)
                       merge-answer-records
-                      vec)]
-      (if (or (>= (count merged) proof-limit)
+                      vec)
+          prioritized (prioritize-answer-records merged)
+          selected (vec (take proof-limit prioritized))]
+      (if (or (and (>= (count prioritized) proof-limit)
+                   (every? closed-answer-record? selected))
               (< (count raw-results) raw-limit)
               (>= raw-limit max-raw-proof-limit))
-        (vec (take proof-limit merged))
+        selected
         (recur (min max-raw-proof-limit (* 2 raw-limit)))))))
 
 (defn- program-raw-answer-states
   "Return up to `raw-limit` raw kernel proof states for one query formula."
-  [program formula checked-answer-vars fuel raw-limit]
+  [program formula checked-answer-vars fuel raw-limit call-depth]
   (vec
     (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
       (== answer-vars-out checked-answer-vars)
-      (kernel/prove-program-answero
-        formula
-        '()
-        '()
-        '()
-        checked-answer-vars
-        program
-        sigma-out
-        neqs-out
-        residuals-out
-        fuel
-        0
-        proof))))
+      (if (and (#{'pos 'neg} (ast/tag-of formula))
+               (some? (lookup-clause program (second (second formula)))))
+        (kernel/prove-program-query-entryo
+          formula
+          checked-answer-vars
+          program
+          sigma-out
+          neqs-out
+          residuals-out
+          fuel
+          call-depth
+          proof)
+        (kernel/prove-program-answero
+          formula
+          '()
+          '()
+          '()
+          checked-answer-vars
+          program
+          sigma-out
+          neqs-out
+          residuals-out
+          fuel
+          call-depth
+          proof)))))
 
 (defn- export-program-answer-record
   "Export one raw query proof state against `program`'s language."
@@ -416,17 +422,18 @@
                    :steps (summarize-proof-signature steps proof-step-limit)})))}))
 
 (defn- program-answer-diagnostic-snapshot
-  "Collect one diagnostics snapshot for a fixed expanded query stage."
+  "Collect one diagnostics snapshot for one fixed kernel call-depth stage."
   [program formula checked-answer-vars
    {:keys [fuel raw-limit sample-limit proof-sample-limit proof-step-limit
-           expansion-elapsed-ms]}]
+           call-depth stage-setup-elapsed-ms]}]
   (let [started (System/nanoTime)
         raw-results (program-raw-answer-states
                       program
                       formula
                       checked-answer-vars
                       fuel
-                      raw-limit)
+                      raw-limit
+                      call-depth)
         exported-records (->> raw-results
                               (map #(export-program-answer-record
                                       program
@@ -438,9 +445,10 @@
         search-elapsed-ms (/ (- (System/nanoTime) started) 1000000.0)]
     (merge
       {:raw-limit raw-limit
-       :expansion-elapsed-ms expansion-elapsed-ms
+       :call-depth call-depth
+       :stage-setup-elapsed-ms stage-setup-elapsed-ms
        :search-elapsed-ms search-elapsed-ms
-       :elapsed-ms (+ expansion-elapsed-ms search-elapsed-ms)
+       :elapsed-ms (+ stage-setup-elapsed-ms search-elapsed-ms)
        :raw-count (count raw-results)
        :search-exhausted? (< (count raw-results) raw-limit)
        :inadmissible-count (- (count raw-results) (count exported-records))
@@ -456,7 +464,7 @@
 
    The caller supplies an already-validated `formula`; no extra negation or
    call unfolding happens here."
-  [program formula checked-answer-vars {:keys [fuel proof-limit max-raw-proof-limit]}]
+  [program formula checked-answer-vars {:keys [fuel proof-limit max-raw-proof-limit call-depth]}]
   (collect-answer-records
     proof-limit
     max-raw-proof-limit
@@ -466,41 +474,28 @@
         formula
         checked-answer-vars
         fuel
-        raw-limit))
+        raw-limit
+        call-depth))
     (fn [raw-state]
       (export-program-answer-record
         program
         checked-answer-vars
         raw-state))))
 
-(defn- staged-query-answer-records
-  "Search progressively deeper unfolded query stages up to `call-depth`.
+(defn- staged-query-formula
+  "Prepare the formula searched at one open-answer stage.
 
-   Rather than betting everything on one fully expanded query, the answer layer
-   searches stage 0, 1, 2, ... in order and keeps the deepest stage that
-   produces exportable answers. This preserves useful shallow symbolic answers
-   when a deeper stage goes dry, while still preferring deeper refinements
-   whenever they exist."
-  [program checked-query checked-answer-vars
-   {:keys [call-depth fuel proof-limit max-raw-proof-limit]}]
-  (let [negated-query (normalize/negate-formula checked-query)]
-    (loop [stage 0
-           deepest-records []]
-      (let [expanded-query (unfold-call-obligations program negated-query stage)
-            stage-records
-            (search-program-formula-answers
-              program
-              expanded-query
-              checked-answer-vars
-              {:fuel fuel
-               :proof-limit proof-limit
-               :max-raw-proof-limit max-raw-proof-limit})
-            next-deepest (if (seq stage-records)
-                           stage-records
-                           deepest-records)]
-        (if (= stage call-depth)
-          (vec (take proof-limit next-deepest))
-          (recur (inc stage) next-deepest))))))
+   The default path now keeps the original negated query at every stage.
+   Top-level literal program calls are entered directly in the kernel without
+   spending staged `call-depth`, so the stage budget itself measures recursive
+   descendants below the surface query boundary."
+  [_program negated-query stage]
+  (let [setup-started (System/nanoTime)
+        setup-elapsed-ms (/ (- (System/nanoTime) setup-started) 1000000.0)]
+    {:formula negated-query
+     :kernel-call-depth stage
+     :unfold-depth 0
+     :stage-setup-elapsed-ms setup-elapsed-ms}))
 
 (defn formula-answers
   "Export symbolic answers for a closed tableau over `formula`.
@@ -547,9 +542,10 @@
    This is the generic solution for reverse and partial-mode query answering.
    Returned records may contain non-ground bindings, residual disequalities,
    and residual procedure-call obligations, but they never export internal
-   `par` terms. `:call-depth` now controls how many staged residual-call
-   deepening rounds the answer layer performs before returning the remaining
-   residual call obligations."
+   `par` terms. For top-level literal program queries, the kernel enters the
+   query call directly and `:call-depth` bounds recursive descendants below
+   that entry boundary. Within that bound, answer-mode call deferral is a
+   relational choice inside the kernel rather than a staged answer-layer pass."
   ([program query answer-vars]
    (query-answers program query answer-vars {}))
   ([program query answer-vars {:keys [call-depth fuel proof-limit max-raw-proof-limit]
@@ -557,10 +553,11 @@
                                     call-depth 1}}]
    (let [checked-query (language/validate-query (:language program) query)
          checked-answer-vars (validate-answer-vars checked-query answer-vars)
+         negated-query (normalize/negate-formula checked-query)
          max-raw-proof-limit (or max-raw-proof-limit (max proof-limit (* 8 proof-limit)))]
-     (staged-query-answer-records
+     (search-program-formula-answers
        program
-       checked-query
+       negated-query
        checked-answer-vars
        {:call-depth call-depth
         :fuel fuel
@@ -574,7 +571,9 @@
    requested `raw-limit`, it reports how many raw kernel proof states were
    found, how many of those states exported into admissible answer records,
    how many unique answer records remained after merging duplicates, and a
-   small sample of those unique exported answers."
+   small sample of those unique exported answers. The requested `:call-depth`
+   probes one exact stage; for top-level literal program queries, stage `0`
+   already enters the query call directly."
   ([program query answer-vars]
    (query-answer-diagnostics program query answer-vars {}))
   ([program query answer-vars {:keys [call-depth fuel raw-limits sample-limit
@@ -585,28 +584,26 @@
                                     proof-sample-limit 3
                                     proof-step-limit 12}}]
    (let [checked-query (language/validate-query (:language program) query)
-         expansion-started (System/nanoTime)
-         expanded-query (unfold-call-obligations
-                          program
-                          (normalize/negate-formula checked-query)
-                          call-depth)
-         expansion-elapsed-ms (/ (- (System/nanoTime) expansion-started) 1000000.0)
+         negated-query (normalize/negate-formula checked-query)
          checked-answer-vars (validate-answer-vars checked-query answer-vars)]
-     (mapv (fn [raw-limit]
-             (program-answer-diagnostic-snapshot
-               program
-               expanded-query
-               checked-answer-vars
-               {:fuel fuel
-                :raw-limit raw-limit
-                :sample-limit sample-limit
-                :proof-sample-limit proof-sample-limit
-                :proof-step-limit proof-step-limit
-                :expansion-elapsed-ms expansion-elapsed-ms}))
-           raw-limits))))
+     (let [{:keys [formula kernel-call-depth stage-setup-elapsed-ms]}
+           (staged-query-formula program negated-query call-depth)]
+       (mapv (fn [raw-limit]
+               (program-answer-diagnostic-snapshot
+                 program
+                 formula
+                 checked-answer-vars
+                 {:fuel fuel
+                  :raw-limit raw-limit
+                  :call-depth kernel-call-depth
+                  :sample-limit sample-limit
+                  :proof-sample-limit proof-sample-limit
+                  :proof-step-limit proof-step-limit
+                  :stage-setup-elapsed-ms stage-setup-elapsed-ms}))
+             raw-limits)))))
 
 (defn query-stage-diagnostics
-  "Summarize open-query search across every staged call-unfolding depth.
+  "Summarize open-query search across every staged kernel call-depth.
 
    This helper answers the question that `query-answer-diagnostics` cannot:
    whether deeper `call-depth` stages remain productive at all, and if they do,
@@ -625,37 +622,34 @@
          negated-query (normalize/negate-formula checked-query)]
      (mapv
        (fn [stage]
-         (let [expansion-started (System/nanoTime)
-               expanded-query (unfold-call-obligations
-                                program
-                                negated-query
-                                stage)
-               expansion-elapsed-ms (/ (- (System/nanoTime) expansion-started)
-                                       1000000.0)
+         (let [{:keys [formula kernel-call-depth unfold-depth stage-setup-elapsed-ms]}
+               (staged-query-formula program negated-query stage)
                snapshots
                (mapv
                  (fn [raw-limit]
                    (program-answer-diagnostic-snapshot
                      program
-                     expanded-query
+                     formula
                      checked-answer-vars
                      {:fuel fuel
                       :raw-limit raw-limit
+                      :call-depth kernel-call-depth
                       :sample-limit sample-limit
                       :proof-sample-limit proof-sample-limit
                       :proof-step-limit proof-step-limit
-                      :expansion-elapsed-ms expansion-elapsed-ms}))
+                      :stage-setup-elapsed-ms stage-setup-elapsed-ms}))
                  raw-limits)
                best-unique-count (apply max 0 (map :unique-count snapshots))
                first-productive-raw-limit
                (some->> snapshots
                         (filter #(pos? (:unique-count %)))
                         (sort-by :raw-limit)
-                        first
-                        :raw-limit)]
+                       first
+                       :raw-limit)]
            {:stage stage
-            :expanded-query expanded-query
-            :expansion-elapsed-ms expansion-elapsed-ms
+            :query-formula formula
+            :unfold-depth unfold-depth
+            :kernel-call-depth kernel-call-depth
             :productive? (pos? best-unique-count)
             :best-unique-count best-unique-count
             :first-productive-raw-limit first-productive-raw-limit

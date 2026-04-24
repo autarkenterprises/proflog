@@ -55,3 +55,7 @@ separate from the generic symbolic `query-answers` path. It now:
   reduce or eliminate the need for this specialty mode.
 - Revisit whether parity mode should collect proof payloads once ADR-0013 makes
   the underlying generic search cheaper.
+- Update after ADR-0013: the known list-family fast path is now also reused by
+  the default `query-answers` API for recognized `append/3` and `reverse/2`
+  queries, but `query-parity-answers` still remains the explicit closed-answer
+  and bounded materialization interface.

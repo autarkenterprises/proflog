@@ -23,6 +23,13 @@ Current post-ADR-0011 notes from the direct-entry / completion-ranked path:
   at `fuel 64`, `call-depth 3`, and raw budgets up to `64` still did not return
   an exported result slice before manual stop.
 
+Current ADR-0013 note:
+
+- The public `query-answers` surface for the known list-family `append/3` and
+  `reverse/2` queries now reuses the ADR-0012 closed-answer materializer. The
+  older reverse/append rows below therefore describe the pre-ADR-0013 raw
+  symbolic behavior and timings, not the current public closed-answer surface.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

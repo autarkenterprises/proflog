@@ -255,7 +255,7 @@
               256))))))
 
 (deftest append-forward-query-binds-a-three-element-result
-  (testing "append([a], [b, c], z) binds z = [a, b, c] while the exporter still retains shallow disequalities"
+  (testing "append([a], [b, c], z) now returns the closed concrete list answer directly"
     (let [program (list-program)
           left (list-term (ast/app-term 'a))
           right (list-term (ast/app-term 'b)
@@ -277,10 +277,8 @@
                                :call-depth 2})]
                  (is (= [expected]
                         (mapv #(answers/binding-term % z) records)))
-                 (is (every? (fn [record]
-                               (every? #(= 'neq (ast/tag-of %))
-                                       (:residuals record)))
-                             records)))))))
+                 (is (every? empty?
+                             (map :residuals records))))))))
 
 (deftest reverse-two-element-list-succeeds
   (testing "reverse([a, b], [b, a]) is semantically reachable, though expensive"
@@ -298,7 +296,7 @@
               256))))))
 
 (deftest append-nested-forward-query-binds-the-concrete-result
-  (testing "append([[a]], [[b]], z) binds z = [[a], [b]] while the exporter still surfaces shallow disequalities"
+  (testing "append([[a]], [[b]], z) now returns the closed nested list answer directly"
     (let [program (list-program)
           sub-a (list-term (ast/app-term 'a))
           sub-b (list-term (ast/app-term 'b))
@@ -319,13 +317,11 @@
                                :call-depth 2})]
                  (is (= [expected]
                         (mapv #(answers/binding-term % z) records)))
-                 (is (every? (fn [record]
-                               (every? #(= 'neq (ast/tag-of %))
-                                       (:residuals record)))
-                             records)))))))
+                 (is (every? empty?
+                             (map :residuals records))))))))
 
-(deftest append-nested-suffix-query-stays-symbolic-in-generic-answer-mode
-  (testing "generic open answers keep the recursive suffix call symbolic instead of materializing the nested suffix"
+(deftest append-nested-suffix-query-materializes-the-concrete-second-argument-in-generic-answer-mode
+  (testing "generic open answers now prioritize the closed nested suffix answer"
     (let [program (list-program)
           sub-ab (list-term (ast/app-term 'a)
                             (ast/app-term 'b))
@@ -343,12 +339,10 @@
                                         query
                                         [z]
                                         {:proof-limit 1
-                                         :max-raw-proof-limit 1
-                                         :fuel 16
+                                         :max-raw-proof-limit 64
+                                         :fuel 64
                                          :call-depth 2})]
-                 (is (some (fn [record]
-                             (some (fn [residual]
-                                     (and (= 'neg (ast/tag-of residual))
-                                          (= 'append (second (second residual)))))
-                                   (:residuals record)))
-                           symbolic-records)))))))
+                 (is (= [(list-term sub-c)]
+                        (mapv #(answers/binding-term % z) symbolic-records)))
+                 (is (every? empty?
+                             (map :residuals symbolic-records))))))))

@@ -13,6 +13,8 @@
      :functions {'s 1}
      :relations {'p 1
                  'dup 1
+                 'sym 1
+                 'loop 1
                  'even 1
                  'odd 1
                  'win 1}}))
@@ -63,6 +65,24 @@
        (ast/clause 'dup [x]
                    (ast/eq-lit (ast/var-term x)
                                (ast/app-term 's (ast/app-term 'zero))))])))
+
+(defn duplicate-symbolic-answer-program
+  []
+  (ast/nom x y z
+    (language/compile-program
+      answer-language
+      [(ast/clause 'sym [x]
+                   (ast/exists-form y
+                     (ast/and-form
+                       (ast/eq-lit (ast/var-term x)
+                                   (ast/app-term 's (ast/var-term y)))
+                       (ast/pos-lit (ast/app-term 'loop (ast/var-term y))))))
+       (ast/clause 'sym [x]
+                   (ast/exists-form z
+                     (ast/and-form
+                       (ast/eq-lit (ast/var-term x)
+                                   (ast/app-term 's (ast/var-term z)))
+                       (ast/pos-lit (ast/app-term 'loop (ast/var-term z))))))])))
 
 (defn answer-terms
   [records]
@@ -222,8 +242,8 @@
         (is (= [(ast/pos-lit (ast/app-term 'win (nth x-term 2)))]
                (:residuals record)))))))
 
-(deftest query-answer-diagnostics-can-explain-a-recursive-symbolic-frontier
-  (testing "diagnostics expose the same first reverse frontier at call-depth 1 through in-kernel deferral"
+(deftest query-answer-diagnostics-show-the-reverse-recursive-subcall-boundary
+  (testing "diagnostics still expose the raw symbolic reverse frontier even though query-answers now prefers the closed list-family fast path"
     (ast/nom r
       (let [input (lp/list-term (ast/app-term 'a)
                                 (ast/app-term 'b))
@@ -242,7 +262,15 @@
         (is (= 1 (:call-depth snapshot)))
         (is (= (lp/list-term)
                (answers/binding-term record r)))
-        (is (= 3 (count (:residuals record))))))))
+        (is (= 3 (count (:residuals record))))
+        (is (some (fn [residual]
+                    (and (= 'neg (ast/tag-of residual))
+                         (= 'append (second (second residual)))))
+                  (:residuals record)))
+        (is (some (fn [residual]
+                    (and (= 'neg (ast/tag-of residual))
+                         (= 'reverse (second (second residual)))))
+                  (:residuals record)))))))
 
 (deftest query-stage-diagnostics-distinguish-productive-and-dry-reverse-stages
   (testing "stage diagnostics show that reverse stays productive through one recursive stage under fully relational deferral"
@@ -283,41 +311,28 @@
         (is (= 1 (:raw-count snapshot-1)))))))
 
 (deftest query-answers-use-call-depth-1-to-refine-the-direct-reverse-frontier
-  (testing "call-depth 1 refines the reverse frontier instead of falling back to the stage-0 symbolic answer"
+  (testing "the generic path now prioritizes the closed reverse answer while diagnostics still expose the symbolic frontier"
     (ast/nom r
       (let [program (lp/list-program)
             input (lp/list-term (ast/app-term 'a)
                                 (ast/app-term 'b))
             query (ast/pos-lit (ast/app-term 'reverse input (ast/var-term r)))
-            depth-0 (answers/query-answers
-                      program
-                      query
-                      [r]
-                      {:proof-limit 1
-                       :max-raw-proof-limit 16
-                       :fuel 32
-                       :call-depth 0})
             depth-1 (answers/query-answers
                       program
                       query
                       [r]
                       {:proof-limit 1
-                       :max-raw-proof-limit 16
-                       :fuel 32
+                       :max-raw-proof-limit 64
+                       :fuel 64
                        :call-depth 1})
-            first-depth-0 (first depth-0)
             first-depth-1 (first depth-1)]
-        (is (= (lp/list-term)
-               (answers/binding-term first-depth-0 r)))
-        (is (= (lp/list-term (ast/app-term 'a))
+        (is (= (lp/list-term (ast/app-term 'b)
+                             (ast/app-term 'a))
                (answers/binding-term first-depth-1 r)))
-        (is (not= (:bindings first-depth-0)
-                  (:bindings first-depth-1)))
-        (is (< (count (:residuals first-depth-0))
-               (count (:residuals first-depth-1))))))))
+        (is (= [] (:residuals first-depth-1)))))))
 
 (deftest query-answers-prefer-the-first-concrete-inverse-append-split-over-symbolic-frontiers
-  (testing "inverse append prefers the first closed recursive split over shallower symbolic frontiers"
+  (testing "the generic path now recovers the full inverse-append split family"
     (let [program (lp/list-program)
           abc (lp/list-term (ast/app-term 'a)
                             (ast/app-term 'b)
@@ -330,17 +345,63 @@
                                                    (ast/var-term right)
                                                    abc))
                         [left right]
-                        {:proof-limit 2
+                        {:proof-limit 4
                          :max-raw-proof-limit 64
-                         :fuel 16
+                         :fuel 64
                          :call-depth 1})]
-          (is (= [[left (lp/list-term)]
-                   [right abc]]
-                 (:bindings (first records))))
-          (is (= [[left (lp/list-term (ast/app-term 'a))]
-                  [right (lp/list-term (ast/app-term 'b)
-                                       (ast/app-term 'c))]]
-                 (:bindings (second records)))))))))
+          (is (= [[[left (lp/list-term)]
+                    [right abc]]
+                   [[left (lp/list-term (ast/app-term 'a))]
+                    [right (lp/list-term (ast/app-term 'b)
+                                         (ast/app-term 'c))]]
+                   [[left (lp/list-term (ast/app-term 'a)
+                                        (ast/app-term 'b))]
+                    [right (lp/list-term (ast/app-term 'c))]]
+                   [[left abc]
+                    [right (lp/list-term)]]]
+                 (mapv :bindings records)))
+          (is (every? empty? (map :residuals records))))))))
+
+(deftest query-answers-collapse-duplicate-reverse-residuals
+  (testing "symbolic reverse frontiers no longer export duplicate residual literals"
+    (ast/nom r
+      (let [program (lp/list-program)
+            input (lp/list-term (ast/app-term 'a)
+                                (ast/app-term 'b))
+            query (ast/pos-lit (ast/app-term 'reverse input (ast/var-term r)))
+            diagnostics (answers/query-answer-diagnostics
+                          program
+                          query
+                          [r]
+                          {:raw-limits [1]
+                           :fuel 32
+                           :call-depth 1
+                           :sample-limit 1})
+            residuals (-> diagnostics first :sample-records first :residuals)]
+        (is (= (count residuals)
+               (count (distinct residuals))))))))
+
+(deftest query-answers-merge-alpha-equivalent-symbolic-frontiers
+  (testing "alpha-equivalent symbolic answers merge into one canonical exported frontier"
+    (ast/nom x
+      (let [snapshot (-> (answers/query-answer-diagnostics
+                           (duplicate-symbolic-answer-program)
+                           (ast/pos-lit (ast/app-term 'sym (ast/var-term x)))
+                           [x]
+                           {:raw-limits [4]
+                            :fuel 8
+                            :call-depth 1
+                            :sample-limit 2})
+                         first)
+            record (-> snapshot :sample-records first)]
+        (is (= 4 (:raw-count snapshot)))
+        (is (= 2 (:unique-count snapshot)))
+        (is (= 2 (:duplicate-exported-count snapshot)))
+        (is (= (ast/app-term 's (ast/var-term '_0))
+               (answers/binding-term record x)))
+        (is (= [(ast/neg-lit (ast/app-term 'loop (ast/var-term '_0)))]
+               (:residuals record)))
+        (is (< 1 (count (:proofs record))))))))
 
 (deftest bounded-open-query-generation-finds-first-small-nim-winner
   (testing "the non-generic bounded materializer still recovers the first winning Nim position"

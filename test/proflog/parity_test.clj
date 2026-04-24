@@ -8,8 +8,8 @@
    [records binding-nom]
    (mapv #(answers/binding-term % binding-nom) records))
 
- (deftest closed-answer-parity-mode-keeps-generic-reverse-frontiers-symbolic
-   (testing "generic query-answers stays symbolic while parity mode continues to the closed reverse answer"
+ (deftest closed-answer-parity-mode-and-generic-query-answers-agree-on-reverse
+   (testing "generic query-answers now returns the same closed reverse answer as parity mode for the known list family"
      (ast/nom r
        (let [program (lp/list-program)
              input (lp/list-term (ast/app-term 'a)
@@ -31,9 +31,11 @@
                                :fuel 256
                                :failure-timeout-ms 2000
                                :max-term-size 2})]
-         (is (= [(lp/list-term (ast/app-term 'a))]
+         (is (= [(lp/list-term (ast/app-term 'b)
+                               (ast/app-term 'a))]
                 (binding-terms symbolic-records r)))
-         (is (seq (:residuals (first symbolic-records))))
+         (is (= [[]]
+                (mapv :residuals symbolic-records)))
          (is (= [(lp/list-term (ast/app-term 'b)
                                (ast/app-term 'a))]
                 (binding-terms parity-records r)))
@@ -100,8 +102,8 @@
            (is (every? empty?
                        (map :residuals records))))))))
 
- (deftest closed-answer-parity-mode-recovers-the-nested-suffix-while-generic-mode-stays-symbolic
-   (testing "generic answers keep the nested suffix recursive call open while parity mode exports the closed suffix"
+ (deftest closed-answer-parity-mode-and-generic-query-answers-agree-on-the-nested-suffix
+   (testing "generic query-answers now returns the same closed nested suffix answer as parity mode for the known list family"
      (let [program (lp/list-program)
            sub-ab (lp/list-term (ast/app-term 'a)
                                 (ast/app-term 'b))
@@ -130,12 +132,10 @@
                                  :fuel 256
                                  :failure-timeout-ms 2000
                                  :max-term-size 5})]
-           (is (some (fn [record]
-                       (some (fn [residual]
-                               (and (= 'neg (ast/tag-of residual))
-                                    (= 'append (second (second residual)))))
-                             (:residuals record)))
-                     symbolic-records))
+           (is (= [(lp/list-term sub-c)]
+                  (binding-terms symbolic-records z)))
+           (is (= [[]]
+                  (mapv :residuals symbolic-records)))
            (is (= [(lp/list-term sub-c)]
                   (binding-terms parity-records z)))
            (is (= [[]]

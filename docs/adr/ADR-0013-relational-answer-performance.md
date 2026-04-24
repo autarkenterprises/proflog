@@ -1,9 +1,9 @@
 # ADR-0013: Relational Answer Performance
 
-- Status: accepted
+- Status: completed
 - Date: 2026-04-23
 - Branch: `adr-0013-relational-answer-performance`
-- AAR: pending
+- AAR: [AAR-0013](../aar/AAR-0013-relational-answer-performance.md)
 
 ## Context
 
@@ -53,20 +53,28 @@ adding more specialty modes than necessary.
 
 ## Consequences
 
-- If successful, the generic open-answer path becomes both more relationally
-  pure and closer to legacy parity.
-- Allowing recursive nonground descent will widen the search space, so some form
-  of canonicalization or memoization is likely to be required to keep the branch
-  operationally honest.
-- Residual normalization should improve both correctness presentation and search
-  quality, because duplicate residuals and unstable answer shapes currently make
-  merging and prioritization weaker than they should be.
-- The main risks are:
-  - semantic drift if nonground recursive descent changes the intended
-    first-order procedure-call boundary too aggressively,
-  - runaway runtime or memory growth,
-  - and overfitting to reverse/append without yielding a principled generic
-    improvement.
+- The branch did improve the generic answer surface, but not by proving that
+  recursive nonground kernel descent alone could close the reverse gap.
+- The implemented changes are:
+  - residual normalization and deduplication in exported answer records,
+  - alpha-equivalent frontier canonicalization via stable `_0`, `_1`, ...
+    renaming of internal proof vars,
+  - and an intentional pull-in of ADR-0012's closed list-family materializer so
+    known `append/3` and `reverse/2` queries can return closed answers directly
+    through `query-answers`.
+- The raw symbolic diagnostics remain important. They still expose the open
+  reverse frontier under the kernel, which means the branch did not settle the
+  parity gap purely by moving the recursive procedure-call boundary.
+- ADR-0012 is therefore still required as an explicit closed-answer API and
+  bounded fallback materializer, even though its list-family fast path is now
+  also reused by the default `query-answers` surface for those known families.
+- The branch reduced practical dependence on the specialty parity mode for the
+  legacy list questions, but it did not eliminate the architectural distinction
+  between:
+  - a generic answer API that may still return symbolic frontiers for other
+    families, and
+  - a closed-answer-only API for callers that need extensional behavior by
+    contract.
 
 ## Test Obligations
 
@@ -95,3 +103,23 @@ adding more specialty modes than necessary.
   - unnecessary because the generic path now closes the parity gap well enough,
     or
   - still required, in which case its branch is intentionally pulled in.
+
+## Branch Conclusion
+
+- The branch completed the frontier-normalization work:
+  - duplicate residual literals now collapse,
+  - alpha-equivalent exported frontiers merge,
+  - and repeated proof families no longer crowd out the first concrete answer
+    families for the known list queries.
+- `query-answers` now returns the closed reverse and inverse-append legacy
+  answers for the known list-family cases, and it also closes the nested suffix
+  and nested forward append queries covered in `list_programs_test.clj`.
+- The raw diagnostics still expose the symbolic reverse frontier
+  `r = []` with deferred `reverse/append` obligations. That is the key semantic
+  finding of the branch: the public parity closure now comes from the
+  intentionally pulled-in list-family materializer, not from proving that the
+  kernel alone now materializes those answers generically.
+- ADR-0012 therefore remains necessary. Its branch has been intentionally
+  pulled in here for the known list families, but the dedicated
+  `query-parity-answers` API still serves a distinct purpose as the explicit
+  closed-answer-only and bounded materialization interface.

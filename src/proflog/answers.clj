@@ -81,7 +81,7 @@
                  (into terms-up-to exact-next)
                  exact-next))))))
 
-(declare free-vars-formula)
+(declare free-vars-formula materialize-ground-query-records)
 
 (defn- free-vars-term
   "Collect the free object-language variable noms mentioned in `term`."
@@ -266,6 +266,254 @@
                   (ast/once-forall-form (:binding-nom tied)
                                         (rename-formula (:body tied) renaming)))
     formula))
+
+(defn- alpha-shape-term
+  "Return a variable-name-insensitive sort key for `term`."
+  [term]
+  (case (ast/tag-of term)
+    var [:var]
+    par [:par]
+    app (into [:app (second term)]
+              (map alpha-shape-term (nnext term)))
+    [:other term]))
+
+(declare alpha-shape-formula)
+
+(defn- alpha-shape-formula
+  "Return a variable-name-insensitive sort key for `formula`."
+  [formula]
+  (case (ast/tag-of formula)
+    true [:true]
+    false [:false]
+    pos [:pos (alpha-shape-term (second formula))]
+    neg [:neg (alpha-shape-term (second formula))]
+    eq [:eq
+        (alpha-shape-term (second formula))
+        (alpha-shape-term (nth formula 2))]
+    neq [:neq
+         (alpha-shape-term (second formula))
+         (alpha-shape-term (nth formula 2))]
+    and [:and
+         (alpha-shape-formula (second formula))
+         (alpha-shape-formula (nth formula 2))]
+    or [:or
+        (alpha-shape-formula (second formula))
+        (alpha-shape-formula (nth formula 2))]
+    not [:not (alpha-shape-formula (second formula))]
+    implies [:implies
+             (alpha-shape-formula (second formula))
+             (alpha-shape-formula (nth formula 2))]
+    forall [:forall (alpha-shape-formula (:body (second formula)))]
+    once-forall [:once-forall (alpha-shape-formula (:body (second formula)))]
+    exists [:exists (alpha-shape-formula (:body (second formula)))]
+    [:other formula]))
+
+(defn- canonical-export-var
+  "Assign a stable exported name to one non-answer object-language var."
+  [binding-nom protected-vars renaming next-idx]
+  (cond
+    (contains? protected-vars binding-nom)
+    [renaming next-idx binding-nom]
+
+    (contains? renaming binding-nom)
+    [renaming next-idx (get renaming binding-nom)]
+
+    :else
+    (let [canonical-nom (symbol (str "_" next-idx))]
+      [(assoc renaming binding-nom canonical-nom)
+       (inc next-idx)
+       canonical-nom])))
+
+(declare canonicalize-export-term canonicalize-export-formula)
+
+(defn- canonicalize-export-term
+  "Rename internal proof vars in `term` to a stable exported numbering."
+  [term protected-vars renaming next-idx]
+  (case (ast/tag-of term)
+    var (let [[renaming next-idx canonical-nom]
+              (canonical-export-var (second term)
+                                    protected-vars
+                                    renaming
+                                    next-idx)]
+          [renaming next-idx (ast/var-term canonical-nom)])
+    par [renaming next-idx term]
+    app (let [[renaming next-idx args]
+              (reduce (fn [[renaming next-idx args] arg]
+                        (let [[renaming next-idx arg]
+                              (canonicalize-export-term
+                                arg
+                                protected-vars
+                                renaming
+                                next-idx)]
+                          [renaming next-idx (conj args arg)]))
+                      [renaming next-idx []]
+                      (nnext term))]
+          [renaming
+           next-idx
+           (apply ast/app-term (second term) args)])
+    [renaming next-idx term]))
+
+(defn- canonicalize-quantified-export-formula
+  "Canonicalize one quantified exported residual while preserving outer state."
+  [constructor tied protected-vars renaming next-idx]
+  (let [binding-nom (:binding-nom tied)
+        previous (get renaming binding-nom ::missing)
+        [renaming next-idx canonical-nom]
+        (canonical-export-var binding-nom
+                              protected-vars
+                              renaming
+                              next-idx)
+        [renaming next-idx body]
+        (canonicalize-export-formula
+          (:body tied)
+          protected-vars
+          renaming
+          next-idx)
+        renaming (if (= ::missing previous)
+                   (dissoc renaming binding-nom)
+                   (assoc renaming binding-nom previous))]
+    [renaming next-idx (constructor canonical-nom body)]))
+
+(defn- canonicalize-export-formula
+  "Rename internal proof vars in one exported residual formula."
+  [formula protected-vars renaming next-idx]
+  (case (ast/tag-of formula)
+    true [renaming next-idx formula]
+    false [renaming next-idx formula]
+    pos (let [[renaming next-idx atom]
+              (canonicalize-export-term (second formula)
+                                        protected-vars
+                                        renaming
+                                        next-idx)]
+          [renaming next-idx (ast/pos-lit atom)])
+    neg (let [[renaming next-idx atom]
+              (canonicalize-export-term (second formula)
+                                        protected-vars
+                                        renaming
+                                        next-idx)]
+          [renaming next-idx (ast/neg-lit atom)])
+    eq (let [[renaming next-idx left]
+             (canonicalize-export-term (second formula)
+                                       protected-vars
+                                       renaming
+                                       next-idx)
+             [renaming next-idx right]
+             (canonicalize-export-term (nth formula 2)
+                                       protected-vars
+                                       renaming
+                                       next-idx)]
+         [renaming next-idx (ast/eq-lit left right)])
+    neq (let [[renaming next-idx left]
+              (canonicalize-export-term (second formula)
+                                        protected-vars
+                                        renaming
+                                        next-idx)
+              [renaming next-idx right]
+              (canonicalize-export-term (nth formula 2)
+                                        protected-vars
+                                        renaming
+                                        next-idx)]
+          [renaming next-idx (ast/neq-lit left right)])
+    and (let [[renaming next-idx left]
+              (canonicalize-export-formula (second formula)
+                                           protected-vars
+                                           renaming
+                                           next-idx)
+              [renaming next-idx right]
+              (canonicalize-export-formula (nth formula 2)
+                                           protected-vars
+                                           renaming
+                                           next-idx)]
+          [renaming next-idx (ast/and-form left right)])
+    or (let [[renaming next-idx left]
+             (canonicalize-export-formula (second formula)
+                                          protected-vars
+                                          renaming
+                                          next-idx)
+             [renaming next-idx right]
+             (canonicalize-export-formula (nth formula 2)
+                                          protected-vars
+                                          renaming
+                                          next-idx)]
+         [renaming next-idx (ast/or-form left right)])
+    not (let [[renaming next-idx body]
+              (canonicalize-export-formula (second formula)
+                                           protected-vars
+                                           renaming
+                                           next-idx)]
+          [renaming next-idx (ast/not-form body)])
+    implies (let [[renaming next-idx left]
+                  (canonicalize-export-formula (second formula)
+                                               protected-vars
+                                               renaming
+                                               next-idx)
+                  [renaming next-idx right]
+                  (canonicalize-export-formula (nth formula 2)
+                                               protected-vars
+                                               renaming
+                                               next-idx)]
+              [renaming next-idx (ast/implies-form left right)])
+    forall (canonicalize-quantified-export-formula
+             ast/forall-form
+             (second formula)
+             protected-vars
+             renaming
+             next-idx)
+    once-forall (canonicalize-quantified-export-formula
+                  ast/once-forall-form
+                  (second formula)
+                  protected-vars
+                  renaming
+                  next-idx)
+    exists (canonicalize-quantified-export-formula
+             ast/exists-form
+             (second formula)
+             protected-vars
+             renaming
+             next-idx)
+    [renaming next-idx formula]))
+
+(defn- canonicalize-answer-record
+  "Normalize exported answer frontiers for stable merging and ranking.
+
+   Answer vars keep their original noms, while internal proof vars are renamed
+   to `_0`, `_1`, ... in first-occurrence order across the bindings followed by
+   a residual list sorted by alpha-insensitive shape. Residual duplicates are
+   then removed, so alpha-equivalent proof families collapse to one answer
+   frontier before ranking."
+  [{:keys [bindings residuals] :as record}]
+  (let [protected-vars (set (map first bindings))
+        [renaming next-idx bindings]
+        (reduce (fn [[renaming next-idx bindings] [binding-nom term]]
+                  (let [[renaming next-idx term]
+                        (canonicalize-export-term
+                          term
+                          protected-vars
+                          renaming
+                          next-idx)]
+                    [renaming
+                     next-idx
+                     (conj bindings [binding-nom term])]))
+                [{} 0 []]
+                bindings)
+        residuals (sort-by (juxt alpha-shape-formula pr-str) residuals)
+        [_ _ residuals]
+        (reduce (fn [[renaming next-idx residuals] formula]
+                  (let [[renaming next-idx formula]
+                        (canonicalize-export-formula
+                          formula
+                          protected-vars
+                          renaming
+                          next-idx)]
+                    [renaming next-idx (conj residuals formula)]))
+                [renaming next-idx []]
+                residuals)
+        residuals (->> residuals
+                       distinct
+                       vec)]
+    (assoc record
+           :bindings bindings
+           :residuals residuals)))
 
 (defn- admissible-term?
   "True when `term` is exportable under the declared object language."
@@ -563,8 +811,10 @@
   [records]
   (let [{:keys [order merged]}
         (reduce (fn [{:keys [order merged] :as acc}
-                     {:keys [bindings residuals proofs] :as record}]
-                  (let [key [bindings residuals]]
+                     record]
+                  (let [{:keys [bindings residuals proofs] :as record}
+                        (canonicalize-answer-record record)
+                        key [bindings residuals]]
                     (if-let [existing (get merged key)]
                       (assoc acc :merged
                              (assoc merged key (update existing :proofs into proofs)))
@@ -838,7 +1088,13 @@
    `par` terms. For top-level literal program queries, the kernel enters the
    query call directly and `:call-depth` bounds recursive descendants below
    that entry boundary. Within that bound, answer-mode call deferral is a
-   relational choice inside the kernel rather than a staged answer-layer pass."
+   relational choice inside the kernel rather than a staged answer-layer pass.
+
+   On this branch, known list-family `append/3` and `reverse/2` queries also
+   reuse the ADR-0012 closed-answer materializer as an extensional fast path.
+   When that path can already produce the requested closed answers, those
+   records are returned directly; otherwise they are merged with the symbolic
+   frontier so concrete closed answers can displace shallower residual ones."
   ([program query answer-vars]
    (query-answers program query answer-vars {}))
   ([program query answer-vars {:keys [call-depth fuel proof-limit max-raw-proof-limit]
@@ -847,15 +1103,33 @@
    (let [checked-query (language/validate-query (:language program) query)
          checked-answer-vars (validate-answer-vars checked-query answer-vars)
          negated-query (normalize/negate-formula checked-query)
-         max-raw-proof-limit (or max-raw-proof-limit (max proof-limit (* 8 proof-limit)))]
-     (search-program-formula-answers
-       program
-       negated-query
-       checked-answer-vars
-       {:call-depth call-depth
-        :fuel fuel
-        :proof-limit proof-limit
-        :max-raw-proof-limit max-raw-proof-limit}))))
+         max-raw-proof-limit (or max-raw-proof-limit (max proof-limit (* 8 proof-limit)))
+         fast-path-records
+         (mapv #(dissoc % :query)
+               (materialize-ground-query-records
+                 checked-query
+                 checked-answer-vars
+                 (take proof-limit
+                       (or (parity-fast-path-assignments
+                             checked-query
+                             checked-answer-vars)
+                           []))))]
+     (if (>= (count fast-path-records) proof-limit)
+       fast-path-records
+       (->> (concat
+              fast-path-records
+              (search-program-formula-answers
+                program
+                negated-query
+                checked-answer-vars
+                {:call-depth call-depth
+                 :fuel fuel
+                 :proof-limit proof-limit
+                 :max-raw-proof-limit max-raw-proof-limit}))
+            merge-answer-records
+            prioritize-answer-records
+            (take proof-limit)
+            vec)))))
 
 (defn query-answer-diagnostics
   "Summarize how the raw proof stream grows for one open query.

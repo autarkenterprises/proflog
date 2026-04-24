@@ -445,3 +445,69 @@ query-ground-answers win(x) => [1]
 
 So the first small winning Nim position recovered by bounded materialization is
 `1`.
+
+## Closed-Answer Parity Mode
+
+ADR-0012 adds a separate helper:
+
+```clojure
+query-parity-answers
+```
+
+This is intentionally not the same thing as `query-answers`.
+
+- `query-answers` is the generic symbolic API. It keeps residual obligations and
+  may export open proof frontiers such as `r = []` or `r = [a]`.
+- `query-parity-answers` is a specialty closed-answer materializer for the
+  legacy list-family parity questions. It returns only empty residuals and does
+  not try to preserve the generic symbolic contract.
+
+For the legacy reverse query:
+
+```clojure
+query-parity-answers reverse([a,b], r)
+```
+
+the current record is:
+
+```clojure
+{:bindings [[r [b,a]]]
+ :residuals []
+ :proofs []}
+```
+
+For inverse append:
+
+```clojure
+query-parity-answers append(a, b, [a,b,c])
+```
+
+the current records are:
+
+```clojure
+{:bindings [[a []] [b [a,b,c]]]
+ :residuals []
+ :proofs []}
+
+{:bindings [[a [a]] [b [b,c]]]
+ :residuals []
+ :proofs []}
+
+{:bindings [[a [a,b]] [b [c]]]
+ :residuals []
+ :proofs []}
+
+{:bindings [[a [a,b,c]] [b []]]
+ :residuals []
+ :proofs []}
+```
+
+Two boundaries matter here:
+
+- this mode now requires fully empty residuals for parity,
+- and on the list-family fast path it leaves `:proofs` empty on purpose.
+
+That is not a bug. The proof authority for these concrete list cases remains the
+direct semantic regressions in `test/proflog/list_programs_test.clj`. The parity
+mode is an isolated extensional answer layer used to compare greenfield against
+legacy without redefining the generic symbolic answer API.

@@ -73,4 +73,6 @@
                                      "proflog.recursive-synthesis-test"
                                      "proflog.reverse-program-synthesis-test"
                                      "proflog.synthesis-modes-test"
-                                     "proflog.nim-synthesis-test"]})
+                                     "proflog.nim-synthesis-test"]
+            "test-proflog-parity" ["test"
+                                   "proflog.parity-test"]})

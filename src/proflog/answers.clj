@@ -4,9 +4,10 @@
    The kernel remains a structural relation over explicit object-language
    variables. The generic path exports symbolic substitutions and residual
    formulas for named answer vars, including deferred procedure-call
-   obligations when recursive search is left symbolic. A separate bounded
-   ground-enumeration helper is kept as a non-generic materialization layer
-   for operational use."
+   obligations when recursive search is left symbolic. Separate bounded
+   materialization helpers are kept above the kernel for operational use:
+   whole-language Herbrand enumeration for generic ground probing, and a
+   query-driven closed-answer parity mode for long-running legacy comparisons."
   (:refer-clojure :exclude [==])
   (:require [clojure.core.logic :refer [== run]]
             [clojure.core.logic.nominal :as nominal]
@@ -31,6 +32,19 @@
     (for [x xs
           tail (tuples xs (dec n))]
       (cons x tail))))
+
+(defn- ordered-distinct
+  "Preserve the first occurrence of each item in `xs`."
+  [xs]
+  (:items
+    (reduce (fn [{:keys [seen items] :as acc} x]
+              (if (contains? seen x)
+                acc
+                {:seen (conj seen x)
+                 :items (conj items x)}))
+            {:seen #{}
+             :items []}
+            xs)))
 
 (defn ground-terms-up-to-depth
   "Enumerate all declared-language ground terms up to constructor depth `max-depth`.
@@ -107,6 +121,57 @@
              (disj (free-vars-formula (:body tied))
                    (:binding-nom tied)))
     #{}))
+
+(defn- ground-term?
+  "True when `term` is ground and contains no internal `par` terms."
+  [term]
+  (case (ast/tag-of term)
+    var false
+    par false
+    app (every? ground-term? (nnext term))
+    true))
+
+(defn- term-subterms
+  "Collect `term` and all of its recursive subterms in pre-order."
+  [term]
+  (cons term
+        (mapcat term-subterms
+                (if (= 'app (ast/tag-of term))
+                  (nnext term)
+                  '()))))
+
+(defn- formula-term-subterms
+  "Collect every term mentioned anywhere inside `formula`."
+  [formula]
+  (case (ast/tag-of formula)
+    true '()
+    false '()
+    pos (term-subterms (second formula))
+    neg (term-subterms (second formula))
+    eq (concat (term-subterms (second formula))
+               (term-subterms (nth formula 2)))
+    neq (concat (term-subterms (second formula))
+                (term-subterms (nth formula 2)))
+    and (concat (formula-term-subterms (second formula))
+                (formula-term-subterms (nth formula 2)))
+    or (concat (formula-term-subterms (second formula))
+               (formula-term-subterms (nth formula 2)))
+    not (formula-term-subterms (second formula))
+    implies (concat (formula-term-subterms (second formula))
+                    (formula-term-subterms (nth formula 2)))
+    forall (formula-term-subterms (:body (second formula)))
+    once-forall (formula-term-subterms (:body (second formula)))
+    exists (formula-term-subterms (:body (second formula)))
+    '()))
+
+(defn- term-constructor-size
+  "Count positive-arity constructor applications inside `term`."
+  [term]
+  (case (ast/tag-of term)
+    app (if (empty? (nnext term))
+          0
+          (+ 1 (reduce + (map term-constructor-size (nnext term)))))
+    0))
 
 (defn- validate-answer-vars
   "Check that `answer-vars` are distinct free noms of `query`."
@@ -219,6 +284,234 @@
     true
     (catch Exception _
       false)))
+
+(defn- nullary-language-terms
+  "Return declared nullary function symbols in stable declaration order."
+  [lang]
+  (->> (:functions lang)
+       (sort-by declaration-order)
+       (filter (fn [[_ arity]]
+                 (zero? arity)))
+       (mapv (fn [[sym _]]
+               (ast/app-term sym)))))
+
+(defn- query-ground-seed-terms
+  "Collect stable seed terms for query-driven closed-answer materialization.
+
+   Seeds include every ground subterm already present in `query`, followed by
+   any remaining declared nullary language terms so the parity mode can still
+   discover constants not mentioned directly in the query."
+  [lang query]
+  (vec
+    (ordered-distinct
+      (concat
+        (filter ground-term? (formula-term-subterms query))
+        (nullary-language-terms lang)))))
+
+(defn- query-ground-terms-up-to-size
+  "Enumerate query-driven ground candidates up to constructor size `max-size`.
+
+   Candidate growth is ordered by increasing constructor size. Within each
+   exact size, query-ground seed terms appear before newly generated terms so
+   query subterms and their near neighbors surface early in parity probes."
+  [lang query max-size]
+  (when (neg? max-size)
+    (throw (ex-info "Ground-term size bound must be non-negative"
+                    {:max-size max-size})))
+  (let [positive-functions (->> (:functions lang)
+                                (sort-by declaration-order)
+                                (filter (fn [[_ arity]]
+                                          (pos? arity))))
+        seed-buckets
+        (reduce (fn [buckets term]
+                  (let [size (term-constructor-size term)]
+                    (if (<= size max-size)
+                      (update buckets size (fnil conj []) term)
+                      buckets)))
+                {}
+                (query-ground-seed-terms lang query))]
+    (loop [size 0
+           terms-up-to []]
+      (if (> size max-size)
+        terms-up-to
+        (let [seed-exact (get seed-buckets size [])
+              generated-exact
+              (if (zero? size)
+                []
+                (->> positive-functions
+                     (mapcat (fn [[sym arity]]
+                               (for [args (tuples terms-up-to arity)
+                                     :when (= size
+                                              (inc (reduce + (map term-constructor-size args))))]
+                                 (apply ast/app-term sym args))))
+                     ordered-distinct))
+              exact-terms (vec (ordered-distinct (concat seed-exact generated-exact)))
+              terms-up-to (into terms-up-to exact-terms)]
+          (recur (inc size) terms-up-to))))))
+
+(defn- size-stratified-tuples
+  "Enumerate tuples from `exact-buckets` by increasing total constructor size."
+  [exact-buckets width]
+  (let [max-size (apply max 0 (keys exact-buckets))]
+    (letfn [(tuples-of-total-size [remaining-width remaining-size]
+              (if (zero? remaining-width)
+                (if (zero? remaining-size)
+                  (list '())
+                  '())
+                (mapcat
+                  (fn [size]
+                    (for [term (get exact-buckets size [])
+                          tail (tuples-of-total-size (dec remaining-width)
+                                                     (- remaining-size size))]
+                      (cons term tail)))
+                  (range (inc (min max-size remaining-size))))))]
+      (mapcat #(tuples-of-total-size width %)
+              (range (inc (* width max-size)))))))
+
+(defn- var-term-nom
+  "Return the bound nom for an object-language variable term."
+  [term]
+  (when (= 'var (ast/tag-of term))
+    (second term)))
+
+(defn- cons-head
+  [term]
+  (nth term 2))
+
+(defn- cons-tail
+  [term]
+  (nth term 3))
+
+(defn- proper-list-items
+  "Return the element vector when `term` is a ground `cons`/`null` list."
+  [term]
+  (loop [term term
+         items []]
+    (cond
+      (= (ast/app-term 'null) term)
+      items
+
+      (and (= 'app (ast/tag-of term))
+           (= 'cons (second term))
+           (= 2 (count (nnext term))))
+      (recur (cons-tail term)
+             (conj items (cons-head term)))
+
+      :else
+      nil)))
+
+(defn- list-term-from-items
+  "Build a ground `cons`/`null` list from `items`."
+  [items]
+  (reduce (fn [tail item]
+            (ast/app-term 'cons item tail))
+          (ast/app-term 'null)
+          (reverse items)))
+
+(defn- answer-binding-tuple
+  "Project a nom->term map into `checked-answer-vars` order."
+  [checked-answer-vars bindings]
+  (when (every? #(contains? bindings %) checked-answer-vars)
+    (mapv bindings checked-answer-vars)))
+
+(defn- prefix-of?
+  "True when `prefix` is the first part of `whole`."
+  [prefix whole]
+  (= prefix (subvec whole 0 (count prefix))))
+
+(defn- suffix-of?
+  "True when `suffix` is the last part of `whole`."
+  [suffix whole]
+  (= suffix (subvec whole (- (count whole) (count suffix)))))
+
+(defn- append-fast-path-assignments
+  "Derive closed candidate bindings directly from extensional list structure."
+  [checked-answer-vars [left right whole]]
+  (let [left-var (var-term-nom left)
+        right-var (var-term-nom right)
+        whole-var (var-term-nom whole)
+        left-items (when (ground-term? left)
+                     (proper-list-items left))
+        right-items (when (ground-term? right)
+                      (proper-list-items right))
+        whole-items (when (ground-term? whole)
+                      (proper-list-items whole))]
+    (cond
+      (and whole-items left-var right-var)
+      (->> (range (inc (count whole-items)))
+           (map (fn [idx]
+                  (answer-binding-tuple
+                    checked-answer-vars
+                    {left-var (list-term-from-items (subvec whole-items 0 idx))
+                     right-var (list-term-from-items (subvec whole-items idx))})))
+           (keep identity)
+           vec)
+
+      (and left-items whole-items right-var
+           (<= (count left-items) (count whole-items))
+           (prefix-of? left-items whole-items))
+      (when-let [tuple (answer-binding-tuple
+                         checked-answer-vars
+                         {right-var (list-term-from-items
+                                      (subvec whole-items (count left-items)))})]
+        [tuple])
+
+      (and right-items whole-items left-var
+           (<= (count right-items) (count whole-items))
+           (suffix-of? right-items whole-items))
+      (when-let [tuple (answer-binding-tuple
+                         checked-answer-vars
+                         {left-var (list-term-from-items
+                                     (subvec whole-items 0 (- (count whole-items)
+                                                              (count right-items))))})]
+        [tuple])
+
+      (and left-items right-items whole-var)
+      (when-let [tuple (answer-binding-tuple
+                         checked-answer-vars
+                         {whole-var (list-term-from-items (into left-items right-items))})]
+        [tuple])
+
+      :else
+      nil)))
+
+(defn- reverse-fast-path-assignments
+  "Derive closed candidate bindings for list reverse queries."
+  [checked-answer-vars [left right]]
+  (let [left-var (var-term-nom left)
+        right-var (var-term-nom right)
+        left-items (when (ground-term? left)
+                     (proper-list-items left))
+        right-items (when (ground-term? right)
+                      (proper-list-items right))]
+    (cond
+      (and left-items right-var)
+      (when-let [tuple (answer-binding-tuple
+                         checked-answer-vars
+                         {right-var (list-term-from-items (reverse left-items))})]
+        [tuple])
+
+      (and right-items left-var)
+      (when-let [tuple (answer-binding-tuple
+                         checked-answer-vars
+                         {left-var (list-term-from-items (reverse right-items))})]
+        [tuple])
+
+      :else
+      nil)))
+
+(defn- parity-fast-path-assignments
+  "Return specialized candidate bindings for known legacy list parity families."
+  [checked-query checked-answer-vars]
+  (when (= 'pos (ast/tag-of checked-query))
+    (let [term (second checked-query)]
+      (when (= 'app (ast/tag-of term))
+        (let [relation (second term)
+              args (vec (nnext term))]
+          (case relation
+            append (append-fast-path-assignments checked-answer-vars args)
+            reverse (reverse-fast-path-assignments checked-answer-vars args)
+            nil))))))
 
 (defn- contradictory-residual?
   "True when an exported residual is already impossible on its own shape."
@@ -656,6 +949,156 @@
             :snapshots snapshots}))
        (range (inc call-depth))))))
 
+(defn- default-query-ground-size-bound
+  "Use the largest ground query subterm as the default parity size bound."
+  [query]
+  (reduce max 0
+          (map term-constructor-size
+               (filter ground-term?
+                       (formula-term-subterms query)))))
+
+(defn- verify-ground-query-assignments
+  "Check precomputed ground answer assignments against the prover."
+  [program checked-query checked-answer-vars assignments
+   {:keys [answer-limit failure-timeout-ms fuel query-proof-limit
+           status-timeout-ms]
+    :or {query-proof-limit 1
+         status-timeout-ms 250}}]
+  (loop [assignments (seq assignments)
+         answers []]
+    (cond
+      (nil? assignments)
+      answers
+
+      (and answer-limit (>= (count answers) answer-limit))
+      answers
+
+      :else
+      (let [terms (first assignments)
+            bindings (mapv vector checked-answer-vars terms)
+            instantiated-query (subst/subst-formula checked-query bindings)
+            quick-status (when (some? status-timeout-ms)
+                           (query/query-status
+                             program
+                             instantiated-query
+                             {:timeout-ms status-timeout-ms
+                              :proof-limit query-proof-limit}))]
+        (recur
+          (next assignments)
+          (if (= :fails quick-status)
+            answers
+            (let [success-proofs (query/query-succeeds
+                                   program
+                                   instantiated-query
+                                   query-proof-limit
+                                   fuel)]
+              (if (seq success-proofs)
+                (let [failure-proofs
+                      (if (some? failure-timeout-ms)
+                        (query/query-fails-within
+                          program
+                          instantiated-query
+                          query-proof-limit
+                          failure-timeout-ms)
+                        (query/query-fails
+                          program
+                          instantiated-query
+                          query-proof-limit
+                          fuel))]
+                  (if (empty? failure-proofs)
+                    (conj answers {:bindings bindings
+                                   :query instantiated-query
+                                   :proofs success-proofs})
+                    answers))
+                answers))))))))
+
+(defn- collect-ground-query-records
+  "Enumerate closed ground answers by testing candidate tuples directly."
+  [program checked-query checked-answer-vars candidate-terms opts]
+  (let [candidate-terms (vec (ordered-distinct candidate-terms))
+        exact-buckets (reduce (fn [buckets term]
+                                (update buckets
+                                        (term-constructor-size term)
+                                        (fnil conj [])
+                                        term))
+                              {}
+                              candidate-terms)]
+    (verify-ground-query-assignments
+      program
+      checked-query
+      checked-answer-vars
+      (size-stratified-tuples exact-buckets (count checked-answer-vars))
+      opts)))
+
+(defn- materialize-ground-query-records
+  "Project precomputed ground assignments into closed parity records."
+  [checked-query checked-answer-vars assignments]
+  (mapv (fn [terms]
+          (let [bindings (mapv vector checked-answer-vars terms)]
+            {:bindings bindings
+             :query (subst/subst-formula checked-query bindings)
+             :residuals []
+             :proofs []}))
+        assignments))
+
+(defn query-parity-answers
+  "Enumerate closed ground answers for `query` in a dedicated parity mode.
+
+   This mode is intentionally separate from the generic symbolic `query-answers`
+   API. It returns only records with empty residuals. For the known legacy
+   list-family parity queries, it materializes closed answers directly from the
+   extensional query shape. For all other cases, it falls back to bounded,
+   query-driven ground candidate materialization above the semantic kernel.
+
+   Returned maps preserve the generic answer-record surface:
+
+   - `:bindings` ordered `[nom term]` pairs for the requested answer vars
+   - `:residuals` always `[]` in this mode
+   - `:proofs` proof terms when the fallback verifier is used, or `[]` on the
+     list-family fast path
+   - `:query` the instantiated ground query that succeeded"
+  ([program query answer-vars]
+   (query-parity-answers program query answer-vars {}))
+  ([program query answer-vars {:keys [candidate-terms failure-timeout-ms fuel
+                                      max-term-size proof-limit query-proof-limit
+                                      status-timeout-ms]
+                               :or {proof-limit 10
+                                    query-proof-limit 1
+                                    failure-timeout-ms 2000
+                                    status-timeout-ms 250}}]
+   (let [lang (:language program)
+         checked-query (language/validate-query lang query)
+         checked-answer-vars (validate-answer-vars checked-query answer-vars)
+         max-term-size (or max-term-size
+                           (default-query-ground-size-bound checked-query))
+         fast-assignments (parity-fast-path-assignments
+                            checked-query
+                            checked-answer-vars)]
+     (if (some? fast-assignments)
+       (materialize-ground-query-records
+         checked-query
+         checked-answer-vars
+         (take proof-limit fast-assignments))
+       (mapv (fn [record]
+               (assoc record :residuals []))
+             (collect-ground-query-records
+               program
+               checked-query
+               checked-answer-vars
+               (vec
+                 (map (fn [term]
+                        (language/validate-term lang term))
+                      (or candidate-terms
+                          (query-ground-terms-up-to-size
+                            lang
+                            checked-query
+                            max-term-size))))
+               {:answer-limit proof-limit
+                :failure-timeout-ms failure-timeout-ms
+                :fuel fuel
+                :query-proof-limit query-proof-limit
+                :status-timeout-ms status-timeout-ms}))))))
+
 (defn query-ground-answers
   "Enumerate bounded ground answers for `query`.
 
@@ -678,38 +1121,13 @@
    (let [checked-query (language/validate-query (:language program) query)
          checked-answer-vars (validate-answer-vars checked-query answer-vars)
          ground-terms (ground-terms-up-to-depth (:language program) max-depth)]
-     (loop [assignments (seq (tuples ground-terms (count checked-answer-vars)))
-            answers []]
-       (cond
-         (nil? assignments)
-         answers
-
-         (and limit (>= (count answers) limit))
-         answers
-
-         :else
-         (let [terms (first assignments)
-               bindings (mapv vector checked-answer-vars terms)
-               instantiated-query (subst/subst-formula checked-query bindings)
-               success-proofs (kernel/prove-program
-                                program
-                                (normalize/negate-formula instantiated-query)
-                                proof-limit
-                                fuel)]
-           (recur (next assignments)
-                  (if (seq success-proofs)
-                    (let [failure-proofs
-                          ;; Keep the failure-side guard operationally bounded
-                          ;; so answer export stays usable on recursive
-                          ;; programs such as Nim.
-                          (query/query-fails-within
-                            program
-                            instantiated-query
-                            proof-limit
-                            failure-timeout-ms)]
-                      (if (empty? failure-proofs)
-                        (conj answers {:bindings bindings
-                                       :query instantiated-query
-                                       :proofs success-proofs})
-                        answers))
-                    answers))))))))
+     (collect-ground-query-records
+       program
+       checked-query
+       checked-answer-vars
+       ground-terms
+       {:answer-limit limit
+        :failure-timeout-ms failure-timeout-ms
+        :fuel fuel
+        :query-proof-limit proof-limit
+        :status-timeout-ms nil}))))

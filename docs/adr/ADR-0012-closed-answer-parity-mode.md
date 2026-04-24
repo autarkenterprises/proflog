@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-04-23
 - Branch: `adr-0012-closed-answer-parity-mode`
-- AAR: pending
+- AAR: [AAR-0012](../aar/AAR-0012-closed-answer-parity-mode.md)
 
 ## Context
 
@@ -42,6 +42,17 @@ actually necessary, or can later relational-performance work subsume it?
   admissible disequalities; if legacy comparison shows that even residual `neq`
   witnesses are too permissive, tighten the mode to require fully empty
   residuals.
+- Implement that mode as `query-parity-answers` in `src/proflog/answers.clj`.
+- Keep the generic `query-answers` contract unchanged and add a separate
+  `lein test-proflog-parity` alias for the long-running parity namespace.
+- For the current legacy list-family targets, treat parity as fully closed only
+  when exported residuals are empty.
+- Materialize the known `append/3` and `reverse/2` list-family parity answers
+  extensionally from the query shape rather than forcing the generic symbolic
+  answer engine to become a second proof-search API.
+- Leave proof authority with the existing direct semantic tests for those
+  ground list cases; the parity mode is a specialty answer materializer, not a
+  replacement for generic proof search.
 - Keep this mode separate from the default `query-answers` API rather than
   silently changing the generic symbolic contract.
 - Treat this ADR as an architectural probe as well as a feature:
@@ -54,16 +65,22 @@ actually necessary, or can later relational-performance work subsume it?
 
 - The project gains a direct way to ask extensional parity questions without
   overloading the meaning of the generic symbolic answer API.
-- The new mode will likely need much larger `fuel`, `call-depth`, and raw-proof
-  budgets than the default open-answer path.
-- This ADR intentionally accepts longer runtimes. Its purpose is not to keep the
-  fast or ordinary extended suites short; its purpose is to provide a principled
-  parity track for long-running reverse and append probes.
+- The dedicated parity namespace can now ask for the closed legacy reverse and
+  append families directly while the generic answer API remains symbolic.
+- In this branch, parity requires fully empty residuals. Residual `neq`
+  witnesses are no longer counted as "closed enough" for legacy comparison.
+- The resulting parity mode is less relationally pure than the generic answer
+  API. It is an extensional materializer for known parity families, not a
+  second generic relational answer engine.
 - The main risk is architectural duplication: if this branch solves parity only
   by adding a separate search mode, the repository may end up carrying both a
   generic symbolic API and a parity-only API indefinitely.
 - That duplication is acceptable only if ADR-0013 fails to recover the same
   closure through a more unified relational path.
+- The current branch conclusion is that the specialty mode is necessary for now.
+  It closes the legacy list-family answer surface without changing the generic
+  symbolic contract, but it does so by explicit parity materialization rather
+  than by fixing the generic proof search.
 
 ## Test Obligations
 
@@ -87,3 +104,13 @@ actually necessary, or can later relational-performance work subsume it?
 - The branch concludes explicitly whether this mode is:
   - necessary and worth carrying forward, or
   - only a temporary scaffold to be folded into ADR-0013 work.
+
+## Branch Conclusion
+
+- ADR-0012 is necessary and worth carrying forward as an isolated specialty
+  mode.
+- It should not be mistaken for generic proof-search parity. The branch solves
+  the closed-answer list-family parity problem by adding a separate extensional
+  materializer while keeping the default symbolic answer API honest.
+- ADR-0013 remains the branch that should try to make this specialty mode less
+  necessary by improving the generic relational path itself.

@@ -44,14 +44,60 @@
   `query-answers` return the closed reverse / append list-family answers by
   reusing the ADR-0012 list-family materializer, while raw diagnostics still
   expose the symbolic reverse frontier underneath.
+- Legacy list synthesis succeeds for a different operational reason: the legacy
+  prover runs the open query directly inside `proveo`, and its projected
+  `l-ground` guard rejects only terms containing `(par ...)`. Bare logic
+  variables therefore pass the guard, so reverse and partial-mode `append`
+  queries can descend and bind those variables inside the prover itself.
+- For the current known list-family fast path, that means the closed answer is
+  not being extracted from the raw kernel answer stream. The extra-kernel layer
+  synthesizes the closed answer directly from extensional query shape, and the
+  exported record carries empty `:proofs` for exactly that reason.
+- Distinguish carefully between:
+  - "the kernel can prove the ground instance semantically" and
+  - "the generic answer stream exported the closed answer."
+  For `reverse([a,b], r)`, the ground instance `reverse([a,b], [b,a])` is
+  semantically reachable, but the current closed answer surface in
+  `query-answers` comes from the list-family materializer rather than from a
+  raw kernel answer-stream witness.
 - When evaluating a hard relational family, the first question should be:
   "At which layer does the desired answer first exist?" Distinguish between:
   - raw kernel stream presence,
   - generic stream sifting/post-processing,
   - and specialty family handling.
+- "Generic post-processing" should mean family-independent answer-stream work:
+  alpha-equivalent merge, residual dedup, completion ranking, generic closed
+  answer filtering, generic candidate replay, or fairer stream slicing. If the
+  step needs to know that the query is about lists, groups, graphs, or any other
+  specific theory, it is no longer generic post-processing.
 - That classification is more useful than undirected runtime tuning. It tells
   the repo whether the next step is search fairness, answer-surface filtering,
   or an explicit architectural decision to add a family-specific evaluator.
 - Family-specific materializers implicitly define supported structure families.
   They may be justified, but they should never be mistaken for evidence that
   Proflog has gained generic support for that data structure or theory.
+- The project needs an explicit pure-core / overlay boundary. There should be a
+  notion of `prove(<first-order formula with equality>)` that remains as close
+  as possible to pure miniKanren tableau behavior, while bounded `fuel`,
+  bounded `call-depth`, raw proof limits, answer ranking, closed-answer
+  filtering, and family-specific materializers stay visible as configurable
+  overlays above that core.
+- `call-depth` is already capable of that style of access: the kernel treats
+  `nil` as unbounded descent, just as `fuel=nil` means unbounded step budget.
+  The current answer collectors are not equally open-ended: `proof-limit` and
+  `max-raw-proof-limit` are still finite numeric controls in the answer layer.
+- The first long raw-kernel list probes sharpen the current boundary:
+  - `reverse([a,b], r)` with `fuel=nil` and `call-depth=1` exhausts without
+    exporting `[b,a]`,
+  - `reverse([a,b], r)` with `fuel=nil` and `call-depth=2`, `3`, `4`, and `nil`
+    reaches raw limits `1`, `2`, and `4`, then fails to finish the next slice
+    within fifteen minutes,
+  - `append([a], [b,c], z)` with `fuel=nil` and `call-depth=nil` exhausts
+    without exporting `z = [a,b,c]`,
+  - `append(x, y, [a,b,c])` with `fuel=nil` and `call-depth=nil` exports the
+    correct base split immediately, but not the deeper three closed legacy
+    splits within the measured fifteen-minute slice.
+- So the current obstacle is not "the pure core cannot be accessed at all." The
+  pure-core path is accessible. The obstacle is that, even there, the raw
+  kernel/export stream still does not surface full reverse / append synthesis
+  parity within the measured long slices.

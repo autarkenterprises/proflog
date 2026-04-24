@@ -46,6 +46,12 @@ relational manner before authorizing new family-specific handlers.
 
 ## Decision
 
+- Preserve an explicitly accessible pure-core proof surface. The core tableau
+  prover should remain callable as directly as possible, while bounded `fuel`,
+  bounded `call-depth`, raw proof collection limits, answer ranking, closed
+  answer filtering, and any family-specific materializers remain documented
+  overlays above that core rather than becoming part of the meaning of
+  `prove`.
 - Create a dedicated branch to evaluate the still-unsatisfied legacy families as
   answer-stream problems before adding new family-specific materializers.
 - Treat each promoted legacy query at three explicitly documented layers:
@@ -86,6 +92,40 @@ relational manner before authorizing new family-specific handlers.
 - Novel data-structure or theory support should not be inferred casually from
   one-off handlers. If the project begins to support new families this way, that
   becomes a language-design question and must be documented explicitly.
+- The branch now has an additional architectural obligation: every operational
+  deviation from the pure core should be nameable and configurable as an
+  overlay. This makes it possible to ask two different questions cleanly:
+  - what the core tableau prover itself can produce,
+  - and what a bounded or answer-oriented overlay can recover above it.
+
+## Initial Probe Boundary
+
+The first ADR-14 raw-kernel list probes were run through
+`proflog.legacy-stream-probe`, which bypasses `query-answers` and its list
+ fast path and calls the raw kernel/export path directly.
+
+Measured on `2026-04-24` with external `timeout -k 30s 900s` wall-clock bounds:
+
+- `reverse([a,b], r)` with `fuel=nil` and `call-depth=1` exhausts by raw limit
+  `8` (five raw proof states, four unique exported symbolic records) and never
+  exports the closed witness `r = [b,a]`.
+- `reverse([a,b], r)` with `fuel=nil` and `call-depth=2`, `3`, `4`, and `nil`
+  reaches raw limits `1`, `2`, and `4` with no closed witness, then fails to
+  complete the next raw slice within fifteen minutes.
+- `append([a], [b,c], z)` with `fuel=nil` and `call-depth=nil` exhausts by raw
+  limit `8` (six raw proof states, three unique exported records) and never
+  exports the closed witness `z = [a,b,c]`.
+- `append(x, y, [a,b,c])` with `fuel=nil` and `call-depth=nil` immediately
+  exports the correct base split `x = [], y = [a,b,c]`, but by raw limit `8`
+  it still has not exported the other three closed legacy splits, and the next
+  raw slice did not complete within fifteen minutes.
+
+So the current measured boundary is:
+
+- the pure-core path is accessible for direct probing,
+- unbounded `fuel` and unbounded `call-depth` are available there,
+- but the raw kernel/export stream still does not produce full reverse or
+  append synthesis parity within the measured long slices.
 
 ## Test Obligations
 

@@ -454,3 +454,202 @@ That is not a bug. The proof authority for these concrete list cases remains the
 direct semantic regressions in `test/proflog/list_programs_test.clj`. The parity
 mode is now less necessary for the known reverse/append list families, but it
 still serves a distinct architectural role as the explicit closed-answer API.
+
+## Worked Example: Classifying An Answer-Stream Problem
+
+ADR-0014 needs a disciplined way to talk about hard legacy queries. The right
+question is not just "does the API show the answer?" but:
+
+```text
+At which layer does the desired answer first exist?
+```
+
+For the current reverse list-family case:
+
+```clojure
+reverse([a,b], r)
+```
+
+the classification is:
+
+### Layer 1: Raw Kernel Stream
+
+The raw diagnostics still show symbolic frontiers such as:
+
+```clojure
+{:bindings [[r []]]
+ :residuals
+ [[a,b] != []
+  not append(a_3, [a], [])
+  not reverse([b], a_3)]}
+```
+
+and one step deeper:
+
+```clojure
+{:bindings [[r [a]]]
+ :residuals
+ [[a] != []
+  [a,b] != []
+  not reverse([b], [])
+  not reverse([b], [])]}
+```
+
+So the raw kernel stream is productive, but the desired closed answer
+`r = [b,a]` is not what the current raw answer export is surfacing here.
+
+### Layer 2: Generic Post-Processing
+
+Generic post-processing means family-independent answer-stream work such as:
+
+- alpha-equivalent merge,
+- residual dedup,
+- completion ranking,
+- closed-answer-only filtering,
+- generic bounded replay of candidate answers,
+- or fairer stream slicing.
+
+For the current reverse list-family case, ADR-0013 improved this layer:
+
+- duplicate residuals collapse,
+- alpha-equivalent symbolic frontiers merge,
+- and the answer surface is ranked more honestly.
+
+But that generic post-processing is still not what produces the closed
+`r = [b,a]` answer.
+
+### Layer 3: Specialty Handling
+
+The public `query-answers` answer:
+
+```clojure
+{:bindings [[r [b,a]]]
+ :residuals []
+ :proofs []}
+```
+
+comes from the recognized list-family materializer. It is synthesized above the
+kernel from extensional query shape, which is why the record carries empty
+`:proofs`.
+
+That means:
+
+- the current public parity result is not a raw kernel-stream witness,
+- and it is not merely the result of generic stream sifting either,
+- it is a specialty answer-layer completion policy for a known family.
+
+### Important Distinction
+
+That is different from saying the kernel knows nothing about the query.
+
+For the same family, the repo separately shows that the ground semantic query:
+
+```clojure
+reverse([a,b], [b,a])
+```
+
+is provable. So there are two different claims:
+
+1. the kernel can prove the ground instance semantically,
+2. the generic open answer stream exported the closed answer directly.
+
+For the current reverse list-family case:
+
+- claim `1` is true,
+- claim `2` is false,
+- and the current public closed answer comes from specialty extra-kernel
+  handling.
+
+## Reusable ADR-0014 Template
+
+For each promoted hard legacy query, ADR-0014 should record the result in this
+shape:
+
+```text
+Query:
+Desired answer:
+
+Layer 1: Raw kernel stream
+- present / late / absent within measured bounds
+- exact budgets and first observed frontier
+
+Layer 2: Generic post-processing
+- enough / not enough
+- which generic transformations were tried
+
+Layer 3: Specialty handling
+- unnecessary / still unnecessary / currently required
+- if required, what family knowledge it used
+
+Current conclusion:
+- raw-stream present
+- late but generically recoverable
+- only recoverable by specialty handling
+- or still absent
+```
+
+That template is meant to stop future hard-family work from collapsing into the
+undifferentiated statement "the query is too slow."
+
+## Worked Example: Pure-Core Raw Stream Probes
+
+ADR-0014 also needs a way to bypass the public answer overlays entirely and ask
+what the raw kernel/export path can produce on its own. The helper for that is:
+
+```clojure
+proflog.legacy-stream-probe
+```
+
+It does three deliberate things:
+
+- bypasses `query-answers`,
+- bypasses the list-family fast path,
+- and calls the raw kernel/export path directly with `fuel=nil`.
+
+Example commands:
+
+```bash
+timeout -k 30s 900s lein run -m proflog.legacy-stream-probe reverse-open 1 128
+timeout -k 30s 900s lein run -m proflog.legacy-stream-probe reverse-open nil 64
+timeout -k 30s 900s lein run -m proflog.legacy-stream-probe append-forward nil 64
+timeout -k 30s 900s lein run -m proflog.legacy-stream-probe append-inverse nil 128
+```
+
+Here the parameters mean:
+
+- probe name: one fixed query family shape,
+- `call-depth`: recursive descent budget below the top-level query entry, with
+  `nil` meaning unbounded descent,
+- max raw limit: the doubling schedule cap `1, 2, 4, ...`.
+
+Measured results on `2026-04-24`:
+
+- `reverse([a,b], r)`, `fuel=nil`, `call-depth=1`:
+  - exhausts by raw limit `8`,
+  - emits `5` raw proof states and `4` unique exported symbolic records,
+  - never exports the closed witness `r = [b,a]`.
+- `reverse([a,b], r)`, `fuel=nil`, `call-depth=2`, `3`, `4`, and `nil`:
+  - reaches raw limits `1`, `2`, and `4`,
+  - exports no closed witness,
+  - and the next raw slice fails to complete within the fifteen-minute timeout.
+- `append([a], [b,c], z)`, `fuel=nil`, `call-depth=nil`:
+  - exhausts by raw limit `8`,
+  - emits `6` raw proof states and `3` unique exported records,
+  - never exports the closed witness `z = [a,b,c]`.
+- `append(x, y, [a,b,c])`, `fuel=nil`, `call-depth=nil`:
+  - exports the correct base split `x = [], y = [a,b,c]` immediately,
+  - still has not exported the other three closed legacy splits by raw limit
+    `8`,
+  - and the next raw slice fails to complete within the fifteen-minute timeout.
+
+So this probe runner answers a narrower question than the public APIs do:
+
+- not "can the repo show the closed answer somehow?",
+- but "can the pure-core raw kernel/export path surface the closed witness
+  under these measured bounds?"
+
+For the current list-family reverse / append cases, the answer remains:
+
+- raw pure-core access: yes,
+- full closed synthesis parity from that raw stream within the measured slice:
+  no.

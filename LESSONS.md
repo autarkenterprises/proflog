@@ -101,3 +101,32 @@
   pure-core path is accessible. The obstacle is that, even there, the raw
   kernel/export stream still does not surface full reverse / append synthesis
   parity within the measured long slices.
+- The kernel comparison against legacy is now concrete enough to use as an
+  architectural input. The biggest structural differences are:
+  - greenfield carries explicit `sigma` / disequality / residual state in the
+    kernel,
+  - legacy leans on equality rewriting, paramodulation, and lemma threading,
+  - legacy runs open synthesis through the ordinary prover path,
+  - greenfield has a separate answer-mode flow with explicit recursive-descent
+    budgeting and residual deferral.
+- That comparison does not yet prove the separate answer-mode flow is the only
+  cause of the current gaps, but it is one of the clearest major differences
+  and now deserves to be treated as an architectural variable, not just an
+  implementation detail.
+- The first greenfield `GV` probes are worse than legacy, not just different.
+  Using the exact legacy-style group-verifier formulas in greenfield:
+  - `Z₂` identity resolves as `:succeeds`,
+  - `Z₂` closure and inverses stay `:unresolved` at a `5000 ms` status probe,
+  - `Z₁` full 7-universal associativity stays `:unresolved` at `15000 ms`,
+  - `Z₂` precomputed associativity and full 7-universal associativity both fail
+    to return before an external `60 s` timeout,
+  - the non-group full associativity probe also fails to return before the same
+    external bound.
+- That means the current evidence does *not* yet show different overlapping
+  capability slices between legacy and greenfield on the group-verifier family.
+  The initial evidence shows greenfield to be strictly weaker on the first `GV`
+  slice, aside from the simple identity success.
+- If that conclusion survives the next ADR-14 probe pass, then a more
+  substantial architectural revision becomes justified, including pushing
+  answer-oriented behavior back out of the kernel and treating it as an
+  explicit overlay.

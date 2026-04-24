@@ -127,6 +127,89 @@ So the current measured boundary is:
 - but the raw kernel/export stream still does not produce full reverse or
   append synthesis parity within the measured long slices.
 
+## Kernel Comparison
+
+The first ADR-14 kernel comparison between legacy and greenfield has now been
+recorded as an explicit architectural result.
+
+The salient differences are:
+
+- Legacy uses one `proveo` path for both ordinary proof and open synthesis.
+  Greenfield splits ordinary proof search from answer export and answer-mode
+  search control.
+- Greenfield carries explicit kernel branch state:
+  - equality substitution,
+  - symbolic disequality store,
+  - residual deferred calls,
+  - answer-mode flags and budgets.
+  Legacy instead leans on branch-local equality rewriting, paramodulation, and
+  lemma threading.
+- Legacy procedure calls fire directly inside the ordinary prover, with a
+  projected `L-ground` guard that rejects only terms containing `(par ...)`.
+  Bare logic variables therefore pass. Greenfield also admits `(var ...)`
+  structurally, but in answer mode recursive descent competes with explicit
+  residual deferral and `call-depth` control.
+- Legacy has no separate answer-mode flow in the kernel. Greenfield does, and
+  that distinction is now important enough to count as an architectural
+  decision rather than an incidental implementation detail.
+
+The comparison does not yet prove that the separate greenfield answer-mode flow
+is the sole cause of the current gaps. But it does identify it as one of the
+largest structural differences between the two provers.
+
+## Initial GV Probe Set
+
+ADR-14 now also includes an exploratory greenfield probe runner for the legacy
+group-verifier family:
+
+- source: `src/proflog/gv_probe.clj`
+- alias: `lein probe-proflog-gv`
+
+This runner rebuilds the legacy `GV` formulas in the greenfield AST and reports
+the greenfield query surfaces separately (`query-succeeds`, `query-fails`, and
+`query-status`) instead of conflating them.
+
+Measured on `2026-04-24`:
+
+- `Z₂` identity (`gv_identity`) resolves as `:succeeds` under
+  `query-status` with a `5000 ms` budget.
+- `Z₂` closure (`gv_closure`) remains `:unresolved` at the same `5000 ms`
+  status probe.
+- `Z₂` inverses (`gv_inverses`) remain `:unresolved` at the same `5000 ms`
+  status probe.
+- `Z₁` full 7-universal associativity (`gv_assoc`) remains `:unresolved` with
+  a `15000 ms` status probe.
+- `Z₂` precomputed associativity (`gv_assoc_pre`) did not return a result
+  before the external `60 s` shell timeout on a `5000 ms` status probe.
+- `Z₂` full 7-universal associativity (`gv_assoc`) did not return a result
+  before the external `60 s` shell timeout on a `15000 ms` status probe, and
+  the direct `query-succeeds` probe also timed out at the same external bound.
+- Non-group full 7-universal associativity also did not return a result before
+  the external `60 s` shell timeout on the current greenfield probes.
+
+These first probes matter because they are not merely "hard legacy cases." They
+already include formulas that legacy *could* answer, such as precomputed
+associativity and the `Z₁` full associativity case. So the current picture is
+not "greenfield can answer a different overlapping subset than legacy." The
+current picture is that greenfield appears strictly weaker on the first `GV`
+slice, aside from the simple identity success.
+
+## Architectural Implication
+
+If later ADR-14 work uncovers a genuinely different greenfield capability slice
+on `GV` or `FD`, then the current architecture likely deserves further
+refinement rather than replacement.
+
+If that does *not* happen, then the repo now has explicit grounds to consider a
+more substantial revision, including:
+
+- shrinking or removing the separate answer-mode flow inside the kernel, and
+- re-establishing answer-oriented behavior as a documented overlay above a more
+  uniform core prover.
+
+That is now an explicitly recorded downstream architectural question, not an
+informal suspicion.
+
 ## Test Obligations
 
 - Add a dedicated exploratory selector for legacy-unsatisfied-family probes, so

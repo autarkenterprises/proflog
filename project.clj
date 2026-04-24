@@ -75,4 +75,6 @@
                                      "proflog.synthesis-modes-test"
                                      "proflog.nim-synthesis-test"]
             "test-proflog-parity" ["test"
-                                   "proflog.parity-test"]})
+                                   "proflog.parity-test"]
+            "test-proflog-parity-experimental" ["test"
+                                                "proflog.parity-experimental-test"]})

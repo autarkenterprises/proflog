@@ -1,6 +1,7 @@
 (ns proflog.query-test
   (:refer-clojure :exclude [==])
   (:require [clojure.test :refer [deftest is testing]]
+            [proflog.answer-overlay :as answer-overlay]
             [proflog.ast :as ast]
             [proflog.language :as language]
             [proflog.query :as query]))
@@ -124,6 +125,28 @@
                program
                (ast/pos-lit (ast/app-term 'undef (numeral 0)))
                {:timeout-ms 1000}))))))
+
+(deftest direct-query-probes-stay-on-the-pure-kernel-path
+  (testing "query-succeeds and query-fails do not route through the answer overlay"
+    (let [program (status-program)
+          success-query (ast/pos-lit (ast/app-term 'p (numeral 0)))
+          failure-query (ast/pos-lit (ast/app-term 'p (numeral 1)))
+          query-entry-calls (atom 0)
+          general-answer-calls (atom 0)
+          original-query-entry answer-overlay/prove-program-query-entryo
+          original-general-answer answer-overlay/prove-program-answero]
+      (with-redefs [answer-overlay/prove-program-query-entryo
+                    (fn [& args]
+                      (swap! query-entry-calls inc)
+                      (apply original-query-entry args))
+                    answer-overlay/prove-program-answero
+                    (fn [& args]
+                      (swap! general-answer-calls inc)
+                      (apply original-general-answer args))]
+        (is (succeeds-directly? program success-query))
+        (is (fails-directly? program failure-query))
+        (is (zero? @query-entry-calls))
+        (is (zero? @general-answer-calls))))))
 
 (deftest fitting-p1-even-zero-succeeds
   (testing "P1 proves even(0) by direct proof search"

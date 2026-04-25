@@ -1,5 +1,6 @@
 (ns proflog.answers-test
   (:require [clojure.test :refer [deftest is testing]]
+            [proflog.answer-overlay :as answer-overlay]
             [proflog.answers :as answers]
             [proflog.ast :as ast]
             [proflog.language :as language]
@@ -151,6 +152,60 @@
                (:unique-count last-snapshot)))
         (is (= [(numeral 0) (numeral 1)]
                (answer-terms (:sample-records last-snapshot))))))))
+
+(deftest query-answer-diagnostics-route-literal-program-queries-through-the-answer-overlay-entry
+  (testing "top-level literal program queries now call the extracted answer overlay entry relation"
+    (ast/nom x
+      (let [program (duplicate-answer-program)
+            query (ast/pos-lit (ast/app-term 'dup (ast/var-term x)))
+            query-entry-calls (atom 0)
+            general-answer-calls (atom 0)
+            original-query-entry answer-overlay/prove-program-query-entryo
+            original-general-answer answer-overlay/prove-program-answero]
+        (with-redefs [answer-overlay/prove-program-query-entryo
+                      (fn [& args]
+                        (swap! query-entry-calls inc)
+                        (apply original-query-entry args))
+                      answer-overlay/prove-program-answero
+                      (fn [& args]
+                        (swap! general-answer-calls inc)
+                        (apply original-general-answer args))]
+          (answers/query-answer-diagnostics
+            program
+            query
+            [x]
+            {:raw-limits [1]
+             :sample-limit 1})
+          (is (pos? @query-entry-calls))
+          (is (zero? @general-answer-calls)))))))
+
+(deftest query-answer-diagnostics-route-composite-program-queries-through-the-general-answer-overlay
+  (testing "non-literal program queries use the extracted general answer overlay relation"
+    (ast/nom x
+      (let [program (simple-program)
+            query (ast/and-form
+                    (ast/pos-lit (ast/app-term 'p (ast/var-term x)))
+                    (ast/neq-lit (ast/var-term x) (numeral 1)))
+            query-entry-calls (atom 0)
+            general-answer-calls (atom 0)
+            original-query-entry answer-overlay/prove-program-query-entryo
+            original-general-answer answer-overlay/prove-program-answero]
+        (with-redefs [answer-overlay/prove-program-query-entryo
+                      (fn [& args]
+                        (swap! query-entry-calls inc)
+                        (apply original-query-entry args))
+                      answer-overlay/prove-program-answero
+                      (fn [& args]
+                        (swap! general-answer-calls inc)
+                        (apply original-general-answer args))]
+          (answers/query-answer-diagnostics
+            program
+            query
+            [x]
+            {:raw-limits [1]
+             :sample-limit 1})
+          (is (zero? @query-entry-calls))
+          (is (pos? @general-answer-calls)))))))
 
 (deftest query-stage-diagnostics-summarize-proof-families
   (testing "stage diagnostics expose duplicate exported answers and proof-family summaries"

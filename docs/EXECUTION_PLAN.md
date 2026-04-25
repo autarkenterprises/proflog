@@ -61,6 +61,7 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0012](adr/ADR-0012-closed-answer-parity-mode.md) | completed | `adr-0012-closed-answer-parity-mode` | long-running closed-answer parity search mode, isolated from the generic symbolic API so its necessity can be evaluated honestly | ADR-0011 | parity-mode regressions for `reverse([a,b],r)`, inverse `append`, and nested list families | the repo can run dedicated closed-answer parity probes without changing the generic symbolic contract, and the branch concludes that the specialty mode is currently necessary |
 | [ADR-0013](adr/ADR-0013-relational-answer-performance.md) | completed | `adr-0013-relational-answer-performance` | recursive nonground answer-mode descent, frontier canonicalization, and residual normalization to reduce the need for specialty modes | ADR-0011 | generic-path regressions for reverse parity, deeper append splits, and duplicate frontier collapse | duplicate frontiers are normalized, the known list-family closed answers are now available through `query-answers`, and the branch concludes that ADR-0012 still remains necessary as the explicit closed-answer API |
 | [ADR-0014](adr/ADR-0014-generic-legacy-evaluation.md) | accepted | `adr-0014-generic-legacy-evaluation` | generic evaluation of still-unsatisfied legacy families through raw-stream probes, generic post-processing, and explicit layer accounting | ADR-0013 | exploratory selectors and promoted regressions for `GV`, `FD`, and other still-unsatisfied legacy queries | the repo can say for each promoted legacy-unsatisfied query whether the desired answer is absent, late, generically recoverable by stream processing, or only reachable by specialty handling |
+| [ADR-0015](adr/ADR-0015-answer-overlay-extraction.md) | completed | `adr-0015-answer-overlay` | extract the separate answer-mode flow from `proflog.kernel` into a dedicated overlay namespace while preserving the pure proof kernel | ADR-0014 | narrow kernel and answer regressions proving the extracted overlay still supports the documented answer surface | the ordinary kernel is callable without embedded answer-mode flow, the answer APIs route through a separate overlay namespace, the shared proof core lives in `kernel_support.clj`, and the extended suite is green on the extracted boundary |
 
 ## Deferred Tracks
 
@@ -75,6 +76,8 @@ Tabling, memoization, frontier canonicalization, and recursive nonground
 answer-mode descent have now graduated from backlog into ADR-0013.
 Generic evaluation of the still-unsatisfied `GV` / `FD` legacy families has now
 graduated into ADR-0014.
+Answer-mode extraction from the kernel into a separate overlay has now
+graduated into ADR-0015.
 
 ## ADR-0007 Task List
 

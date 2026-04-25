@@ -130,3 +130,35 @@
   substantial architectural revision becomes justified, including pushing
   answer-oriented behavior back out of the kernel and treating it as an
   explicit overlay.
+- A legacy "pure `l-ground`" experiment needs to be interpreted against the
+  legacy term representation, not just against the abstract guard definition.
+  The legacy prover still passes bare core.logic variables through procedure
+  calls after substitution, so replacing the projected guard with a structural
+  tagged-term check does more than suppress reverse-mode synthesis.
+- In a local experiment, changing legacy `l-ground-termo` to reject bare
+  core.logic vars caused all targeted recursive list cases to collapse:
+  `test-Y01`, `test-Y02`, `test-Y07`, `test-Y08`, `test-Y10`, `test-Y11`, and
+  `test-Y12` all failed, while the original projected guard restored them.
+- That means legacy's stronger performance on the list family is not just
+  "search quality plus an impure synthesis escape hatch." Its current recursive
+  procedure-call behavior materially depends on the projected guard admitting
+  post-substitution host variables as L-ground.
+- So the right comparison is not "legacy with one small impurity removed." A
+  truly structural guard is incompatible with the way legacy currently embeds
+  object-level openness into host-level logic vars. To make that guard pure
+  without collapsing recursion, the term representation itself would have to
+  change toward tagged object-language variables, as in greenfield.
+- ADR-0015 confirmed that the most useful kernel/overlay boundary is not just
+  "move the public answer entry points out." The boundary also needs one shared
+  support layer for the proof-state mechanics that are genuinely common to both
+  paths: L-groundness, complementary literal closure, disequality pruning,
+  proof-variable-only disequality closure, and fuel stepping.
+- That shared support is now explicit in `src/proflog/kernel_support.clj`.
+  This matters architecturally because it leaves the pure kernel and answer
+  overlay with one semantic definition of the proof core rather than two
+  drifting copies.
+- The safest regression boundary after the extraction is:
+  - `query-succeeds` / `query-fails` stay on the pure kernel path,
+  - `query-answers` / diagnostics stay on the answer overlay path.
+  Both sides now have narrow routing regressions, which is better than
+  inferring the boundary from namespace structure alone.

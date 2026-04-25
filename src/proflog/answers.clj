@@ -10,6 +10,7 @@
    query-driven closed-answer parity mode for long-running legacy comparisons."
   (:refer-clojure :exclude [==])
   (:require [clojure.core.logic :refer [== run]]
+            [proflog.answer-overlay :as answer-overlay]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.kernel :as kernel]
@@ -895,7 +896,7 @@
       (== answer-vars-out checked-answer-vars)
       (if (and (#{'pos 'neg} (ast/tag-of formula))
                (some? (lookup-clause program (second (second formula)))))
-        (kernel/prove-program-query-entryo
+        (answer-overlay/prove-program-query-entryo
           formula
           checked-answer-vars
           program
@@ -905,7 +906,7 @@
           fuel
           call-depth
           proof)
-        (kernel/prove-program-answero
+        (answer-overlay/prove-program-answero
           formula
           '()
           '()
@@ -1058,7 +1059,7 @@
        (fn [raw-limit]
          (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
            (== answer-vars-out checked-answer-vars)
-           (kernel/prove-answero
+           (answer-overlay/prove-answero
              checked-formula
              '()
              '()

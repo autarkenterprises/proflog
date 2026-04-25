@@ -16,3 +16,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0005](AAR-0005-procedure-calls-and-query-api.md) | [ADR-0005](../adr/ADR-0005-procedure-calls-and-query-api.md) | completed |
 | [AAR-0012](AAR-0012-closed-answer-parity-mode.md) | [ADR-0012](../adr/ADR-0012-closed-answer-parity-mode.md) | completed |
 | [AAR-0013](AAR-0013-relational-answer-performance.md) | [ADR-0013](../adr/ADR-0013-relational-answer-performance.md) | completed |
+| [AAR-0015](AAR-0015-answer-overlay-extraction.md) | [ADR-0015](../adr/ADR-0015-answer-overlay-extraction.md) | completed |

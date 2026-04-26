@@ -241,6 +241,27 @@
                                         (walk-formula (:body tied) sigma)))
     formula))
 
+(defn- contradictory-term-pair?
+  "True when `left = right` is already impossible in the free constructor algebra.
+
+   This host-side predicate mirrors the constructor-clash half of
+   `proflog.equality/eq-contradictiono` for already-walked exported terms. It is
+   intentionally narrower than full kernel equality: it only recognizes
+   contradictions that are visible without introducing new bindings, which is
+   exactly what answer export needs when discarding residual disequalities that
+   are tautologically true."
+  [left right]
+  (let [left-tag (ast/tag-of left)
+        right-tag (ast/tag-of right)]
+    (cond
+      (and (= 'app left-tag) (= 'app right-tag))
+      (or (not= (second left) (second right))
+          (not= (count (nnext left)) (count (nnext right)))
+          (some true? (map contradictory-term-pair? (nnext left) (nnext right))))
+
+      :else
+      false)))
+
 (defn- rename-term
   "Rename exported object-language vars according to `renaming`."
   [term renaming]
@@ -770,6 +791,18 @@
     false true
     false))
 
+(defn- tautological-residual?
+  "True when an exported residual contributes no information.
+
+   The fair-agenda kernel can expose proof families that differ only by a saved
+   disequality already guaranteed by constructor clash, such as
+   `neq(null, cons(_0, _1))`. Those residuals are semantically inert and should
+   be discarded before answer-record merging."
+  [formula]
+  (case (ast/tag-of formula)
+    neq (contradictory-term-pair? (second formula) (nth formula 2))
+    false))
+
 (defn- export-answer-record
   "Project one kernel proof state into an answer record or nil if inadmissible."
   [lang answer-vars reified-answer-vars sigma neqs residual-formulas proof]
@@ -792,7 +825,8 @@
                              (rename-formula
                                (walk-formula formula sigma)
                                renaming))
-                           residual-formulas)))]
+                           residual-formulas)))
+        residuals (vec (remove tautological-residual? residuals))]
     (when (and (not-any? contradictory-residual? residuals)
                (every? (fn [[_ term]]
                          (admissible-term? lang term))
@@ -836,6 +870,29 @@
   [record]
   (every? neq-residual? (:residuals record)))
 
+(defn- prune-shadowed-open-records
+  "Drop open residual records shadowed by a closed answer for the same bindings.
+
+   Fairer internal scheduling can surface both:
+
+   - a closed answer showing the query already succeeds for some bindings, and
+   - an alternative proof family with the same bindings but extra deferred call
+     obligations.
+
+   The second record is not useful at the public answer API once the first
+   exists, because the bindings are already justified without any remaining
+   procedure-call work."
+  [records]
+  (let [closed-bindings (->> records
+                             (filter closed-answer-record?)
+                             (map :bindings)
+                             set)]
+    (->> records
+         (remove (fn [record]
+                   (and (not (closed-answer-record? record))
+                        (contains? closed-bindings (:bindings record)))))
+         vec)))
+
 (defn- answer-record-rank
   "Prefer answers that have finished all procedure-call work.
 
@@ -852,13 +909,55 @@
      residual-var-count
      (count residuals)]))
 
+(defn- term-complexity
+  "Count the AST nodes in one exported term."
+  [term]
+  (case (ast/tag-of term)
+    app (+ 1 (reduce + 0 (map term-complexity (nnext term))))
+    1))
+
+(defn- formula-complexity
+  "Count the AST nodes in one exported residual formula."
+  [formula]
+  (case (ast/tag-of formula)
+    pos (+ 1 (term-complexity (second formula)))
+    neg (+ 1 (term-complexity (second formula)))
+    eq (+ 1
+          (term-complexity (second formula))
+          (term-complexity (nth formula 2)))
+    neq (+ 1
+           (term-complexity (second formula))
+           (term-complexity (nth formula 2)))
+    once-forall (+ 1 (formula-complexity (:body (second formula))))
+    1))
+
+(defn- answer-record-shape-key
+  "Return a stable tie-break key for already-canonicalized answer records.
+
+   ADR-0016 makes the raw proof stream less sensitive to one fixed leftmost
+   schedule. Public answer ordering should therefore not depend on whichever
+   equivalent proof family happened to appear first."
+  [{:keys [bindings residuals]}]
+  [(mapv (fn [[binding-nom term]]
+           [binding-nom
+            (term-complexity term)
+            (pr-str term)])
+         bindings)
+   (mapv (fn [formula]
+           [(formula-complexity formula)
+            (pr-str formula)])
+         residuals)])
+
 (defn- prioritize-answer-records
   "Sort answer records by completion while preserving first-seen order on ties."
   [records]
   (->> records
+       prune-shadowed-open-records
        (map-indexed vector)
        (sort-by (fn [[idx record]]
-                  [(answer-record-rank record) idx]))
+                  [(answer-record-rank record)
+                   (answer-record-shape-key record)
+                   idx]))
        (mapv second)))
 
 (defn- collect-answer-records
@@ -986,6 +1085,7 @@
                               (keep identity)
                               vec)
         unique-records (merge-answer-records exported-records)
+        prioritized-records (prioritize-answer-records unique-records)
         search-elapsed-ms (/ (- (System/nanoTime) started) 1000000.0)]
     (merge
       {:raw-limit raw-limit
@@ -1000,7 +1100,7 @@
        :duplicate-exported-count (- (count exported-records)
                                     (count unique-records))
        :unique-count (count unique-records)
-       :sample-records (vec (take sample-limit unique-records))}
+       :sample-records (vec (take sample-limit prioritized-records))}
       (summarize-raw-proofs raw-results proof-sample-limit proof-step-limit))))
 
 (defn- search-program-formula-answers

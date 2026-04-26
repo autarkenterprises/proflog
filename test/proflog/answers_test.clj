@@ -144,7 +144,7 @@
                          :sample-limit 2})
             first-snapshot (first snapshots)
             last-snapshot (last snapshots)]
-        (is (= [1 2 3]
+        (is (= [1 2 4]
                (mapv :raw-count snapshots)))
         (is (= 1
                (:unique-count first-snapshot)))
@@ -224,7 +224,7 @@
         (is (= 1 (:stage stage)))
         (is (:productive? stage))
         (is (= 2 (:best-unique-count stage)))
-        (is (= 1 (:duplicate-exported-count snapshot)))
+        (is (= 2 (:duplicate-exported-count snapshot)))
         (is (= (:raw-count snapshot)
                (+ (:distinct-proof-signature-count snapshot)
                   (:duplicate-proof-signature-count snapshot))))
@@ -317,7 +317,10 @@
         (is (= 1 (:call-depth snapshot)))
         (is (= (lp/list-term)
                (answers/binding-term record r)))
-        (is (= 3 (count (:residuals record))))
+        ;; ADR-0016's fairer agenda plus residual normalization now drops the
+        ;; old constructor-clash disequality, leaving only the two meaningful
+        ;; deferred recursive obligations.
+        (is (= 2 (count (:residuals record))))
         (is (some (fn [residual]
                     (and (= 'neg (ast/tag-of residual))
                          (= 'append (second (second residual)))))
@@ -450,8 +453,10 @@
                          first)
             record (-> snapshot :sample-records first)]
         (is (= 4 (:raw-count snapshot)))
-        (is (= 2 (:unique-count snapshot)))
-        (is (= 2 (:duplicate-exported-count snapshot)))
+        ;; The fairer raw stream now reaches four alpha-equivalent symbolic
+        ;; proofs, all of which merge into one canonical exported frontier.
+        (is (= 1 (:unique-count snapshot)))
+        (is (= 3 (:duplicate-exported-count snapshot)))
         (is (= (ast/app-term 's (ast/var-term '_0))
                (answers/binding-term record x)))
         (is (= [(ast/neg-lit (ast/app-term 'loop (ast/var-term '_0)))]

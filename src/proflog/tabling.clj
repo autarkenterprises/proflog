@@ -7,7 +7,8 @@
   (:require [clojure.core.logic :refer [fresh project tabled]]
             [proflog.ast :as ast]
             [proflog.kernel :as kernel]
-            [proflog.kernel-support :as support]))
+            [proflog.kernel-support :as support]
+            [proflog.subst :as subst]))
 
 (declare alpha-shape-term
          alpha-shape-formula
@@ -167,13 +168,14 @@
   (pr-str value))
 
 (defn- canonical-formula-set
-  [ctx sigma formulas]
+  [ctx env sigma formulas]
   (reduce (fn [[ctx keys] formula]
             (let [[ctx formula-key] (canonical-formula ctx formula)]
               [ctx (conj keys formula-key)]))
           [ctx []]
           (sort-by (comp sort-key alpha-shape-formula)
-                   (map #(walked-formula sigma %) formulas))))
+                   (map #(walked-formula sigma (subst/subst-formula % env))
+                        formulas))))
 
 (defn- canonical-neq-set
   [ctx sigma neqs]
@@ -195,8 +197,19 @@
               [ctx (conj keys [:bind binding-key value-key])]))
           [ctx []]
           (sort-by (fn [[_ value]]
-                     (sort-key (alpha-shape-term (walked-term sigma value))))
+                   (sort-key (alpha-shape-term (walked-term sigma value))))
                    sigma)))
+
+(defn- canonical-proof-vars
+  [ctx proof-vars]
+  (reduce (fn [[ctx keys] binding-nom]
+            (let [[ctx var-key] (canonical-var ctx binding-nom)]
+              [ctx (conj keys var-key)]))
+          [ctx []]
+          ;; Proof-var membership is semantic, but list order is bookkeeping.
+          (sort-by (fn [binding-nom]
+                     (sort-key (get-in ctx [:vars binding-nom] [:unseen-var])))
+                   proof-vars)))
 
 (defn state-key
   "Return a conservative canonical key for a proof-search state.
@@ -205,24 +218,27 @@
    formulas, saved literals, residual formulas, disequalities, and substitution
    entries. It is intentionally conservative: future ADR-0017 work can merge
    more states, but this first key must not collapse obviously distinct states."
-  [{:keys [agenda lits neqs sigma residuals prog-key program-id program fuel call-depth]}]
-  (let [sigma (or sigma '())
+  [{:keys [agenda lits neqs sigma residuals env proof-vars prog-key program-id program fuel call-depth]}]
+  (let [env (or env '())
+        sigma (or sigma '())
         ctx {:bindings {}
              :vars {}
              :pars {}
              :next-binding 0
              :next-var 0
              :next-par 0}
-        [ctx agenda-key] (canonical-formula-set ctx sigma (or agenda '()))
-        [ctx lits-key] (canonical-formula-set ctx sigma (or lits '()))
-        [ctx residuals-key] (canonical-formula-set ctx sigma (or residuals '()))
+        [ctx agenda-key] (canonical-formula-set ctx env sigma (or agenda '()))
+        [ctx lits-key] (canonical-formula-set ctx env sigma (or lits '()))
+        [ctx residuals-key] (canonical-formula-set ctx env sigma (or residuals '()))
         [ctx neqs-key] (canonical-neq-set ctx sigma (or neqs '()))
-        [_ sigma-key] (canonical-sigma ctx sigma)]
+        [ctx sigma-key] (canonical-sigma ctx sigma)
+        [_ proof-vars-key] (canonical-proof-vars ctx (or proof-vars '()))]
     {:agenda agenda-key
      :lits lits-key
      :residuals residuals-key
      :neqs neqs-key
      :sigma sigma-key
+     :proof-vars proof-vars-key
      :program (or prog-key program-id program)
      :fuel fuel
      :call-depth call-depth}))
@@ -256,6 +272,8 @@
                         :lits lits
                         :neqs neqs
                         :sigma sigma
+                        :env env
+                        :proof-vars proof-vars
                         :prog-key (program-cache-key prog)
                         :fuel fuel})]
     (KernelTableState.

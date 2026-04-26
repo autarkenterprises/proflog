@@ -80,13 +80,26 @@
                                :prog-key :program-a}
             different-program {:agenda [(ast/pos-lit (ast/app-term 'p (ast/var-term x)))]
                                :sigma [[x (ast/app-term 'a)]]
-                               :prog-key :program-b}]
+                               :prog-key :program-b}
+            different-env {:agenda [(ast/pos-lit (ast/app-term 'p (ast/var-term x)))]
+                           :env [[x (ast/app-term 'b)]]
+                           :prog-key :program-a}
+            different-proof-vars {:agenda [(ast/neq-lit (ast/var-term x)
+                                                        (ast/app-term 'a))]
+                                  :proof-vars [x]
+                                  :prog-key :program-a}]
         (is (not= (tabling/state-key base)
                   (tabling/state-key different-predicate)))
         (is (not= (tabling/state-key base)
                   (tabling/state-key different-binding)))
         (is (not= (tabling/state-key base)
-                  (tabling/state-key different-program)))))))
+                  (tabling/state-key different-program)))
+        (is (not= (tabling/state-key base)
+                  (tabling/state-key different-env)))
+        (is (not= (tabling/state-key {:agenda [(ast/neq-lit (ast/var-term x)
+                                                             (ast/app-term 'a))]
+                                      :prog-key :program-a})
+                  (tabling/state-key different-proof-vars)))))))
 
 (deftest canonical-state-keys-distinguish-bounded-fuel
   (testing "bounded table entries are not reused across different fuel slices"

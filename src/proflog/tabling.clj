@@ -4,13 +4,16 @@
    This namespace is deliberately separate from `proflog.kernel`. The kernel
    should remain a readable Fitting-style tableau relation; tabling and
    canonical state reuse live here as derived operational machinery."
-  (:require [proflog.ast :as ast]
+  (:require [clojure.core.logic :refer [fresh project tabled]]
+            [proflog.ast :as ast]
+            [proflog.kernel :as kernel]
             [proflog.kernel-support :as support]))
 
 (declare alpha-shape-term
          alpha-shape-formula
          canonical-term
-         canonical-formula)
+         canonical-formula
+         prove-stateo)
 
 (defn- walked-term
   [sigma term]
@@ -202,7 +205,7 @@
    formulas, saved literals, residual formulas, disequalities, and substitution
    entries. It is intentionally conservative: future ADR-0017 work can merge
    more states, but this first key must not collapse obviously distinct states."
-  [{:keys [agenda lits neqs sigma residuals prog-key program-id program call-depth]}]
+  [{:keys [agenda lits neqs sigma residuals prog-key program-id program fuel call-depth]}]
   (let [sigma (or sigma '())
         ctx {:bindings {}
              :vars {}
@@ -221,4 +224,134 @@
      :neqs neqs-key
      :sigma sigma-key
      :program (or prog-key program-id program)
+     :fuel fuel
      :call-depth call-depth}))
+
+(deftype KernelTableState [key raw]
+  Object
+  (equals [_ other]
+    (and (instance? KernelTableState other)
+         (= key (.-key ^KernelTableState other))))
+  (hashCode [_]
+    (hash key))
+  (toString [_]
+    (str "#proflog/kernel-table-state " (pr-str key))))
+
+(def ^:dynamic *kernel-table-stats*
+  "Optional atom updated when a tabled kernel state is evaluated from scratch.
+
+   This is diagnostic instrumentation only. The semantic table is the
+   core.logic table attached to the current run substitution, not this atom."
+  nil)
+
+(defn- program-cache-key
+  [prog]
+  (when prog
+    [:compiled-program (System/identityHashCode prog)]))
+
+(defn- kernel-state
+  [fml unexpanded lits env proof-vars sigma neqs prog fuel]
+  (let [agenda (cons fml (or unexpanded '()))
+        key (state-key {:agenda agenda
+                        :lits lits
+                        :neqs neqs
+                        :sigma sigma
+                        :prog-key (program-cache-key prog)
+                        :fuel fuel})]
+    (KernelTableState.
+      key
+      {:fml fml
+       :unexpanded unexpanded
+       :lits lits
+       :env env
+       :proof-vars proof-vars
+       :sigma sigma
+       :neqs neqs
+       :prog prog
+       :fuel fuel})))
+
+(defn- record-kernel-cache-miss!
+  [^KernelTableState state]
+  (when *kernel-table-stats*
+    (swap! *kernel-table-stats*
+           (fnil (fn [stats]
+                   (-> stats
+                       (update :misses (fnil inc 0))
+                       (update-in [:misses-by-key (.-key state)] (fnil inc 0))))
+                 {}))))
+
+(defn- with-recursive-kernel-tabling
+  [goal]
+  (fn [substitution]
+    (with-redefs [kernel/*recursive-prove-stateo* prove-stateo]
+      (goal substitution))))
+
+(def ^:private tabled-kernel-stateo
+  (tabled [state sigma-out neqs-out proof]
+    (let [{:keys [fml unexpanded lits env proof-vars sigma neqs prog fuel]}
+          (.-raw ^KernelTableState state)]
+      (record-kernel-cache-miss! state)
+      (with-recursive-kernel-tabling
+        (kernel/prove-stateo fml
+                             unexpanded
+                             lits
+                             env
+                             proof-vars
+                             sigma
+                             sigma-out
+                             neqs
+                             neqs-out
+                             prog
+                             fuel
+                             proof)))))
+
+(defn prove-stateo
+  "Tabled kernel-state relation for ADR-0017.
+
+   Recursive calls are routed back through this wrapper only when callers bind
+   `proflog.kernel/*recursive-prove-stateo*`. Public helpers below do that for
+   the duration of `run`, keeping ordinary `proflog.kernel` behavior unchanged."
+  [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out prog fuel proof]
+  (project [fml unexpanded lits env proof-vars sigma neqs fuel]
+    (tabled-kernel-stateo
+      (kernel-state fml unexpanded lits env proof-vars sigma neqs prog fuel)
+      sigma-out
+      neqs-out
+      proof)))
+
+(defn proveo
+  "Tabled analogue of `proflog.kernel/proveo`."
+  ([fml unexpanded lits env proof]
+   (fresh [sigma-out neqs-out]
+     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out nil nil proof)))
+  ([fml unexpanded lits env fuel proof]
+   (fresh [sigma-out neqs-out]
+     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out nil fuel proof))))
+
+(defn prove-programo
+  "Tabled analogue of `proflog.kernel/prove-programo`."
+  ([fml unexpanded lits env prog proof]
+   (fresh [sigma-out neqs-out]
+     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out prog nil proof)))
+  ([fml unexpanded lits env prog fuel proof]
+   (fresh [sigma-out neqs-out]
+     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out prog fuel proof))))
+
+(defn prove
+  "Return up to `n` proof terms using the ADR-0017 tabled kernel wrapper."
+  ([fml] (prove fml 1))
+  ([fml n]
+   (with-redefs [kernel/*recursive-prove-stateo* prove-stateo]
+     (doall (kernel/prove fml n))))
+  ([fml n fuel]
+   (with-redefs [kernel/*recursive-prove-stateo* prove-stateo]
+     (doall (kernel/prove fml n fuel)))))
+
+(defn prove-program
+  "Return up to `n` proof terms relative to `prog` through the tabled wrapper."
+  ([prog fml n]
+   (with-redefs [kernel/*recursive-prove-stateo* prove-stateo]
+     (doall (kernel/prove-program prog fml n))))
+  ([prog fml n fuel]
+   (with-redefs [kernel/*recursive-prove-stateo* prove-stateo]
+     (doall (kernel/prove-program prog fml n fuel)))))

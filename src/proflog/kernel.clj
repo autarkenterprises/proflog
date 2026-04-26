@@ -59,6 +59,19 @@
 
 (declare prove-stateo close-agendao saved-call-closeso)
 
+(def ^:dynamic *recursive-prove-stateo*
+  "Optional recursive proof dispatcher.
+
+   The ordinary kernel leaves this unbound and recurses directly through
+   `prove-stateo`. Operational layers such as ADR-0017 tabling may bind it to a
+   wrapper relation so recursive branch calls are memoized without adding table
+   management to the Fitting-style rule clauses below."
+  nil)
+
+(defn- recursive-prove-stateo
+  [& args]
+  (apply (or *recursive-prove-stateo* prove-stateo) args))
+
 ;; Re-export the structural L-groundness relation here because procedure-call
 ;; admissibility is part of the kernel story from the paper's perspective.
 (def l-ground-termo support/l-ground-termo)
@@ -93,18 +106,18 @@
        (program/call-clauseo prog walked-atom call-env body negated-body)
        (== (list 'eq-triggered-call subproof) proof)
        (support/step-fuelo fuel next-fuel)
-       (prove-stateo body
-                     '()
-                     '()
-                     call-env
-                     proof-vars
-                     sigma
-                     sigma-out
-                     neqs
-                     neqs-out
-                     prog
-                     next-fuel
-                     subproof))]
+       (recursive-prove-stateo body
+                               '()
+                               '()
+                               call-env
+                               proof-vars
+                               sigma
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               next-fuel
+                               subproof))]
     ;; Saved negative atom. This is Fitting's "Part 2" procedure-call rule:
     ;; prove the NNF negation of the clause body rather than the body itself.
     [(fresh [atom walked-atom relation args call-env body negated-body next-fuel subproof]
@@ -115,18 +128,18 @@
        (program/call-clauseo prog walked-atom call-env body negated-body)
        (== (list 'eq-triggered-neg-call subproof) proof)
        (support/step-fuelo fuel next-fuel)
-       (prove-stateo negated-body
-                     '()
-                     '()
-                     call-env
-                     proof-vars
-                     sigma
-                     sigma-out
-                     neqs
-                     neqs-out
-                     prog
-                     next-fuel
-                     subproof))]))
+       (recursive-prove-stateo negated-body
+                               '()
+                               '()
+                               call-env
+                               proof-vars
+                               sigma
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               next-fuel
+                               subproof))]))
 
 (defn close-agendao
   "Close one explicit pending-formula agenda under the ordinary kernel state.
@@ -150,18 +163,18 @@
        (== (list 'and left right) fml)
        (== (list 'conj prf) proof)
        (support/step-fuelo fuel next-fuel)
-       (prove-stateo left
-                     (lcons right unexpanded)
-                     lits
-                     env
-                     proof-vars
-                     sigma
-                     sigma-out
-                     neqs
-                     neqs-out
-                     prog
-                     next-fuel
-                     prf))]
+       (recursive-prove-stateo left
+                               (lcons right unexpanded)
+                               lits
+                               env
+                               proof-vars
+                               sigma
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               next-fuel
+                               prf))]
 
     ;; ================================================================
     ;; Beta rule: disjunction
@@ -175,30 +188,30 @@
        (== (list 'or left right) fml)
        (== (list 'split left-proof right-proof) proof)
        (support/step-fuelo fuel next-fuel)
-       (prove-stateo left
-                     unexpanded
-                     lits
-                     env
-                     proof-vars
-                     sigma
-                     sigma-mid
-                     neqs
-                     neqs-mid
-                     prog
-                     next-fuel
-                     left-proof)
-       (prove-stateo right
-                     unexpanded
-                     lits
-                     env
-                     proof-vars
-                     sigma-mid
-                     sigma-out
-                     neqs-mid
-                     neqs-out
-                     prog
-                     next-fuel
-                     right-proof))]
+       (recursive-prove-stateo left
+                               unexpanded
+                               lits
+                               env
+                               proof-vars
+                               sigma
+                               sigma-mid
+                               neqs
+                               neqs-mid
+                               prog
+                               next-fuel
+                               left-proof)
+       (recursive-prove-stateo right
+                               unexpanded
+                               lits
+                               env
+                               proof-vars
+                               sigma-mid
+                               sigma-out
+                               neqs-mid
+                               neqs-out
+                               prog
+                               next-fuel
+                               right-proof))]
 
     ;; ================================================================
     ;; Gamma rule: universal quantifier
@@ -217,18 +230,18 @@
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
            (support/step-fuelo fuel next-fuel)
-           (prove-stateo body-subst
-                         '()
-                         lits
-                         (lcons [binding-nom (ast/var-term free-var-nom)] env)
-                         (lcons free-var-nom proof-vars)
-                         sigma
-                         sigma-out
-                         neqs
-                         neqs-out
-                         prog
-                         next-fuel
-                         prf))))]
+           (recursive-prove-stateo body-subst
+                                   '()
+                                   lits
+                                   (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                   (lcons free-var-nom proof-vars)
+                                   sigma
+                                   sigma-out
+                                   neqs
+                                   neqs-out
+                                   prog
+                                   next-fuel
+                                   prf))))]
     ;; General gamma case: when there is already pending branch work, append the
     ;; original universal to the end so repeated instantiation remains possible.
     [(nominal/fresh [binding-nom]
@@ -240,18 +253,18 @@
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
            (support/step-fuelo fuel next-fuel)
-           (prove-stateo body-subst
-                         pending
-                         lits
-                         (lcons [binding-nom (ast/var-term free-var-nom)] env)
-                         (lcons free-var-nom proof-vars)
-                         sigma
-                         sigma-out
-                         neqs
-                         neqs-out
-                         prog
-                         next-fuel
-                         prf))))]
+           (recursive-prove-stateo body-subst
+                                   pending
+                                   lits
+                                   (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                   (lcons free-var-nom proof-vars)
+                                   sigma
+                                   sigma-out
+                                   neqs
+                                   neqs-out
+                                   prog
+                                   next-fuel
+                                   prf))))]
 
     ;; ================================================================
     ;; Once-forall: single-use universal
@@ -268,18 +281,18 @@
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
            (support/step-fuelo fuel next-fuel)
-           (prove-stateo body-subst
-                         unexpanded
-                         lits
-                         (lcons [binding-nom (ast/var-term free-var-nom)] env)
-                         (lcons free-var-nom proof-vars)
-                         sigma
-                         sigma-out
-                         neqs
-                         neqs-out
-                         prog
-                         next-fuel
-                         prf))))]
+           (recursive-prove-stateo body-subst
+                                   unexpanded
+                                   lits
+                                   (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                   (lcons free-var-nom proof-vars)
+                                   sigma
+                                   sigma-out
+                                   neqs
+                                   neqs-out
+                                   prog
+                                   next-fuel
+                                   prf))))]
 
     ;; ================================================================
     ;; Delta rule: existential quantifier
@@ -297,18 +310,18 @@
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
            (support/step-fuelo fuel next-fuel)
-           (prove-stateo body-subst
-                         unexpanded
-                         lits
-                         (lcons [binding-nom (ast/par-term parameter-nom)] env)
-                         proof-vars
-                         sigma
-                         sigma-out
-                         neqs
-                         neqs-out
-                         prog
-                         next-fuel
-                         prf))))]
+           (recursive-prove-stateo body-subst
+                                   unexpanded
+                                   lits
+                                   (lcons [binding-nom (ast/par-term parameter-nom)] env)
+                                   proof-vars
+                                   sigma
+                                   sigma-out
+                                   neqs
+                                   neqs-out
+                                   prog
+                                   next-fuel
+                                   prf))))]
 
     ;; ================================================================
     ;; Positive equality
@@ -364,18 +377,18 @@
        (== (list 'eq-step step-proof prf) proof)
        (support/stable-neqso neqs sigma-mid)
        (support/step-fuelo fuel next-fuel)
-       (prove-stateo next
-                     rest
-                     lits
-                     env
-                     proof-vars
-                     sigma-mid
-                     sigma-out
-                     neqs
-                     neqs-out
-                     prog
-                     next-fuel
-                     prf))]
+       (recursive-prove-stateo next
+                               rest
+                               lits
+                               env
+                               proof-vars
+                               sigma-mid
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               next-fuel
+                               prf))]
 
     ;; ================================================================
     ;; Negative equality
@@ -413,18 +426,18 @@
        (== (lcons next rest) unexpanded)
        (== (list 'neq-store prf) proof)
        (support/step-fuelo fuel next-fuel)
-       (prove-stateo next
-                     rest
-                     lits
-                     env
-                     proof-vars
-                     sigma
-                     sigma-out
-                     (lcons [left right] neqs)
-                     neqs-out
-                     prog
-                     next-fuel
-                     prf))]
+       (recursive-prove-stateo next
+                               rest
+                               lits
+                               env
+                               proof-vars
+                               sigma
+                               sigma-out
+                               (lcons [left right] neqs)
+                               neqs-out
+                               prog
+                               next-fuel
+                               prf))]
 
     ;; ================================================================
     ;; Positive atoms
@@ -450,18 +463,18 @@
        (program/call-clauseo prog walked-atom call-env body negated-body)
        (== (list 'pos-call subproof) proof)
        (support/step-fuelo fuel next-fuel)
-       (prove-stateo body
-                     '()
-                     '()
-                     call-env
-                     proof-vars
-                     sigma
-                     sigma-out
-                     neqs
-                     neqs-out
-                     prog
-                     next-fuel
-                     subproof))]
+       (recursive-prove-stateo body
+                               '()
+                               '()
+                               call-env
+                               proof-vars
+                               sigma
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               next-fuel
+                               subproof))]
     ;; Save the positive atom if it cannot close or call immediately.
     [(fresh [lit atom next rest next-fuel prf]
        (subst/subst-formulao fml env lit)
@@ -469,18 +482,18 @@
        (== (lcons next rest) unexpanded)
        (== (list 'savefml prf) proof)
        (support/step-fuelo fuel next-fuel)
-       (prove-stateo next
-                     rest
-                     (lcons lit lits)
-                     env
-                     proof-vars
-                     sigma
-                     sigma-out
-                     neqs
-                     neqs-out
-                     prog
-                     next-fuel
-                     prf))]
+       (recursive-prove-stateo next
+                               rest
+                               (lcons lit lits)
+                               env
+                               proof-vars
+                               sigma
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               next-fuel
+                               prf))]
 
     ;; ================================================================
     ;; Negative atoms
@@ -504,18 +517,18 @@
        (program/call-clauseo prog walked-atom call-env body negated-body)
        (== (list 'neg-call subproof) proof)
        (support/step-fuelo fuel next-fuel)
-       (prove-stateo negated-body
-                     '()
-                     '()
-                     call-env
-                     proof-vars
-                     sigma
-                     sigma-out
-                     neqs
-                     neqs-out
-                     prog
-                     next-fuel
-                     subproof))]
+       (recursive-prove-stateo negated-body
+                               '()
+                               '()
+                               call-env
+                               proof-vars
+                               sigma
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               next-fuel
+                               subproof))]
     ;; Save the negative atom if it cannot yet close or call.
     [(fresh [lit atom next rest next-fuel prf]
        (subst/subst-formulao fml env lit)
@@ -523,18 +536,18 @@
        (== (lcons next rest) unexpanded)
        (== (list 'savefml prf) proof)
        (support/step-fuelo fuel next-fuel)
-       (prove-stateo next
-                     rest
-                     (lcons lit lits)
-                     env
-                     proof-vars
-                     sigma
-                     sigma-out
-                     neqs
-                     neqs-out
-                     prog
-                     next-fuel
-                     prf))])))
+       (recursive-prove-stateo next
+                               rest
+                               (lcons lit lits)
+                               env
+                               proof-vars
+                               sigma
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               next-fuel
+                               prf))])))
 
 (defn prove-stateo
   "Backward-compatible current-formula wrapper over the fair agenda kernel.

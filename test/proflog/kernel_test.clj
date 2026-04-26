@@ -84,6 +84,15 @@
               (ast/pos-lit (ast/app-term 'q))
               (ast/neg-lit (ast/app-term 'p))))))))
 
+(deftest bounded-fuel-charges-structural-branch-progress
+  (testing "fuel zero allows immediate closure only, not arbitrary agenda progress"
+    (let [formula (ast/and-form
+                    (ast/pos-lit (ast/app-term 'p))
+                    (ast/neg-lit (ast/app-term 'p)))]
+      (is (not-provable? formula 1 0))
+      (is (not-provable? formula 1 1))
+      (is (seq (kernel/prove formula 1 2))))))
+
 (deftest universal-without-a-contrary-literal-stays-open
   (testing "a universal formula alone is not enough to close a branch"
     (ast/nom x

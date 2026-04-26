@@ -236,12 +236,13 @@
 ;; and the answer overlay.
 
 (defn step-fuelo
-  "Consume one unit of bounded search control.
+  "Consume one unit of bounded proof-search micro-fuel.
 
-   The budget is reserved for the potentially unbounded expansion points:
-   quantifier instantiation and recursive procedure calls. Structural branch
-   processing remains unrestricted under one budget slice once the current
-   branch formulas are fixed.
+   ADR-0016 charges this relation at every non-closing branch-progress step:
+   agenda expansion, formula storage, quantifier instantiation, and recursive
+   procedure calls. Immediate branch closures still work at fuel `0`, but a
+   fuel slice can no longer perform an unbounded amount of structural work once
+   the current branch formulas are fixed.
 
    `nil` means unbounded search. A budget of `0` blocks any further bounded
    expansions while still allowing direct closure on the current branch.

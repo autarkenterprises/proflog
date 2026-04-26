@@ -49,7 +49,7 @@
 ;; - `sigma`: the explicit free-constructor equality substitution,
 ;; - `neqs`: delayed disequalities that remain open for now,
 ;; - `prog`: the compiled Proflog program used by the Procedure Call Rule,
-;; - `fuel`: bounded search control for the potentially unbounded steps,
+;; - `fuel`: bounded micro-step control for non-closing branch progress,
 ;; - `proof`: the proof term witnessing the branch closure.
 ;;
 ;; The companion `proflog.answer-overlay` namespace reuses the same underlying
@@ -146,9 +146,10 @@
     ;; Fitting's tableau rule for `A and B` keeps one branch and requires both
     ;; conjuncts to close on that same branch. Operationally we prove the left
     ;; conjunct now and push the right conjunct onto the branch work stack.
-    [(fresh [left right prf]
+    [(fresh [left right next-fuel prf]
        (== (list 'and left right) fml)
        (== (list 'conj prf) proof)
+       (support/step-fuelo fuel next-fuel)
        (prove-stateo left
                      (lcons right unexpanded)
                      lits
@@ -159,7 +160,7 @@
                      neqs
                      neqs-out
                      prog
-                     fuel
+                     next-fuel
                      prf))]
 
     ;; ================================================================
@@ -170,9 +171,10 @@
     ;; first sibling's output substitution and disequalities thread into the
     ;; second sibling. This makes the proof term read like a genuine sequence of
     ;; branch-closing obligations rather than two disconnected searches.
-    [(fresh [left right sigma-mid neqs-mid left-proof right-proof]
+    [(fresh [left right next-fuel sigma-mid neqs-mid left-proof right-proof]
        (== (list 'or left right) fml)
        (== (list 'split left-proof right-proof) proof)
+       (support/step-fuelo fuel next-fuel)
        (prove-stateo left
                      unexpanded
                      lits
@@ -183,7 +185,7 @@
                      neqs
                      neqs-mid
                      prog
-                     fuel
+                     next-fuel
                      left-proof)
        (prove-stateo right
                      unexpanded
@@ -195,7 +197,7 @@
                      neqs-mid
                      neqs-out
                      prog
-                     fuel
+                     next-fuel
                      right-proof))]
 
     ;; ================================================================
@@ -260,11 +262,12 @@
     ;; procedure calls. Unlike gamma, it does not re-enqueue itself.
     [(nominal/fresh [binding-nom]
        (nominal/fresh [free-var-nom]
-         (fresh [body body-subst narrowed-env prf]
+         (fresh [body body-subst narrowed-env next-fuel prf]
            (== (list 'once-forall (nominal/tie binding-nom body)) fml)
            (== (list 'once-univ prf) proof)
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
+           (support/step-fuelo fuel next-fuel)
            (prove-stateo body-subst
                          unexpanded
                          lits
@@ -275,7 +278,7 @@
                          neqs
                          neqs-out
                          prog
-                         fuel
+                         next-fuel
                          prf))))]
 
     ;; ================================================================
@@ -353,13 +356,14 @@
     ;; No immediate contradiction: keep the updated equality state and continue
     ;; with the next pending formula, provided the saved disequalities still
     ;; remain genuinely open under the new substitution.
-    [(fresh [lit left right sigma-mid step-proof next rest prf]
+    [(fresh [lit left right sigma-mid step-proof next rest next-fuel prf]
        (subst/subst-formulao fml env lit)
        (== (list 'eq left right) lit)
        (equality/unify-termo left right sigma sigma-mid step-proof)
        (== (lcons next rest) unexpanded)
        (== (list 'eq-step step-proof prf) proof)
        (support/stable-neqso neqs sigma-mid)
+       (support/step-fuelo fuel next-fuel)
        (prove-stateo next
                      rest
                      lits
@@ -370,7 +374,7 @@
                      neqs
                      neqs-out
                      prog
-                     fuel
+                     next-fuel
                      prf))]
 
     ;; ================================================================
@@ -403,11 +407,12 @@
        (support/prune-contradictory-neqso neqs sigma-mid neqs-out)
        (== (list 'neq-close step-proof) proof))]
     ;; Otherwise retain the disequality as a delayed symbolic obligation.
-    [(fresh [lit left right next rest prf]
+    [(fresh [lit left right next rest next-fuel prf]
        (subst/subst-formulao fml env lit)
        (== (list 'neq left right) lit)
        (== (lcons next rest) unexpanded)
        (== (list 'neq-store prf) proof)
+       (support/step-fuelo fuel next-fuel)
        (prove-stateo next
                      rest
                      lits
@@ -418,7 +423,7 @@
                      (lcons [left right] neqs)
                      neqs-out
                      prog
-                     fuel
+                     next-fuel
                      prf))]
 
     ;; ================================================================
@@ -458,11 +463,12 @@
                      next-fuel
                      subproof))]
     ;; Save the positive atom if it cannot close or call immediately.
-    [(fresh [lit atom next rest prf]
+    [(fresh [lit atom next rest next-fuel prf]
        (subst/subst-formulao fml env lit)
        (== (list 'pos atom) lit)
        (== (lcons next rest) unexpanded)
        (== (list 'savefml prf) proof)
+       (support/step-fuelo fuel next-fuel)
        (prove-stateo next
                      rest
                      (lcons lit lits)
@@ -473,7 +479,7 @@
                      neqs
                      neqs-out
                      prog
-                     fuel
+                     next-fuel
                      prf))]
 
     ;; ================================================================
@@ -511,11 +517,12 @@
                      next-fuel
                      subproof))]
     ;; Save the negative atom if it cannot yet close or call.
-    [(fresh [lit atom next rest prf]
+    [(fresh [lit atom next rest next-fuel prf]
        (subst/subst-formulao fml env lit)
        (== (list 'neg atom) lit)
        (== (lcons next rest) unexpanded)
        (== (list 'savefml prf) proof)
+       (support/step-fuelo fuel next-fuel)
        (prove-stateo next
                      rest
                      (lcons lit lits)
@@ -526,7 +533,7 @@
                      neqs
                      neqs-out
                      prog
-                     fuel
+                     next-fuel
                      prf))])))
 
 (defn prove-stateo

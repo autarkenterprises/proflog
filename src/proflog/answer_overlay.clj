@@ -174,9 +174,10 @@
       ;; conjunct is pushed onto the branch work stack. Equality-triggered saved
       ;; literal closure handles the important order-insensitive case where a
       ;; later equality unlocks an earlier saved atom.
-      [(fresh [left right prf]
+      [(fresh [left right next-fuel prf]
          (== (list 'and left right) fml)
          (== (list 'conj prf) proof)
+         (support/step-fuelo fuel next-fuel)
          (prove-stateo left
                        (lcons right unexpanded)
                        lits
@@ -189,16 +190,17 @@
                        residuals
                        residuals-out
                        prog
-                       fuel
+                       next-fuel
                        call-depth
                        existentials-as-vars?
                        prf))]
 
     ;; β-rule: both branches must close under one compatible proof state. The
     ;; resulting substitution threads from the first sibling into the second.
-    [(fresh [left right sigma-mid neqs-mid residuals-mid left-proof right-proof]
+    [(fresh [left right next-fuel sigma-mid neqs-mid residuals-mid left-proof right-proof]
             (== (list 'or left right) fml)
             (== (list 'split left-proof right-proof) proof)
+            (support/step-fuelo fuel next-fuel)
             (prove-stateo left
                           unexpanded
                           lits
@@ -211,7 +213,7 @@
                           residuals
                           residuals-mid
                           prog
-                          fuel
+                          next-fuel
                           call-depth
                           existentials-as-vars?
                           left-proof)
@@ -227,7 +229,7 @@
                           residuals-mid
                           residuals-out
                           prog
-                          fuel
+                          next-fuel
                           call-depth
                           existentials-as-vars?
                           right-proof))]
@@ -293,11 +295,12 @@
     ;; existential clause body for procedure-call execution.
     [(nominal/fresh [binding-nom]
                     (nominal/fresh [free-var-nom]
-                                   (fresh [body body-subst narrowed-env prf]
+                                   (fresh [body body-subst narrowed-env next-fuel prf]
                                           (== (list 'once-forall (nominal/tie binding-nom body)) fml)
                                           (== (list 'once-univ prf) proof)
                                           (subst/remove-bindo binding-nom env narrowed-env)
                                           (subst/subst-formulao body narrowed-env body-subst)
+                                          (support/step-fuelo fuel next-fuel)
                                           (prove-stateo body-subst
                                                         unexpanded
                                                         lits
@@ -310,7 +313,7 @@
                                                         residuals
                                                         residuals-out
                                                         prog
-                                                        fuel
+                                                        next-fuel
                                                         call-depth
                                                         existentials-as-vars?
                                                         prf))))]
@@ -414,13 +417,14 @@
             (equality/unify-termo left right sigma sigma-mid step-proof)
             (saved-call-closeso lits proof-vars sigma-mid sigma-out neqs neqs-out residuals residuals-out prog fuel call-depth existentials-as-vars? branch-proof)
             (== (list 'eq-step step-proof branch-proof) proof))]
-    [(fresh [lit left right sigma-mid step-proof next rest prf]
+    [(fresh [lit left right sigma-mid step-proof next rest next-fuel prf]
             (subst/subst-formulao fml env lit)
             (== (list 'eq left right) lit)
             (equality/unify-termo left right sigma sigma-mid step-proof)
             (== (lcons next rest) unexpanded)
             (== (list 'eq-step step-proof prf) proof)
             (support/stable-neqso neqs sigma-mid)
+            (support/step-fuelo fuel next-fuel)
             (prove-stateo next
                           rest
                           lits
@@ -433,7 +437,7 @@
                           residuals
                           residuals-out
                           prog
-                          fuel
+                          next-fuel
                           call-depth
                           existentials-as-vars?
                           prf))]
@@ -466,11 +470,12 @@
     ;; If the disequality remains open, we preserve it as part of the symbolic
     ;; answer state rather than discarding it. Later exported answers will turn
     ;; this store into explicit residual disequality formulas.
-    [(fresh [lit left right next rest prf]
+    [(fresh [lit left right next rest next-fuel prf]
             (subst/subst-formulao fml env lit)
             (== (list 'neq left right) lit)
             (== (lcons next rest) unexpanded)
             (== (list 'neq-store prf) proof)
+            (support/step-fuelo fuel next-fuel)
             (prove-stateo next
                           rest
                           lits
@@ -483,7 +488,7 @@
                           residuals
                           residuals-out
                           prog
-                          fuel
+                          next-fuel
                           call-depth
                           existentials-as-vars?
                           prf))]
@@ -538,11 +543,12 @@
     ;; Deferral with more branch work still pending: save the current atom into
     ;; the residual frontier and continue with the rest of the current branch.
     [(if defer-calls?
-       (fresh [lit atom next rest prf]
+       (fresh [lit atom next rest next-fuel prf]
               (subst/subst-formulao fml env lit)
               (== (list 'pos atom) lit)
               (== (lcons next rest) unexpanded)
               (== (list 'defer-call prf) proof)
+              (support/step-fuelo fuel next-fuel)
               (prove-stateo next
                             rest
                             lits
@@ -555,7 +561,7 @@
                             (lcons lit residuals)
                             residuals-out
                             prog
-                            fuel
+                            next-fuel
                             call-depth
                             existentials-as-vars?
                             prf))
@@ -609,11 +615,12 @@
                           subproof))]
     ;; Defer the negative call but keep working through other pending formulas.
     [(if defer-calls?
-       (fresh [lit atom next rest prf]
+       (fresh [lit atom next rest next-fuel prf]
               (subst/subst-formulao fml env lit)
               (== (list 'neg atom) lit)
               (== (lcons next rest) unexpanded)
               (== (list 'defer-call prf) proof)
+              (support/step-fuelo fuel next-fuel)
               (prove-stateo next
                             rest
                             lits
@@ -626,7 +633,7 @@
                             (lcons lit residuals)
                             residuals-out
                             prog
-                            fuel
+                            next-fuel
                             call-depth
                             existentials-as-vars?
                             prf))
@@ -644,11 +651,12 @@
     ;; If no immediate closure or call step applies, the atom is saved on the
     ;; branch exactly as in the ordinary kernel so that later equality can
     ;; reopen it.
-    [(fresh [lit atom next rest prf]
+    [(fresh [lit atom next rest next-fuel prf]
             (subst/subst-formulao fml env lit)
             (== (list 'pos atom) lit)
             (== (lcons next rest) unexpanded)
             (== (list 'savefml prf) proof)
+            (support/step-fuelo fuel next-fuel)
             (prove-stateo next
                           rest
                           (lcons lit lits)
@@ -661,16 +669,17 @@
                           residuals
                           residuals-out
                           prog
-                          fuel
+                          next-fuel
                           call-depth
                           existentials-as-vars?
                           prf))]
     ;; Negative saved-literal case.
-    [(fresh [lit atom next rest prf]
+    [(fresh [lit atom next rest next-fuel prf]
             (subst/subst-formulao fml env lit)
             (== (list 'neg atom) lit)
             (== (lcons next rest) unexpanded)
             (== (list 'savefml prf) proof)
+            (support/step-fuelo fuel next-fuel)
             (prove-stateo next
                           rest
                           (lcons lit lits)
@@ -683,7 +692,7 @@
                           residuals
                           residuals-out
                           prog
-                          fuel
+                          next-fuel
                           call-depth
                           existentials-as-vars?
                           prf))]))))

@@ -1,9 +1,9 @@
 # ADR-0016: Fair Agenda And Micro Fuel
 
-- Status: accepted
+- Status: completed
 - Date: 2026-04-26
 - Branch: `adr-0016-fair-scheduling`
-- AAR: pending
+- AAR: [AAR-0016](../aar/AAR-0016-fair-agenda-and-micro-fuel.md)
 
 ## Context
 

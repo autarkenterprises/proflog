@@ -3,7 +3,7 @@
 - Status: accepted
 - Date: 2026-04-24
 - Branch: `adr-0014-generic-legacy-evaluation`
-- AAR: pending
+- AAR: [AAR-0014](../aar/AAR-0014-generic-legacy-evaluation.md)
 
 ## Context
 
@@ -187,12 +187,66 @@ Measured on `2026-04-24`:
 - Non-group full 7-universal associativity also did not return a result before
   the external `60 s` shell timeout on the current greenfield probes.
 
+Update on `2026-04-25`:
+
+- the repo now includes a dedicated hard-family selector:
+  `lein test-proflog-hard-families`,
+- `src/proflog/equality_fast_path.clj` adds a host-side accelerator for the
+  shape "nested existentials over an equality / disequality conjunction",
+- `src/proflog/hard_family_overlay.clj` exposes that accelerator as a named
+  non-default overlay above the ordinary query surface,
+- the isolated pure query surface still leaves `Z₁` full 7-universal
+  associativity (`gv_assoc`) unresolved under the `2000 ms` regression budget,
+- and ADR-14 now also includes one promoted representative `FD` query through
+  the same named overlay: `warm-unique`, which resolves as `:succeeds` there
+  under the same `2000 ms` budget.
+
 These first probes matter because they are not merely "hard legacy cases." They
 already include formulas that legacy *could* answer, such as precomputed
 associativity and the `Z₁` full associativity case. So the current picture is
 not "greenfield can answer a different overlapping subset than legacy." The
 current picture is that greenfield appears strictly weaker on the first `GV`
 slice, aside from the simple identity success.
+
+That historical conclusion is now narrower than it first appeared. Greenfield
+still remains weaker than legacy on the broader isolated `GV` pure-kernel
+slice, especially `Z₂` precomputed and full associativity, but the repo now has
+one explicit named overlay that recovers additional legacy-aligned successes
+without claiming they came from the core kernel itself.
+
+## Paramodulation Investigation
+
+The branch also examined the legacy equality-rewriting / paramodulation path
+directly.
+
+The result is more specific than "legacy paramodulation is impure."
+
+- The legacy rewrite subsystem itself is written relationally:
+  `collect-eqso`, `rewrite-termo`, `rewrite-term-with-eqso`, `eq-neq-closeo`,
+  and `para-free-closeo` are defined with `conde`, `fresh`, `membero`,
+  `appendo`, `selecto`, `==`, and `!=`, without `project`.
+- The surrounding legacy prover is still not purely relational end to end.
+  It uses `project` in `subst-termo`, the `L-ground` guard,
+  `propagate-par-eqo`, and bounded `gamma-budget` control.
+- So the accurate architectural statement is:
+  legacy paramodulation is mostly encoded as relations, but it lives inside a
+  prover that still mixes relational search with one-way meta-level guards.
+
+For greenfield, a purely relational transcription of the legacy rewrite
+machinery is therefore possible in principle. But it should not be confused
+with the temporary host-side fast path that was rolled back from the kernel.
+
+The current greenfield kernel already gives equality a different semantic
+center:
+
+- explicit substitution `sigma`,
+- symbolic disequalities,
+- saved-atom contradiction checks,
+- and saved-call reopening after equality walking.
+
+That means a future relational paramodulation layer should be treated as an
+optional relational extension or alternate kernel surface, not as an opaque
+host-side shortcut inside `proflog.kernel`.
 
 ## Architectural Implication
 

@@ -1,9 +1,9 @@
 # ADR-0009: Legacy Program Family Closure And Worked Examples
 
-- Status: accepted
+- Status: completed
 - Date: 2026-04-21
 - Branch: `adr-0009-legacy-program-closure`
-- AAR: pending
+- AAR: [AAR-0009](../aar/AAR-0009-legacy-program-closure.md)
 
 ## Context
 

@@ -1,9 +1,9 @@
 # ADR-0007: Nim Correctness And Query Bounds
 
-- Status: accepted
+- Status: completed
 - Date: 2026-04-18
 - Branch: `adr-0007-nim-correctness-query-bounds`
-- AAR: pending
+- AAR: [AAR-0007](../aar/AAR-0007-nim-correctness-and-query-bounds.md)
 
 ## Context
 

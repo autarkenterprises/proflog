@@ -1,9 +1,9 @@
 # ADR-0011: Open-Answer Relationality
 
-- Status: accepted
+- Status: completed
 - Date: 2026-04-23
 - Branch: `adr-0011-open-answer-relationality`
-- AAR: pending
+- AAR: [AAR-0011](../aar/AAR-0011-open-answer-relationality.md)
 
 ## Context
 

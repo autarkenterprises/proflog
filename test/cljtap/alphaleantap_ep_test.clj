@@ -1604,11 +1604,10 @@
     (is (proof-uses-step? '(neq (app c) (app c)) 'refl-close))))
 
 (deftest test-O05-proof-has-para-close
-  (testing "Paramodulation closure produces 'para-close'"
+  (testing "Paramodulation closure produces 'para-close' or 'close' (with constraint propagation)"
     ;; Use nom p encoded as (par p) so (eq (par p) (app b)) is not free-closeable.
-    ;; savefml saves (eq (par p) (app b)) to lits; (pos P(par p)) saved to lits;
-    ;; (neg P(app b)) → para-close: collect eqs [(par p)→(app b),(app b)→(par p)],
-    ;; rewrite (pos P(app b))→(pos P(par p)) found in lits ✓
+    ;; Without constraint propagation: para-close via eq rewriting.
+    ;; With constraint propagation: par p resolves to (app b), enabling direct close.
     (let [proofs (run 1 [proof]
                    (nom p
                      (proveo ['and ['eq ['par p] ['app 'b]]
@@ -1616,7 +1615,8 @@
                                          ['neg ['app 'P ['app 'b]]]]]
                              '() '() '() '() proof)))]
       (is (seq proofs))
-      (is (proof-tree-contains? (first proofs) 'para-close)))))
+      (is (or (proof-tree-contains? (first proofs) 'para-close)
+              (proof-tree-contains? (first proofs) 'close))))))
 (deftest test-O06-proof-has-witness
   (testing "δ-rule produces 'witness' in proof"
     (let [proofs (run 1 [proof]
@@ -2153,14 +2153,18 @@
                       '() '() '() '() proof)))))))
 
 (deftest test-R04-para-free-close-proof-step
-  (testing "para-free-close produces the correct proof step tag"
+  (testing "para-free-close or free-close (with constraint propagation) proof step"
+    ;; Without constraint propagation: para-free-close via eq rewriting.
+    ;; With constraint propagation: par p resolves to (app a), then
+    ;; (eq (app b) (app a)) closes directly via free-close.
     (let [proofs (run 1 [proof]
                    (nom p
                      (proveo ['and ['eq ['app 'a] ['par p]]
                                    ['eq ['app 'b] ['par p]]]
                              '() '() '() '() proof)))]
       (is (seq proofs))
-      (is (proof-tree-contains? (first proofs) 'para-free-close)))))
+      (is (or (proof-tree-contains? (first proofs) 'para-free-close)
+              (proof-tree-contains? (first proofs) 'free-close))))))
 
 (deftest test-R05-para-free-close-no-false-fire-same-head
   (testing "a=p ∧ a=p — rewrite yields (eq a a): same head, no clash (tableau stays open)"

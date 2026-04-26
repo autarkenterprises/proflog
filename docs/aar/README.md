@@ -23,3 +23,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0014](AAR-0014-generic-legacy-evaluation.md) | [ADR-0014](../adr/ADR-0014-generic-legacy-evaluation.md) | draft |
 | [AAR-0015](AAR-0015-answer-overlay-extraction.md) | [ADR-0015](../adr/ADR-0015-answer-overlay-extraction.md) | completed |
 | [AAR-0016](AAR-0016-fair-agenda-and-micro-fuel.md) | [ADR-0016](../adr/ADR-0016-fair-agenda-and-micro-fuel.md) | completed |
+| [AAR-0017](AAR-0017-relational-tabling-and-canonical-state.md) | [ADR-0017](../adr/ADR-0017-relational-tabling-and-canonical-state.md) | completed |

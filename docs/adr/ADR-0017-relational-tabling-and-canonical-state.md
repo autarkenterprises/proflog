@@ -1,9 +1,9 @@
 # ADR-0017: Relational Tabling And Canonical State
 
-- Status: accepted
+- Status: completed
 - Date: 2026-04-26
 - Branch: `adr-0017-relational-tabling`
-- AAR: pending
+- AAR: [AAR-0017](../aar/AAR-0017-relational-tabling-and-canonical-state.md)
 
 ## Context
 

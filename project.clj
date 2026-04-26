@@ -78,5 +78,7 @@
                                    "proflog.parity-test"]
             "test-proflog-parity-experimental" ["test"
                                                 "proflog.parity-experimental-test"]
+            "test-proflog-hard-families" ["test"
+                                          "proflog.legacy-hard-families-test"]
             "probe-proflog-legacy-stream" ["run" "-m" "proflog.legacy-stream-probe"]
             "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]})

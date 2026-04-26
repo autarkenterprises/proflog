@@ -88,6 +88,22 @@ Measured on `2026-04-24`:
 - `non-group-full-assoc`, `fails`, `15000 ms`
   - no result before the outer `60 s` timeout
 
+Update on `2026-04-25`:
+
+- the repo now has a dedicated exploratory selector:
+  `lein test-proflog-hard-families`
+- a new host-side optimization in
+  [src/proflog/equality_fast_path.clj](/home/jpt4/code/proflog/src/proflog/equality_fast_path.clj:1)
+  accelerates the shape "nested existentials over an equality / disequality
+  conjunction"
+- that optimization now lives behind the named non-default
+  [src/proflog/hard_family_overlay.clj](/home/jpt4/code/proflog/src/proflog/hard_family_overlay.clj:1)
+  surface rather than inside the kernel
+- under that overlay, `z1-full-assoc-truth` now resolves as `:succeeds`
+  under the `2000 ms` regression budget used in
+  [test/proflog/legacy_hard_families_test.clj](/home/jpt4/code/proflog/test/proflog/legacy_hard_families_test.clj:1),
+  while the pure query surface remains unresolved there
+
 ## Current Interpretation
 
 This first `GV` slice does **not** show greenfield and legacy having different
@@ -101,9 +117,17 @@ Instead, it shows:
   `Z₁` full associativity do not currently resolve in the measured greenfield
   windows.
 
+That last bullet is now historically important but needs a narrower reading.
+After the generic existential equality fast path landed, `Z₁` full
+associativity moved into the "resolves on a named overlay" column, not the
+"resolves on the pure query surface" column. The harder `Z₂` associativity
+cases remain the live gap.
+
 So the current architectural takeaway is:
 
-- greenfield does not yet have a distinct `GV` capability win that would argue
-  for preserving the present structure unchanged,
+- greenfield does not yet have a distinct pure-kernel `GV` capability win that
+  would argue for preserving the present structure unchanged,
+- a non-default overlay can already recover at least one additional
+  legacy-aligned `GV` success,
 - and the repo is therefore justified in considering larger architectural
   revision if later ADR-14 probes keep the same shape.

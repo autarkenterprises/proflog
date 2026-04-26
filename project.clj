@@ -58,6 +58,7 @@
                                     "proflog.normalize-test"
                                     "proflog.pretty-test"
                                     "proflog.subst-test"
+                                    "proflog.tabling-test"
                                     "proflog.kernel-test"
                                     "proflog.proof-test"
                                     "proflog.equality-test"

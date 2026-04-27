@@ -17,6 +17,7 @@ query walkthroughs for the current `test/proflog` suites.
 - [Answers API](./answers-api.md)
 - [Adversarial Cases](./adversarial-cases.md)
 - [Equality And Disequality](./equality-and-disequality.md)
+- [Existential Disequality Witness](./existential-disequality-witness.md)
 - [Recursive Parity](./recursive-parity.md)
 - [Herbrand Oracle](./herbrand-oracle.md)
 - [Syntax And Normalization](./syntax-and-normalization.md)

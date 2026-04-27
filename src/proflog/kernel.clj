@@ -30,6 +30,7 @@
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
+            [proflog.gamma :as gamma]
             [proflog.kernel-support :as support]
             [proflog.program :as program]
             [proflog.subst :as subst]))
@@ -217,10 +218,10 @@
     ;; Gamma rule: universal quantifier
     ;; ================================================================
     ;;
-    ;; Universals are instantiated with a fresh proof variable `(var nom)`.
-    ;; The original universal is re-enqueued so the branch may instantiate it
-    ;; again later. The first branch below is just the empty-work-stack
-    ;; specialization; the second is the general re-enqueueing case.
+    ;; Universals are first instantiated with a fresh proof variable `(var
+    ;; nom)`, preserving the historical search behavior for most quantified
+    ;; programs. Bounded generated closed terms are a fallback path below for
+    ;; cases where a concrete Herbrand counterexample is required.
     [(nominal/fresh [binding-nom]
        (nominal/fresh [free-var-nom]
          (fresh [body body-subst narrowed-env next-fuel prf]
@@ -242,6 +243,31 @@
                                    prog
                                    next-fuel
                                    prf))))]
+    ;; Fitting's full gamma rule also permits closed terms from the object
+    ;; language. The finite generation policy lives outside the kernel; the
+    ;; kernel only asks for one candidate when the fresh-variable path is not
+    ;; enough.
+    [(nominal/fresh [binding-nom]
+       (fresh [body body-subst narrowed-env witness-term next-fuel prf]
+         (== (list 'forall (nominal/tie binding-nom body)) fml)
+         (== '() unexpanded)
+         (== (list 'univ prf) proof)
+         (gamma/closed-term-candidateo prog fuel witness-term)
+         (subst/remove-bindo binding-nom env narrowed-env)
+         (subst/subst-formulao body narrowed-env body-subst)
+         (support/step-fuelo fuel next-fuel)
+         (recursive-prove-stateo body-subst
+                                 '()
+                                 lits
+                                 (lcons [binding-nom witness-term] env)
+                                 proof-vars
+                                 sigma
+                                 sigma-out
+                                 neqs
+                                 neqs-out
+                                 prog
+                                 next-fuel
+                                 prf)))]
     ;; General gamma case: when there is already pending branch work, append the
     ;; original universal to the end so repeated instantiation remains possible.
     [(nominal/fresh [binding-nom]
@@ -265,6 +291,27 @@
                                    prog
                                    next-fuel
                                    prf))))]
+    [(nominal/fresh [binding-nom]
+       (fresh [body body-subst narrowed-env witness-term pending next-fuel prf]
+         (== (list 'forall (nominal/tie binding-nom body)) fml)
+         (== (list 'univ prf) proof)
+         (appendo unexpanded (list fml) pending)
+         (gamma/closed-term-candidateo prog fuel witness-term)
+         (subst/remove-bindo binding-nom env narrowed-env)
+         (subst/subst-formulao body narrowed-env body-subst)
+         (support/step-fuelo fuel next-fuel)
+         (recursive-prove-stateo body-subst
+                                 pending
+                                 lits
+                                 (lcons [binding-nom witness-term] env)
+                                 proof-vars
+                                 sigma
+                                 sigma-out
+                                 neqs
+                                 neqs-out
+                                 prog
+                                 next-fuel
+                                 prf)))]
 
     ;; ================================================================
     ;; Once-forall: single-use universal
@@ -277,9 +324,7 @@
        (fresh [body body-subst narrowed-env witness-term next-fuel prf]
          (== (list 'once-forall (nominal/tie binding-nom body)) fml)
          (== (list 'once-univ prf) proof)
-         (support/object-language-nullary-termo
-           (support/object-language-nullary-terms prog)
-           witness-term)
+         (gamma/closed-term-candidateo prog fuel witness-term)
          (subst/remove-bindo binding-nom env narrowed-env)
          (subst/subst-formulao body narrowed-env body-subst)
          (support/step-fuelo fuel next-fuel)

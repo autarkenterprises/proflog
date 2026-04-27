@@ -227,36 +227,6 @@
            (l-ground-termo head)
            (l-ground-term*o tail))]))
 
-(defn- declaration-order
-  "Stable ordering for declared symbols during object-language enumeration."
-  [entry]
-  [(val entry) (str (key entry))])
-
-(defn object-language-nullary-terms
-  "Return the declared nullary object-language terms for `prog`.
-
-   ADR-0018 uses these terms as explicit universal instantiation candidates
-   for finite constant-only witness checks. Non-nullary constructor expansion
-   remains a bounded answer-layer concern."
-  [prog]
-  (if (map? prog)
-    (->> (get-in prog [:language :functions])
-         (filter (fn [[_ arity]] (zero? arity)))
-         (sort-by declaration-order)
-         (mapv (fn [[sym _]] (ast/app-term sym))))
-    []))
-
-(defn object-language-nullary-termo
-  "Relate `term` to one of the supplied declared nullary terms.
-
-   This is an explicit, finite instantiation surface used by `once-forall`.
-   It does not introduce internal parameters, and it fails when the term list
-   is empty."
-  [terms term]
-  (if (seq terms)
-    (membero term (apply list terms))
-    fail))
-
 ;; ---------------------------------------------------------------------------
 ;; Bounded search bookkeeping
 ;; ---------------------------------------------------------------------------

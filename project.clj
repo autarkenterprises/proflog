@@ -60,6 +60,8 @@
                                     "proflog.subst-test"
                                     "proflog.tabling-test"
                                     "proflog.existential-disequality-test"
+                                    "proflog.gamma-test"
+                                    "proflog.closed-term-gamma-test"
                                     "proflog.kernel-test"
                                     "proflog.proof-test"
                                     "proflog.equality-test"

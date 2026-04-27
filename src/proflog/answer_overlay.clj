@@ -23,6 +23,7 @@
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
+            [proflog.gamma :as gamma]
             [proflog.kernel-support :as support]
             [proflog.program :as program]
             [proflog.subst :as subst]))
@@ -234,10 +235,11 @@
                           existentials-as-vars?
                           right-proof))]
 
-    ;; γ-rule: instantiate a universal with an explicit free variable term and
-    ;; re-enqueue the original universal so later instantiations remain
-    ;; available on the branch. As in the ordinary kernel, we keep an optimized
-    ;; empty-work-stack case and the general re-enqueueing case.
+    ;; γ-rule: ordinary proof mode first instantiates a universal with an
+    ;; explicit free variable term, preserving historical answer-search order.
+    ;; Bounded closed terms are available below as a fallback in non-symbolic
+    ;; proof mode. Symbolic answer mode keeps the free-var behavior only, so
+    ;; answer export is not prematurely materialized.
     [(nominal/fresh [binding-nom]
                     (nominal/fresh [free-var-nom]
                                    (fresh [body body-subst narrowed-env next-fuel prf]
@@ -263,6 +265,33 @@
                                                         call-depth
                                                         existentials-as-vars?
                                                         prf))))]
+    [(if existentials-as-vars?
+       fail
+       (nominal/fresh [binding-nom]
+                      (fresh [body body-subst narrowed-env witness-term next-fuel prf]
+                             (== (list 'forall (nominal/tie binding-nom body)) fml)
+                             (== '() unexpanded)
+                             (== (list 'univ prf) proof)
+                             (gamma/closed-term-candidateo prog fuel witness-term)
+                             (subst/remove-bindo binding-nom env narrowed-env)
+                             (subst/subst-formulao body narrowed-env body-subst)
+                             (support/step-fuelo fuel next-fuel)
+                             (prove-stateo body-subst
+                                           '()
+                                           lits
+                                           (lcons [binding-nom witness-term] env)
+                                           proof-vars
+                                           sigma
+                                           sigma-out
+                                           neqs
+                                           neqs-out
+                                           residuals
+                                           residuals-out
+                                           prog
+                                           next-fuel
+                                           call-depth
+                                           existentials-as-vars?
+                                           prf))))]
     ;; General gamma case with explicit re-enqueueing of the universal.
     [(nominal/fresh [binding-nom]
                     (nominal/fresh [free-var-nom]
@@ -289,6 +318,33 @@
                                                         call-depth
                                                         existentials-as-vars?
                                                         prf))))]
+    [(if existentials-as-vars?
+       fail
+       (nominal/fresh [binding-nom]
+                      (fresh [body body-subst narrowed-env witness-term pending next-fuel prf]
+                             (== (list 'forall (nominal/tie binding-nom body)) fml)
+                             (== (list 'univ prf) proof)
+                             (appendo unexpanded (list fml) pending)
+                             (gamma/closed-term-candidateo prog fuel witness-term)
+                             (subst/remove-bindo binding-nom env narrowed-env)
+                             (subst/subst-formulao body narrowed-env body-subst)
+                             (support/step-fuelo fuel next-fuel)
+                             (prove-stateo body-subst
+                                           pending
+                                           lits
+                                           (lcons [binding-nom witness-term] env)
+                                           proof-vars
+                                           sigma
+                                           sigma-out
+                                           neqs
+                                           neqs-out
+                                           residuals
+                                           residuals-out
+                                           prog
+                                           next-fuel
+                                           call-depth
+                                           existentials-as-vars?
+                                           prf))))]
 
     ;; Single-use universal: instantiate once on the current branch without
     ;; re-enqueueing. This is the NNF operational form produced by negating an
@@ -299,9 +355,7 @@
                       (fresh [body body-subst narrowed-env witness-term next-fuel prf]
                              (== (list 'once-forall (nominal/tie binding-nom body)) fml)
                              (== (list 'once-univ prf) proof)
-                             (support/object-language-nullary-termo
-                               (support/object-language-nullary-terms prog)
-                               witness-term)
+                             (gamma/closed-term-candidateo prog fuel witness-term)
                              (subst/remove-bindo binding-nom env narrowed-env)
                              (subst/subst-formulao body narrowed-env body-subst)
                              (support/step-fuelo fuel next-fuel)

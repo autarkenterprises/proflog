@@ -59,6 +59,7 @@
                                     "proflog.pretty-test"
                                     "proflog.subst-test"
                                     "proflog.tabling-test"
+                                    "proflog.existential-disequality-test"
                                     "proflog.kernel-test"
                                     "proflog.proof-test"
                                     "proflog.equality-test"

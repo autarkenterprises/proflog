@@ -274,6 +274,28 @@
     ;; form we obtain when negating an existential clause body for negative
     ;; procedure calls. Unlike gamma, it does not re-enqueue itself.
     [(nominal/fresh [binding-nom]
+       (fresh [body body-subst narrowed-env witness-term next-fuel prf]
+         (== (list 'once-forall (nominal/tie binding-nom body)) fml)
+         (== (list 'once-univ prf) proof)
+         (support/object-language-nullary-termo
+           (support/object-language-nullary-terms prog)
+           witness-term)
+         (subst/remove-bindo binding-nom env narrowed-env)
+         (subst/subst-formulao body narrowed-env body-subst)
+         (support/step-fuelo fuel next-fuel)
+         (recursive-prove-stateo body-subst
+                                 unexpanded
+                                 lits
+                                 (lcons [binding-nom witness-term] env)
+                                 proof-vars
+                                 sigma
+                                 sigma-out
+                                 neqs
+                                 neqs-out
+                                 prog
+                                 next-fuel
+                                 prf)))]
+    [(nominal/fresh [binding-nom]
        (nominal/fresh [free-var-nom]
          (fresh [body body-subst narrowed-env next-fuel prf]
            (== (list 'once-forall (nominal/tie binding-nom body)) fml)

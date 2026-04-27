@@ -141,6 +141,8 @@
                   formula)
       forall (do (validate-formula lang (:body (second formula)))
                  formula)
+      once-forall (do (validate-formula lang (:body (second formula)))
+                      formula)
       exists (do (validate-formula lang (:body (second formula)))
                  formula)
       (throw (ex-info "Malformed formula" {:formula formula})))))

@@ -6,7 +6,7 @@
    program compiler straightforward; the relational helpers preserve the data
    flow shape the later tableau kernel will need."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [!= == conde fresh lcons]]
+  (:require [clojure.core.logic :refer [!= == conde fresh lcons project]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]))
 
@@ -71,6 +71,10 @@
                    narrowed-env (remove-binding env (:binding-nom tied))]
                (ast/forall-form (:binding-nom tied)
                                 (subst-formula (:body tied) narrowed-env)))
+      once-forall (let [tied (second formula)
+                        narrowed-env (remove-binding env (:binding-nom tied))]
+                    (ast/once-forall-form (:binding-nom tied)
+                                          (subst-formula (:body tied) narrowed-env)))
       exists (let [tied (second formula)
                    narrowed-env (remove-binding env (:binding-nom tied))]
                (ast/exists-form (:binding-nom tied)
@@ -150,55 +154,13 @@
        (subst-term*o tail env tail-out))]))
 
 (defn subst-formulao
-  "Relational formula substitution with binder-aware shadowing."
+  "Forward relational wrapper around pure binder-aware formula substitution.
+
+   The kernel uses this relation in the forward direction with ground
+   `formula`/`env` and an output logic variable. The earlier nominally
+   relational quantifier clauses were fragile and failed to substitute through
+   nested `once-forall` formulas, so this wrapper now delegates to the pure
+   implementation that already carries the correct lexical-shadowing behavior."
   [formula env out]
-  (conde
-    [(== '(true) formula) (== formula out)]
-    [(== '(false) formula) (== formula out)]
-    [(fresh [atom atom-out]
-       (== (list 'pos atom) formula)
-       (== (list 'pos atom-out) out)
-       (subst-termo atom env atom-out))]
-    [(fresh [atom atom-out]
-       (== (list 'neg atom) formula)
-       (== (list 'neg atom-out) out)
-       (subst-termo atom env atom-out))]
-    [(fresh [left right left-out right-out]
-       (== (list 'eq left right) formula)
-       (== (list 'eq left-out right-out) out)
-       (subst-termo left env left-out)
-       (subst-termo right env right-out))]
-    [(fresh [left right left-out right-out]
-       (== (list 'neq left right) formula)
-       (== (list 'neq left-out right-out) out)
-       (subst-termo left env left-out)
-       (subst-termo right env right-out))]
-    [(fresh [left right left-out right-out]
-       (== (list 'and left right) formula)
-       (== (list 'and left-out right-out) out)
-       (subst-formulao left env left-out)
-       (subst-formulao right env right-out))]
-    [(fresh [left right left-out right-out]
-       (== (list 'or left right) formula)
-       (== (list 'or left-out right-out) out)
-       (subst-formulao left env left-out)
-       (subst-formulao right env right-out))]
-    [(fresh [body body-out]
-       (== (list 'not body) formula)
-       (== (list 'not body-out) out)
-       (subst-formulao body env body-out))]
-    [(fresh [left right left-out right-out]
-       (== (list 'implies left right) formula)
-       (== (list 'implies left-out right-out) out)
-       (subst-formulao left env left-out)
-       (subst-formulao right env right-out))]
-    [(fresh [binding-nom body narrowed-env body-out]
-       (== (list 'forall (nominal/tie binding-nom body)) formula)
-       (remove-bindo binding-nom env narrowed-env)
-       (subst-formulao body narrowed-env body-out)
-       (== (list 'forall (nominal/tie binding-nom body-out)) out))]
-    [(fresh [binding-nom body narrowed-env body-out]
-       (== (list 'exists (nominal/tie binding-nom body)) formula)
-       (remove-bindo binding-nom env narrowed-env)
-       (subst-formulao body narrowed-env body-out)
-       (== (list 'exists (nominal/tie binding-nom body-out)) out))]))
+  (project [formula env]
+    (== (subst-formula formula env) out)))

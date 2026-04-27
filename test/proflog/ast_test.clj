@@ -20,6 +20,11 @@
                    (tie a (list 'pos (list 'app 'even (list 'var a)))))
              (ast/forall-form a
                               (ast/pos-lit
+                                (ast/app-term 'even (ast/var-term a))))))
+      (is (= (list 'once-forall
+                   (tie a (list 'pos (list 'app 'even (list 'var a)))))
+             (ast/once-forall-form a
+                                   (ast/pos-lit
                                 (ast/app-term 'even (ast/var-term a)))))))))
 
 (deftest ast-predicates-distinguish-core-categories

@@ -108,6 +108,15 @@
   [binding-nom body]
   (list 'forall (nominal/tie binding-nom body)))
 
+(defn once-forall-form
+  "Construct a single-use universal formula using a nominal tie.
+
+   This is an internal NNF-oriented form used when negating existential clause
+   bodies for execution: it instantiates like a universal, but does not
+   re-enqueue itself on the branch."
+  [binding-nom body]
+  (list 'once-forall (nominal/tie binding-nom body)))
+
 (defn exists-form
   "Construct an existentially quantified formula using a nominal tie."
   [binding-nom body]
@@ -213,6 +222,7 @@
          (formula? (nth node 2 nil))
          (nil? (nnext (next node))))
     (quantifier-form? node 'forall) true
+    (quantifier-form? node 'once-forall) true
     (quantifier-form? node 'exists) true
     :else false))
 
@@ -232,6 +242,10 @@
          (nnf-formula? (nth node 2 nil))
          (nil? (nnext (next node))))
     (and (seq? node) (= 'forall (first node)))
+    (and (nominal/tie? (second node))
+         (nil? (nnext node))
+         (nnf-formula? (:body (second node))))
+    (and (seq? node) (= 'once-forall (first node)))
     (and (nominal/tie? (second node))
          (nil? (nnext node))
          (nnf-formula? (:body (second node))))

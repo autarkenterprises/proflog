@@ -145,14 +145,23 @@
 
 (defn subst-termo
   "Substitute values for tagged noms (var a) in a term, using environment.
-   (par p) terms are δ-parameters — already ground, pass through unchanged.
-   Raw logic variables (synthesis targets from run) are passed through unchanged.
-   Uses project for type dispatch — subst-termo is always called fml→out (forward only)."
+   Projects fml for type dispatch.  Var case chains through par bindings
+   for constraint propagation: after lookupo, projects result to check if
+   it's a par with a propagated binding.  Single project per var substitution."
   [fml env out]
   (project [fml]
     (cond
       (and (vector? fml) (= (first fml) 'var))
-      (lookupo (second fml) env out)
+      (fresh [val]
+        (lookupo (second fml) env val)
+        (project [val]
+          (if (and (vector? val) (= (first val) 'par))
+            ;; var resolved to (par p) — check for propagated par-eq binding
+            (conda
+              [(lookupo (second val) env out)]
+              [(== val out)])
+            ;; var resolved to non-par — pass through directly
+            (== val out))))
 
       (and (vector? fml) (= (first fml) 'par))
       (== fml out)
@@ -746,6 +755,31 @@
        (l-ground-termo t)
        (l-ground-term*o rest))]))
 
+;; --- 5b. Par-Eq Constraint Propagation ---
+
+(defn propagate-par-eqo
+  "When an eq literal binds a δ-parameter to a concrete term, add the
+   binding [par-nom, term] to env so that subsequent subst-termo calls
+   resolve the par eagerly.  This is the core of constraint propagation:
+   it turns 'deferred' par-vs-concrete clashes into immediate free-closures,
+   pruning dead β-branches before they are explored.
+
+   Only fires when exactly one side is (par p) and the other is not a par.
+   Leaves env unchanged otherwise (both pars, neither par, etc.)."
+  [t1 t2 env new-env]
+  (project [t1 t2]
+    (cond
+      (and (vector? t1) (= (first t1) 'par)
+           (not (and (vector? t2) (= (first t2) 'par))))
+      (== new-env (lcons [(second t1) t2] env))
+
+      (and (vector? t2) (= (first t2) 'par)
+           (not (and (vector? t1) (= (first t1) 'par))))
+      (== new-env (lcons [(second t2) t1] env))
+
+      :else
+      (== new-env env))))
+
 ;; ============================================================================
 ;; Part 6: The Main Prover — αleanTAP-EP (proveo)
 ;; ============================================================================
@@ -1056,11 +1090,12 @@
                  (eq-neq-closeo n1 n2 eqs)
                  (== ['eq-triggered-neq-close] proof)
                  (== lem-out lem-in))]
-              ;; Continue expansion (savefml)
-              [(fresh [next unexp1 prf]
+              ;; Continue expansion (savefml) — with par-eq constraint propagation
+              [(fresh [next unexp1 prf new-env]
                  (== (lcons next unexp1) unexp)
                  (== (lcons 'savefml prf) proof)
-                 (proveo next unexp1 (lcons lit lits) env program prf gamma-budget lem-in lem-out))]))]))])))
+                 (propagate-par-eqo t1 t2 env new-env)
+                 (proveo next unexp1 (lcons lit lits) new-env program prf gamma-budget lem-in lem-out))]))]))])))
 
 ;; ============================================================================
 ;; Part 7: Top-Level Interface

@@ -49,5 +49,42 @@
    :GP   (fn [m] (re-find #"^test-GP\d" (str (:name m))))
    :GV   (fn [m] (re-find #"^test-GV\d" (str (:name m))))
    :FD   (fn [m] (re-find #"^test-FD\d" (str (:name m))))}
-  :aliases {"test-section"   ["run" "-m" "cljtap.run-section"]
-            "test-all-timed" ["run" "-m" "cljtap.run-section" "--all"]})
+  :aliases {"test-section"         ["run" "-m" "cljtap.run-section"]
+            "test-all-timed"       ["run" "-m" "cljtap.run-section" "--all"]
+            "test-proflog-fast"    ["test"
+                                    "proflog.ast-test"
+                                    "proflog.adversarial-test"
+                                    "proflog.language-test"
+                                    "proflog.normalize-test"
+                                    "proflog.pretty-test"
+                                    "proflog.subst-test"
+                                    "proflog.tabling-test"
+                                    "proflog.existential-disequality-test"
+                                    "proflog.gamma-test"
+                                    "proflog.closed-term-gamma-test"
+                                    "proflog.kernel-test"
+                                    "proflog.proof-test"
+                                    "proflog.equality-test"
+                                    "proflog.oracle.herbrand-test"
+                                    "proflog.program-test"
+                                    "proflog.query-test"]
+            "test-proflog-extended" ["test"
+                                    "proflog.answers-test"
+                                     "proflog.integration-families-test"
+                                     "proflog.list-programs-test"
+                                     "proflog.quantified-programs-test"
+                                     "proflog.query-extended-test"
+                                     "proflog.recursive-synthesis-test"
+                                     "proflog.reverse-program-synthesis-test"
+                                     "proflog.synthesis-modes-test"
+                                     "proflog.nim-synthesis-test"]
+            "test-proflog-parity" ["test"
+                                   "proflog.parity-test"]
+            "test-proflog-parity-experimental" ["test"
+                                                "proflog.parity-experimental-test"]
+            "test-proflog-hard-families" ["test"
+                                          "proflog.legacy-hard-families-test"]
+            "test-proflog-legacy-impurity" ["test"
+                                            "proflog.legacy-impurity-test"]
+            "probe-proflog-legacy-stream" ["run" "-m" "proflog.legacy-stream-probe"]
+            "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]})

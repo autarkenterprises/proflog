@@ -30,9 +30,15 @@
       forall (let [tied (second formula)]
                (ast/exists-form (:binding-nom tied)
                                 (negate-formula (:body tied))))
+      once-forall (let [tied (second formula)]
+                    (ast/exists-form (:binding-nom tied)
+                                     (negate-formula (:body tied))))
       exists (let [tied (second formula)]
-               (ast/forall-form (:binding-nom tied)
-                                (negate-formula (:body tied))))
+               ;; Negated existential clause bodies are operationally
+               ;; single-use: instantiate once on the current branch rather
+               ;; than re-enqueueing an ordinary universal indefinitely.
+               (ast/once-forall-form (:binding-nom tied)
+                                     (negate-formula (:body tied))))
       not (to-nnf (second formula))
       implies (negate-formula (to-nnf formula))
       (throw (ex-info "Unsupported formula for NNF negation"
@@ -59,6 +65,9 @@
       forall (let [tied (second formula)]
                (ast/forall-form (:binding-nom tied)
                                 (to-nnf (:body tied))))
+      once-forall (let [tied (second formula)]
+                    (ast/once-forall-form (:binding-nom tied)
+                                          (to-nnf (:body tied))))
       exists (let [tied (second formula)]
                (ast/exists-form (:binding-nom tied)
                                 (to-nnf (:body tied))))

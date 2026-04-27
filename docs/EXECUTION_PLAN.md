@@ -53,17 +53,56 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0003](adr/ADR-0003-pure-relational-kernel.md) | completed | `adr-0003-kernel` | proof terms, tableau kernel, base quantifier/connective rules | ADR-0002 | `kernel_test`, `proof_test` | αleanTAP-style pure relational kernel runs the base first-order tableau fragment |
 | [ADR-0004](adr/ADR-0004-equality-kernel.md) | completed | `adr-0004-equality` | free-constructor equality, occurs-check, disequality store | ADR-0003 | `equality_test`, `oracle/herbrand_test` | equality and disequality pass micro-tests and bounded Herbrand oracle checks |
 | [ADR-0005](adr/ADR-0005-procedure-calls-and-query-api.md) | completed | `adr-0005-calls-query` | program lookup/binding, subsidiary tableaux, succeed/fail race | ADR-0004 | `program_test`, `query_test` | Fitting `P1` and `P2` run end-to-end and query statuses are honest |
-| [ADR-0006](adr/ADR-0006-answer-discipline-and-variant-boundary.md) | proposed | `adr-0006-answers-variants` | answer projection, residual constraints, proof replay, variant gating | ADR-0005 | `answers_test`, `query_test` open-query cases | exported answers are admissible and semantic variants are explicit |
+| [ADR-0007](adr/ADR-0007-nim-correctness-and-query-bounds.md) | completed | `adr-0007-nim-correctness-query-bounds` | remediate ADR-0005 on Nim correctness, L-ground calls, and bounded query control | ADR-0005 | `equality_test`, `kernel_test`, `query_test` | winning and losing Nim positions are distinguished correctly and bounded query helpers return predictably |
+| [ADR-0008](adr/ADR-0008-test-gap-closure.md) | completed | `adr-0008-test-gap-closure` | close mission-relevant greenfield test gaps and determine reverse-program-synthesis feasibility | ADR-0007 | expand `kernel_test`, `equality_test`, `program_test`, `query_test`, `answers_test`, `synthesis_modes_test` | checklist is current, core gap families are either covered or explicitly deferred, and reverse program synthesis has a documented greenfield determination |
+| [ADR-0009](adr/ADR-0009-legacy-program-closure.md) | completed | `adr-0009-legacy-program-closure` | turn the remaining legacy program-family comparison into parity tracking, worked examples, and family-by-family closure | ADR-0008 | `integration_families_test`, `list_programs_test`, `quantified_programs_test`, `synthesis_modes_test`, plus new family namespaces as needed | parity matrix is current, extant families have worked examples, present-but-weaker families are closed or bounded, and promoted legacy-only families are documented honestly |
+| [ADR-0006](adr/ADR-0006-answer-discipline-and-variant-boundary.md) | proposed | `adr-0006-answers-variants` | answer projection, residual constraints, proof replay, variant gating | ADR-0007 | `answers_test`, `query_test` open-query cases | exported answers are admissible and semantic variants are explicit |
+| [ADR-0011](adr/ADR-0011-open-answer-relationality.md) | completed | `adr-0011-open-answer-relationality` | default open-answer search via staged kernel call descent instead of eager pre-unfolding | ADR-0009 | `answers_test`, `list_programs_test`, and any narrow kernel regression needed for direct answer descent | default open-answer mode stages kernel call-depth directly, docs record the new reverse/append boundary, and remaining legacy gaps stay explicit |
+| [ADR-0012](adr/ADR-0012-closed-answer-parity-mode.md) | completed | `adr-0012-closed-answer-parity-mode` | long-running closed-answer parity search mode, isolated from the generic symbolic API so its necessity can be evaluated honestly | ADR-0011 | parity-mode regressions for `reverse([a,b],r)`, inverse `append`, and nested list families | the repo can run dedicated closed-answer parity probes without changing the generic symbolic contract, and the branch concludes that the specialty mode is currently necessary |
+| [ADR-0013](adr/ADR-0013-relational-answer-performance.md) | completed | `adr-0013-relational-answer-performance` | recursive nonground answer-mode descent, frontier canonicalization, and residual normalization to reduce the need for specialty modes | ADR-0011 | generic-path regressions for reverse parity, deeper append splits, and duplicate frontier collapse | duplicate frontiers are normalized, the known list-family closed answers are now available through `query-answers`, and the branch concludes that ADR-0012 still remains necessary as the explicit closed-answer API |
+| [ADR-0014](adr/ADR-0014-generic-legacy-evaluation.md) | accepted | `adr-0014-generic-legacy-evaluation` | generic evaluation of still-unsatisfied legacy families through raw-stream probes, generic post-processing, and explicit layer accounting | ADR-0013 | exploratory selectors and promoted regressions for `GV`, `FD`, and other still-unsatisfied legacy queries | the repo can say for each promoted legacy-unsatisfied query whether the desired answer is absent, late, generically recoverable by stream processing, or only reachable by specialty handling |
+| [ADR-0015](adr/ADR-0015-answer-overlay-extraction.md) | completed | `adr-0015-answer-overlay` | extract the separate answer-mode flow from `proflog.kernel` into a dedicated overlay namespace while preserving the pure proof kernel | ADR-0014 | narrow kernel and answer regressions proving the extracted overlay still supports the documented answer surface | the ordinary kernel is callable without embedded answer-mode flow, the answer APIs route through a separate overlay namespace, the shared proof core lives in `kernel_support.clj`, and the extended suite is green on the extracted boundary |
+| [ADR-0016](adr/ADR-0016-fair-agenda-and-micro-fuel.md) | completed | `adr-0016-fair-scheduling` | fair agenda scheduling and refined micro-step fuel for proof search | ADR-0015 | scheduler, list-family, answer-diagnostics, and micro-fuel regressions | kernel and answer overlay select pending branch work relationally, fuel has a documented micro-step contract, stale left-first diagnostics are corrected, and fast plus targeted extended regressions are green |
+| [ADR-0017](adr/ADR-0017-relational-tabling-and-canonical-state.md) | completed | `adr-0017-relational-tabling` | separate relational tabling and canonical proof-state reuse | ADR-0016 | canonical-key, tabled-vs-untabled, duplicate-state, list-family measurement regressions | a separate tabling namespace reuses canonical kernel states without obscuring the kernel; duplicate fair-agenda substates are tabled, while raw multi-step list proofs remain a documented follow-up |
+| [ADR-0018](adr/ADR-0018-existential-disequality-witnesses.md) | completed | `adr-0018-existential-disequality-witnesses` | accurate object-language witnesses for existential disequality programs | ADR-0017 | gatekeeping regressions for `p(x) :- exists y. x != y` over `{a,b}`: `p(a)` and `p(b)` succeed, explicit bounded answers are exactly `a` and `b`, and no `(par ...)` escapes | greenfield evaluates the existential disequality witness program accurately without imitating legacy's impure `project`-based answer leak; fast and legacy-impurity suites pass |
+| [ADR-0019](adr/ADR-0019-closed-term-gamma-instantiation.md) | completed | `adr-0019-closed-term-gamma-instantiation` | generic bounded closed-term generation for Fitting gamma instantiation | ADR-0018 | generator regressions for constants, unary and binary constructors, plus gamma / once-forall proofs requiring compound generated terms | gamma instantiation can fairly try generated closed terms from any declared constructor signature without family-specific code, while preserving the kernel's readable Fitting-rule surface |
+| [ADR-0020](adr/ADR-0020-pure-gamma-candidate-boundary.md) | completed | `adr-0020-0021-gamma-purity-regressions` | remove projected gamma candidate choice from the kernel path | ADR-0019 | purity regression for explicit finite gamma candidates and no `project` in `proflog.gamma` | gamma candidate choice is explicit finite membership threaded through proof state, preserving reverse/partial kernel use better than projected host inspection |
+| [ADR-0021](adr/ADR-0021-gamma-search-regression-repair.md) | completed | `adr-0020-0021-gamma-purity-regressions` | repair closed-term gamma search regressions in extended suites | ADR-0020 | integration and quantified regressions, plus list-family comparison against pre-ADR-0019 checkpoints | generated closed terms remain available for call-free constructor counterexamples without front-loading Herbrand enumeration into recursive program-call search |
 
 ## Deferred Tracks
 
 The following work is intentionally downstream of the baseline implementation and should not be folded into earlier ADRs by default:
 
-- tabling or memoization of calls,
 - congruence-cache acceleration,
 - bounded disunifier enumeration,
 - arithmetic extensions beyond symbolic Peano coverage,
 - any closed-world or Clark-completion semantic profile.
+
+Frontier canonicalization and recursive nonground answer-mode descent have now
+graduated from backlog into ADR-0013.
+Generic evaluation of the still-unsatisfied `GV` / `FD` legacy families has now
+graduated into ADR-0014.
+Answer-mode extraction from the kernel into a separate overlay has now
+graduated into ADR-0015.
+Fair agenda scheduling and micro-step fuel have now graduated into ADR-0016.
+Tabling and proof-state memoization have now graduated into ADR-0017.
+Existential disequality witness evaluation has now graduated into ADR-0018.
+Closed-term gamma instantiation has now graduated into ADR-0019.
+Pure gamma candidate threading has now graduated into ADR-0020.
+Closed-term gamma search regression repair has now graduated into ADR-0021.
+
+## ADR-0007 Task List
+
+- Strengthen greenfield Nim coverage beyond the single `win(3)` regression.
+- Restore the L-ground call boundary for plain procedure calls.
+- Preserve branch-local equality information strong enough to rewrite a walked
+  `par` argument back into the object language before a call is attempted.
+- Replace the current force-stop timeout behavior with bounded helpers that
+  return control reliably.
+- Keep semantic Nim coverage on direct success/failure proof checks instead of
+  treating bounded query races as the semantic authority.
+- Correct the ADR trail so ADR-0006 does not build on an overstated ADR-0005
+  completion claim.
 
 Each deferred track should become its own ADR if it graduates from backlog to active work.
 

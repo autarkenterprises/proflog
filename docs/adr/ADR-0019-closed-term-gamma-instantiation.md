@@ -1,9 +1,9 @@
 # ADR-0019: Closed-Term Gamma Instantiation
 
-- Status: proposed
+- Status: completed
 - Date: 2026-04-27
 - Branch: `adr-0019-closed-term-gamma-instantiation`
-- AAR: pending
+- AAR: [AAR-0019](../aar/AAR-0019-closed-term-gamma-instantiation.md)
 
 ## Context
 

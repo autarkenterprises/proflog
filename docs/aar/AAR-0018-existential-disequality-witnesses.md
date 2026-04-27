@@ -71,7 +71,7 @@ gap.
 
 ## Follow-Up
 
-- Constructor-depth witness search in the pure proof path is now tracked as
+- Constructor-depth witness search in the pure proof path is implemented by
   [ADR-0019](../adr/ADR-0019-closed-term-gamma-instantiation.md); do not
   silently import whole-Herbrand enumeration into `proflog.kernel`.
 - Keep generic symbolic `query-answers` separate from explicit finite

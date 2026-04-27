@@ -139,6 +139,20 @@ to an opaque optimizer; it should call a documented relation whose contract is
 
 ## Test Obligations
 
+- Add the ADR-0019 gate namespace
+  `test/proflog/closed_term_gamma_test.clj`. It should fail before the
+  constructor-generic gamma generator is implemented.
+- Cover proof-level behavior through public query APIs, not by testing a
+  family-specific helper:
+  - `exists y. y != zero` succeeds only when gamma can generate `s(zero)`,
+  - `exists y. y != zero and y != s(zero)` succeeds only when gamma can
+    generate `s(s(zero))`,
+  - `forall y. y = zero or y = s(zero)` fails only when gamma can generate
+    the compound counterexample `s(s(zero))`,
+  - `exists t. t != leaf` succeeds only when gamma can generate
+    `node(leaf, leaf)`,
+  - `exists t. t != leaf and t != node(leaf, leaf)` succeeds only when gamma
+    can generate a deeper binary tree.
 - Add unit tests for the generic term generator:
   - constants at depth `0`,
   - unary constructors such as Peano `s/1`,

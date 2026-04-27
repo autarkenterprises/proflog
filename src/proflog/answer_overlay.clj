@@ -278,9 +278,10 @@
                              (== (list 'forall (nominal/tie binding-nom body)) fml)
                              (== '() unexpanded)
                              (== (list 'univ prf) proof)
-                             (gamma/closed-term-candidateo gamma-terms witness-term)
                              (subst/remove-bindo binding-nom env narrowed-env)
                              (subst/subst-formulao body narrowed-env body-subst)
+                             (support/call-free-formulao body-subst)
+                             (gamma/closed-term-candidateo gamma-terms witness-term)
                              (support/step-fuelo fuel next-fuel)
                              (prove-stateo body-subst
                                            '()
@@ -326,65 +327,9 @@
                                                         call-depth
                                                         existentials-as-vars?
                                                         prf))))]
-    [(if existentials-as-vars?
-       fail
-       (nominal/fresh [binding-nom]
-                      (fresh [body body-subst narrowed-env witness-term pending next-fuel prf]
-                             (== (list 'forall (nominal/tie binding-nom body)) fml)
-                             (== (list 'univ prf) proof)
-                             (appendo unexpanded (list fml) pending)
-                             (gamma/closed-term-candidateo gamma-terms witness-term)
-                             (subst/remove-bindo binding-nom env narrowed-env)
-                             (subst/subst-formulao body narrowed-env body-subst)
-                             (support/step-fuelo fuel next-fuel)
-                             (prove-stateo body-subst
-                                           pending
-                                           lits
-                                           (lcons [binding-nom witness-term] env)
-                                           proof-vars
-                                           sigma
-                                           sigma-out
-                                           neqs
-                                           neqs-out
-                                           residuals
-                                           residuals-out
-                                           prog
-                                           gamma-terms
-                                           next-fuel
-                                           call-depth
-                                           existentials-as-vars?
-                                           prf))))]
-
     ;; Single-use universal: instantiate once on the current branch without
     ;; re-enqueueing. This is the NNF operational form produced by negating an
     ;; existential clause body for procedure-call execution.
-    [(if existentials-as-vars?
-       fail
-       (nominal/fresh [binding-nom]
-                      (fresh [body body-subst narrowed-env witness-term next-fuel prf]
-                             (== (list 'once-forall (nominal/tie binding-nom body)) fml)
-                             (== (list 'once-univ prf) proof)
-                             (gamma/closed-term-candidateo gamma-terms witness-term)
-                             (subst/remove-bindo binding-nom env narrowed-env)
-                             (subst/subst-formulao body narrowed-env body-subst)
-                             (support/step-fuelo fuel next-fuel)
-                             (prove-stateo body-subst
-                                           unexpanded
-                                           lits
-                                           (lcons [binding-nom witness-term] env)
-                                           proof-vars
-                                           sigma
-                                           sigma-out
-                                           neqs
-                                           neqs-out
-                                           residuals
-                                           residuals-out
-                                           prog
-                                           gamma-terms
-                                           next-fuel
-                                           call-depth
-                                           existentials-as-vars?
-                                           prf))))]
     [(nominal/fresh [binding-nom]
                     (nominal/fresh [free-var-nom]
                                    (fresh [body body-subst narrowed-env next-fuel prf]
@@ -410,6 +355,34 @@
                                                         call-depth
                                                         existentials-as-vars?
                                                         prf))))]
+    [(if existentials-as-vars?
+       fail
+       (nominal/fresh [binding-nom]
+                      (fresh [body body-subst narrowed-env witness-term next-fuel prf]
+                             (== (list 'once-forall (nominal/tie binding-nom body)) fml)
+                             (== (list 'once-univ prf) proof)
+                             (subst/remove-bindo binding-nom env narrowed-env)
+                             (subst/subst-formulao body narrowed-env body-subst)
+                             (support/call-free-formulao body-subst)
+                             (gamma/closed-term-candidateo gamma-terms witness-term)
+                             (support/step-fuelo fuel next-fuel)
+                             (prove-stateo body-subst
+                                           unexpanded
+                                           lits
+                                           (lcons [binding-nom witness-term] env)
+                                           proof-vars
+                                           sigma
+                                           sigma-out
+                                           neqs
+                                           neqs-out
+                                           residuals
+                                           residuals-out
+                                           prog
+                                           gamma-terms
+                                           next-fuel
+                                           call-depth
+                                           existentials-as-vars?
+                                           prf))))]
 
     ;; δ-rule: instantiate an existential exactly once with a rigid internal
     ;; parameter in ordinary proof search. Answer export instead introduces a

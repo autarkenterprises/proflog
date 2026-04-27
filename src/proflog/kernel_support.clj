@@ -227,6 +227,34 @@
            (l-ground-termo head)
            (l-ground-term*o tail))]))
 
+(declare call-free-formulao)
+
+(defn call-free-formulao
+  "Succeed when `formula` contains no positive or negative procedure atoms.
+
+   Generated closed gamma candidates are useful for finite constructor
+   counterexamples in equality / disequality structure. Letting that branch
+   fire inside recursive procedure-call formulas multiplies ordinary program
+   search by a Herbrand candidate set. This pure structural guard keeps the
+   generated-term path out of those recursive call bodies without using
+   host-side projection."
+  [formula]
+  (conde
+    [(== (list 'true) formula)]
+    [(== (list 'false) formula)]
+    [(fresh [left right]
+       (== (list 'eq left right) formula))]
+    [(fresh [left right]
+       (== (list 'neq left right) formula))]
+    [(fresh [left right]
+       (== (list 'and left right) formula)
+       (call-free-formulao left)
+       (call-free-formulao right))]
+    [(fresh [left right]
+       (== (list 'or left right) formula)
+       (call-free-formulao left)
+       (call-free-formulao right))]))
+
 ;; ---------------------------------------------------------------------------
 ;; Bounded search bookkeeping
 ;; ---------------------------------------------------------------------------

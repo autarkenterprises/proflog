@@ -101,6 +101,15 @@
               (s (s (s (zero))))]
              (gamma/closed-terms-for-fuel {:language unary-language} 8))))))
 
+(deftest candidate-count-is-capped-generically
+  (testing "high-branching signatures are truncated without family-specific code"
+    (binding [gamma/*closed-term-depth-cap* 2
+              gamma/*closed-term-count-cap* 3]
+      (is (= [(a)
+              (b)
+              (f (a))]
+             (gamma/closed-terms-for-fuel {:language mixed-language} 8))))))
+
 (deftest candidate-relation-uses-explicit-finite-candidates
   (testing "the kernel-facing relation does not project fuel or program state"
     (let [terms (gamma/closed-terms-for-fuel {:language unary-language} 2)]

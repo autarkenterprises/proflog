@@ -15,7 +15,15 @@
    Fuel controls when gamma choices are available; this cap prevents one choice
    from materializing an unbounded Herbrand universe when a language has
    recursive constructors."
-  3)
+  2)
+
+(def ^:dynamic *closed-term-count-cap*
+  "Maximum number of closed candidates supplied to one proof search.
+
+   This is a second generic guard for high-branching signatures such as
+   `cons/2` over several constants, where even shallow depth slices can grow
+   quickly."
+  32)
 
 (defn- declaration-order
   "Stable ordering for declared constructor symbols."
@@ -90,11 +98,41 @@
       (integer? fuel) (min cap (max 0 fuel))
       :else 0)))
 
+(declare formula-call-free?)
+
+(defn- formula-call-free?
+  "True when `formula` contains no positive or negative procedure atoms."
+  [formula]
+  (case (ast/tag-of formula)
+    true true
+    false true
+    eq true
+    neq true
+    and (and (formula-call-free? (second formula))
+             (formula-call-free? (nth formula 2)))
+    or (and (formula-call-free? (second formula))
+            (formula-call-free? (nth formula 2)))
+    forall (formula-call-free? (:body (second formula)))
+    once-forall (formula-call-free? (:body (second formula)))
+    exists (formula-call-free? (:body (second formula)))
+    false))
+
+(defn- program-call-free?
+  "True when every compiled clause body remains in the equality fragment."
+  [prog]
+  (every? (fn [{:keys [body negated-body]}]
+            (and (formula-call-free? body)
+                 (formula-call-free? negated-body)))
+          (:clause-list prog)))
+
 (defn closed-terms-for-fuel
   "Return bounded closed object-language terms for `prog` at the current fuel."
   [prog fuel]
-  (if-let [lang (:language prog)]
-    (closed-terms-up-to-depth lang (fuel->closed-term-depth fuel))
+  (if-let [lang (and (program-call-free? prog)
+                    (:language prog))]
+    (vec
+      (take (max 0 *closed-term-count-cap*)
+            (closed-terms-up-to-depth lang (fuel->closed-term-depth fuel))))
     []))
 
 (defn closed-term-candidateo

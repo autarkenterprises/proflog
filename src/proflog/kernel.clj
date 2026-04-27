@@ -258,9 +258,10 @@
          (== (list 'forall (nominal/tie binding-nom body)) fml)
          (== '() unexpanded)
          (== (list 'univ prf) proof)
-         (gamma/closed-term-candidateo gamma-terms witness-term)
          (subst/remove-bindo binding-nom env narrowed-env)
          (subst/subst-formulao body narrowed-env body-subst)
+         (support/call-free-formulao body-subst)
+         (gamma/closed-term-candidateo gamma-terms witness-term)
          (support/step-fuelo fuel next-fuel)
          (recursive-prove-stateo body-subst
                                  '()
@@ -299,29 +300,6 @@
                                    gamma-terms
                                    next-fuel
                                    prf))))]
-    [(nominal/fresh [binding-nom]
-       (fresh [body body-subst narrowed-env witness-term pending next-fuel prf]
-         (== (list 'forall (nominal/tie binding-nom body)) fml)
-         (== (list 'univ prf) proof)
-         (appendo unexpanded (list fml) pending)
-         (gamma/closed-term-candidateo gamma-terms witness-term)
-         (subst/remove-bindo binding-nom env narrowed-env)
-         (subst/subst-formulao body narrowed-env body-subst)
-         (support/step-fuelo fuel next-fuel)
-         (recursive-prove-stateo body-subst
-                                 pending
-                                 lits
-                                 (lcons [binding-nom witness-term] env)
-                                 proof-vars
-                                 sigma
-                                 sigma-out
-                                 neqs
-                                 neqs-out
-                                 prog
-                                 gamma-terms
-                                 next-fuel
-                                 prf)))]
-
     ;; ================================================================
     ;; Once-forall: single-use universal
     ;; ================================================================
@@ -329,27 +307,6 @@
     ;; This is not a primitive from Fitting's syntax; it is the NNF operational
     ;; form we obtain when negating an existential clause body for negative
     ;; procedure calls. Unlike gamma, it does not re-enqueue itself.
-    [(nominal/fresh [binding-nom]
-       (fresh [body body-subst narrowed-env witness-term next-fuel prf]
-         (== (list 'once-forall (nominal/tie binding-nom body)) fml)
-         (== (list 'once-univ prf) proof)
-         (gamma/closed-term-candidateo gamma-terms witness-term)
-         (subst/remove-bindo binding-nom env narrowed-env)
-         (subst/subst-formulao body narrowed-env body-subst)
-         (support/step-fuelo fuel next-fuel)
-         (recursive-prove-stateo body-subst
-                                 unexpanded
-                                 lits
-                                 (lcons [binding-nom witness-term] env)
-                                 proof-vars
-                                 sigma
-                                 sigma-out
-                                 neqs
-                                 neqs-out
-                                 prog
-                                 gamma-terms
-                                 next-fuel
-                                 prf)))]
     [(nominal/fresh [binding-nom]
        (nominal/fresh [free-var-nom]
          (fresh [body body-subst narrowed-env next-fuel prf]
@@ -371,6 +328,28 @@
                                    gamma-terms
                                    next-fuel
                                    prf))))]
+    [(nominal/fresh [binding-nom]
+       (fresh [body body-subst narrowed-env witness-term next-fuel prf]
+         (== (list 'once-forall (nominal/tie binding-nom body)) fml)
+         (== (list 'once-univ prf) proof)
+         (subst/remove-bindo binding-nom env narrowed-env)
+         (subst/subst-formulao body narrowed-env body-subst)
+         (support/call-free-formulao body-subst)
+         (gamma/closed-term-candidateo gamma-terms witness-term)
+         (support/step-fuelo fuel next-fuel)
+         (recursive-prove-stateo body-subst
+                                 unexpanded
+                                 lits
+                                 (lcons [binding-nom witness-term] env)
+                                 proof-vars
+                                 sigma
+                                 sigma-out
+                                 neqs
+                                 neqs-out
+                                 prog
+                                 gamma-terms
+                                 next-fuel
+                                 prf)))]
 
     ;; ================================================================
     ;; Delta rule: existential quantifier

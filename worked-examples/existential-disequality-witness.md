@@ -67,7 +67,7 @@ The same program is compiled through the greenfield language boundary:
    :relations {'p 1}})
 ```
 
-Current greenfield behavior, measured on 2026-04-26, is:
+Before ADR-0018, greenfield behavior measured on 2026-04-26 was:
 
 ```text
 query-status p(a), timeout 1000 ms  => :unresolved
@@ -86,20 +86,41 @@ Greenfield is correct on the boundary that legacy violates:
 - user answer variables are kept distinct from proof-local delta parameters.
 - the public answer exporters refuse to emit `(par ...)`.
 
-Greenfield is still incomplete for this program. It avoids legacy's unsound
-internal-parameter answer, but it does not yet discover the available
-object-language witnesses `a` and `b`.
+At that point, greenfield was still incomplete for this program. It avoided
+legacy's unsound internal-parameter answer, but it did not yet discover the
+available object-language witnesses `a` and `b`.
+
+ADR-0018 changes the pure proof path by allowing the single-use universal
+created from the negated existential body to instantiate with declared nullary
+object-language terms. After that change:
+
+```text
+query-status p(a), timeout 1000 ms  => :succeeds
+query-status p(b), timeout 1000 ms  => :succeeds
+query-succeeds p(a), fuel 8         => ((neg-call (once-univ (free-close))))
+query-fails p(a), fuel 8            => ()
+query-ground-answers p(answer),
+  max-depth 0, fuel 8               => [(app a) (app b)]
+query-parity-answers p(answer),
+  max-term-size 0, fuel 8           => [(app a) (app b)]
+query-answers p(answer), fuel 8     => []
+```
+
+The last line is deliberate. The generic symbolic answer overlay still avoids
+turning all open queries into concrete Herbrand enumeration, because existing
+programs rely on that API preserving symbolic frontiers and residual calls. The
+accurate finite evaluation of this program is now available through direct
+ground query status and the explicit bounded materialization APIs.
 
 ## Target Behavior
 
-ADR-0018 treats this as a gatekeeping example. A correct greenfield evaluation
-must satisfy all of the following:
+ADR-0018 treats this as a gatekeeping example. The completed implementation
+satisfies all of the following:
 
 - `p(a)` returns `:succeeds`.
 - `p(b)` returns `:succeeds`.
 - `p(a)` and `p(b)` do not also return failure proofs.
-- open answer evaluation returns exactly `a` and `b` under the documented
-  finite-language or bounded-Herbrand policy.
+- explicit bounded answer materialization returns exactly `a` and `b`.
 - no query, answer record, residual, or public proof witness exports `(par ...)`
   as a user-level answer.
 

@@ -1,9 +1,9 @@
 # ADR-0018: Existential Disequality Witnesses
 
-- Status: accepted
+- Status: completed
 - Date: 2026-04-26
 - Branch: `adr-0018-existential-disequality-witnesses`
-- AAR: pending
+- AAR: [AAR-0018](../aar/AAR-0018-existential-disequality-witnesses.md)
 
 ## Context
 
@@ -24,10 +24,10 @@ internal delta parameter. Its projected `l-ground-termo` admits an unbound logic
 variable before a later binding turns that variable into `(par ...)`. That is
 not a sound program answer.
 
-Greenfield preserves the more important boundary: it keeps proof-local delta
-parameters out of public answers. Current greenfield behavior is nevertheless
-incomplete. It reports `p(a)` and `p(b)` as unresolved and returns no answers
-for `p(x)` in the bounded public answer helpers.
+Greenfield preserved the more important boundary: it kept proof-local delta
+parameters out of public answers. At the start of this ADR, greenfield behavior
+was nevertheless incomplete. It reported `p(a)` and `p(b)` as unresolved and
+returned no answers for `p(x)` in the bounded public answer helpers.
 
 The worked example is recorded in
 `worked-examples/existential-disequality-witness.md`.

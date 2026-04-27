@@ -68,6 +68,7 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0019](adr/ADR-0019-closed-term-gamma-instantiation.md) | completed | `adr-0019-closed-term-gamma-instantiation` | generic bounded closed-term generation for Fitting gamma instantiation | ADR-0018 | generator regressions for constants, unary and binary constructors, plus gamma / once-forall proofs requiring compound generated terms | gamma instantiation can fairly try generated closed terms from any declared constructor signature without family-specific code, while preserving the kernel's readable Fitting-rule surface |
 | [ADR-0020](adr/ADR-0020-pure-gamma-candidate-boundary.md) | completed | `adr-0020-0021-gamma-purity-regressions` | remove projected gamma candidate choice from the kernel path | ADR-0019 | purity regression for explicit finite gamma candidates and no `project` in `proflog.gamma` | gamma candidate choice is explicit finite membership threaded through proof state, preserving reverse/partial kernel use better than projected host inspection |
 | [ADR-0021](adr/ADR-0021-gamma-search-regression-repair.md) | completed | `adr-0020-0021-gamma-purity-regressions` | repair closed-term gamma search regressions in extended suites | ADR-0020 | integration and quantified regressions, plus list-family comparison against pre-ADR-0019 checkpoints | generated closed terms remain available for call-free constructor counterexamples without front-loading Herbrand enumeration into recursive program-call search |
+| [ADR-0022](adr/ADR-0022-pelletier-problems.md) | proposed | `adr-0022-pelletier-problems` | replicate the upstream alphaleanTAP Pelletier problem benchmark suite in greenfield | ADR-0021 | `pelletier_test` for the existing legacy slice, then upstream Problems 1-20 | a greenfield Pelletier catalog exists, the committed tranche passes or is explicitly classified, timings are recorded, and no theorem-specific overlay is used |
 
 ## Deferred Tracks
 
@@ -90,6 +91,7 @@ Existential disequality witness evaluation has now graduated into ADR-0018.
 Closed-term gamma instantiation has now graduated into ADR-0019.
 Pure gamma candidate threading has now graduated into ADR-0020.
 Closed-term gamma search regression repair has now graduated into ADR-0021.
+Pelletier problem replication is proposed as ADR-0022.
 
 ## ADR-0007 Task List
 

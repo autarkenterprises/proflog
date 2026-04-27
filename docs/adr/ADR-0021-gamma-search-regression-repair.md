@@ -1,9 +1,9 @@
 # ADR-0021: Gamma Search Regression Repair
 
-- Status: proposed
+- Status: completed
 - Date: 2026-04-27
 - Branch: `adr-0020-0021-gamma-purity-regressions`
-- AAR: pending
+- AAR: [AAR-0021](../aar/AAR-0021-gamma-search-regression-repair.md)
 - Depends On: [ADR-0020](ADR-0020-pure-gamma-candidate-boundary.md)
 
 ## Context

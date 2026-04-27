@@ -26,3 +26,5 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0017](AAR-0017-relational-tabling-and-canonical-state.md) | [ADR-0017](../adr/ADR-0017-relational-tabling-and-canonical-state.md) | completed |
 | [AAR-0018](AAR-0018-existential-disequality-witnesses.md) | [ADR-0018](../adr/ADR-0018-existential-disequality-witnesses.md) | completed |
 | [AAR-0019](AAR-0019-closed-term-gamma-instantiation.md) | [ADR-0019](../adr/ADR-0019-closed-term-gamma-instantiation.md) | completed |
+| [AAR-0020](AAR-0020-pure-gamma-candidate-boundary.md) | [ADR-0020](../adr/ADR-0020-pure-gamma-candidate-boundary.md) | completed |
+| [AAR-0021](AAR-0021-gamma-search-regression-repair.md) | [ADR-0021](../adr/ADR-0021-gamma-search-regression-repair.md) | completed |

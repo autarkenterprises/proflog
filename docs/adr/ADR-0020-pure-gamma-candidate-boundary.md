@@ -1,9 +1,9 @@
 # ADR-0020: Pure Gamma Candidate Boundary
 
-- Status: proposed
+- Status: completed
 - Date: 2026-04-27
 - Branch: `adr-0020-0021-gamma-purity-regressions`
-- AAR: pending
+- AAR: [AAR-0020](../aar/AAR-0020-pure-gamma-candidate-boundary.md)
 
 ## Context
 

@@ -93,7 +93,7 @@
    The important semantic point is that procedure-call completeness should
    depend on branch state, not on whether the enabling equality happened to be
    expanded before or after the atom was saved."
-  [lits proof-vars sigma sigma-out neqs neqs-out prog fuel proof]
+  [lits proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
   (conde
     ;; Saved positive atom. If equality has now walked its arguments into an
     ;; admissible L-ground shape, open the subsidiary tableau for the clause
@@ -117,6 +117,7 @@
                                neqs
                                neqs-out
                                prog
+                               gamma-terms
                                next-fuel
                                subproof))]
     ;; Saved negative atom. This is Fitting's "Part 2" procedure-call rule:
@@ -139,6 +140,7 @@
                                neqs
                                neqs-out
                                prog
+                               gamma-terms
                                next-fuel
                                subproof))]))
 
@@ -149,7 +151,7 @@
    explicit as an agenda. `support/selecto` chooses one pending formula from
    that agenda relationally, and the rest of the tableau rules operate on that
    chosen formula plus the remaining pending work."
-  [agenda lits env proof-vars sigma sigma-out neqs neqs-out prog fuel proof]
+  [agenda lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
   (fresh [fml unexpanded]
     (support/selecto fml agenda unexpanded)
     (conde
@@ -174,6 +176,7 @@
                                neqs
                                neqs-out
                                prog
+                               gamma-terms
                                next-fuel
                                prf))]
 
@@ -199,6 +202,7 @@
                                neqs
                                neqs-mid
                                prog
+                               gamma-terms
                                next-fuel
                                left-proof)
        (recursive-prove-stateo right
@@ -211,6 +215,7 @@
                                neqs-mid
                                neqs-out
                                prog
+                               gamma-terms
                                next-fuel
                                right-proof))]
 
@@ -241,6 +246,7 @@
                                    neqs
                                    neqs-out
                                    prog
+                                   gamma-terms
                                    next-fuel
                                    prf))))]
     ;; Fitting's full gamma rule also permits closed terms from the object
@@ -252,7 +258,7 @@
          (== (list 'forall (nominal/tie binding-nom body)) fml)
          (== '() unexpanded)
          (== (list 'univ prf) proof)
-         (gamma/closed-term-candidateo prog fuel witness-term)
+         (gamma/closed-term-candidateo gamma-terms witness-term)
          (subst/remove-bindo binding-nom env narrowed-env)
          (subst/subst-formulao body narrowed-env body-subst)
          (support/step-fuelo fuel next-fuel)
@@ -266,6 +272,7 @@
                                  neqs
                                  neqs-out
                                  prog
+                                 gamma-terms
                                  next-fuel
                                  prf)))]
     ;; General gamma case: when there is already pending branch work, append the
@@ -289,6 +296,7 @@
                                    neqs
                                    neqs-out
                                    prog
+                                   gamma-terms
                                    next-fuel
                                    prf))))]
     [(nominal/fresh [binding-nom]
@@ -296,7 +304,7 @@
          (== (list 'forall (nominal/tie binding-nom body)) fml)
          (== (list 'univ prf) proof)
          (appendo unexpanded (list fml) pending)
-         (gamma/closed-term-candidateo prog fuel witness-term)
+         (gamma/closed-term-candidateo gamma-terms witness-term)
          (subst/remove-bindo binding-nom env narrowed-env)
          (subst/subst-formulao body narrowed-env body-subst)
          (support/step-fuelo fuel next-fuel)
@@ -310,6 +318,7 @@
                                  neqs
                                  neqs-out
                                  prog
+                                 gamma-terms
                                  next-fuel
                                  prf)))]
 
@@ -324,7 +333,7 @@
        (fresh [body body-subst narrowed-env witness-term next-fuel prf]
          (== (list 'once-forall (nominal/tie binding-nom body)) fml)
          (== (list 'once-univ prf) proof)
-         (gamma/closed-term-candidateo prog fuel witness-term)
+         (gamma/closed-term-candidateo gamma-terms witness-term)
          (subst/remove-bindo binding-nom env narrowed-env)
          (subst/subst-formulao body narrowed-env body-subst)
          (support/step-fuelo fuel next-fuel)
@@ -338,6 +347,7 @@
                                  neqs
                                  neqs-out
                                  prog
+                                 gamma-terms
                                  next-fuel
                                  prf)))]
     [(nominal/fresh [binding-nom]
@@ -358,6 +368,7 @@
                                    neqs
                                    neqs-out
                                    prog
+                                   gamma-terms
                                    next-fuel
                                    prf))))]
 
@@ -387,6 +398,7 @@
                                    neqs
                                    neqs-out
                                    prog
+                                   gamma-terms
                                    next-fuel
                                    prf))))]
 
@@ -431,7 +443,7 @@
        (subst/subst-formulao fml env lit)
        (== (list 'eq left right) lit)
        (equality/unify-termo left right sigma sigma-mid step-proof)
-       (saved-call-closeso lits proof-vars sigma-mid sigma-out neqs neqs-out prog fuel branch-proof)
+       (saved-call-closeso lits proof-vars sigma-mid sigma-out neqs neqs-out prog gamma-terms fuel branch-proof)
        (== (list 'eq-step step-proof branch-proof) proof))]
     ;; No immediate contradiction: keep the updated equality state and continue
     ;; with the next pending formula, provided the saved disequalities still
@@ -454,6 +466,7 @@
                                neqs
                                neqs-out
                                prog
+                               gamma-terms
                                next-fuel
                                prf))]
 
@@ -503,6 +516,7 @@
                                (lcons [left right] neqs)
                                neqs-out
                                prog
+                               gamma-terms
                                next-fuel
                                prf))]
 
@@ -540,6 +554,7 @@
                                neqs
                                neqs-out
                                prog
+                               gamma-terms
                                next-fuel
                                subproof))]
     ;; Save the positive atom if it cannot close or call immediately.
@@ -559,6 +574,7 @@
                                neqs
                                neqs-out
                                prog
+                               gamma-terms
                                next-fuel
                                prf))]
 
@@ -594,6 +610,7 @@
                                neqs
                                neqs-out
                                prog
+                               gamma-terms
                                next-fuel
                                subproof))]
     ;; Save the negative atom if it cannot yet close or call.
@@ -613,6 +630,7 @@
                                neqs
                                neqs-out
                                prog
+                               gamma-terms
                                next-fuel
                                prf))])))
 
@@ -621,7 +639,7 @@
 
    Existing callers still pass one focused formula plus the rest of the branch
    work, but the internal engine now treats them as one explicit agenda."
-  [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out prog fuel proof]
+  [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
   (close-agendao
     (lcons fml unexpanded)
     lits
@@ -632,6 +650,7 @@
     neqs
     neqs-out
     prog
+    gamma-terms
     fuel
     proof))
 
@@ -644,10 +663,10 @@
    answer-oriented state that the overlay later exports explicitly."
   ([fml unexpanded lits env proof]
    (fresh [sigma-out neqs-out]
-     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out nil nil proof)))
+     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out nil '() nil proof)))
   ([fml unexpanded lits env fuel proof]
    (fresh [sigma-out neqs-out]
-     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out nil fuel proof))))
+     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out nil '() fuel proof))))
 
 (defn prove-programo
   "Pure kernel relation with an explicit compiled program for procedure calls.
@@ -656,10 +675,37 @@
    Proflog clauses through Fitting's Procedure Call Rule."
   ([fml unexpanded lits env prog proof]
    (fresh [sigma-out neqs-out]
-     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out prog nil proof)))
+     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out prog (gamma/closed-terms-for-fuel prog nil) nil proof)))
   ([fml unexpanded lits env prog fuel proof]
    (fresh [sigma-out neqs-out]
-     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out prog fuel proof))))
+     (prove-stateo fml
+                   unexpanded
+                   lits
+                   env
+                   '()
+                   '()
+                   sigma-out
+                   '()
+                   neqs-out
+                   prog
+                   (gamma/closed-terms-for-fuel prog fuel)
+                   fuel
+                   proof)))
+  ([fml unexpanded lits env prog gamma-terms fuel proof]
+   (fresh [sigma-out neqs-out]
+     (prove-stateo fml
+                   unexpanded
+                   lits
+                   env
+                   '()
+                   '()
+                   sigma-out
+                   '()
+                   neqs-out
+                   prog
+                   gamma-terms
+                   fuel
+                   proof))))
 
 (defn prove
   "Return up to `n` proof terms closing the given greenfield formula.

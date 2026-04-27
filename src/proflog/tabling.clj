@@ -6,6 +6,7 @@
    canonical state reuse live here as derived operational machinery."
   (:require [clojure.core.logic :refer [fresh project tabled]]
             [proflog.ast :as ast]
+            [proflog.gamma :as gamma]
             [proflog.kernel :as kernel]
             [proflog.kernel-support :as support]
             [proflog.subst :as subst]))
@@ -218,7 +219,7 @@
    formulas, saved literals, residual formulas, disequalities, and substitution
    entries. It is intentionally conservative: future ADR-0017 work can merge
    more states, but this first key must not collapse obviously distinct states."
-  [{:keys [agenda lits neqs sigma residuals env proof-vars prog-key program-id program fuel call-depth]}]
+  [{:keys [agenda lits neqs sigma residuals env proof-vars prog-key program-id program gamma-terms fuel call-depth]}]
   (let [env (or env '())
         sigma (or sigma '())
         ctx {:bindings {}
@@ -240,6 +241,7 @@
      :sigma sigma-key
      :proof-vars proof-vars-key
      :program (or prog-key program-id program)
+     :gamma-terms (seq gamma-terms)
      :fuel fuel
      :call-depth call-depth}))
 
@@ -266,7 +268,7 @@
     [:compiled-program (System/identityHashCode prog)]))
 
 (defn- kernel-state
-  [fml unexpanded lits env proof-vars sigma neqs prog fuel]
+  [fml unexpanded lits env proof-vars sigma neqs prog gamma-terms fuel]
   (let [agenda (cons fml (or unexpanded '()))
         key (state-key {:agenda agenda
                         :lits lits
@@ -275,6 +277,7 @@
                         :env env
                         :proof-vars proof-vars
                         :prog-key (program-cache-key prog)
+                        :gamma-terms gamma-terms
                         :fuel fuel})]
     (KernelTableState.
       key
@@ -286,6 +289,7 @@
        :sigma sigma
        :neqs neqs
        :prog prog
+       :gamma-terms gamma-terms
        :fuel fuel})))
 
 (defn- record-kernel-cache-miss!
@@ -306,7 +310,7 @@
 
 (def ^:private tabled-kernel-stateo
   (tabled [state sigma-out neqs-out proof]
-    (let [{:keys [fml unexpanded lits env proof-vars sigma neqs prog fuel]}
+    (let [{:keys [fml unexpanded lits env proof-vars sigma neqs prog gamma-terms fuel]}
           (.-raw ^KernelTableState state)]
       (record-kernel-cache-miss! state)
       (with-recursive-kernel-tabling
@@ -320,6 +324,7 @@
                              neqs
                              neqs-out
                              prog
+                             gamma-terms
                              fuel
                              proof)))))
 
@@ -329,10 +334,10 @@
    Recursive calls are routed back through this wrapper only when callers bind
    `proflog.kernel/*recursive-prove-stateo*`. Public helpers below do that for
    the duration of `run`, keeping ordinary `proflog.kernel` behavior unchanged."
-  [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out prog fuel proof]
+  [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
   (project [fml unexpanded lits env proof-vars sigma neqs fuel]
     (tabled-kernel-stateo
-      (kernel-state fml unexpanded lits env proof-vars sigma neqs prog fuel)
+      (kernel-state fml unexpanded lits env proof-vars sigma neqs prog gamma-terms fuel)
       sigma-out
       neqs-out
       proof)))
@@ -341,19 +346,19 @@
   "Tabled analogue of `proflog.kernel/proveo`."
   ([fml unexpanded lits env proof]
    (fresh [sigma-out neqs-out]
-     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out nil nil proof)))
+     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out nil '() nil proof)))
   ([fml unexpanded lits env fuel proof]
    (fresh [sigma-out neqs-out]
-     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out nil fuel proof))))
+     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out nil '() fuel proof))))
 
 (defn prove-programo
   "Tabled analogue of `proflog.kernel/prove-programo`."
   ([fml unexpanded lits env prog proof]
    (fresh [sigma-out neqs-out]
-     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out prog nil proof)))
+     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out prog (gamma/closed-terms-for-fuel prog nil) nil proof)))
   ([fml unexpanded lits env prog fuel proof]
    (fresh [sigma-out neqs-out]
-     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out prog fuel proof))))
+     (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out prog (gamma/closed-terms-for-fuel prog fuel) fuel proof))))
 
 (defn prove
   "Return up to `n` proof terms using the ADR-0017 tabled kernel wrapper."

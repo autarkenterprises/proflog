@@ -6,7 +6,7 @@
    necessary finite Herbrand enumeration policy for declared object-language
    constructors."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [fail membero project]]
+  (:require [clojure.core.logic :refer [fail membero]]
             [proflog.ast :as ast]))
 
 (def ^:dynamic *closed-term-depth-cap*
@@ -98,10 +98,13 @@
     []))
 
 (defn closed-term-candidateo
-  "Relate `term` to one bounded closed gamma candidate for `prog` and `fuel`."
-  [prog fuel term]
-  (project [fuel]
-    (let [terms (closed-terms-for-fuel prog fuel)]
-      (if (seq terms)
-        (membero term (apply list terms))
-        fail))))
+  "Relate `term` to one supplied closed gamma candidate.
+
+   Candidate generation is intentionally outside this relation. The proof
+   kernel supplies a finite concrete collection as explicit state, so this
+   relation remains ordinary miniKanren membership rather than host-side
+   inspection of `fuel` or `prog`."
+  [terms term]
+  (if (seq terms)
+    (membero term (apply list terms))
+    fail))

@@ -1,6 +1,9 @@
 (ns proflog.closed-term-gamma-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.core.logic :refer [run]]
+            [clojure.test :refer [deftest is testing]]
             [proflog.ast :as ast]
+            [proflog.gamma :as gamma]
+            [proflog.kernel :as kernel]
             [proflog.language :as language]
             [proflog.query :as query]))
 
@@ -139,3 +142,20 @@
               (proposition 'outside-small-tree)
               1
               8))))))
+
+(deftest kernel-uses-explicit-gamma-candidates
+  (testing "closed-term gamma candidates are supplied as finite state, not projected from fuel inside the kernel"
+    (let [program (unary-program)
+          terms (gamma/closed-terms-for-fuel program 2)
+          negated-body (get-in program [:clauses 'outside-small-unary :negated-body])]
+      (is (seq
+            (run 1 [proof]
+              (kernel/prove-programo
+                negated-body
+                '()
+                '()
+                '()
+                program
+                terms
+                8
+                proof)))))))

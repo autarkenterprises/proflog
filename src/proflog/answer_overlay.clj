@@ -67,7 +67,7 @@
    - if `call-depth` still permits recursive descent, actually run the call;
    - otherwise, when symbolic existential export is enabled, keep the walked
      atom as a residual obligation instead of losing it."
-  [lits proof-vars sigma sigma-out neqs neqs-out residuals residuals-out prog fuel call-depth existentials-as-vars? proof]
+  [lits proof-vars sigma sigma-out neqs neqs-out residuals residuals-out prog gamma-terms fuel call-depth existentials-as-vars? proof]
   (let [can-descend? (or (nil? call-depth) (pos? call-depth))
         next-call-depth (support/next-call-depth call-depth)
         ;; Deferral is only meaningful in answer mode with symbolic existential
@@ -101,6 +101,7 @@
                        residuals
                        residuals-out
                        prog
+                       gamma-terms
                        next-fuel
                        next-call-depth
                        existentials-as-vars?
@@ -150,6 +151,7 @@
                        residuals
                        residuals-out
                        prog
+                       gamma-terms
                        next-fuel
                        next-call-depth
                        existentials-as-vars?
@@ -162,7 +164,7 @@
    branch work is explicit as an agenda, and `support/selecto` exposes the next
    pending obligation as a relational search choice rather than fixing a
    leftmost expansion order."
-  [agenda lits env proof-vars sigma sigma-out neqs neqs-out residuals residuals-out prog fuel call-depth existentials-as-vars? proof]
+  [agenda lits env proof-vars sigma sigma-out neqs neqs-out residuals residuals-out prog gamma-terms fuel call-depth existentials-as-vars? proof]
   (fresh [fml unexpanded]
     (support/selecto fml agenda unexpanded)
     (let [can-descend? (or (nil? call-depth) (pos? call-depth))
@@ -191,6 +193,7 @@
                        residuals
                        residuals-out
                        prog
+                       gamma-terms
                        next-fuel
                        call-depth
                        existentials-as-vars?
@@ -214,6 +217,7 @@
                           residuals
                           residuals-mid
                           prog
+                          gamma-terms
                           next-fuel
                           call-depth
                           existentials-as-vars?
@@ -230,6 +234,7 @@
                           residuals-mid
                           residuals-out
                           prog
+                          gamma-terms
                           next-fuel
                           call-depth
                           existentials-as-vars?
@@ -261,6 +266,7 @@
                                                         residuals
                                                         residuals-out
                                                         prog
+                                                        gamma-terms
                                                         next-fuel
                                                         call-depth
                                                         existentials-as-vars?
@@ -272,7 +278,7 @@
                              (== (list 'forall (nominal/tie binding-nom body)) fml)
                              (== '() unexpanded)
                              (== (list 'univ prf) proof)
-                             (gamma/closed-term-candidateo prog fuel witness-term)
+                             (gamma/closed-term-candidateo gamma-terms witness-term)
                              (subst/remove-bindo binding-nom env narrowed-env)
                              (subst/subst-formulao body narrowed-env body-subst)
                              (support/step-fuelo fuel next-fuel)
@@ -288,6 +294,7 @@
                                            residuals
                                            residuals-out
                                            prog
+                                           gamma-terms
                                            next-fuel
                                            call-depth
                                            existentials-as-vars?
@@ -314,6 +321,7 @@
                                                         residuals
                                                         residuals-out
                                                         prog
+                                                        gamma-terms
                                                         next-fuel
                                                         call-depth
                                                         existentials-as-vars?
@@ -325,7 +333,7 @@
                              (== (list 'forall (nominal/tie binding-nom body)) fml)
                              (== (list 'univ prf) proof)
                              (appendo unexpanded (list fml) pending)
-                             (gamma/closed-term-candidateo prog fuel witness-term)
+                             (gamma/closed-term-candidateo gamma-terms witness-term)
                              (subst/remove-bindo binding-nom env narrowed-env)
                              (subst/subst-formulao body narrowed-env body-subst)
                              (support/step-fuelo fuel next-fuel)
@@ -341,6 +349,7 @@
                                            residuals
                                            residuals-out
                                            prog
+                                           gamma-terms
                                            next-fuel
                                            call-depth
                                            existentials-as-vars?
@@ -355,7 +364,7 @@
                       (fresh [body body-subst narrowed-env witness-term next-fuel prf]
                              (== (list 'once-forall (nominal/tie binding-nom body)) fml)
                              (== (list 'once-univ prf) proof)
-                             (gamma/closed-term-candidateo prog fuel witness-term)
+                             (gamma/closed-term-candidateo gamma-terms witness-term)
                              (subst/remove-bindo binding-nom env narrowed-env)
                              (subst/subst-formulao body narrowed-env body-subst)
                              (support/step-fuelo fuel next-fuel)
@@ -371,6 +380,7 @@
                                            residuals
                                            residuals-out
                                            prog
+                                           gamma-terms
                                            next-fuel
                                            call-depth
                                            existentials-as-vars?
@@ -395,6 +405,7 @@
                                                         residuals
                                                         residuals-out
                                                         prog
+                                                        gamma-terms
                                                         next-fuel
                                                         call-depth
                                                         existentials-as-vars?
@@ -430,6 +441,7 @@
                                                           residuals
                                                           residuals-out
                                                           prog
+                                                          gamma-terms
                                                           next-fuel
                                                           call-depth
                                                           existentials-as-vars?
@@ -454,6 +466,7 @@
                                                           residuals
                                                           residuals-out
                                                           prog
+                                                          gamma-terms
                                                           next-fuel
                                                           call-depth
                                                           existentials-as-vars?
@@ -497,7 +510,7 @@
             (subst/subst-formulao fml env lit)
             (== (list 'eq left right) lit)
             (equality/unify-termo left right sigma sigma-mid step-proof)
-            (saved-call-closeso lits proof-vars sigma-mid sigma-out neqs neqs-out residuals residuals-out prog fuel call-depth existentials-as-vars? branch-proof)
+            (saved-call-closeso lits proof-vars sigma-mid sigma-out neqs neqs-out residuals residuals-out prog gamma-terms fuel call-depth existentials-as-vars? branch-proof)
             (== (list 'eq-step step-proof branch-proof) proof))]
     [(fresh [lit left right sigma-mid step-proof next rest next-fuel prf]
             (subst/subst-formulao fml env lit)
@@ -519,6 +532,7 @@
                           residuals
                           residuals-out
                           prog
+                          gamma-terms
                           next-fuel
                           call-depth
                           existentials-as-vars?
@@ -570,6 +584,7 @@
                           residuals
                           residuals-out
                           prog
+                          gamma-terms
                           next-fuel
                           call-depth
                           existentials-as-vars?
@@ -618,6 +633,7 @@
                           residuals
                           residuals-out
                           prog
+                          gamma-terms
                           next-fuel
                           next-call-depth
                           existentials-as-vars?
@@ -643,6 +659,7 @@
                             (lcons lit residuals)
                             residuals-out
                             prog
+                            gamma-terms
                             next-fuel
                             call-depth
                             existentials-as-vars?
@@ -691,6 +708,7 @@
                           residuals
                           residuals-out
                           prog
+                          gamma-terms
                           next-fuel
                           next-call-depth
                           existentials-as-vars?
@@ -715,6 +733,7 @@
                             (lcons lit residuals)
                             residuals-out
                             prog
+                            gamma-terms
                             next-fuel
                             call-depth
                             existentials-as-vars?
@@ -751,6 +770,7 @@
                           residuals
                           residuals-out
                           prog
+                          gamma-terms
                           next-fuel
                           call-depth
                           existentials-as-vars?
@@ -774,6 +794,7 @@
                           residuals
                           residuals-out
                           prog
+                          gamma-terms
                           next-fuel
                           call-depth
                           existentials-as-vars?
@@ -785,7 +806,7 @@
    Existing callers still pass one focused formula plus the remaining pending
    branch work, but internally the answer layer now treats them as one agenda
    and schedules the next obligation relationally."
-  [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out residuals residuals-out prog fuel call-depth existentials-as-vars? proof]
+  [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out residuals residuals-out prog gamma-terms fuel call-depth existentials-as-vars? proof]
   (close-agendao
     (lcons fml unexpanded)
     lits
@@ -798,6 +819,7 @@
     residuals
     residuals-out
     prog
+    gamma-terms
     fuel
     call-depth
     existentials-as-vars?
@@ -814,10 +836,10 @@
    even though it threads residual state internally."
   ([fml unexpanded lits env proof]
    (fresh [sigma-out neqs-out residuals-out]
-          (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out '() residuals-out nil nil nil false proof)))
+          (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out '() residuals-out nil '() nil nil false proof)))
   ([fml unexpanded lits env fuel proof]
    (fresh [sigma-out neqs-out residuals-out]
-          (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out '() residuals-out nil fuel nil false proof))))
+          (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out '() residuals-out nil '() fuel nil false proof))))
 
 (defn prove-answero
   "Kernel relation with explicit exported answer variables.
@@ -830,11 +852,11 @@
    This is the answer-overlay analogue of asking the ordinary kernel for a
    proof witness, except that now we also keep the symbolic frontier visible."
   ([fml unexpanded lits env answer-vars sigma-out neqs-out residuals-out proof]
-   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out nil nil 1 true proof))
+   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out nil '() nil 1 true proof))
   ([fml unexpanded lits env answer-vars sigma-out neqs-out residuals-out fuel proof]
-   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out nil fuel 1 true proof))
+   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out nil '() fuel 1 true proof))
   ([fml unexpanded lits env answer-vars sigma-out neqs-out residuals-out fuel call-depth proof]
-   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out nil fuel call-depth true proof)))
+   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out nil '() fuel call-depth true proof)))
 
 (defn prove-programo
   "Kernel relation with an explicit compiled program for procedure calls.
@@ -844,10 +866,10 @@
    answer-entry surfaces below."
   ([fml unexpanded lits env prog proof]
    (fresh [sigma-out neqs-out residuals-out]
-          (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out '() residuals-out prog nil nil false proof)))
+          (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out '() residuals-out prog (gamma/closed-terms-for-fuel prog nil) nil nil false proof)))
   ([fml unexpanded lits env prog fuel proof]
    (fresh [sigma-out neqs-out residuals-out]
-          (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out '() residuals-out prog fuel nil false proof))))
+          (prove-stateo fml unexpanded lits env '() '() sigma-out '() neqs-out '() residuals-out prog (gamma/closed-terms-for-fuel prog fuel) fuel nil false proof))))
 
 (defn prove-program-answero
   "Kernel relation for query-answer export with explicit answer variables.
@@ -856,11 +878,11 @@
    compiled program explicit, keep answer vars explicit, and expose the learned
    substitution plus residual frontier."
   ([fml unexpanded lits env answer-vars prog sigma-out neqs-out residuals-out proof]
-   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out prog nil 1 true proof))
+   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out prog (gamma/closed-terms-for-fuel prog nil) nil 1 true proof))
   ([fml unexpanded lits env answer-vars prog sigma-out neqs-out residuals-out fuel proof]
-   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out prog fuel 1 true proof))
+   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out prog (gamma/closed-terms-for-fuel prog fuel) fuel 1 true proof))
   ([fml unexpanded lits env answer-vars prog sigma-out neqs-out residuals-out fuel call-depth proof]
-   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out prog fuel call-depth true proof)))
+   (prove-stateo fml unexpanded lits env answer-vars '() sigma-out '() neqs-out '() residuals-out prog (gamma/closed-terms-for-fuel prog fuel) fuel call-depth true proof)))
 
 (defn prove-program-query-entryo
   "Kernel relation for top-level literal query-answer export relative to `prog`.
@@ -884,56 +906,59 @@
   ([lit answer-vars prog sigma-out neqs-out residuals-out fuel proof]
    (prove-program-query-entryo lit answer-vars prog sigma-out neqs-out residuals-out fuel 0 proof))
   ([lit answer-vars prog sigma-out neqs-out residuals-out fuel call-depth proof]
-   (conde
-     ;; Positive top-level query atom: open the clause body directly. Because
-     ;; this is the query boundary, the root call itself does not decrement the
-     ;; recursive answer-call budget.
-     [(fresh [atom relation args call-env body negated-body subproof]
-        (== (list 'pos atom) lit)
-        (== (lcons 'app (lcons relation args)) atom)
-        (support/l-ground-term*o args)
-        (program/call-clauseo prog atom call-env body negated-body)
-        (== (list 'query-pos-call subproof) proof)
-        (prove-stateo body
-                      '()
-                      '()
-                      call-env
-                      answer-vars
-                      '()
-                      sigma-out
-                      '()
-                      neqs-out
-                      '()
-                      residuals-out
-                      prog
-                      fuel
-                      call-depth
-                      true
-                      subproof))]
-     ;; Negative top-level query atom: open the precomputed NNF negation of the
-     ;; clause body, matching Fitting's Part 2 call rule.
-     [(fresh [atom relation args call-env body negated-body subproof]
-        (== (list 'neg atom) lit)
-        (== (lcons 'app (lcons relation args)) atom)
-        (support/l-ground-term*o args)
-        (program/call-clauseo prog atom call-env body negated-body)
-        (== (list 'query-neg-call subproof) proof)
-        (prove-stateo negated-body
-                      '()
-                      '()
-                      call-env
-                      answer-vars
-                      '()
-                      sigma-out
-                      '()
-                      neqs-out
-                      '()
-                      residuals-out
-                      prog
-                      fuel
-                      call-depth
-                      true
-                      subproof))])))
+   (let [gamma-terms (gamma/closed-terms-for-fuel prog fuel)]
+     (conde
+       ;; Positive top-level query atom: open the clause body directly. Because
+       ;; this is the query boundary, the root call itself does not decrement the
+       ;; recursive answer-call budget.
+       [(fresh [atom relation args call-env body negated-body subproof]
+          (== (list 'pos atom) lit)
+          (== (lcons 'app (lcons relation args)) atom)
+          (support/l-ground-term*o args)
+          (program/call-clauseo prog atom call-env body negated-body)
+          (== (list 'query-pos-call subproof) proof)
+          (prove-stateo body
+                        '()
+                        '()
+                        call-env
+                        answer-vars
+                        '()
+                        sigma-out
+                        '()
+                        neqs-out
+                        '()
+                        residuals-out
+                        prog
+                        gamma-terms
+                        fuel
+                        call-depth
+                        true
+                        subproof))]
+       ;; Negative top-level query atom: open the precomputed NNF negation of the
+       ;; clause body, matching Fitting's Part 2 call rule.
+       [(fresh [atom relation args call-env body negated-body subproof]
+          (== (list 'neg atom) lit)
+          (== (lcons 'app (lcons relation args)) atom)
+          (support/l-ground-term*o args)
+          (program/call-clauseo prog atom call-env body negated-body)
+          (== (list 'query-neg-call subproof) proof)
+          (prove-stateo negated-body
+                        '()
+                        '()
+                        call-env
+                        answer-vars
+                        '()
+                        sigma-out
+                        '()
+                        neqs-out
+                        '()
+                        residuals-out
+                        prog
+                        gamma-terms
+                        fuel
+                        call-depth
+                        true
+                        subproof))]))))
 
 (defn prove
   "Return up to `n` proof terms closing the given greenfield formula.

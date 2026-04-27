@@ -101,16 +101,12 @@
               (s (s (s (zero))))]
              (gamma/closed-terms-for-fuel {:language unary-language} 8))))))
 
-(deftest candidate-relation-projects-fuel-at-run-time
-  (testing "recursive calls may pass fuel as a logic variable before it is constrained"
-    (is (= [(zero)
-            (s (zero))
-            (s (s (zero)))]
-           (vec
-             (run* [q]
-               (fresh [fuel]
-                 (== fuel 2)
-                 (gamma/closed-term-candidateo
-                   {:language unary-language}
-                   fuel
-                   q))))))))
+(deftest candidate-relation-uses-explicit-finite-candidates
+  (testing "the kernel-facing relation does not project fuel or program state"
+    (let [terms (gamma/closed-terms-for-fuel {:language unary-language} 2)]
+      (is (= [(zero)
+              (s (zero))
+              (s (s (zero)))]
+             (vec
+               (run* [q]
+                 (gamma/closed-term-candidateo terms q))))))))

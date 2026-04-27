@@ -71,9 +71,9 @@ gap.
 
 ## Follow-Up
 
-- If constructor-depth witness search is needed in the pure proof path, make it
-  a separate ADR with explicit bounds; do not silently import whole-Herbrand
-  enumeration into `proflog.kernel`.
+- Constructor-depth witness search in the pure proof path is now tracked as
+  [ADR-0019](../adr/ADR-0019-closed-term-gamma-instantiation.md); do not
+  silently import whole-Herbrand enumeration into `proflog.kernel`.
 - Keep generic symbolic `query-answers` separate from explicit finite
   materializers unless a later ADR decides to change that public contract.
 - Return to the raw list-family performance gap as a separate problem; this

@@ -1,9 +1,9 @@
 # ADR-0024: Pelletier First-Order Performance Closure
 
-- Status: accepted
+- Status: completed
 - Date: 2026-04-28
 - Branch: `adr-0024-pelletier-first-order-performance`
-- AAR: pending
+- AAR: [AAR-0024](../aar/AAR-0024-pelletier-first-order-performance.md)
 - Depends On: [ADR-0023](ADR-0023-profiled-kernel-layers.md)
 
 ## Context

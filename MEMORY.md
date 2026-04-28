@@ -2,13 +2,16 @@
 
 ## 2026-04-28 ADR-0024 Pelletier First-Order Performance
 
-- Active branch: `adr-0024-pelletier-first-order-performance`.
+- Completed branch: `adr-0024-pelletier-first-order-performance`.
 - ADR-0023 is committed and pushed at `1fe2513` on
   `origin/adr-0023-profiled-kernel-layers`; ADR-0024 branches from that commit.
-- ADR-0024 is accepted and registered in:
+- ADR-0024 is completed and registered in:
   - `docs/adr/ADR-0024-pelletier-first-order-performance.md`
   - `docs/adr/README.md`
   - `docs/EXECUTION_PLAN.md`
+- AAR-0024 records the branch outcome:
+  - `docs/aar/AAR-0024-pelletier-first-order-performance.md`
+  - `docs/aar/README.md`
 - Added comparative report:
   - `docs/PELLETIER_FIRST_ORDER_COMPARISON.md`
   - `test/proflog/pelletier_comparison_test.clj`

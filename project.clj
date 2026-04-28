@@ -51,7 +51,8 @@
    :FD   (fn [m] (re-find #"^test-FD\d" (str (:name m))))
    :pelletier-prompt (fn [m & _] (:pelletier-prompt m))
    :pelletier-passing (fn [m & _] (:pelletier-passing m))
-   :pelletier-exploratory (fn [m & _] (:pelletier-exploratory m))}
+   :pelletier-exploratory (fn [m & _] (:pelletier-exploratory m))
+   :pelletier-comparison (fn [m & _] (:pelletier-comparison m))}
   :aliases {"test-section"         ["run" "-m" "cljtap.run-section"]
             "test-all-timed"       ["run" "-m" "cljtap.run-section" "--all"]
             "test-proflog-fast"    ["test"
@@ -67,6 +68,7 @@
                                     "proflog.closed-term-gamma-test"
                                     "proflog.formula-profile-test"
                                     "proflog.kernel.dispatch-test"
+                                    "proflog.kernel.first-order-test"
                                     "proflog.kernel.propositional-test"
                                     "proflog.kernel-test"
                                     "proflog.proof-test"
@@ -97,6 +99,9 @@
             "test-proflog-pelletier-exploratory" ["test"
                                                   ":pelletier-exploratory"
                                                   "proflog.pelletier-test"]
+            "test-proflog-pelletier-comparison" ["test"
+                                                 ":pelletier-comparison"
+                                                 "proflog.pelletier-comparison-test"]
             "test-proflog-hard-families" ["test"
                                           "proflog.legacy-hard-families-test"]
             "test-proflog-legacy-impurity" ["test"

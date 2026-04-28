@@ -1,5 +1,64 @@
 # Memory
 
+## 2026-04-28 ADR-0024 Pelletier First-Order Performance
+
+- Active branch: `adr-0024-pelletier-first-order-performance`.
+- ADR-0023 is committed and pushed at `1fe2513` on
+  `origin/adr-0023-profiled-kernel-layers`; ADR-0024 branches from that commit.
+- ADR-0024 is accepted and registered in:
+  - `docs/adr/ADR-0024-pelletier-first-order-performance.md`
+  - `docs/adr/README.md`
+  - `docs/EXECUTION_PLAN.md`
+- Added comparative report:
+  - `docs/PELLETIER_FIRST_ORDER_COMPARISON.md`
+  - `test/proflog/pelletier_comparison_test.clj`
+  - `lein test-proflog-pelletier-comparison`
+- Implemented first equality-free first-order theorem layer:
+  - `src/proflog/kernel/first_order.clj`
+  - `kernel/prove` now routes equality-free first-order formulas through it.
+  - `kernel/prove-program`, `kernel/prove-programo`, and direct full
+    `kernel/proveo` remain on the full kernel/program-aware path.
+  - `tabling/prove` now calls the tabled relation directly so host-side
+    profile dispatch does not bypass ADR-0017 tabling instrumentation.
+- Important ADR-0024 boundary:
+  - In the call-free theorem component, `once-forall` is treated as repeatable
+    classical gamma because it comes from negated existentials in theorem
+    branches.
+  - The full program kernel keeps its existing single-use `once-forall`
+    behavior for procedure-call bodies.
+- First promoted tranche from the old too-slow Pelletier set:
+  - `25`, `30`, `31`, `36`, and `41`
+  - These now live in `prompt-passing-ids`.
+- Remaining too-slow Pelletier ids after this tranche:
+  - `24`, `26`, `27`, `28`, `29`, `32`, `34`, `37`, `38`, `43`, `44`, `45`,
+    and `46`.
+- Current comparative finding:
+  - alphaleanTAP-E closes `24`, `25`, `27`, `28`, `29`, `30`, `31`, `32`,
+    `36`, `37`, `41`, and `44` under the `once-forall` to `forall`
+    conversion.
+  - Legacy EP with empty program and gamma budget `80` closes none of the old
+    too-slow tranche.
+  - Greenfield first-order currently closes `25`, `30`, `31`, `36`, and `41`.
+- Verification so far:
+  - `lein test proflog.formula-profile-test proflog.kernel.first-order-test proflog.kernel.dispatch-test`
+    - `Ran 12 tests containing 70 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier-prompt`
+    - `Ran 2 tests containing 31 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier`
+    - `Ran 3 tests containing 36 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier-comparison`
+    - `Ran 2 tests containing 22 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test proflog.tabling-test`
+    - `Ran 5 tests containing 11 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-fast`
+    - `Ran 101 tests containing 293 assertions.`
+    - `0 failures, 0 errors.`
+
 ## 2026-04-28 ADR-0023 Profiled Kernel Layering
 
 - Active branch: `adr-0023-profiled-kernel-layers`.

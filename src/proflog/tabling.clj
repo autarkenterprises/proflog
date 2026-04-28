@@ -4,7 +4,7 @@
    This namespace is deliberately separate from `proflog.kernel`. The kernel
    should remain a readable Fitting-style tableau relation; tabling and
    canonical state reuse live here as derived operational machinery."
-  (:require [clojure.core.logic :refer [fresh project tabled]]
+  (:require [clojure.core.logic :refer [fresh project run tabled]]
             [proflog.ast :as ast]
             [proflog.gamma :as gamma]
             [proflog.kernel :as kernel]
@@ -365,10 +365,14 @@
   ([fml] (prove fml 1))
   ([fml n]
    (with-redefs [kernel/*recursive-prove-stateo* prove-stateo]
-     (doall (kernel/prove fml n))))
+     (doall
+       (run n [proof]
+         (proveo fml '() '() '() proof)))))
   ([fml n fuel]
    (with-redefs [kernel/*recursive-prove-stateo* prove-stateo]
-     (doall (kernel/prove fml n fuel)))))
+     (doall
+       (run n [proof]
+         (proveo fml '() '() '() fuel proof))))))
 
 (defn prove-program
   "Return up to `n` proof terms relative to `prog` through the tabled wrapper."

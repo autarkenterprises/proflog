@@ -31,6 +31,7 @@
             [proflog.ast :as ast]
             [proflog.equality :as equality]
             [proflog.formula-profile :as formula-profile]
+            [proflog.kernel.first-order :as first-order]
             [proflog.gamma :as gamma]
             [proflog.kernel.propositional :as propositional]
             [proflog.kernel-support :as support]
@@ -694,20 +695,24 @@
    This is a convenience wrapper for theorem-proving style use: start with an
    empty branch state and ask core.logic for proof witnesses.
 
-   Ground pure-propositional formulas enter the ADR-0023 propositional component
-   first. Broader theorem formulas continue through the full Proflog kernel, and
-   `prove-program` always remains on the program-aware full kernel."
+   Ground pure-propositional formulas enter the ADR-0023 propositional
+   component first. Ground equality-free first-order formulas enter the
+   ADR-0024 first-order component. Broader theorem formulas continue through
+   the full Proflog kernel, and `prove-program` always remains on the
+   program-aware full kernel."
   ([fml] (prove fml 1))
   ([fml n]
-   (if (formula-profile/pure-propositional? fml)
-     (propositional/prove fml n)
+   (case (formula-profile/profile fml)
+     :pure-propositional (propositional/prove fml n)
+     :equality-free-first-order (first-order/prove fml n)
      (run n [proof]
-          (proveo fml '() '() '() proof))))
+       (proveo fml '() '() '() proof))))
   ([fml n fuel]
-   (if (formula-profile/pure-propositional? fml)
-     (propositional/prove fml n fuel)
+   (case (formula-profile/profile fml)
+     :pure-propositional (propositional/prove fml n fuel)
+     :equality-free-first-order (first-order/prove fml n fuel)
      (run n [proof]
-          (proveo fml '() '() '() fuel proof)))))
+       (proveo fml '() '() '() fuel proof)))))
 
 (defn prove-program
   "Return up to `n` proof terms closing `fml` relative to `prog`.

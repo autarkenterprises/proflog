@@ -717,23 +717,23 @@
    {:id 22 :status :ported-passing :builder problem-22}
    {:id 23 :status :ported-passing :builder problem-23}
    {:id 24 :status :ported-too-slow :builder problem-24}
-   {:id 25 :status :ported-too-slow :builder problem-25}
+   {:id 25 :status :ported-passing :builder problem-25}
    {:id 26 :status :ported-too-slow :builder problem-26}
    {:id 27 :status :ported-too-slow :builder problem-27}
    {:id 28 :status :ported-too-slow :builder problem-28}
    {:id 29 :status :ported-too-slow :builder problem-29}
-   {:id 30 :status :ported-too-slow :builder problem-30}
-   {:id 31 :status :ported-too-slow :builder problem-31}
+   {:id 30 :status :ported-passing :builder problem-30}
+   {:id 31 :status :ported-passing :builder problem-31}
    {:id 32 :status :ported-too-slow :builder problem-32}
    {:id 33 :status :ported-passing :builder problem-33}
    {:id 34 :status :ported-too-slow :builder problem-34}
    {:id 35 :status :ported-passing :builder problem-35}
-   {:id 36 :status :ported-too-slow :builder problem-36}
+   {:id 36 :status :ported-passing :builder problem-36}
    {:id 37 :status :ported-too-slow :builder problem-37}
    {:id 38 :status :ported-too-slow :builder problem-38}
    {:id 39 :status :ported-passing :builder problem-39}
    {:id 40 :status :ported-passing :builder problem-40}
-   {:id 41 :status :ported-too-slow :builder problem-41}
+   {:id 41 :status :ported-passing :builder problem-41}
    {:id 42 :status :ported-passing :builder problem-42}
    {:id 43 :status :ported-too-slow :builder problem-43}
    {:id 44 :status :ported-too-slow :builder problem-44}
@@ -745,13 +745,13 @@
 
 (def prompt-passing-ids
   [1 2 3 4 5 6 7 8 9 11 12 13 14 15 16 18 19 20
-   21 22 23 35 39])
+   21 22 23 25 30 31 35 36 39 41])
 
 (def slow-passing-ids
   [10 17 33 40 42])
 
 (def ported-too-slow-ids
-  [24 25 26 27 28 29 30 31 32 34 36 37 38 41 43 44 45 46])
+  [24 26 27 28 29 32 34 37 38 43 44 45 46])
 
 (def requires-kernel-work-ids
   [])

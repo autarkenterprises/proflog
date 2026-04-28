@@ -70,6 +70,7 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0021](adr/ADR-0021-gamma-search-regression-repair.md) | completed | `adr-0020-0021-gamma-purity-regressions` | repair closed-term gamma search regressions in extended suites | ADR-0020 | integration and quantified regressions, plus list-family comparison against pre-ADR-0019 checkpoints | generated closed terms remain available for call-free constructor counterexamples without front-loading Herbrand enumeration into recursive program-call search |
 | [ADR-0022](adr/ADR-0022-pelletier-problems.md) | completed | `adr-0022-pelletier-problems` | replicate the upstream alphaleanTAP Pelletier problem benchmark suite in greenfield | ADR-0021 | `pelletier_test` for the existing legacy slice, then upstream Problems 1-20 | a greenfield Pelletier catalog exists, the committed tranche passes or is explicitly classified, timings are recorded, and no theorem-specific overlay is used |
 | [ADR-0023](adr/ADR-0023-profiled-kernel-layers.md) | completed | `adr-0023-profiled-kernel-layers` | formula-profiled kernel layers that keep the full Proflog rule structure readable while routing simpler formulas through simpler relational components | ADR-0022 | profile classification tests, a generic propositional kernel regression for Pelletier Problem 12, and dispatch tests proving equality/program formulas still use the full kernel | Problem 12 is promoted through a generic pure-propositional path, no theorem-specific dispatch exists, and the full kernel remains didactically transparent |
+| [ADR-0024](adr/ADR-0024-pelletier-first-order-performance.md) | accepted | `adr-0024-pelletier-first-order-performance` | equality-free first-order performance closure for the remaining Pelletier benchmark tranche | ADR-0023 | comparative measurements for the too-slow tranche, equality-free first-order component tests, and dispatch tests proving equality/program formulas still use broader layers | at least one formerly too-slow Pelletier problem is promoted through generic first-order code and remaining non-passers keep measurements plus follow-up hypotheses |
 
 ## Deferred Tracks
 
@@ -94,6 +95,7 @@ Pure gamma candidate threading has now graduated into ADR-0020.
 Closed-term gamma search regression repair has now graduated into ADR-0021.
 Pelletier problem replication has now graduated into ADR-0022.
 Profiled kernel layering has now graduated into completed ADR-0023.
+Pelletier first-order performance closure is active as accepted ADR-0024.
 
 ## ADR-0007 Task List
 

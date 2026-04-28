@@ -20,6 +20,18 @@
       (is (= :equality-free-first-order
              (profile/profile branch))))))
 
+(deftest remaining-too-slow-pelletier-formulas-are-equality-free-first-order
+  (testing "the ADR-0024 target tranche is structurally in scope for the first-order layer"
+    (doseq [id pelletier/ported-too-slow-ids]
+      (let [branch (pelletier/theorem-branch ((:builder (pelletier/problem-by-id id))))]
+        (is (not (profile/pure-propositional? branch))
+            (str "Pelletier Problem " id " should not be propositional"))
+        (is (profile/equality-free-first-order? branch)
+            (str "Pelletier Problem " id " should be equality-free first-order"))
+        (is (= :equality-free-first-order
+               (profile/profile branch))
+            (str "Pelletier Problem " id " should classify into the first-order layer"))))))
+
 (deftest equality-and-disequality-formulas-are-equality-bearing
   (testing "eq and neq are both full-kernel features"
     (ast/nom x

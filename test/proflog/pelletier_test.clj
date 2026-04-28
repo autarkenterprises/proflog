@@ -704,7 +704,7 @@
    {:id 9 :status :ported-passing :builder problem-9}
    {:id 10 :status :ported-passing :builder problem-10}
    {:id 11 :status :ported-passing :builder problem-11}
-   {:id 12 :status :requires-kernel-work :builder problem-12}
+   {:id 12 :status :ported-passing :builder problem-12}
    {:id 13 :status :ported-passing :builder problem-13}
    {:id 14 :status :ported-passing :builder problem-14}
    {:id 15 :status :ported-passing :builder problem-15}
@@ -744,7 +744,7 @@
   (into {} (map (juxt :id identity) problem-catalog)))
 
 (def prompt-passing-ids
-  [1 2 3 4 5 6 7 8 9 11 13 14 15 16 18 19 20
+  [1 2 3 4 5 6 7 8 9 11 12 13 14 15 16 18 19 20
    21 22 23 35 39])
 
 (def slow-passing-ids
@@ -754,7 +754,7 @@
   [24 25 26 27 28 29 30 31 32 34 36 37 38 41 43 44 45 46])
 
 (def requires-kernel-work-ids
-  [12])
+  [])
 
 (def ported-passing-ids
   (into prompt-passing-ids slow-passing-ids))
@@ -801,10 +801,5 @@
           (str "Pelletier Problem " id " should be classified as too slow"))
       (is builder
           (str "Pelletier Problem " id " should keep its ported builder"))))
-  (testing "propositional misses are classified as kernel work, not ordinary first-order slowness"
-    (doseq [id requires-kernel-work-ids
-            :let [{:keys [status builder]} (problem-by-id id)]]
-      (is (= :requires-kernel-work status)
-          (str "Pelletier Problem " id " should require kernel work"))
-      (is builder
-          (str "Pelletier Problem " id " should keep its ported builder")))))
+  (testing "no ported propositional problem currently requires kernel work"
+    (is (empty? requires-kernel-work-ids))))

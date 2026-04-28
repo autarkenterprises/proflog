@@ -1,5 +1,58 @@
 # Memory
 
+## 2026-04-28 ADR-0023 Profiled Kernel Layering
+
+- Active branch: `adr-0023-profiled-kernel-layers`.
+- Completed ADR-0023 and added AAR-0023:
+  - `docs/adr/ADR-0023-profiled-kernel-layers.md`
+  - `docs/aar/AAR-0023-profiled-kernel-layers.md`
+- Implemented entry-only pure-propositional dispatch:
+  - `src/proflog/formula_profile.clj`
+  - `src/proflog/kernel/propositional.clj`
+  - `kernel/prove` routes pure propositional formulas through the new
+    component.
+  - `kernel/proveo`, `kernel/prove-programo`, and `kernel/prove-program` remain
+    on the full Proflog kernel.
+- Added tests:
+  - `test/proflog/formula_profile_test.clj`
+  - `test/proflog/kernel/propositional_test.clj`
+  - `test/proflog/kernel/dispatch_test.clj`
+- Added direct propositional relation coverage for partial/reverse use:
+  - partial proof skeleton completion through
+    `proflog.kernel.propositional/proveo`
+  - constrained synthesis of a missing complementary atom through
+    `proflog.kernel.propositional/proveo`
+- Important API boundary:
+  - `kernel/prove` uses the host-side formula profiler for forward
+    theorem-style convenience.
+  - reverse and partial relational use should call a relation directly:
+    `proflog.kernel.propositional/proveo` for the propositional layer, or
+    `kernel/proveo` / `kernel/prove-programo` for the full kernel.
+- Pelletier Problem 12 is now `ported-passing` through the generic profiled
+  propositional path and is included in `prompt-passing-ids`.
+- Recurrent dispatch and the equality-free first-order component remain
+  deferred. The full-kernel exact-complement fast path was not touched because a
+  sound broad-kernel version needs a no-new-bindings relational equality check.
+- Verification:
+  - `lein test proflog.formula-profile-test proflog.kernel.propositional-test proflog.kernel.dispatch-test`
+    - `Ran 12 tests containing 30 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier-prompt`
+    - `Ran 2 tests containing 26 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-fast`
+    - `Ran 95 tests containing 239 assertions.`
+    - `0 failures, 0 errors.`
+  - `timeout 600s lein test-proflog-pelletier`
+    - `Ran 3 tests containing 31 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier-exploratory`
+    - `Ran 1 tests containing 37 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test proflog.pelletier-test`
+    - `Ran 5 tests containing 70 assertions.`
+    - `0 failures, 0 errors.`
+
 ## 2026-04-27 ADR-0022 Pelletier Replication
 
 - Active branch: `adr-0022-pelletier-problems`.

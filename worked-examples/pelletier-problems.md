@@ -64,10 +64,10 @@ state machinery. No Proflog program clauses are present.
 
 ## Current ADR-0022 Status
 
-- `ported-passing`: Problems 1-11 and 13-20.
-- `ported-too-slow`: Problem 12. Its formula is ported, but no proof was found
-  within a 120 second fresh-process probe.
-- `not-yet-ported`: Problems 21-46.
+- `ported-passing`: Problems 1-11, 13-23, 33, 35, 39, 40, and 42.
+- `ported-too-slow`: Problems 24-32, 34, 36-38, 41, and 43-46.
+- `requires-kernel-work`: Problem 12. It is propositional, but no proof was
+  found within a 120 second fresh-process probe.
 
 Dedicated selectors keep these tiers separate:
 

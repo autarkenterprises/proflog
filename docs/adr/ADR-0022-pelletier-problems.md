@@ -108,10 +108,11 @@ by a theorem-specific overlay.
   - `lein test-proflog-pelletier`
   - `lein test-proflog-pelletier-exploratory`
 - Current catalog statuses:
-  - `ported-passing`: Problems 1-11 and 13-20.
-  - `ported-too-slow`: Problem 12.
-  - `not-yet-ported`: Problems 21-46.
-- Problem 12 was not promoted into the passing tranche after a fresh-process
-  `120s` probe produced no proof.
-- The full `proflog.pelletier-test` namespace passed with 5 tests and 26
+  - `ported-passing`: Problems 1-11, 13-23, 33, 35, 39, 40, and 42.
+  - `ported-too-slow`: Problems 24-32, 34, 36-38, 41, and 43-46.
+  - `requires-kernel-work`: Problem 12.
+- Problem 12 is propositional and was not promoted into the passing tranche
+  after a fresh-process `120s` probe produced no proof. This is classified as
+  kernel/search work rather than ordinary first-order slowness.
+- The full `proflog.pelletier-test` namespace passed with 5 tests and 70
   assertions.

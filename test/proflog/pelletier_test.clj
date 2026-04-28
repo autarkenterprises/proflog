@@ -212,43 +212,548 @@
                                                           (exists z2
                                                                   (pred 'r (v z2))))))))))))))
 
+(defn problem-21 []
+  (ast/nom ax1 ax2 tx
+    {:axioms [(exists ax1
+                      (implies p
+                               (pred 'f (v ax1))))
+              (exists ax2
+                      (implies (pred 'f (v ax2))
+                               p))]
+     :theorem (exists tx
+                      (iff p
+                           (pred 'f (v tx))))}))
+
+(defn problem-22 []
+  (ast/nom x y
+    (empty-theorem
+      (implies (forall x
+                       (iff p
+                            (pred 'f (v x))))
+               (iff p
+                    (forall y
+                            (pred 'f (v y))))))))
+
+(defn problem-23 []
+  (ast/nom x y
+    (empty-theorem
+      (iff (forall x
+                   (or2 p
+                        (pred 'f (v x))))
+           (or2 p
+                (forall y
+                        (pred 'f (v y))))))))
+
+(defn problem-24 []
+  (ast/nom x1 x2 x3 x4 x5 x6
+    {:axioms [(not* (exists x1
+                            (and2 (pred 's (v x1))
+                                  (pred 'q (v x1)))))
+              (forall x2
+                      (implies (pred 'p (v x2))
+                               (or2 (pred 'q (v x2))
+                                    (pred 'r (v x2)))))
+              (not* (implies (exists x3
+                                      (pred 'p (v x3)))
+                             (exists x4
+                                     (pred 'q (v x4)))))
+              (forall x5
+                      (implies (or2 (pred 'q (v x5))
+                                    (pred 'r (v x5)))
+                               (pred 's (v x5))))]
+     :theorem (exists x6
+                      (and2 (pred 'p (v x6))
+                            (pred 'r (v x6))))}))
+
+(defn problem-25 []
+  (ast/nom x1 x2 x3 x4 x5 x6
+    {:axioms [(exists x1
+                      (pred 'p (v x1)))
+              (forall x2
+                      (implies (pred 'f (v x2))
+                               (and2 (not* (pred 'g (v x2)))
+                                     (pred 'r (v x2)))))
+              (forall x3
+                      (implies (pred 'p (v x3))
+                               (and2 (pred 'g (v x3))
+                                     (pred 'f (v x3)))))
+              (or2 (forall x4
+                           (implies (pred 'p (v x4))
+                                    (pred 'r (v x4))))
+                   (exists x5
+                           (and2 (pred 'p (v x5))
+                                 (pred 'r (v x5)))))]
+     :theorem (exists x6
+                      (and2 (pred 'p (v x6))
+                            (pred 'r (v x6))))}))
+
+(defn problem-26 []
+  (ast/nom x1 x2 x3 y3 x4 x5
+    {:axioms [(iff (exists x1
+                           (pred 'p (v x1)))
+                   (exists x2
+                           (pred 'q (v x2))))
+              (forall x3
+                      (forall y3
+                              (implies (and2 (pred 'p (v x3))
+                                             (pred 'q (v y3)))
+                                       (iff (pred 'r (v x3))
+                                            (pred 's (v y3))))))]
+     :theorem (iff (forall x4
+                           (implies (pred 'p (v x4))
+                                    (pred 'r (v x4))))
+                   (forall x5
+                           (implies (pred 'q (v x5))
+                                    (pred 's (v x5)))))}))
+
+(defn problem-27 []
+  (ast/nom x1 x2 x3 x4 x5 x6
+    {:axioms [(exists x1
+                      (and2 (pred 'f (v x1))
+                            (not* (pred 'g (v x1)))))
+              (forall x2
+                      (implies (pred 'f (v x2))
+                               (pred 'h (v x2))))
+              (forall x3
+                      (implies (and2 (pred 'j (v x3))
+                                     (pred 'i (v x3)))
+                               (pred 'f (v x3))))
+              (implies (exists x4
+                               (and2 (pred 'h (v x4))
+                                     (not* (pred 'g (v x4)))))
+                       (forall x5
+                               (implies (pred 'i (v x5))
+                                        (not* (pred 'h (v x5))))))]
+     :theorem (forall x6
+                      (implies (pred 'j (v x6))
+                               (not* (pred 'i (v x6)))))}))
+
+(defn problem-28 []
+  (ast/nom x1 x2 x3 x4 x5 x6 x7
+    {:axioms [(forall x1
+                      (implies (pred 'p (v x1))
+                               (forall x2
+                                       (pred 'q (v x2)))))
+              (implies (forall x3
+                               (or2 (pred 'q (v x3))
+                                    (pred 'r (v x3))))
+                       (exists x4
+                               (and2 (pred 'q (v x4))
+                                     (pred 's (v x4)))))
+              (implies (exists x5
+                               (pred 's (v x5)))
+                       (forall x6
+                               (implies (pred 'f (v x6))
+                                        (pred 'g (v x6)))))]
+     :theorem (forall x7
+                      (implies (and2 (pred 'p (v x7))
+                                     (pred 'f (v x7)))
+                               (pred 'g (v x7))))}))
+
+(defn problem-29 []
+  (ast/nom x1 x2 x3 x4 x5 y5
+    {:axioms [(and2 (exists x1
+                            (pred 'f (v x1)))
+                    (exists x2
+                            (pred 'g (v x2))))]
+     :theorem (iff
+                (and2
+                  (forall x3
+                          (implies (pred 'f (v x3))
+                                   (pred 'h (v x3))))
+                  (forall x4
+                          (implies (pred 'g (v x4))
+                                   (pred 'j (v x4)))))
+                (forall x5
+                        (forall y5
+                                (implies (and2 (pred 'f (v x5))
+                                               (pred 'g (v y5)))
+                                         (and2 (pred 'h (v x5))
+                                               (pred 'j (v y5)))))))}))
+
+(defn problem-30 []
+  (ast/nom x1 x2 x3
+    {:axioms [(forall x1
+                      (implies (or2 (pred 'f (v x1))
+                                    (pred 'g (v x1)))
+                               (not* (pred 'h (v x1)))))
+              (forall x2
+                      (implies (implies (pred 'g (v x2))
+                                        (not* (pred 'i (v x2))))
+                               (and2 (pred 'f (v x2))
+                                     (pred 'h (v x2)))))]
+     :theorem (forall x3
+                      (pred 'i (v x3)))}))
+
+(defn problem-31 []
+  (ast/nom x1 x2 x3 x4
+    {:axioms [(not* (exists x1
+                            (and2 (pred 'f (v x1))
+                                  (or2 (pred 'g (v x1))
+                                       (pred 'h (v x1))))))
+              (exists x2
+                      (and2 (pred 'i (v x2))
+                            (pred 'f (v x2))))
+              (forall x3
+                      (implies (not* (pred 'h (v x3)))
+                               (pred 'j (v x3))))]
+     :theorem (exists x4
+                      (and2 (pred 'i (v x4))
+                            (pred 'j (v x4))))}))
+
+(defn problem-32 []
+  (ast/nom x1 x2 x3 x4
+    {:axioms [(forall x1
+                      (implies (and2 (pred 'f (v x1))
+                                     (or2 (pred 'g (v x1))
+                                          (pred 'h (v x1))))
+                               (pred 'i (v x1))))
+              (forall x2
+                      (implies (and2 (pred 'i (v x2))
+                                     (pred 'h (v x2)))
+                               (pred 'j (v x2))))
+              (forall x3
+                      (implies (pred 'k (v x3))
+                               (pred 'h (v x3))))]
+     :theorem (forall x4
+                      (implies (and2 (pred 'f (v x4))
+                                     (pred 'k (v x4)))
+                               (pred 'j (v x4))))}))
+
+(defn problem-33 []
+  (ast/nom x1 x2
+    (let [a (term 'a)
+          b (term 'b)
+          c (term 'c)]
+      (empty-theorem
+        (iff
+          (forall x1
+                  (implies (and2 (pred 'p a)
+                                 (implies (pred 'p (v x1))
+                                          (pred 'p b)))
+                           (pred 'p c)))
+          (forall x2
+                  (and2
+                    (or2 (not* (pred 'p a))
+                         (or2 (pred 'p (v x2))
+                              (pred 'p c)))
+                    (or2 (not* (pred 'p a))
+                         (or2 (not* (pred 'p b))
+                              (pred 'p c))))))))))
+
+(defn problem-34 []
+  (ast/nom x1 y1 x2 y2 x3 y3 x4 y4
+    (empty-theorem
+      (iff
+        (iff (exists x1
+                     (forall y1
+                             (iff (pred 'p (v x1))
+                                  (pred 'p (v y1)))))
+             (iff (exists x2
+                          (pred 'q (v x2)))
+                  (forall y2
+                          (pred 'q (v y2)))))
+        (iff (exists x3
+                     (forall y3
+                             (iff (pred 'q (v x3))
+                                  (pred 'q (v y3)))))
+             (iff (exists x4
+                          (pred 'p (v x4)))
+                  (forall y4
+                          (pred 'p (v y4)))))))))
+
+(defn problem-35 []
+  (ast/nom x1 y1 x2 y2
+    (empty-theorem
+      (exists x1
+              (exists y1
+                      (implies (pred 'p (v x1) (v y1))
+                               (forall x2
+                                       (forall y2
+                                               (pred 'p (v x2) (v y2))))))))))
+
+(defn problem-36 []
+  (ast/nom x1 y1 x2 y2 x3 y3 z3 x4 y4
+    {:axioms [(forall x1
+                      (exists y1
+                              (pred 'f (v x1) (v y1))))
+              (forall x2
+                      (exists y2
+                              (pred 'g (v x2) (v y2))))
+              (forall x3
+                      (forall y3
+                              (implies (or2 (pred 'f (v x3) (v y3))
+                                            (pred 'g (v x3) (v y3)))
+                                       (forall z3
+                                               (implies (or2 (pred 'f (v y3) (v z3))
+                                                             (pred 'g (v y3) (v z3)))
+                                                        (pred 'h (v x3) (v z3)))))))]
+     :theorem (forall x4
+                      (exists y4
+                              (pred 'h (v x4) (v y4))))}))
+
+(defn problem-37 []
+  (ast/nom z1 w1 x1 y1 u1 x2 z2 y2 x3 y3 x4 x5 y5
+    {:axioms [(forall z1
+                      (exists w1
+                              (forall x1
+                                      (exists y1
+                                              (and2
+                                                (implies (pred 'p (v x1) (v z1))
+                                                         (pred 'p (v y1) (v w1)))
+                                                (and2
+                                                  (pred 'p (v y1) (v z1))
+                                                  (implies (pred 'p (v y1) (v w1))
+                                                           (exists u1
+                                                                   (pred 'q (v u1) (v w1))))))))))
+              (forall x2
+                      (forall z2
+                              (implies (not* (pred 'p (v x2) (v z2)))
+                                       (exists y2
+                                               (pred 'q (v y2) (v z2))))))
+              (implies (exists x3
+                               (exists y3
+                                       (pred 'q (v x3) (v y3))))
+                       (forall x4
+                               (pred 'r (v x4) (v x4))))]
+     :theorem (forall x5
+                      (exists y5
+                              (pred 'r (v x5) (v y5))))}))
+
+(defn problem-38 []
+  (ast/nom x1 y1 z1 w1 x2 z2 w2 y2 z3 w3
+    (let [a (term 'a)]
+      (empty-theorem
+        (iff
+          (forall x1
+                  (implies
+                    (and2 (pred 'p a)
+                          (implies (pred 'p (v x1))
+                                   (exists y1
+                                           (and2 (pred 'p (v y1))
+                                                 (pred 'r (v x1) (v y1))))))
+                    (exists z1
+                            (exists w1
+                                    (and2 (pred 'p (v z1))
+                                          (and2 (pred 'r (v x1) (v w1))
+                                                (pred 'r (v w1) (v z1))))))))
+          (forall x2
+                  (and2
+                    (or2 (not* (pred 'p a))
+                         (or2 (pred 'p (v x2))
+                              (exists z2
+                                      (exists w2
+                                              (and2 (pred 'p (v z2))
+                                                    (and2 (pred 'r (v x2) (v w2))
+                                                          (pred 'r (v w2) (v z2))))))))
+                    (or2 (not* (pred 'p a))
+                         (or2 (not* (exists y2
+                                             (and2 (pred 'p (v y2))
+                                                   (pred 'r (v x2) (v y2)))))
+                              (exists z3
+                                      (exists w3
+                                              (and2 (pred 'p (v z3))
+                                                    (and2 (pred 'r (v x2) (v w3))
+                                                          (pred 'r (v w3) (v z3)))))))))))))))
+
+(defn problem-39 []
+  (ast/nom x y
+    (empty-theorem
+      (not* (exists x
+                    (forall y
+                            (iff (pred 'f (v y) (v x))
+                                 (not* (pred 'f (v y) (v y))))))))))
+
+(defn problem-40 []
+  (ast/nom y1 x1 x2 y2 z2
+    (empty-theorem
+      (implies (exists y1
+                       (forall x1
+                               (iff (pred 'f (v x1) (v y1))
+                                    (pred 'f (v x1) (v x1)))))
+               (not* (forall x2
+                              (exists y2
+                                      (forall z2
+                                              (iff (pred 'f (v z2) (v y2))
+                                                   (not* (pred 'f (v z2) (v x2))))))))))))
+
+(defn problem-41 []
+  (ast/nom z1 y1 x1 z2 x2
+    {:axioms [(forall z1
+                      (exists y1
+                              (forall x1
+                                      (iff (pred 'f (v x1) (v y1))
+                                           (and2 (pred 'f (v x1) (v z1))
+                                                 (not* (pred 'f (v x1) (v x1))))))))]
+     :theorem (not* (exists z2
+                            (forall x2
+                                    (pred 'f (v x2) (v z2)))))}))
+
+(defn problem-42 []
+  (ast/nom y x z
+    (empty-theorem
+      (not* (exists y
+                    (forall x
+                            (iff (pred 'f (v x) (v y))
+                                 (not* (exists z
+                                               (and2 (pred 'f (v x) (v z))
+                                                     (pred 'f (v z) (v x))))))))))))
+
+(defn problem-43 []
+  (ast/nom x1 y1 z1 x2 y2
+    {:axioms [(forall x1
+                      (forall y1
+                              (iff (pred 'q (v x1) (v y1))
+                                   (forall z1
+                                           (iff (pred 'f (v z1) (v x1))
+                                                (pred 'f (v z1) (v y1)))))))]
+     :theorem (forall x2
+                      (forall y2
+                              (iff (pred 'q (v x2) (v y2))
+                                   (pred 'q (v y2) (v x2)))))}))
+
+(defn problem-44 []
+  (ast/nom x1 y1 y2 x2 y3 x3
+    {:axioms [(forall x1
+                      (and2 (implies (pred 'f (v x1))
+                                     (exists y1
+                                             (and2 (pred 'g (v y1))
+                                                   (pred 'h (v x1) (v y1)))))
+                            (exists y2
+                                    (and2 (pred 'g (v y2))
+                                          (not* (pred 'h (v x1) (v y2)))))))
+              (exists x2
+                      (and2 (pred 'j (v x2))
+                            (forall y3
+                                    (implies (pred 'g (v y3))
+                                             (pred 'h (v x2) (v y3))))))]
+     :theorem (exists x3
+                      (and2 (pred 'j (v x3))
+                            (not* (pred 'f (v x3)))))}))
+
+(defn problem-45 []
+  (ast/nom x1 y1 y2 y3 x2 y4 y5 x3 y6
+    {:axioms [(forall x1
+                      (and2 (pred 'f (v x1))
+                            (forall y1
+                                    (implies
+                                      (and2 (pred 'g (v y1))
+                                            (implies (pred 'h (v x1) (v y1))
+                                                     (pred 'j (v x1) (v y1))))
+                                      (forall y2
+                                              (and2 (pred 'g (v y2))
+                                                    (implies (pred 'h (v x1) (v y2))
+                                                             (pred 'k (v y2)))))))))
+              (not* (exists y3
+                            (and2 (pred 'l (v y3))
+                                  (pred 'k (v y3)))))
+              (exists x2
+                      (and2
+                        (and2 (pred 'f (v x2))
+                              (forall y4
+                                      (implies (pred 'h (v x2) (v y4))
+                                               (pred 'l (v y4)))))
+                        (forall y5
+                                (and2 (pred 'g (v y5))
+                                      (implies (pred 'h (v x2) (v y5))
+                                               (pred 'j (v x2) (v y5)))))))]
+     :theorem (exists x3
+                      (and2 (pred 'f (v x3))
+                            (not* (exists y6
+                                          (and2 (pred 'g (v y6))
+                                                (pred 'h (v x3) (v y6)))))))}))
+
+(defn problem-46 []
+  (ast/nom x1 y1 x2 x3 y2 x4 y3 x5
+    {:axioms [(forall x1
+                      (implies (and2 (pred 'f (v x1))
+                                     (forall y1
+                                             (implies (and2 (pred 'f (v y1))
+                                                            (pred 'h (v y1) (v x1)))
+                                                      (pred 'g (v y1)))))
+                               (pred 'g (v x1))))
+              (implies (exists x2
+                               (and2 (pred 'f (v x2))
+                                     (not* (pred 'g (v x2)))))
+                       (exists x3
+                               (and2 (pred 'f (v x3))
+                                     (and2 (not* (pred 'g (v x3)))
+                                           (forall y2
+                                                   (implies (and2 (pred 'f (v y2))
+                                                                  (not* (pred 'g (v y2))))
+                                                            (pred 'j (v x3) (v y2))))))))
+              (forall x4
+                      (forall y3
+                              (implies (and2 (pred 'f (v x4))
+                                             (and2 (pred 'f (v y3))
+                                                   (pred 'h (v x4) (v y3))))
+                                       (not* (pred 'j (v y3) (v x4))))))]
+     :theorem (forall x5
+                      (implies (pred 'f (v x5))
+                               (pred 'g (v x5))))}))
+
 (def problem-catalog
-  (concat
-    [{:id 1 :status :ported-passing :builder problem-1}
-     {:id 2 :status :ported-passing :builder problem-2}
-     {:id 3 :status :ported-passing :builder problem-3}
-     {:id 4 :status :ported-passing :builder problem-4}
-     {:id 5 :status :ported-passing :builder problem-5}
-     {:id 6 :status :ported-passing :builder problem-6}
-     {:id 7 :status :ported-passing :builder problem-7}
-     {:id 8 :status :ported-passing :builder problem-8}
-     {:id 9 :status :ported-passing :builder problem-9}
-     {:id 10 :status :ported-passing :builder problem-10}
-     {:id 11 :status :ported-passing :builder problem-11}
-     {:id 12 :status :ported-too-slow :builder problem-12}
-     {:id 13 :status :ported-passing :builder problem-13}
-     {:id 14 :status :ported-passing :builder problem-14}
-     {:id 15 :status :ported-passing :builder problem-15}
-     {:id 16 :status :ported-passing :builder problem-16}
-     {:id 17 :status :ported-passing :builder problem-17}
-     {:id 18 :status :ported-passing :builder problem-18}
-     {:id 19 :status :ported-passing :builder problem-19}
-     {:id 20 :status :ported-passing :builder problem-20}]
-    (map (fn [id]
-           {:id id
-            :status :not-yet-ported})
-         (range 21 47))))
+  [{:id 1 :status :ported-passing :builder problem-1}
+   {:id 2 :status :ported-passing :builder problem-2}
+   {:id 3 :status :ported-passing :builder problem-3}
+   {:id 4 :status :ported-passing :builder problem-4}
+   {:id 5 :status :ported-passing :builder problem-5}
+   {:id 6 :status :ported-passing :builder problem-6}
+   {:id 7 :status :ported-passing :builder problem-7}
+   {:id 8 :status :ported-passing :builder problem-8}
+   {:id 9 :status :ported-passing :builder problem-9}
+   {:id 10 :status :ported-passing :builder problem-10}
+   {:id 11 :status :ported-passing :builder problem-11}
+   {:id 12 :status :requires-kernel-work :builder problem-12}
+   {:id 13 :status :ported-passing :builder problem-13}
+   {:id 14 :status :ported-passing :builder problem-14}
+   {:id 15 :status :ported-passing :builder problem-15}
+   {:id 16 :status :ported-passing :builder problem-16}
+   {:id 17 :status :ported-passing :builder problem-17}
+   {:id 18 :status :ported-passing :builder problem-18}
+   {:id 19 :status :ported-passing :builder problem-19}
+   {:id 20 :status :ported-passing :builder problem-20}
+   {:id 21 :status :ported-passing :builder problem-21}
+   {:id 22 :status :ported-passing :builder problem-22}
+   {:id 23 :status :ported-passing :builder problem-23}
+   {:id 24 :status :ported-too-slow :builder problem-24}
+   {:id 25 :status :ported-too-slow :builder problem-25}
+   {:id 26 :status :ported-too-slow :builder problem-26}
+   {:id 27 :status :ported-too-slow :builder problem-27}
+   {:id 28 :status :ported-too-slow :builder problem-28}
+   {:id 29 :status :ported-too-slow :builder problem-29}
+   {:id 30 :status :ported-too-slow :builder problem-30}
+   {:id 31 :status :ported-too-slow :builder problem-31}
+   {:id 32 :status :ported-too-slow :builder problem-32}
+   {:id 33 :status :ported-passing :builder problem-33}
+   {:id 34 :status :ported-too-slow :builder problem-34}
+   {:id 35 :status :ported-passing :builder problem-35}
+   {:id 36 :status :ported-too-slow :builder problem-36}
+   {:id 37 :status :ported-too-slow :builder problem-37}
+   {:id 38 :status :ported-too-slow :builder problem-38}
+   {:id 39 :status :ported-passing :builder problem-39}
+   {:id 40 :status :ported-passing :builder problem-40}
+   {:id 41 :status :ported-too-slow :builder problem-41}
+   {:id 42 :status :ported-passing :builder problem-42}
+   {:id 43 :status :ported-too-slow :builder problem-43}
+   {:id 44 :status :ported-too-slow :builder problem-44}
+   {:id 45 :status :ported-too-slow :builder problem-45}
+   {:id 46 :status :ported-too-slow :builder problem-46}])
 
 (def problem-by-id
   (into {} (map (juxt :id identity) problem-catalog)))
 
 (def prompt-passing-ids
-  [1 2 3 4 5 6 7 8 9 11 13 14 15 16 18 19 20])
+  [1 2 3 4 5 6 7 8 9 11 13 14 15 16 18 19 20
+   21 22 23 35 39])
 
 (def slow-passing-ids
-  [10 17])
+  [10 17 33 40 42])
 
 (def ported-too-slow-ids
+  [24 25 26 27 28 29 30 31 32 34 36 37 38 41 43 44 45 46])
+
+(def requires-kernel-work-ids
   [12])
 
 (def ported-passing-ids
@@ -288,11 +793,18 @@
       (is (seq (proof-for id))
           (str "Pelletier Problem " id " should close")))))
 
-(deftest ^:pelletier-exploratory ported-too-slow-problems-are-classified
+(deftest ^:pelletier-exploratory nonpassing-ported-problems-are-classified
   (testing "ported formulas that are not committed as passing regressions stay visible"
     (doseq [id ported-too-slow-ids
             :let [{:keys [status builder]} (problem-by-id id)]]
       (is (= :ported-too-slow status)
           (str "Pelletier Problem " id " should be classified as too slow"))
+      (is builder
+          (str "Pelletier Problem " id " should keep its ported builder"))))
+  (testing "propositional misses are classified as kernel work, not ordinary first-order slowness"
+    (doseq [id requires-kernel-work-ids
+            :let [{:keys [status builder]} (problem-by-id id)]]
+      (is (= :requires-kernel-work status)
+          (str "Pelletier Problem " id " should require kernel work"))
       (is builder
           (str "Pelletier Problem " id " should keep its ported builder")))))

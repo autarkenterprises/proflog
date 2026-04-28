@@ -12,31 +12,41 @@
 - The test namespace proves theoremhood by building the NNF branch formula for
   `axioms and not(theorem)` and calling the ordinary pure kernel. No program
   clauses or theorem-specific overlays were added.
-- Current local catalog status:
-  - `ported-passing`: Pelletier Problems 1-11 and 13-20
-  - `ported-too-slow`: Pelletier Problem 12
-  - `not-yet-ported`: Pelletier Problems 21-46
+- Current local catalog status after porting Problems 21-46:
+  - `ported-passing`: Pelletier Problems 1-11, 13-23, 33, 35, 39, 40, and 42
+  - `ported-too-slow`: Pelletier Problems 24-32, 34, 36-38, 41, and 43-46
+  - `requires-kernel-work`: Pelletier Problem 12
 - Problem 12 has a ported builder but no proof within a fresh-process `120s`
-  probe. Problems 10 and 17 are slow but passing:
+  probe. Because it is propositional, treat it as a kernel/search issue, not
+  ordinary first-order slowness.
+- Slow but passing measurements:
   - Problem 10: about `30.4s`
   - Problem 17: about `35.8s`
   - Problem 20: about `7.6s`
+  - Problem 21: about `14.1s`
+  - Problem 22: about `7.3s`
+  - Problem 23: about `1.5s`
+  - Problem 33: about `58.1s`
+  - Problem 35: about `0.7s`
+  - Problem 39: about `1.8s`
+  - Problem 40: about `66.6s`
+  - Problem 42: about `40.7s`
 - Added aliases:
   - `lein test-proflog-pelletier-prompt`
   - `lein test-proflog-pelletier`
   - `lein test-proflog-pelletier-exploratory`
 - Verification completed:
   - `timeout 120s lein test-proflog-pelletier-prompt`
-    - `Ran 2 tests containing 20 assertions.`
-    - `0 failures, 0 errors.`
-  - `timeout 180s lein test-proflog-pelletier`
-    - `Ran 3 tests containing 22 assertions.`
+    - `Ran 2 tests containing 25 assertions.`
     - `0 failures, 0 errors.`
   - `timeout 60s lein test-proflog-pelletier-exploratory`
-    - `Ran 1 tests containing 2 assertions.`
+    - `Ran 1 tests containing 38 assertions.`
     - `0 failures, 0 errors.`
-  - `timeout 180s lein test proflog.pelletier-test`
-    - `Ran 5 tests containing 26 assertions.`
+  - `timeout 420s lein test-proflog-pelletier`
+    - `Ran 3 tests containing 30 assertions.`
+    - `0 failures, 0 errors.`
+  - `timeout 480s lein test proflog.pelletier-test`
+    - `Ran 5 tests containing 70 assertions.`
     - `0 failures, 0 errors.`
   - `timeout 180s lein test-proflog-fast`
     - `Ran 83 tests containing 209 assertions.`

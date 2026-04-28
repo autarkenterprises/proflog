@@ -23,6 +23,7 @@ query walkthroughs for the current `test/proflog` suites.
 - [Syntax And Normalization](./syntax-and-normalization.md)
 - [Nim Synthesis](./nim-synthesis.md)
 - [Synthesis Modes](./synthesis-modes.md)
+- [Pelletier Problems](./pelletier-problems.md)
 
 ## Conventions
 

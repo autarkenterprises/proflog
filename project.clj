@@ -48,7 +48,11 @@
    :SS   (fn [m] (re-find #"^test-SS\d" (str (:name m))))
    :GP   (fn [m] (re-find #"^test-GP\d" (str (:name m))))
    :GV   (fn [m] (re-find #"^test-GV\d" (str (:name m))))
-   :FD   (fn [m] (re-find #"^test-FD\d" (str (:name m))))}
+   :FD   (fn [m] (re-find #"^test-FD\d" (str (:name m))))
+   :pelletier-prompt (fn [m & _] (:pelletier-prompt m))
+   :pelletier-passing (fn [m & _] (:pelletier-passing m))
+   :pelletier-exploratory (fn [m & _] (:pelletier-exploratory m))
+   :pelletier-comparison (fn [m & _] (:pelletier-comparison m))}
   :aliases {"test-section"         ["run" "-m" "cljtap.run-section"]
             "test-all-timed"       ["run" "-m" "cljtap.run-section" "--all"]
             "test-proflog-fast"    ["test"
@@ -62,6 +66,10 @@
                                     "proflog.existential-disequality-test"
                                     "proflog.gamma-test"
                                     "proflog.closed-term-gamma-test"
+                                    "proflog.formula-profile-test"
+                                    "proflog.kernel.dispatch-test"
+                                    "proflog.kernel.first-order-test"
+                                    "proflog.kernel.propositional-test"
                                     "proflog.kernel-test"
                                     "proflog.proof-test"
                                     "proflog.equality-test"
@@ -82,6 +90,18 @@
                                    "proflog.parity-test"]
             "test-proflog-parity-experimental" ["test"
                                                 "proflog.parity-experimental-test"]
+            "test-proflog-pelletier" ["test"
+                                      ":pelletier-passing"
+                                      "proflog.pelletier-test"]
+            "test-proflog-pelletier-prompt" ["test"
+                                             ":pelletier-prompt"
+                                             "proflog.pelletier-test"]
+            "test-proflog-pelletier-exploratory" ["test"
+                                                  ":pelletier-exploratory"
+                                                  "proflog.pelletier-test"]
+            "test-proflog-pelletier-comparison" ["test"
+                                                 ":pelletier-comparison"
+                                                 "proflog.pelletier-comparison-test"]
             "test-proflog-hard-families" ["test"
                                           "proflog.legacy-hard-families-test"]
             "test-proflog-legacy-impurity" ["test"

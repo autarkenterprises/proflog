@@ -1,5 +1,174 @@
 # Memory
 
+## 2026-04-28 ADR-0024 Pelletier First-Order Performance
+
+- Completed branch: `adr-0024-pelletier-first-order-performance`.
+- ADR-0023 is committed and pushed at `1fe2513` on
+  `origin/adr-0023-profiled-kernel-layers`; ADR-0024 branches from that commit.
+- ADR-0024 is completed and registered in:
+  - `docs/adr/ADR-0024-pelletier-first-order-performance.md`
+  - `docs/adr/README.md`
+  - `docs/EXECUTION_PLAN.md`
+- AAR-0024 records the branch outcome:
+  - `docs/aar/AAR-0024-pelletier-first-order-performance.md`
+  - `docs/aar/README.md`
+- Added comparative report:
+  - `docs/PELLETIER_FIRST_ORDER_COMPARISON.md`
+  - `test/proflog/pelletier_comparison_test.clj`
+  - `lein test-proflog-pelletier-comparison`
+- Implemented first equality-free first-order theorem layer:
+  - `src/proflog/kernel/first_order.clj`
+  - `kernel/prove` now routes equality-free first-order formulas through it.
+  - `kernel/prove-program`, `kernel/prove-programo`, and direct full
+    `kernel/proveo` remain on the full kernel/program-aware path.
+  - `tabling/prove` now calls the tabled relation directly so host-side
+    profile dispatch does not bypass ADR-0017 tabling instrumentation.
+- Important ADR-0024 boundary:
+  - In the call-free theorem component, `once-forall` is treated as repeatable
+    classical gamma because it comes from negated existentials in theorem
+    branches.
+  - The full program kernel keeps its existing single-use `once-forall`
+    behavior for procedure-call bodies.
+- First promoted tranche from the old too-slow Pelletier set:
+  - `25`, `30`, `31`, `36`, and `41`
+  - These now live in `prompt-passing-ids`.
+- Remaining too-slow Pelletier ids after this tranche:
+  - `24`, `26`, `27`, `28`, `29`, `32`, `34`, `37`, `38`, `43`, `44`, `45`,
+    and `46`.
+- Current comparative finding:
+  - alphaleanTAP-E closes `24`, `25`, `27`, `28`, `29`, `30`, `31`, `32`,
+    `36`, `37`, `41`, and `44` under the `once-forall` to `forall`
+    conversion.
+  - Legacy EP with empty program and gamma budget `80` closes none of the old
+    too-slow tranche.
+  - Greenfield first-order currently closes `25`, `30`, `31`, `36`, and `41`.
+- Verification so far:
+  - `lein test proflog.formula-profile-test proflog.kernel.first-order-test proflog.kernel.dispatch-test`
+    - `Ran 12 tests containing 70 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier-prompt`
+    - `Ran 2 tests containing 31 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier`
+    - `Ran 3 tests containing 36 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier-comparison`
+    - `Ran 2 tests containing 22 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test proflog.tabling-test`
+    - `Ran 5 tests containing 11 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-fast`
+    - `Ran 101 tests containing 293 assertions.`
+    - `0 failures, 0 errors.`
+
+## 2026-04-28 ADR-0023 Profiled Kernel Layering
+
+- Active branch: `adr-0023-profiled-kernel-layers`.
+- Completed ADR-0023 and added AAR-0023:
+  - `docs/adr/ADR-0023-profiled-kernel-layers.md`
+  - `docs/aar/AAR-0023-profiled-kernel-layers.md`
+- Implemented entry-only pure-propositional dispatch:
+  - `src/proflog/formula_profile.clj`
+  - `src/proflog/kernel/propositional.clj`
+  - `kernel/prove` routes pure propositional formulas through the new
+    component.
+  - `kernel/proveo`, `kernel/prove-programo`, and `kernel/prove-program` remain
+    on the full Proflog kernel.
+- Added tests:
+  - `test/proflog/formula_profile_test.clj`
+  - `test/proflog/kernel/propositional_test.clj`
+  - `test/proflog/kernel/dispatch_test.clj`
+- Added direct propositional relation coverage for partial/reverse use:
+  - partial proof skeleton completion through
+    `proflog.kernel.propositional/proveo`
+  - constrained synthesis of a missing complementary atom through
+    `proflog.kernel.propositional/proveo`
+- Important API boundary:
+  - `kernel/prove` uses the host-side formula profiler for forward
+    theorem-style convenience.
+  - reverse and partial relational use should call a relation directly:
+    `proflog.kernel.propositional/proveo` for the propositional layer, or
+    `kernel/proveo` / `kernel/prove-programo` for the full kernel.
+- Pelletier Problem 12 is now `ported-passing` through the generic profiled
+  propositional path and is included in `prompt-passing-ids`.
+- Recurrent dispatch and the equality-free first-order component remain
+  deferred. The full-kernel exact-complement fast path was not touched because a
+  sound broad-kernel version needs a no-new-bindings relational equality check.
+- Verification:
+  - `lein test proflog.formula-profile-test proflog.kernel.propositional-test proflog.kernel.dispatch-test`
+    - `Ran 12 tests containing 30 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier-prompt`
+    - `Ran 2 tests containing 26 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-fast`
+    - `Ran 95 tests containing 239 assertions.`
+    - `0 failures, 0 errors.`
+  - `timeout 600s lein test-proflog-pelletier`
+    - `Ran 3 tests containing 31 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier-exploratory`
+    - `Ran 1 tests containing 37 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test proflog.pelletier-test`
+    - `Ran 5 tests containing 70 assertions.`
+    - `0 failures, 0 errors.`
+
+## 2026-04-27 ADR-0022 Pelletier Replication
+
+- Active branch: `adr-0022-pelletier-problems`.
+- ADR-0022 is now marked completed and has AAR-0022.
+- Added greenfield Pelletier benchmark coverage in
+  `test/proflog/pelletier_test.clj`.
+- Upstream source of record was fetched from `namin/leanTAP`:
+  - `cljtap/test/cljtap/test/alphaleantap.clj`
+  - `alphaleantap/test.scm`
+- The test namespace proves theoremhood by building the NNF branch formula for
+  `axioms and not(theorem)` and calling the ordinary pure kernel. No program
+  clauses or theorem-specific overlays were added.
+- Current local catalog status after porting Problems 21-46:
+  - `ported-passing`: Pelletier Problems 1-11, 13-23, 33, 35, 39, 40, and 42
+  - `ported-too-slow`: Pelletier Problems 24-32, 34, 36-38, 41, and 43-46
+  - `requires-kernel-work`: Pelletier Problem 12
+- Problem 12 has a ported builder but no proof within a fresh-process `120s`
+  probe. Because it is propositional, treat it as a kernel/search issue, not
+  ordinary first-order slowness.
+- Slow but passing measurements:
+  - Problem 10: about `30.4s`
+  - Problem 17: about `35.8s`
+  - Problem 20: about `7.6s`
+  - Problem 21: about `14.1s`
+  - Problem 22: about `7.3s`
+  - Problem 23: about `1.5s`
+  - Problem 33: about `58.1s`
+  - Problem 35: about `0.7s`
+  - Problem 39: about `1.8s`
+  - Problem 40: about `66.6s`
+  - Problem 42: about `40.7s`
+- Added aliases:
+  - `lein test-proflog-pelletier-prompt`
+  - `lein test-proflog-pelletier`
+  - `lein test-proflog-pelletier-exploratory`
+- Verification completed:
+  - `timeout 120s lein test-proflog-pelletier-prompt`
+    - `Ran 2 tests containing 25 assertions.`
+    - `0 failures, 0 errors.`
+  - `timeout 60s lein test-proflog-pelletier-exploratory`
+    - `Ran 1 tests containing 38 assertions.`
+    - `0 failures, 0 errors.`
+  - `timeout 420s lein test-proflog-pelletier`
+    - `Ran 3 tests containing 30 assertions.`
+    - `0 failures, 0 errors.`
+  - `timeout 480s lein test proflog.pelletier-test`
+    - `Ran 5 tests containing 70 assertions.`
+    - `0 failures, 0 errors.`
+  - `timeout 180s lein test-proflog-fast`
+    - `Ran 83 tests containing 209 assertions.`
+    - `0 failures, 0 errors.`
+- Added worked example:
+  - `worked-examples/pelletier-problems.md`
+
 ## Date
 
 2026-04-18

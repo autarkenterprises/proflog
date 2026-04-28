@@ -28,3 +28,6 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0019](AAR-0019-closed-term-gamma-instantiation.md) | [ADR-0019](../adr/ADR-0019-closed-term-gamma-instantiation.md) | completed |
 | [AAR-0020](AAR-0020-pure-gamma-candidate-boundary.md) | [ADR-0020](../adr/ADR-0020-pure-gamma-candidate-boundary.md) | completed |
 | [AAR-0021](AAR-0021-gamma-search-regression-repair.md) | [ADR-0021](../adr/ADR-0021-gamma-search-regression-repair.md) | completed |
+| [AAR-0022](AAR-0022-pelletier-problems.md) | [ADR-0022](../adr/ADR-0022-pelletier-problems.md) | completed |
+| [AAR-0023](AAR-0023-profiled-kernel-layers.md) | [ADR-0023](../adr/ADR-0023-profiled-kernel-layers.md) | completed |
+| [AAR-0024](AAR-0024-pelletier-first-order-performance.md) | [ADR-0024](../adr/ADR-0024-pelletier-first-order-performance.md) | completed |

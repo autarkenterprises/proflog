@@ -1,5 +1,49 @@
 # Memory
 
+## 2026-04-27 ADR-0022 Pelletier Replication
+
+- Active branch: `adr-0022-pelletier-problems`.
+- ADR-0022 is now marked completed and has AAR-0022.
+- Added greenfield Pelletier benchmark coverage in
+  `test/proflog/pelletier_test.clj`.
+- Upstream source of record was fetched from `namin/leanTAP`:
+  - `cljtap/test/cljtap/test/alphaleantap.clj`
+  - `alphaleantap/test.scm`
+- The test namespace proves theoremhood by building the NNF branch formula for
+  `axioms and not(theorem)` and calling the ordinary pure kernel. No program
+  clauses or theorem-specific overlays were added.
+- Current local catalog status:
+  - `ported-passing`: Pelletier Problems 1-11 and 13-20
+  - `ported-too-slow`: Pelletier Problem 12
+  - `not-yet-ported`: Pelletier Problems 21-46
+- Problem 12 has a ported builder but no proof within a fresh-process `120s`
+  probe. Problems 10 and 17 are slow but passing:
+  - Problem 10: about `30.4s`
+  - Problem 17: about `35.8s`
+  - Problem 20: about `7.6s`
+- Added aliases:
+  - `lein test-proflog-pelletier-prompt`
+  - `lein test-proflog-pelletier`
+  - `lein test-proflog-pelletier-exploratory`
+- Verification completed:
+  - `timeout 120s lein test-proflog-pelletier-prompt`
+    - `Ran 2 tests containing 20 assertions.`
+    - `0 failures, 0 errors.`
+  - `timeout 180s lein test-proflog-pelletier`
+    - `Ran 3 tests containing 22 assertions.`
+    - `0 failures, 0 errors.`
+  - `timeout 60s lein test-proflog-pelletier-exploratory`
+    - `Ran 1 tests containing 2 assertions.`
+    - `0 failures, 0 errors.`
+  - `timeout 180s lein test proflog.pelletier-test`
+    - `Ran 5 tests containing 26 assertions.`
+    - `0 failures, 0 errors.`
+  - `timeout 180s lein test-proflog-fast`
+    - `Ran 83 tests containing 209 assertions.`
+    - `0 failures, 0 errors.`
+- Added worked example:
+  - `worked-examples/pelletier-problems.md`
+
 ## Date
 
 2026-04-18

@@ -1,9 +1,9 @@
 # ADR-0022: Pelletier Problem Replication
 
-- Status: proposed
+- Status: completed
 - Date: 2026-04-27
 - Branch: `adr-0022-pelletier-problems`
-- AAR: pending
+- AAR: [AAR-0022](../aar/AAR-0022-pelletier-problems.md)
 - Depends On: [ADR-0021](ADR-0021-gamma-search-regression-repair.md)
 
 ## Context
@@ -99,3 +99,19 @@ by a theorem-specific overlay.
   weakening the pure kernel boundary.
 - The ADR is updated to `completed`, an AAR is written, and the ADR/AAR indexes
   are current before merge to `greenfield`.
+
+## Implementation Result
+
+- Added `test/proflog/pelletier_test.clj`.
+- Added dedicated aliases:
+  - `lein test-proflog-pelletier-prompt`
+  - `lein test-proflog-pelletier`
+  - `lein test-proflog-pelletier-exploratory`
+- Current catalog statuses:
+  - `ported-passing`: Problems 1-11 and 13-20.
+  - `ported-too-slow`: Problem 12.
+  - `not-yet-ported`: Problems 21-46.
+- Problem 12 was not promoted into the passing tranche after a fresh-process
+  `120s` probe produced no proof.
+- The full `proflog.pelletier-test` namespace passed with 5 tests and 26
+  assertions.

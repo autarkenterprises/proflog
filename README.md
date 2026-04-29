@@ -11,6 +11,7 @@ See [MISSION.md](MISSION.md).
 ## Execution Docs
 
 - [docs/EXECUTION_PLAN.md](docs/EXECUTION_PLAN.md)
+- [LOG.md](LOG.md)
 - [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md)
 - [docs/SEMANTIC_VARIANTS.md](docs/SEMANTIC_VARIANTS.md)
 - [docs/adr/README.md](docs/adr/README.md)

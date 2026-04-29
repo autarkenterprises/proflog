@@ -70,6 +70,7 @@
                                     "proflog.kernel.dispatch-test"
                                     "proflog.kernel.first-order-test"
                                     "proflog.kernel.propositional-test"
+                                    "proflog.pelletier-layering-test"
                                     "proflog.kernel-test"
                                     "proflog.proof-test"
                                     "proflog.equality-test"

@@ -22,7 +22,7 @@
 
 (deftest remaining-too-slow-pelletier-formulas-are-equality-free-first-order
   (testing "the ADR-0024 target tranche is structurally in scope for the first-order layer"
-    (doseq [id pelletier/ported-too-slow-ids]
+    (doseq [id [24 25 26 27 28 29 30 31 32 34 36 37 38 41 43 44 45 46]]
       (let [branch (pelletier/theorem-branch ((:builder (pelletier/problem-by-id id))))]
         (is (not (profile/pure-propositional? branch))
             (str "Pelletier Problem " id " should not be propositional"))

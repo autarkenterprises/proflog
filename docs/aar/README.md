@@ -31,3 +31,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0022](AAR-0022-pelletier-problems.md) | [ADR-0022](../adr/ADR-0022-pelletier-problems.md) | completed |
 | [AAR-0023](AAR-0023-profiled-kernel-layers.md) | [ADR-0023](../adr/ADR-0023-profiled-kernel-layers.md) | completed |
 | [AAR-0024](AAR-0024-pelletier-first-order-performance.md) | [ADR-0024](../adr/ADR-0024-pelletier-first-order-performance.md) | completed |
+| [AAR-0025](AAR-0025-pelletier-lean-search-policy.md) | [ADR-0025](../adr/ADR-0025-pelletier-lean-search-policy.md) | completed |

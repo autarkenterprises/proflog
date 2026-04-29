@@ -1,5 +1,55 @@
 # Memory
 
+## 2026-04-28 ADR-0025 Pelletier Lean Search Policy
+
+- Completed branch: `adr-0025-pelletier-lean-search-policy`.
+- ADR-0024 was completed, pushed, merged into `greenfield`, and `greenfield`
+  was pushed before this branch was created.
+- ADR-0025 is completed and registered in:
+  - `docs/adr/ADR-0025-pelletier-lean-search-policy.md`
+  - `docs/adr/README.md`
+  - `docs/EXECUTION_PLAN.md`
+- AAR-0025 records the branch outcome:
+  - `docs/aar/AAR-0025-pelletier-lean-search-policy.md`
+  - `docs/aar/README.md`
+- Added comparison/devisement report:
+  - `docs/PELLETIER_LEAN_SEARCH_POLICY_COMPARISON.md`
+- Implemented complete Pelletier closure:
+  - `src/proflog/kernel/first_order.clj`
+  - unbounded direct first-order relation now follows alphaleanTAP-shaped
+    vector templates, compact proof spines, gamma re-enqueue, and beta-sibling
+    lemma threading.
+  - host-facing `first-order/prove` canonicalizes compact proof terms.
+  - complex forward theorem calls use host-side Skolemization and mark returned
+    proofs with `skolemized`.
+  - bounded fuel calls keep the ADR-0024 relation so open branches still return
+    under finite fuel.
+- Pelletier catalog status:
+  - all Problems 1-46 are `:ported-passing`.
+  - `ported-too-slow-ids` is empty.
+- Verification:
+  - `lein test proflog.kernel.first-order-test`
+    - `Ran 5 tests containing 24 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier-comparison`
+    - `Ran 4 tests containing 50 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test proflog.formula-profile-test proflog.kernel.dispatch-test proflog.proof-test`
+    - `Ran 13 tests containing 91 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier-prompt`
+    - `Ran 2 tests containing 44 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier`
+    - `Ran 3 tests containing 49 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier-exploratory`
+    - `Ran 1 tests containing 1 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-fast`
+    - `Ran 102 tests containing 323 assertions.`
+    - `0 failures, 0 errors.`
+
 ## 2026-04-28 ADR-0024 Pelletier First-Order Performance
 
 - Completed branch: `adr-0024-pelletier-first-order-performance`.

@@ -62,12 +62,19 @@ The proof branch is the normalized negation of that theorem. The greenfield
 kernel closes it using its ordinary quantifier, branch-literal, and equality
 state machinery. No Proflog program clauses are present.
 
-## Current ADR-0022 Status
+## Current Status
 
-- `ported-passing`: Problems 1-11, 13-23, 33, 35, 39, 40, and 42.
-- `ported-too-slow`: Problems 24-32, 34, 36-38, 41, and 43-46.
-- `requires-kernel-work`: Problem 12. It is propositional, but no proof was
-  found within a 120 second fresh-process probe.
+ADR-0025 closes the full upstream Pelletier catalog through generic profiled
+kernel layers.
+
+- `ported-passing`: Problems 1-46.
+- `ported-too-slow`: none.
+- `requires-kernel-work`: none.
+
+Pure propositional formulas use the propositional component. Equality-free
+first-order theorem formulas use the lean first-order component introduced by
+ADR-0025. Program-bearing and equality-bearing proof search still use the full
+kernel.
 
 Dedicated selectors keep these tiers separate:
 

@@ -22,7 +22,8 @@
    - and branch-state maintenance that is logically secondary to the core
      tableau rules but operationally necessary in this implementation."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [== conde fail fresh lcons membero project]]
+  (:require [clojure.core.logic :refer [!= == conde fail fresh lcons membero]]
+            [clojure.core.logic.fd :as fd]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
             [proflog.subst :as subst]))
@@ -159,15 +160,89 @@
          (remove (set (contradictory-neq-pairs neqs sigma))
                  neqs)))
 
+(declare different-termo different-term*o)
+
+(defn different-termo
+  "Succeed when two terms are not already the same after walking through `sigma`.
+
+   This is the relational complement needed by saved-disequality maintenance.
+   It does not ask whether the terms are unifiable; `x` and `a` are still a
+   stable saved disequality until some later equality actually binds `x` to
+   `a`."
+  [left right sigma]
+  (fresh [left-root right-root]
+    (equality/walko left sigma left-root)
+    (equality/walko right sigma right-root)
+    (conde
+      [(fresh [left-nom right-nom]
+         (== (list 'var left-nom) left-root)
+         (== (list 'var right-nom) right-root)
+         (!= left-nom right-nom))]
+      [(fresh [left-nom right-nom]
+         (== (list 'par left-nom) left-root)
+         (== (list 'par right-nom) right-root)
+         (!= left-nom right-nom))]
+      [(fresh [left-nom right-nom]
+         (== (list 'var left-nom) left-root)
+         (== (list 'par right-nom) right-root))]
+      [(fresh [left-nom right-nom]
+         (== (list 'par left-nom) left-root)
+         (== (list 'var right-nom) right-root))]
+      [(fresh [left-nom right-head right-args]
+         (== (list 'var left-nom) left-root)
+         (== (lcons 'app (lcons right-head right-args)) right-root))]
+      [(fresh [left-head left-args right-nom]
+         (== (lcons 'app (lcons left-head left-args)) left-root)
+         (== (list 'var right-nom) right-root))]
+      [(fresh [left-nom right-head right-args]
+         (== (list 'par left-nom) left-root)
+         (== (lcons 'app (lcons right-head right-args)) right-root))]
+      [(fresh [left-head left-args right-nom]
+         (== (lcons 'app (lcons left-head left-args)) left-root)
+         (== (list 'par right-nom) right-root))]
+      [(fresh [left-head left-args right-head right-args]
+         (== (lcons 'app (lcons left-head left-args)) left-root)
+         (== (lcons 'app (lcons right-head right-args)) right-root)
+         (conde
+           [(!= left-head right-head)]
+           [(different-term*o left-args right-args sigma)]))])))
+
+(defn different-term*o
+  "Succeed when two walked argument lists differ structurally."
+  [left right sigma]
+  (conde
+    [(fresh [left-head left-tail]
+       (== (lcons left-head left-tail) left)
+       (== '() right))]
+    [(fresh [right-head right-tail]
+       (== '() left)
+       (== (lcons right-head right-tail) right))]
+    [(fresh [left-head left-tail right-head right-tail]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (conde
+         [(different-termo left-head right-head sigma)]
+         [(different-term*o left-tail right-tail sigma)]))]))
+
 (defn prune-contradictory-neqso
   "Relate `neqs-out` to `neqs` with all already-false disequalities removed.
 
-   This is one of the intentionally narrow `project` boundaries in the support
-   layer: it computes a deterministic maintenance result from an already-known
-   branch state."
+   The relation is structural rather than projected so partial callers can
+   synthesize or later refine `neqs`, `sigma`, and the terms inside saved
+   disequalities without freezing a stale host-side view of the branch state."
   [neqs sigma neqs-out]
-  (project [neqs sigma]
-    (== (prune-contradictory-neqs neqs sigma) neqs-out)))
+  (conde
+    [(== '() neqs)
+     (== '() neqs-out)]
+    [(fresh [left right rest]
+       (== (lcons [left right] rest) neqs)
+       (equality/same-termo left right sigma)
+       (prune-contradictory-neqso rest sigma neqs-out))]
+    [(fresh [left right rest rest-out]
+       (== (lcons [left right] rest) neqs)
+       (different-termo left right sigma)
+       (== (lcons [left right] rest-out) neqs-out)
+       (prune-contradictory-neqso rest sigma rest-out))]))
 
 (defn stable-neqso
   "Succeed when every saved disequality remains genuinely open under `sigma`.
@@ -176,10 +251,12 @@
    if some saved disequality has already collapsed to reflexivity, the branch
    should have closed instead of continuing."
   [neqs sigma]
-  (project [neqs sigma]
-    (if (empty? (contradictory-neq-pairs neqs sigma))
-      (== 'stable 'stable)
-      fail)))
+  (conde
+    [(== '() neqs)]
+    [(fresh [left right rest]
+       (== (lcons [left right] rest) neqs)
+       (different-termo left right sigma)
+       (stable-neqso rest sigma))]))
 
 (declare l-ground-term*o)
 
@@ -263,6 +340,12 @@
 ;; bounded exploration policy explicit and shared between ordinary proof search
 ;; and the answer overlay.
 
+(def ^:private fuel-domain
+  (fd/interval 1 Long/MAX_VALUE))
+
+(def ^:private next-fuel-domain
+  (fd/interval 0 (dec Long/MAX_VALUE)))
+
 (defn step-fuelo
   "Consume one unit of bounded proof-search micro-fuel.
 
@@ -275,14 +358,18 @@
    `nil` means unbounded search. A budget of `0` blocks any further bounded
    expansions while still allowing direct closure on the current branch.
 
-   This is another intentional `project` boundary: once the fuel value is known
-   on the host side, the next budget is a deterministic operational choice."
+   The relation stays structural over the two fuel states the kernel supports:
+   unbounded `nil`, or finite-domain integers where the current fuel is
+   positive, the next fuel is non-negative, and `fuel = next-fuel + 1`."
   [fuel next-fuel]
-  (project [fuel]
-    (cond
-      (nil? fuel) (== next-fuel nil)
-      (> fuel 0) (== next-fuel (dec fuel))
-      :else fail)))
+  (conde
+    [(== fuel nil)
+     (== next-fuel nil)]
+    [(!= fuel nil)
+     (!= next-fuel nil)
+     (fd/in fuel fuel-domain)
+     (fd/in next-fuel next-fuel-domain)
+     (fd/+ next-fuel 1 fuel)]))
 
 (defn next-call-depth
   "Decrease the answer-mode call unfolding budget when it is bounded.

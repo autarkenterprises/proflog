@@ -1,9 +1,10 @@
 (ns proflog.kernel-test
   (:refer-clojure :exclude [==])
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.core.logic :refer [run]]
+            [clojure.core.logic :refer [== fresh run run*]]
             [proflog.ast :as ast]
             [proflog.kernel :as kernel]
+            [proflog.kernel-support :as support]
             [proflog.language :as language]))
 
 (defn provable?
@@ -92,6 +93,30 @@
       (is (not-provable? formula 1 0))
       (is (not-provable? formula 1 1))
       (is (seq (kernel/prove formula 1 2))))))
+
+(deftest fuel-step-supports-reverse-and-partial-synthesis
+  (testing "step-fuelo can synthesize a predecessor fuel value from a known successor"
+    (is (= '(1)
+           (run 1 [fuel]
+             (support/step-fuelo fuel 0)))))
+  (testing "step-fuelo can synthesize the successor from a known predecessor"
+    (is (= '(0)
+           (run 1 [next-fuel]
+             (support/step-fuelo 1 next-fuel)))))
+  (testing "step-fuelo can synthesize the unbounded fuel case"
+    (is (= '(nil)
+           (run 1 [fuel]
+             (support/step-fuelo fuel nil))))))
+
+(deftest kernel-synthesizes-open-fuel-for-structural-progress
+  (testing "a direct relational caller can leave fuel open while proving a branch"
+    (let [formula (ast/and-form
+                    (ast/pos-lit (ast/app-term 'p))
+                    (ast/neg-lit (ast/app-term 'p)))]
+      (is (= '(nil)
+             (run 1 [fuel]
+               (fresh [proof]
+                 (kernel/proveo formula '() '() '() fuel proof))))))))
 
 (deftest universal-without-a-contrary-literal-stays-open
   (testing "a universal formula alone is not enough to close a branch"
@@ -265,3 +290,83 @@
                   (ast/eq-lit (ast/par-term p) (ast/app-term 'zero))
                   (ast/pos-lit (ast/app-term 'r (ast/par-term p))))
                 1)))))))
+
+(deftest disequality-maintenance-supports-reverse-branch-state
+  (testing "the equality continuation can synthesize an empty stable disequality store"
+    (is (= '(())
+           (run 1 [neqs]
+             (fresh [sigma-out neqs-out]
+               (kernel/prove-stateo
+                 (ast/eq-lit (ast/app-term 'a) (ast/app-term 'a))
+                 (list (ast/neg-lit (ast/app-term 'p)))
+                 (list (ast/pos-lit (ast/app-term 'p)))
+                 '()
+                 '()
+                 '()
+                 sigma-out
+                 neqs
+                 neqs-out
+                 nil
+                 '()
+                 nil
+                 (list 'eq-step '(eq-refl) '(close))))))))
+  (testing "post-closure pruning can accept a sigma refined after the kernel step"
+    (ast/nom x
+      (is (= '(())
+             (run 1 [sigma]
+               (fresh [sigma-out neqs-out]
+                 (kernel/prove-stateo
+                   (ast/neg-lit (ast/app-term 'p))
+                   '()
+                   (list (ast/pos-lit (ast/app-term 'p)))
+                   '()
+                   '()
+                   sigma
+                   sigma-out
+                   (list [(ast/var-term x) (ast/app-term 'a)])
+                   neqs-out
+                   nil
+                   '()
+                   nil
+                   '(close))
+                 (== sigma '()))))))))
+
+(deftest disequality-maintenance-does-not-freeze-stale-partial-terms
+  (testing "pruning sees a later term refinement that makes a saved disequality reflexive"
+    (is (= '(())
+           (run* [neqs-out]
+             (fresh [term sigma-out]
+               (kernel/prove-stateo
+                 (ast/neg-lit (ast/app-term 'p))
+                 '()
+                 (list (ast/pos-lit (ast/app-term 'p)))
+                 '()
+                 '()
+                 '()
+                 sigma-out
+                 (list [term (ast/app-term 'a)])
+                 neqs-out
+                 nil
+                 '()
+                 nil
+                 '(close))
+               (== term (ast/app-term 'a)))))))
+  (testing "stable-neqso rejects an equality continuation after the saved pair becomes reflexive"
+    (is (empty?
+          (run* [neqs-out]
+            (fresh [term sigma-out]
+              (kernel/prove-stateo
+                (ast/eq-lit (ast/app-term 'a) (ast/app-term 'a))
+                (list (ast/neg-lit (ast/app-term 'p)))
+                (list (ast/pos-lit (ast/app-term 'p)))
+                '()
+                '()
+                '()
+                sigma-out
+                (list [term (ast/app-term 'a)])
+                neqs-out
+                nil
+                '()
+                nil
+                (list 'eq-step '(eq-refl) '(close)))
+              (== term (ast/app-term 'a))))))))

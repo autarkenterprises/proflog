@@ -33,3 +33,6 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0024](AAR-0024-pelletier-first-order-performance.md) | [ADR-0024](../adr/ADR-0024-pelletier-first-order-performance.md) | completed |
 | [AAR-0025](AAR-0025-pelletier-lean-search-policy.md) | [ADR-0025](../adr/ADR-0025-pelletier-lean-search-policy.md) | completed |
 | [AAR-0026](AAR-0026-kernel-layer-interoperation.md) | [ADR-0026](../adr/ADR-0026-kernel-layer-interoperation.md) | completed |
+| [AAR-0027](AAR-0027-transitive-relational-purity.md) | [ADR-0027](../adr/ADR-0027-transitive-relational-purity.md) | completed |
+| [AAR-0028](AAR-0028-kernel-support-disequality-purity.md) | [ADR-0028](../adr/ADR-0028-kernel-support-disequality-purity.md) | completed |
+| [AAR-0029](AAR-0029-relational-fuel-purity.md) | [ADR-0029](../adr/ADR-0029-relational-fuel-purity.md) | completed |

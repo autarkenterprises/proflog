@@ -1,7 +1,7 @@
 (ns proflog.subst-test
   (:refer-clojure :exclude [==])
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.core.logic :refer [run* ==]]
+            [clojure.core.logic :refer [fresh run* ==]]
             [proflog.ast :as ast]
             [proflog.subst :as subst]))
 
@@ -84,3 +84,66 @@
                    (list [y (ast/app-term 'zero)]
                          [z (ast/app-term 'one)])
                    expected))))))))
+
+(deftest subst-formulao-synthesizes-term-preimages
+  (testing "a substituted output can be explained by an input variable under a known environment"
+    (ast/nom x
+      (is (= [true]
+             (run* [q]
+               (== q true)
+               (fresh [arg]
+                 (subst/subst-formulao
+                   (ast/pos-lit (ast/app-term 'p arg))
+                   (list [x (ast/app-term 'zero)])
+                   (ast/pos-lit (ast/app-term 'p (ast/app-term 'zero))))
+                 (== arg (ast/var-term x)))))))))
+
+(deftest subst-formulao-synthesizes-environment-keys
+  (testing "environment bindings can be refined from a known input formula and substituted output"
+    (ast/nom x
+      (is (= [true]
+             (run* [q]
+               (== q true)
+               (fresh [binding-nom]
+                 (subst/subst-formulao
+                   (ast/pos-lit (ast/app-term 'p (ast/var-term x)))
+                   (list [binding-nom (ast/app-term 'zero)])
+                   (ast/pos-lit (ast/app-term 'p (ast/app-term 'zero))))
+                 (== binding-nom x))))))))
+
+(deftest subst-formulao-preserves-binder-shadowing-in-preimage-mode
+  (testing "reverse substitution under binders still removes shadowed environment bindings"
+    (ast/nom x y
+      (let [env (list [x (ast/app-term 'zero)]
+                      [y (ast/app-term 'one)])
+            out-body (ast/pos-lit (ast/app-term 'p (ast/app-term 'one)))]
+        (is (= [true]
+               (run* [q]
+                 (== q true)
+                 (fresh [arg]
+                   (subst/subst-formulao
+                     (ast/forall-form x
+                                       (ast/pos-lit (ast/app-term 'p arg)))
+                     env
+                     (ast/forall-form x out-body))
+                   (== arg (ast/var-term y))))))
+        (is (= [true]
+               (run* [q]
+                 (== q true)
+                 (fresh [arg]
+                   (subst/subst-formulao
+                     (ast/once-forall-form x
+                                            (ast/pos-lit (ast/app-term 'p arg)))
+                     env
+                     (ast/once-forall-form x out-body))
+                   (== arg (ast/var-term y))))))
+        (is (= [true]
+               (run* [q]
+                 (== q true)
+                 (fresh [arg]
+                   (subst/subst-formulao
+                     (ast/exists-form x
+                                      (ast/pos-lit (ast/app-term 'p arg)))
+                     env
+                     (ast/exists-form x out-body))
+                   (== arg (ast/var-term y))))))))))

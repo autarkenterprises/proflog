@@ -22,6 +22,37 @@ complete contemporaneous transcript.
 
 ## 2026-04-29
 
+- Completed [ADR-0029](docs/adr/ADR-0029-relational-fuel-purity.md) for
+  relational fuel stepping in `kernel_support.clj`. `step-fuelo` is now a
+  structural finite-domain relation over unbounded `nil` and bounded fuel
+  steps, with direct fuel synthesis, open-fuel `proveo`, and open-fuel
+  procedure-call synthesis regressions. The discussion and examples are
+  recorded in
+  [Step Fuel Relational Purity Gap](docs/log/2026-04-29-step-fuelo-relational-purity-gap.md).
+  Follow-up list-family probes showed this purity repair does not make the
+  legacy-passing raw `append([a,b], [c], [a,b,c])` or
+  `reverse([a,b], [b,a])` proofs close within a 45 second slice; the result is
+  recorded in [AAR-0029](docs/aar/AAR-0029-relational-fuel-purity.md).
+- Completed [ADR-0028](docs/adr/ADR-0028-kernel-support-disequality-purity.md)
+  for saved disequality maintenance purity in `kernel_support.clj`.
+  `prune-contradictory-neqso` and `stable-neqso` are now structural, with
+  reverse/open branch-state regressions in `proflog.kernel-test`; the preceding
+  analysis and examples are recorded verbatim in
+  [Kernel Support Disequality Purity Gap](docs/log/2026-04-29-kernel-support-disequality-purity-gap.md).
+- Completed [ADR-0027](docs/adr/ADR-0027-transitive-relational-purity.md) for
+  transitive relational purity. `subst-formulao` is now structural rather than
+  projected, reverse/partial substitution preimage regressions pass, and
+  [AAR-0027](docs/aar/AAR-0027-transitive-relational-purity.md) records the
+  remaining recursive synthesis boundaries.
+- Logged a broader transitive purity risk: `proflog.subst/subst-formulao` uses
+  `core.logic/project`, and that relation is called throughout the kernel and
+  answer overlay. This is the basis for
+  [ADR-0027](docs/adr/ADR-0027-transitive-relational-purity.md). Longer note:
+  [`subst-formulao` Transitive Purity Risk](docs/log/2026-04-29-subst-formulao-transitive-purity-risk.md).
+- Recovered the ADR-0026 branch profiler from a `core.logic/project`-based
+  classifier to structural relational goals. This is now documented as a
+  reusable example for preserving and recovering relational purity:
+  [Structural Profiler Purity Recovery](docs/log/2026-04-29-structural-profiler-purity-recovery.md).
 - Completed [ADR-0026](docs/adr/ADR-0026-kernel-layer-interoperation.md) for
   proof-producing kernel layer interoperation. The full program kernel can now
   close purified compound residual branches through propositional or

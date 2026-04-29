@@ -51,12 +51,15 @@ Focused dispatch tests now cover:
 The handoff guard is intentionally conservative. It may miss opportunities, but
 it should not delegate branches that still need full Proflog semantics.
 
-Two implementation boundaries are important:
+Three implementation boundaries are important:
 
 - The compiled program map is not projected through core.logic. Projecting it
   walked large nested program structures and caused a stack overflow. The guard
-  uses the lexical host value for active relation names while projecting only
-  the residual branch state.
+  still uses the lexical host value for the finite set of active relation names.
+- A follow-up removed the residual branch `project` from `proflog.kernel`.
+  Branch dispatch is now expressed as structural logic goals: empty `sigma` and
+  `neqs`, compound selected formula, target-profile formula structure, and
+  disequality constraints excluding active program relation names.
 - Delegation starts only from compound residual formulas (`and`, `or`, and
   quantifiers). Literal-only branches remain on the full kernel first, which
   preserves the existing first result for partial proof-shape synthesis while
@@ -81,6 +84,15 @@ future work if failed or repeated handoffs become costly.
 - `lein test-proflog-pelletier`
   - `Ran 3 tests containing 49 assertions.`
   - `0 failures, 0 errors.`
+- Follow-up purity verification:
+  - `rg -n "project" src/proflog/kernel.clj`
+    - no matches
+  - `lein test proflog.kernel.dispatch-test proflog.pelletier-layering-test`
+    - `Ran 7 tests containing 39 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-fast`
+    - `Ran 105 tests containing 349 assertions.`
+    - `0 failures, 0 errors.`
 
 `lein test-proflog-extended` was also started, but it remained in the expensive
 `proflog.list-programs-test` block for several minutes and was stopped without

@@ -26,7 +26,7 @@
      contradiction,
    - and saved literals are rechecked after each new equality step."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [== appendo conde fail fresh lcons membero project run]]
+  (:require [clojure.core.logic :refer [!= == all appendo conde fail fresh lcons membero run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -88,30 +88,6 @@
 
 (def ^:private unknown-program-relations ::unknown-program-relations)
 
-(def ^:private profile-entry-tags
-  #{'and 'or 'forall 'once-forall 'exists})
-
-(defn- finite-seq-values
-  "Return a vector of finite sequence values, or nil for open/non-sequence data."
-  [xs]
-  (try
-    (loop [remaining xs
-           values []]
-      (cond
-        (not (seqable? remaining))
-        nil
-
-        (empty? remaining)
-        values
-
-        :else
-        (let [s (seq remaining)]
-          (if s
-            (recur (rest s) (conj values (first s)))
-            values))))
-    (catch Exception _
-      nil)))
-
 (defn- active-program-relations
   [prog]
   (cond
@@ -125,78 +101,211 @@
     :else
     unknown-program-relations))
 
-(declare formula-relations)
+(defn- known-active-relationso
+  [active-relations]
+  (if (= unknown-program-relations active-relations)
+    fail
+    (== :known-active-relations :known-active-relations)))
 
-(defn- atom-relation
-  [atom]
-  (when (and (ast/app-term? atom)
-             (symbol? (second atom)))
-    (second atom)))
+(defn- inactive-relationo
+  [active-relations relation]
+  (cond
+    (= unknown-program-relations active-relations)
+    fail
 
-(defn- formula-relations
+    (empty? active-relations)
+    (== relation relation)
+
+    :else
+    (let [active-relation (first active-relations)
+          remaining-relations (rest active-relations)]
+      (all
+        (!= relation active-relation)
+        (inactive-relationo remaining-relations relation)))))
+
+(defn- nullary-atomo
+  [atom active-relations]
+  (fresh [relation]
+    (== (list 'app relation) atom)
+    (inactive-relationo active-relations relation)))
+
+(defn- atomo
+  [atom active-relations]
+  (fresh [relation args]
+    (== (lcons 'app (lcons relation args)) atom)
+    (inactive-relationo active-relations relation)))
+
+(declare pure-propositional-formulao
+         equality-free-first-order-formulao
+         first-order-feature-formulao
+         formula-list-pure-propositionalo
+         formula-list-equality-free-first-ordero
+         formula-list-first-order-featureo)
+
+(defn- compound-profile-entryo
   [formula]
-  (case (ast/tag-of formula)
-    pos (if-let [relation (atom-relation (second formula))]
-          #{relation}
-          #{})
-    neg (if-let [relation (atom-relation (second formula))]
-          #{relation}
-          #{})
-    and (into (formula-relations (second formula))
-              (formula-relations (nth formula 2 nil)))
-    or (into (formula-relations (second formula))
-             (formula-relations (nth formula 2 nil)))
-    forall (formula-relations (:body (second formula)))
-    once-forall (formula-relations (:body (second formula)))
-    exists (formula-relations (:body (second formula)))
-    #{}))
+  (conde
+    [(fresh [left right]
+       (== (list 'and left right) formula))]
+    [(fresh [left right]
+       (== (list 'or left right) formula))]
+    [(nominal/fresh [binding-nom]
+       (fresh [body]
+         (== (list 'forall (nominal/tie binding-nom body)) formula)))]
+    [(nominal/fresh [binding-nom]
+       (fresh [body]
+         (== (list 'once-forall (nominal/tie binding-nom body)) formula)))]
+    [(nominal/fresh [binding-nom]
+       (fresh [body]
+         (== (list 'exists (nominal/tie binding-nom body)) formula)))]))
 
-(defn- no-active-program-atoms?
-  [prog formulas lits]
-  (let [active-relations (active-program-relations prog)]
-    (and (not= unknown-program-relations active-relations)
-         (not-any? active-relations
-                   (mapcat formula-relations
-                           (concat formulas lits))))))
+(defn- pure-propositional-formulao
+  [formula active-relations]
+  (conde
+    [(== (list 'true) formula)]
+    [(== (list 'false) formula)]
+    [(fresh [atom]
+       (== (list 'pos atom) formula)
+       (nullary-atomo atom active-relations))]
+    [(fresh [atom]
+       (== (list 'neg atom) formula)
+       (nullary-atomo atom active-relations))]
+    [(fresh [left right]
+       (== (list 'and left right) formula)
+       (pure-propositional-formulao left active-relations)
+       (pure-propositional-formulao right active-relations))]
+    [(fresh [left right]
+       (== (list 'or left right) formula)
+       (pure-propositional-formulao left active-relations)
+       (pure-propositional-formulao right active-relations))]))
 
-(defn- branch-profile
-  [fml unexpanded lits sigma neqs prog]
-  (when (and (= '() sigma)
-             (= '() neqs)
-             (contains? profile-entry-tags (ast/tag-of fml)))
-    (when-let [pending (finite-seq-values unexpanded)]
-      (when-let [saved-lits (finite-seq-values lits)]
-        (let [formulas (cons fml pending)
-              branch-formulas (concat formulas saved-lits)]
-          (when (no-active-program-atoms? prog formulas saved-lits)
-            (cond
-              (every? formula-profile/pure-propositional? branch-formulas)
-              'propositional
+(defn- equality-free-first-order-formulao
+  [formula active-relations]
+  (conde
+    [(== (list 'true) formula)]
+    [(== (list 'false) formula)]
+    [(fresh [atom]
+       (== (list 'pos atom) formula)
+       (atomo atom active-relations))]
+    [(fresh [atom]
+       (== (list 'neg atom) formula)
+       (atomo atom active-relations))]
+    [(fresh [left right]
+       (== (list 'and left right) formula)
+       (equality-free-first-order-formulao left active-relations)
+       (equality-free-first-order-formulao right active-relations))]
+    [(fresh [left right]
+       (== (list 'or left right) formula)
+       (equality-free-first-order-formulao left active-relations)
+       (equality-free-first-order-formulao right active-relations))]
+    [(nominal/fresh [binding-nom]
+       (fresh [body]
+         (== (list 'forall (nominal/tie binding-nom body)) formula)
+         (equality-free-first-order-formulao body active-relations)))]
+    [(nominal/fresh [binding-nom]
+       (fresh [body]
+         (== (list 'once-forall (nominal/tie binding-nom body)) formula)
+         (equality-free-first-order-formulao body active-relations)))]
+    [(nominal/fresh [binding-nom]
+       (fresh [body]
+         (== (list 'exists (nominal/tie binding-nom body)) formula)
+         (equality-free-first-order-formulao body active-relations)))]))
 
-              (every? formula-profile/equality-free-first-order? branch-formulas)
-              'first-order)))))))
+(defn- first-order-feature-formulao
+  [formula]
+  (conde
+    [(fresh [atom relation arg rest]
+       (== (list 'pos atom) formula)
+       (== (lcons 'app (lcons relation (lcons arg rest))) atom))]
+    [(fresh [atom relation arg rest]
+       (== (list 'neg atom) formula)
+       (== (lcons 'app (lcons relation (lcons arg rest))) atom))]
+    [(fresh [left right]
+       (== (list 'and left right) formula)
+       (conde
+         [(first-order-feature-formulao left)]
+         [(first-order-feature-formulao right)]))]
+    [(fresh [left right]
+       (== (list 'or left right) formula)
+       (conde
+         [(first-order-feature-formulao left)]
+         [(first-order-feature-formulao right)]))]
+    [(nominal/fresh [binding-nom]
+       (fresh [body]
+         (== (list 'forall (nominal/tie binding-nom body)) formula)))]
+    [(nominal/fresh [binding-nom]
+       (fresh [body]
+         (== (list 'once-forall (nominal/tie binding-nom body)) formula)))]
+    [(nominal/fresh [binding-nom]
+       (fresh [body]
+         (== (list 'exists (nominal/tie binding-nom body)) formula)))]))
+
+(defn- formula-list-pure-propositionalo
+  [formulas active-relations]
+  (conde
+    [(== '() formulas)]
+    [(fresh [head tail]
+       (== (lcons head tail) formulas)
+       (pure-propositional-formulao head active-relations)
+       (formula-list-pure-propositionalo tail active-relations))]))
+
+(defn- formula-list-equality-free-first-ordero
+  [formulas active-relations]
+  (conde
+    [(== '() formulas)]
+    [(fresh [head tail]
+       (== (lcons head tail) formulas)
+       (equality-free-first-order-formulao head active-relations)
+       (formula-list-equality-free-first-ordero tail active-relations))]))
+
+(defn- formula-list-first-order-featureo
+  [formulas]
+  (fresh [head tail]
+    (== (lcons head tail) formulas)
+    (conde
+      [(first-order-feature-formulao head)]
+      [(formula-list-first-order-featureo tail)])))
+
+(defn- branch-first-order-featureo
+  [fml unexpanded lits]
+  (conde
+    [(first-order-feature-formulao fml)]
+    [(formula-list-first-order-featureo unexpanded)]
+    [(formula-list-first-order-featureo lits)]))
 
 (defn- branch-profileo
-  [fml unexpanded lits sigma neqs prog kind]
-  (project [fml unexpanded lits sigma neqs]
-    (if-let [profile (branch-profile fml unexpanded lits sigma neqs prog)]
-      (== profile kind)
-      fail)))
+  [fml unexpanded lits sigma neqs active-relations kind]
+  (all
+    (known-active-relationso active-relations)
+    (== '() sigma)
+    (== '() neqs)
+    (compound-profile-entryo fml)
+    (conde
+      [(== 'propositional kind)
+       (pure-propositional-formulao fml active-relations)
+       (formula-list-pure-propositionalo unexpanded active-relations)
+       (formula-list-pure-propositionalo lits active-relations)]
+      [(== 'first-order kind)
+       (equality-free-first-order-formulao fml active-relations)
+       (formula-list-equality-free-first-ordero unexpanded active-relations)
+       (formula-list-equality-free-first-ordero lits active-relations)
+       (branch-first-order-featureo fml unexpanded lits)])))
 
 (defn- profiled-closeo
   [fml unexpanded lits env sigma sigma-out neqs neqs-out prog fuel proof]
-  (fresh [kind subproof next-fuel]
-    (support/step-fuelo fuel next-fuel)
-    (branch-profileo fml unexpanded lits sigma neqs prog kind)
-    (== sigma sigma-out)
-    (== neqs neqs-out)
-    (conde
-      [(== 'propositional kind)
-       (== (list 'profiled 'propositional subproof) proof)
-       (propositional/proveo fml unexpanded lits subproof)]
-      [(== 'first-order kind)
-       (== (list 'profiled 'first-order subproof) proof)
-       (first-order/proveo fml unexpanded lits env subproof)])))
+  (let [active-relations (active-program-relations prog)]
+    (fresh [kind subproof next-fuel]
+      (support/step-fuelo fuel next-fuel)
+      (branch-profileo fml unexpanded lits sigma neqs active-relations kind)
+      (== sigma sigma-out)
+      (== neqs neqs-out)
+      (conde
+        [(== 'propositional kind)
+         (== (list 'profiled 'propositional subproof) proof)
+         (propositional/proveo fml unexpanded lits subproof)]
+        [(== 'first-order kind)
+         (== (list 'profiled 'first-order subproof) proof)
+         (first-order/proveo fml unexpanded lits env subproof)]))))
 
 ;; Re-export the structural L-groundness relation here because procedure-call
 ;; admissibility is part of the kernel story from the paper's perspective.

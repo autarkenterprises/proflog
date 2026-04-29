@@ -1,5 +1,61 @@
 # Lessons
 
+## 2026-04-29
+
+- ADR-0027 removed the projected `subst-formulao` kernel-facing boundary by
+  rewriting formula substitution as constructor-by-constructor logic goals. The
+  key detail was to preserve binder shadowing relationally: `forall`,
+  `once-forall`, and `exists` all call `remove-bindo` before recursing into the
+  tied body.
+- After that recovery, remaining `synthesis-modes-test` and
+  `recursive-synthesis-test` failures should no longer be attributed to formula
+  substitution projection. They now belong to search ordering, answer-overlay
+  frontier handling, recursive proof control, or family-specific scheduling.
+- A purity audit must check transitive kernel helpers, not only direct
+  `project` calls in `kernel.clj`. `subst-formulao` lives in `proflog.subst`,
+  but because the kernel calls it in quantifier, equality, disequality, atom,
+  procedure-call, and branch-saving rules, its projected implementation creates
+  a kernel-wide relationality boundary.
+- ADR-0028 extended that audit to `kernel_support.clj`: saved-disequality
+  maintenance is proof-state flow, not harmless host utility code. Projecting
+  `neqs` or `sigma` can both throw in reverse/open branch-state modes and
+  freeze stale decisions before later logic refinements. ADR-0028 initially
+  left fuel stepping as a narrow accepted support projection because it is
+  bounded operational bookkeeping over a scalar budget.
+- ADR-0029 closed the fuel exception from ADR-0028. `fuel=nil` makes search
+  unbounded but does not bypass `step-fuelo`; any non-closing branch-progress
+  rule still calls the fuel relation. A transitive-purity audit therefore has
+  to test open fuel on real kernel progress, not only direct helper calls.
+- Core.logic finite-domain arithmetic can express numeric fuel stepping
+  relationally, but the domains must reflect the arithmetic direction. Splitting
+  current fuel as `1..Long/MAX_VALUE` and next fuel as
+  `0..Long/MAX_VALUE - 1` preserves the largest valid step without causing
+  `fd/+` to overflow.
+- Forward-only wrappers can look harmless when all current success paths call
+  them with ground-enough inputs. The reverse/partial loss appears in preimage
+  modes: synthesizing a formula, environment, clause body, or recursive query
+  shape from a substituted branch obligation.
+- ADR-0026's first branch profiler accidentally preserved a kernel impurity
+  even after keeping the compiled program map out of `core.logic/project`: it
+  still projected the selected formula, pending agenda, saved literals,
+  `sigma`, and `neqs` before classifying a residual branch.
+- The recovery pattern is to separate finite host metadata from proof-state
+  terms. The compiled program can supply a lexical finite set of active
+  relation names, but the branch formulas, saved literals, equality
+  substitution, and disequality store must be checked with structural goals.
+- Host shape predicates such as "pure propositional", "equality-free
+  first-order", "compound entry", and "no active program atom" can be converted
+  into small relations: match formula constructors with `==`, recurse over
+  finite branch lists, require `sigma` and `neqs` to be `'()`, and express
+  active-relation exclusion with disequality constraints against the finite
+  active set.
+- The right failure mode for a profiler guard is conservative failure. If a
+  branch is open, structurally unsupported, equality-bearing, disequality-
+  bearing, or mentions an active program relation, the optimized handoff should
+  fail and leave the full kernel in control.
+- This recovery is now written up as a reusable example:
+  [Structural Profiler Purity Recovery](docs/log/2026-04-29-structural-profiler-purity-recovery.md).
+
 ## 2026-04-18
 
 - In the greenfield kernel, positive equality and disequality do not have symmetric operational rules.

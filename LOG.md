@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-04-29
 
+- Accepted [ADR-0030](docs/adr/ADR-0030-relational-constructor-search.md) on
+  branch `adr-0030-relational-constructor-search`. The plan treats the
+  legacy-passing raw list proofs as constructor-recursive kernel search
+  failures and proposes generic, pure relational improvements: rigid
+  constructor disequality discharge, structural agenda focusing, guarded
+  procedure-call descent, and optional call-stack descent preference. Longer
+  note:
+  [List-Family Kernel Search Plan](docs/log/2026-04-29-list-family-kernel-search-plan.md).
 - Completed [ADR-0029](docs/adr/ADR-0029-relational-fuel-purity.md) for
   relational fuel stepping in `kernel_support.clj`. `step-fuelo` is now a
   structural finite-domain relation over unbounded `nil` and bounded fuel

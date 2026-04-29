@@ -72,6 +72,7 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0023](adr/ADR-0023-profiled-kernel-layers.md) | completed | `adr-0023-profiled-kernel-layers` | formula-profiled kernel layers that keep the full Proflog rule structure readable while routing simpler formulas through simpler relational components | ADR-0022 | profile classification tests, a generic propositional kernel regression for Pelletier Problem 12, and dispatch tests proving equality/program formulas still use the full kernel | Problem 12 is promoted through a generic pure-propositional path, no theorem-specific dispatch exists, and the full kernel remains didactically transparent |
 | [ADR-0024](adr/ADR-0024-pelletier-first-order-performance.md) | completed | `adr-0024-pelletier-first-order-performance` | equality-free first-order performance closure for the remaining Pelletier benchmark tranche | ADR-0023 | comparative measurements for the too-slow tranche, equality-free first-order component tests, and dispatch tests proving equality/program formulas still use broader layers | first generic first-order tranche is promoted, remaining non-passers keep measurements plus follow-up hypotheses, and [AAR-0024](aar/AAR-0024-pelletier-first-order-performance.md) records the outcome |
 | [ADR-0025](adr/ADR-0025-pelletier-lean-search-policy.md) | completed | `adr-0025-pelletier-lean-search-policy` | lean alphaleanTAP-shaped first-order search policy for complete Pelletier closure | ADR-0024 | remaining Pelletier closure tests, lean policy comparison records, and direct relational boundary tests | all Pelletier problems are passing without id dispatch, and [AAR-0025](aar/AAR-0025-pelletier-lean-search-policy.md) records the search-policy tradeoffs |
+| [ADR-0026](adr/ADR-0026-kernel-layer-interoperation.md) | completed | `adr-0026-kernel-layer-interoperation` | branch-level interoperation between the full program kernel and optimized propositional / first-order layers | ADR-0025 | program-kernel tests for propositional and first-order delegated subbranches, Pelletier aggregate layering closure, and proof-boundary assertions | optimized layers can close purified program subbranches through proof-producing relations while full-kernel equality, disequality, and procedure-call semantics remain authoritative; [AAR-0026](aar/AAR-0026-kernel-layer-interoperation.md) records the outcome |
 
 ## Deferred Tracks
 
@@ -98,6 +99,7 @@ Pelletier problem replication has now graduated into ADR-0022.
 Profiled kernel layering has now graduated into completed ADR-0023.
 Pelletier first-order performance closure has graduated into completed ADR-0024.
 Pelletier lean first-order search policy has graduated into completed ADR-0025.
+Kernel layer interoperation has graduated into completed ADR-0026.
 
 ## ADR-0007 Task List
 

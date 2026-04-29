@@ -5,6 +5,7 @@
             [proflog.kernel.first-order :as first-order]
             [proflog.kernel.propositional :as propositional]
             [proflog.language :as language]
+            [proflog.normalize :as normalize]
             [proflog.pelletier-test :as pelletier]
             [proflog.proof :as proof]))
 
@@ -91,7 +92,9 @@
     (let [propositional-calls (atom 0)
           first-order-calls (atom 0)
           original-propositional-prove propositional/prove
-          original-first-order-prove first-order/prove]
+          original-first-order-prove first-order/prove
+          original-propositional-proveo propositional/proveo
+          original-first-order-proveo first-order/proveo]
       (with-redefs [propositional/prove
                     (fn [& args]
                       (swap! propositional-calls inc)
@@ -99,7 +102,15 @@
                     first-order/prove
                     (fn [& args]
                       (swap! first-order-calls inc)
-                      (apply original-first-order-prove args))]
+                      (apply original-first-order-prove args))
+                    propositional/proveo
+                    (fn [& args]
+                      (swap! propositional-calls inc)
+                      (apply original-propositional-proveo args))
+                    first-order/proveo
+                    (fn [& args]
+                      (swap! first-order-calls inc)
+                      (apply original-first-order-proveo args))]
         (let [proof (first
                       (kernel/prove-program
                         (nullary-call-program)
@@ -107,5 +118,98 @@
                         1))]
           (is proof)
           (is (proof/contains-step? proof 'pos-call))
+          (is (not (proof/contains-step? proof 'profiled)))
           (is (zero? @propositional-calls))
           (is (zero? @first-order-calls)))))))
+
+(def profiled-propositional-language
+  (language/language
+    {:relations {'fast-prop 0
+                 'p 0}}))
+
+(defn profiled-propositional-program
+  []
+  (language/compile-program
+    profiled-propositional-language
+    [(ast/clause 'fast-prop []
+                 (normalize/negate-formula
+                   (closed-propositional-formula)))]))
+
+(deftest program-subbranch-can-dispatch-to-propositional-component
+  (testing "a pure propositional procedure-call residual closes through proveo"
+    (let [host-prove-calls (atom 0)
+          proveo-calls (atom 0)
+          original-proveo propositional/proveo]
+      (with-redefs [propositional/prove
+                    (fn [& _]
+                      (swap! host-prove-calls inc)
+                      (throw (ex-info "Program dispatch must not call propositional/prove"
+                                      {})))
+                    propositional/proveo
+                    (fn [& args]
+                      (swap! proveo-calls inc)
+                      (apply original-proveo args))]
+        (let [proof (first
+                      (kernel/prove-program
+                        (profiled-propositional-program)
+                        (ast/neg-lit (ast/app-term 'fast-prop))
+                        1
+                        4))]
+          (is proof)
+          (is (= 'neg-call (first proof)))
+          (is (= 'profiled (first (second proof))))
+          (is (proof/contains-step? proof 'neg-call))
+          (is (proof/contains-step? proof 'profiled))
+          (is (proof/contains-step? proof 'propositional))
+          (is (pos? @proveo-calls))
+          (is (zero? @host-prove-calls)))))))
+
+(def profiled-first-order-language
+  (language/language
+    {:relations {'fast-fo 0
+                 'p 1}}))
+
+(defn closed-first-order-formula
+  []
+  (ast/nom x
+    (ast/forall-form x
+      (ast/and-form
+        (ast/pos-lit (ast/app-term 'p (ast/var-term x)))
+        (ast/neg-lit (ast/app-term 'p (ast/var-term x)))))))
+
+(defn profiled-first-order-program
+  []
+  (language/compile-program
+    profiled-first-order-language
+    [(ast/clause 'fast-fo []
+                 (normalize/negate-formula
+                   (closed-first-order-formula)))]))
+
+(deftest program-subbranch-can-dispatch-to-first-order-component
+  (testing "an equality-free first-order procedure-call residual closes through proveo"
+    (let [host-prove-calls (atom 0)
+          proveo-calls (atom 0)
+          original-proveo first-order/proveo]
+      (with-redefs [first-order/prove
+                    (fn [& _]
+                      (swap! host-prove-calls inc)
+                      (throw (ex-info "Program dispatch must not call first-order/prove"
+                                      {})))
+                    first-order/proveo
+                    (fn [& args]
+                      (swap! proveo-calls inc)
+                      (apply original-proveo args))]
+        (let [proof (first
+                      (kernel/prove-program
+                        (profiled-first-order-program)
+                        (ast/neg-lit (ast/app-term 'fast-fo))
+                        1
+                        4))]
+          (is proof)
+          (is (= 'neg-call (first proof)))
+          (is (= 'profiled (first (second proof))))
+          (is (proof/contains-step? proof 'neg-call))
+          (is (proof/contains-step? proof 'profiled))
+          (is (proof/contains-step? proof 'first-order))
+          (is (pos? @proveo-calls))
+          (is (zero? @host-prove-calls)))))))

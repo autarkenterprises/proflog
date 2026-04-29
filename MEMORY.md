@@ -1,5 +1,52 @@
 # Memory
 
+## 2026-04-29 ADR-0026 Kernel Layer Interoperation
+
+- Completed branch: `adr-0026-kernel-layer-interoperation`.
+- ADR-0026 is completed and registered in:
+  - `docs/adr/ADR-0026-kernel-layer-interoperation.md`
+  - `docs/adr/README.md`
+  - `docs/EXECUTION_PLAN.md`
+- AAR-0026 records the branch outcome:
+  - `docs/aar/AAR-0026-kernel-layer-interoperation.md`
+  - `docs/aar/README.md`
+- Implemented proof-producing branch-level interoperation in:
+  - `src/proflog/kernel.clj`
+  - purified compound residual branches can close through
+    `proflog.kernel.propositional/proveo` or
+    `proflog.kernel.first-order/proveo`.
+  - delegated subproofs are marked as `(profiled propositional subproof)` or
+    `(profiled first-order subproof)`.
+  - host-facing theorem wrappers such as `first-order/prove` are not used by
+    internal program-kernel interoperation.
+- Guard boundaries:
+  - `sigma` and `neqs` must be empty.
+  - residual formulas and saved literals must match the target profile.
+  - active compiled Proflog relation atoms keep the branch on the foreground
+    program kernel.
+  - delegation starts from compound residual formulas so literal-level partial
+    proof-shape synthesis keeps the old full-kernel first result.
+- Pelletier layering result:
+  - the aggregate Proflog query in `test/proflog/pelletier_layering_test.clj`
+    now succeeds through internal first-order delegation.
+- Verification:
+  - `lein test proflog.kernel.dispatch-test proflog.pelletier-layering-test`
+    - `Ran 7 tests containing 39 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test proflog.kernel.dispatch-test proflog.pelletier-layering-test proflog.kernel-test`
+    - `Ran 22 tests containing 61 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-fast`
+    - `Ran 105 tests containing 349 assertions.`
+    - `0 failures, 0 errors.`
+  - `lein test-proflog-pelletier`
+    - `Ran 3 tests containing 49 assertions.`
+    - `0 failures, 0 errors.`
+- Extended-suite note:
+  - `lein test-proflog-extended` was started, reached
+    `proflog.list-programs-test`, remained there for several minutes, and was
+    stopped without being counted as a pass.
+
 ## 2026-04-28 ADR-0025 Pelletier Lean Search Policy
 
 - Completed branch: `adr-0025-pelletier-lean-search-policy`.

@@ -22,6 +22,20 @@ complete contemporaneous transcript.
 
 ## 2026-04-29
 
+- Completed [ADR-0026](docs/adr/ADR-0026-kernel-layer-interoperation.md) for
+  proof-producing kernel layer interoperation. The full program kernel can now
+  close purified compound residual branches through propositional or
+  equality-free first-order `proveo` relations, and
+  [AAR-0026](docs/aar/AAR-0026-kernel-layer-interoperation.md) records the
+  proof-boundary and partial-synthesis constraints.
+- Logged the tableau foreground/background literature relevant to kernel layer
+  interoperation. The key architectural note is that delegated branch closure
+  must remain proof-producing; kernel purity rules out opaque background
+  oracles. Longer note:
+  [Tableau Foreground/Background Lessons](docs/log/2026-04-29-tableau-foreground-background-lessons.md).
+- Accepted [ADR-0026](docs/adr/ADR-0026-kernel-layer-interoperation.md) to
+  implement branch-level interoperation between the full program kernel and the
+  propositional / equality-free first-order layers.
 - Introduced this development log as a central timeline and documentation spine.
   The immediate prompt was a discussion about how to keep optimized Pelletier
   kernel layers useful inside general Proflog program execution, rather than

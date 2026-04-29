@@ -6,6 +6,7 @@
             [proflog.language :as language]
             [proflog.normalize :as normalize]
             [proflog.pelletier-test :as pelletier]
+            [proflog.proof :as proof]
             [proflog.query :as query]))
 
 (def pelletier-layering-ids
@@ -143,7 +144,7 @@
                 (conj subproblem-clauses
                       (ast/clause aggregate-relation [] aggregate-body)))}))
 
-(deftest pelletier-subgoals-do-not-compose-through-program-kernel
+(deftest pelletier-subgoals-compose-through-program-kernel
   (testing "the component obligations close through theorem dispatch"
     (let [{:keys [branches]} (layering-program)
           first-order-calls (atom 0)
@@ -155,14 +156,25 @@
         (doseq [[id branch] branches]
           (is (seq (kernel/prove branch 1))
               (str "Pelletier Problem " id " should close as a direct theorem"))))
-      (is (= (count branches) @first-order-calls))))
-  (testing "the aggregate valid Proflog program query stays on the full program kernel"
+        (is (= (count branches) @first-order-calls))))
+  (testing "the aggregate valid Proflog program query reaches first-order subbranch dispatch"
     (let [{:keys [program query]} (layering-program)
-          first-order-calls (atom 0)]
+          host-first-order-calls (atom 0)
+          first-order-proveo-calls (atom 0)
+          original-first-order-proveo first-order/proveo]
       (with-redefs [first-order/prove
                     (fn [& _]
-                      (swap! first-order-calls inc)
+                      (swap! host-first-order-calls inc)
                       (throw (ex-info "Program search unexpectedly entered first-order/prove"
-                                      {})))]
-        (is (empty? (query/query-succeeds program query 1 4))))
-      (is (zero? @first-order-calls)))))
+                                      {})))
+                    first-order/proveo
+                    (fn [& args]
+                      (swap! first-order-proveo-calls inc)
+                      (apply original-first-order-proveo args))]
+        (let [proof (first (query/query-succeeds program query 1 4))]
+          (is proof)
+          (is (proof/contains-step? proof 'neg-call))
+          (is (proof/contains-step? proof 'profiled))
+          (is (proof/contains-step? proof 'first-order))))
+      (is (pos? @first-order-proveo-calls))
+      (is (zero? @host-first-order-calls)))))

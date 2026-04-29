@@ -26,7 +26,7 @@
      contradiction,
    - and saved literals are rechecked after each new equality step."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [== appendo conde fresh lcons membero run]]
+  (:require [clojure.core.logic :refer [== appendo conde fail fresh lcons membero project run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -75,6 +75,128 @@
 (defn- recursive-prove-stateo
   [& args]
   (apply (or *recursive-prove-stateo* prove-stateo) args))
+
+;; ---------------------------------------------------------------------------
+;; Profiled branch interoperation
+;; ---------------------------------------------------------------------------
+;;
+;; This is a narrow foreground/background tableau boundary. The full program
+;; kernel remains responsible for equality, disequality, procedure calls, and
+;; answer-oriented execution. When a residual branch is already isolated from
+;; those concerns, the optimized proof-producing layer may close it and return
+;; a subproof under an explicit `profiled` proof tag.
+
+(def ^:private unknown-program-relations ::unknown-program-relations)
+
+(def ^:private profile-entry-tags
+  #{'and 'or 'forall 'once-forall 'exists})
+
+(defn- finite-seq-values
+  "Return a vector of finite sequence values, or nil for open/non-sequence data."
+  [xs]
+  (try
+    (loop [remaining xs
+           values []]
+      (cond
+        (not (seqable? remaining))
+        nil
+
+        (empty? remaining)
+        values
+
+        :else
+        (let [s (seq remaining)]
+          (if s
+            (recur (rest s) (conj values (first s)))
+            values))))
+    (catch Exception _
+      nil)))
+
+(defn- active-program-relations
+  [prog]
+  (cond
+    (nil? prog)
+    #{}
+
+    (and (map? prog)
+         (map? (:clauses prog)))
+    (set (keys (:clauses prog)))
+
+    :else
+    unknown-program-relations))
+
+(declare formula-relations)
+
+(defn- atom-relation
+  [atom]
+  (when (and (ast/app-term? atom)
+             (symbol? (second atom)))
+    (second atom)))
+
+(defn- formula-relations
+  [formula]
+  (case (ast/tag-of formula)
+    pos (if-let [relation (atom-relation (second formula))]
+          #{relation}
+          #{})
+    neg (if-let [relation (atom-relation (second formula))]
+          #{relation}
+          #{})
+    and (into (formula-relations (second formula))
+              (formula-relations (nth formula 2 nil)))
+    or (into (formula-relations (second formula))
+             (formula-relations (nth formula 2 nil)))
+    forall (formula-relations (:body (second formula)))
+    once-forall (formula-relations (:body (second formula)))
+    exists (formula-relations (:body (second formula)))
+    #{}))
+
+(defn- no-active-program-atoms?
+  [prog formulas lits]
+  (let [active-relations (active-program-relations prog)]
+    (and (not= unknown-program-relations active-relations)
+         (not-any? active-relations
+                   (mapcat formula-relations
+                           (concat formulas lits))))))
+
+(defn- branch-profile
+  [fml unexpanded lits sigma neqs prog]
+  (when (and (= '() sigma)
+             (= '() neqs)
+             (contains? profile-entry-tags (ast/tag-of fml)))
+    (when-let [pending (finite-seq-values unexpanded)]
+      (when-let [saved-lits (finite-seq-values lits)]
+        (let [formulas (cons fml pending)
+              branch-formulas (concat formulas saved-lits)]
+          (when (no-active-program-atoms? prog formulas saved-lits)
+            (cond
+              (every? formula-profile/pure-propositional? branch-formulas)
+              'propositional
+
+              (every? formula-profile/equality-free-first-order? branch-formulas)
+              'first-order)))))))
+
+(defn- branch-profileo
+  [fml unexpanded lits sigma neqs prog kind]
+  (project [fml unexpanded lits sigma neqs]
+    (if-let [profile (branch-profile fml unexpanded lits sigma neqs prog)]
+      (== profile kind)
+      fail)))
+
+(defn- profiled-closeo
+  [fml unexpanded lits env sigma sigma-out neqs neqs-out prog fuel proof]
+  (fresh [kind subproof next-fuel]
+    (support/step-fuelo fuel next-fuel)
+    (branch-profileo fml unexpanded lits sigma neqs prog kind)
+    (== sigma sigma-out)
+    (== neqs neqs-out)
+    (conde
+      [(== 'propositional kind)
+       (== (list 'profiled 'propositional subproof) proof)
+       (propositional/proveo fml unexpanded lits subproof)]
+      [(== 'first-order kind)
+       (== (list 'profiled 'first-order subproof) proof)
+       (first-order/proveo fml unexpanded lits env subproof)])))
 
 ;; Re-export the structural L-groundness relation here because procedure-call
 ;; admissibility is part of the kernel story from the paper's perspective.
@@ -158,6 +280,15 @@
   (fresh [fml unexpanded]
     (support/selecto fml agenda unexpanded)
     (conde
+    ;; ================================================================
+    ;; Profiled branch handoff
+    ;; ================================================================
+    ;;
+    ;; Once the residual branch is isolated from active program calls and
+    ;; equality state, a specialized kernel layer may close it as a single
+    ;; proof-producing background step.
+    [(profiled-closeo fml unexpanded lits env sigma sigma-out neqs neqs-out prog fuel proof)]
+
     ;; ================================================================
     ;; Alpha rule: conjunction
     ;; ================================================================

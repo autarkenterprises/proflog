@@ -1,0 +1,128 @@
+(ns proflog.program
+  "Compiled-program helpers for the Procedure Call Rule."
+  (:refer-clojure :exclude [==])
+  (:require [clojure.core.logic :refer [== conde fresh lcons membero]]))
+
+(defn lookup-clause-with-alternativeso
+  "Find the compiled clause for `relation` in `program`.
+
+   Returns the clause parameters, body, precomputed NNF negation, and the
+   compiled top-level alternatives. The compiled program keeps a list view
+   specifically so this lookup can remain relational inside the kernel."
+  [program relation params body negated-body alternatives negated-alternatives]
+  (fresh [language clauses clause-list alternative-clause-list]
+    (conde
+      [(fresh [guarded-clause-list]
+         (== {:language language
+              :clauses clauses
+              :clause-list clause-list
+              :alternative-clause-list alternative-clause-list
+              :guarded-clause-list guarded-clause-list}
+             program))]
+      [(== {:language language
+            :clauses clauses
+            :clause-list clause-list
+            :alternative-clause-list alternative-clause-list}
+           program)])
+    (membero {:relation relation
+              :params params
+              :body body
+              :negated-body negated-body
+              :alternatives alternatives
+              :negated-alternatives negated-alternatives}
+             alternative-clause-list)))
+
+(defn lookup-clause-with-guarded-alternativeso
+  "Find the compiled clause for `relation` and expose guarded alternative IR."
+  [program relation params body negated-body alternatives negated-alternatives guarded-alternatives]
+  (fresh [language clauses clause-list alternative-clause-list guarded-clause-list]
+    (== {:language language
+         :clauses clauses
+         :clause-list clause-list
+         :alternative-clause-list alternative-clause-list
+         :guarded-clause-list guarded-clause-list}
+        program)
+    (membero {:relation relation
+              :params params
+              :body body
+              :negated-body negated-body
+              :alternatives alternatives
+              :negated-alternatives negated-alternatives
+              :guarded-alternatives guarded-alternatives}
+             guarded-clause-list)))
+
+(defn lookup-clauseo
+  "Find the compiled clause for `relation` in `program`.
+
+   Returns the clause parameters, body, and precomputed NNF negation of the
+   body. The compiled program keeps a list view specifically so this lookup can
+   remain relational inside the kernel."
+  [program relation params body negated-body]
+  (fresh [language clauses clause-list]
+    (conde
+      [(fresh [alternative-clause-list guarded-clause-list]
+         (== {:language language
+              :clauses clauses
+              :clause-list clause-list
+              :alternative-clause-list alternative-clause-list
+              :guarded-clause-list guarded-clause-list}
+             program))]
+      [(fresh [alternative-clause-list]
+         (== {:language language
+              :clauses clauses
+              :clause-list clause-list
+              :alternative-clause-list alternative-clause-list}
+             program))]
+      [(== {:language language
+            :clauses clauses
+            :clause-list clause-list}
+           program)])
+    (membero {:relation relation
+              :params params
+              :body body
+              :negated-body negated-body}
+             clause-list)))
+
+(defn bind-argso
+  "Create an environment mapping formal parameter noms to actual argument terms."
+  [params args env]
+  (conde
+    [(== '() params) (== '() args) (== '() env)]
+    [(fresh [param param-rest arg arg-rest env-rest]
+       (== (lcons param param-rest) params)
+       (== (lcons arg arg-rest) args)
+       (== (lcons [param arg] env-rest) env)
+       (bind-argso param-rest arg-rest env-rest))]))
+
+(defn call-clauseo
+  "Resolve an atomic procedure call against a compiled program."
+  [program atom env body negated-body]
+  (fresh [relation args params]
+    (== (lcons 'app (lcons relation args)) atom)
+    (lookup-clauseo program relation params body negated-body)
+    (bind-argso params args env)))
+
+(defn call-clause-with-alternativeso
+  "Resolve a procedure call and expose compiled top-level body alternatives."
+  [program atom env body negated-body alternatives negated-alternatives]
+  (fresh [relation args params]
+    (== (lcons 'app (lcons relation args)) atom)
+    (lookup-clause-with-alternativeso
+      program relation params body negated-body alternatives negated-alternatives)
+    (bind-argso params args env)))
+
+(defn call-clause-with-guarded-alternativeso
+  "Resolve a procedure call and expose guarded alternative IR."
+  [program atom env body negated-body alternatives negated-alternatives guarded-alternatives]
+  (fresh [relation args params]
+    (== (lcons 'app (lcons relation args)) atom)
+    (lookup-clause-with-guarded-alternativeso
+      program
+      relation
+      params
+      body
+      negated-body
+      alternatives
+      negated-alternatives
+      guarded-alternatives)
+    (bind-argso params args env)))

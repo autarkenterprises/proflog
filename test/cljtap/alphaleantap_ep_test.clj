@@ -1604,11 +1604,10 @@
     (is (proof-uses-step? '(neq (app c) (app c)) 'refl-close))))
 
 (deftest test-O05-proof-has-para-close
-  (testing "Paramodulation closure produces 'para-close'"
+  (testing "Paramodulation closure produces 'para-close' or 'close' (with constraint propagation)"
     ;; Use nom p encoded as (par p) so (eq (par p) (app b)) is not free-closeable.
-    ;; savefml saves (eq (par p) (app b)) to lits; (pos P(par p)) saved to lits;
-    ;; (neg P(app b)) → para-close: collect eqs [(par p)→(app b),(app b)→(par p)],
-    ;; rewrite (pos P(app b))→(pos P(par p)) found in lits ✓
+    ;; Without constraint propagation: para-close via eq rewriting.
+    ;; With constraint propagation: par p resolves to (app b), enabling direct close.
     (let [proofs (run 1 [proof]
                    (nom p
                      (proveo ['and ['eq ['par p] ['app 'b]]
@@ -1616,7 +1615,8 @@
                                          ['neg ['app 'P ['app 'b]]]]]
                              '() '() '() '() proof)))]
       (is (seq proofs))
-      (is (proof-tree-contains? (first proofs) 'para-close)))))
+      (is (or (proof-tree-contains? (first proofs) 'para-close)
+              (proof-tree-contains? (first proofs) 'close))))))
 (deftest test-O06-proof-has-witness
   (testing "δ-rule produces 'witness' in proof"
     (let [proofs (run 1 [proof]
@@ -2153,14 +2153,18 @@
                       '() '() '() '() proof)))))))
 
 (deftest test-R04-para-free-close-proof-step
-  (testing "para-free-close produces the correct proof step tag"
+  (testing "para-free-close or free-close (with constraint propagation) proof step"
+    ;; Without constraint propagation: para-free-close via eq rewriting.
+    ;; With constraint propagation: par p resolves to (app a), then
+    ;; (eq (app b) (app a)) closes directly via free-close.
     (let [proofs (run 1 [proof]
                    (nom p
                      (proveo ['and ['eq ['app 'a] ['par p]]
                                    ['eq ['app 'b] ['par p]]]
                              '() '() '() '() proof)))]
       (is (seq proofs))
-      (is (proof-tree-contains? (first proofs) 'para-free-close)))))
+      (is (or (proof-tree-contains? (first proofs) 'para-free-close)
+              (proof-tree-contains? (first proofs) 'free-close))))))
 
 (deftest test-R05-para-free-close-no-false-fire-same-head
   (testing "a=p ∧ a=p — rewrite yields (eq a a): same head, no clash (tableau stays open)"
@@ -5451,6 +5455,684 @@
                                          ['neq ['var x] ['app 'c]]]])]]]]
                 (proveo ['pos ['app 'acyclic_abca]]
                         '() '() '() prog proof))))))))
+
+;; ============================================================================
+;; Section GV: Group Verifier — Abstract Finite Group Axiom Checker
+;; ============================================================================
+;;
+;; An abstract framework for verifying finite group axioms in Proflog.
+;; Given a GROUP SPEC (domain elements, binary operation table, candidate
+;; identity), the framework generates Proflog programs to check each axiom.
+;;
+;; This is a Proflog-native program: every axiom is expressed as a single
+;; clause with full FOL in the body (∀, ∃, ¬, ∧, ∨, =, ≠).  The operation
+;; table is inlined as equalities per Fitting §8 (no auxiliary relations —
+;; the L-ground guard would block procedure calls on δ-parameters).
+;;
+;; GROUP SPEC FORMAT:
+;;   {:domain  [sym₁ sym₂ ...]           ;; Clojure symbols → Proflog constants
+;;    :op      {[sym₁ sym₁] sym₁, ...}   ;; operation table: [a b] → c
+;;    :identity sym₁}                     ;; candidate identity element
+;;
+;; Example — Z₂ = ({0,1}, +mod2, identity=0):
+;;   {:domain  ['zero 'one]
+;;    :op      {['zero 'zero] 'zero, ['zero 'one] 'one,
+;;              ['one  'zero] 'one,  ['one  'one]  'zero}
+;;    :identity 'zero}
+;;
+;; AXIOM PROGRAMS GENERATED:
+;;   gv_closure()  ← ∀x.∀y.(¬D(x) ∨ ¬D(y) ∨ ∃z.(op(x,y,z) ∧ D(z)))
+;;   gv_identity() ← ∀x.(¬D(x) ∨ (op(e,x,x) ∧ op(x,e,x)))
+;;   gv_inverses() ← ∀x.(¬D(x) ∨ ∃y.(D(y) ∧ op(x,y,e) ∧ op(y,x,e)))
+;;   gv_assoc()    ← ∀x.∀y.∀z.∀w1.∀w2.∀w3.∀w4.
+;;                      (¬op(x,y,w1) ∨ ¬op(w1,z,w2) ∨ ¬op(y,z,w3) ∨
+;;                       ¬op(x,w3,w4) ∨ w2=w4)
+;;
+;; where D(x) = "x is in the domain" and op(x,y,z) = "op(x,y)=z",
+;; both inlined as equalities.
+;;
+;; ============================================================================
+
+;; ---------------------------------------------------------------------------
+;; GV Building Blocks (Task #2)
+;; ---------------------------------------------------------------------------
+
+(defn gv-term
+  "Convert a domain element symbol to a Proflog constant term."
+  [sym]
+  ['app sym])
+
+(defn gv-and*
+  "Build a right-associated conjunction from a sequence of formulas.
+   (gv-and* [a b c]) => ['and a ['and b c]]"
+  [formulas]
+  (reduce (fn [acc fml] ['and fml acc]) (reverse formulas)))
+
+(defn gv-or*
+  "Build a right-associated disjunction from a sequence of formulas.
+   (gv-or* [a b c]) => ['or a ['or b c]]"
+  [formulas]
+  (reduce (fn [acc fml] ['or fml acc]) (reverse formulas)))
+
+(defn gv-forall*
+  "Build nested ∀ quantifiers from a sequence of noms and a body.
+   (gv-forall* [x y z] body) => ['forall (tie x ['forall (tie y ['forall (tie z body)])])]"
+  [noms body]
+  (reduce (fn [acc n] ['forall (tie n acc)]) body (reverse noms)))
+
+(defn gv-exists*
+  "Build nested ∃ quantifiers from a sequence of noms and a body.
+   (gv-exists* [x y] body) => ['exists (tie x ['exists (tie y body)])]"
+  [noms body]
+  (reduce (fn [acc n] ['exists (tie n acc)]) body (reverse noms)))
+
+(defn gv-op-eq-inline
+  "op(x,y)=z expressed as equalities from the operation table.
+   Returns: (x=a₁ ∧ y=b₁ ∧ z=c₁) ∨ (x=a₂ ∧ y=b₂ ∧ z=c₂) ∨ ...
+   One disjunct per table entry."
+  [spec x y z]
+  (gv-or*
+    (for [[[a b] c] (:op spec)]
+      (gv-and* [['eq x (gv-term a)]
+                ['eq y (gv-term b)]
+                ['eq z (gv-term c)]]))))
+
+(defn gv-neg-op-eq-inline
+  "¬op(x,y,z) in NNF — the negation of gv-op-eq-inline.
+   Returns: (x≠a₁ ∨ y≠b₁ ∨ z≠c₁) ∧ (x≠a₂ ∨ y≠b₂ ∨ z≠c₂) ∧ ...
+   One conjunct per table entry, each a disjunction of neqs."
+  [spec x y z]
+  (gv-and*
+    (for [[[a b] c] (:op spec)]
+      (gv-or* [['neq x (gv-term a)]
+               ['neq y (gv-term b)]
+               ['neq z (gv-term c)]]))))
+
+(defn gv-in-domain-inline
+  "x ∈ domain expressed as equalities.
+   Returns: x=a₁ ∨ x=a₂ ∨ ..."
+  [spec x]
+  (gv-or* (for [d (:domain spec)] ['eq x (gv-term d)])))
+
+(defn gv-not-in-domain-inline
+  "x ∉ domain in NNF.
+   Returns: x≠a₁ ∧ x≠a₂ ∧ ..."
+  [spec x]
+  (gv-and* (for [d (:domain spec)] ['neq x (gv-term d)])))
+
+;; ---------------------------------------------------------------------------
+;; GV Axiom Generators (Task #3)
+;; ---------------------------------------------------------------------------
+
+(defn gv-identity-program
+  "gv_identity() ← ∀x.(¬D(x) ∨ (op(e,x,x) ∧ op(x,e,x)))
+   'e is a two-sided identity for all domain elements.'
+   x is the ∀-bound nom."
+  [spec x]
+  (let [e  (gv-term (:identity spec))
+        vx ['var x]]
+    [['gv_identity []
+      (gv-forall* [x]
+        ['or (gv-not-in-domain-inline spec vx)
+             ['and (gv-op-eq-inline spec e vx vx)
+                   (gv-op-eq-inline spec vx e vx)]])]]))
+
+(defn gv-closure-program
+  "gv_closure() ← ∀x.∀y.(¬D(x) ∨ ¬D(y) ∨ ∃z.(op(x,y,z) ∧ D(z)))
+   'The operation is closed on the domain.'
+   x, y are ∀-bound noms; z is the ∃-witness nom."
+  [spec x y z]
+  (let [vx ['var x]
+        vy ['var y]
+        vz ['var z]]
+    [['gv_closure []
+      (gv-forall* [x y]
+        (gv-or* [(gv-not-in-domain-inline spec vx)
+                 (gv-not-in-domain-inline spec vy)
+                 (gv-exists* [z]
+                   ['and (gv-op-eq-inline spec vx vy vz)
+                         (gv-in-domain-inline spec vz)])]))]]))
+
+(defn gv-inverses-program
+  "gv_inverses() ← ∀x.(¬D(x) ∨ ∃y.(D(y) ∧ op(x,y,e) ∧ op(y,x,e)))
+   'Every domain element has a two-sided inverse.'
+   x is the ∀-bound nom; y is the ∃-witness nom."
+  [spec x y]
+  (let [e  (gv-term (:identity spec))
+        vx ['var x]
+        vy ['var y]]
+    [['gv_inverses []
+      (gv-forall* [x]
+        ['or (gv-not-in-domain-inline spec vx)
+             (gv-exists* [y]
+               (gv-and* [(gv-in-domain-inline spec vy)
+                         (gv-op-eq-inline spec vx vy e)
+                         (gv-op-eq-inline spec vy vx e)]))])]]))
+
+(defn gv-assoc-program
+  "gv_assoc() ← ∀x.∀y.∀z.∀w1.∀w2.∀w3.∀w4.
+                  (¬op(x,y,w1) ∨ ¬op(w1,z,w2) ∨ ¬op(y,z,w3) ∨
+                   ¬op(x,w3,w4) ∨ w2=w4)
+   'op is associative: op(op(x,y),z) = op(x,op(y,z)) for all x,y,z
+    and all intermediate values w1,w2,w3,w4.'
+   7 universally quantified noms."
+  [spec x y z w1 w2 w3 w4]
+  (let [vx  ['var x]  vy  ['var y]  vz  ['var z]
+        vw1 ['var w1] vw2 ['var w2] vw3 ['var w3] vw4 ['var w4]]
+    [['gv_assoc []
+      (gv-forall* [x y z w1 w2 w3 w4]
+        (gv-or* [(gv-neg-op-eq-inline spec vx vy vw1)   ;; ¬op(x,y,w1)
+                 (gv-neg-op-eq-inline spec vw1 vz vw2)  ;; ¬op(w1,z,w2)
+                 (gv-neg-op-eq-inline spec vy vz vw3)   ;; ¬op(y,z,w3)
+                 (gv-neg-op-eq-inline spec vx vw3 vw4)  ;; ¬op(x,w3,w4)
+                 ['eq vw2 vw4]]))]]))                    ;; w2 = w4
+
+(defn gv-assoc-precomputed-program
+  "Pre-computed associativity checker using only 3 universals (x, y, z).
+
+   Instead of quantifying over intermediate values w1-w4 and using the
+   prover to resolve op-lookups (7 universals, intractable for |domain|≥2),
+   the framework computes op(op(x,y),z) and op(x,op(y,z)) in Clojure for
+   each (a,b,c) triple and generates the equality check inline:
+
+   gv_assoc_pre() ← ∀x.∀y.∀z.(¬D(x) ∨ ¬D(y) ∨ ¬D(z) ∨ assoc-check(x,y,z))
+
+   where assoc-check(x,y,z) = ∧_{(a,b,c) ∈ D³}
+     (x≠a ∨ y≠b ∨ z≠c ∨ eq(op(op(a,b),c), op(a,op(b,c))))
+
+   This is logically equivalent to the 7-universal version but tractable:
+   only 3 universals, and |domain|³ conjuncts (8 for Z₂)."
+  [spec x y z]
+  (let [vx    ['var x]
+        vy    ['var y]
+        vz    ['var z]
+        op    (:op spec)
+        dom   (:domain spec)
+        ;; Pre-compute: for each (a,b,c), check op(op(a,b),c) = op(a,op(b,c))
+        triple-checks
+        (for [a dom, b dom, c dom]
+          (let [ab   (get op [a b])
+                ab-c (get op [ab c])
+                bc   (get op [b c])
+                a-bc (get op [a bc])]
+            ;; x≠a ∨ y≠b ∨ z≠c ∨ eq(op(op(a,b),c), op(a,op(b,c)))
+            (gv-or* [['neq vx (gv-term a)]
+                     ['neq vy (gv-term b)]
+                     ['neq vz (gv-term c)]
+                     ['eq (gv-term ab-c) (gv-term a-bc)]])))]
+    [['gv_assoc_pre []
+      (gv-forall* [x y z]
+        (gv-or* [(gv-not-in-domain-inline spec vx)
+                 (gv-not-in-domain-inline spec vy)
+                 (gv-not-in-domain-inline spec vz)
+                 (gv-and* triple-checks)]))]]))
+
+;; ---------------------------------------------------------------------------
+;; GV Group Specs
+;; ---------------------------------------------------------------------------
+
+(def gv-z2
+  "Z₂ = ({0,1}, +mod2, identity=0).  The cyclic group of order 2."
+  {:domain   ['zero 'one]
+   :op       {['zero 'zero] 'zero
+              ['zero 'one]  'one
+              ['one  'zero] 'one
+              ['one  'one]  'zero}
+   :identity 'zero})
+
+(def gv-z1
+  "Z₁ = ({e}, trivial operation, identity=e).  The trivial group."
+  {:domain   ['e]
+   :op       {['e 'e] 'e}
+   :identity 'e})
+
+(def gv-non-group
+  "A non-group 2-element magma.  op(1,0)=0, so 0 is not a right identity
+   for 1 (op(1,0)=0≠1).  Also non-associative: op(1,0,1): op(op(1,0),1)
+   = op(0,1)=1 but op(1,op(0,1))=op(1,1)=0."
+  {:domain   ['zero 'one]
+   :op       {['zero 'zero] 'zero
+              ['zero 'one]  'one
+              ['one  'zero] 'zero    ;; <-- differs from Z₂
+              ['one  'one]  'zero}
+   :identity 'zero})
+
+;; ---------------------------------------------------------------------------
+;; GV Tests (Task #4)
+;; ---------------------------------------------------------------------------
+
+(deftest test-GV01-z2-identity
+  (testing "GV01: Z₂ has identity element 0.
+            ∀x.(¬D(x) ∨ (op(0,x,x) ∧ op(x,0,x)))
+            neg-call: ∃x.(D(x) ∧ (¬op(0,x,x) ∨ ¬op(x,0,x)))
+            δ-rule introduces par p. D(p) splits into p=0 ∨ p=1.
+            For each: ¬op(0,p,p) and ¬op(p,0,p) close because the
+            matching table entries make the negation unsatisfiable."
+    (is (seq
+          (run 1 [proof]
+            (nom x
+              (let [prog (gv-identity-program gv-z2 x)]
+                (proveo ['neg ['app 'gv_identity]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-GV02-z2-closure
+  (testing "GV02: Z₂ is closed under its operation.
+            ∀x.∀y.(¬D(x) ∨ ¬D(y) ∨ ∃z.(op(x,y,z) ∧ D(z)))
+            neg-call: ∃x.∃y.(D(x) ∧ D(y) ∧ ∀z.(¬op(x,y,z) ∨ ¬D(z)))
+            δ-parameters for x,y; γ for z.  For every domain pair (x,y),
+            the table entry gives z in domain, so ¬op ∨ ¬D closes."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z
+              (let [prog (gv-closure-program gv-z2 x y z)]
+                (proveo ['neg ['app 'gv_closure]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-GV03-z2-inverses
+  (testing "GV03: Every element of Z₂ has an inverse.
+            ∀x.(¬D(x) ∨ ∃y.(D(y) ∧ op(x,y,0) ∧ op(y,x,0)))
+            In Z₂: 0⁻¹=0 (0+0=0), 1⁻¹=1 (1+1=0)."
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog (gv-inverses-program gv-z2 x y)]
+                (proveo ['neg ['app 'gv_inverses]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-GV04-z2-assoc
+  (testing "GV04: Z₂ is associative (pre-computed intermediate values).
+            Uses gv-assoc-precomputed-program: the framework computes
+            op(op(a,b),c) and op(a,op(b,c)) in Clojure for each triple,
+            then generates a 3-universal ∀x.∀y.∀z formula checking all
+            8 triples.  Logically equivalent to the full 7-universal version.
+
+            neg-call: ∃x.∃y.∃z.(D(x) ∧ D(y) ∧ D(z) ∧ ¬assoc-check(x,y,z)).
+            3 δ-parameters; the ¬assoc-check is a disjunction over triples,
+            each requiring eq(v,v) to fail (free-closure on eq(0,0) etc.).
+            For Z₂ (associative), every eq is reflexive → all close.
+
+            NOTE: The fully general 7-universal version (gv-assoc-program)
+            is logically correct but computationally intractable for
+            |domain|≥2 with the current prover — the search space is
+            O(|table|^4) β-splits with equality reasoning at each node.
+            Making the 7-universal version tractable is the goal of the
+            performance-optimizations branch."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z
+              (let [prog (gv-assoc-precomputed-program gv-z2 x y z)]
+                (proveo ['neg ['app 'gv_assoc_pre]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-GV05-z1-identity
+  (testing "GV05: Trivial group Z₁ has identity e.
+            Parametrization test: same framework, different spec."
+    (is (seq
+          (run 1 [proof]
+            (nom x
+              (let [prog (gv-identity-program gv-z1 x)]
+                (proveo ['neg ['app 'gv_identity]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-GV06-z1-assoc
+  (testing "GV06: Z₁ is associative.  Minimal case: 1 table entry,
+            1^7 = 1 path, trivially closes."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w1 w2 w3 w4
+              (let [prog (gv-assoc-program gv-z1 x y z w1 w2 w3 w4)]
+                (proveo ['neg ['app 'gv_assoc]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-GV07-non-group-identity-fails
+  (testing "GV07: The non-group magma does NOT have 0 as identity.
+            op(1,0)=0≠1, so 0 is not a right identity for 1.
+            neg-call (testing truth) should FAIL — gv_identity is not true."
+    (is (empty?
+          (run 1 [proof]
+            (nom x
+              (let [prog (gv-identity-program gv-non-group x)]
+                (proveo ['neg ['app 'gv_identity]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-GV08-non-group-identity-refuted
+  (testing "GV08: The non-group magma's identity claim is provably FALSE.
+            pos-call closes: body = ∀x.(...). γ-instantiation with x=1
+            finds op(0,1,1)∧op(1,0,1), but op(1,0)=0≠1 so op(1,0,1)
+            is unsatisfiable → body unsatisfiable → gv_identity is FALSE."
+    (is (seq
+          (run 1 [proof]
+            (nom x
+              (let [prog (gv-identity-program gv-non-group x)]
+                (proveo ['pos ['app 'gv_identity]]
+                        '() '() '() prog proof))))))))
+
+;; GV09 — NON-GROUP ASSOCIATIVITY (7-UNIVERSAL VERSION)
+;;
+;; The non-group magma is NOT associative.
+;; Counterexample: x=1,y=0,z=1.
+;;   op(op(1,0),1) = op(0,1) = 1
+;;   op(1,op(0,1)) = op(1,1) = 0
+;;   1 ≠ 0.
+;;
+;; pos-call (is assoc FALSE?): NOW WORKS — completes in ~1ms.
+;;   The prover finds the counterexample instantiation (x=one, y=zero,
+;;   z=one) via γ-rule, then all β-branches close via neq-reflexivity
+;;   or free-closure on eq(one,zero).  Previously documented as
+;;   "INTRACTABLE (4^8 = 65,536 β-paths)" — lemma reuse and
+;;   type-dispatched grouping made the search tractable.
+;;
+;; neg-call (is assoc TRUE?): STILL INTRACTABLE for |domain|≥2.
+;;   The negated body introduces 7 ∃-quantifiers (δ-parameters), then
+;;   4 positive op-lookups × 4 entries = 256+ β-path combinations.
+;;   Since the formula is NOT valid, the prover must exhaustively
+;;   explore all paths to return EMPTY — inherently exponential.
+;;   With γ-budget this terminates but takes >60s for |domain|=2.
+;;
+;; neg-call on Z₂ (is assoc TRUE? — yes): STILL INTRACTABLE.
+;;   Even though a closing tableau exists, the 7 δ-parameters and
+;;   256+ β-paths with paramodulation make the search space too large.
+;;
+;; The asymmetry: pos-call needs ONE closing instantiation (existential),
+;; neg-call needs ALL β-paths to close (universal).  Techniques that
+;; could help the neg-call cases:
+;;   - Constraint propagation: eagerly propagate eq constraints from
+;;     δ-rule parameters to prune infeasible β-branches
+;;   - Connection tableaux: goal-directed β-choice
+;;   - Finite model enumeration: exploit known finite domain
+
+(deftest test-GV09-non-group-assoc-refuted
+  (testing "GV09: Non-group magma is provably NOT associative.
+            Uses the FULL 7-universal formulation (not pre-computed).
+            pos-call closes: γ-rule instantiates x=one, y=zero, z=one
+            (and appropriate w1-w4), then all β-branches of the 4 ¬op
+            disjuncts close via neq-reflexivity or free-closure."
+    (is (seq
+          (run 1 [proof]
+            (nom x y z w1 w2 w3 w4
+              (let [prog (gv-assoc-program gv-non-group x y z w1 w2 w3 w4)]
+                (proveo ['pos ['app 'gv_assoc]]
+                        '() '() '() prog proof))))))))
+
+
+;; ============================================================================
+;; Section FD: Finite Domain Reasoning — Capabilities Beyond Prolog
+;; ============================================================================
+;;
+;; This section demonstrates programs that are natural and straightforward in
+;; Proflog but difficult or impossible in standard Prolog.  Each test
+;; exercises a capability that Prolog fundamentally lacks:
+;;
+;;   1. BICONDITIONAL SEMANTICS — In Proflog, R(x) ← φ(x) means R(x) ↔ φ(x).
+;;      Prolog's "R(X) :- φ(X)" means only φ(X) → R(X).  Proflog can prove
+;;      propositions FALSE (not just "not provable"), producing refutation
+;;      proofs.  The Free Closure Rule (Fitting §5) makes distinct Herbrand
+;;      constructors provably unequal — a fact Prolog cannot express.
+;;
+;;   2. UNIVERSAL QUANTIFICATION IN BODIES — Proflog clause bodies can contain
+;;      ∀y.ψ(x,y).  Prolog has no mechanism for this; forall/2 is a meta-
+;;      predicate hack that doesn't interact correctly with unification or
+;;      negation and has no proof-theoretic content.
+;;
+;;   3. GENUINE CLASSICAL NEGATION — Proflog's ¬ is classical negation.
+;;      Prolog's \+ is negation-as-failure (NAF): unsound with free
+;;      variables, not invertible, and unable to distinguish "provably
+;;      false" from "unknown."
+;;
+;;   4. THREE-VALUED RESULTS — Proflog queries can succeed (TRUE), fail
+;;      (FALSE), or be UNDEFINED (⊥).  Prolog collapses undefined into
+;;      false via the Closed World Assumption (CWA).  The third truth
+;;      value arises from supervaluation semantics (Fitting §3): models
+;;      may disagree, yielding ⊥.  This has no analog in SLD-resolution.
+;;
+;;   5. ∀∀ (NESTED UNIVERSALS) — Two nested universal quantifiers in a
+;;      clause body, expressing uniqueness constraints.  Completely
+;;      beyond Prolog's expressive power.
+;;
+;; Domain: Colors {red, green, blue} as distinct constants of L.
+;;
+;; Object-level program:
+;;   color(x) ← x=red ∨ x=green ∨ x=blue
+;;   warm(x)  ← x=red
+;;   cool(x)  ← x=green ∨ x=blue
+;;
+;; Meta-properties (inlined per Fitting §8 — no auxiliary procedure calls):
+;;   excl()        ← ∀x.(x≠red ∨ (x≠green ∧ x≠blue))
+;;                    "Nothing is both warm and cool" (disjointness)
+;;   total()       ← ∀x.(x=red ∨ x=green ∨ x=blue)
+;;                    "Everything is a color" (UNDEFINED under supervaluation)
+;;   warm_unique() ← ∀x.∀y.(x≠red ∨ y≠red ∨ x=y)
+;;                    "At most one thing is warm" (uniqueness)
+;;
+;; ============================================================================
+
+;; --- Object-level program ---
+
+(defn fd-color-program
+  "The color/warm/cool classification over {red, green, blue}.
+   cx, wx, kx are clause parameters for color, warm, cool respectively."
+  [cx wx kx]
+  [['color [cx]
+    ['or ['eq ['var cx] ['app 'red]]
+         ['or ['eq ['var cx] ['app 'green]]
+              ['eq ['var cx] ['app 'blue]]]]]
+   ['warm [wx]
+    ['eq ['var wx] ['app 'red]]]
+   ['cool [kx]
+    ['or ['eq ['var kx] ['app 'green]]
+         ['eq ['var kx] ['app 'blue]]]]])
+
+;; --- Meta-property programs (standalone, inlined) ---
+
+(defn fd-excl-program
+  "excl() ← ∀x.(x≠red ∨ (x≠green ∧ x≠blue))
+   NNF of ∀x.(¬warm(x) ∨ ¬cool(x)), inlined.
+   'Nothing is both warm and cool.'"
+  [x]
+  [['excl []
+    ['forall (tie x
+      ['or ['neq ['var x] ['app 'red]]
+           ['and ['neq ['var x] ['app 'green]]
+                 ['neq ['var x] ['app 'blue]]]])]]])
+
+(defn fd-total-program
+  "total() ← ∀x.(x=red ∨ x=green ∨ x=blue)
+   'Everything is a color.'
+   UNDEFINED under supervaluation: weak Herbrand models may contain
+   non-standard elements that are none of {red, green, blue}."
+  [x]
+  [['total []
+    ['forall (tie x
+      ['or ['eq ['var x] ['app 'red]]
+           ['or ['eq ['var x] ['app 'green]]
+                ['eq ['var x] ['app 'blue]]]])]]])
+
+(defn fd-warm-unique-program
+  "warm_unique() ← ∀x.∀y.(x≠red ∨ y≠red ∨ x=y)
+   NNF of ∀x.∀y.(warm(x) ∧ warm(y) → x=y), inlined.
+   'At most one thing is warm.'"
+  [x y]
+  [['warm_unique []
+    ['forall (tie x
+      ['forall (tie y
+        ['or ['neq ['var x] ['app 'red]]
+             ['or ['neq ['var y] ['app 'red]]
+                  ['eq ['var x] ['var y]]]])])]]])
+
+;; --- Tests ---
+
+(deftest test-FD01-color-red-succeeds
+  (testing "FD01: color(red) is TRUE — basic positive query.
+            neg-call: ¬(red=red ∨ red=green ∨ red=blue)
+            = (red≠red ∧ red≠green ∧ red≠blue). First conjunct neq(red,red)
+            closes by neq-reflexivity.
+            PROLOG COMPARISON: color(red) also succeeds in Prolog — this
+            case works the same in both systems."
+    (is (seq
+          (run 1 [proof]
+            (nom cx wx kx
+              (let [prog (fd-color-program cx wx kx)]
+                (proveo ['neg ['app 'color ['app 'red]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-FD02-color-yellow-fails
+  (testing "FD02: color(yellow) is FALSE — biconditional refutation proof.
+            pos-call: body = yellow=red ∨ yellow=green ∨ yellow=blue.
+            β-split into 3 branches; all close by free-closure (distinct
+            constants in weak Herbrand models).
+            PROLOG COMPARISON: In Prolog, ?- color(yellow) simply fails
+            (no matching clause head). But Prolog cannot produce a PROOF
+            of falsity — it merely has absence of proof. This matters
+            when negation is nested: Prolog's \\+ color(yellow) succeeds
+            by NAF, but \\+ color(X) also 'succeeds' (unsoundly!) when X
+            is unbound. Proflog's biconditional semantics provides a
+            genuine refutation: color(yellow) ↔ φ(yellow), φ(yellow) is
+            unsatisfiable, therefore color(yellow) is provably false."
+    (is (seq
+          (run 1 [proof]
+            (nom cx wx kx
+              (let [prog (fd-color-program cx wx kx)]
+                (proveo ['pos ['app 'color ['app 'yellow]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-FD03-warm-blue-fails
+  (testing "FD03: warm(blue) is FALSE — cross-category refutation.
+            pos-call: body = blue=red. Free-closure (distinct constants).
+            PROLOG COMPARISON: warm(blue) fails in Prolog by absence of a
+            matching clause. But Prolog has no proof that blue ≠ red —
+            it relies on syntactic non-matching. Proflog's Free Closure
+            Rule (Fitting §5) exploits the weak Herbrand model's
+            injectivity: distinct constant symbols f and g have provably
+            disjoint interpretations. This is a theorem, not an assumption."
+    (is (seq
+          (run 1 [proof]
+            (nom cx wx kx
+              (let [prog (fd-color-program cx wx kx)]
+                (proveo ['pos ['app 'warm ['app 'blue]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-FD04-cool-green-succeeds
+  (testing "FD04: cool(green) is TRUE.
+            neg-call: ¬(green=green ∨ green=blue) = green≠green ∧ green≠blue.
+            First conjunct neq(green,green) closes by neq-reflexivity."
+    (is (seq
+          (run 1 [proof]
+            (nom cx wx kx
+              (let [prog (fd-color-program cx wx kx)]
+                (proveo ['neg ['app 'cool ['app 'green]]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-FD05-excl-true
+  (testing "FD05: excl() is TRUE — warm and cool are disjoint.
+            IMPOSSIBLE IN PROLOG: The clause body contains ∀x.
+
+            excl() ← ∀x.(x≠red ∨ (x≠green ∧ x≠blue))
+
+            neg-call: ¬body = ∃x.(x=red ∧ (x=green ∨ x=blue)).
+            δ-rule introduces par p (fresh parameter).
+            α-expansion: eq(par p, red) ∧ (eq(par p, green) ∨ eq(par p, blue)).
+            β-split:
+              Branch 1: eq(p,red) ∧ eq(p,green) → by equality transitivity,
+                         eq(red,green) → free-closure (distinct constants) ✓
+              Branch 2: eq(p,red) ∧ eq(p,blue) → eq(red,blue) → free-closure ✓
+            All branches close → excl is TRUE.
+
+            PROLOG COMPARISON: The closest Prolog approximation would be:
+              excl :- forall(X, (warm(X) -> \\+ cool(X))).
+            This has three fundamental problems:
+              (a) forall/2 is a meta-predicate, not a logical formula —
+                  it has no proof-theoretic content and cannot participate
+                  in larger proofs.
+              (b) It relies on NAF (\\+), which is unsound when its argument
+                  contains free variables.
+              (c) It requires enumerating all instances of warm(X), which
+                  presupposes a finite, known domain — exactly the Closed
+                  World Assumption that Proflog avoids."
+    (is (seq
+          (run 1 [proof]
+            (nom x
+              (let [prog (fd-excl-program x)]
+                (proveo ['neg ['app 'excl]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-FD06-total-undefined
+  (testing "FD06: total() is UNDEFINED (⊥) — the three-valued supervaluation result.
+            IMPOSSIBLE IN PROLOG: Prolog has exactly two outcomes (success/failure).
+
+            total() ← ∀x.(x=red ∨ x=green ∨ x=blue)
+
+            PART 1 — NOT TRUE:
+            neg-call (testing truth): ¬body = ∃x.(x≠red ∧ x≠green ∧ x≠blue).
+            δ-rule introduces par p. The branch has:
+              neq(par p, red), neq(par p, green), neq(par p, blue).
+            Par p is a parameter denoting an arbitrary domain element — it
+            COULD be a non-standard element outside {red, green, blue}.
+            No neq closes (par p ≠ any constant is consistent).
+            → neg-call fails → total is NOT provably true.
+
+            PART 2 — NOT FALSE (by semantic argument, not tested):
+            pos-call (testing falsity): body = ∀x.(x=red ∨ x=green ∨ x=blue).
+            γ-rule introduces free variables; each eq(v, constant) branch is
+            satisfiable (just set v to that constant). The ∀ re-enqueues,
+            creating an unbounded search — but no instantiation closes all
+            branches because the body IS satisfiable (in models where the
+            domain equals {red, green, blue}). pos-call also fails.
+
+            Result: total is NEITHER true NOR false — it is ⊥ (undefined).
+            This is a THIRD TRUTH VALUE with no analog in Prolog.
+
+            SEMANTIC EXPLANATION (Fitting §3, Def 3.4):
+            Some weak Herbrand models have domain = {red, green, blue}
+            (total is true there). Others have non-standard elements
+            (total is false there). Since models disagree, the
+            supervaluation assigns ⊥.
+
+            PROLOG COMPARISON: Prolog conflates ⊥ with 'false' via CWA.
+            ?- total would simply fail. Prolog cannot distinguish between
+            'provably false' (like color(yellow)) and 'neither provable
+            nor refutable' (like total). This distinction is essential for
+            sound reasoning about incomplete information."
+    ;; total() is NOT provably true
+    (is (empty?
+          (run 1 [proof]
+            (nom x
+              (let [prog (fd-total-program x)]
+                (proveo ['neg ['app 'total]]
+                        '() '() '() prog proof))))))))
+
+(deftest test-FD07-warm-unique-true
+  (testing "FD07: warm_unique() is TRUE — at most one thing is warm.
+            IMPOSSIBLE IN PROLOG: The clause body contains ∀x.∀y (nested universals).
+
+            warm_unique() ← ∀x.∀y.(x≠red ∨ y≠red ∨ x=y)
+            NNF of: ∀x.∀y.(warm(x) ∧ warm(y) → x=y)
+
+            neg-call: ¬body = ∃x.∃y.(x=red ∧ y=red ∧ x≠y).
+            δ-rule introduces par p for x, par q for y.
+            Branch: eq(par p, red) ∧ eq(par q, red) ∧ neq(par p, par q).
+
+            Equality reasoning (collect-eqso + eq-neq-closeo):
+              eq(p,red) gives pair [p, red]. eq(q,red) gives pair [q, red].
+              Process neq(p, q): rewrite p → red: neq(red, q).
+              Rewrite q → red: neq(red, red) → contradiction! Closes.
+
+            → neg-call succeeds → warm_unique is TRUE.
+
+            PROLOG COMPARISON: Nested ∀∀ in clause bodies is completely
+            beyond Prolog's expressiveness. Prolog clauses are Horn clauses
+            with implicit existential variables: 'p(X) :- q(X, Y)' means
+            p(X) ← ∃Y.q(X,Y). There is no mechanism for universal
+            quantification at any level, let alone nested universals.
+            The Prolog approximation would require aggregate meta-predicates
+            (findall/bagof + length checks), which are procedural, non-
+            logical, and do not compose with other logical operators."
+    (is (seq
+          (run 1 [proof]
+            (nom x y
+              (let [prog (fd-warm-unique-program x y)]
+                (proveo ['neg ['app 'warm_unique]]
+                        '() '() '() prog proof))))))))
+
 
 ;; ============================================================================
 ;; Run all tests

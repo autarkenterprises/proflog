@@ -147,6 +147,18 @@ terms rather than merely recording that it timed out.
 6. Re-run the matrix and write the AAR against family-level behavior rather
    than selected short examples.
 
+## Progress Notes
+
+- Guarded-clause IR and guard-first descent have promoted the matrix beyond
+  ADR-0030's original two-step ground rows.
+- A later adaptive constructor-demand call-order experiment was reverted after
+  it improved only `reverse(r, [b,a])` and did not generalize to length-three
+  reverse rows.
+- Stricter residual deferral and residual frontier re-settlement prototypes
+  were also rejected because they slowed or regressed existing matrix rows
+  without closing the remaining reverse blockers. See
+  [ADR-0031 Experiment Reassessment](../log/2026-04-30-adr31-experiment-reassessment.md).
+
 ## Constraints
 
 - Preserve kernel purity. No new executable `core.logic/project` may enter

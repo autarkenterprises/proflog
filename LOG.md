@@ -27,6 +27,12 @@ complete contemporaneous transcript.
   closes longer flat/nested ground append and reverse rows plus representative
   raw append output/suffix/prefix and reverse output rows. Reverse input and
   full inverse split enumeration remain bounded-search follow-up work.
+- Reassessed the remaining ADR-0031 brainstormed enhancements after a narrow
+  adaptive call-order experiment only improved `reverse(r, [b,a])`. The
+  adaptive ordering was reverted; stricter residual deferral and residual
+  frontier re-settlement were also rejected after slowing or regressing the
+  matrix without closing length-three reverse rows. Longer note:
+  [ADR-0031 Experiment Reassessment](docs/log/2026-04-30-adr31-experiment-reassessment.md).
 
 ## 2026-04-29
 

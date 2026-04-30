@@ -9,6 +9,7 @@
   (:require [clojure.pprint :as pp]
             [proflog.answers :as answers]
             [proflog.ast :as ast]
+            [proflog.kernel.constructor-recursive :as constructor-recursive]
             [proflog.language :as language]
             [proflog.normalize :as normalize]
             [proflog.query :as query]))
@@ -498,6 +499,67 @@
           [(str answer-var) term])
         bindings))
 
+(defn- constructor-layer-records
+  [program query answer-vars fuel _raw-limit target-bindings]
+  (constructor-recursive/query-records
+    program
+    query
+    answer-vars
+    {:fuel (max 96 fuel)
+     :limit (max (count target-bindings) 1)}))
+
+(defn run-constructor-layer-case
+  "Run one matrix case through the generic constructor-recursive prototype.
+
+   This intentionally reports a separate layer from the ordinary kernel and raw
+   answer overlay. It is a diagnostic surface for ADR-31's proof-producing
+   constructor-recursive layer experiment, not public list materialization."
+  [case-id]
+  (let [program (list-program)
+        {:keys [kind query fuel answer-vars target-bindings raw-limit]
+         :as config}
+        (case-config case-id)
+        started (System/nanoTime)]
+    (case kind
+      :ground
+      (let [target-found? (constructor-recursive/query-succeeds?
+                            program
+                            query
+                            {:fuel fuel})
+            elapsed-ms (/ (- (System/nanoTime) started) 1000000.0)]
+        (assoc (select-keys config [:id :operation :mode :shape :size :kind :description])
+               :layer :constructor-recursive
+               :fuel fuel
+               :elapsed-ms elapsed-ms
+               :target-found? target-found?))
+
+      :answer
+      (let [records (constructor-layer-records
+                      program
+                      query
+                      answer-vars
+                      fuel
+                      raw-limit
+                      target-bindings)
+            closed-bindings (->> records
+                                 (filter closed-record?)
+                                 (map #(record-bindings-for % answer-vars))
+                                 set)
+            found-targets (set (filter closed-bindings target-bindings))
+            elapsed-ms (/ (- (System/nanoTime) started) 1000000.0)]
+        (assoc (select-keys config [:id :operation :mode :shape :size :kind :description])
+               :layer :constructor-recursive
+               :fuel (max 96 fuel)
+               :limit (max (count target-bindings) 1)
+               :elapsed-ms elapsed-ms
+               :exported-count (count records)
+               :closed-count (count closed-bindings)
+               :target-count (count target-bindings)
+               :found-target-count (count found-targets)
+               :target-found? (= target-bindings found-targets)
+               :closed-bindings (mapv canonical-bindings closed-bindings)
+               :target-bindings (mapv canonical-bindings target-bindings))))))
+
 (defn run-case
   [case-id]
   (let [program (list-program)
@@ -540,8 +602,14 @@
                :target-bindings (mapv canonical-bindings target-bindings))))))
 
 (defn -main
-  [& [case-id]]
-  (if case-id
+  [& [case-id layer]]
+  (cond
+    (and case-id (= "constructor-recursive" layer))
+    (pp/pprint (run-constructor-layer-case (keyword case-id)))
+
+    case-id
     (pp/pprint (run-case (keyword case-id)))
+
+    :else
     (pp/pprint (case-catalog)))
   (shutdown-agents))

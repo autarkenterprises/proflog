@@ -109,7 +109,8 @@
             "test-proflog-constructor-recursive" ["test"
                                                   ":constructor-recursive"
                                                   "proflog.list-programs-test"
-                                                  "proflog.constructor-recursive-kernel-test"]
+                                                  "proflog.constructor-recursive-kernel-test"
+                                                  "proflog.kernel.constructor-recursive-test"]
             "test-proflog-legacy-impurity" ["test"
                                             "proflog.legacy-impurity-test"]
             "probe-proflog-legacy-stream" ["run" "-m" "proflog.legacy-stream-probe"]

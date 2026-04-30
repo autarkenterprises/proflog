@@ -49,6 +49,10 @@ complete contemporaneous transcript.
   [Demand IR Probe](docs/log/2026-04-30-adr31-demand-ir-worker2-probe.md),
   [Answer Continuation Probe](docs/log/2026-04-30-adr31-answer-continuation-probe.md),
   and [Answer-Path Tabling Probe](docs/probe/2026-04-30-adr31-answer-tabling.md).
+- Collated all five ADR-0031 parallel sub-agent reports, including the parked
+  structural-descent prototype and the promising constructor-recursive sidecar
+  prototype. Longer note:
+  [ADR-0031 Parallel Sub-Agent Reports](docs/log/2026-04-30-adr31-parallel-subagent-reports.md).
 
 ## 2026-04-29
 

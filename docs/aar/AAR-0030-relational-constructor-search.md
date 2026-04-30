@@ -104,6 +104,11 @@ constructor-recursive closure; longer ground cases and raw answer-mode
 synthesis still need a follow-up design. See
 [List Kernel Test Matrix](../log/2026-04-29-list-kernel-test-matrix.md).
 
+Substantive reassessment: ADR-0030 remains technically closed, but the raw
+matrix shows that its result is too narrow to count as family-level completion.
+The spirit of the objective is therefore carried forward into
+[ADR-0031](../adr/ADR-0031-list-family-kernel-generalization.md).
+
 ## Follow-Up
 
 The raw target proofs are now bounded and practical, but still slower than the

@@ -77,6 +77,7 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0028](adr/ADR-0028-kernel-support-disequality-purity.md) | completed | `adr-0028-kernel-support-disequality-purity` | recover transitive relational purity for saved disequality maintenance in `kernel_support.clj` | ADR-0027 | reverse/open `neqs`, open `sigma`, stale-prune, and stable-guard regressions around `prove-stateo` | `prune-contradictory-neqso` and `stable-neqso` are structural, the only remaining `kernel_support.clj` projection is fuel, and [AAR-0028](aar/AAR-0028-kernel-support-disequality-purity.md) records the outcome |
 | [ADR-0029](adr/ADR-0029-relational-fuel-purity.md) | completed | `adr-0029-relational-fuel-purity` | recover relational purity for `step-fuelo` in `kernel_support.clj` | ADR-0028 | direct fuel predecessor/unbounded synthesis, open-fuel `proveo`, and open-fuel procedure-call body synthesis | `step-fuelo` is structural over unbounded and bounded fuel states, no executable `project` remains in the ordinary kernel-facing path, and [AAR-0029](aar/AAR-0029-relational-fuel-purity.md) records the outcome |
 | [ADR-0030](adr/ADR-0030-relational-constructor-search.md) | completed | `adr-0030-relational-constructor-search` | generic relational constructor search control for raw list-family proof closure | ADR-0029 | focused raw list proof selector, rigid constructor disequality discharge tests, guarded procedure-call descent tests, and a non-list constructor-recursive control case | raw `append([a,b], [c], [a,b,c])` and `reverse([a,b], [b,a])` close through the ordinary kernel without list-specific production code or projection; [AAR-0030](aar/AAR-0030-relational-constructor-search.md) records the call-local alternative strategy |
+| [ADR-0031](adr/ADR-0031-list-family-kernel-generalization.md) | accepted | `adr-0031-list-family-kernel-generalization` | revisit ADR-0030 against family-level append/reverse kernel generalization | ADR-0030 | parameterized raw matrix rows for forward, reverse, partial, inverse, flat, nested, and longer list cases | the central prover and raw answer path generalize beyond two-step examples, with complexity growth and remaining blockers accounted for by proof-search cause |
 
 ## Deferred Tracks
 
@@ -106,6 +107,7 @@ Pelletier lean first-order search policy has graduated into completed ADR-0025.
 Kernel layer interoperation has graduated into completed ADR-0026.
 Relational fuel purity has graduated into completed ADR-0029.
 Relational constructor search control has graduated into completed ADR-0030.
+List-family kernel generalization has graduated into accepted ADR-0031.
 
 ## ADR-0007 Task List
 

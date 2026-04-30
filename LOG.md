@@ -34,6 +34,13 @@ complete contemporaneous transcript.
   ground cases timing out, and raw answer-mode synthesis rows failing to
   produce closed targets within the tested bounds. Longer note:
   [List Kernel Test Matrix](docs/log/2026-04-29-list-kernel-test-matrix.md).
+- Reassessed ADR-0030 after the raw matrix. The branch is technically closed,
+  but its result is too narrow to satisfy the family-level goal: arbitrary
+  proper lists should be handled by a measurable recursive proof discipline,
+  not only by selected two-step examples. Accepted
+  [ADR-0031](docs/adr/ADR-0031-list-family-kernel-generalization.md) on branch
+  `adr-0031-list-family-kernel-generalization` to revisit the work against
+  deeper forward, reverse, partial, flat, and nested matrix rows.
 - Accepted [ADR-0030](docs/adr/ADR-0030-relational-constructor-search.md) on
   branch `adr-0030-relational-constructor-search`. The plan treats the
   legacy-passing raw list proofs as constructor-recursive kernel search

@@ -41,6 +41,14 @@ complete contemporaneous transcript.
   review of the exact patched implementation, a revised dependency/deployment
   sequence that selects the patched artifact or source path, and a runtime
   verification step proving Proflog is not still using the default dependency.
+- Integrated ADR-0031 negative probe notes from parallel branches: the generic
+  demand-selector idea regressed answer ordering, the answer-continuation
+  prototype slowed passing rows without closing reverse blockers, and
+  answer-path tabling diagnostics showed duplicate exported records rather than
+  repeated raw proof families. Longer notes:
+  [Demand IR Probe](docs/log/2026-04-30-adr31-demand-ir-worker2-probe.md),
+  [Answer Continuation Probe](docs/log/2026-04-30-adr31-answer-continuation-probe.md),
+  and [Answer-Path Tabling Probe](docs/probe/2026-04-30-adr31-answer-tabling.md).
 
 ## 2026-04-29
 

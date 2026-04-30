@@ -97,6 +97,13 @@ Extended-suite note: `proflog.recursive-synthesis-test`,
 on this branch, but the same failures reproduce at the clean ADR-0030 branch
 point before this implementation. They remain outside this ADR's exit gate.
 
+Post-completion matrix: a raw-kernel append/reverse matrix was added after the
+initial AAR to characterize longer, nested, reverse, and partial modes. It
+confirms that ADR-0030's improvement is concentrated in two-step ground
+constructor-recursive closure; longer ground cases and raw answer-mode
+synthesis still need a follow-up design. See
+[List Kernel Test Matrix](../log/2026-04-29-list-kernel-test-matrix.md).
+
 ## Follow-Up
 
 The raw target proofs are now bounded and practical, but still slower than the

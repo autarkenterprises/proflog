@@ -28,6 +28,12 @@ complete contemporaneous transcript.
   constructor disequality discharge and call-local guarded alternatives; a
   non-list Peano recursive control is included in the new focused selector.
   See [AAR-0030](docs/aar/AAR-0030-relational-constructor-search.md).
+- Added a raw-kernel append/reverse matrix to distinguish ADR-0030's ground
+  closure improvement from remaining reverse and partial synthesis gaps. The
+  matrix shows two-step flat and nested ground cases passing, longer outer-list
+  ground cases timing out, and raw answer-mode synthesis rows failing to
+  produce closed targets within the tested bounds. Longer note:
+  [List Kernel Test Matrix](docs/log/2026-04-29-list-kernel-test-matrix.md).
 - Accepted [ADR-0030](docs/adr/ADR-0030-relational-constructor-search.md) on
   branch `adr-0030-relational-constructor-search`. The plan treats the
   legacy-passing raw list proofs as constructor-recursive kernel search

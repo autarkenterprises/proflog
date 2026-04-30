@@ -113,4 +113,5 @@
             "test-proflog-legacy-impurity" ["test"
                                             "proflog.legacy-impurity-test"]
             "probe-proflog-legacy-stream" ["run" "-m" "proflog.legacy-stream-probe"]
+            "probe-proflog-list-kernel-matrix" ["run" "-m" "proflog.list-kernel-matrix-probe"]
             "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]})

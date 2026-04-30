@@ -108,6 +108,40 @@
                                        :guarded-alternatives])]
                (vec (:guarded-clause-list program))))))))
 
+(deftest compile-program-records-source-and-demand-call-orders
+  (testing "guarded IR keeps source call order and an alternate constructor-demand order"
+    (ast/nom x y
+      (let [program (language/compile-program
+                      simple-language
+                      [(ast/clause 'value [x]
+                                   (ast/exists-form
+                                     y
+                                     (ast/and-form
+                                       (ast/pos-lit
+                                         (ast/app-term 'value (ast/var-term y)))
+                                       (ast/pos-lit
+                                         (ast/app-term 'even
+                                                       (ast/app-term 'succ
+                                                                     (ast/var-term y)))))))
+                       (ast/clause 'even [x] (ast/true-form))])
+            guarded (first (get-in program [:clauses 'value :guarded-alternatives]))
+            source-call (ast/pos-lit
+                          (ast/app-term 'value (ast/var-term y)))
+            demanded-call (ast/pos-lit
+                            (ast/app-term 'even
+                                          (ast/app-term 'succ
+                                                        (ast/var-term y))))]
+        (is (= [source-call demanded-call]
+               (vec (:calls guarded))))
+        (is (= [demanded-call source-call]
+               (vec (:demand-calls guarded))))
+        (is (= [(ast/neg-lit (second source-call))
+                (ast/neg-lit (second demanded-call))]
+               (vec (:negated-calls guarded))))
+        (is (= [(ast/neg-lit (second demanded-call))
+                (ast/neg-lit (second source-call))]
+               (vec (:negated-demand-calls guarded))))))))
+
 (deftest compile-program-rejects-par-in-surface-programs
   (testing "internal parameters are not admissible in user programs"
     (ast/nom x p

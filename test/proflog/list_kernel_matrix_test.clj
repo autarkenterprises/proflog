@@ -29,6 +29,7 @@
                      :reverse-forward-nested-3
                      :append-output-flat
                      :append-suffix-flat
-                     :append-prefix-flat]]
+                     :append-prefix-flat
+                     :reverse-input-flat]]
       (is (:target-found? (matrix/run-case case-id))
           (str case-id " should find its target")))))

@@ -147,6 +147,16 @@ terms rather than merely recording that it timed out.
 6. Re-run the matrix and write the AAR against family-level behavior rather
    than selected short examples.
 
+## Progress Notes
+
+- The guarded IR now retains source call order and a second constructor-demand
+  call order. The answer overlay selects source order when the first source
+  call already has walked constructor demand, and otherwise may use the demand
+  order to constrain inverse modes earlier.
+- The CI-safe matrix has been promoted to include raw `reverse(r, [b,a])`.
+  Longer reverse output/output-tail rows and full flat inverse split
+  enumeration still require more search-control work before the ADR can exit.
+
 ## Constraints
 
 - Preserve kernel purity. No new executable `core.logic/project` may enter

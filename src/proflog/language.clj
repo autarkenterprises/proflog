@@ -247,12 +247,35 @@
 (defn- demand-ordered-calls
   "Preserve source call order inside one guarded alternative.
 
-   Visible constructor demand is useful for ordering independent alternatives,
-   but reordering calls inside a conjunction can move a consumer before the call
-   that produces its symbolic input. Reverse/append synthesis depends on that
-   producer-before-consumer order."
+   Visible constructor demand is useful as an alternate order, but replacing
+   source order can move a consumer before the call that produces its symbolic
+   input. Reverse/append output synthesis depends on producer-before-consumer
+   source order."
   [calls]
   calls)
+
+(defn- constructor-demand-ordered-calls
+  "Build an alternate call order using only visible constructor structure."
+  [calls]
+  (->> calls
+       (map-indexed vector)
+       (sort-by (fn [[idx call]]
+                  [(- (formula-static-constructor-size call)) idx]))
+       (map second)))
+
+(defn- distinct-lists
+  "Preserve the first occurrence of each sequence after normalizing to lists."
+  [xss]
+  (:items
+    (reduce (fn [{:keys [seen items] :as acc} xs]
+              (let [xs (apply list xs)]
+                (if (contains? seen xs)
+                  acc
+                  {:seen (conj seen xs)
+                   :items (conj items xs)})))
+            {:seen #{}
+             :items []}
+            xss)))
 
 (defn- guarded-alternative-demand-score
   [guarded]
@@ -292,7 +315,12 @@
                          :calls []
                          :residuals []}
                         parts)
-        ordered-calls (demand-ordered-calls (:calls grouped))]
+        ordered-calls (demand-ordered-calls (:calls grouped))
+        demand-calls (constructor-demand-ordered-calls (:calls grouped))
+        negated-calls (map normalize/negate-formula ordered-calls)
+        negated-demand-calls (map normalize/negate-formula demand-calls)
+        negated-call-orders (distinct-lists [negated-calls
+                                             negated-demand-calls])]
     {:formula formula
      :negated-formula (normalize/negate-formula formula)
      :scope (apply list scope)
@@ -302,7 +330,10 @@
      :guards (apply list (:guards grouped))
      :negated-guards (apply list (map normalize/negate-formula (:guards grouped)))
      :calls (apply list ordered-calls)
-     :negated-calls (apply list (map normalize/negate-formula ordered-calls))
+     :demand-calls (apply list demand-calls)
+     :negated-calls (apply list negated-calls)
+     :negated-demand-calls (apply list negated-demand-calls)
+     :negated-call-orders (apply list negated-call-orders)
      :residuals (apply list (:residuals grouped))
      :negated-residuals (apply list (map normalize/negate-formula (:residuals grouped)))
      :negated-ordered-conjuncts (apply list

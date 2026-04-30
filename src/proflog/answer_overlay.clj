@@ -19,7 +19,7 @@
    branch-closing machinery, plus extra exported state describing what the
    branch learned before it chose to stop unfolding recursive calls."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [== appendo conde fail fresh lcons membero run]]
+  (:require [clojure.core.logic :refer [== appendo conda conde fail fresh lcons membero run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -163,7 +163,7 @@
 
 (defn- guarded-alternative-fieldso
   "Expose the fields the answer overlay needs from guarded alternative IR."
-  [guarded-alternative scope guards negated-calls negated-residuals negated-ordered-conjuncts]
+  [guarded-alternative scope guards negated-calls negated-demand-calls negated-residuals negated-ordered-conjuncts]
   (fresh [formula
           negated-formula
           core
@@ -171,6 +171,8 @@
           negated-conjuncts
           negated-guards
           calls
+          demand-calls
+          negated-call-orders
           residuals]
     (== {:formula formula
          :negated-formula negated-formula
@@ -181,7 +183,10 @@
          :guards guards
          :negated-guards negated-guards
          :calls calls
+         :demand-calls demand-calls
          :negated-calls negated-calls
+         :negated-demand-calls negated-demand-calls
+         :negated-call-orders negated-call-orders
          :residuals residuals
          :negated-residuals negated-residuals
          :negated-ordered-conjuncts negated-ordered-conjuncts}
@@ -303,6 +308,47 @@
          neqs
          tail-proof))]))
 
+(defn- visible-constructor-termo
+  "Succeed when a walked term exposes a positive-arity constructor."
+  [term sigma]
+  (fresh [walked head first-arg rest-args]
+    (equality/walko term sigma walked)
+    (== (lcons 'app (lcons head (lcons first-arg rest-args))) walked)))
+
+(defn- visible-constructor-term*o
+  "Succeed when any term in `terms` exposes positive constructor demand."
+  [terms sigma]
+  (conde
+    [(fresh [head tail]
+       (== (lcons head tail) terms)
+       (visible-constructor-termo head sigma))]
+    [(fresh [head tail]
+       (== (lcons head tail) terms)
+       (visible-constructor-term*o tail sigma))]))
+
+(defn- negated-call-visible-constructoro
+  [formula env sigma]
+  (fresh [lit atom walked-atom relation args]
+    (subst/subst-formulao formula env lit)
+    (== (list 'neg atom) lit)
+    (equality/walk-atomo atom sigma walked-atom)
+    (== (lcons 'app (lcons relation args)) walked-atom)
+    (visible-constructor-term*o args sigma)))
+
+(defn- first-negated-call-visible-constructoro
+  [formulas env sigma]
+  (fresh [formula rest]
+    (== (lcons formula rest) formulas)
+    (negated-call-visible-constructoro formula env sigma)))
+
+(defn- selected-negated-call-ordero
+  "Choose source order when it is already demanded, otherwise demand order."
+  [source-order demand-order env sigma selected-order]
+  (conda
+    [(first-negated-call-visible-constructoro source-order env sigma)
+     (== source-order selected-order)]
+    [(== demand-order selected-order)]))
+
 (defn- close-guarded-negated-alternativeo
   "Close one guarded alternative in answer mode after guard saturation."
   [guarded-alternative env proof-vars sigma sigma-out neqs neqs-out residuals residuals-out
@@ -310,6 +356,7 @@
   (fresh [scope
           guards
           negated-calls
+          negated-demand-calls
           negated-residuals
           negated-ordered-conjuncts
           scoped-env
@@ -323,10 +370,16 @@
       scope
       guards
       negated-calls
+      negated-demand-calls
       negated-residuals
       negated-ordered-conjuncts)
     (conde
-      [(fresh [sigma-mid sigma-after-calls neqs-after-calls residuals-after-calls guard-proof]
+      [(fresh [selected-negated-calls
+               sigma-mid
+               sigma-after-calls
+               neqs-after-calls
+               residuals-after-calls
+               guard-proof]
          (== (list 'guarded-neg-alt-saturated
                    scope-proof
                    guard-proof
@@ -348,8 +401,14 @@
            sigma-mid
            neqs
            guard-proof)
-         (close-guarded-negated-call-sequenceo
+         (selected-negated-call-ordero
            negated-calls
+           negated-demand-calls
+           scoped-env
+           sigma-mid
+           selected-negated-calls)
+         (close-guarded-negated-call-sequenceo
+           selected-negated-calls
            scoped-env
            scoped-proof-vars
            sigma-mid

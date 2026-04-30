@@ -25,8 +25,13 @@ complete contemporaneous transcript.
 - Continued ADR-0031 by compiling and executing guarded clause alternatives in
   both the ordinary kernel and raw answer overlay. The promoted matrix now
   closes longer flat/nested ground append and reverse rows plus representative
-  raw append output/suffix/prefix and reverse output rows. Reverse input and
-  full inverse split enumeration remain bounded-search follow-up work.
+  raw append output/suffix/prefix and reverse output rows.
+- Extended ADR-0031 guarded IR with an alternate constructor-demand call order
+  and an adaptive answer-overlay selector. Source order is retained when the
+  first recursive call already has walked constructor demand; otherwise the
+  demand order can constrain inverse modes earlier. The promoted raw matrix now
+  closes `reverse(r, [b,a])`; length-three reverse output/output-tail and full
+  flat inverse split enumeration remain bounded-search follow-up work.
 
 ## 2026-04-29
 

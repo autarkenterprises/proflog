@@ -426,6 +426,9 @@
           negated-conjuncts
           negated-guards
           calls
+          demand-calls
+          negated-demand-calls
+          negated-call-orders
           residuals
           ordered-guards]
     (== {:formula formula
@@ -437,7 +440,10 @@
          :guards guards
          :negated-guards negated-guards
          :calls calls
+         :demand-calls demand-calls
          :negated-calls negated-calls
+         :negated-demand-calls negated-demand-calls
+         :negated-call-orders negated-call-orders
          :residuals residuals
          :negated-residuals negated-residuals
          :negated-ordered-conjuncts negated-ordered-conjuncts}

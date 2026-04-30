@@ -158,6 +158,79 @@
                                 (ast/var-term x)
                                 (ast/var-term y))))))))))
 
+(deftest rigid-constructor-disequality-support
+  (testing "constructor head and nested argument clashes are rigidly different"
+    (is (= '(:rigid)
+           (run 1 [q]
+             (support/rigid-different-termo
+               (ast/app-term 'cons (ast/app-term 'a) (ast/app-term 'null))
+               (ast/app-term 'null)
+               '())
+             (== q :rigid))))
+    (is (= '(:rigid)
+           (run 1 [q]
+             (support/rigid-different-termo
+               (ast/app-term 'pair
+                             (ast/app-term 'a)
+                             (ast/app-term 'null))
+               (ast/app-term 'pair
+                             (ast/app-term 'b)
+                             (ast/app-term 'null))
+               '())
+             (== q :rigid)))))
+  (testing "unresolved variables are not rigidly different from constructors"
+    (ast/nom x
+      (is (empty?
+            (run 1 [q]
+              (support/rigid-different-termo
+                (ast/var-term x)
+                (ast/app-term 'a)
+                '())
+              (== q :not-rigid)))))))
+
+(deftest rigid-disequality-is-discharged-before-symbolic-storage
+  (testing "a constructor clash continues the branch without adding a delayed disequality"
+    (is (= '(())
+           (run 1 [neqs-out]
+             (fresh [sigma-out]
+               (kernel/prove-stateo
+                 (ast/neq-lit
+                   (ast/app-term 'cons (ast/app-term 'a) (ast/app-term 'null))
+                   (ast/app-term 'null))
+                 (list (ast/neg-lit (ast/app-term 'done)))
+                 (list (ast/pos-lit (ast/app-term 'done)))
+                 '()
+                 '()
+                 '()
+                 sigma-out
+                 '()
+                 neqs-out
+                 nil
+                 '()
+                 nil
+                 '(neq-rigid (close))))))))
+  (testing "a symbolic disequality is still delayed for later equality checks"
+    (ast/nom x
+      (is (= '(:delayed)
+             (run 1 [q]
+               (fresh [sigma-out neqs-out delayed-left]
+                 (kernel/prove-stateo
+                   (ast/neq-lit (ast/var-term x) (ast/app-term 'a))
+                   (list (ast/neg-lit (ast/app-term 'done)))
+                   (list (ast/pos-lit (ast/app-term 'done)))
+                   '()
+                   '()
+                   '()
+                   sigma-out
+                   '()
+                   neqs-out
+                   nil
+                   '()
+                   nil
+                   '(neq-store (close)))
+                 (== (list [delayed-left (ast/app-term 'a)]) neqs-out)
+                 (== q :delayed))))))))
+
 (deftest nested-once-universals-can-share-list-shape-bindings-across-disjunctions
   (testing "one append-shaped witness assignment can refute several disequalities on the same branch"
     (ast/nom h t r

@@ -50,7 +50,17 @@
                              (ast/app-term 'zero))
                  (ast/eq-lit (ast/var-term (first (:params compiled)))
                              (ast/app-term 'one)))
-               (:body compiled)))))))
+               (:body compiled)))
+        (is (= [(ast/eq-lit (ast/var-term (first (:params compiled)))
+                             (ast/app-term 'zero))
+                (ast/eq-lit (ast/var-term (first (:params compiled)))
+                             (ast/app-term 'one))]
+               (vec (:alternatives compiled))))
+        (is (= [(ast/neq-lit (ast/var-term (first (:params compiled)))
+                              (ast/app-term 'zero))
+                (ast/neq-lit (ast/var-term (first (:params compiled)))
+                              (ast/app-term 'one))]
+               (vec (:negated-alternatives compiled))))))))
 
 (deftest compile-program-rejects-par-in-surface-programs
   (testing "internal parameters are not admissible in user programs"

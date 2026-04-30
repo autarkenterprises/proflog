@@ -160,7 +160,7 @@
          (remove (set (contradictory-neq-pairs neqs sigma))
                  neqs)))
 
-(declare different-termo different-term*o)
+(declare different-termo different-term*o rigid-different-termo rigid-different-term*o)
 
 (defn different-termo
   "Succeed when two terms are not already the same after walking through `sigma`.
@@ -223,6 +223,44 @@
        (conde
          [(different-termo left-head right-head sigma)]
          [(different-term*o left-tail right-tail sigma)]))]))
+
+(defn rigid-different-termo
+  "Succeed when two walked terms are permanently different free constructors.
+
+   This is intentionally stricter than `different-termo`. Symbolic pairs such
+   as `x != a` are different for now, but not rigidly different: a later
+   equality may still bind `x` to `a`. Rigid disequality only recognizes facts
+   that cannot be undone by future proof-variable bindings:
+
+   - distinct constructor heads,
+   - constructor arity mismatch,
+   - or a recursively rigid argument difference under the same constructor."
+  [left right sigma]
+  (fresh [left-root right-root left-head left-args right-head right-args]
+    (equality/walko left sigma left-root)
+    (equality/walko right sigma right-root)
+    (== (lcons 'app (lcons left-head left-args)) left-root)
+    (== (lcons 'app (lcons right-head right-args)) right-root)
+    (conde
+      [(!= left-head right-head)]
+      [(rigid-different-term*o left-args right-args sigma)])))
+
+(defn rigid-different-term*o
+  "Succeed when two constructor argument lists are rigidly different."
+  [left right sigma]
+  (conde
+    [(fresh [left-head left-tail]
+       (== (lcons left-head left-tail) left)
+       (== '() right))]
+    [(fresh [right-head right-tail]
+       (== '() left)
+       (== (lcons right-head right-tail) right))]
+    [(fresh [left-head left-tail right-head right-tail]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (conde
+         [(rigid-different-termo left-head right-head sigma)]
+         [(rigid-different-term*o left-tail right-tail sigma)]))]))
 
 (defn prune-contradictory-neqso
   "Relate `neqs-out` to `neqs` with all already-false disequalities removed.

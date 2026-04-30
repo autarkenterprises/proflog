@@ -237,7 +237,7 @@
               1
               64))))))
 
-(deftest append-two-step-ground-case-succeeds
+(deftest ^:constructor-recursive append-two-step-ground-case-succeeds
   (testing "append([a, b], [c], [a, b, c]) is semantically reachable, though expensive"
     (let [program (list-program)]
       (is (seq
@@ -280,7 +280,7 @@
                  (is (every? empty?
                              (map :residuals records))))))))
 
-(deftest reverse-two-element-list-succeeds
+(deftest ^:constructor-recursive reverse-two-element-list-succeeds
   (testing "reverse([a, b], [b, a]) is semantically reachable, though expensive"
     (let [program (list-program)]
       (is (seq

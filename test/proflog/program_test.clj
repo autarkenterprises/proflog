@@ -72,6 +72,40 @@
       (is (= (ast/neq-lit (ast/var-term bound-param) (ast/app-term 'zero))
              neg-body)))))
 
+(deftest call-clause-with-alternativeso-exposes-compiled-guard-views
+  (testing "procedure lookup can return top-level alternatives without changing the ordinary body"
+    (ast/nom x
+      (let [program (language/compile-program
+                      simple-language
+                      [(ast/clause 'p [x]
+                                   (ast/or-form
+                                     (ast/eq-lit (ast/var-term x)
+                                                 (ast/app-term 'zero))
+                                     (ast/eq-lit (ast/var-term x)
+                                                 (ast/app-term 'one))))])
+            actual (ast/app-term 'zero)
+            [[env body neg-body alternatives negated-alternatives]]
+            (run 1 [env body neg-body alternatives negated-alternatives]
+              (program/call-clause-with-alternativeso
+                program
+                (ast/app-term 'p actual)
+                env
+                body
+                neg-body
+                alternatives
+                negated-alternatives))
+            bound-param (ffirst env)]
+        (is (= (ast/or-form
+                 (ast/eq-lit (ast/var-term bound-param) (ast/app-term 'zero))
+                 (ast/eq-lit (ast/var-term bound-param) (ast/app-term 'one)))
+               body))
+        (is (= [(ast/eq-lit (ast/var-term bound-param) (ast/app-term 'zero))
+                (ast/eq-lit (ast/var-term bound-param) (ast/app-term 'one))]
+               (vec alternatives)))
+        (is (= [(ast/neq-lit (ast/var-term bound-param) (ast/app-term 'zero))
+                (ast/neq-lit (ast/var-term bound-param) (ast/app-term 'one))]
+               (vec negated-alternatives)))))))
+
 (deftest positive-and-negative-procedure-calls-close-literals
   (testing "procedure calls close positive literals when bodies fail and negative literals when bodies succeed"
     (let [program (simple-program)]

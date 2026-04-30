@@ -1,9 +1,9 @@
 # ADR-0030: Relational Constructor Search Control
 
-- Status: accepted
+- Status: completed
 - Date: 2026-04-29
 - Branch: `adr-0030-relational-constructor-search`
-- AAR: pending
+- AAR: [AAR-0030](../aar/AAR-0030-relational-constructor-search.md)
 - Depends On: [ADR-0029](ADR-0029-relational-fuel-purity.md)
 
 ## Context
@@ -39,9 +39,10 @@ code.
 Implement generic, purely relational search-control enhancements in the kernel
 for constructor-recursive programs.
 
-The implementation plan has four layers. Each layer must be generic and
-structural; every optimization must fail conservatively back to the existing
-kernel rules.
+The implementation has three retained layers. Each layer is generic and
+structural; every optimization fails conservatively back to the existing kernel
+rules. A broader agenda-focusing layer was evaluated during implementation and
+not retained; the backtrack is recorded in the AAR.
 
 ### 1. Focused List-Kernel Measurement
 
@@ -86,53 +87,29 @@ The relation must be structural over walked terms:
 This should reduce the dead state carried through negated clause alternatives
 without changing equality semantics.
 
-### 3. Relational Agenda Focusing
-
-Replace the current single fair `selecto` entry point with a prioritized
-selection relation that tries cheap branch-determining work before expensive
-branch generation:
-
-1. immediate contradiction and literal closure candidates;
-2. equality and rigid disequality formulas;
-3. active procedure-call literals that are already `L`-admissible;
-4. alpha formulas that expose more deterministic work;
-5. beta, gamma, delta, and save-literal fallbacks.
-
-This must not be a host-side heuristic. Formula classes should be recognized by
-small structural goals, and the old fair selection should remain as a complete
-fallback. The result should still be a relation over the selected formula and
-remaining agenda.
-
-The intent is to stop constructor-recursive branches from expanding unrelated
-quantifiers or disjunctions before equality constraints have decomposed the
-call arguments enough to expose the recursive descent.
-
-### 4. Guarded Procedure-Call Descent
+### 3. Guarded Procedure-Call Descent
 
 Add generic procedure-call support for guarded alternatives.
 
 Compiled program metadata should preserve the ordinary `:body` and
 `:negated-body` fields, but may add a structural view of each relation body as
-top-level disjunctive alternatives with conjunctive guard/body partitions.
-The partition is generic:
+top-level disjunctive alternatives. This is not indexing by relation-specific
+knowledge. It is call-local search control over the already declared
+free-constructor program syntax.
 
-- equalities and disequalities are guards;
-- active procedure-call literals are recursive or subsidiary calls;
-- other formulas remain ordinary body work.
+For a negative procedure call, the kernel may close by refuting one negated
+top-level alternative before falling back to the ordinary negated body. This
+lets false base alternatives fail quickly and lets guarded recursive
+alternatives descend without changing the logical meaning of procedure calls.
 
-For a procedure call, the kernel may use this metadata to saturate constructor
-guards before entering recursive calls. For a negative call, it may refute each
-alternative in guard-first order. For a positive call, it may try alternatives
-whose guards are compatible with the current arguments before broader
-fallbacks.
+### 4. Evaluated But Not Retained: Relational Agenda Focusing
 
-This is not indexing by relation-specific knowledge. It is constructor-guard
-focusing over the already declared free-constructor program syntax.
-
-If guard focusing is insufficient, a follow-up within the same ADR may add a
-pure call-stack descent preference: recursive calls whose arguments are walked
-proper subterms of an ancestor call are tried before non-descending calls. That
-preference must be relational and must have the existing call rule as fallback.
+A global prioritized selector was explored as an implementation tactic. It
+remained relational, but fresh-process measurements made the list proofs slower
+and exposed poor interaction with nominal single-use universals. The completed
+ADR therefore keeps the old fair `selecto` entry point and places the search
+control at the procedure-call boundary, where the compiler has exposed a
+finite alternative list.
 
 ## Constraints
 
@@ -140,8 +117,9 @@ preference must be relational and must have the existing call rule as fallback.
   names.
 - No new executable `core.logic/project` may be added to the ordinary
   kernel-facing path.
-- The existing reverse and partial synthesis modes from ADR-0027 through
-  ADR-0029 must remain green.
+- The targeted reverse and partial synthesis regressions from ADR-0027 through
+  ADR-0029 must remain green. Broader extended synthesis-mode failures that
+  predate this branch remain outside this ADR's exit gate.
 - Pelletier profiled-layer interoperation must continue to work.
 - Answer-overlay materializers may remain as compatibility surfaces, but they
   must not be the reason the new raw proof regressions pass.
@@ -155,9 +133,6 @@ preference must be relational and must have the existing call rule as fallback.
   - constructor clash is skipped rather than stored;
   - symbolic `x != a` remains delayed;
   - later equality can still make a symbolic saved disequality contradictory.
-- Add scheduler regressions proving that equality / rigid disequality /
-  callable literals can be selected before branch-expanding formulas without
-  removing the fair fallback.
 - Add a non-list constructor-recursive program test so the implementation is
   demonstrably generic.
 - Keep these existing regressions green:

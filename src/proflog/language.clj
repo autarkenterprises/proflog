@@ -187,11 +187,23 @@
                       (subst/subst-formula env)
                       (normalize/to-nnf))))
               clauses)
-        compiled-body (reduce ast/or-form compiled-bodies)]
+        alternatives (mapcat (fn disjuncts [formula]
+                               (if (= 'or (ast/tag-of formula))
+                                 (concat (disjuncts (second formula))
+                                         (disjuncts (nth formula 2)))
+                                 (list formula)))
+                             compiled-bodies)
+        compiled-body (reduce ast/or-form alternatives)]
     {:relation relation
      :params fresh-params
      :body compiled-body
-     :negated-body (normalize/negate-formula compiled-body)}))
+     :negated-body (normalize/negate-formula compiled-body)
+     :alternatives (apply list alternatives)
+     :negated-alternatives (apply list (map normalize/negate-formula alternatives))}))
+
+(defn- ordinary-clause-view
+  [clause]
+  (select-keys clause [:relation :params :body :negated-body]))
 
 (defn compile-program
   "Validate and compile a surface program into the greenfield core form.
@@ -211,4 +223,7 @@
       {:language lang
        :clauses compiled-clauses
        ;; Keep a sequential view for the purely relational procedure-call rule.
-       :clause-list (apply list (vals compiled-clauses))})))
+       :clause-list (apply list (map ordinary-clause-view (vals compiled-clauses)))
+       ;; Keep guarded alternatives separate so ordinary call lookup preserves
+       ;; the historical compiled-clause shape and answer-mode search order.
+       :alternative-clause-list (apply list (vals compiled-clauses))})))

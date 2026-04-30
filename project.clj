@@ -52,7 +52,8 @@
    :pelletier-prompt (fn [m & _] (:pelletier-prompt m))
    :pelletier-passing (fn [m & _] (:pelletier-passing m))
    :pelletier-exploratory (fn [m & _] (:pelletier-exploratory m))
-   :pelletier-comparison (fn [m & _] (:pelletier-comparison m))}
+   :pelletier-comparison (fn [m & _] (:pelletier-comparison m))
+   :constructor-recursive (fn [m & _] (:constructor-recursive m))}
   :aliases {"test-section"         ["run" "-m" "cljtap.run-section"]
             "test-all-timed"       ["run" "-m" "cljtap.run-section" "--all"]
             "test-proflog-fast"    ["test"
@@ -105,6 +106,10 @@
                                                  "proflog.pelletier-comparison-test"]
             "test-proflog-hard-families" ["test"
                                           "proflog.legacy-hard-families-test"]
+            "test-proflog-constructor-recursive" ["test"
+                                                  ":constructor-recursive"
+                                                  "proflog.list-programs-test"
+                                                  "proflog.constructor-recursive-kernel-test"]
             "test-proflog-legacy-impurity" ["test"
                                             "proflog.legacy-impurity-test"]
             "probe-proflog-legacy-stream" ["run" "-m" "proflog.legacy-stream-probe"]

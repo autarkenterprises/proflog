@@ -121,6 +121,7 @@
                              (ast/neg-lit (ast/app-term 'q (ast/app-term 'zero)))
                              1))]
       (is (proof/contains-step? pos-call-proof 'pos-call))
-      (is (proof/contains-step? neg-call-proof 'neg-call))
+      (is (or (proof/contains-step? neg-call-proof 'neg-call)
+              (proof/contains-step? neg-call-proof 'neg-call-alt)))
       (is (proof/contains-step? pos-call-proof 'refl-close))
       (is (proof/contains-step? neg-call-proof 'refl-close)))))

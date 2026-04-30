@@ -76,7 +76,7 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0027](adr/ADR-0027-transitive-relational-purity.md) | completed | `adr-0027-transitive-relational-purity` | recover transitive relational purity by replacing projected formula substitution in the kernel-facing path | ADR-0026 | substitution preimage regressions, binder-shadowing regressions, kernel reverse-program/body synthesis, and purity grep for `kernel.clj` / `subst.clj` | `subst-formulao` is structural and relational, no projected substitution remains on the kernel path, and remaining reverse/partial failures are reclassified with substitution projection removed as a blocker; [AAR-0027](aar/AAR-0027-transitive-relational-purity.md) records the outcome |
 | [ADR-0028](adr/ADR-0028-kernel-support-disequality-purity.md) | completed | `adr-0028-kernel-support-disequality-purity` | recover transitive relational purity for saved disequality maintenance in `kernel_support.clj` | ADR-0027 | reverse/open `neqs`, open `sigma`, stale-prune, and stable-guard regressions around `prove-stateo` | `prune-contradictory-neqso` and `stable-neqso` are structural, the only remaining `kernel_support.clj` projection is fuel, and [AAR-0028](aar/AAR-0028-kernel-support-disequality-purity.md) records the outcome |
 | [ADR-0029](adr/ADR-0029-relational-fuel-purity.md) | completed | `adr-0029-relational-fuel-purity` | recover relational purity for `step-fuelo` in `kernel_support.clj` | ADR-0028 | direct fuel predecessor/unbounded synthesis, open-fuel `proveo`, and open-fuel procedure-call body synthesis | `step-fuelo` is structural over unbounded and bounded fuel states, no executable `project` remains in the ordinary kernel-facing path, and [AAR-0029](aar/AAR-0029-relational-fuel-purity.md) records the outcome |
-| [ADR-0030](adr/ADR-0030-relational-constructor-search.md) | accepted | `adr-0030-relational-constructor-search` | generic relational constructor search control for raw list-family proof closure | ADR-0029 | focused raw list proof selector, rigid constructor disequality discharge tests, agenda-focusing tests, guarded procedure-call descent tests, and a non-list constructor-recursive control case | raw `append([a,b], [c], [a,b,c])` and `reverse([a,b], [b,a])` close through the ordinary kernel without list-specific production code or projection |
+| [ADR-0030](adr/ADR-0030-relational-constructor-search.md) | completed | `adr-0030-relational-constructor-search` | generic relational constructor search control for raw list-family proof closure | ADR-0029 | focused raw list proof selector, rigid constructor disequality discharge tests, guarded procedure-call descent tests, and a non-list constructor-recursive control case | raw `append([a,b], [c], [a,b,c])` and `reverse([a,b], [b,a])` close through the ordinary kernel without list-specific production code or projection; [AAR-0030](aar/AAR-0030-relational-constructor-search.md) records the call-local alternative strategy |
 
 ## Deferred Tracks
 
@@ -105,7 +105,7 @@ Pelletier first-order performance closure has graduated into completed ADR-0024.
 Pelletier lean first-order search policy has graduated into completed ADR-0025.
 Kernel layer interoperation has graduated into completed ADR-0026.
 Relational fuel purity has graduated into completed ADR-0029.
-Relational constructor search control has graduated into accepted ADR-0030.
+Relational constructor search control has graduated into completed ADR-0030.
 
 ## ADR-0007 Task List
 

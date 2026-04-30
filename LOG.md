@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-04-29
 
+- Completed [ADR-0030](docs/adr/ADR-0030-relational-constructor-search.md) on
+  branch `adr-0030-relational-constructor-search`. The raw constructor-recursive
+  list targets now close through the ordinary kernel using generic rigid
+  constructor disequality discharge and call-local guarded alternatives; a
+  non-list Peano recursive control is included in the new focused selector.
+  See [AAR-0030](docs/aar/AAR-0030-relational-constructor-search.md).
 - Accepted [ADR-0030](docs/adr/ADR-0030-relational-constructor-search.md) on
   branch `adr-0030-relational-constructor-search`. The plan treats the
   legacy-passing raw list proofs as constructor-recursive kernel search

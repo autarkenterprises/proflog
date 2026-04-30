@@ -378,6 +378,40 @@
                                next-fuel
                                subproof))]))
 
+(defn- close-one-formulao
+  "Close any formula from a finite relational list of alternatives."
+  [formulas env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
+  (conde
+    [(fresh [formula rest subproof]
+       (== (lcons formula rest) formulas)
+       (== (list 'alt subproof) proof)
+       (recursive-prove-stateo formula
+                               '()
+                               '()
+                               env
+                               proof-vars
+                               sigma
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               gamma-terms
+                               fuel
+                               subproof))]
+    [(fresh [formula rest]
+       (== (lcons formula rest) formulas)
+       (close-one-formulao rest
+                           env
+                           proof-vars
+                           sigma
+                           sigma-out
+                           neqs
+                           neqs-out
+                           prog
+                           gamma-terms
+                           fuel
+                           proof))]))
+
 (defn close-agendao
   "Close one explicit pending-formula agenda under the ordinary kernel state.
 
@@ -721,6 +755,29 @@
        (== sigma-mid sigma-out)
        (support/prune-contradictory-neqso neqs sigma-mid neqs-out)
        (== (list 'neq-close step-proof) proof))]
+    ;; Constructor clashes are already true in the free-constructor theory.
+    ;; Discharge them as successful branch progress rather than carrying them
+    ;; as delayed symbolic obligations.
+    [(fresh [lit left right next rest next-fuel prf]
+       (subst/subst-formulao fml env lit)
+       (== (list 'neq left right) lit)
+       (support/rigid-different-termo left right sigma)
+       (== (lcons next rest) unexpanded)
+       (== (list 'neq-rigid prf) proof)
+       (support/step-fuelo fuel next-fuel)
+       (recursive-prove-stateo next
+                               rest
+                               lits
+                               env
+                               proof-vars
+                               sigma
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               gamma-terms
+                               next-fuel
+                               prf))]
     ;; Otherwise retain the disequality as a delayed symbolic obligation.
     [(fresh [lit left right next rest next-fuel prf]
        (subst/subst-formulao fml env lit)
@@ -813,6 +870,30 @@
        (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
     ;; Negative procedure call: this is Fitting's Part 2 operationalized over
     ;; the compiled clause's precomputed `negated-body`.
+    [(fresh [lit atom walked-atom relation args call-env body negated-body alternatives negated-alternatives subproof]
+       (subst/subst-formulao fml env lit)
+       (== (list 'neg atom) lit)
+       (equality/walk-atomo atom sigma walked-atom)
+       (== (lcons 'app (lcons relation args)) walked-atom)
+       (support/l-ground-term*o args)
+       (program/call-clause-with-alternativeso
+         prog walked-atom call-env body negated-body alternatives negated-alternatives)
+       (fresh [first-alternative second-alternative remaining-alternatives]
+         (== (lcons first-alternative
+                    (lcons second-alternative remaining-alternatives))
+             alternatives))
+       (== (list 'neg-call-alt subproof) proof)
+       (close-one-formulao negated-alternatives
+                           call-env
+                           proof-vars
+                           sigma
+                           sigma-out
+                           neqs
+                           neqs-out
+                           prog
+                           gamma-terms
+                           fuel
+                           subproof))]
     [(fresh [lit atom walked-atom relation args call-env body negated-body next-fuel subproof]
        (subst/subst-formulao fml env lit)
        (== (list 'neg atom) lit)

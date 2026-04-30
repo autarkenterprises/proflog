@@ -33,6 +33,10 @@ complete contemporaneous transcript.
   frontier re-settlement were also rejected after slowing or regressing the
   matrix without closing length-three reverse rows. Longer note:
   [ADR-0031 Experiment Reassessment](docs/log/2026-04-30-adr31-experiment-reassessment.md).
+- Registered generic `core.logic` host-language performance work as a possible
+  ADR-0031 avenue. This includes tableau-prover specific handling only if it
+  stays generic across Proflog programs, as well as fully general-purpose
+  improvements that would benefit arbitrary `core.logic` programs.
 
 ## 2026-04-29
 

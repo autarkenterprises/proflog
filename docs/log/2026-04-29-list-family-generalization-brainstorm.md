@@ -58,6 +58,13 @@ to intermediate forms that are easier for the proof kernel to evaluate.
    and future constructor-recursive layers may close branch-local residuals,
    but any closure must remain an explicit proof step rather than an opaque
    oracle.
+8. Consider improving the underlying `core.logic` host-language performance.
+   This can be tableau-prover specific if the optimization remains generic
+   across Proflog programs, or it can be a fully general `core.logic`
+   enhancement that benefits non-Proflog relations as well. The important
+   boundary is that this avenue must not encode list-family knowledge; it
+   should reduce the cost of relational search, unification, scheduling,
+   tabling, or constraint propagation for broad classes of programs.
 
 ## Implementation Order Adopted
 
@@ -71,5 +78,8 @@ list mechanism:
    handling.
 5. Add tabled/canonical duplicate-state suppression only if descent discipline
    alone leaves exponential repeated work.
-6. Re-run the matrix and write the AAR against family-level behavior, not
+6. If proof-search shape looks reasonable but runtime remains prohibitive,
+   evaluate generic `core.logic`/host-language performance work before adding
+   relation-specific search tricks.
+7. Re-run the matrix and write the AAR against family-level behavior, not
    isolated examples.

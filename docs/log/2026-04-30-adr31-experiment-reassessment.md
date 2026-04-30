@@ -69,3 +69,11 @@ frontier ordering than simple rediscovery of identical states.
 The retained progress remains the guarded-clause IR and guard-first descent
 from the source-to-IR boundary. Further ADR-0031 work should target a broader
 constructor-recursive search discipline, not a mode-specific call-order tweak.
+
+One possible broader avenue is improving the underlying `core.logic` host
+language performance. This could be tableau-prover specific if the handling is
+generic across Proflog programs, or it could be a fully general-purpose
+`core.logic` improvement useful outside Proflog. Either way, the improvement
+must be justified as a reduction in relational search, unification, scheduling,
+tabling, or constraint-propagation overhead rather than as list-family special
+knowledge.

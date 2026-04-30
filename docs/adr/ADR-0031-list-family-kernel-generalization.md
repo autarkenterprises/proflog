@@ -110,6 +110,11 @@ Candidate mechanisms include:
   descent depth;
 - answer-mode continuation rules that keep descending toward a requested
   closed target before exporting a residual call frontier.
+- generic host-language performance improvements in the underlying
+  `core.logic` substrate. These may be tableau-prover specific when they remain
+  generic across Proflog programs, or fully general-purpose changes that would
+  benefit arbitrary `core.logic` programs. They must not encode list-family
+  knowledge.
 
 Any retained mechanism must be relational where it touches the kernel-facing
 path. Host-side instrumentation is acceptable only for diagnostics and

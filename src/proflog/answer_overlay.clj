@@ -52,7 +52,11 @@
 ;;    designated answer variables, and which obligations remain if we stop
 ;;    recursive descent at the current answer budget?"
 
-(declare prove-stateo close-agendao saved-call-closeso)
+(declare prove-stateo
+         close-agendao
+         saved-call-closeso
+         close-one-guarded-alternativeo
+         close-guarded-negated-call-sequenceo)
 
 (defn saved-call-closeso
   "Succeed when one saved atom becomes callable under the current equality
@@ -156,6 +160,391 @@
                        next-call-depth
                        existentials-as-vars?
                        subproof))])))
+
+(defn- guarded-alternative-fieldso
+  "Expose the fields the answer overlay needs from guarded alternative IR."
+  [guarded-alternative scope guards negated-calls negated-residuals negated-ordered-conjuncts]
+  (fresh [formula
+          negated-formula
+          core
+          conjuncts
+          negated-conjuncts
+          negated-guards
+          calls
+          residuals]
+    (== {:formula formula
+         :negated-formula negated-formula
+         :scope scope
+         :core core
+         :conjuncts conjuncts
+         :negated-conjuncts negated-conjuncts
+         :guards guards
+         :negated-guards negated-guards
+         :calls calls
+         :negated-calls negated-calls
+         :residuals residuals
+         :negated-residuals negated-residuals
+         :negated-ordered-conjuncts negated-ordered-conjuncts}
+        guarded-alternative)))
+
+(defn- open-existential-guarded-scopeo
+  "Instantiate leading existential guarded scope as answer-visible variables."
+  [scope env proof-vars env-out proof-vars-out proof]
+  (conde
+    [(== '() scope)
+     (== env env-out)
+     (== proof-vars proof-vars-out)
+     (== '(guarded-scope-done) proof)]
+    [(nominal/fresh [free-var-nom]
+       (fresh [binding-nom rest narrowed-env tail-proof]
+         (== (lcons {:quantifier 'exists
+                     :binding-nom binding-nom}
+                    rest)
+             scope)
+         (subst/remove-bindo binding-nom env narrowed-env)
+         (== (list 'guarded-scope-exists tail-proof) proof)
+         (open-existential-guarded-scopeo
+           rest
+           (lcons [binding-nom (ast/var-term free-var-nom)] narrowed-env)
+           (lcons free-var-nom proof-vars)
+           env-out
+           proof-vars-out
+           tail-proof)))]))
+
+(defn- close-formula-sequenceo
+  "Close each residual formula in order while preserving answer state."
+  [formulas env proof-vars sigma sigma-out neqs neqs-out residuals residuals-out
+   prog gamma-terms fuel call-depth existentials-as-vars? proof]
+  (conde
+    [(== '() formulas)
+     (== sigma sigma-out)
+     (== neqs neqs-out)
+     (== residuals residuals-out)
+     (== '(guarded-residual-seq-done) proof)]
+    [(fresh [formula subproof]
+       (== (lcons formula '()) formulas)
+       (== (list 'guarded-residual-seq-last subproof) proof)
+       (prove-stateo formula
+                     '()
+                     '()
+                     env
+                     proof-vars
+                     sigma
+                     sigma-out
+                     neqs
+                     neqs-out
+                     residuals
+                     residuals-out
+                     prog
+                     gamma-terms
+                     fuel
+                     call-depth
+                     existentials-as-vars?
+                     subproof))]
+    [(fresh [formula second-formula rest sigma-mid neqs-mid residuals-mid head-proof tail-proof]
+       (== (lcons formula (lcons second-formula rest)) formulas)
+       (== (list 'guarded-residual-seq-step head-proof tail-proof) proof)
+       (prove-stateo formula
+                     '()
+                     '()
+                     env
+                     proof-vars
+                     sigma
+                     sigma-mid
+                     neqs
+                     neqs-mid
+                     residuals
+                     residuals-mid
+                     prog
+                     gamma-terms
+                     fuel
+                     call-depth
+                     existentials-as-vars?
+                     head-proof)
+       (close-formula-sequenceo
+         (lcons second-formula rest)
+         env
+         proof-vars
+         sigma-mid
+         sigma-out
+         neqs-mid
+         neqs-out
+         residuals-mid
+         residuals-out
+         prog
+         gamma-terms
+         fuel
+         call-depth
+         existentials-as-vars?
+         tail-proof))]))
+
+(defn- saturate-eq-guardso
+  "Unify equality guards while preserving residual answer state."
+  [guards env proof-vars sigma sigma-out neqs proof]
+  (conde
+    [(== '() guards)
+     (== sigma sigma-out)
+     (== '(guard-saturation-done) proof)]
+    [(fresh [guard rest lit left right sigma-mid new-bindings step-proof tail-proof]
+       (== (lcons guard rest) guards)
+       (subst/subst-formulao guard env lit)
+       (== (list 'eq left right) lit)
+       (equality/unify-termo left right sigma sigma-mid step-proof)
+       (appendo new-bindings sigma sigma-mid)
+       (support/proof-bindingso new-bindings proof-vars)
+       (support/stable-neqso neqs sigma-mid)
+       (== (list 'guard-eq step-proof tail-proof) proof)
+       (saturate-eq-guardso
+         rest
+         env
+         proof-vars
+         sigma-mid
+         sigma-out
+         neqs
+         tail-proof))]))
+
+(defn- close-guarded-negated-alternativeo
+  "Close one guarded alternative in answer mode after guard saturation."
+  [guarded-alternative env proof-vars sigma sigma-out neqs neqs-out residuals residuals-out
+   prog gamma-terms fuel call-depth existentials-as-vars? proof]
+  (fresh [scope
+          guards
+          negated-calls
+          negated-residuals
+          negated-ordered-conjuncts
+          scoped-env
+          scoped-proof-vars
+          scope-proof
+          call-sequence-proof
+          residual-sequence-proof
+          fallback-sequence-proof]
+    (guarded-alternative-fieldso
+      guarded-alternative
+      scope
+      guards
+      negated-calls
+      negated-residuals
+      negated-ordered-conjuncts)
+    (conde
+      [(fresh [sigma-mid sigma-after-calls neqs-after-calls residuals-after-calls guard-proof]
+         (== (list 'guarded-neg-alt-saturated
+                   scope-proof
+                   guard-proof
+                   call-sequence-proof
+                   residual-sequence-proof)
+             proof)
+         (open-existential-guarded-scopeo
+           scope
+           env
+           proof-vars
+           scoped-env
+           scoped-proof-vars
+           scope-proof)
+         (saturate-eq-guardso
+           guards
+           scoped-env
+           scoped-proof-vars
+           sigma
+           sigma-mid
+           neqs
+           guard-proof)
+         (close-guarded-negated-call-sequenceo
+           negated-calls
+           scoped-env
+           scoped-proof-vars
+           sigma-mid
+           sigma-after-calls
+           neqs
+           neqs-after-calls
+           residuals
+           residuals-after-calls
+           prog
+           gamma-terms
+           fuel
+           call-depth
+           existentials-as-vars?
+           call-sequence-proof)
+         (close-formula-sequenceo
+           negated-residuals
+           scoped-env
+           scoped-proof-vars
+           sigma-after-calls
+           sigma-out
+           neqs-after-calls
+           neqs-out
+           residuals-after-calls
+           residuals-out
+           prog
+           gamma-terms
+           fuel
+           call-depth
+           existentials-as-vars?
+           residual-sequence-proof))]
+      [(== (list 'guarded-neg-alt scope-proof fallback-sequence-proof) proof)
+       (open-existential-guarded-scopeo
+         scope
+         env
+         proof-vars
+         scoped-env
+         scoped-proof-vars
+         scope-proof)
+       (close-formula-sequenceo
+         negated-ordered-conjuncts
+         scoped-env
+         scoped-proof-vars
+         sigma
+         sigma-out
+         neqs
+         neqs-out
+         residuals
+         residuals-out
+         prog
+         gamma-terms
+         fuel
+         call-depth
+         existentials-as-vars?
+         fallback-sequence-proof)])))
+
+(defn- close-one-guarded-alternativeo
+  "Close any guarded alternative from a finite relational list in answer mode."
+  [guarded-alternatives env proof-vars sigma sigma-out neqs neqs-out residuals residuals-out
+   prog gamma-terms fuel call-depth existentials-as-vars? proof]
+  (conde
+    [(fresh [guarded-alternative rest subproof]
+       (== (lcons guarded-alternative rest) guarded-alternatives)
+       (== (list 'guarded-alt subproof) proof)
+       (close-guarded-negated-alternativeo
+         guarded-alternative
+         env
+         proof-vars
+         sigma
+         sigma-out
+         neqs
+         neqs-out
+         residuals
+         residuals-out
+         prog
+         gamma-terms
+         fuel
+         call-depth
+         existentials-as-vars?
+         subproof))]
+    [(fresh [guarded-alternative rest]
+       (== (lcons guarded-alternative rest) guarded-alternatives)
+       (close-one-guarded-alternativeo
+         rest
+         env
+         proof-vars
+         sigma
+         sigma-out
+         neqs
+         neqs-out
+         residuals
+         residuals-out
+         prog
+         gamma-terms
+         fuel
+         call-depth
+         existentials-as-vars?
+         proof))]))
+
+(defn- close-guarded-negated-call-sequenceo
+  "Close guarded negative procedure calls or export them as residuals."
+  [formulas env proof-vars sigma sigma-out neqs neqs-out residuals residuals-out
+   prog gamma-terms fuel call-depth existentials-as-vars? proof]
+  (let [can-descend? (or (nil? call-depth) (pos? call-depth))
+        next-call-depth (support/next-call-depth call-depth)
+        defer-calls? (and existentials-as-vars? prog)]
+    (conde
+      [(== '() formulas)
+       (== sigma sigma-out)
+       (== neqs neqs-out)
+       (== residuals residuals-out)
+       (== '(guarded-call-seq-done) proof)]
+      [(fresh [formula rest lit atom walked-atom relation args
+               call-env body negated-body alternatives negated-alternatives
+               guarded-alternatives next-fuel sigma-mid neqs-mid residuals-mid
+               call-proof tail-proof]
+         (== (lcons formula rest) formulas)
+         (subst/subst-formulao formula env lit)
+         (== (list 'neg atom) lit)
+         (equality/walk-atomo atom sigma walked-atom)
+         (== (lcons 'app (lcons relation args)) walked-atom)
+         (support/l-ground-term*o args)
+         (program/call-clause-with-guarded-alternativeso
+           prog
+           walked-atom
+           call-env
+           body
+           negated-body
+           alternatives
+           negated-alternatives
+           guarded-alternatives)
+         (fresh [first-alternative second-alternative remaining-alternatives]
+           (== (lcons first-alternative
+                      (lcons second-alternative remaining-alternatives))
+               alternatives))
+         (== (list 'guarded-call-seq-step
+                   (list 'neg-call-guarded-alt call-proof)
+                   tail-proof)
+             proof)
+         (if can-descend?
+           (support/step-fuelo fuel next-fuel)
+           fail)
+         (close-one-guarded-alternativeo
+           guarded-alternatives
+           call-env
+           proof-vars
+           sigma
+           sigma-mid
+           neqs
+           neqs-mid
+           residuals
+           residuals-mid
+           prog
+           gamma-terms
+           next-fuel
+           next-call-depth
+           existentials-as-vars?
+           call-proof)
+         (close-guarded-negated-call-sequenceo
+           rest
+           env
+           proof-vars
+           sigma-mid
+           sigma-out
+           neqs-mid
+           neqs-out
+           residuals-mid
+           residuals-out
+           prog
+           gamma-terms
+           fuel
+           call-depth
+           existentials-as-vars?
+           tail-proof))]
+      [(if (and defer-calls? (not can-descend?))
+         (fresh [formula rest lit tail-proof]
+           (== (lcons formula rest) formulas)
+           (subst/subst-formulao formula env lit)
+           (== (list 'guarded-call-seq-defer tail-proof) proof)
+           (close-guarded-negated-call-sequenceo
+             rest
+             env
+             proof-vars
+             sigma
+             sigma-out
+             neqs
+             neqs-out
+             (lcons lit residuals)
+             residuals-out
+             prog
+             gamma-terms
+             fuel
+             call-depth
+             existentials-as-vars?
+             tail-proof))
+         fail)])))
 
 (defn close-agendao
   "Close one explicit pending-formula agenda under the answer-export state.
@@ -655,6 +1044,46 @@
             (support/complementary-lito lit lits sigma sigma-out proof)
             (support/prune-contradictory-neqso neqs sigma-out neqs-out)
             (== residuals residuals-out))]
+    [(fresh [lit atom walked-atom relation args call-env body negated-body
+             alternatives negated-alternatives guarded-alternatives next-fuel subproof]
+            (subst/subst-formulao fml env lit)
+            (== (list 'neg atom) lit)
+            (equality/walk-atomo atom sigma walked-atom)
+            (== (lcons 'app (lcons relation args)) walked-atom)
+            (support/l-ground-term*o args)
+            (program/call-clause-with-guarded-alternativeso
+              prog
+              walked-atom
+              call-env
+              body
+              negated-body
+              alternatives
+              negated-alternatives
+              guarded-alternatives)
+            (fresh [first-alternative second-alternative remaining-alternatives]
+              (== (lcons first-alternative
+                         (lcons second-alternative remaining-alternatives))
+                  alternatives))
+            (== (list 'neg-call-guarded-alt subproof) proof)
+            (if can-descend?
+              (support/step-fuelo fuel next-fuel)
+              fail)
+            (close-one-guarded-alternativeo
+              guarded-alternatives
+              call-env
+              proof-vars
+              sigma
+              sigma-out
+              neqs
+              neqs-out
+              residuals
+              residuals-out
+              prog
+              gamma-terms
+              next-fuel
+              next-call-depth
+              existentials-as-vars?
+              subproof))]
     ;; Negative-call version of the same bounded descent / symbolic deferral
     ;; choice.
     [(fresh [lit atom walked-atom relation args call-env body negated-body next-fuel subproof]
@@ -907,6 +1336,41 @@
                         call-depth
                         true
                         subproof))]
+       [(fresh [atom relation args call-env body negated-body
+                alternatives negated-alternatives guarded-alternatives subproof]
+          (== (list 'neg atom) lit)
+          (== (lcons 'app (lcons relation args)) atom)
+          (support/l-ground-term*o args)
+          (program/call-clause-with-guarded-alternativeso
+            prog
+            atom
+            call-env
+            body
+            negated-body
+            alternatives
+            negated-alternatives
+            guarded-alternatives)
+          (fresh [first-alternative second-alternative remaining-alternatives]
+            (== (lcons first-alternative
+                       (lcons second-alternative remaining-alternatives))
+                alternatives))
+          (== (list 'query-neg-call-guarded-alt subproof) proof)
+          (close-one-guarded-alternativeo
+            guarded-alternatives
+            call-env
+            answer-vars
+            '()
+            sigma-out
+            '()
+            neqs-out
+            '()
+            residuals-out
+            prog
+            gamma-terms
+            fuel
+            call-depth
+            true
+            subproof))]
        ;; Negative top-level query atom: open the precomputed NNF negation of the
        ;; clause body, matching Fitting's Part 2 call rule.
        [(fresh [atom relation args call-env body negated-body subproof]

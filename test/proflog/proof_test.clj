@@ -122,6 +122,7 @@
                              1))]
       (is (proof/contains-step? pos-call-proof 'pos-call))
       (is (or (proof/contains-step? neg-call-proof 'neg-call)
+              (proof/contains-step? neg-call-proof 'neg-call-guarded-alt)
               (proof/contains-step? neg-call-proof 'neg-call-alt)))
       (is (proof/contains-step? pos-call-proof 'refl-close))
       (is (proof/contains-step? neg-call-proof 'refl-close)))))

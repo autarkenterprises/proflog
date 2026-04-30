@@ -172,9 +172,148 @@
     (validate-formula lang body)
     clause))
 
+(defn- disjuncts
+  "Flatten a formula's top-level disjunctions into core alternatives."
+  [formula]
+  (if (= 'or (ast/tag-of formula))
+    (concat (disjuncts (second formula))
+            (disjuncts (nth formula 2)))
+    (list formula)))
+
+(defn- conjuncts
+  "Flatten a formula's top-level conjunctions."
+  [formula]
+  (if (= 'and (ast/tag-of formula))
+    (concat (conjuncts (second formula))
+            (conjuncts (nth formula 2)))
+    (list formula)))
+
+(defn- strip-leading-quantifiers
+  "Return `[scope core]` for a formula after removing leading quantifiers.
+
+   The scope is compile-time IR metadata. The original formula is still kept on
+   the guarded alternative, so this helper does not change the executable
+   clause body."
+  [formula]
+  (loop [scope []
+         current formula]
+    (case (ast/tag-of current)
+      forall (let [tied (second current)]
+               (recur (conj scope {:quantifier 'forall
+                                   :binding-nom (:binding-nom tied)})
+                      (:body tied)))
+      once-forall (let [tied (second current)]
+                    (recur (conj scope {:quantifier 'once-forall
+                                        :binding-nom (:binding-nom tied)})
+                           (:body tied)))
+      exists (let [tied (second current)]
+               (recur (conj scope {:quantifier 'exists
+                                   :binding-nom (:binding-nom tied)})
+                      (:body tied)))
+      [scope current])))
+
+(defn- guard-formula?
+  [formula]
+  (contains? #{'eq 'neq} (ast/tag-of formula)))
+
+(defn- defined-call-formula?
+  [defined-relations formula]
+  (when (contains? #{'pos 'neg} (ast/tag-of formula))
+    (let [atom (second formula)]
+      (contains? defined-relations (second atom)))))
+
+(defn- term-static-constructor-size
+  "Count positive-arity constructor structure visible before proof search."
+  [term]
+  (case (ast/tag-of term)
+    app (let [args (nnext term)]
+          (+ (if (seq args) 1 0)
+             (reduce + (map term-static-constructor-size args))))
+    0))
+
+(defn- formula-static-constructor-size
+  [formula]
+  (case (ast/tag-of formula)
+    pos (let [atom (second formula)]
+          (reduce + (map term-static-constructor-size (nnext atom))))
+    neg (let [atom (second formula)]
+          (reduce + (map term-static-constructor-size (nnext atom))))
+    eq (+ (term-static-constructor-size (second formula))
+          (term-static-constructor-size (nth formula 2)))
+    neq (+ (term-static-constructor-size (second formula))
+           (term-static-constructor-size (nth formula 2)))
+    0))
+
+(defn- demand-ordered-calls
+  "Preserve source call order inside one guarded alternative.
+
+   Visible constructor demand is useful for ordering independent alternatives,
+   but reordering calls inside a conjunction can move a consumer before the call
+   that produces its symbolic input. Reverse/append synthesis depends on that
+   producer-before-consumer order."
+  [calls]
+  calls)
+
+(defn- guarded-alternative-demand-score
+  [guarded]
+  [(- (count (:calls guarded)))
+   (- (reduce + (map formula-static-constructor-size (:guards guarded))))
+   (- (count (:guards guarded)))])
+
+(defn- demand-ordered-guarded-alternatives
+  "Prefer guarded alternatives that expose recursive demand before base cases."
+  [guarded-alternatives]
+  (->> guarded-alternatives
+       (map-indexed vector)
+       (sort-by (fn [[idx guarded]]
+                  (conj (guarded-alternative-demand-score guarded) idx)))
+       (map second)))
+
+(defn- guarded-alternative
+  "Build compile-time IR for one executable alternative.
+
+   The IR is intentionally generic: it records equality/disequality guards,
+   calls to relations defined by this program, and residual formulas without
+   inspecting relation names or constructor names."
+  [defined-relations formula]
+  (let [[scope core] (strip-leading-quantifiers formula)
+        parts (conjuncts core)
+        grouped (reduce (fn [acc part]
+                          (cond
+                            (guard-formula? part)
+                            (update acc :guards conj part)
+
+                            (defined-call-formula? defined-relations part)
+                            (update acc :calls conj part)
+
+                            :else
+                            (update acc :residuals conj part)))
+                        {:guards []
+                         :calls []
+                         :residuals []}
+                        parts)
+        ordered-calls (demand-ordered-calls (:calls grouped))]
+    {:formula formula
+     :negated-formula (normalize/negate-formula formula)
+     :scope (apply list scope)
+     :core core
+     :conjuncts (apply list parts)
+     :negated-conjuncts (apply list (map normalize/negate-formula parts))
+     :guards (apply list (:guards grouped))
+     :negated-guards (apply list (map normalize/negate-formula (:guards grouped)))
+     :calls (apply list ordered-calls)
+     :negated-calls (apply list (map normalize/negate-formula ordered-calls))
+     :residuals (apply list (:residuals grouped))
+     :negated-residuals (apply list (map normalize/negate-formula (:residuals grouped)))
+     :negated-ordered-conjuncts (apply list
+                                        (map normalize/negate-formula
+                                             (concat (:guards grouped)
+                                                     ordered-calls
+                                                     (:residuals grouped))))}))
+
 (defn- clause-group->core-clause
   "Compile a group of same-relation surface clauses into one Fitting-style clause."
-  [lang relation clauses]
+  [lang defined-relations relation clauses]
   (let [arity (declared-relation-arity lang relation)
         fresh-params (vec (repeatedly arity #(fresh-nom (gensym (str relation "-p")))))
         compiled-bodies
@@ -187,23 +326,42 @@
                       (subst/subst-formula env)
                       (normalize/to-nnf))))
               clauses)
-        alternatives (mapcat (fn disjuncts [formula]
-                               (if (= 'or (ast/tag-of formula))
-                                 (concat (disjuncts (second formula))
-                                         (disjuncts (nth formula 2)))
-                                 (list formula)))
-                             compiled-bodies)
-        compiled-body (reduce ast/or-form alternatives)]
+        alternatives (vec (mapcat disjuncts compiled-bodies))
+        compiled-body (reduce ast/or-form alternatives)
+        guarded-alternatives (map #(guarded-alternative defined-relations %)
+                                  alternatives)
+        ordered-guarded-alternatives
+        (demand-ordered-guarded-alternatives guarded-alternatives)]
     {:relation relation
      :params fresh-params
      :body compiled-body
      :negated-body (normalize/negate-formula compiled-body)
      :alternatives (apply list alternatives)
-     :negated-alternatives (apply list (map normalize/negate-formula alternatives))}))
+     :negated-alternatives (apply list (map normalize/negate-formula alternatives))
+     :guarded-alternatives (apply list ordered-guarded-alternatives)}))
 
 (defn- ordinary-clause-view
   [clause]
   (select-keys clause [:relation :params :body :negated-body]))
+
+(defn- alternative-clause-view
+  [clause]
+  (select-keys clause [:relation
+                       :params
+                       :body
+                       :negated-body
+                       :alternatives
+                       :negated-alternatives]))
+
+(defn- guarded-clause-view
+  [clause]
+  (select-keys clause [:relation
+                       :params
+                       :body
+                       :negated-body
+                       :alternatives
+                       :negated-alternatives
+                       :guarded-alternatives]))
 
 (defn compile-program
   "Validate and compile a surface program into the greenfield core form.
@@ -213,17 +371,30 @@
   [lang clauses]
   (doseq [clause clauses]
     (validate-clause lang clause))
-  (let [groups (group-by :relation clauses)]
+  (let [groups (group-by :relation clauses)
+        defined-relations (set (keys groups))]
     (let [compiled-clauses
           (into {}
                 (map (fn [[relation same-relation-clauses]]
                        [relation (clause-group->core-clause
-                                   lang relation same-relation-clauses)]))
+                                   lang
+                                   defined-relations
+                                   relation
+                                   same-relation-clauses)]))
                 groups)]
       {:language lang
        :clauses compiled-clauses
        ;; Keep a sequential view for the purely relational procedure-call rule.
        :clause-list (apply list (map ordinary-clause-view (vals compiled-clauses)))
-       ;; Keep guarded alternatives separate so ordinary call lookup preserves
-       ;; the historical compiled-clause shape and answer-mode search order.
-       :alternative-clause-list (apply list (vals compiled-clauses))})))
+       ;; Keep top-level alternatives separate so ordinary call lookup
+       ;; preserves the historical compiled-clause shape and answer-mode search
+       ;; order.
+       :alternative-clause-list (apply list
+                                       (map alternative-clause-view
+                                            (vals compiled-clauses)))
+       ;; Keep guarded alternative metadata in its own list so future
+       ;; source-to-IR execution paths can opt in without perturbing ordinary
+       ;; procedure-call lookup.
+       :guarded-clause-list (apply list
+                                   (map guarded-clause-view
+                                        (vals compiled-clauses)))})))

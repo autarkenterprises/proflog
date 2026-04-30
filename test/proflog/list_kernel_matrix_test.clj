@@ -20,3 +20,15 @@
       (is (contains? shapes :flat))
       (is (contains? shapes :nested))
       (is (some #(= :longer (:size %)) catalog)))))
+
+(deftest list-kernel-matrix-promotes-guarded-raw-kernel-rows
+  (testing "guarded IR closes representative longer ground and raw answer rows"
+    (doseq [case-id [:append-forward-flat-3
+                     :append-forward-nested-3
+                     :reverse-forward-flat-3
+                     :reverse-forward-nested-3
+                     :append-output-flat
+                     :append-suffix-flat
+                     :append-prefix-flat]]
+      (is (:target-found? (matrix/run-case case-id))
+          (str case-id " should find its target")))))

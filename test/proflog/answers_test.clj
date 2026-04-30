@@ -315,7 +315,7 @@
         (is (= 1 (:raw-count snapshot)))
         (is (= 1 (:unique-count snapshot)))
         (is (= 1 (:call-depth snapshot)))
-        (is (= (lp/list-term)
+        (is (= (lp/list-term (ast/app-term 'a))
                (answers/binding-term record r)))
         ;; ADR-0016's fairer agenda plus residual normalization now drops the
         ;; old constructor-clash disequality, leaving only the two meaningful

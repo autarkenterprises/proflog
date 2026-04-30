@@ -61,7 +61,11 @@
 ;; recursive call-depth control. This file intentionally stops short of those
 ;; answer-oriented concerns.
 
-(declare prove-stateo close-agendao saved-call-closeso)
+(declare prove-stateo
+         close-agendao
+         saved-call-closeso
+         close-one-guarded-alternativeo
+         close-guarded-negated-call-sequenceo)
 
 (def ^:dynamic *recursive-prove-stateo*
   "Optional recursive proof dispatcher.
@@ -411,6 +415,321 @@
                            gamma-terms
                            fuel
                            proof))]))
+
+(defn- guarded-alternative-fieldso
+  "Expose the fields the kernel needs from compile-time guarded alternative IR."
+  [guarded-alternative scope guards negated-calls negated-residuals negated-ordered-conjuncts]
+  (fresh [formula
+          negated-formula
+          core
+          conjuncts
+          negated-conjuncts
+          negated-guards
+          calls
+          residuals
+          ordered-guards]
+    (== {:formula formula
+         :negated-formula negated-formula
+         :scope scope
+         :core core
+         :conjuncts conjuncts
+         :negated-conjuncts negated-conjuncts
+         :guards guards
+         :negated-guards negated-guards
+         :calls calls
+         :negated-calls negated-calls
+         :residuals residuals
+         :negated-residuals negated-residuals
+         :negated-ordered-conjuncts negated-ordered-conjuncts}
+        guarded-alternative)))
+
+(defn- open-existential-guarded-scopeo
+  "Instantiate leading existential alternative scope for negated call closure."
+  [scope env proof-vars env-out proof-vars-out proof]
+  (conde
+    [(== '() scope)
+     (== env env-out)
+     (== proof-vars proof-vars-out)
+     (== '(guarded-scope-done) proof)]
+    [(nominal/fresh [free-var-nom]
+       (fresh [binding-nom rest narrowed-env tail-proof]
+         (== (lcons {:quantifier 'exists
+                     :binding-nom binding-nom}
+                    rest)
+             scope)
+         (subst/remove-bindo binding-nom env narrowed-env)
+         (== (list 'guarded-scope-exists tail-proof) proof)
+         (open-existential-guarded-scopeo
+           rest
+           (lcons [binding-nom (ast/var-term free-var-nom)] narrowed-env)
+           (lcons free-var-nom proof-vars)
+           env-out
+           proof-vars-out
+           tail-proof)))]))
+
+(defn- close-formula-sequenceo
+  "Close each formula in order, threading equality and disequality state."
+  [formulas env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
+  (conde
+    [(== '() formulas)
+     (== sigma sigma-out)
+     (== neqs neqs-out)
+     (== '(guarded-seq-done) proof)]
+    [(fresh [formula subproof]
+       (== (lcons formula '()) formulas)
+       (== (list 'guarded-seq-last subproof) proof)
+       (recursive-prove-stateo formula
+                               '()
+                               '()
+                               env
+                               proof-vars
+                               sigma
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               gamma-terms
+                               fuel
+                               subproof))]
+    [(fresh [formula second-formula rest sigma-mid neqs-mid head-proof tail-proof]
+       (== (lcons formula (lcons second-formula rest)) formulas)
+       (== (list 'guarded-seq-step head-proof tail-proof) proof)
+       (recursive-prove-stateo formula
+                               '()
+                               '()
+                               env
+                               proof-vars
+                               sigma
+                               sigma-mid
+                               neqs
+                               neqs-mid
+                               prog
+                               gamma-terms
+                               fuel
+                               head-proof)
+       (close-formula-sequenceo
+         (lcons second-formula rest)
+         env
+         proof-vars
+         sigma-mid
+         sigma-out
+         neqs-mid
+         neqs-out
+         prog
+         gamma-terms
+         fuel
+         tail-proof))]))
+
+(defn- saturate-eq-guardso
+  "Unify equality guards through proof-local variables only."
+  [guards env proof-vars sigma sigma-out neqs proof]
+  (conde
+    [(== '() guards)
+     (== sigma sigma-out)
+     (== '(guard-saturation-done) proof)]
+    [(fresh [guard rest lit left right sigma-mid new-bindings step-proof tail-proof]
+       (== (lcons guard rest) guards)
+       (subst/subst-formulao guard env lit)
+       (== (list 'eq left right) lit)
+       (equality/unify-termo left right sigma sigma-mid step-proof)
+       (appendo new-bindings sigma sigma-mid)
+       (support/proof-bindingso new-bindings proof-vars)
+       (support/stable-neqso neqs sigma-mid)
+       (== (list 'guard-eq step-proof tail-proof) proof)
+       (saturate-eq-guardso
+         rest
+         env
+         proof-vars
+         sigma-mid
+         sigma-out
+         neqs
+         tail-proof))]))
+
+(defn- close-guarded-negated-alternativeo
+  "Close the negation of one guarded alternative in guard-first order."
+  [guarded-alternative env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
+  (fresh [scope
+          guards
+          negated-calls
+          negated-residuals
+          negated-ordered-conjuncts
+          scoped-env
+          scoped-proof-vars
+          scope-proof
+          call-sequence-proof
+          residual-sequence-proof
+          fallback-sequence-proof]
+    (guarded-alternative-fieldso
+      guarded-alternative
+      scope
+      guards
+      negated-calls
+      negated-residuals
+      negated-ordered-conjuncts)
+    (conde
+      [(fresh [sigma-mid sigma-after-calls neqs-after-calls guard-proof]
+         (== (list 'guarded-neg-alt-saturated
+                   scope-proof
+                   guard-proof
+                   call-sequence-proof
+                   residual-sequence-proof)
+             proof)
+         (open-existential-guarded-scopeo
+           scope
+           env
+           proof-vars
+           scoped-env
+           scoped-proof-vars
+           scope-proof)
+         (saturate-eq-guardso
+           guards
+           scoped-env
+           scoped-proof-vars
+           sigma
+           sigma-mid
+           neqs
+           guard-proof)
+         (close-guarded-negated-call-sequenceo
+           negated-calls
+           scoped-env
+           scoped-proof-vars
+           sigma-mid
+           sigma-after-calls
+           neqs
+           neqs-after-calls
+           prog
+           gamma-terms
+           fuel
+           call-sequence-proof)
+         (close-formula-sequenceo
+           negated-residuals
+           scoped-env
+           scoped-proof-vars
+           sigma-after-calls
+           sigma-out
+           neqs-after-calls
+           neqs-out
+           prog
+           gamma-terms
+           fuel
+           residual-sequence-proof))]
+      [(== (list 'guarded-neg-alt scope-proof fallback-sequence-proof) proof)
+       (open-existential-guarded-scopeo
+         scope
+         env
+         proof-vars
+         scoped-env
+         scoped-proof-vars
+         scope-proof)
+       (close-formula-sequenceo
+         negated-ordered-conjuncts
+         scoped-env
+         scoped-proof-vars
+         sigma
+         sigma-out
+         neqs
+         neqs-out
+         prog
+         gamma-terms
+         fuel
+         fallback-sequence-proof)])))
+
+(defn- close-one-guarded-alternativeo
+  "Close any guarded alternative from a finite relational list."
+  [guarded-alternatives env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
+  (conde
+    [(fresh [guarded-alternative rest subproof]
+       (== (lcons guarded-alternative rest) guarded-alternatives)
+       (== (list 'guarded-alt subproof) proof)
+       (close-guarded-negated-alternativeo
+         guarded-alternative
+         env
+         proof-vars
+         sigma
+         sigma-out
+         neqs
+         neqs-out
+         prog
+         gamma-terms
+         fuel
+         subproof))]
+    [(fresh [guarded-alternative rest]
+       (== (lcons guarded-alternative rest) guarded-alternatives)
+       (close-one-guarded-alternativeo
+         rest
+         env
+         proof-vars
+         sigma
+         sigma-out
+         neqs
+         neqs-out
+         prog
+         gamma-terms
+         fuel
+         proof))]))
+
+(defn- close-guarded-negated-call-sequenceo
+  "Close guarded negative procedure calls without re-entering the full agenda.
+
+   Guarded alternatives already classify these formulas as calls to program
+   relations. Keeping their recursive descent on the guarded path avoids
+   rechecking every generic tableau rule before each structurally smaller call."
+  [formulas env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
+  (conde
+    [(== '() formulas)
+     (== sigma sigma-out)
+     (== neqs neqs-out)
+     (== '(guarded-call-seq-done) proof)]
+    [(fresh [formula rest lit atom walked-atom relation args
+             call-env body negated-body alternatives negated-alternatives
+             guarded-alternatives sigma-mid neqs-mid call-proof tail-proof]
+       (== (lcons formula rest) formulas)
+       (subst/subst-formulao formula env lit)
+       (== (list 'neg atom) lit)
+       (equality/walk-atomo atom sigma walked-atom)
+       (== (lcons 'app (lcons relation args)) walked-atom)
+       (support/l-ground-term*o args)
+       (program/call-clause-with-guarded-alternativeso
+         prog
+         walked-atom
+         call-env
+         body
+         negated-body
+         alternatives
+         negated-alternatives
+         guarded-alternatives)
+       (fresh [first-alternative second-alternative remaining-alternatives]
+         (== (lcons first-alternative
+                    (lcons second-alternative remaining-alternatives))
+             alternatives))
+       (== (list 'guarded-call-seq-step
+                 (list 'neg-call-guarded-alt call-proof)
+                 tail-proof)
+           proof)
+       (close-one-guarded-alternativeo
+         guarded-alternatives
+         call-env
+         proof-vars
+         sigma
+         sigma-mid
+         neqs
+         neqs-mid
+         prog
+         gamma-terms
+         fuel
+         call-proof)
+       (close-guarded-negated-call-sequenceo
+         rest
+         env
+         proof-vars
+         sigma-mid
+         sigma-out
+         neqs-mid
+         neqs-out
+         prog
+         gamma-terms
+         fuel
+         tail-proof))]))
 
 (defn close-agendao
   "Close one explicit pending-formula agenda under the ordinary kernel state.
@@ -870,6 +1189,30 @@
        (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
     ;; Negative procedure call: this is Fitting's Part 2 operationalized over
     ;; the compiled clause's precomputed `negated-body`.
+    [(fresh [lit atom walked-atom relation args call-env body negated-body alternatives negated-alternatives guarded-alternatives subproof]
+       (subst/subst-formulao fml env lit)
+       (== (list 'neg atom) lit)
+       (equality/walk-atomo atom sigma walked-atom)
+       (== (lcons 'app (lcons relation args)) walked-atom)
+       (support/l-ground-term*o args)
+       (program/call-clause-with-guarded-alternativeso
+         prog walked-atom call-env body negated-body alternatives negated-alternatives guarded-alternatives)
+       (fresh [first-alternative second-alternative remaining-alternatives]
+         (== (lcons first-alternative
+                    (lcons second-alternative remaining-alternatives))
+             alternatives))
+       (== (list 'neg-call-guarded-alt subproof) proof)
+       (close-one-guarded-alternativeo guarded-alternatives
+                                       call-env
+                                       proof-vars
+                                       sigma
+                                       sigma-out
+                                       neqs
+                                       neqs-out
+                                       prog
+                                       gamma-terms
+                                       fuel
+                                       subproof))]
     [(fresh [lit atom walked-atom relation args call-env body negated-body alternatives negated-alternatives subproof]
        (subst/subst-formulao fml env lit)
        (== (list 'neg atom) lit)

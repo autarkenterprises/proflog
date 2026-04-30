@@ -11,11 +11,19 @@
    specifically so this lookup can remain relational inside the kernel."
   [program relation params body negated-body alternatives negated-alternatives]
   (fresh [language clauses clause-list alternative-clause-list]
-    (== {:language language
-         :clauses clauses
-         :clause-list clause-list
-         :alternative-clause-list alternative-clause-list}
-        program)
+    (conde
+      [(fresh [guarded-clause-list]
+         (== {:language language
+              :clauses clauses
+              :clause-list clause-list
+              :alternative-clause-list alternative-clause-list
+              :guarded-clause-list guarded-clause-list}
+             program))]
+      [(== {:language language
+            :clauses clauses
+            :clause-list clause-list
+            :alternative-clause-list alternative-clause-list}
+           program)])
     (membero {:relation relation
               :params params
               :body body
@@ -23,6 +31,25 @@
               :alternatives alternatives
               :negated-alternatives negated-alternatives}
              alternative-clause-list)))
+
+(defn lookup-clause-with-guarded-alternativeso
+  "Find the compiled clause for `relation` and expose guarded alternative IR."
+  [program relation params body negated-body alternatives negated-alternatives guarded-alternatives]
+  (fresh [language clauses clause-list alternative-clause-list guarded-clause-list]
+    (== {:language language
+         :clauses clauses
+         :clause-list clause-list
+         :alternative-clause-list alternative-clause-list
+         :guarded-clause-list guarded-clause-list}
+        program)
+    (membero {:relation relation
+              :params params
+              :body body
+              :negated-body negated-body
+              :alternatives alternatives
+              :negated-alternatives negated-alternatives
+              :guarded-alternatives guarded-alternatives}
+             guarded-clause-list)))
 
 (defn lookup-clauseo
   "Find the compiled clause for `relation` in `program`.
@@ -33,6 +60,13 @@
   [program relation params body negated-body]
   (fresh [language clauses clause-list]
     (conde
+      [(fresh [alternative-clause-list guarded-clause-list]
+         (== {:language language
+              :clauses clauses
+              :clause-list clause-list
+              :alternative-clause-list alternative-clause-list
+              :guarded-clause-list guarded-clause-list}
+             program))]
       [(fresh [alternative-clause-list]
          (== {:language language
               :clauses clauses
@@ -75,4 +109,20 @@
     (== (lcons 'app (lcons relation args)) atom)
     (lookup-clause-with-alternativeso
       program relation params body negated-body alternatives negated-alternatives)
+    (bind-argso params args env)))
+
+(defn call-clause-with-guarded-alternativeso
+  "Resolve a procedure call and expose guarded alternative IR."
+  [program atom env body negated-body alternatives negated-alternatives guarded-alternatives]
+  (fresh [relation args params]
+    (== (lcons 'app (lcons relation args)) atom)
+    (lookup-clause-with-guarded-alternativeso
+      program
+      relation
+      params
+      body
+      negated-body
+      alternatives
+      negated-alternatives
+      guarded-alternatives)
     (bind-argso params args env)))

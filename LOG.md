@@ -20,8 +20,22 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-04-30
+
+- Continued ADR-0031 by compiling and executing guarded clause alternatives in
+  both the ordinary kernel and raw answer overlay. The promoted matrix now
+  closes longer flat/nested ground append and reverse rows plus representative
+  raw append output/suffix/prefix and reverse output rows. Reverse input and
+  full inverse split enumeration remain bounded-search follow-up work.
+
 ## 2026-04-29
 
+- Logged the ADR-0031 brainstorm for making list-family proof search genuinely
+  family-parametric. The adopted order starts at the source-to-IR boundary:
+  compile guarded alternatives, expose them relationally, then use them for
+  guard-first recursive descent and answer residual handling before adding
+  heavier tabling. Longer note:
+  [List-Family Kernel Generalization Brainstorm](docs/log/2026-04-29-list-family-generalization-brainstorm.md).
 - Completed [ADR-0030](docs/adr/ADR-0030-relational-constructor-search.md) on
   branch `adr-0030-relational-constructor-search`. The raw constructor-recursive
   list targets now close through the ordinary kernel using generic rigid

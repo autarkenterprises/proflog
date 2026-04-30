@@ -161,7 +161,7 @@
                         1
                         4))]
           (is proof)
-          (is (contains-any-step? proof 'neg-call 'neg-call-alt))
+          (is (contains-any-step? proof 'neg-call 'neg-call-guarded-alt 'neg-call-alt))
           (is (proof/contains-step? proof 'profiled))
           (is (proof/contains-step? proof 'propositional))
           (is (pos? @proveo-calls))
@@ -209,7 +209,7 @@
                         1
                         4))]
           (is proof)
-          (is (contains-any-step? proof 'neg-call 'neg-call-alt))
+          (is (contains-any-step? proof 'neg-call 'neg-call-guarded-alt 'neg-call-alt))
           (is (proof/contains-step? proof 'profiled))
           (is (proof/contains-step? proof 'first-order))
           (is (pos? @proveo-calls))

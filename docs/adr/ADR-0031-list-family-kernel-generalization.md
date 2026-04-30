@@ -50,6 +50,14 @@ The implementation must remain generic over constructor-recursive definite
 programs. Production kernel code must not name `append`, `reverse`, `cons`,
 or `null`.
 
+One explicit design premise is that a multi-layer Proflog implementation should
+make source-to-intermediate-representation transformations useful. A source
+program may be lowered into a prover-facing representation that exposes guards,
+recursive calls, residual formulas, demand, and layer-eligible subproblems. That
+IR must preserve relational meaning, including reverse and partial synthesis
+modes, but it does not need to mirror the surface program's syntax when a more
+structured kernel-facing form is easier to evaluate.
+
 ## Required Capabilities
 
 ### 1. Family-Parametric Matrix
@@ -121,6 +129,23 @@ The AAR must report, for each promoted size:
 
 If a row remains impractical, the AAR must identify the blocker in proof-search
 terms rather than merely recording that it timed out.
+
+## Implementation Order
+
+1. Promote the existing list matrix into a size-parametric diagnostic surface
+   with explicit layer, timing, fuel, and proof-shape reporting.
+2. Compile generic guarded-clause IR from source programs. This IR must
+   partition each top-level alternative into equality/disequality guards,
+   procedure calls, and residual formulas without relation-specific or
+   constructor-specific recognition.
+3. Expose the guarded IR through relational program lookup while preserving the
+   historical ordinary clause view.
+4. Use the guarded IR to drive guard-first recursive descent in positive,
+   negative, and raw-answer call paths.
+5. Add canonical duplicate-state suppression or tabling only if the matrix shows
+   repeated states still dominate after guard-first descent.
+6. Re-run the matrix and write the AAR against family-level behavior rather
+   than selected short examples.
 
 ## Constraints
 

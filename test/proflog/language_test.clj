@@ -62,6 +62,52 @@
                               (ast/app-term 'one))]
                (vec (:negated-alternatives compiled))))))))
 
+(deftest compile-program-records-generic-guarded-alternative-ir
+  (testing "guarded IR separates guards, defined procedure calls, and residual relation literals"
+    (ast/nom x y
+      (let [program (language/compile-program
+                      simple-language
+                      [(ast/clause 'value [x]
+                                   (ast/exists-form
+                                     y
+                                     (ast/and-form
+                                       (ast/eq-lit
+                                         (ast/var-term x)
+                                         (ast/app-term 'succ (ast/var-term y)))
+                                       (ast/and-form
+                                         (ast/pos-lit
+                                           (ast/app-term 'value (ast/var-term y)))
+                                         (ast/pos-lit
+                                           (ast/app-term 'even (ast/var-term y)))))))])
+            compiled (get-in program [:clauses 'value])
+            param (first (:params compiled))
+            guarded (first (:guarded-alternatives compiled))
+            expected-guard (ast/eq-lit
+                             (ast/var-term param)
+                             (ast/app-term 'succ (ast/var-term y)))
+            expected-call (ast/pos-lit
+                            (ast/app-term 'value (ast/var-term y)))
+            expected-residual (ast/pos-lit
+                                (ast/app-term 'even (ast/var-term y)))]
+        (is (= 'exists (:quantifier (first (:scope guarded)))))
+        (is (= y (:binding-nom (first (:scope guarded)))))
+        (is (= [expected-guard expected-call expected-residual]
+               (vec (:conjuncts guarded))))
+        (is (= [expected-guard]
+               (vec (:guards guarded))))
+        (is (= [expected-call]
+               (vec (:calls guarded))))
+        (is (= [expected-residual]
+               (vec (:residuals guarded))))
+        (is (= [(select-keys compiled [:relation
+                                       :params
+                                       :body
+                                       :negated-body
+                                       :alternatives
+                                       :negated-alternatives
+                                       :guarded-alternatives])]
+               (vec (:guarded-clause-list program))))))))
+
 (deftest compile-program-rejects-par-in-surface-programs
   (testing "internal parameters are not admissible in user programs"
     (ast/nom x p

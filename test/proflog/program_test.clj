@@ -106,6 +106,52 @@
                 (ast/neq-lit (ast/var-term bound-param) (ast/app-term 'one))]
                (vec negated-alternatives)))))))
 
+(deftest call-clause-with-guarded-alternativeso-exposes-ir
+  (testing "procedure lookup can expose guarded IR without changing ordinary call binding"
+    (ast/nom x
+      (let [program (language/compile-program
+                      simple-language
+                      [(ast/clause 'p [x]
+                                   (ast/and-form
+                                     (ast/eq-lit (ast/var-term x)
+                                                 (ast/app-term 'zero))
+                                     (ast/and-form
+                                       (ast/pos-lit
+                                         (ast/app-term 'p (ast/var-term x)))
+                                       (ast/pos-lit
+                                         (ast/app-term 'q (ast/var-term x))))))])
+            actual (ast/app-term 'zero)
+            [[env body neg-body alternatives negated-alternatives guarded-alternatives]]
+            (run 1 [env body neg-body alternatives negated-alternatives guarded-alternatives]
+              (program/call-clause-with-guarded-alternativeso
+                program
+                (ast/app-term 'p actual)
+                env
+                body
+                neg-body
+                alternatives
+                negated-alternatives
+                guarded-alternatives))
+            bound-param (ffirst env)
+            guarded (first guarded-alternatives)
+            expected-guard (ast/eq-lit (ast/var-term bound-param)
+                                       (ast/app-term 'zero))
+            expected-call (ast/pos-lit
+                            (ast/app-term 'p (ast/var-term bound-param)))
+            expected-residual (ast/pos-lit
+                                (ast/app-term 'q (ast/var-term bound-param)))]
+        (is (= actual (second (first env))))
+        (is (= [(ast/and-form
+                  expected-guard
+                  (ast/and-form expected-call expected-residual))]
+               (vec alternatives)))
+        (is (= [expected-guard]
+               (vec (:guards guarded))))
+        (is (= [expected-call]
+               (vec (:calls guarded))))
+        (is (= [expected-residual]
+               (vec (:residuals guarded))))))))
+
 (deftest positive-and-negative-procedure-calls-close-literals
   (testing "procedure calls close positive literals when bodies fail and negative literals when bodies succeed"
     (let [program (simple-program)]

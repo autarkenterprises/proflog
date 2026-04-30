@@ -56,4 +56,5 @@
                     1
                     128))]
       (is proof)
-      (is (proof-contains? 'neg-call-alt proof)))))
+      (is (or (proof-contains? 'neg-call-guarded-alt proof)
+              (proof-contains? 'neg-call-alt proof))))))

@@ -178,6 +178,17 @@ terms rather than merely recording that it timed out.
   were also rejected because they slowed or regressed existing matrix rows
   without closing the remaining reverse blockers. See
   [ADR-0031 Experiment Reassessment](../log/2026-04-30-adr31-experiment-reassessment.md).
+- Parallel follow-up experiments narrowed the remaining option set. Demand IR,
+  answer continuation, and answer-path tabling were retained as negative probe
+  notes; structural descent was parked because it improved multiple append rows
+  under exhausted answer call-depth but did not move reverse synthesis and left
+  synthesis-mode failures. The fruitful result was a generic
+  constructor-recursive sidecar layer using guarded IR, explicit proof tags, and
+  conservative residual settlement. It is merged as an opt-in prototype and
+  diagnostic layer, not yet as ordinary kernel/raw-answer completion. See
+  [ADR-0031 Parallel Sub-Agent Reports](../log/2026-04-30-adr31-parallel-subagent-reports.md)
+  and
+  [Constructor-Recursive Layer Prototype](../log/2026-04-30-constructor-recursive-layer-prototype.md).
 
 ## Constraints
 

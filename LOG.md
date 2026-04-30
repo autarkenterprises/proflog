@@ -53,6 +53,13 @@ complete contemporaneous transcript.
   structural-descent prototype and the promising constructor-recursive sidecar
   prototype. Longer note:
   [ADR-0031 Parallel Sub-Agent Reports](docs/log/2026-04-30-adr31-parallel-subagent-reports.md).
+- Evaluated the parallel ADR-0031 experiments and merged the fruitful
+  constructor-recursive sidecar prototype into the branch. It is generic over
+  guarded constructor-recursive programs and closes representative blocked
+  reverse/input, nested reverse/output, and append inverse-split matrix rows
+  through an opt-in proof layer. Structural descent was parked as useful input
+  but not merged because it did not improve reverse rows and left synthesis-mode
+  failures.
 
 ## 2026-04-29
 

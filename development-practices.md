@@ -10,7 +10,7 @@ The following describe certain mandatory software development practices, to ensh
 
 5. Branch discipline should generally follow the ADR structure of the implementation roadmap, with a new branch for each ADR, merged into master once the feature is complete, or development otherwise halted. 
 
-6. When multiple independent tasks can be pursued concurrently on separate branches or worktrees, with no cross-branch dependency, propose launching sub-agents for user review. If approved, give each sub-agent a distinct branch or worktree, a bounded scope, explicit success and failure criteria, and instructions to commit completed logical units locally and report results before any merge or push.
+6. When multiple independent tasks can be pursued concurrently on separate branches or worktrees, with no cross-branch dependency, propose launching sub-agents for user review; default to proposing sub-agents with the most powerful model, and highest level of reasoning, available. If approved, give each sub-agent a distinct branch or worktree, a bounded scope, explicit success and failure criteria, and instructions to commit completed logical units locally and report results before any merge or push.
 
 7. Commit only those files one specifically has intentionally modified, and push after every logical unit of work is complete (which implies a passing, regression free test suite evaluation).
 

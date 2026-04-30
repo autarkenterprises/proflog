@@ -10,20 +10,22 @@ The following describe certain mandatory software development practices, to ensh
 
 5. Branch discipline should generally follow the ADR structure of the implementation roadmap, with a new branch for each ADR, merged into master once the feature is complete, or development otherwise halted. 
 
-6. Commit only those files one specifically has intentionally modified, and push after every logical unit of work is complete (which implies a passing, regression free test suite evaluation).
+6. When multiple independent tasks can be pursued concurrently on separate branches or worktrees, with no cross-branch dependency, propose launching sub-agents for user review. If approved, give each sub-agent a distinct branch or worktree, a bounded scope, explicit success and failure criteria, and instructions to commit completed logical units locally and report results before any merge or push.
 
-7. Do not regress code, or change unrelated elements, aspects, or the structure of the codebase, in the pursuit of a given objective. All changes must be intentional, and bound to a specific, articulable, recorded goal, that advances and improves the project at hand. Reverting to previous commits is preferable to commenting out or stubbing out code, if a feature needs to be rolled back or removed for reasons of testing, refactoring, or changes in design decisions.
+7. Commit only those files one specifically has intentionally modified, and push after every logical unit of work is complete (which implies a passing, regression free test suite evaluation).
 
-8. Eagerly and assiduously seek out tasks and complete them; do not stop or defer work for later. Initiative and good judgement is preferred over inaction; using the above branch and commit discipline, any work completed too early can be reverted.
+8. Do not regress code, or change unrelated elements, aspects, or the structure of the codebase, in the pursuit of a given objective. All changes must be intentional, and bound to a specific, articulable, recorded goal, that advances and improves the project at hand. Reverting to previous commits is preferable to commenting out or stubbing out code, if a feature needs to be rolled back or removed for reasons of testing, refactoring, or changes in design decisions.
 
-9. Ask questions freely, where clarification is needed, but do not ask for a second opinion merely out of caution - if you have made the right decision, be confident in its correctness, and carry it out.
+9. Eagerly and assiduously seek out tasks and complete them; do not stop or defer work for later. Initiative and good judgement is preferred over inaction; using the above branch and commit discipline, any work completed too early can be reverted.
 
-10. Review these practices reguarly, to keep them in context.
+10. Ask questions freely, where clarification is needed, but do not ask for a second opinion merely out of caution - if you have made the right decision, be confident in its correctness, and carry it out.
 
-11. Separate slower recursive, reverse, and partial-synthesis regressions into an explicit extended suite rather than placing them on the default fast path. For this repository, use `lein test-proflog-fast` for the normal greenfield regression path, and `lein test-proflog-extended` for the deeper recursive and synthesis probes.
+11. Review these practices reguarly, to keep them in context.
 
-12. Do not neglect the extended suite: run `lein test-proflog-fast` and `lein test-proflog-extended` in parallel while doing active semantic work, but only block on the extended suite after major revisions or before a commit that changes proof search, equality, negation, or query behavior.
+12. Separate slower recursive, reverse, and partial-synthesis regressions into an explicit extended suite rather than placing them on the default fast path. For this repository, use `lein test-proflog-fast` for the normal greenfield regression path, and `lein test-proflog-extended` for the deeper recursive and synthesis probes.
 
-13. Prefer the Clojure MCP tools and the project nREPL for semantic investigation, targeted evaluation, and long-running proof probes. Use shell timeouts and ad hoc scripts only as secondary support when the MCP/nREPL path is insufficient.
+13. Do not neglect the extended suite: run `lein test-proflog-fast` and `lein test-proflog-extended` in parallel while doing active semantic work, but only block on the extended suite after major revisions or before a commit that changes proof search, equality, negation, or query behavior.
 
-14. Maintain the documentation layers by purpose. Use `LOG.md` as the inclusive chronological spine for development: record dated process notes, exploration, dead ends, backtracks, scratchpad observations, and links to specialized records. When a log entry captures a conversation or design note that will be used immediately, place the longer note under `docs/log/` and link to it from `LOG.md`. Use `MEMORY.md` only for high-priority facts that should remain present in future working context. Use `LESSONS.md` for durable lessons learned during the project. Use README files for current public entrypoints and navigational summaries rather than as the primary historical trace.
+14. Prefer the Clojure MCP tools and the project nREPL for semantic investigation, targeted evaluation, and long-running proof probes. Use shell timeouts and ad hoc scripts only as secondary support when the MCP/nREPL path is insufficient.
+
+15. Maintain the documentation layers by purpose. Use `LOG.md` as the inclusive chronological spine for development: record dated process notes, exploration, dead ends, backtracks, scratchpad observations, and links to specialized records. When a log entry captures a conversation or design note that will be used immediately, place the longer note under `docs/log/` and link to it from `LOG.md`. Use `MEMORY.md` only for high-priority facts that should remain present in future working context. Use `LESSONS.md` for durable lessons learned during the project. Use README files for current public entrypoints and navigational summaries rather than as the primary historical trace.

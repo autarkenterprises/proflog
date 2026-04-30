@@ -37,3 +37,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0028](AAR-0028-kernel-support-disequality-purity.md) | [ADR-0028](../adr/ADR-0028-kernel-support-disequality-purity.md) | completed |
 | [AAR-0029](AAR-0029-relational-fuel-purity.md) | [ADR-0029](../adr/ADR-0029-relational-fuel-purity.md) | completed |
 | [AAR-0030](AAR-0030-relational-constructor-search.md) | [ADR-0030](../adr/ADR-0030-relational-constructor-search.md) | completed |
+| [AAR-0031](AAR-0031-list-family-kernel-generalization.md) | [ADR-0031](../adr/ADR-0031-list-family-kernel-generalization.md) | completed |

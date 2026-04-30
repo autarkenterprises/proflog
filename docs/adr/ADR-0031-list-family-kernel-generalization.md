@@ -1,9 +1,9 @@
 # ADR-0031: List-Family Kernel Generalization
 
-- Status: accepted
+- Status: completed
 - Date: 2026-04-29
 - Branch: `adr-0031-list-family-kernel-generalization`
-- AAR: pending
+- AAR: [AAR-0031](../aar/AAR-0031-list-family-kernel-generalization.md)
 - Depends On: [ADR-0030](ADR-0030-relational-constructor-search.md)
 
 ## Context
@@ -189,6 +189,9 @@ terms rather than merely recording that it timed out.
   [ADR-0031 Parallel Sub-Agent Reports](../log/2026-04-30-adr31-parallel-subagent-reports.md)
   and
   [Constructor-Recursive Layer Prototype](../log/2026-04-30-constructor-recursive-layer-prototype.md).
+- ADR-0031 is closed with remaining ordinary/raw reverse and synthesis
+  failures carried forward to ADR-0032. See
+  [AAR-0031](../aar/AAR-0031-list-family-kernel-generalization.md).
 
 ## Constraints
 

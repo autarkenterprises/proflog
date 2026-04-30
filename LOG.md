@@ -60,6 +60,11 @@ complete contemporaneous transcript.
   through an opt-in proof layer. Structural descent was parked as useful input
   but not merged because it did not improve reverse rows and left synthesis-mode
   failures.
+- Closed ADR-0031 with AAR-0031. The branch is complete enough to merge back to
+  `master`, but not because all list-family criteria are satisfied: ordinary
+  raw reverse input, nested reverse output, reverse partial-output-tail, and two
+  `proflog.synthesis-modes-test` failures are carried forward explicitly to
+  ADR-0032.
 
 ## 2026-04-29
 

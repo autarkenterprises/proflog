@@ -66,6 +66,18 @@ to intermediate forms that are easier for the proof kernel to evaluate.
    should reduce the cost of relational search, unification, scheduling,
    tabling, or constraint propagation for broad classes of programs.
 
+   This direction requires a separate research and deployment plan before it
+   can be credited as ADR-0031 progress. The plan must include:
+
+   - review of the upstream `core.logic` codebase at the version Proflog is
+     actually using;
+   - focused benchmarks that distinguish Proflog tableau overhead from general
+     `core.logic` overhead;
+   - a patched dependency strategy that makes Proflog use the modified
+     `core.logic` implementation rather than the default dependency; and
+   - a verification step that records the patched source revision or artifact
+     in the probe output before comparing matrix timings.
+
 ## Implementation Order Adopted
 
 ADR-0031 starts with the compile/program boundary rather than a new special
@@ -80,6 +92,8 @@ list mechanism:
    alone leaves exponential repeated work.
 6. If proof-search shape looks reasonable but runtime remains prohibitive,
    evaluate generic `core.logic`/host-language performance work before adding
-   relation-specific search tricks.
+   relation-specific search tricks. This evaluation must include a revised
+   deployment sequence that pins the patched implementation and proves it is on
+   Proflog's classpath.
 7. Re-run the matrix and write the AAR against family-level behavior, not
    isolated examples.

@@ -77,3 +77,17 @@ generic across Proflog programs, or it could be a fully general-purpose
 must be justified as a reduction in relational search, unification, scheduling,
 tabling, or constraint-propagation overhead rather than as list-family special
 knowledge.
+
+That avenue should be treated as its own research-and-deployment task, not as a
+small in-repo tweak. Proflog currently declares `org.clojure/core.logic` as a
+normal dependency, so a patched implementation must be deliberately selected.
+Any future branch pursuing this path should:
+
+- study the relevant upstream `core.logic` internals before patching;
+- document which revision or artifact was modified;
+- update the Proflog dependency/deployment sequence so the patched
+  implementation is actually loaded;
+- add a classpath or runtime verification step for the patched implementation;
+  and
+- compare matrix timings against the unpatched dependency under the same
+  probes.

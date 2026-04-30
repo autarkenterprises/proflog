@@ -120,6 +120,21 @@ Any retained mechanism must be relational where it touches the kernel-facing
 path. Host-side instrumentation is acceptable only for diagnostics and
 complexity reporting outside the proof relation.
 
+The `core.logic` performance avenue has additional prerequisites. The current
+project dependency is the published `org.clojure/core.logic` artifact in
+`project.clj`; a patched host implementation cannot be assumed merely because a
+local checkout exists. Before this avenue can be credited toward ADR-0031, the
+branch must provide:
+
+- research notes covering the relevant upstream `core.logic` internals;
+- a code review of the exact implementation version being patched;
+- a deployment sequence that pins Proflog to the patched artifact or source
+  path instead of the default dependency;
+- a verification command or test that proves the patched implementation is the
+  one loaded at runtime; and
+- before/after probes that separate general `core.logic` performance effects
+  from list-family-specific behavior.
+
 ### 4. Complexity Accounting
 
 Longer lists do not need to be constant time. They do need auditable growth.

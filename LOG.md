@@ -37,6 +37,10 @@ complete contemporaneous transcript.
   ADR-0031 avenue. This includes tableau-prover specific handling only if it
   stays generic across Proflog programs, as well as fully general-purpose
   improvements that would benefit arbitrary `core.logic` programs.
+- Tightened that avenue with prerequisites: upstream `core.logic` research,
+  review of the exact patched implementation, a revised dependency/deployment
+  sequence that selects the patched artifact or source path, and a runtime
+  verification step proving Proflog is not still using the default dependency.
 
 ## 2026-04-29
 

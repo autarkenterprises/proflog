@@ -135,6 +135,14 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
 7. Record an AAR stating whether host changes satisfy the carried list-family
    criteria or only narrow runtime cost.
 
+## Progress Notes
+
+- Added a runtime host probe and a `core-logic-1.1.1` Leiningen profile.
+- The published 1.1.1 upgrade is compatible with the focused Proflog suites
+  exercised so far and modestly improves wall-clock time on the carried raw
+  matrix probes, but it does not close any of the carried targets. See
+  [Core.logic 1.1.1 Upgrade Probe](../log/2026-05-01-core-logic-1-1-1-upgrade-probe.md).
+
 ## Constraints
 
 - Preserve kernel purity. No new executable `core.logic/project` may enter the
@@ -156,4 +164,3 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
 - Keep ADR-0031's constructor-recursive sidecar tests green unless a deliberate
   replacement makes that layer obsolete and the AAR explains why.
 - Write an AAR before merging back to the primary branch.
-

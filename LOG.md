@@ -28,6 +28,11 @@ complete contemporaneous transcript.
   below Proflog into generic `core.logic` host performance and deployment work.
   The initial research and deployment design is recorded in
   [Core.logic Performance Research and Design](docs/log/2026-05-01-core-logic-performance-research-design.md).
+- Added a runtime `core.logic` host probe and a published-upgrade Leiningen
+  profile for `org.clojure/core.logic` 1.1.1. The upgrade profile is compatible
+  with the focused suites and is modestly faster on the carried raw matrix rows,
+  but it does not close any carried reverse or synthesis target. Longer note:
+  [Core.logic 1.1.1 Upgrade Probe](docs/log/2026-05-01-core-logic-1-1-1-upgrade-probe.md).
 
 ## 2026-04-30
 

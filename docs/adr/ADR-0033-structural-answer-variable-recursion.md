@@ -216,5 +216,6 @@ Add focused tests for:
 - [Structural Answer-Variable Recursion Architecture](../log/2026-05-01-structural-answer-variable-recursion-architecture.md)
 - [ADR-33 Structural Completion Progress](../log/2026-05-01-adr33-structural-completion-progress.md)
 - [Intensified List-Family Matrix](../log/2026-05-01-list-family-intensified-matrix.md)
+- [Three-Element Reverse Input-Synthesis Trace](../log/2026-05-01-three-element-reverse-trace.md)
 - [Language Namespace Spec](../LANGUAGE_NAMESPACE_SPEC.md)
 - [ADR-32 Concurrent Core.logic Probe Evaluation](../log/2026-05-01-adr32-concurrent-core-logic-probe-evaluation.md)

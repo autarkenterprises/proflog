@@ -31,6 +31,7 @@
                      :append-suffix-flat
                      :append-prefix-flat
                      :append-inverse-flat
+                     :reverse-input-flat-longer
                      :reverse-output-deep-nested-longer
                      :reverse-partial-output-longer-tail]]
       (is (:target-found? (matrix/run-case case-id))

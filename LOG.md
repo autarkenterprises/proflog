@@ -125,12 +125,17 @@ complete contemporaneous transcript.
   alpha-renaming, NNF compilation, compiled program views, guarded alternatives,
   demand ordering, and the public language/proof-kernel boundary.
 - Intensified the list-family matrix after the ADR-33 closure. The default
-  matrix now includes a multi-answer inverse append row, deeper nested reverse
-  output synthesis, and a longer partial reverse output row. A heavier
-  length-4 inverse append stress row passes at higher raw limit, while
-  length-3 reverse input synthesis remains a timeout stress frontier. Longer
-  note:
+  matrix now includes a multi-answer inverse append row, longer reverse input
+  synthesis, deeper nested reverse output synthesis, and a longer partial
+  reverse output row. A heavier length-4 inverse append stress row passes at
+  higher raw limit. Longer note:
   [Intensified List-Family Matrix](docs/log/2026-05-01-list-family-intensified-matrix.md).
+- Traced `reverse(r, [c,b,a])` through greenfield's ordinary raw answer path
+  and through the legacy `cljtap.alphaleantap-ep` prover. Greenfield now closes
+  the row by structurally completing the raw residual frontier
+  `append(a_3, [a_1], [c,b,a])` plus `reverse(a_2, a_3)`, while legacy closes
+  the analogous query through a direct `neg-proc-call` proof. Longer note:
+  [Three-Element Reverse Input-Synthesis Trace](docs/log/2026-05-01-three-element-reverse-trace.md).
 
 ## 2026-04-30
 

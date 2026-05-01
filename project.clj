@@ -119,6 +119,7 @@
             "probe-proflog-list-kernel-matrix" ["run" "-m" "proflog.list-kernel-matrix-probe"]
             "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]
             "probe-core-logic-host" ["run" "-m" "proflog.core-logic-host-probe"]
+            "probe-core-logic-vector" ["run" "-m" "proflog.core-logic-vector-probe"]
             "probe-core-logic-tabling" ["run" "-m" "proflog.core-logic-tabling-probe"]
             "probe-core-logic-count" ["run" "-m" "proflog.core-logic-count-probe"]}
   :profiles {:core-logic-1.1.1

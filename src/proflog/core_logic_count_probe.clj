@@ -68,6 +68,12 @@
    {:id 'clojure.core.logic.nominal/tie
     :category :nominal}])
 
+(def ^:private vector-unify-id
+  'clojure.core.logic/unify-with-vector*)
+
+(def ^:private vector-unify-counter-id
+  'clojure.core.logic/*proflog-adr32-vector-unify-counter*)
+
 (defn- require-namespace
   [sym]
   (require (symbol (namespace sym))))
@@ -106,6 +112,15 @@
               redefs))
           {}
           specs))
+
+(defn- counter-binding-var
+  []
+  (ns-resolve 'clojure.core.logic '*proflog-adr32-vector-unify-counter*))
+
+(defn- calls-adder
+  [calls]
+  (doto (LongAdder.)
+    (.add calls)))
 
 (defn- unresolved-vars
   [specs]
@@ -159,18 +174,29 @@
   (let [metrics (atom {})
         specs metric-specs
         redefs (metric-redefs metrics specs)
+        vector-counter-var (counter-binding-var)
+        vector-calls (atom 0)
         started (System/nanoTime)
         case-result (with-redefs-fn redefs
-                      #(matrix/run-case (keyword case-id)))
+                      #(if vector-counter-var
+                         (with-bindings {vector-counter-var vector-calls}
+                           (matrix/run-case (keyword case-id)))
+                         (matrix/run-case (keyword case-id))))
         elapsed-ns (- (System/nanoTime) started)
-        raw-metrics @metrics
+        raw-metrics (cond-> @metrics
+                      vector-counter-var
+                      (assoc vector-unify-id
+                             {:category :unification
+                              :calls (calls-adder @vector-calls)}))
         categories (category-totals raw-metrics)]
     {:probe :core-logic-count
      :case-id (keyword case-id)
      :host (select-keys (host/host-info)
                         [:source :source-kind :group-id :artifact-id :version :marker])
      :instrumented-var-count (count redefs)
-     :unresolved-vars (unresolved-vars specs)
+     :unresolved-vars (cond-> (unresolved-vars specs)
+                        (nil? vector-counter-var)
+                        (conj vector-unify-counter-id))
      :elapsed-ms (round3 (nanos->millis elapsed-ns))
      :dominant-category-by-calls (some-> categories first :category)
      :category-totals categories

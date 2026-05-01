@@ -903,8 +903,16 @@
 
 ;; TODO : a lot of cascading ifs need to be converted to cond
 
+(declare unify-with-vector*)
+
+(def ^:dynamic *proflog-adr32-vector-unify-counter*
+  nil)
+
 (defn unify-with-sequential* [u v s]
   (cond
+    (and (vector? u) (vector? v))
+    (unify-with-vector* u v s)
+
     (sequential? v)
     (if (and (counted? u) (counted? v)
              (not (clojure.core/== (count u) (count v))))
@@ -920,6 +928,18 @@
 
     (lcons? v) (unify-terms v u s)
     :else nil))
+
+(defn unify-with-vector* [u v s]
+  (when *proflog-adr32-vector-unify-counter*
+    (swap! *proflog-adr32-vector-unify-counter* inc))
+  (let [cnt (count u)]
+    (when (clojure.core/== cnt (count v))
+      (loop [i 0 s s]
+        (if (clojure.core/< i cnt)
+          (if-let [s (unify s (nth u i) (nth v i))]
+            (recur (inc i) s)
+            nil)
+          s)))))
 
 (defn unify-with-map* [u v s]
   (when (clojure.core/== (count u) (count v))

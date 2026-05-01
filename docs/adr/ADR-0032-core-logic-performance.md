@@ -177,6 +177,11 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   confirmed that occurs-check has runtime cost but still did not close carried
   targets, so no unsound production path was retained. See
   [Core.logic No Occurs-Check Diagnostic](../log/2026-05-01-core-logic-no-occurs-check-diagnostic.md).
+- Recorded the remaining generic host optimization frontiers. The next
+  concurrent experiments are vector-specialized unification with a workload
+  that actually exercises vectors, and bounded walk/reification memoization or
+  fusion. See
+  [Core.logic Remaining Optimization Frontiers](../log/2026-05-01-core-logic-remaining-frontiers.md).
 
 ## Constraints
 

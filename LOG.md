@@ -75,6 +75,12 @@ complete contemporaneous transcript.
   rows but still closed none, so no unsound production path was retained.
   Longer note:
   [Core.logic No Occurs-Check Diagnostic](docs/log/2026-05-01-core-logic-no-occurs-check-diagnostic.md).
+- Logged the remaining generic `core.logic` optimization frontiers after the
+  first wave of rejected micro-patches. ADR-0032 is not treating the host as
+  exhausted; it is splitting vector-specialized unification and bounded
+  walk/reification memoization into independent worktree experiments. Longer
+  note:
+  [Core.logic Remaining Optimization Frontiers](docs/log/2026-05-01-core-logic-remaining-frontiers.md).
 
 ## 2026-04-30
 

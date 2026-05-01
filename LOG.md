@@ -48,6 +48,11 @@ complete contemporaneous transcript.
   source overlay. It passed focused suites but slowed two of three carried rows
   and closed none, so it was reverted. Longer note:
   [Core.logic ISeq Walk Sharing Probe](docs/log/2026-05-01-core-logic-iseq-walk-probe.md).
+- Compared the pinned 1.0.1 JVM source with the published 1.1.1 JVM source and
+  found no implementation diff in the reviewed files beyond Proflog's overlay
+  marker. The 1.1.1 artifact updates POM metadata, but Proflog still runs
+  Clojure 1.11.1 in all ADR-0032 profiles. Longer note:
+  [Core.logic 1.0.1 vs 1.1.1 Source Comparison](docs/log/2026-05-01-core-logic-1-0-1-1-1-source-comparison.md).
 
 ## 2026-04-30
 

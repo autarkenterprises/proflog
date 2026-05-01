@@ -151,6 +151,10 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
 - Tested and rejected a generic `ISeq` walk structural-sharing patch because it
   was compatible but slowed most carried rows and closed none. See
   [Core.logic ISeq Walk Sharing Probe](../log/2026-05-01-core-logic-iseq-walk-probe.md).
+- Compared the pinned 1.0.1 JVM source with the published 1.1.1 JVM source and
+  found no implementation diff in the reviewed files beyond Proflog's overlay
+  marker. See
+  [Core.logic 1.0.1 vs 1.1.1 Source Comparison](../log/2026-05-01-core-logic-1-0-1-1-1-source-comparison.md).
 
 ## Constraints
 

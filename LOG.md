@@ -66,6 +66,10 @@ complete contemporaneous transcript.
   `reverse-input-flat` row shows counted calls dominated by `walk*` /
   reification and unification, with tabling unused. Longer note:
   [Core.logic Count Probe](docs/log/2026-05-01-core-logic-count-probe.md).
+- Tested and rejected two additional small stream/walk allocation patches:
+  `Choice.take*` lazy-tail simplification and `LCons` walk structural sharing.
+  Both preserved answer shape and were slower on the carried rows. Longer note:
+  [Core.logic Stream/Walk Negative Probe](docs/log/2026-05-01-core-logic-stream-walk-negative-probe.md).
 
 ## 2026-04-30
 

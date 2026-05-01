@@ -169,6 +169,10 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   calls, unification was second, nominal and constraint hooks were much smaller,
   stream choice construction was tiny, and tabling was unused. See
   [Core.logic Count Probe](../log/2026-05-01-core-logic-count-probe.md).
+- Tested and rejected small `Choice.take*` and `LCons` walk allocation patches
+  because they were compatible but slower on the carried rows and closed none.
+  See
+  [Core.logic Stream/Walk Negative Probe](../log/2026-05-01-core-logic-stream-walk-negative-probe.md).
 
 ## Constraints
 

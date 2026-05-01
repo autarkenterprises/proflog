@@ -58,6 +58,14 @@ complete contemporaneous transcript.
   not exercise `AnswerCache`, `reuse`, `subunify`, tabled reification, or
   suspended streams. No production host patch was retained. Longer note:
   [Core.logic Tabling/Reification Probe](docs/log/2026-05-01-core-logic-tabling-reification-probe.md).
+- Tested and rejected batched `run-constraints*` dispatch across changed
+  variables. It passed focused compatibility tests, but it did not close carried
+  rows and materially slowed one of them. Longer note:
+  [Core.logic Constraint Run Batch Probe](docs/log/2026-05-01-core-logic-constraint-run-batch-probe.md).
+- Added a bounded Proflog-side `core.logic` count probe. The carried
+  `reverse-input-flat` row shows counted calls dominated by `walk*` /
+  reification and unification, with tabling unused. Longer note:
+  [Core.logic Count Probe](docs/log/2026-05-01-core-logic-count-probe.md).
 
 ## 2026-04-30
 

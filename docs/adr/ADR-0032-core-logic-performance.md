@@ -155,6 +155,10 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   found no implementation diff in the reviewed files beyond Proflog's overlay
   marker. See
   [Core.logic 1.0.1 vs 1.1.1 Source Comparison](../log/2026-05-01-core-logic-1-0-1-1-1-source-comparison.md).
+- Probed `core.logic` tabling/reification internals and found that the carried
+  raw matrix rows do not exercise `AnswerCache`, `reuse`, `subunify`, tabled
+  reification, or suspended streams. No production patch was retained. See
+  [Core.logic Tabling/Reification Probe](../log/2026-05-01-core-logic-tabling-reification-probe.md).
 
 ## Constraints
 

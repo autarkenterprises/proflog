@@ -53,6 +53,11 @@ complete contemporaneous transcript.
   marker. The 1.1.1 artifact updates POM metadata, but Proflog still runs
   Clojure 1.11.1 in all ADR-0032 profiles. Longer note:
   [Core.logic 1.0.1 vs 1.1.1 Source Comparison](docs/log/2026-05-01-core-logic-1-0-1-1-1-source-comparison.md).
+- Probed `core.logic` tabling/reification internals before patching them. The
+  carried rows allocate the ordinary tabled-capable substitution, but they do
+  not exercise `AnswerCache`, `reuse`, `subunify`, tabled reification, or
+  suspended streams. No production host patch was retained. Longer note:
+  [Core.logic Tabling/Reification Probe](docs/log/2026-05-01-core-logic-tabling-reification-probe.md).
 
 ## 2026-04-30
 

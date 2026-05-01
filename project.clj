@@ -118,7 +118,8 @@
             "probe-proflog-legacy-stream" ["run" "-m" "proflog.legacy-stream-probe"]
             "probe-proflog-list-kernel-matrix" ["run" "-m" "proflog.list-kernel-matrix-probe"]
             "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]
-            "probe-core-logic-host" ["run" "-m" "proflog.core-logic-host-probe"]}
+            "probe-core-logic-host" ["run" "-m" "proflog.core-logic-host-probe"]
+            "probe-core-logic-tabling" ["run" "-m" "proflog.core-logic-tabling-probe"]}
   :profiles {:core-logic-1.1.1
              {:dependencies ^:replace [[org.clojure/clojure "1.11.1"]
                                        [org.clojure/core.logic "1.1.1"]]}

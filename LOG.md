@@ -92,6 +92,14 @@ complete contemporaneous transcript.
   [Vector Unification Probe](docs/log/2026-05-01-core-logic-vector-unification-probe.md),
   and
   [Walk/Reify Memo Probe](docs/log/2026-05-01-core-logic-walk-reify-memo-probe.md).
+- Added worked legacy/greenfield traces for the exact current ADR-32 failures.
+  Legacy closes the three carried reverse shapes by letting bare host logic
+  variables flow through ordinary `proveo`; greenfield's ordinary raw answer
+  path still exports residual frontiers, even though the constructor-recursive
+  sidecar closes those rows. The two synthesis failures are narrower:
+  `jump(x, 0)` has the right ground set with a non-disequality residual, and
+  `down(2, y)` has the right set in legacy order reversed. Longer note:
+  [Legacy / Greenfield Failure Traces](docs/log/2026-05-01-legacy-greenfield-failure-traces.md).
 
 ## 2026-04-30
 

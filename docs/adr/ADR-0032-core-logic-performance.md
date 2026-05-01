@@ -193,6 +193,11 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   [Core.logic Vector Unification Probe](../log/2026-05-01-core-logic-vector-unification-probe.md),
   and
   [Core.logic Walk/Reify Memo Probe](../log/2026-05-01-core-logic-walk-reify-memo-probe.md).
+- Added exact legacy/greenfield worked traces for the current failures. The
+  three reverse rows are legacy-passable and constructor-recursive-passable, but
+  still ordinary-raw-greenfield failing. The synthesis-mode rows are closer:
+  one is a residual-frontier failure and the other is answer ordering. See
+  [Legacy / Greenfield Failure Traces](../log/2026-05-01-legacy-greenfield-failure-traces.md).
 
 ## Constraints
 

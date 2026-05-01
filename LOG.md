@@ -100,6 +100,13 @@ complete contemporaneous transcript.
   `jump(x, 0)` has the right ground set with a non-disequality residual, and
   `down(2, y)` has the right set in legacy order reversed. Longer note:
   [Legacy / Greenfield Failure Traces](docs/log/2026-05-01-legacy-greenfield-failure-traces.md).
+- Logged design lessons from the legacy/greenfield traces. The next promising
+  direction is answer-frontier repair: complete procedural residuals before
+  export, preserve base-before-recursive ordering where appropriate, integrate
+  constructor-recursive descent into the ordinary raw path, and keep
+  structurally safe answer variables live through recursion rather than turning
+  them into residual frontiers. Longer note:
+  [Greenfield Lessons From Legacy Traces](docs/log/2026-05-01-greenfield-lessons-from-legacy-traces.md).
 
 ## 2026-04-30
 

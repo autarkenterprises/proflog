@@ -198,6 +198,12 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   still ordinary-raw-greenfield failing. The synthesis-mode rows are closer:
   one is a residual-frontier failure and the other is answer ordering. See
   [Legacy / Greenfield Failure Traces](../log/2026-05-01-legacy-greenfield-failure-traces.md).
+- Recorded the design lessons from those traces. The remaining evidence points
+  toward greenfield answer-frontier work, especially residual completion,
+  base-before-recursive ordering, constructor-recursive descent in the ordinary
+  raw path, and structurally safe answer variables flowing through recursion.
+  See
+  [Greenfield Lessons From Legacy Traces](../log/2026-05-01-greenfield-lessons-from-legacy-traces.md).
 
 ## Constraints
 

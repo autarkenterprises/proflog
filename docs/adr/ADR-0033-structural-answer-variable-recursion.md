@@ -215,5 +215,6 @@ Add focused tests for:
 - [Greenfield Lessons From Legacy Traces](../log/2026-05-01-greenfield-lessons-from-legacy-traces.md)
 - [Structural Answer-Variable Recursion Architecture](../log/2026-05-01-structural-answer-variable-recursion-architecture.md)
 - [ADR-33 Structural Completion Progress](../log/2026-05-01-adr33-structural-completion-progress.md)
+- [Intensified List-Family Matrix](../log/2026-05-01-list-family-intensified-matrix.md)
 - [Language Namespace Spec](../LANGUAGE_NAMESPACE_SPEC.md)
 - [ADR-32 Concurrent Core.logic Probe Evaluation](../log/2026-05-01-adr32-concurrent-core-logic-probe-evaluation.md)

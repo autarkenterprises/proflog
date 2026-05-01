@@ -124,6 +124,13 @@ complete contemporaneous transcript.
   pedagogical specification of declaration normalization, validation,
   alpha-renaming, NNF compilation, compiled program views, guarded alternatives,
   demand ordering, and the public language/proof-kernel boundary.
+- Intensified the list-family matrix after the ADR-33 closure. The default
+  matrix now includes a multi-answer inverse append row, deeper nested reverse
+  output synthesis, and a longer partial reverse output row. A heavier
+  length-4 inverse append stress row passes at higher raw limit, while
+  length-3 reverse input synthesis remains a timeout stress frontier. Longer
+  note:
+  [Intensified List-Family Matrix](docs/log/2026-05-01-list-family-intensified-matrix.md).
 
 ## 2026-04-30
 

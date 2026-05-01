@@ -194,6 +194,13 @@
     :size :three-total
     :kind :answer
     :description "append(x, y, [a,b,c])"}
+   {:id :append-inverse-flat-longer
+    :operation :append
+    :mode :inverse-splits
+    :shape :flat
+    :size :longer
+    :kind :answer
+    :description "append(x, y, [a,b,c,a])"}
    {:id :append-inverse-nested
     :operation :append
     :mode :inverse-splits
@@ -243,6 +250,13 @@
     :size :two
     :kind :answer
     :description "reverse(r, [b,a])"}
+   {:id :reverse-input-flat-longer
+    :operation :reverse
+    :mode :input-synthesis
+    :shape :flat
+    :size :longer
+    :kind :answer
+    :description "reverse(r, [c,b,a])"}
    {:id :reverse-output-nested
     :operation :reverse
     :mode :output-synthesis
@@ -257,13 +271,27 @@
     :size :longer
     :kind :answer
     :description "reverse([[a],[b],[c]], r)"}
+   {:id :reverse-output-deep-nested-longer
+    :operation :reverse
+    :mode :output-synthesis
+    :shape :deep-nested
+    :size :longer
+    :kind :answer
+    :description "reverse([[[a]],[[b]],[[c]]], r)"}
    {:id :reverse-partial-output-tail
     :operation :reverse
     :mode :partial-output
     :shape :flat
     :size :three
     :kind :answer
-    :description "reverse([a,b,c], cons(c, r))"}])
+    :description "reverse([a,b,c], cons(c, r))"}
+   {:id :reverse-partial-output-longer-tail
+    :operation :reverse
+    :mode :partial-output
+    :shape :flat
+    :size :longer
+    :kind :answer
+    :description "reverse([a,b,c,a], cons(a, r))"}])
 
 (defn- catalog-entry
   [case-id]
@@ -285,7 +313,10 @@
   (let [case-id (keyword case-id)
         nested-a (list-term a)
         nested-b (list-term b)
-        nested-c (list-term c)]
+        nested-c (list-term c)
+        deep-a (list-term nested-a)
+        deep-b (list-term nested-b)
+        deep-c (list-term nested-c)]
     (merge
       (or (catalog-entry case-id)
           (throw (ex-info "Unknown list-kernel matrix case"
@@ -377,6 +408,26 @@
              :raw-limit 8
              :call-depth 2}))
 
+        :append-inverse-flat-longer
+        (ast/nom x y
+          (let [whole (list-term a b c a)]
+            {:query (q-append (ast/var-term x) (ast/var-term y) whole)
+             :answer-vars [x y]
+             :target-bindings
+             #{[[x (list-term)]
+                [y whole]]
+               [[x (list-term a)]
+                [y (list-term b c a)]]
+               [[x (list-term a b)]
+                [y (list-term c a)]]
+               [[x (list-term a b c)]
+                [y (list-term a)]]
+               [[x whole]
+                [y (list-term)]]}
+             :fuel 96
+             :raw-limit 32
+             :call-depth 3}))
+
         :append-inverse-nested
         (ast/nom x y
           (let [whole (list-term nested-a nested-b)]
@@ -429,6 +480,15 @@
            :raw-limit 4
            :call-depth 2})
 
+        :reverse-input-flat-longer
+        (ast/nom r
+          {:query (q-reverse (ast/var-term r) (list-term c b a))
+           :answer-vars [r]
+           :target-bindings #{[[r (list-term a b c)]]}
+           :fuel 96
+           :raw-limit 4
+           :call-depth 2})
+
         :reverse-output-nested
         (ast/nom r
           {:query (q-reverse (list-term nested-a nested-b) (ast/var-term r))
@@ -448,6 +508,16 @@
            :raw-limit 4
            :call-depth 2})
 
+        :reverse-output-deep-nested-longer
+        (ast/nom r
+          {:query (q-reverse (list-term deep-a deep-b deep-c)
+                             (ast/var-term r))
+           :answer-vars [r]
+           :target-bindings #{[[r (list-term deep-c deep-b deep-a)]]}
+           :fuel 96
+           :raw-limit 4
+           :call-depth 2})
+
         :reverse-partial-output-tail
         (ast/nom r
           {:query (q-reverse (list-term a b c)
@@ -455,6 +525,16 @@
            :answer-vars [r]
            :target-bindings #{[[r (list-term b a)]]}
            :fuel 64
+           :raw-limit 4
+           :call-depth 2})
+
+        :reverse-partial-output-longer-tail
+        (ast/nom r
+          {:query (q-reverse (list-term a b c a)
+                             (ast/app-term 'cons a (ast/var-term r)))
+           :answer-vars [r]
+           :target-bindings #{[[r (list-term c b a)]]}
+           :fuel 96
            :raw-limit 4
            :call-depth 2})))))
 

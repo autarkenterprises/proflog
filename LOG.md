@@ -153,6 +153,13 @@ complete contemporaneous transcript.
   earlier into raw answer-state context, and then re-express guarded constructor
   descent as an ordinary proof-producing answer-overlay rule. Longer note:
   [Constructor-Recursive Proof Terms and Integration Path](docs/log/2026-05-01-constructor-recursive-proof-terms.md).
+- Proposed [ADR-0035](docs/adr/ADR-0035-relational-residual-continuation.md)
+  for option (2): replace the ordinary answer-path role of the Clojure
+  constructor-recursive sidecar with relational structural residual
+  continuation inside `proflog.answer-overlay`. The ADR keeps the sidecar as a
+  temporary diagnostic/oracle, but its exit criteria require the promoted
+  ADR-0033 rows to pass with sidecar settlement disabled and with ordinary
+  answer-overlay proof evidence.
 
 ## 2026-04-30
 

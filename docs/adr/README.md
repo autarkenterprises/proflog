@@ -43,3 +43,4 @@ Use ADRs for every feature-sized decision before implementation starts. Each ADR
 | [ADR-0032](ADR-0032-core-logic-performance.md) | accepted | `adr-0032-core-logic-performance` | generic host-language performance and deployment work for the carried ADR-0031 list-family failures | pending |
 | [ADR-0033](ADR-0033-structural-answer-variable-recursion.md) | accepted | `adr-0033-structural-answer-variable-recursion` | structural answer-variable recursion and residual completion for the carried ADR-0031 list-family failures | pending |
 | [ADR-0034](ADR-0034-greenfield-implementation-tutorial.md) | accepted | `adr-0034-greenfield-implementation-tutorial-docs` | comprehensive greenfield implementation tutorial and reference | pending |
+| [ADR-0035](ADR-0035-relational-residual-continuation.md) | proposed | `adr-0035-relational-residual-continuation` | relational answer-overlay replacement for constructor-recursive residual settlement | pending |

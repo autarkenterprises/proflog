@@ -70,6 +70,11 @@ complete contemporaneous transcript.
   `Choice.take*` lazy-tail simplification and `LCons` walk structural sharing.
   Both preserved answer shape and were slower on the carried rows. Longer note:
   [Core.logic Stream/Walk Negative Probe](docs/log/2026-05-01-core-logic-stream-walk-negative-probe.md).
+- Ran a diagnostic no-occurs-check source-overlay experiment after the count
+  probe showed high `occurs-check` volume. It was somewhat faster on carried
+  rows but still closed none, so no unsound production path was retained.
+  Longer note:
+  [Core.logic No Occurs-Check Diagnostic](docs/log/2026-05-01-core-logic-no-occurs-check-diagnostic.md).
 
 ## 2026-04-30
 

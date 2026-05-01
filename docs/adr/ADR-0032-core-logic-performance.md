@@ -173,6 +173,10 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   because they were compatible but slower on the carried rows and closed none.
   See
   [Core.logic Stream/Walk Negative Probe](../log/2026-05-01-core-logic-stream-walk-negative-probe.md).
+- Ran and reverted a diagnostic no-occurs-check source-overlay experiment. It
+  confirmed that occurs-check has runtime cost but still did not close carried
+  targets, so no unsound production path was retained. See
+  [Core.logic No Occurs-Check Diagnostic](../log/2026-05-01-core-logic-no-occurs-check-diagnostic.md).
 
 ## Constraints
 

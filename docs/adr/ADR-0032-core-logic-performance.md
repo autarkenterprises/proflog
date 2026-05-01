@@ -148,6 +148,9 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   it was compatible but did not produce broad timing improvement or close
   carried rows. See
   [Core.logic Unify Identical-After-Walk Probe](../log/2026-05-01-core-logic-unify-identical-probe.md).
+- Tested and rejected a generic `ISeq` walk structural-sharing patch because it
+  was compatible but slowed most carried rows and closed none. See
+  [Core.logic ISeq Walk Sharing Probe](../log/2026-05-01-core-logic-iseq-walk-probe.md).
 
 ## Constraints
 

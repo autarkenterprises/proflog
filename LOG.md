@@ -44,6 +44,10 @@ complete contemporaneous transcript.
   with focused suites, but timing was mixed and it did not close any carried
   matrix target, so it was reverted. Longer note:
   [Core.logic Unify Identical-After-Walk Probe](docs/log/2026-05-01-core-logic-unify-identical-probe.md).
+- Tested and rejected a generic `ISeq` walk structural-sharing patch in the
+  source overlay. It passed focused suites but slowed two of three carried rows
+  and closed none, so it was reverted. Longer note:
+  [Core.logic ISeq Walk Sharing Probe](docs/log/2026-05-01-core-logic-iseq-walk-probe.md).
 
 ## 2026-04-30
 

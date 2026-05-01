@@ -114,6 +114,16 @@ complete contemporaneous transcript.
   structurally safe answer variables should remain live across recursive
   descent instead of becoming premature residual frontiers. Longer note:
   [Structural Answer-Variable Recursion Architecture](docs/log/2026-05-01-structural-answer-variable-recursion-architecture.md).
+- Continued ADR-0033 with a generic structural residual-completion hook at the
+  ordinary program answer export boundary. The focused carried rows now close
+  through the ordinary raw matrix path, `proflog.synthesis-modes-test` passes,
+  `test-proflog-constructor-recursive` and `test-proflog-fast` pass, and answer
+  diagnostics still opt out to expose raw unresolved frontiers. Longer note:
+  [ADR-33 Structural Completion Progress](docs/log/2026-05-01-adr33-structural-completion-progress.md).
+- Added [Language Namespace Spec](docs/LANGUAGE_NAMESPACE_SPEC.md), a
+  pedagogical specification of declaration normalization, validation,
+  alpha-renaming, NNF compilation, compiled program views, guarded alternatives,
+  demand ordering, and the public language/proof-kernel boundary.
 
 ## 2026-04-30
 

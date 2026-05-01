@@ -148,10 +148,10 @@ complete contemporaneous transcript.
   list-family answer probes are proof-bearing internally, but the CLI reports
   answer summaries; the appended constructor-recursive settlement proofs are
   still prototype sidecar certificates rather than ordinary kernel proof terms.
-  The deeper integration path is to specify and check those proof terms, move
-  residual completion earlier into raw answer-state context, and then re-express
-  guarded constructor descent as an ordinary proof-producing answer-overlay
-  rule. Longer note:
+  The deeper integration path is to specify and check those proof terms, assess
+  them as a possible derived tableau macro-rule, move residual completion
+  earlier into raw answer-state context, and then re-express guarded constructor
+  descent as an ordinary proof-producing answer-overlay rule. Longer note:
   [Constructor-Recursive Proof Terms and Integration Path](docs/log/2026-05-01-constructor-recursive-proof-terms.md).
 
 ## 2026-04-30

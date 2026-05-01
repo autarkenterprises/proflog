@@ -144,3 +144,147 @@ The least risky next development sequence is:
 
 This keeps each step testable and avoids losing the current passing behavior
 while making the proof evidence progressively less provisional.
+
+## Semantic Assessment
+
+The constructor-recursive layer currently performs a substantial but restricted
+slice of program evaluation. It can solve positive defined calls by selecting
+compiled guarded alternatives, freshening clause-local variables, unifying call
+arguments and equality guards, checking rigid constructor disequalities, and
+recursing through defined calls under a fuel bound.
+
+When ADR-0033 calls it from `settle-record`, the layer does not start from the
+original top-level query. It starts from an exported raw answer record and tries
+to discharge the remaining negative defined-call residual frontier. For list
+programs, however, that frontier may contain most of the remaining recursive
+work. The sidecar therefore behaves less like a tiny simplifier and more like a
+small definite-clause interpreter over guarded IR.
+
+That interpreter is not a relation in the current implementation. It is plain
+Clojure control flow over Clojure substitution maps and lazy sequences. Its
+operations are nevertheless close to things the relational kernel already knows
+how to express:
+
+- free-constructor unification corresponds to `equality/unify-termo`;
+- argument-list unification corresponds to `equality/unify-term*o`;
+- guarded-alternative lookup corresponds to
+  `program/call-clause-with-guarded-alternativeso`;
+- existential scope opening corresponds to
+  `answer-overlay/open-existential-guarded-scopeo`;
+- guard saturation corresponds to `answer-overlay/saturate-eq-guardso`; and
+- recursive guarded-call descent corresponds to
+  `answer-overlay/close-guarded-negated-call-sequenceo` and
+  `answer-overlay/close-one-guarded-alternativeo`.
+
+The semantic concern is real: if Proflog's operational semantics is meant to be
+the semantic tableau proof procedure, then a second non-tableau evaluator makes
+that characterization harder to defend. The profiled background layers are less
+troublesome because they are alternate tableau provers for isolated fragments.
+Constructor-recursive is closer to a Horn-clause evaluator specialized to
+guarded constructor recursion.
+
+## Feasibility of a Relational Answer-Overlay Rule
+
+Reimplementing constructor-recursive descent relationally is feasible, but it
+is not a mechanical rename of the current namespace.
+
+The encouraging fact is that most semantic ingredients already exist in
+`proflog.answer-overlay`:
+
+- guarded alternatives are already relationally exposed;
+- equality guards are already saturated through relational unification;
+- negative guarded calls already descend through guarded alternatives;
+- residuals, disequalities, answer variables, fuel, and call-depth are already
+  threaded through one relational proof state; and
+- top-level query entry already has a guarded negative-call path.
+
+The difficult part is not representing guarded descent in `core.logic`; it is
+changing the search policy so structurally productive residuals continue before
+they are exported. ADR-0033 currently repairs this after export. The relational
+version should instead add a bounded "structural residual continuation" branch
+inside the answer overlay, while substitution, disequality, residual, proof,
+fuel, call-depth, and answer-variable state are still live.
+
+A practical implementation sequence would be:
+
+1. Add a relational classifier for structurally continuable residual calls.
+
+   This should mirror ADR-0033's current host-side safety check, but live in the
+   answer overlay. It must stay generic: no `append`, `reverse`, or `cons`
+   dispatch. It should recognize negative defined-call residuals whose walked
+   arguments expose constructor demand or share answer variables constrained by
+   such demand.
+
+2. Add a continuation relation for residual frontiers.
+
+   The relation should consume a residual list, pick structurally continuable
+   negative defined calls, and close them by calling the existing guarded-call
+   relations rather than exporting them immediately. It should thread the same
+   state as `prove-stateo`: `sigma`, `neqs`, `residuals`, `fuel`,
+   `call-depth`, `answer-vars`, and proof.
+
+3. Restrict the first version to the ADR-33 shape.
+
+   Start with all-residuals-are-negative-defined-calls and
+   at-least-one-constructor-demand, exactly matching the current completion
+   hook. Preserve diagnostics that opt out of continuation so raw residual
+   frontiers remain inspectable.
+
+4. Use existing guarded call proof tags first.
+
+   Avoid introducing `constructor-recursive-*` tags in the relational version.
+   Build proof terms from the same vocabulary already used by
+   `answer-overlay`: `guarded-call-seq-step`, `neg-call-guarded-alt`,
+   `guarded-alt`, `guarded-neg-alt-saturated`, `guard-eq`, and related tags.
+
+5. Retain the Clojure sidecar as an oracle during migration.
+
+   For each row, assert that the relational continuation and the old sidecar
+   produce the same closed bindings before deleting the sidecar path. This
+   gives a temporary regression oracle without giving the oracle semantic
+   authority.
+
+Risk level: medium-high. The semantic design is clear and much of the machinery
+already exists, but search behavior is fragile. The current sidecar succeeds
+partly because it uses direct Clojure control over alternative order and
+substitution walking. A relational version may need careful demand ordering,
+fuel accounting, and residual prioritization to avoid reopening the old
+timeouts.
+
+## Derived Tableau Macro-Rule
+
+A derived tableau macro-rule would treat constructor-recursive descent as a
+compressed proof step justified by ordinary tableau reasoning, not as an
+independent semantics.
+
+Informally:
+
+```text
+If, under the current branch substitution, a residual negative defined call
+¬R(t1, ..., tn) is structurally guarded, and guarded descent through the
+compiled clauses proves R(t1, ..., tn) constructively, then the current branch
+may close that residual obligation.
+```
+
+The rule is "derived" because it should be admissible from existing tableau
+rules:
+
+- expand the defined procedure call using the Proflog procedure-call rule;
+- open the clause body's quantifier scope;
+- saturate equality guards by ordinary equality reasoning;
+- recursively close guarded calls by the same procedure-call rule; and
+- close constructor disequalities only when free constructors are rigidly
+  distinct.
+
+The rule is a "macro" because it performs several ordinary tableau steps as one
+operational unit. It is comparable in spirit to using a lemma in a proof
+assistant: the kernel need not replay every tiny step if a checker can verify
+that the macro step is an admissible abbreviation.
+
+For Proflog, the safest endpoint is not a permanent unchecked macro. It is one
+of:
+
+- a relational implementation inside `answer-overlay`, so the macro disappears
+  back into ordinary proof search; or
+- a checked macro proof term whose checker expands or validates it against the
+  ordinary guarded tableau rule schema.

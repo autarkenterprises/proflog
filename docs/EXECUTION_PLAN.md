@@ -80,6 +80,7 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0031](adr/ADR-0031-list-family-kernel-generalization.md) | completed | `adr-0031-list-family-kernel-generalization` | revisit ADR-0030 against family-level append/reverse kernel generalization | ADR-0030 | parameterized raw matrix rows for forward, reverse, partial, inverse, flat, nested, and longer list cases | the branch adds guarded-clause IR and a constructor-recursive sidecar, but carries ordinary raw reverse and synthesis failures forward; [AAR-0031](aar/AAR-0031-list-family-kernel-generalization.md) records the outcome |
 | [ADR-0032](adr/ADR-0032-core-logic-performance.md) | accepted | `adr-0032-core-logic-performance` | generic host-language performance and deployment work for the carried ADR-0031 list-family failures | ADR-0031 | runtime host verification, source-overlay deployment, count probes, and carried matrix/synthesis probes | host-level `core.logic` experiments are credited only with runtime verification and broad carried-row improvement; current evidence points back to the proof/answer frontier |
 | [ADR-0033](adr/ADR-0033-structural-answer-variable-recursion.md) | accepted | `adr-0033-structural-answer-variable-recursion` | structural answer-variable recursion and residual completion for the carried ADR-0031 list-family failures | ADR-0032 | exact legacy/greenfield failure traces, structural safety tests, carried raw reverse rows, synthesis modes, and fast/constructor-recursive suites | the ordinary raw answer path keeps structurally safe answer variables live across recursive descent, completes procedural residuals before export, and closes the carried rows without list-specific materialization or projection |
+| [ADR-0034](adr/ADR-0034-greenfield-implementation-tutorial.md) | accepted | `adr-0034-greenfield-implementation-tutorial-docs` | comprehensive greenfield implementation tutorial and reference | ADR-0033 | documentation-only review of the current source/docs stack | [Greenfield Implementation Tutorial and Reference](GREENFIELD_IMPLEMENTATION_TUTORIAL.md) explains the full implementation stack, cross-layer data flow, diagnostics, and test surfaces |
 
 ## Deferred Tracks
 
@@ -110,6 +111,9 @@ Kernel layer interoperation has graduated into completed ADR-0026.
 Relational fuel purity has graduated into completed ADR-0029.
 Relational constructor search control has graduated into completed ADR-0030.
 List-family kernel generalization has graduated into accepted ADR-0031.
+Structural answer-variable recursion has graduated into accepted ADR-0033.
+The greenfield implementation tutorial reference has graduated into accepted
+ADR-0034.
 
 ## ADR-0007 Task List
 

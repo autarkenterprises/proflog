@@ -136,6 +136,14 @@ complete contemporaneous transcript.
   `append(a_3, [a_1], [c,b,a])` plus `reverse(a_2, a_3)`, while legacy closes
   the analogous query through a direct `neg-proc-call` proof. Longer note:
   [Three-Element Reverse Input-Synthesis Trace](docs/log/2026-05-01-three-element-reverse-trace.md).
+- Started [ADR-0034](docs/adr/ADR-0034-greenfield-implementation-tutorial.md)
+  on branch `adr-0034-greenfield-implementation-tutorial-docs` and added
+  [Greenfield Implementation Tutorial and Reference](docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md).
+  This documentation-only ADR provides a whole-stack tutorial for the current
+  greenfield implementation: AST/language/normalize/substitution, compilation,
+  program calls, kernel/equality/support/proof state, query and answer
+  surfaces, constructor-recursive residual settlement, diagnostics, probes,
+  tests, and end-to-end data/proof-state movement.
 
 ## 2026-04-30
 

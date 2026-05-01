@@ -159,6 +159,10 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   raw matrix rows do not exercise `AnswerCache`, `reuse`, `subunify`, tabled
   reification, or suspended streams. No production patch was retained. See
   [Core.logic Tabling/Reification Probe](../log/2026-05-01-core-logic-tabling-reification-probe.md).
+- Tested and rejected batched `run-constraints*` dispatch across changed
+  variables because it was compatible but did not change carried answer shape
+  and produced mixed timing with a material slowdown on one carried row. See
+  [Core.logic Constraint Run Batch Probe](../log/2026-05-01-core-logic-constraint-run-batch-probe.md).
 
 ## Constraints
 

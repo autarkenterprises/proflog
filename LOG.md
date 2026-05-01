@@ -39,6 +39,11 @@ complete contemporaneous transcript.
   ADR-0032 marker var, and passes the host, constructor-recursive, and fast
   Proflog suites. Longer note:
   [Core.logic Source Overlay Deployment](docs/log/2026-05-01-core-logic-source-overlay.md).
+- Tested and rejected a tiny generic `core.logic/unify` fast path that returned
+  immediately when both walked terms were identical. The patch was compatible
+  with focused suites, but timing was mixed and it did not close any carried
+  matrix target, so it was reverted. Longer note:
+  [Core.logic Unify Identical-After-Walk Probe](docs/log/2026-05-01-core-logic-unify-identical-probe.md).
 
 ## 2026-04-30
 

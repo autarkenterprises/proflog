@@ -144,6 +144,10 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   [Core.logic 1.1.1 Upgrade Probe](../log/2026-05-01-core-logic-1-1-1-upgrade-probe.md).
 - Added a verified source-overlay lane for local host patches. See
   [Core.logic Source Overlay Deployment](../log/2026-05-01-core-logic-source-overlay.md).
+- Tested and rejected a generic `unify` identical-after-walk fast path because
+  it was compatible but did not produce broad timing improvement or close
+  carried rows. See
+  [Core.logic Unify Identical-After-Walk Probe](../log/2026-05-01-core-logic-unify-identical-probe.md).
 
 ## Constraints
 

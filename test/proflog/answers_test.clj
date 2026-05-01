@@ -20,6 +20,12 @@
                  'odd 1
                  'win 1}}))
 
+(def completion-language
+  (language/language
+    {:constants ['zero]
+     :functions {'s 1}
+     :relations {'step 2}}))
+
 (defn numeral
   [n]
   (if (zero? n)
@@ -84,6 +90,20 @@
                        (ast/eq-lit (ast/var-term x)
                                    (ast/app-term 's (ast/var-term z)))
                        (ast/pos-lit (ast/app-term 'loop (ast/var-term z))))))])))
+
+(defn completion-program
+  []
+  (ast/nom x y
+    (language/compile-program
+      completion-language
+      [(ast/clause 'step [x y]
+                   (ast/or-form
+                     (ast/eq-lit (ast/var-term x)
+                                 (ast/app-term 's (ast/var-term y)))
+                     (ast/eq-lit (ast/var-term x)
+                                 (ast/app-term 's
+                                               (ast/app-term 's
+                                                             (ast/var-term y))))))])))
 
 (defn answer-terms
   [records]
@@ -206,6 +226,50 @@
              :sample-limit 1})
           (is (zero? @query-entry-calls))
           (is (pos? @general-answer-calls)))))))
+
+(deftest adr33-structural-completion-requires-constructor-demand
+  (testing "wholly symbolic residual families stay residual, but demanded frontiers can complete"
+    (ast/nom x y
+      (let [program (completion-program)
+            symbolic-record
+            {:bindings [[x (ast/var-term x)]]
+             :residuals [(ast/neg-lit
+                           (ast/app-term 'step
+                                         (ast/var-term x)
+                                         (ast/var-term y)))]
+             :proofs ['raw-frontier]}
+            demanded-record
+            {:bindings [[x (ast/var-term x)]]
+             :residuals [(ast/neg-lit
+                           (ast/app-term 'step
+                                         (ast/var-term x)
+                                         (numeral 1)))]
+             :proofs ['raw-frontier]}
+            chained-demand-record
+            {:bindings [[x (ast/var-term x)]]
+             :residuals [(ast/neg-lit
+                           (ast/app-term 'step
+                                         (ast/var-term x)
+                                         (ast/var-term y)))
+                         (ast/neg-lit
+                           (ast/app-term 'step
+                                         (ast/var-term y)
+                                         (numeral 0)))]
+             :proofs ['raw-frontier]}
+            structurally-completable?
+            (deref #'answers/structurally-completable-record?)
+            complete
+            (deref #'answers/complete-structural-residuals)]
+        (is (not (structurally-completable? program symbolic-record)))
+        (is (structurally-completable? program demanded-record))
+        (is (structurally-completable? program chained-demand-record))
+        (let [completed (complete program
+                                  demanded-record
+                                  {:residual-completion-fuel 16})
+              completed-term (answers/binding-term completed x)]
+          (is (empty? (:residuals completed)))
+          (is (contains? #{(numeral 2) (numeral 3)}
+                         completed-term)))))))
 
 (deftest query-stage-diagnostics-summarize-proof-families
   (testing "stage diagnostics expose duplicate exported answers and proof-family summaries"

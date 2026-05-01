@@ -20,6 +20,131 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-01
+
+- Accepted [ADR-0032](docs/adr/ADR-0032-core-logic-performance.md) on branch
+  `adr-0032-core-logic-performance`. ADR-0032 carries forward ADR-0031's still
+  failing ordinary/raw reverse and synthesis rows, but moves the next experiment
+  below Proflog into generic `core.logic` host performance and deployment work.
+  The initial research and deployment design is recorded in
+  [Core.logic Performance Research and Design](docs/log/2026-05-01-core-logic-performance-research-design.md).
+- Added a runtime `core.logic` host probe and a published-upgrade Leiningen
+  profile for `org.clojure/core.logic` 1.1.1. The upgrade profile is compatible
+  with the focused suites and is modestly faster on the carried raw matrix rows,
+  but it does not close any carried reverse or synthesis target. Longer note:
+  [Core.logic 1.1.1 Upgrade Probe](docs/log/2026-05-01-core-logic-1-1-1-upgrade-probe.md).
+- Added a verified source-overlay deployment lane for local `core.logic` host
+  patches. The `+core-logic-source-overlay` profile resolves
+  `clojure/core/logic.clj` to `vendor/core.logic-1.1.1/src`, reports an
+  ADR-0032 marker var, and passes the host, constructor-recursive, and fast
+  Proflog suites. Longer note:
+  [Core.logic Source Overlay Deployment](docs/log/2026-05-01-core-logic-source-overlay.md).
+- Tested and rejected a tiny generic `core.logic/unify` fast path that returned
+  immediately when both walked terms were identical. The patch was compatible
+  with focused suites, but timing was mixed and it did not close any carried
+  matrix target, so it was reverted. Longer note:
+  [Core.logic Unify Identical-After-Walk Probe](docs/log/2026-05-01-core-logic-unify-identical-probe.md).
+- Tested and rejected a generic `ISeq` walk structural-sharing patch in the
+  source overlay. It passed focused suites but slowed two of three carried rows
+  and closed none, so it was reverted. Longer note:
+  [Core.logic ISeq Walk Sharing Probe](docs/log/2026-05-01-core-logic-iseq-walk-probe.md).
+- Compared the pinned 1.0.1 JVM source with the published 1.1.1 JVM source and
+  found no implementation diff in the reviewed files beyond Proflog's overlay
+  marker. The 1.1.1 artifact updates POM metadata, but Proflog still runs
+  Clojure 1.11.1 in all ADR-0032 profiles. Longer note:
+  [Core.logic 1.0.1 vs 1.1.1 Source Comparison](docs/log/2026-05-01-core-logic-1-0-1-1-1-source-comparison.md).
+- Probed `core.logic` tabling/reification internals before patching them. The
+  carried rows allocate the ordinary tabled-capable substitution, but they do
+  not exercise `AnswerCache`, `reuse`, `subunify`, tabled reification, or
+  suspended streams. No production host patch was retained. Longer note:
+  [Core.logic Tabling/Reification Probe](docs/log/2026-05-01-core-logic-tabling-reification-probe.md).
+- Tested and rejected batched `run-constraints*` dispatch across changed
+  variables. It passed focused compatibility tests, but it did not close carried
+  rows and materially slowed one of them. Longer note:
+  [Core.logic Constraint Run Batch Probe](docs/log/2026-05-01-core-logic-constraint-run-batch-probe.md).
+- Added a bounded Proflog-side `core.logic` count probe. The carried
+  `reverse-input-flat` row shows counted calls dominated by `walk*` /
+  reification and unification, with tabling unused. Longer note:
+  [Core.logic Count Probe](docs/log/2026-05-01-core-logic-count-probe.md).
+- Tested and rejected two additional small stream/walk allocation patches:
+  `Choice.take*` lazy-tail simplification and `LCons` walk structural sharing.
+  Both preserved answer shape and were slower on the carried rows. Longer note:
+  [Core.logic Stream/Walk Negative Probe](docs/log/2026-05-01-core-logic-stream-walk-negative-probe.md).
+- Ran a diagnostic no-occurs-check source-overlay experiment after the count
+  probe showed high `occurs-check` volume. It was somewhat faster on carried
+  rows but still closed none, so no unsound production path was retained.
+  Longer note:
+  [Core.logic No Occurs-Check Diagnostic](docs/log/2026-05-01-core-logic-no-occurs-check-diagnostic.md).
+- Logged the remaining generic `core.logic` optimization frontiers after the
+  first wave of rejected micro-patches. ADR-0032 is not treating the host as
+  exhausted; it is splitting vector-specialized unification and bounded
+  walk/reification memoization into independent worktree experiments. Longer
+  note:
+  [Core.logic Remaining Optimization Frontiers](docs/log/2026-05-01-core-logic-remaining-frontiers.md).
+- Evaluated the concurrent ADR-0032 vector-unification and walk/reify-memo
+  workers. Both were rejected as implementation merge candidates: the vector
+  path was generic and exercised but did not improve carried rows, and the
+  walk/reify memo variants regressed runtime without closing targets. The main
+  ADR-0032 branch retest kept host, constructor-recursive, fast, and CI-safe
+  matrix checks green, while the three carried raw reverse rows and two
+  synthesis-mode failures remain. Longer notes:
+  [Concurrent Probe Evaluation](docs/log/2026-05-01-adr32-concurrent-core-logic-probe-evaluation.md),
+  [Vector Unification Probe](docs/log/2026-05-01-core-logic-vector-unification-probe.md),
+  and
+  [Walk/Reify Memo Probe](docs/log/2026-05-01-core-logic-walk-reify-memo-probe.md).
+- Added worked legacy/greenfield traces for the exact current ADR-32 failures.
+  Legacy closes the three carried reverse shapes by letting bare host logic
+  variables flow through ordinary `proveo`; greenfield's ordinary raw answer
+  path still exports residual frontiers, even though the constructor-recursive
+  sidecar closes those rows. The two synthesis failures are narrower:
+  `jump(x, 0)` has the right ground set with a non-disequality residual, and
+  `down(2, y)` has the right set in legacy order reversed. Longer note:
+  [Legacy / Greenfield Failure Traces](docs/log/2026-05-01-legacy-greenfield-failure-traces.md).
+- Logged design lessons from the legacy/greenfield traces. The next promising
+  direction is answer-frontier repair: complete procedural residuals before
+  export, preserve base-before-recursive ordering where appropriate, integrate
+  constructor-recursive descent into the ordinary raw path, and keep
+  structurally safe answer variables live through recursion rather than turning
+  them into residual frontiers. Longer note:
+  [Greenfield Lessons From Legacy Traces](docs/log/2026-05-01-greenfield-lessons-from-legacy-traces.md).
+- Started [ADR-0033](docs/adr/ADR-0033-structural-answer-variable-recursion.md)
+  on branch `adr-0033-structural-answer-variable-recursion`. ADR-0033 keeps
+  ADR-0031's list-family goal but moves the next implementation strategy to
+  structural answer-variable recursion in the greenfield raw answer path:
+  structurally safe answer variables should remain live across recursive
+  descent instead of becoming premature residual frontiers. Longer note:
+  [Structural Answer-Variable Recursion Architecture](docs/log/2026-05-01-structural-answer-variable-recursion-architecture.md).
+- Continued ADR-0033 with a generic structural residual-completion hook at the
+  ordinary program answer export boundary. The focused carried rows now close
+  through the ordinary raw matrix path, `proflog.synthesis-modes-test` passes,
+  `test-proflog-constructor-recursive` and `test-proflog-fast` pass, and answer
+  diagnostics still opt out to expose raw unresolved frontiers. Longer note:
+  [ADR-33 Structural Completion Progress](docs/log/2026-05-01-adr33-structural-completion-progress.md).
+- Added [Language Namespace Spec](docs/LANGUAGE_NAMESPACE_SPEC.md), a
+  pedagogical specification of declaration normalization, validation,
+  alpha-renaming, NNF compilation, compiled program views, guarded alternatives,
+  demand ordering, and the public language/proof-kernel boundary.
+- Intensified the list-family matrix after the ADR-33 closure. The default
+  matrix now includes a multi-answer inverse append row, longer reverse input
+  synthesis, deeper nested reverse output synthesis, and a longer partial
+  reverse output row. A heavier length-4 inverse append stress row passes at
+  higher raw limit. Longer note:
+  [Intensified List-Family Matrix](docs/log/2026-05-01-list-family-intensified-matrix.md).
+- Traced `reverse(r, [c,b,a])` through greenfield's ordinary raw answer path
+  and through the legacy `cljtap.alphaleantap-ep` prover. Greenfield now closes
+  the row by structurally completing the raw residual frontier
+  `append(a_3, [a_1], [c,b,a])` plus `reverse(a_2, a_3)`, while legacy closes
+  the analogous query through a direct `neg-proc-call` proof. Longer note:
+  [Three-Element Reverse Input-Synthesis Trace](docs/log/2026-05-01-three-element-reverse-trace.md).
+- Started [ADR-0034](docs/adr/ADR-0034-greenfield-implementation-tutorial.md)
+  on branch `adr-0034-greenfield-implementation-tutorial-docs` and added
+  [Greenfield Implementation Tutorial and Reference](docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md).
+  This documentation-only ADR provides a whole-stack tutorial for the current
+  greenfield implementation: AST/language/normalize/substitution, compilation,
+  program calls, kernel/equality/support/proof state, query and answer
+  surfaces, constructor-recursive residual settlement, diagnostics, probes,
+  tests, and end-to-end data/proof-state movement.
+
 ## 2026-04-30
 
 - Continued ADR-0031 by compiling and executing guarded clause alternatives in

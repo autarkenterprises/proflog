@@ -14,6 +14,7 @@
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.kernel :as kernel]
+            [proflog.kernel.constructor-recursive :as constructor-recursive]
             [proflog.language :as language]
             [proflog.normalize :as normalize]
             [proflog.proof :as proof]
@@ -803,6 +804,61 @@
     neq (contradictory-term-pair? (second formula) (nth formula 2))
     false))
 
+(defn- constructor-demand-term?
+  "True when a term already exposes some concrete constructor structure.
+
+   ADR-0033 residual completion should not turn a wholly symbolic recursive
+   family such as `odd(_0)` into a single enumerated witness. It should only
+   continue residual calls whose arguments contain real object-language
+   structure that can drive guarded constructor-recursive descent."
+  [term]
+  (case (ast/tag-of term)
+    app true
+    var false
+    par false
+    false))
+
+(defn- defined-negative-call-residual?
+  [program formula]
+  (and (= 'neg (ast/tag-of formula))
+       (let [atom (second formula)]
+         (and (= 'app (ast/tag-of atom))
+              (some? (lookup-clause program (second atom)))))))
+
+(defn- residual-has-constructor-demand?
+  [formula]
+  (let [atom (second formula)]
+    (boolean (some constructor-demand-term? (nnext atom)))))
+
+(defn- structurally-completable-record?
+  "Conservatively decide whether constructor-recursive settlement is warranted.
+
+   The settlement layer is generic, but it is still a search. We only invoke it
+   for records whose entire procedural frontier consists of negative calls to
+   relations defined by this program and whose frontier exposes constructor
+   demand somewhere.
+   This keeps open symbolic families as residuals while allowing carried answer
+   variables under constructor constraints to continue."
+  [program record]
+  (let [residuals (:residuals record)]
+    (and (seq residuals)
+         (every? #(defined-negative-call-residual? program %) residuals)
+         (some residual-has-constructor-demand? residuals))))
+
+(def ^:private default-residual-completion-fuel 96)
+
+(defn- complete-structural-residuals
+  [program record {:keys [complete-residuals? residual-completion-fuel]
+                   :or {complete-residuals? true
+                        residual-completion-fuel default-residual-completion-fuel}}]
+  (if (and complete-residuals?
+           (structurally-completable-record? program record))
+    (constructor-recursive/settle-record
+      program
+      record
+      {:fuel residual-completion-fuel})
+    record))
+
 (defn- export-answer-record
   "Project one kernel proof state into an answer record or nil if inadmissible."
   [lang answer-vars reified-answer-vars sigma neqs residual-formulas proof]
@@ -893,6 +949,13 @@
                         (contains? closed-bindings (:bindings record)))))
          vec)))
 
+(defn- record-proof-rank
+  "Prefer shorter completed derivations when residual status is otherwise equal."
+  [{:keys [proofs]}]
+  (if (seq proofs)
+    (apply min (map (comp count proof/collect-steps) proofs))
+    0))
+
 (defn- answer-record-rank
   "Prefer answers that have finished all procedure-call work.
 
@@ -960,6 +1023,24 @@
                    idx]))
        (mapv second)))
 
+(defn- prioritize-answer-records-by-derivation
+  "Prefer shorter completed derivations after ordinary completion ranking.
+
+   This is used for deeper recursive query-answer requests, where base
+   alternatives should precede recursive descendants when both are otherwise
+   closed comparable answers. Diagnostics keep the plain answer ranking so they
+   continue to expose raw frontier shape without derivation-order rewriting."
+  [records]
+  (->> records
+       prune-shadowed-open-records
+       (map-indexed vector)
+       (sort-by (fn [[idx record]]
+                  [(answer-record-rank record)
+                   (record-proof-rank record)
+                   (answer-record-shape-key record)
+                   idx]))
+       (mapv second)))
+
 (defn- collect-answer-records
   "Search for up to `proof-limit` unique answer records.
 
@@ -1021,15 +1102,18 @@
 
 (defn- export-program-answer-record
   "Export one raw query proof state against `program`'s language."
-  [program checked-answer-vars [answer-vars-out sigma-out neqs-out residuals-out proof]]
-  (export-answer-record
-    (:language program)
-    checked-answer-vars
-    answer-vars-out
-    sigma-out
-    neqs-out
-    residuals-out
-    proof))
+  ([program checked-answer-vars raw-state]
+   (export-program-answer-record program checked-answer-vars raw-state {}))
+  ([program checked-answer-vars [answer-vars-out sigma-out neqs-out residuals-out proof] opts]
+   (when-let [record (export-answer-record
+                       (:language program)
+                       checked-answer-vars
+                       answer-vars-out
+                       sigma-out
+                       neqs-out
+                       residuals-out
+                       proof)]
+     (complete-structural-residuals program record opts))))
 
 (defn- summarize-proof-signature
   "Trim a proof-step signature for diagnostics output."
@@ -1081,7 +1165,8 @@
                               (map #(export-program-answer-record
                                       program
                                       checked-answer-vars
-                                      %))
+                                      %
+                                      {:complete-residuals? false}))
                               (keep identity)
                               vec)
         unique-records (merge-answer-records exported-records)
@@ -1229,6 +1314,9 @@
                  :max-raw-proof-limit max-raw-proof-limit}))
             merge-answer-records
             prioritize-answer-records
+            (#(if (> call-depth 1)
+                (prioritize-answer-records-by-derivation %)
+                %))
             (take proof-limit)
             vec)))))
 

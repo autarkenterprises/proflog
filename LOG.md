@@ -33,6 +33,12 @@ complete contemporaneous transcript.
   with the focused suites and is modestly faster on the carried raw matrix rows,
   but it does not close any carried reverse or synthesis target. Longer note:
   [Core.logic 1.1.1 Upgrade Probe](docs/log/2026-05-01-core-logic-1-1-1-upgrade-probe.md).
+- Added a verified source-overlay deployment lane for local `core.logic` host
+  patches. The `+core-logic-source-overlay` profile resolves
+  `clojure/core/logic.clj` to `vendor/core.logic-1.1.1/src`, reports an
+  ADR-0032 marker var, and passes the host, constructor-recursive, and fast
+  Proflog suites. Longer note:
+  [Core.logic Source Overlay Deployment](docs/log/2026-05-01-core-logic-source-overlay.md).
 
 ## 2026-04-30
 

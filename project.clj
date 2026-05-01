@@ -121,4 +121,9 @@
             "probe-core-logic-host" ["run" "-m" "proflog.core-logic-host-probe"]}
   :profiles {:core-logic-1.1.1
              {:dependencies ^:replace [[org.clojure/clojure "1.11.1"]
+                                       [org.clojure/core.logic "1.1.1"]]}
+             :core-logic-source-overlay
+             {:source-paths ^:replace ["vendor/core.logic-1.1.1/src"
+                                       "src"]
+              :dependencies ^:replace [[org.clojure/clojure "1.11.1"]
                                        [org.clojure/core.logic "1.1.1"]]}})

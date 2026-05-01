@@ -142,6 +142,8 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   exercised so far and modestly improves wall-clock time on the carried raw
   matrix probes, but it does not close any of the carried targets. See
   [Core.logic 1.1.1 Upgrade Probe](../log/2026-05-01-core-logic-1-1-1-upgrade-probe.md).
+- Added a verified source-overlay lane for local host patches. See
+  [Core.logic Source Overlay Deployment](../log/2026-05-01-core-logic-source-overlay.md).
 
 ## Constraints
 

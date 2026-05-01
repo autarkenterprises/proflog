@@ -204,6 +204,10 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   raw path, and structurally safe answer variables flowing through recursion.
   See
   [Greenfield Lessons From Legacy Traces](../log/2026-05-01-greenfield-lessons-from-legacy-traces.md).
+- Promoted the structural answer-variable direction into successor
+  [ADR-0033](ADR-0033-structural-answer-variable-recursion.md). ADR-0033 keeps
+  ADR-0031's carried list-family goal but leaves the `core.logic` host layer and
+  targets greenfield's ordinary raw answer path instead.
 
 ## Constraints
 

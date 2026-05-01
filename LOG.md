@@ -107,6 +107,13 @@ complete contemporaneous transcript.
   structurally safe answer variables live through recursion rather than turning
   them into residual frontiers. Longer note:
   [Greenfield Lessons From Legacy Traces](docs/log/2026-05-01-greenfield-lessons-from-legacy-traces.md).
+- Started [ADR-0033](docs/adr/ADR-0033-structural-answer-variable-recursion.md)
+  on branch `adr-0033-structural-answer-variable-recursion`. ADR-0033 keeps
+  ADR-0031's list-family goal but moves the next implementation strategy to
+  structural answer-variable recursion in the greenfield raw answer path:
+  structurally safe answer variables should remain live across recursive
+  descent instead of becoming premature residual frontiers. Longer note:
+  [Structural Answer-Variable Recursion Architecture](docs/log/2026-05-01-structural-answer-variable-recursion-architecture.md).
 
 ## 2026-04-30
 

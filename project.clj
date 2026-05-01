@@ -111,8 +111,14 @@
                                                   "proflog.list-programs-test"
                                                   "proflog.constructor-recursive-kernel-test"
                                                   "proflog.kernel.constructor-recursive-test"]
+            "test-proflog-core-logic-host" ["test"
+                                            "proflog.core-logic-host-test"]
             "test-proflog-legacy-impurity" ["test"
                                             "proflog.legacy-impurity-test"]
             "probe-proflog-legacy-stream" ["run" "-m" "proflog.legacy-stream-probe"]
             "probe-proflog-list-kernel-matrix" ["run" "-m" "proflog.list-kernel-matrix-probe"]
-            "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]})
+            "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]
+            "probe-core-logic-host" ["run" "-m" "proflog.core-logic-host-probe"]}
+  :profiles {:core-logic-1.1.1
+             {:dependencies ^:replace [[org.clojure/clojure "1.11.1"]
+                                       [org.clojure/core.logic "1.1.1"]]}})

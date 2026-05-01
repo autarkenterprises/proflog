@@ -20,6 +20,15 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-01
+
+- Accepted [ADR-0032](docs/adr/ADR-0032-core-logic-performance.md) on branch
+  `adr-0032-core-logic-performance`. ADR-0032 carries forward ADR-0031's still
+  failing ordinary/raw reverse and synthesis rows, but moves the next experiment
+  below Proflog into generic `core.logic` host performance and deployment work.
+  The initial research and deployment design is recorded in
+  [Core.logic Performance Research and Design](docs/log/2026-05-01-core-logic-performance-research-design.md).
+
 ## 2026-04-30
 
 - Continued ADR-0031 by compiling and executing guarded clause alternatives in

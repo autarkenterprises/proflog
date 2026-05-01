@@ -81,6 +81,17 @@ complete contemporaneous transcript.
   walk/reification memoization into independent worktree experiments. Longer
   note:
   [Core.logic Remaining Optimization Frontiers](docs/log/2026-05-01-core-logic-remaining-frontiers.md).
+- Evaluated the concurrent ADR-0032 vector-unification and walk/reify-memo
+  workers. Both were rejected as implementation merge candidates: the vector
+  path was generic and exercised but did not improve carried rows, and the
+  walk/reify memo variants regressed runtime without closing targets. The main
+  ADR-0032 branch retest kept host, constructor-recursive, fast, and CI-safe
+  matrix checks green, while the three carried raw reverse rows and two
+  synthesis-mode failures remain. Longer notes:
+  [Concurrent Probe Evaluation](docs/log/2026-05-01-adr32-concurrent-core-logic-probe-evaluation.md),
+  [Vector Unification Probe](docs/log/2026-05-01-core-logic-vector-unification-probe.md),
+  and
+  [Walk/Reify Memo Probe](docs/log/2026-05-01-core-logic-walk-reify-memo-probe.md).
 
 ## 2026-04-30
 

@@ -182,6 +182,17 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   that actually exercises vectors, and bounded walk/reification memoization or
   fusion. See
   [Core.logic Remaining Optimization Frontiers](../log/2026-05-01-core-logic-remaining-frontiers.md).
+- Evaluated both concurrent experiments and merged neither implementation. The
+  vector-specialized path was generic and exercised by carried rows, but it did
+  not improve closure or answer shape. The walk/reify memo variants reduced
+  misleading public `walk*` counts or added caches but regressed runtime and
+  closed no targets. The main branch retest still passes host verification,
+  constructor-recursive, fast, and CI-safe matrix checks, while the three
+  carried raw reverse rows and two synthesis-mode failures remain. See
+  [ADR-32 Concurrent Core.logic Probe Evaluation](../log/2026-05-01-adr32-concurrent-core-logic-probe-evaluation.md),
+  [Core.logic Vector Unification Probe](../log/2026-05-01-core-logic-vector-unification-probe.md),
+  and
+  [Core.logic Walk/Reify Memo Probe](../log/2026-05-01-core-logic-walk-reify-memo-probe.md).
 
 ## Constraints
 

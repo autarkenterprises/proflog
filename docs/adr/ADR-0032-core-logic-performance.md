@@ -163,6 +163,12 @@ ADR-0032 inherits ADR-0031's nominal exit criteria:
   variables because it was compatible but did not change carried answer shape
   and produced mixed timing with a material slowdown on one carried row. See
   [Core.logic Constraint Run Batch Probe](../log/2026-05-01-core-logic-constraint-run-batch-probe.md).
+- Added a Proflog-side count probe for selected `core.logic` entry points. On
+  the carried `reverse-input-flat` row, both default 1.0.1 and upgraded 1.1.1
+  reported the same call distribution: `walk*`/reification dominated counted
+  calls, unification was second, nominal and constraint hooks were much smaller,
+  stream choice construction was tiny, and tabling was unused. See
+  [Core.logic Count Probe](../log/2026-05-01-core-logic-count-probe.md).
 
 ## Constraints
 

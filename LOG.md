@@ -41,6 +41,14 @@ complete contemporaneous transcript.
   scheduler uses a soft cut so raw export is only considered after prioritized
   continuation fails. Longer note:
   [ADR-0035 Track C Structural Priority](docs/log/2026-05-03-adr35-track-c-structural-priority.md).
+- Integrated ADR-0035 Tracks A, B, and C on
+  `adr-0035-relational-residual-continuation` in the required order. The merged
+  scheduler now combines independent continuation fuel, guard prefiltering, and
+  structural priority selection. Focused A/B/C checks, `proflog.answers-test`
+  plus the guard-prefilter test namespace, `test-proflog-fast`,
+  `test-proflog-constructor-recursive`, `proflog.synthesis-modes-test`,
+  `proflog.list-kernel-matrix-test`, and the three carried reverse matrix
+  probes all passed.
 
 ## 2026-05-01
 

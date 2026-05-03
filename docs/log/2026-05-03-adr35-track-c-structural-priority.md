@@ -52,3 +52,22 @@ timeout -k 5s 180s lein test :only proflog.answers-test/adr35-track-c-scheduler-
 ```
 
 Result: both passed, 2 tests / 6 assertions.
+
+## Post-Merge Verification
+
+After merging Track C behind Tracks A and B on
+`adr-0035-relational-residual-continuation`, the combined scheduler passed:
+
+```text
+timeout -k 10s 240s lein test proflog.answers-test proflog.answer-overlay-guard-prefilter-test
+timeout -k 10s 300s lein test-proflog-fast
+timeout -k 10s 300s lein test-proflog-constructor-recursive
+timeout -k 10s 240s lein test proflog.synthesis-modes-test
+timeout -k 10s 420s lein test proflog.list-kernel-matrix-test
+timeout -k 10s 240s lein probe-proflog-list-kernel-matrix reverse-input-flat-longer
+timeout -k 10s 240s lein probe-proflog-list-kernel-matrix reverse-output-deep-nested-longer
+timeout -k 10s 240s lein probe-proflog-list-kernel-matrix reverse-partial-output-longer-tail
+```
+
+The three probes each reported `:target-found? true` with one closed target
+answer.

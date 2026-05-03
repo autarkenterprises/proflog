@@ -142,3 +142,30 @@ after the A-C package is integrated. Regressions observed during individual
 tracks are recorded, but are not treated as definitive unless the complete
 relational package fails to improve coverage/performance, with correctness and
 broader test-family coverage prioritized over raw speed.
+
+## Session Reset Handoff
+
+Current base branch:
+`adr-0035-relational-residual-continuation` at
+`add611e Log ADR-35 relational package integration plan`.
+
+Base commits added before the reset:
+
+- `76c33a1 Implement ADR-35 answer-overlay residual scheduler`
+- `add611e Log ADR-35 relational package integration plan`
+
+Concurrent track worktrees:
+
+- Track A worktree: `/home/jpt4/code/proflog-track-a`
+  - branch: `adr-0035-track-a-continuation-agenda`
+  - subagent: `019dedfa-e458-7e82-941b-252f2896b6cb` (`Linnaeus`)
+- Track B worktree: `/home/jpt4/code/proflog-track-b`
+  - branch: `adr-0035-track-b-guard-prefilter`
+  - subagent: `019dedfa-fc2c-7d12-bb2b-a1d68a0578ee` (`Archimedes`)
+- Track C worktree: `/home/jpt4/code/proflog-track-c`
+  - branch: `adr-0035-track-c-structural-priority`
+  - subagent: `019dedfb-1081-78f0-ae88-414d9f593f94` (`Carver`)
+
+No track branch had been merged at the handoff point. The required merge order
+remains Track A, then Track B, then Track C, with focused property tests and
+ADR-0035 integration tests after each merge before continuing.

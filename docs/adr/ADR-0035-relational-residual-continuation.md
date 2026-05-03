@@ -101,6 +101,23 @@ path still reopens too much search on the focused reverse-input row. That
 relation remains as the follow-up target for enumerating multiple residual
 completions from one live frontier.
 
+Track B adds an explicit relational guard-prefilter to the raw live-state
+structural continuation relation. `prefilter-structural-guardso` runs after
+guarded scope opening and before recursive descent through guarded calls. It
+uses `equality/unify-termo` for equality guards, preserves the proof-variable
+binding discipline and saved-disequality stability checks, and accepts
+disequality guards only when `support/rigid-different-termo` can prove a
+permanent constructor difference. Successful raw-continuation proofs now carry
+`structural-residual-guard-prefilter` evidence. Constructor-clashing guarded
+alternatives are rejected before their recursive calls can be opened, while a
+later viable alternative remains available. The implementation is generic over
+guarded-clause IR and does not add any kernel changes.
+
+The Track B prefilter is intentionally conservative. Symbolic disequality
+guards that would require extending the live disequality store remain outside
+this narrow gate until the broader raw continuation work adds explicit
+guard-level disequality threading.
+
 ## Required Capabilities
 
 ### 1. Relational Structural Frontier Classification
@@ -317,4 +334,5 @@ Rejected alternatives:
 - [ADR-33 Structural Completion Progress](../log/2026-05-01-adr33-structural-completion-progress.md)
 - [Intensified List-Family Matrix](../log/2026-05-01-list-family-intensified-matrix.md)
 - [Three-Element Reverse Input-Synthesis Trace](../log/2026-05-01-three-element-reverse-trace.md)
+- [ADR-0035 Track B Guard Prefiltering](../log/2026-05-03-adr35-track-b-guard-prefilter.md)
 - [Greenfield Implementation Tutorial and Reference](../GREENFIELD_IMPLEMENTATION_TUTORIAL.md)

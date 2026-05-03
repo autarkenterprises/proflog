@@ -117,3 +117,28 @@ All passed.
   residual continuation should remove a branch before export.
 - Add an AAR only after deciding whether ADR-0035 is complete, partial, or
   superseded by another proof-search strategy.
+
+## Relational Package Integration Plan
+
+Baseline commit for the ordered integration sequence:
+`76c33a1 Implement ADR-35 answer-overlay residual scheduler`.
+
+The next package is split into individually gated branches:
+
+- Track A, `adr-0035-track-a-continuation-agenda`: dedicated continuation
+  agenda plus explicit continuation fuel.
+- Track B, `adr-0035-track-b-guard-prefilter`: relational guard prefiltering
+  before recursive continuation descent.
+- Track C, `adr-0035-track-c-structural-priority`: ordered structural residual
+  selection that tries constructor-demanded frontiers first.
+- Track D: relational visited-set/tabling after Tracks A-C establish the final
+  continuation state shape.
+
+Tracks A-C may be developed concurrently in separate worktrees, but they merge
+back to `adr-0035-relational-residual-continuation` in A, B, C order. Each
+merge must carry its own focused property test, pass ADR-0035 focused tests,
+and complete integration testing before the next merge. Track D begins only
+after the A-C package is integrated. Regressions observed during individual
+tracks are recorded, but are not treated as definitive unless the complete
+relational package fails to improve coverage/performance, with correctness and
+broader test-family coverage prioritized over raw speed.

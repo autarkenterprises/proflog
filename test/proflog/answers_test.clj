@@ -37,6 +37,12 @@
      :functions {'s 1}
      :relations {'descend 2}}))
 
+(def track-d-language
+  (language/language
+    {:constants ['zero]
+     :relations {'loop 1
+                 'twice 1}}))
+
 (defn numeral
   [n]
   (if (zero? n)
@@ -135,6 +141,20 @@
                                           (ast/app-term 'descend
                                                         (ast/var-term predecessor)
                                                         (ast/var-term y)))))))])))
+
+(defn track-d-recursive-program
+  []
+  (ast/nom x
+    (language/compile-program
+      track-d-language
+      [(ast/clause 'loop [x]
+                   (ast/or-form
+                     (ast/pos-lit (ast/app-term 'loop (ast/var-term x)))
+                     (ast/eq-lit (ast/var-term x) (ast/app-term 'zero))))
+       (ast/clause 'twice [x]
+                   (ast/and-form
+                     (ast/pos-lit (ast/app-term 'loop (ast/var-term x)))
+                     (ast/pos-lit (ast/app-term 'loop (ast/var-term x)))))])))
 
 (defn answer-terms
   [records]
@@ -469,6 +489,64 @@
       (is (= '() residuals-out))
       (is (proof/contains-step? proof 'structural-residual-priority-promote-demanded))
       (is (proof/contains-step? proof 'structural-residual-continuation)))))
+
+(deftest adr35-track-d-prunes-active-recursive-reentry
+  (testing "the fast residual continuation visited set rejects active self-recursion"
+    (let [program (track-d-recursive-program)
+          frontier (list (ast/neg-lit
+                           (ast/app-term 'loop (ast/app-term 'zero))))
+          [[sigma-out neqs-out residuals-out _proof]]
+          (scheduler-results
+            program
+            frontier
+            '()
+            '()
+            '()
+            16
+            2)
+          [_ fast-proof]
+          (first ((deref #'answer-overlay/fast-continuation-settle-residual-sequence)
+                  program
+                  {:subst {} :fuel 2}
+                  frontier))]
+      (is (seq sigma-out))
+      (is (= '() neqs-out))
+      (is (= '() residuals-out))
+      (is (proof/contains-step? fast-proof 'structural-residual-visited-enter))
+      (is (= 1 (count (proof-subtrees fast-proof 'structural-residual-call))))
+      (is (not (proof/contains-step? fast-proof 'constructor-recursive))))))
+
+(deftest adr35-track-d-leaves-active-key-after-success
+  (testing "sequential duplicate calls are not globally pruned after one call closes"
+    (let [program (track-d-recursive-program)
+          frontier (list (ast/neg-lit
+                           (ast/app-term 'twice (ast/app-term 'zero))))
+          [[sigma-out neqs-out residuals-out _proof]]
+          (scheduler-results
+            program
+            frontier
+            '()
+            '()
+            '()
+            16
+            4)
+          [_ fast-proof]
+          (first ((deref #'answer-overlay/fast-continuation-settle-residual-sequence)
+                  program
+                  {:subst {} :fuel 4}
+                  frontier))
+          calls (proof-subtrees fast-proof 'structural-residual-call)
+          loop-calls (filter (fn [call]
+                               (= 'loop (second (second call))))
+                             calls)]
+      (is (seq sigma-out))
+      (is (= '() neqs-out))
+      (is (= '() residuals-out))
+      (is (= 2 (count loop-calls)))
+      (is (every? #(proof/contains-step?
+                     %
+                     'structural-residual-visited-enter)
+                  loop-calls)))))
 
 (deftest adr35-raw-matrix-answers-use-relational-continuation-proofs
   (testing "completed raw matrix answers do not carry constructor-recursive sidecar proof tags"

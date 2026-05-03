@@ -1881,6 +1881,71 @@
                (map #(fast-continuation-walk-term sigma %) (nnext term)))
     term))
 
+(defn- fast-continuation-canonical-id
+  [ctx category prefix nom]
+  (let [mapping-key (keyword (str (name category) "s"))
+        next-key (keyword (str "next-" (name category)))]
+    (if-let [canonical (get-in ctx [mapping-key nom])]
+      [ctx canonical]
+      (let [idx (get ctx next-key 0)
+            canonical [prefix idx]]
+        [(-> ctx
+             (assoc-in [mapping-key nom] canonical)
+             (assoc next-key (inc idx)))
+         canonical]))))
+
+(defn- fast-continuation-canonical-var
+  [ctx nom]
+  (fast-continuation-canonical-id ctx :var :var nom))
+
+(defn- fast-continuation-canonical-par
+  [ctx nom]
+  (fast-continuation-canonical-id ctx :par :par nom))
+
+(defn- fast-continuation-canonical-term
+  [ctx term]
+  (case (ast/tag-of term)
+    var (fast-continuation-canonical-var ctx (second term))
+    par (fast-continuation-canonical-par ctx (second term))
+    app (let [[ctx args]
+              (reduce (fn [[ctx args] arg]
+                        (let [[ctx arg-key]
+                              (fast-continuation-canonical-term ctx arg)]
+                          [ctx (conj args arg-key)]))
+                      [ctx []]
+                      (nnext term))]
+          [ctx (into [:app (second term)] args)])
+    [ctx [:term term]]))
+
+(defn- fast-continuation-call-key
+  [atom]
+  (second (fast-continuation-canonical-term {} atom)))
+
+(defn- fast-continuation-l-ground-term?
+  "True when a walked continuation call contains only object-language terms."
+  [term]
+  (case (ast/tag-of term)
+    var false
+    par false
+    app (every? fast-continuation-l-ground-term? (nnext term))
+    false))
+
+(defn- fast-continuation-enter-call
+  [state atom]
+  (if-not (fast-continuation-l-ground-term? atom)
+    [state nil '(structural-residual-visited-open-call)]
+    (let [call-key (fast-continuation-call-key atom)]
+      (when-not (contains? (:active-calls state #{}) call-key)
+        [(update state :active-calls (fnil conj #{}) call-key)
+         call-key
+         '(structural-residual-visited-enter)]))))
+
+(defn- fast-continuation-leave-call
+  [state call-key]
+  (if call-key
+    (update state :active-calls disj call-key)
+    state))
+
 (defn- fast-continuation-occurs?
   [sigma binding-nom term]
   (let [term (fast-continuation-walk-term sigma term)]
@@ -2098,24 +2163,30 @@
 
 (defn- fast-continuation-solve-atom
   [program state atom]
-  (when-let [state (fast-continuation-step-fuel state)]
-    (let [atom (fast-continuation-walk-term (:subst state) atom)
-          relation (second atom)
-          args (vec (nnext atom))
-          {:keys [params guarded-alternatives]}
-          (fast-continuation-lookup-guarded-clause program relation)]
-      (when guarded-alternatives
-        (mapcat
-          (fn [guarded]
-            (for [[state proof]
-                  (fast-continuation-solve-alternative
-                    program
-                    state
-                    params
-                    args
-                    guarded)]
-              [state (list 'structural-residual-call atom proof)]))
-          guarded-alternatives)))))
+  (let [atom (fast-continuation-walk-term (:subst state) atom)]
+    (when-let [[state call-key visited-proof]
+               (fast-continuation-enter-call state atom)]
+      (when-let [state (fast-continuation-step-fuel state)]
+        (let [relation (second atom)
+              args (vec (nnext atom))
+              {:keys [params guarded-alternatives]}
+              (fast-continuation-lookup-guarded-clause program relation)]
+          (when guarded-alternatives
+            (mapcat
+              (fn [guarded]
+                (for [[state proof]
+                      (fast-continuation-solve-alternative
+                        program
+                        state
+                        params
+                        args
+                        guarded)]
+                  [(fast-continuation-leave-call state call-key)
+                   (list 'structural-residual-call
+                         atom
+                         visited-proof
+                         proof)]))
+              guarded-alternatives)))))))
 
 (defn- fast-continuation-self-binding?
   [[binding-nom term]]

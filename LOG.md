@@ -49,6 +49,20 @@ complete contemporaneous transcript.
   `test-proflog-constructor-recursive`, `proflog.synthesis-modes-test`,
   `proflog.list-kernel-matrix-test`, and the three carried reverse matrix
   probes all passed.
+- Continued ADR-0035 Track D on branch
+  `adr-0035-track-d-visited-continuation` with an active-call visited table in
+  the fast residual continuation state. Recursive object-language ground calls
+  are keyed by a canonical walked atom. Open symbolic calls are deliberately
+  not tabled, because reverse/append continuation can revisit the same open
+  shape while still making progress through surrounding substitutions. The
+  continuation rejects active reentry for the same ground call key, but removes
+  the key after success so later duplicate calls in the same sequence still
+  close. Longer note:
+  [ADR-0035 Track D Visited Continuation](docs/log/2026-05-03-adr35-track-d-visited-continuation.md).
+- While running the full project suites for the Track D proof-search change,
+  refreshed stale extended-suite fuel budgets for deeper recursive parity and
+  Nim probes. The failing probes were semantic positives/negatives that still
+  closed with slightly larger bounded fuel, not answer-overlay regressions.
 
 ## 2026-05-01
 

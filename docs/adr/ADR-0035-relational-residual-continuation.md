@@ -127,6 +127,18 @@ default scheduler now records `structural-residual-priority-*` proof evidence
 inside `structural-residual-scheduler-continue` and uses a soft cut so raw
 frontier export is considered only if prioritized continuation cannot close.
 
+Track D adds an active-call visited table to the fast residual continuation
+state. Object-language ground calls are keyed by the canonical walked atom.
+Open symbolic calls, including calls with unresolved internal parameters, are
+not tabled, because productive reverse/append continuation can revisit the
+same open shape while making progress through surrounding substitutions. The
+table rejects recursive reentry for a ground call already active on the
+continuation stack, then removes that key after a successful call returns so
+sequential duplicate calls are not globally pruned. This is a conservative
+cycle guard, not a full answer memo table; it bounds ground self-recursive
+continuation alternatives without changing the kernel or adding
+predicate-specific dispatch.
+
 ## Required Capabilities
 
 ### 1. Relational Structural Frontier Classification
@@ -345,4 +357,5 @@ Rejected alternatives:
 - [Three-Element Reverse Input-Synthesis Trace](../log/2026-05-01-three-element-reverse-trace.md)
 - [ADR-0035 Track B Guard Prefiltering](../log/2026-05-03-adr35-track-b-guard-prefilter.md)
 - [ADR-0035 Track C Structural Priority](../log/2026-05-03-adr35-track-c-structural-priority.md)
+- [ADR-0035 Track D Visited Continuation](../log/2026-05-03-adr35-track-d-visited-continuation.md)
 - [Greenfield Implementation Tutorial and Reference](../GREENFIELD_IMPLEMENTATION_TUTORIAL.md)

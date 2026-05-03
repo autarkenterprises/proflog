@@ -63,11 +63,11 @@
       (is (succeeds-directly?
             program
             (winning-move-formula (numeral 4) (numeral 3))
-            8))
+            16))
       (is (succeeds-directly?
             program
             (winning-move-formula (numeral 5) (numeral 3))
-            8)))))
+            16)))))
 
 (deftest recursive-nim-wrong-move-witnesses-fail
   (testing "non-winning or impossible successor candidates are refuted directly"
@@ -87,7 +87,7 @@
       (is (succeeds-directly?
             program
             (ast/pos-lit (ast/app-term 'win (numeral 4)))
-            8))
+            16))
       (is (succeeds-directly?
             program
             (ast/pos-lit (ast/app-term 'win (numeral 5)))

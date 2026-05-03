@@ -1,5 +1,6 @@
 (ns proflog.answers-test
-  (:require [clojure.core.logic :refer [run]]
+  (:refer-clojure :exclude [==])
+  (:require [clojure.core.logic :refer [== fresh run]]
             [clojure.test :refer [deftest is testing]]
             [proflog.answer-overlay :as answer-overlay]
             [proflog.answers :as answers]
@@ -393,6 +394,81 @@
             (is (not (proof/contains-step? agenda-proof forbidden-step))
                 (str forbidden-step
                      " should not appear inside the continuation agenda"))))))))
+
+(deftest adr35-track-c-prioritizes-constructor-demanded-residuals
+  (testing "the scheduler relation promotes a constructor-demanded residual without predicate-specific dispatch"
+    (let [x 'track-c-x
+          y 'track-c-y
+          program (completion-program)
+          symbolic-residual (ast/neg-lit
+                              (ast/app-term 'step
+                                            (ast/var-term x)
+                                            (ast/var-term y)))
+          demanded-residual (ast/neg-lit
+                              (ast/app-term 'step
+                                            (ast/var-term y)
+                                            (numeral 0)))
+          frontier (list symbolic-residual demanded-residual)
+          results (run 1 [out]
+                    (fresh [ordered proof]
+                      ((deref #'answer-overlay/prioritize-structural-residual-frontiero)
+                       program
+                       '()
+                       frontier
+                       ordered
+                       proof)
+                      (== out [ordered proof])))]
+      (is (= [[[demanded-residual symbolic-residual]
+               '(structural-residual-priority-promote-demanded)]]
+             results)))))
+
+(deftest adr35-track-c-scheduler-closes-with-priority-proof
+  (testing "priority scheduling preserves the completed answer state and records promoted demand evidence"
+    (let [x 'track-c-x
+          y 'track-c-y
+          program (completion-program)
+          symbolic-residual (ast/neg-lit
+                              (ast/app-term 'step
+                                            (ast/var-term x)
+                                            (ast/var-term y)))
+          demanded-residual (ast/neg-lit
+                              (ast/app-term 'step
+                                            (ast/var-term y)
+                                            (numeral 0)))
+          frontier (list symbolic-residual demanded-residual)
+          sigma '()
+          expected-bindings (select-keys
+                              (into {}
+                                    (:sigma
+                                      ((deref #'answer-overlay/fast-schedule-live-structural-frontier)
+                                       program
+                                       sigma
+                                       '()
+                                       (list demanded-residual symbolic-residual)
+                                       4)))
+                              [x y])
+          results (run 1 [out]
+                    (fresh [sigma-out neqs-out residuals-out proof]
+                      (answer-overlay/schedule-structural-residual-frontiero
+                        frontier
+                        '()
+                        sigma
+                        sigma-out
+                        '()
+                        neqs-out
+                        residuals-out
+                        program
+                        4
+                        4
+                        proof)
+                      (== out [sigma-out neqs-out residuals-out proof])))
+          [[sigma-out neqs-out residuals-out proof]] results]
+      (is (= expected-bindings
+             (select-keys (into {} sigma-out) [x y])))
+      (is (= '() neqs-out))
+      (is (= '() residuals-out))
+      (is (proof/contains-step? proof 'structural-residual-priority-promote-demanded))
+      (is (proof/contains-step? proof 'structural-residual-continuation)))))
 
 (deftest adr35-raw-matrix-answers-use-relational-continuation-proofs
   (testing "completed raw matrix answers do not carry constructor-recursive sidecar proof tags"

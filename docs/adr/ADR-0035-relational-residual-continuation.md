@@ -118,6 +118,15 @@ guards that would require extending the live disequality store remain outside
 this narrow gate until the broader raw continuation work adds explicit
 guard-level disequality threading.
 
+Track C adds ordered structural residual selection for the live scheduler.
+`prioritize-structural-residual-frontiero` keeps the selector generic over
+guarded-clause IR: it preserves an already demanded head residual, otherwise
+uses relational list selection to move a constructor-demanded negative call to
+the front while preserving the relative order of the remaining frontier. The
+default scheduler now records `structural-residual-priority-*` proof evidence
+inside `structural-residual-scheduler-continue` and uses a soft cut so raw
+frontier export is considered only if prioritized continuation cannot close.
+
 ## Required Capabilities
 
 ### 1. Relational Structural Frontier Classification
@@ -335,4 +344,5 @@ Rejected alternatives:
 - [Intensified List-Family Matrix](../log/2026-05-01-list-family-intensified-matrix.md)
 - [Three-Element Reverse Input-Synthesis Trace](../log/2026-05-01-three-element-reverse-trace.md)
 - [ADR-0035 Track B Guard Prefiltering](../log/2026-05-03-adr35-track-b-guard-prefilter.md)
+- [ADR-0035 Track C Structural Priority](../log/2026-05-03-adr35-track-c-structural-priority.md)
 - [Greenfield Implementation Tutorial and Reference](../GREENFIELD_IMPLEMENTATION_TUTORIAL.md)

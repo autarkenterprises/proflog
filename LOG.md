@@ -32,6 +32,15 @@ complete contemporaneous transcript.
   to show that an impossible guarded alternative is filtered before its calls
   are opened while a later viable alternative remains available. Longer note:
   [ADR-0035 Track B Guard Prefiltering](docs/log/2026-05-03-adr35-track-b-guard-prefilter.md).
+- Continued ADR-0035 Track C on branch
+  `adr-0035-track-c-structural-priority` with a generic structural residual
+  priority selector. `proflog.answer-overlay/prioritize-structural-residual-frontiero`
+  preserves an already demanded frontier head, otherwise promotes the first
+  constructor-demanded negative residual ahead of less informative symbolic
+  residuals without dispatching on predicate or constructor names. The
+  scheduler uses a soft cut so raw export is only considered after prioritized
+  continuation fails. Longer note:
+  [ADR-0035 Track C Structural Priority](docs/log/2026-05-03-adr35-track-c-structural-priority.md).
 
 ## 2026-05-01
 

@@ -1,5 +1,6 @@
 (ns proflog.answers-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.core.logic :refer [run]]
+            [clojure.test :refer [deftest is testing]]
             [proflog.answer-overlay :as answer-overlay]
             [proflog.answers :as answers]
             [proflog.ast :as ast]
@@ -28,6 +29,12 @@
     {:constants ['zero]
      :functions {'s 1}
      :relations {'step 2}}))
+
+(def track-a-language
+  (language/language
+    {:constants ['zero]
+     :functions {'s 1}
+     :relations {'descend 2}}))
 
 (defn numeral
   [n]
@@ -108,6 +115,26 @@
                                                (ast/app-term 's
                                                              (ast/var-term y))))))])))
 
+(defn track-a-recursive-program
+  []
+  (ast/nom x y predecessor
+    (language/compile-program
+      track-a-language
+      [(ast/clause 'descend [x y]
+                   (ast/or-form
+                     (ast/eq-lit (ast/var-term x)
+                                 (ast/var-term y))
+                     (ast/exists-form predecessor
+                                      (ast/and-form
+                                        (ast/eq-lit
+                                          (ast/var-term x)
+                                          (ast/app-term 's
+                                                        (ast/var-term predecessor)))
+                                        (ast/pos-lit
+                                          (ast/app-term 'descend
+                                                        (ast/var-term predecessor)
+                                                        (ast/var-term y)))))))])))
+
 (defn answer-terms
   [records]
   (mapv (fn [record]
@@ -118,6 +145,29 @@
   [formula]
   (and (= 'neq (ast/tag-of formula))
        (= (second formula) (nth formula 2))))
+
+(defn proof-subtrees
+  [proof step]
+  (filter (fn [node]
+            (and (coll? node)
+                 (= step (first node))))
+          (tree-seq coll? seq proof)))
+
+(defn scheduler-results
+  [program frontier proof-vars sigma neqs proof-fuel continuation-fuel]
+  (run 1 [sigma-out neqs-out residuals-out proof]
+    (answer-overlay/schedule-structural-residual-frontiero
+      frontier
+      proof-vars
+      sigma
+      sigma-out
+      neqs
+      neqs-out
+      residuals-out
+      program
+      proof-fuel
+      continuation-fuel
+      proof)))
 
 (defn- matrix-answer-records-for-config
   [{:keys [query answer-vars fuel raw-limit call-depth]}]
@@ -290,6 +340,59 @@
         (is (not (structurally-completable? program symbolic-record)))
         (is (structurally-completable? program demanded-record))
         (is (structurally-completable? program chained-demand-record))))))
+
+(deftest track-a-continuation-agenda-uses-independent-fuel
+  (testing "the live residual scheduler exports on exhausted continuation fuel and closes with its own fuel budget"
+    (ast/nom q
+      (let [program (track-a-recursive-program)
+            frontier (list (ast/neg-lit
+                             (ast/app-term 'descend
+                                           (ast/var-term q)
+                                           (ast/app-term 'zero))))
+            sigma (list [q (numeral 2)])
+            neqs '()]
+        (doseq [continuation-fuel [0 1]]
+          (let [[[sigma-out neqs-out residuals-out proof]]
+                (scheduler-results
+                  program
+                  frontier
+                  [q]
+                  sigma
+                  neqs
+                  64
+                  continuation-fuel)]
+            (is (= [(numeral 2)] (mapv second sigma-out)))
+            (is (= neqs neqs-out))
+            (is (= ['descend] (mapv (comp second second) residuals-out)))
+            (is (proof/contains-step? proof 'structural-residual-scheduler-export))
+            (is (not (proof/contains-step? proof 'structural-residual-scheduler-continue)))))
+        (let [[[sigma-out neqs-out residuals-out proof]]
+              (scheduler-results
+                program
+                frontier
+                [q]
+                sigma
+                neqs
+                0
+                4)
+              agenda-proofs (proof-subtrees proof
+                                            'structural-residual-continuation-agenda)]
+          (is (seq sigma-out))
+          (is (= neqs neqs-out))
+          (is (= '() residuals-out))
+          (is (proof/contains-step? proof 'structural-residual-scheduler-continue))
+          (is (proof/contains-step? proof 'structural-residual-continuation-agenda))
+          (is (proof/contains-step? proof 'structural-residual-continuation-fuel))
+          (is (not (proof/contains-step? proof 'constructor-recursive)))
+          (is (seq agenda-proofs))
+          (doseq [agenda-proof agenda-proofs
+                  forbidden-step ['defer-call
+                                  'guarded-call-seq-defer
+                                  'eq-triggered-residual-call
+                                  'eq-triggered-residual-neg-call]]
+            (is (not (proof/contains-step? agenda-proof forbidden-step))
+                (str forbidden-step
+                     " should not appear inside the continuation agenda"))))))))
 
 (deftest adr35-raw-matrix-answers-use-relational-continuation-proofs
   (testing "completed raw matrix answers do not carry constructor-recursive sidecar proof tags"

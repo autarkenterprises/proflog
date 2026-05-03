@@ -1094,44 +1094,67 @@
      call-depth
      {:schedule-residual-continuation? true}))
   ([program formula checked-answer-vars fuel raw-limit call-depth
-    {:keys [schedule-residual-continuation?]
-     :or {schedule-residual-continuation? true}}]
+    {:keys [schedule-residual-continuation? residual-continuation-fuel]
+     :or {schedule-residual-continuation? true
+          residual-continuation-fuel default-residual-completion-fuel}}]
    (let [query-entry? (and (#{'pos 'neg} (ast/tag-of formula))
                            (some? (lookup-clause program
                                                  (second (second formula)))))
-         query-entryo (if schedule-residual-continuation?
-                        answer-overlay/prove-program-query-entry-scheduledo
-                        answer-overlay/prove-program-query-entryo)
-         general-answero (if schedule-residual-continuation?
-                           answer-overlay/prove-program-answer-scheduledo
-                           answer-overlay/prove-program-answero)]
+         continuation-fuel residual-continuation-fuel]
      (vec
        (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
          (== answer-vars-out checked-answer-vars)
          (if query-entry?
-           (query-entryo
-             formula
-             checked-answer-vars
-             program
-             sigma-out
-             neqs-out
-             residuals-out
-             fuel
-             call-depth
-             proof)
-           (general-answero
-             formula
-             '()
-             '()
-             '()
-             checked-answer-vars
-             program
-             sigma-out
-             neqs-out
-             residuals-out
-             fuel
-             call-depth
-             proof)))))))
+           (if schedule-residual-continuation?
+             (answer-overlay/prove-program-query-entry-scheduledo
+               formula
+               checked-answer-vars
+               program
+               sigma-out
+               neqs-out
+               residuals-out
+               fuel
+               call-depth
+               continuation-fuel
+               proof)
+             (answer-overlay/prove-program-query-entryo
+               formula
+               checked-answer-vars
+               program
+               sigma-out
+               neqs-out
+               residuals-out
+               fuel
+               call-depth
+               proof))
+           (if schedule-residual-continuation?
+             (answer-overlay/prove-program-answer-scheduledo
+               formula
+               '()
+               '()
+               '()
+               checked-answer-vars
+               program
+               sigma-out
+               neqs-out
+               residuals-out
+               fuel
+               call-depth
+               continuation-fuel
+               proof)
+             (answer-overlay/prove-program-answero
+               formula
+               '()
+               '()
+               '()
+               checked-answer-vars
+               program
+               sigma-out
+               neqs-out
+               residuals-out
+               fuel
+               call-depth
+               proof))))))))
 
 (defn- export-program-answer-record
   "Export one raw query proof state against `program`'s language."
@@ -1230,7 +1253,8 @@
 
    The caller supplies an already-validated `formula`; no extra negation or
    call unfolding happens here."
-  [program formula checked-answer-vars {:keys [fuel proof-limit max-raw-proof-limit call-depth]}]
+  [program formula checked-answer-vars
+   {:keys [fuel proof-limit max-raw-proof-limit call-depth residual-continuation-fuel]}]
   (collect-answer-records
     proof-limit
     max-raw-proof-limit
@@ -1241,12 +1265,14 @@
         checked-answer-vars
         fuel
         raw-limit
-        call-depth))
+        call-depth
+        {:residual-continuation-fuel residual-continuation-fuel}))
     (fn [raw-state]
       (export-program-answer-record
         program
         checked-answer-vars
-        raw-state))))
+        raw-state
+        {:residual-completion-fuel residual-continuation-fuel}))))
 
 (defn- staged-query-formula
   "Prepare the formula searched at one open-answer stage.
@@ -1320,9 +1346,11 @@
    frontier so concrete closed answers can displace shallower residual ones."
   ([program query answer-vars]
    (query-answers program query answer-vars {}))
-  ([program query answer-vars {:keys [call-depth fuel proof-limit max-raw-proof-limit]
+  ([program query answer-vars {:keys [call-depth fuel proof-limit max-raw-proof-limit
+                                      residual-continuation-fuel]
                                :or {proof-limit 10
-                                    call-depth 1}}]
+                                    call-depth 1
+                                    residual-continuation-fuel default-residual-completion-fuel}}]
    (let [checked-query (language/validate-query (:language program) query)
          checked-answer-vars (validate-answer-vars checked-query answer-vars)
          negated-query (normalize/negate-formula checked-query)
@@ -1347,6 +1375,7 @@
                 checked-answer-vars
                 {:call-depth call-depth
                  :fuel fuel
+                 :residual-continuation-fuel residual-continuation-fuel
                  :proof-limit proof-limit
                  :max-raw-proof-limit max-raw-proof-limit}))
             merge-answer-records

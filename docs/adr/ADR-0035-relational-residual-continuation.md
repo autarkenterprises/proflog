@@ -1,6 +1,6 @@
 # ADR-0035: Relational Structural Residual Continuation
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-05-01
 - Branch: `adr-0035-relational-residual-continuation`
 - AAR: pending
@@ -75,6 +75,31 @@ The accepted implementation must:
 
 Production code must remain generic. It may not dispatch on `append`,
 `reverse`, `cons`, `null`, or any other named list-family symbol.
+
+## Implementation Status
+
+The current implementation removes the ordinary answer-path dependency on
+`proflog.kernel.constructor-recursive/settle-record` for the promoted
+ADR-0033/ADR-0035 rows.
+
+The production path is a conservative answer-overlay scheduler:
+
+- `proflog.answer-overlay/schedule-structural-residual-frontiero` runs before
+  answer export while `sigma`, `neqs`, and the residual frontier are still
+  live;
+- it fires only for structurally productive negative-call frontiers;
+- it emits compact `structural-residual-scheduler-continue` /
+  `structural-residual-continuation` proof evidence;
+- diagnostics can opt out and still expose the raw unresolved frontier; and
+- `proflog.answer-overlay/continue-exported-structural-recordo` remains as a
+  post-export compatibility fallback.
+
+This is sidecar-independent and generic over guarded-clause IR, but it is not
+yet the fully enumerating raw `core.logic` continuation described as the ideal
+above. Directly wiring `continue-structural-residualso` into the default answer
+path still reopens too much search on the focused reverse-input row. That
+relation remains as the follow-up target for enumerating multiple residual
+completions from one live frontier.
 
 ## Required Capabilities
 

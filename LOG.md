@@ -160,6 +160,27 @@ complete contemporaneous transcript.
   temporary diagnostic/oracle, but its exit criteria require the promoted
   ADR-0033 rows to pass with sidecar settlement disabled and with ordinary
   answer-overlay proof evidence.
+- Accepted ADR-0035 and started implementation with sidecar-disabled matrix
+  regressions plus raw proof-shape checks. These tests make the semantic
+  requirement explicit: promoted rows must close through relational
+  answer-overlay proof search, not by post-export constructor-recursive
+  settlement.
+- Continued ADR-0035 with a sidecar-independent structural continuation
+  scheduler in `proflog.answer-overlay` for ordinary answer search. The
+  promoted rows pass with `constructor-recursive/settle-record` redefined to
+  throw, public proof records carry compact
+  `structural-residual-scheduler-continue` /
+  `structural-residual-continuation` evidence instead of
+  `constructor-recursive-*` tags, and diagnostics can still opt out to expose
+  unresolved raw frontiers. The scheduler lives next to the answer-mode agenda
+  machinery, runs before answer export while `sigma`, `neqs`, and residuals are
+  still live, and leaves `proflog.kernel` readable and unchanged. The broader
+  raw live-state `core.logic` enumerator remains a follow-up because direct use
+  still reopens too much search; the scheduled current path is first-success
+  and is not yet complete for programs whose residual frontier should enumerate
+  multiple distinct completions for one answer record.
+  Longer note:
+  [ADR-0035 Sidecar-Independent Structural Continuation](docs/log/2026-05-01-adr35-sidecar-independent-continuation.md).
 
 ## 2026-04-30
 

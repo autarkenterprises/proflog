@@ -14,7 +14,6 @@
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.kernel :as kernel]
-            [proflog.kernel.constructor-recursive :as constructor-recursive]
             [proflog.language :as language]
             [proflog.normalize :as normalize]
             [proflog.proof :as proof]
@@ -83,7 +82,7 @@
                  (into terms-up-to exact-next)
                  exact-next))))))
 
-(declare free-vars-formula materialize-ground-query-records)
+(declare export-answer-record free-vars-formula materialize-ground-query-records)
 
 (defn- free-vars-term
   "Collect the free object-language variable noms mentioned in `term`."
@@ -810,7 +809,7 @@
    ADR-0033 residual completion should not turn a wholly symbolic recursive
    family such as `odd(_0)` into a single enumerated witness. It should only
    continue residual calls whose arguments contain real object-language
-   structure that can drive guarded constructor-recursive descent."
+   structure that can drive guarded structural continuation."
   [term]
   (case (ast/tag-of term)
     app true
@@ -831,11 +830,11 @@
     (boolean (some constructor-demand-term? (nnext atom)))))
 
 (defn- structurally-completable-record?
-  "Conservatively decide whether constructor-recursive settlement is warranted.
+  "Conservatively decide whether residual continuation is warranted.
 
-   The settlement layer is generic, but it is still a search. We only invoke it
-   for records whose entire procedural frontier consists of negative calls to
-   relations defined by this program and whose frontier exposes constructor
+   Structural continuation is generic, but it is still a search. We only invoke
+   it for records whose entire procedural frontier consists of negative calls
+   to relations defined by this program and whose frontier exposes constructor
    demand somewhere.
    This keeps open symbolic families as residuals while allowing carried answer
    variables under constructor constraints to continue."
@@ -847,16 +846,31 @@
 
 (def ^:private default-residual-completion-fuel 96)
 
+(defn- restore-answer-binding-noms
+  [original-record continued-record]
+  (assoc continued-record
+         :bindings
+         (mapv (fn [[binding-nom _] [_ term]]
+                 [binding-nom term])
+               (:bindings original-record)
+               (:bindings continued-record))))
+
 (defn- complete-structural-residuals
-  [program record {:keys [complete-residuals? residual-completion-fuel]
-                   :or {complete-residuals? true
-                        residual-completion-fuel default-residual-completion-fuel}}]
+  [program record
+   {:keys [complete-residuals? residual-completion-fuel]
+    :or {complete-residuals? true
+         residual-completion-fuel default-residual-completion-fuel}}]
   (if (and complete-residuals?
            (structurally-completable-record? program record))
-    (constructor-recursive/settle-record
-      program
-      record
-      {:fuel residual-completion-fuel})
+    (or (some->> (first
+                   (run 1 [continued-record]
+                     (answer-overlay/continue-exported-structural-recordo
+                       program
+                       record
+                       continued-record
+                       residual-completion-fuel)))
+                 (restore-answer-binding-noms record))
+        record)
     record))
 
 (defn- export-answer-record
@@ -1070,35 +1084,54 @@
 
 (defn- program-raw-answer-states
   "Return up to `raw-limit` raw kernel proof states for one query formula."
-  [program formula checked-answer-vars fuel raw-limit call-depth]
-  (vec
-    (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
-      (== answer-vars-out checked-answer-vars)
-      (if (and (#{'pos 'neg} (ast/tag-of formula))
-               (some? (lookup-clause program (second (second formula)))))
-        (answer-overlay/prove-program-query-entryo
-          formula
-          checked-answer-vars
-          program
-          sigma-out
-          neqs-out
-          residuals-out
-          fuel
-          call-depth
-          proof)
-        (answer-overlay/prove-program-answero
-          formula
-          '()
-          '()
-          '()
-          checked-answer-vars
-          program
-          sigma-out
-          neqs-out
-          residuals-out
-          fuel
-          call-depth
-          proof)))))
+  ([program formula checked-answer-vars fuel raw-limit call-depth]
+   (program-raw-answer-states
+     program
+     formula
+     checked-answer-vars
+     fuel
+     raw-limit
+     call-depth
+     {:schedule-residual-continuation? true}))
+  ([program formula checked-answer-vars fuel raw-limit call-depth
+    {:keys [schedule-residual-continuation?]
+     :or {schedule-residual-continuation? true}}]
+   (let [query-entry? (and (#{'pos 'neg} (ast/tag-of formula))
+                           (some? (lookup-clause program
+                                                 (second (second formula)))))
+         query-entryo (if schedule-residual-continuation?
+                        answer-overlay/prove-program-query-entry-scheduledo
+                        answer-overlay/prove-program-query-entryo)
+         general-answero (if schedule-residual-continuation?
+                           answer-overlay/prove-program-answer-scheduledo
+                           answer-overlay/prove-program-answero)]
+     (vec
+       (run raw-limit [answer-vars-out sigma-out neqs-out residuals-out proof]
+         (== answer-vars-out checked-answer-vars)
+         (if query-entry?
+           (query-entryo
+             formula
+             checked-answer-vars
+             program
+             sigma-out
+             neqs-out
+             residuals-out
+             fuel
+             call-depth
+             proof)
+           (general-answero
+             formula
+             '()
+             '()
+             '()
+             checked-answer-vars
+             program
+             sigma-out
+             neqs-out
+             residuals-out
+             fuel
+             call-depth
+             proof)))))))
 
 (defn- export-program-answer-record
   "Export one raw query proof state against `program`'s language."
@@ -1113,7 +1146,10 @@
                        neqs-out
                        residuals-out
                        proof)]
-     (complete-structural-residuals program record opts))))
+     (complete-structural-residuals
+       program
+       record
+       opts))))
 
 (defn- summarize-proof-signature
   "Trim a proof-step signature for diagnostics output."
@@ -1160,7 +1196,8 @@
                       checked-answer-vars
                       fuel
                       raw-limit
-                      call-depth)
+                      call-depth
+                      {:schedule-residual-continuation? false})
         exported-records (->> raw-results
                               (map #(export-program-answer-record
                                       program

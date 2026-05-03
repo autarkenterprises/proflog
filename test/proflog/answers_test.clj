@@ -3,9 +3,12 @@
             [proflog.answer-overlay :as answer-overlay]
             [proflog.answers :as answers]
             [proflog.ast :as ast]
+            [proflog.kernel.constructor-recursive :as constructor-recursive]
             [proflog.language :as language]
+            [proflog.list-kernel-matrix-probe :as matrix]
             [proflog.list-programs-test :as lp]
             [proflog.normalize :as normalize]
+            [proflog.proof :as proof]
             [proflog.recursive-synthesis-test :as rst]))
 
 (def answer-language
@@ -115,6 +118,32 @@
   [formula]
   (and (= 'neq (ast/tag-of formula))
        (= (second formula) (nth formula 2))))
+
+(defn- matrix-answer-records-for-config
+  [{:keys [query answer-vars fuel raw-limit call-depth]}]
+  (let [program (matrix/list-program)
+        negated-query (normalize/negate-formula
+                        (language/validate-query (:language program) query))
+        raw-states ((deref #'answers/program-raw-answer-states)
+                    program
+                    negated-query
+                    answer-vars
+                    fuel
+                    raw-limit
+                    call-depth)
+        exported (->> raw-states
+                      (map #((deref #'answers/export-program-answer-record)
+                              program
+                              answer-vars
+                              %))
+                      (keep identity)
+                      vec)]
+    ((deref #'answers/prioritize-answer-records)
+     ((deref #'answers/merge-answer-records) exported))))
+
+(defn matrix-answer-records
+  [case-id]
+  (matrix-answer-records-for-config (matrix/case-config case-id)))
 
 (deftest bounded-ground-enumerator-follows-constructor-depth
   (testing "ground term generation stays inside the declared language and depth bound"
@@ -228,7 +257,7 @@
           (is (pos? @general-answer-calls)))))))
 
 (deftest adr33-structural-completion-requires-constructor-demand
-  (testing "wholly symbolic residual families stay residual, but demanded frontiers can complete"
+  (testing "wholly symbolic residual families stay residual, but demanded frontiers are structurally identified"
     (ast/nom x y
       (let [program (completion-program)
             symbolic-record
@@ -257,19 +286,37 @@
                                          (numeral 0)))]
              :proofs ['raw-frontier]}
             structurally-completable?
-            (deref #'answers/structurally-completable-record?)
-            complete
-            (deref #'answers/complete-structural-residuals)]
+            (deref #'answers/structurally-completable-record?)]
         (is (not (structurally-completable? program symbolic-record)))
         (is (structurally-completable? program demanded-record))
-        (is (structurally-completable? program chained-demand-record))
-        (let [completed (complete program
-                                  demanded-record
-                                  {:residual-completion-fuel 16})
-              completed-term (answers/binding-term completed x)]
-          (is (empty? (:residuals completed)))
-          (is (contains? #{(numeral 2) (numeral 3)}
-                         completed-term)))))))
+        (is (structurally-completable? program chained-demand-record))))))
+
+(deftest adr35-raw-matrix-answers-use-relational-continuation-proofs
+  (testing "completed raw matrix answers do not carry constructor-recursive sidecar proof tags"
+    (with-redefs [constructor-recursive/settle-record
+                  (fn [& _]
+                    (throw (ex-info "ADR-35 raw answers must not call sidecar settlement"
+                                    {})))]
+      (let [{:keys [answer-vars target-bindings] :as config}
+            (matrix/case-config :reverse-input-flat-longer)
+            target-bindings (set target-bindings)
+            records (matrix-answer-records-for-config config)
+            target-record (some (fn [record]
+                                  (let [bindings (mapv (fn [answer-var]
+                                                         [answer-var
+                                                          (answers/binding-term record answer-var)])
+                                                       answer-vars)]
+                                    (when (and (empty? (:residuals record))
+                                               (contains? target-bindings bindings))
+                                      record)))
+                                records)]
+        (is target-record)
+        (is (some #(proof/contains-step? % 'structural-residual-scheduler-continue)
+                  (:proofs target-record)))
+        (is (some #(proof/contains-step? % 'structural-residual-continuation)
+                  (:proofs target-record)))
+        (is (not-any? #(proof/contains-step? % 'constructor-recursive)
+                      (:proofs target-record)))))))
 
 (deftest query-stage-diagnostics-summarize-proof-families
   (testing "stage diagnostics expose duplicate exported answers and proof-family summaries"

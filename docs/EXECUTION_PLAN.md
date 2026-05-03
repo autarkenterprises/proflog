@@ -81,7 +81,7 @@ test/proflog/oracle/herbrand_test.clj
 | [ADR-0032](adr/ADR-0032-core-logic-performance.md) | accepted | `adr-0032-core-logic-performance` | generic host-language performance and deployment work for the carried ADR-0031 list-family failures | ADR-0031 | runtime host verification, source-overlay deployment, count probes, and carried matrix/synthesis probes | host-level `core.logic` experiments are credited only with runtime verification and broad carried-row improvement; current evidence points back to the proof/answer frontier |
 | [ADR-0033](adr/ADR-0033-structural-answer-variable-recursion.md) | accepted | `adr-0033-structural-answer-variable-recursion` | structural answer-variable recursion and residual completion for the carried ADR-0031 list-family failures | ADR-0032 | exact legacy/greenfield failure traces, structural safety tests, carried raw reverse rows, synthesis modes, and fast/constructor-recursive suites | the ordinary raw answer path keeps structurally safe answer variables live across recursive descent, completes procedural residuals before export, and closes the carried rows without list-specific materialization or projection |
 | [ADR-0034](adr/ADR-0034-greenfield-implementation-tutorial.md) | accepted | `adr-0034-greenfield-implementation-tutorial-docs` | comprehensive greenfield implementation tutorial and reference | ADR-0033 | documentation-only review of the current source/docs stack | [Greenfield Implementation Tutorial and Reference](GREENFIELD_IMPLEMENTATION_TUTORIAL.md) explains the full implementation stack, cross-layer data flow, diagnostics, and test surfaces |
-| [ADR-0035](adr/ADR-0035-relational-residual-continuation.md) | proposed | `adr-0035-relational-residual-continuation` | relational structural residual continuation in the answer overlay | ADR-0033 | sidecar-disabled ADR-0033 matrix rows, proof-shape tests, raw diagnostics, and non-list constructor recursion | promoted list-family rows close through relational answer-overlay proof search without ordinary answer-path dependence on the constructor-recursive sidecar |
+| [ADR-0035](adr/ADR-0035-relational-residual-continuation.md) | accepted | `adr-0035-relational-residual-continuation` | relational structural residual continuation in the answer overlay | ADR-0033 | sidecar-disabled ADR-0033 matrix rows, proof-shape tests, raw diagnostics, and non-list constructor recursion | promoted list-family rows now close through a pre-export answer-overlay residual scheduler without ordinary answer-path dependence on the constructor-recursive sidecar; diagnostics can still expose raw frontiers, and the fully enumerating raw live-state continuation remains a follow-up |
 
 ## Deferred Tracks
 
@@ -115,7 +115,7 @@ List-family kernel generalization has graduated into accepted ADR-0031.
 Structural answer-variable recursion has graduated into accepted ADR-0033.
 The greenfield implementation tutorial reference has graduated into accepted
 ADR-0034.
-Relational residual continuation has been proposed as ADR-0035.
+Relational residual continuation has graduated into accepted ADR-0035.
 
 ## ADR-0007 Task List
 

@@ -20,6 +20,19 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-03
+
+- Continued ADR-0035 Track B on branch `adr-0035-track-b-guard-prefilter` with
+  a relational guard-prefilter for raw live-state structural continuation.
+  `proflog.answer-overlay/prefilter-structural-guardso` now gates guarded
+  alternatives before recursive descent, saturating equality guards through
+  `equality/unify-termo`, preserving proof-variable binding discipline and
+  saved-disequality stability, and accepting only rigid constructor
+  disequality guards. Focused tests use a generic sentinel recursive relation
+  to show that an impossible guarded alternative is filtered before its calls
+  are opened while a later viable alternative remains available. Longer note:
+  [ADR-0035 Track B Guard Prefiltering](docs/log/2026-05-03-adr35-track-b-guard-prefilter.md).
+
 ## 2026-05-01
 
 - Accepted [ADR-0032](docs/adr/ADR-0032-core-logic-performance.md) on branch

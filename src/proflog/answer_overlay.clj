@@ -1232,6 +1232,58 @@
 (declare close-structural-atomo
          close-structural-neg-call-sequenceo)
 
+(defn- prefilter-structural-guardso
+  "Reject guarded alternatives whose guards cannot hold before descending into
+   their recursive calls.
+
+   Equality guards are saturated relationally and may extend `sigma`.
+   Disequality guards are accepted only when constructor structure makes them
+   rigidly true under the current substitution. Symbolic disequalities remain
+   outside this narrow prefilter until the raw continuation grows an explicit
+   guard-level disequality store."
+  [guards env proof-vars sigma sigma-out neqs proof]
+  (conde
+    [(== '() guards)
+     (== sigma sigma-out)
+     (== '(structural-residual-guard-prefilter-done) proof)]
+    [(fresh [guard rest lit left right sigma-mid new-bindings step-proof tail-proof]
+       (== (lcons guard rest) guards)
+       (subst/subst-formulao guard env lit)
+       (== (list 'eq left right) lit)
+       (equality/unify-termo left right sigma sigma-mid step-proof)
+       (appendo new-bindings sigma sigma-mid)
+       (support/proof-bindingso new-bindings proof-vars)
+       (support/stable-neqso neqs sigma-mid)
+       (prefilter-structural-guardso
+         rest
+         env
+         proof-vars
+         sigma-mid
+         sigma-out
+         neqs
+         tail-proof)
+       (== (list 'structural-residual-guard-prefilter-eq
+                 step-proof
+                 tail-proof)
+           proof))]
+    [(fresh [guard rest lit left right tail-proof]
+       (== (lcons guard rest) guards)
+       (subst/subst-formulao guard env lit)
+       (== (list 'neq left right) lit)
+       (support/rigid-different-termo left right sigma)
+       (prefilter-structural-guardso
+         rest
+         env
+         proof-vars
+         sigma
+         sigma-out
+         neqs
+         tail-proof)
+       (== (list 'structural-residual-guard-prefilter-neq-rigid
+                 '(rigid-different)
+                 tail-proof)
+           proof))]))
+
 (defn- close-structural-guarded-alternativeo
   "Close one guarded alternative in residual-continuation mode.
 
@@ -1253,7 +1305,7 @@
           sigma-after-calls
           neqs-after-calls
           scope-proof
-          guard-proof
+          prefilter-proof
           call-proof
           residual-proof]
     (guarded-alternative-fieldso
@@ -1265,7 +1317,8 @@
       negated-ordered-conjuncts)
     (== (list 'structural-residual-guarded-alt
               scope-proof
-              guard-proof
+              (list 'structural-residual-guard-prefilter
+                    prefilter-proof)
               call-proof
               residual-proof)
         proof)
@@ -1276,14 +1329,14 @@
       scoped-env
       scoped-proof-vars
       scope-proof)
-    (saturate-eq-guardso
+    (prefilter-structural-guardso
       guards
       scoped-env
       scoped-proof-vars
       sigma
       sigma-after-guards
       neqs
-      guard-proof)
+      prefilter-proof)
     (close-structural-neg-call-sequenceo
       negated-calls
       scoped-env

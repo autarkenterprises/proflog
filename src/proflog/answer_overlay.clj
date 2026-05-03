@@ -19,7 +19,7 @@
    branch-closing machinery, plus extra exported state describing what the
    branch learned before it chose to stop unfolding recursive calls."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [== appendo conde fail fresh lcons membero project run]]
+  (:require [clojure.core.logic :refer [== appendo conda conde fail fresh lcons membero project run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -1544,11 +1544,51 @@
               (= 'app (ast/tag-of (live-continuation-walk-term sigma term))))
             (nnext atom)))))
 
+(defn- live-continuation-demanded-negative-call?
+  [program sigma formula]
+  (and (live-continuation-defined-negative-call? program formula)
+       (live-continuation-constructor-demand? sigma formula)))
+
 (defn- live-continuable-frontier?
   [program sigma frontier]
   (and (seq frontier)
        (every? #(live-continuation-defined-negative-call? program %) frontier)
        (some #(live-continuation-constructor-demand? sigma %) frontier)))
+
+(defn- demanded-negative-callo
+  "Relation-adjacent scheduler guard for the concrete live-state boundary.
+
+   The surrounding selector is relational (`conde` + `appendo`) and does not
+   score or name predicates. The only host check here is the existing structural
+   demand classifier over the projected live `sigma` and one concrete residual."
+  [program sigma formula]
+  (project [sigma formula]
+    (if (live-continuation-demanded-negative-call? program sigma formula)
+      (== true true)
+      fail)))
+
+(defn- prioritize-structural-residual-frontiero
+  "Relationally prefer a constructor-demanded residual as the next continuation
+   obligation.
+
+   This keeps the selector generic: it never dispatches on relation or
+   constructor names. If the frontier already starts with a demanded residual,
+   it preserves the original order. Otherwise it uses `appendo` to select a
+   demanded residual from later in the frontier and moves that one obligation
+   to the front while preserving the relative order of the remaining residuals."
+  [program sigma frontier ordered-frontier proof]
+  (conde
+    [(fresh [head tail]
+       (== (lcons head tail) frontier)
+       (demanded-negative-callo program sigma head)
+       (== frontier ordered-frontier)
+       (== '(structural-residual-priority-head-demand) proof))]
+    [(fresh [prefix selected suffix rest]
+       (appendo prefix (lcons selected suffix) frontier)
+       (demanded-negative-callo program sigma selected)
+       (appendo prefix suffix rest)
+       (== (lcons selected rest) ordered-frontier)
+       (== '(structural-residual-priority-promote-demanded) proof))]))
 
 (declare fast-schedule-live-structural-frontier)
 
@@ -1562,8 +1602,15 @@
    diagnostics/export. The guard is intentionally conservative so ordinary
    proof search and the kernel rules remain visible."
   [frontier _proof-vars sigma sigma-out neqs neqs-out residuals-out prog fuel proof]
-  (conde
-    [(project [frontier sigma neqs]
+  (conda
+    [(fresh [ordered-frontier priority-proof]
+       (prioritize-structural-residual-frontiero
+         prog
+         sigma
+         frontier
+         ordered-frontier
+         priority-proof)
+       (project [frontier ordered-frontier sigma neqs]
        (if (live-continuable-frontier? prog sigma frontier)
          (if-let [{continued-sigma :sigma
                    continued-neqs :neqs
@@ -1572,19 +1619,20 @@
                     prog
                     sigma
                     neqs
-                    frontier
+                    ordered-frontier
                     fuel)]
            (fresh []
              (== continued-sigma sigma-out)
              (== continued-neqs neqs-out)
              (== '() residuals-out)
              (== (list 'structural-residual-scheduler-continue
+                       priority-proof
                        (list 'structural-residual-continuation
                              (list 'structural-residual-frontier-closed
                                    frontier-count)))
                  proof))
            fail)
-         fail))]
+         fail)))]
     [(== sigma sigma-out)
      (== neqs neqs-out)
      (== frontier residuals-out)

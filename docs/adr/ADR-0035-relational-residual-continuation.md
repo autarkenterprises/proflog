@@ -101,6 +101,15 @@ path still reopens too much search on the focused reverse-input row. That
 relation remains as the follow-up target for enumerating multiple residual
 completions from one live frontier.
 
+Track C adds ordered structural residual selection for the live scheduler.
+`prioritize-structural-residual-frontiero` keeps the selector generic over
+guarded-clause IR: it preserves an already demanded head residual, otherwise
+uses relational list selection to move a constructor-demanded negative call to
+the front while preserving the relative order of the remaining frontier. The
+default scheduler now records `structural-residual-priority-*` proof evidence
+inside `structural-residual-scheduler-continue` and uses a soft cut so raw
+frontier export is considered only if prioritized continuation cannot close.
+
 ## Required Capabilities
 
 ### 1. Relational Structural Frontier Classification
@@ -317,4 +326,5 @@ Rejected alternatives:
 - [ADR-33 Structural Completion Progress](../log/2026-05-01-adr33-structural-completion-progress.md)
 - [Intensified List-Family Matrix](../log/2026-05-01-list-family-intensified-matrix.md)
 - [Three-Element Reverse Input-Synthesis Trace](../log/2026-05-01-three-element-reverse-trace.md)
+- [ADR-0035 Track C Structural Priority](../log/2026-05-03-adr35-track-c-structural-priority.md)
 - [Greenfield Implementation Tutorial and Reference](../GREENFIELD_IMPLEMENTATION_TUTORIAL.md)

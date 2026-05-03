@@ -1419,8 +1419,8 @@
          tail-proof))]))
 
 (defn- close-structural-residual-sequenceo
-  "Close an exported negative-call residual frontier through ordinary guarded
-   answer-overlay descent.
+  "Close an exported negative-call residual frontier through the continuation
+   agenda.
 
    This is the ADR-0035 replacement for the host-side constructor-recursive
    settlement step. The relation consumes only negative calls whose atoms are
@@ -1445,12 +1445,19 @@
 
    `frontier` is the raw residual list produced by answer-mode proof search.
    On success the frontier has been discharged, while `sigma` and `neqs` are
-   threaded to their continued outputs. The proof term is intentionally tagged
-   with answer-overlay vocabulary so public answer records do not depend on the
-   diagnostic constructor-recursive sidecar."
-  [frontier proof-vars sigma sigma-out neqs neqs-out prog fuel proof]
+   threaded to their continued outputs. `continuation-fuel` is intentionally
+   separate from answer-mode call depth and from the proof branch that produced
+   the frontier. The proof term is tagged with answer-overlay vocabulary so
+   public answer records do not depend on the diagnostic constructor-recursive
+   sidecar."
+  [frontier proof-vars sigma sigma-out neqs neqs-out prog continuation-fuel proof]
   (fresh [subproof]
-    (== (list 'structural-residual-continuation subproof) proof)
+    (== (list 'structural-residual-continuation
+              (list 'structural-residual-continuation-agenda
+                    (list 'structural-residual-continuation-fuel
+                          continuation-fuel)
+                    subproof))
+        proof)
     (close-structural-residual-sequenceo
       frontier
       proof-vars
@@ -1459,8 +1466,8 @@
       neqs
       neqs-out
       prog
-      (gamma/closed-terms-for-fuel prog fuel)
-      fuel
+      (gamma/closed-terms-for-fuel prog continuation-fuel)
+      continuation-fuel
       subproof)))
 
 (defn- continuation-term-vars
@@ -1558,94 +1565,137 @@
    The scheduler sits in the answer overlay after ordinary answer-mode search
    has produced a live residual frontier but before answer export. It either
    continues a structurally productive negative-call frontier through the
-   guarded-IR continuation path or leaves the frontier available for
+   guarded-IR continuation agenda or leaves the frontier available for
    diagnostics/export. The guard is intentionally conservative so ordinary
-   proof search and the kernel rules remain visible."
-  [frontier _proof-vars sigma sigma-out neqs neqs-out residuals-out prog fuel proof]
-  (conde
-    [(project [frontier sigma neqs]
-       (if (live-continuable-frontier? prog sigma frontier)
-         (if-let [{continued-sigma :sigma
-                   continued-neqs :neqs
-                   frontier-count :frontier-count}
-                  (fast-schedule-live-structural-frontier
-                    prog
-                    sigma
-                    neqs
-                    frontier
-                    fuel)]
-           (fresh []
-             (== continued-sigma sigma-out)
-             (== continued-neqs neqs-out)
-             (== '() residuals-out)
-             (== (list 'structural-residual-scheduler-continue
-                       (list 'structural-residual-continuation
-                             (list 'structural-residual-frontier-closed
-                                   frontier-count)))
-                 proof))
-           fail)
-         fail))]
-    [(== sigma sigma-out)
-     (== neqs neqs-out)
-     (== frontier residuals-out)
-     (== '(structural-residual-scheduler-export) proof)]))
+   proof search and the kernel rules remain visible.
+
+   `proof-fuel` is the fuel used by the proof branch that produced the
+   frontier. `continuation-fuel` is a separate contract for the residual
+   continuation agenda; when it is exhausted, the scheduler exports the
+   frontier instead of falling back to ordinary answer-mode defer/export
+   branches."
+  [frontier _proof-vars sigma sigma-out neqs neqs-out residuals-out prog proof-fuel continuation-fuel proof]
+  (project [frontier sigma neqs]
+    (if (live-continuable-frontier? prog sigma frontier)
+      (if-let [{continued-sigma :sigma
+                continued-neqs :neqs
+                frontier-count :frontier-count}
+               (fast-schedule-live-structural-frontier
+                 prog
+                 sigma
+                 neqs
+                 frontier
+                 continuation-fuel)]
+        (fresh []
+          (== continued-sigma sigma-out)
+          (== continued-neqs neqs-out)
+          (== '() residuals-out)
+          (== (list 'structural-residual-scheduler-continue
+                    (list 'structural-residual-continuation
+                          (list 'structural-residual-continuation-agenda
+                                (list 'structural-residual-continuation-fuel
+                                      continuation-fuel)
+                                (list 'structural-residual-frontier-closed
+                                      frontier-count
+                                      (list 'structural-residual-proof-fuel
+                                            proof-fuel)))))
+              proof))
+        (fresh []
+          (== sigma sigma-out)
+          (== neqs neqs-out)
+          (== frontier residuals-out)
+          (== '(structural-residual-scheduler-export) proof)))
+      (fresh []
+        (== sigma sigma-out)
+        (== neqs neqs-out)
+        (== frontier residuals-out)
+        (== '(structural-residual-scheduler-export) proof)))))
 
 (defn prove-program-answer-scheduledo
   "Program answer relation with raw live-state residual scheduling enabled."
-  [fml unexpanded lits env answer-vars prog sigma-out neqs-out residuals-out fuel call-depth proof]
-  (fresh [sigma-mid neqs-mid residuals-mid base-proof schedule-proof]
-    (prove-program-answero
-      fml
-      unexpanded
-      lits
-      env
-      answer-vars
-      prog
-      sigma-mid
-      neqs-mid
-      residuals-mid
-      fuel
-      call-depth
-      base-proof)
-    (schedule-structural-residual-frontiero
-      residuals-mid
-      answer-vars
-      sigma-mid
-      sigma-out
-      neqs-mid
-      neqs-out
-      residuals-out
-      prog
-      fuel
-      schedule-proof)
-    (== (list 'answer-residual-scheduler base-proof schedule-proof) proof)))
+  ([fml unexpanded lits env answer-vars prog sigma-out neqs-out residuals-out fuel call-depth proof]
+   (prove-program-answer-scheduledo
+     fml
+     unexpanded
+     lits
+     env
+     answer-vars
+     prog
+     sigma-out
+     neqs-out
+     residuals-out
+     fuel
+     call-depth
+     fuel
+     proof))
+  ([fml unexpanded lits env answer-vars prog sigma-out neqs-out residuals-out fuel call-depth continuation-fuel proof]
+   (fresh [sigma-mid neqs-mid residuals-mid base-proof schedule-proof]
+     (prove-program-answero
+       fml
+       unexpanded
+       lits
+       env
+       answer-vars
+       prog
+       sigma-mid
+       neqs-mid
+       residuals-mid
+       fuel
+       call-depth
+       base-proof)
+     (schedule-structural-residual-frontiero
+       residuals-mid
+       answer-vars
+       sigma-mid
+       sigma-out
+       neqs-mid
+       neqs-out
+       residuals-out
+       prog
+       fuel
+       continuation-fuel
+       schedule-proof)
+     (== (list 'answer-residual-scheduler base-proof schedule-proof) proof))))
 
 (defn prove-program-query-entry-scheduledo
   "Top-level program query-entry relation with residual scheduling enabled."
-  [lit answer-vars prog sigma-out neqs-out residuals-out fuel call-depth proof]
-  (fresh [sigma-mid neqs-mid residuals-mid base-proof schedule-proof]
-    (prove-program-query-entryo
-      lit
-      answer-vars
-      prog
-      sigma-mid
-      neqs-mid
-      residuals-mid
-      fuel
-      call-depth
-      base-proof)
-    (schedule-structural-residual-frontiero
-      residuals-mid
-      answer-vars
-      sigma-mid
-      sigma-out
-      neqs-mid
-      neqs-out
-      residuals-out
-      prog
-      fuel
-      schedule-proof)
-    (== (list 'answer-residual-scheduler base-proof schedule-proof) proof)))
+  ([lit answer-vars prog sigma-out neqs-out residuals-out fuel call-depth proof]
+   (prove-program-query-entry-scheduledo
+     lit
+     answer-vars
+     prog
+     sigma-out
+     neqs-out
+     residuals-out
+     fuel
+     call-depth
+     fuel
+     proof))
+  ([lit answer-vars prog sigma-out neqs-out residuals-out fuel call-depth continuation-fuel proof]
+   (fresh [sigma-mid neqs-mid residuals-mid base-proof schedule-proof]
+     (prove-program-query-entryo
+       lit
+       answer-vars
+       prog
+       sigma-mid
+       neqs-mid
+       residuals-mid
+       fuel
+       call-depth
+       base-proof)
+     (schedule-structural-residual-frontiero
+       residuals-mid
+       answer-vars
+       sigma-mid
+       sigma-out
+       neqs-mid
+       neqs-out
+       residuals-out
+       prog
+       fuel
+       continuation-fuel
+       schedule-proof)
+     (== (list 'answer-residual-scheduler base-proof schedule-proof) proof))))
 
 (defn- fast-continuation-guarded-alternative-vars
   [guarded]

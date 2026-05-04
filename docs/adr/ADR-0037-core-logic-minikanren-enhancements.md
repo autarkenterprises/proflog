@@ -49,6 +49,49 @@ the evidence is concrete.
    constraint vocabulary or generic optimizations can replace project-specific
    membership/type checks or improve tableau proof handling.
 
+## Coordinator Survey Result
+
+The delegated coordinator pass is recorded in
+[ADR-37 Coordinator Survey](../log/2026-05-03-adr37-coordinator-survey.md).
+
+Three subordinate read-only subagents were spawned on separate local branches:
+
+- `adr-0037-subagent-feature-survey`
+- `adr-0037-subagent-core-logic-audit`
+- `adr-0037-subagent-proflog-integration`
+
+Their combined result narrows the next implementation slice:
+
+- expose canonical symbolic constraints first: `symbolo`, `numbero`, and
+  `absento`;
+- use the new overlay to replace ADR-36 test-local shims before adopting it in
+  production Proflog code;
+- keep relational arithmetic focused on a fuel adapter/profile that preserves
+  the public `nil` or integer fuel API until a migration is explicitly accepted;
+- keep raw direct `core.logic/tabled` replacement closed by ADR-36;
+- defer core.logic engine optimization until a focused bottleneck survives the
+  existing ADR-32 negative micro-patch evidence.
+
+## Phased Plan
+
+1. **Constraint overlay.** Add project-local `symbolo`, `numbero`, and
+   `absento` relations using existing `predc`, `treec`, and disequality
+   machinery where possible. Test ordering, delayed open-term behavior,
+   residual reification, and interaction with disequality.
+2. **Arithmetic shim cleanup.** Move the ADR-36 translated arithmetic tests off
+   their test-local `symbolo` and `absento` definitions and onto the overlay.
+3. **Fuel adapter probe.** Prototype bit-list relational fuel behind an opt-in
+   adapter/profile. Do not replace production `step-fuelo` while callers still
+   rely on host integers unless the adapter preserves that API.
+4. **Proflog integration audit implementation.** Try generic constraints in
+   Proflog type and absence checks only where explicit tests preserve
+   proof-variable, answer-variable, and rigid-parameter distinctions.
+5. **Engine optimization.** Revisit vendored core.logic internals only after
+   the lower-risk overlay and fuel probes identify a concrete need. The first
+   likely target is disequality maintenance; excluded near-term targets are raw
+   tabling replacement, nominal unification changes, global occurs-check
+   removal, and finite-domain propagation redesign.
+
 ## Candidate Questions
 
 - Can production `step-fuelo` retain the public integer/nil API while delegating
@@ -73,6 +116,10 @@ the evidence is concrete.
 - Treat direct raw core.logic tabling as closed by ADR-0036 unless a new
   canonical-state integration point is discovered.
 - Prefer generic relations and constraints over Proflog-specific shortcuts.
+- Do not accept an engine-level core.logic patch merely because it improves one
+  Proflog row; generic host changes require host verification, before/after
+  probes, and no regression in constraint, nominal, tabling, or reification
+  semantics.
 
 ## Initial Evidence Required
 

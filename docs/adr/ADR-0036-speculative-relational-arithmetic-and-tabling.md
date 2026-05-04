@@ -63,13 +63,13 @@ The bit-list `step-fuelo` experiment can run a direct kernel proof when callers
 pass finite fuel as miniKanren numerals, but it intentionally fails as a
 drop-in replacement for the existing integer-fuel API.
 
-The tabling probes do not support replacing Proflog's current tabling approach
-with direct raw `core.logic/tabled` use. A smoke probe exercises the core.logic
-tabled answer-cache path, but the ADR-0035 list-family rows only create tabled
-substitutions and do not hit answer-cache reuse/subunification. The existing
-`proflog.tabling` wrapper remains the right integration shape unless a future
-probe finds repeated residual-continuation states with canonical keys that
-actually exercise the tabled answer path.
+The tabling probes close the direct-core.logic-tabling question for ADR-0036.
+Proflog is not trivially duplicating core.logic functionality: the existing
+`proflog.tabling` layer is an extension/refinement that wraps `core.logic/tabled`
+with project-specific canonical proof-state keys. A smoke probe exercises the
+core.logic tabled answer-cache path, but the ADR-0035 list-family rows only
+create tabled substitutions and do not hit answer-cache reuse/subunification.
+ADR-0036 will not pursue direct raw `core.logic/tabled` replacement further.
 
 See
 [ADR-36 Relational Arithmetic and Tabling Probes](../log/2026-05-03-adr36-relational-arithmetic-and-tabling-probes.md).
@@ -93,8 +93,8 @@ This branch is mergeable only if:
 At the current checkpoint, ADR-0036 remains proposed and speculative. The
 arithmetic library is worth keeping on the branch for further evaluation; the
 fuel replacement is parked behind an explicit representation-migration decision;
-and direct raw core.logic tabling is not recommended for the current list-family
-workloads.
+and the direct raw core.logic tabling subtrack is closed with a decision not to
+pursue it further in this ADR.
 
 ## Non-Goals
 

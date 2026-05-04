@@ -85,6 +85,11 @@ sys 2.65
 
 ## Core.logic Tabling Results
 
+This subtrack was primarily a check that Proflog was not trivially duplicating
+functionality already supplied by core.logic. The evidence says it is not:
+Proflog's current tabling layer refines core.logic tabling with canonical
+proof-state keys, which remain project-specific.
+
 Smoke probe:
 
 ```text
@@ -144,15 +149,17 @@ timeout -k 10s 240s lein probe-core-logic-tabling reverse-output-deep-nested-lon
 
 The arithmetic translation is correct enough for the translated fast and
 upstream-style tests that have been ported. It should remain speculative until
-larger performance probes decide whether it is preferable to finite-domain fuel
-or only useful as an auxiliary relation library.
+larger performance probes decide whether it can replace finite-domain fuel
+without preserving a hardcoded numeric domain that blocks reverse or partial
+synthesis, or whether it is only useful as an auxiliary relation library.
 
 The tabling result is negative for the current question. Direct core.logic
 tabling can work, as the smoke probe shows, but the current ADR-0035 list-family
 rows do not use the tabled answer-cache machinery. Proflog's existing wrapper
 around `core.logic/tabled` still has the important project-specific piece:
 canonical proof-state keys. Raw direct `core.logic/tabled` is therefore not
-better for these workloads at this checkpoint.
+better for these workloads at this checkpoint, and ADR-0036 will not pursue that
+replacement further.
 
 ## Recommendation
 
@@ -162,4 +169,5 @@ Keep ADR-0036 open and speculative.
 - Park replacing production `step-fuelo` until there is an explicit fuel
   representation migration or an adapter that preserves the integer API.
 - Do not replace `proflog.tabling` with raw direct core.logic tabling based on
-  the current evidence.
+  the current evidence. This tabling subtrack is closed unless a later ADR finds
+  a different canonical-state integration point.

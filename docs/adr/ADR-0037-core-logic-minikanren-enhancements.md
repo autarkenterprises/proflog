@@ -92,6 +92,21 @@ Their combined result narrows the next implementation slice:
    tabling replacement, nominal unification changes, global occurs-check
    removal, and finite-domain propagation redesign.
 
+## Current Checkpoint
+
+Phase 1 has a project-local overlay in `proflog.minikanren-constraints`.
+Phase 3 has an opt-in relational fuel adapter probe. The direct finite-domain
+fuel assessment is narrowed rather than negative: current fixed-fuel
+reverse/partial answer synthesis is not blocked by FD fuel alone, but open or
+reverse synthesis of fuel itself still inherits the hardcoded host integer
+domain. That keeps the relational arithmetic replacement relevant as an
+opt-in/profiled path before any production change.
+
+The Proflog integration and core.logic performance audits are recorded as
+separate logs. Their shared recommendation is conservative: move ADR-36 tests
+onto the overlay and continue fuel adapter probes before touching core.logic
+engine internals.
+
 ## Candidate Questions
 
 - Can production `step-fuelo` retain the public integer/nil API while delegating

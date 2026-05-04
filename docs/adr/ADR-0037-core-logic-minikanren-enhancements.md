@@ -103,9 +103,13 @@ domain. That keeps the relational arithmetic replacement relevant as an
 opt-in/profiled path before any production change.
 
 The Proflog integration and core.logic performance audits are recorded as
-separate logs. Their shared recommendation is conservative: move ADR-36 tests
-onto the overlay and continue fuel adapter probes before touching core.logic
-engine internals.
+separate logs. The integration scope is broader than simply adopting existing
+miniKanren constraints: ADR-37 should also look for Proflog-motivated generic
+core.logic improvements, such as relational maps or delayed tree predicates,
+when those features would be generally useful outside Proflog. Their shared
+recommendation is still conservative: prototype those capabilities behind
+isolated probes and keep production proof search unchanged until the evidence is
+clear.
 
 ## Candidate Questions
 

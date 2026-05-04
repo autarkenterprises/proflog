@@ -13,6 +13,46 @@ projection-heavy guards, or finite-domain fuel arithmetic.
 
 No source or tests were changed. The only write from this pass is this log.
 
+## Correction: Broader Integration Frame
+
+The initial audit framed the question too narrowly around where existing
+miniKanren-generic constraints can be adopted in Proflog. ADR-37 should also
+ask where Proflog's data structures and proof procedures expose generic
+core.logic gaps that are worth fixing below Proflog.
+
+The useful distinction is not "generic miniKanren feature" versus
+"Proflog-specific feature." It is:
+
+- **generic relation/constraint, Proflog-motivated**: a capability such as
+  relational map lookup/update, indexed associative state, delayed tree
+  predicates, or relational finite arithmetic that could be used by any
+  core.logic program but is motivated by Proflog's workload;
+- **Proflog-local relation**: a relation that depends directly on Fitting's
+  tableau representation, object-language terms, proof variables, rigid
+  parameters, or answer residual semantics.
+
+Under that frame, ADR-37 should actively investigate core.logic-level support
+for Proflog-shaped state when the resulting abstraction is generally useful.
+Examples:
+
+- If `sigma`, program clause lookup, residual frontiers, or disequality indexes
+  would be faster or clearer as maps, then the generic question is whether
+  core.logic has adequate relational map support. If it does not, a Proflog
+  motivated relational-map layer or core.logic extension is in scope.
+- Legacy used `project` for the L-groundness guard, while greenfield uses a
+  structural relation. The ADR-37 question is whether `treec`, `predc`, or a
+  custom core.logic constraint can express a delayed L-ground-style tree
+  predicate without the unsound timing behavior of `project` and without
+  repeatedly deconstructing the same object-language term.
+- If Proflog repeatedly walks or reifies the same proof-state structure because
+  core.logic lacks a suitable indexed/constraint representation, that may be a
+  generic core.logic performance feature even though Proflog is the workload
+  that revealed it.
+
+The rest of this audit should therefore be read as a first pass over safe
+adoption points and obvious rejects, not as a complete inventory of
+Proflog-motivated core.logic extension opportunities.
+
 ## Primary Finding
 
 The best Proflog integration target remains fuel, not a broad mechanical
@@ -293,14 +333,19 @@ possibly `stringo`) and leave these object-language predicates in Proflog.
 ## Suggested Phase-4 Implementation Order
 
 1. Replace ADR-36 test-local `symbolo` and `absento` with the ADR-37 overlay.
-2. Add a Proflog-local relation namespace or section for object-language type
+2. Prototype generic relational map support or an indexed association-list
+   representation, then test whether any Proflog state transition can use it
+   without losing relational behavior.
+3. Prototype an L-ground-style delayed tree constraint and compare it with the
+   current structural relation and the rejected legacy `project` behavior.
+4. Add a Proflog-local relation namespace or section for object-language type
    predicates, initially wrapping existing `l-ground-termo` and
    `call-free-formulao`.
-3. Prototype relational bit-list fuel behind an adapter/profile; run existing
+5. Prototype relational bit-list fuel behind an adapter/profile; run existing
    synthesis tests plus new open-fuel probes.
-4. Prototype a relation-level demanded residual selector before projection in
+6. Prototype a relation-level demanded residual selector before projection in
    `answer-overlay`; preserve ADR-35 scheduler tests.
-5. Consider walk-aware `absento` inside equality only after the overlay has
+7. Consider walk-aware `absento` inside equality only after the overlay has
    passing upstream-style tests and the fuel prototype shows whether equality
    absence is an actual synthesis blocker.
 

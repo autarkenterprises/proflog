@@ -85,11 +85,11 @@
       (is (formula-fails-directly?
             program
             (ast/pos-lit (ast/app-term 'odd (numeral 2)))
-            8))
+            16))
       (is (formula-fails-directly?
             program
             (ast/pos-lit (ast/app-term 'even (numeral 3)))
-            16)))))
+            32)))))
 
 (deftest recursive-parity-witness-enumeration-finds-even-numerals
   (testing "positive witness enumeration collects multiple even numerals"

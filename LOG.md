@@ -20,6 +20,50 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-03
+
+- Continued ADR-0035 Track B on branch `adr-0035-track-b-guard-prefilter` with
+  a relational guard-prefilter for raw live-state structural continuation.
+  `proflog.answer-overlay/prefilter-structural-guardso` now gates guarded
+  alternatives before recursive descent, saturating equality guards through
+  `equality/unify-termo`, preserving proof-variable binding discipline and
+  saved-disequality stability, and accepting only rigid constructor
+  disequality guards. Focused tests use a generic sentinel recursive relation
+  to show that an impossible guarded alternative is filtered before its calls
+  are opened while a later viable alternative remains available. Longer note:
+  [ADR-0035 Track B Guard Prefiltering](docs/log/2026-05-03-adr35-track-b-guard-prefilter.md).
+- Continued ADR-0035 Track C on branch
+  `adr-0035-track-c-structural-priority` with a generic structural residual
+  priority selector. `proflog.answer-overlay/prioritize-structural-residual-frontiero`
+  preserves an already demanded frontier head, otherwise promotes the first
+  constructor-demanded negative residual ahead of less informative symbolic
+  residuals without dispatching on predicate or constructor names. The
+  scheduler uses a soft cut so raw export is only considered after prioritized
+  continuation fails. Longer note:
+  [ADR-0035 Track C Structural Priority](docs/log/2026-05-03-adr35-track-c-structural-priority.md).
+- Integrated ADR-0035 Tracks A, B, and C on
+  `adr-0035-relational-residual-continuation` in the required order. The merged
+  scheduler now combines independent continuation fuel, guard prefiltering, and
+  structural priority selection. Focused A/B/C checks, `proflog.answers-test`
+  plus the guard-prefilter test namespace, `test-proflog-fast`,
+  `test-proflog-constructor-recursive`, `proflog.synthesis-modes-test`,
+  `proflog.list-kernel-matrix-test`, and the three carried reverse matrix
+  probes all passed.
+- Continued ADR-0035 Track D on branch
+  `adr-0035-track-d-visited-continuation` with an active-call visited table in
+  the fast residual continuation state. Recursive object-language ground calls
+  are keyed by a canonical walked atom. Open symbolic calls are deliberately
+  not tabled, because reverse/append continuation can revisit the same open
+  shape while still making progress through surrounding substitutions. The
+  continuation rejects active reentry for the same ground call key, but removes
+  the key after success so later duplicate calls in the same sequence still
+  close. Longer note:
+  [ADR-0035 Track D Visited Continuation](docs/log/2026-05-03-adr35-track-d-visited-continuation.md).
+- While running the full project suites for the Track D proof-search change,
+  refreshed stale extended-suite fuel budgets for deeper recursive parity and
+  Nim probes. The failing probes were semantic positives/negatives that still
+  closed with slightly larger bounded fuel, not answer-overlay regressions.
+
 ## 2026-05-01
 
 - Accepted [ADR-0032](docs/adr/ADR-0032-core-logic-performance.md) on branch
@@ -153,6 +197,34 @@ complete contemporaneous transcript.
   earlier into raw answer-state context, and then re-express guarded constructor
   descent as an ordinary proof-producing answer-overlay rule. Longer note:
   [Constructor-Recursive Proof Terms and Integration Path](docs/log/2026-05-01-constructor-recursive-proof-terms.md).
+- Proposed [ADR-0035](docs/adr/ADR-0035-relational-residual-continuation.md)
+  for option (2): replace the ordinary answer-path role of the Clojure
+  constructor-recursive sidecar with relational structural residual
+  continuation inside `proflog.answer-overlay`. The ADR keeps the sidecar as a
+  temporary diagnostic/oracle, but its exit criteria require the promoted
+  ADR-0033 rows to pass with sidecar settlement disabled and with ordinary
+  answer-overlay proof evidence.
+- Accepted ADR-0035 and started implementation with sidecar-disabled matrix
+  regressions plus raw proof-shape checks. These tests make the semantic
+  requirement explicit: promoted rows must close through relational
+  answer-overlay proof search, not by post-export constructor-recursive
+  settlement.
+- Continued ADR-0035 with a sidecar-independent structural continuation
+  scheduler in `proflog.answer-overlay` for ordinary answer search. The
+  promoted rows pass with `constructor-recursive/settle-record` redefined to
+  throw, public proof records carry compact
+  `structural-residual-scheduler-continue` /
+  `structural-residual-continuation` evidence instead of
+  `constructor-recursive-*` tags, and diagnostics can still opt out to expose
+  unresolved raw frontiers. The scheduler lives next to the answer-mode agenda
+  machinery, runs before answer export while `sigma`, `neqs`, and residuals are
+  still live, and leaves `proflog.kernel` readable and unchanged. The broader
+  raw live-state `core.logic` enumerator remains a follow-up because direct use
+  still reopens too much search; the scheduled current path is first-success
+  and is not yet complete for programs whose residual frontier should enumerate
+  multiple distinct completions for one answer record.
+  Longer note:
+  [ADR-0035 Sidecar-Independent Structural Continuation](docs/log/2026-05-01-adr35-sidecar-independent-continuation.md).
 
 ## 2026-04-30
 

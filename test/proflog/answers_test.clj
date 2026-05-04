@@ -1,11 +1,16 @@
 (ns proflog.answers-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:refer-clojure :exclude [==])
+  (:require [clojure.core.logic :refer [== fresh run]]
+            [clojure.test :refer [deftest is testing]]
             [proflog.answer-overlay :as answer-overlay]
             [proflog.answers :as answers]
             [proflog.ast :as ast]
+            [proflog.kernel.constructor-recursive :as constructor-recursive]
             [proflog.language :as language]
+            [proflog.list-kernel-matrix-probe :as matrix]
             [proflog.list-programs-test :as lp]
             [proflog.normalize :as normalize]
+            [proflog.proof :as proof]
             [proflog.recursive-synthesis-test :as rst]))
 
 (def answer-language
@@ -25,6 +30,18 @@
     {:constants ['zero]
      :functions {'s 1}
      :relations {'step 2}}))
+
+(def track-a-language
+  (language/language
+    {:constants ['zero]
+     :functions {'s 1}
+     :relations {'descend 2}}))
+
+(def track-d-language
+  (language/language
+    {:constants ['zero]
+     :relations {'loop 1
+                 'twice 1}}))
 
 (defn numeral
   [n]
@@ -105,6 +122,40 @@
                                                (ast/app-term 's
                                                              (ast/var-term y))))))])))
 
+(defn track-a-recursive-program
+  []
+  (ast/nom x y predecessor
+    (language/compile-program
+      track-a-language
+      [(ast/clause 'descend [x y]
+                   (ast/or-form
+                     (ast/eq-lit (ast/var-term x)
+                                 (ast/var-term y))
+                     (ast/exists-form predecessor
+                                      (ast/and-form
+                                        (ast/eq-lit
+                                          (ast/var-term x)
+                                          (ast/app-term 's
+                                                        (ast/var-term predecessor)))
+                                        (ast/pos-lit
+                                          (ast/app-term 'descend
+                                                        (ast/var-term predecessor)
+                                                        (ast/var-term y)))))))])))
+
+(defn track-d-recursive-program
+  []
+  (ast/nom x
+    (language/compile-program
+      track-d-language
+      [(ast/clause 'loop [x]
+                   (ast/or-form
+                     (ast/pos-lit (ast/app-term 'loop (ast/var-term x)))
+                     (ast/eq-lit (ast/var-term x) (ast/app-term 'zero))))
+       (ast/clause 'twice [x]
+                   (ast/and-form
+                     (ast/pos-lit (ast/app-term 'loop (ast/var-term x)))
+                     (ast/pos-lit (ast/app-term 'loop (ast/var-term x)))))])))
+
 (defn answer-terms
   [records]
   (mapv (fn [record]
@@ -115,6 +166,55 @@
   [formula]
   (and (= 'neq (ast/tag-of formula))
        (= (second formula) (nth formula 2))))
+
+(defn proof-subtrees
+  [proof step]
+  (filter (fn [node]
+            (and (coll? node)
+                 (= step (first node))))
+          (tree-seq coll? seq proof)))
+
+(defn scheduler-results
+  [program frontier proof-vars sigma neqs proof-fuel continuation-fuel]
+  (run 1 [sigma-out neqs-out residuals-out proof]
+    (answer-overlay/schedule-structural-residual-frontiero
+      frontier
+      proof-vars
+      sigma
+      sigma-out
+      neqs
+      neqs-out
+      residuals-out
+      program
+      proof-fuel
+      continuation-fuel
+      proof)))
+
+(defn- matrix-answer-records-for-config
+  [{:keys [query answer-vars fuel raw-limit call-depth]}]
+  (let [program (matrix/list-program)
+        negated-query (normalize/negate-formula
+                        (language/validate-query (:language program) query))
+        raw-states ((deref #'answers/program-raw-answer-states)
+                    program
+                    negated-query
+                    answer-vars
+                    fuel
+                    raw-limit
+                    call-depth)
+        exported (->> raw-states
+                      (map #((deref #'answers/export-program-answer-record)
+                              program
+                              answer-vars
+                              %))
+                      (keep identity)
+                      vec)]
+    ((deref #'answers/prioritize-answer-records)
+     ((deref #'answers/merge-answer-records) exported))))
+
+(defn matrix-answer-records
+  [case-id]
+  (matrix-answer-records-for-config (matrix/case-config case-id)))
 
 (deftest bounded-ground-enumerator-follows-constructor-depth
   (testing "ground term generation stays inside the declared language and depth bound"
@@ -228,7 +328,7 @@
           (is (pos? @general-answer-calls)))))))
 
 (deftest adr33-structural-completion-requires-constructor-demand
-  (testing "wholly symbolic residual families stay residual, but demanded frontiers can complete"
+  (testing "wholly symbolic residual families stay residual, but demanded frontiers are structurally identified"
     (ast/nom x y
       (let [program (completion-program)
             symbolic-record
@@ -257,19 +357,223 @@
                                          (numeral 0)))]
              :proofs ['raw-frontier]}
             structurally-completable?
-            (deref #'answers/structurally-completable-record?)
-            complete
-            (deref #'answers/complete-structural-residuals)]
+            (deref #'answers/structurally-completable-record?)]
         (is (not (structurally-completable? program symbolic-record)))
         (is (structurally-completable? program demanded-record))
-        (is (structurally-completable? program chained-demand-record))
-        (let [completed (complete program
-                                  demanded-record
-                                  {:residual-completion-fuel 16})
-              completed-term (answers/binding-term completed x)]
-          (is (empty? (:residuals completed)))
-          (is (contains? #{(numeral 2) (numeral 3)}
-                         completed-term)))))))
+        (is (structurally-completable? program chained-demand-record))))))
+
+(deftest track-a-continuation-agenda-uses-independent-fuel
+  (testing "the live residual scheduler exports on exhausted continuation fuel and closes with its own fuel budget"
+    (ast/nom q
+      (let [program (track-a-recursive-program)
+            frontier (list (ast/neg-lit
+                             (ast/app-term 'descend
+                                           (ast/var-term q)
+                                           (ast/app-term 'zero))))
+            sigma (list [q (numeral 2)])
+            neqs '()]
+        (doseq [continuation-fuel [0 1]]
+          (let [[[sigma-out neqs-out residuals-out proof]]
+                (scheduler-results
+                  program
+                  frontier
+                  [q]
+                  sigma
+                  neqs
+                  64
+                  continuation-fuel)]
+            (is (= [(numeral 2)] (mapv second sigma-out)))
+            (is (= neqs neqs-out))
+            (is (= ['descend] (mapv (comp second second) residuals-out)))
+            (is (proof/contains-step? proof 'structural-residual-scheduler-export))
+            (is (not (proof/contains-step? proof 'structural-residual-scheduler-continue)))))
+        (let [[[sigma-out neqs-out residuals-out proof]]
+              (scheduler-results
+                program
+                frontier
+                [q]
+                sigma
+                neqs
+                0
+                4)
+              agenda-proofs (proof-subtrees proof
+                                            'structural-residual-continuation-agenda)]
+          (is (seq sigma-out))
+          (is (= neqs neqs-out))
+          (is (= '() residuals-out))
+          (is (proof/contains-step? proof 'structural-residual-scheduler-continue))
+          (is (proof/contains-step? proof 'structural-residual-continuation-agenda))
+          (is (proof/contains-step? proof 'structural-residual-continuation-fuel))
+          (is (not (proof/contains-step? proof 'constructor-recursive)))
+          (is (seq agenda-proofs))
+          (doseq [agenda-proof agenda-proofs
+                  forbidden-step ['defer-call
+                                  'guarded-call-seq-defer
+                                  'eq-triggered-residual-call
+                                  'eq-triggered-residual-neg-call]]
+            (is (not (proof/contains-step? agenda-proof forbidden-step))
+                (str forbidden-step
+                     " should not appear inside the continuation agenda"))))))))
+
+(deftest adr35-track-c-prioritizes-constructor-demanded-residuals
+  (testing "the scheduler relation promotes a constructor-demanded residual without predicate-specific dispatch"
+    (let [x 'track-c-x
+          y 'track-c-y
+          program (completion-program)
+          symbolic-residual (ast/neg-lit
+                              (ast/app-term 'step
+                                            (ast/var-term x)
+                                            (ast/var-term y)))
+          demanded-residual (ast/neg-lit
+                              (ast/app-term 'step
+                                            (ast/var-term y)
+                                            (numeral 0)))
+          frontier (list symbolic-residual demanded-residual)
+          results (run 1 [out]
+                    (fresh [ordered proof]
+                      ((deref #'answer-overlay/prioritize-structural-residual-frontiero)
+                       program
+                       '()
+                       frontier
+                       ordered
+                       proof)
+                      (== out [ordered proof])))]
+      (is (= [[[demanded-residual symbolic-residual]
+               '(structural-residual-priority-promote-demanded)]]
+             results)))))
+
+(deftest adr35-track-c-scheduler-closes-with-priority-proof
+  (testing "priority scheduling preserves the completed answer state and records promoted demand evidence"
+    (let [x 'track-c-x
+          y 'track-c-y
+          program (completion-program)
+          symbolic-residual (ast/neg-lit
+                              (ast/app-term 'step
+                                            (ast/var-term x)
+                                            (ast/var-term y)))
+          demanded-residual (ast/neg-lit
+                              (ast/app-term 'step
+                                            (ast/var-term y)
+                                            (numeral 0)))
+          frontier (list symbolic-residual demanded-residual)
+          sigma '()
+          expected-bindings (select-keys
+                              (into {}
+                                    (:sigma
+                                      ((deref #'answer-overlay/fast-schedule-live-structural-frontier)
+                                       program
+                                       sigma
+                                       '()
+                                       (list demanded-residual symbolic-residual)
+                                       4)))
+                              [x y])
+          results (run 1 [out]
+                    (fresh [sigma-out neqs-out residuals-out proof]
+                      (answer-overlay/schedule-structural-residual-frontiero
+                        frontier
+                        '()
+                        sigma
+                        sigma-out
+                        '()
+                        neqs-out
+                        residuals-out
+                        program
+                        4
+                        4
+                        proof)
+                      (== out [sigma-out neqs-out residuals-out proof])))
+          [[sigma-out neqs-out residuals-out proof]] results]
+      (is (= expected-bindings
+             (select-keys (into {} sigma-out) [x y])))
+      (is (= '() neqs-out))
+      (is (= '() residuals-out))
+      (is (proof/contains-step? proof 'structural-residual-priority-promote-demanded))
+      (is (proof/contains-step? proof 'structural-residual-continuation)))))
+
+(deftest adr35-track-d-prunes-active-recursive-reentry
+  (testing "the fast residual continuation visited set rejects active self-recursion"
+    (let [program (track-d-recursive-program)
+          frontier (list (ast/neg-lit
+                           (ast/app-term 'loop (ast/app-term 'zero))))
+          [[sigma-out neqs-out residuals-out _proof]]
+          (scheduler-results
+            program
+            frontier
+            '()
+            '()
+            '()
+            16
+            2)
+          [_ fast-proof]
+          (first ((deref #'answer-overlay/fast-continuation-settle-residual-sequence)
+                  program
+                  {:subst {} :fuel 2}
+                  frontier))]
+      (is (seq sigma-out))
+      (is (= '() neqs-out))
+      (is (= '() residuals-out))
+      (is (proof/contains-step? fast-proof 'structural-residual-visited-enter))
+      (is (= 1 (count (proof-subtrees fast-proof 'structural-residual-call))))
+      (is (not (proof/contains-step? fast-proof 'constructor-recursive))))))
+
+(deftest adr35-track-d-leaves-active-key-after-success
+  (testing "sequential duplicate calls are not globally pruned after one call closes"
+    (let [program (track-d-recursive-program)
+          frontier (list (ast/neg-lit
+                           (ast/app-term 'twice (ast/app-term 'zero))))
+          [[sigma-out neqs-out residuals-out _proof]]
+          (scheduler-results
+            program
+            frontier
+            '()
+            '()
+            '()
+            16
+            4)
+          [_ fast-proof]
+          (first ((deref #'answer-overlay/fast-continuation-settle-residual-sequence)
+                  program
+                  {:subst {} :fuel 4}
+                  frontier))
+          calls (proof-subtrees fast-proof 'structural-residual-call)
+          loop-calls (filter (fn [call]
+                               (= 'loop (second (second call))))
+                             calls)]
+      (is (seq sigma-out))
+      (is (= '() neqs-out))
+      (is (= '() residuals-out))
+      (is (= 2 (count loop-calls)))
+      (is (every? #(proof/contains-step?
+                     %
+                     'structural-residual-visited-enter)
+                  loop-calls)))))
+
+(deftest adr35-raw-matrix-answers-use-relational-continuation-proofs
+  (testing "completed raw matrix answers do not carry constructor-recursive sidecar proof tags"
+    (with-redefs [constructor-recursive/settle-record
+                  (fn [& _]
+                    (throw (ex-info "ADR-35 raw answers must not call sidecar settlement"
+                                    {})))]
+      (let [{:keys [answer-vars target-bindings] :as config}
+            (matrix/case-config :reverse-input-flat-longer)
+            target-bindings (set target-bindings)
+            records (matrix-answer-records-for-config config)
+            target-record (some (fn [record]
+                                  (let [bindings (mapv (fn [answer-var]
+                                                         [answer-var
+                                                          (answers/binding-term record answer-var)])
+                                                       answer-vars)]
+                                    (when (and (empty? (:residuals record))
+                                               (contains? target-bindings bindings))
+                                      record)))
+                                records)]
+        (is target-record)
+        (is (some #(proof/contains-step? % 'structural-residual-scheduler-continue)
+                  (:proofs target-record)))
+        (is (some #(proof/contains-step? % 'structural-residual-continuation)
+                  (:proofs target-record)))
+        (is (not-any? #(proof/contains-step? % 'constructor-recursive)
+                      (:proofs target-record)))))))
 
 (deftest query-stage-diagnostics-summarize-proof-families
   (testing "stage diagnostics expose duplicate exported answers and proof-family summaries"

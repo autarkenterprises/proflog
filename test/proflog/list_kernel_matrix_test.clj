@@ -1,5 +1,6 @@
 (ns proflog.list-kernel-matrix-test
   (:require [clojure.test :refer [deftest is testing]]
+            [proflog.kernel.constructor-recursive :as constructor-recursive]
             [proflog.list-kernel-matrix-probe :as matrix]))
 
 (deftest list-kernel-matrix-covers-forward-reverse-and-partial-modes
@@ -22,17 +23,21 @@
       (is (some #(= :longer (:size %)) catalog)))))
 
 (deftest list-kernel-matrix-promotes-guarded-raw-kernel-rows
-  (testing "guarded IR closes representative longer ground and raw answer rows"
-    (doseq [case-id [:append-forward-flat-3
-                     :append-forward-nested-3
-                     :reverse-forward-flat-3
-                     :reverse-forward-nested-3
-                     :append-output-flat
-                     :append-suffix-flat
-                     :append-prefix-flat
-                     :append-inverse-flat
-                     :reverse-input-flat-longer
-                     :reverse-output-deep-nested-longer
-                     :reverse-partial-output-longer-tail]]
-      (is (:target-found? (matrix/run-case case-id))
-          (str case-id " should find its target")))))
+  (testing "guarded IR closes representative rows without sidecar settlement"
+    (with-redefs [constructor-recursive/settle-record
+                  (fn [& _]
+                    (throw (ex-info "ADR-35 matrix rows must not use sidecar settlement"
+                                    {})))]
+      (doseq [case-id [:append-forward-flat-3
+                       :append-forward-nested-3
+                       :reverse-forward-flat-3
+                       :reverse-forward-nested-3
+                       :append-output-flat
+                       :append-suffix-flat
+                       :append-prefix-flat
+                       :append-inverse-flat
+                       :reverse-input-flat-longer
+                       :reverse-output-deep-nested-longer
+                       :reverse-partial-output-longer-tail]]
+        (is (:target-found? (matrix/run-case case-id))
+            (str case-id " should find its target"))))))

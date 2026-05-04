@@ -19,7 +19,7 @@
    branch-closing machinery, plus extra exported state describing what the
    branch learned before it chose to stop unfolding recursive calls."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [== appendo conde fail fresh lcons membero run]]
+  (:require [clojure.core.logic :refer [== appendo conda conde fail fresh lcons membero project run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -56,7 +56,9 @@
          close-agendao
          saved-call-closeso
          close-one-guarded-alternativeo
-         close-guarded-negated-call-sequenceo)
+         close-guarded-negated-call-sequenceo
+         prove-program-answero
+         prove-program-query-entryo)
 
 (defn saved-call-closeso
   "Succeed when one saved atom becomes callable under the current equality
@@ -1226,6 +1228,1083 @@
     call-depth
     existentials-as-vars?
     proof))
+
+(declare close-structural-atomo
+         close-structural-neg-call-sequenceo)
+
+(defn- prefilter-structural-guardso
+  "Reject guarded alternatives whose guards cannot hold before descending into
+   their recursive calls.
+
+   Equality guards are saturated relationally and may extend `sigma`.
+   Disequality guards are accepted only when constructor structure makes them
+   rigidly true under the current substitution. Symbolic disequalities remain
+   outside this narrow prefilter until the raw continuation grows an explicit
+   guard-level disequality store."
+  [guards env proof-vars sigma sigma-out neqs proof]
+  (conde
+    [(== '() guards)
+     (== sigma sigma-out)
+     (== '(structural-residual-guard-prefilter-done) proof)]
+    [(fresh [guard rest lit left right sigma-mid new-bindings step-proof tail-proof]
+       (== (lcons guard rest) guards)
+       (subst/subst-formulao guard env lit)
+       (== (list 'eq left right) lit)
+       (equality/unify-termo left right sigma sigma-mid step-proof)
+       (appendo new-bindings sigma sigma-mid)
+       (support/proof-bindingso new-bindings proof-vars)
+       (support/stable-neqso neqs sigma-mid)
+       (prefilter-structural-guardso
+         rest
+         env
+         proof-vars
+         sigma-mid
+         sigma-out
+         neqs
+         tail-proof)
+       (== (list 'structural-residual-guard-prefilter-eq
+                 step-proof
+                 tail-proof)
+           proof))]
+    [(fresh [guard rest lit left right tail-proof]
+       (== (lcons guard rest) guards)
+       (subst/subst-formulao guard env lit)
+       (== (list 'neq left right) lit)
+       (support/rigid-different-termo left right sigma)
+       (prefilter-structural-guardso
+         rest
+         env
+         proof-vars
+         sigma
+         sigma-out
+         neqs
+         tail-proof)
+       (== (list 'structural-residual-guard-prefilter-neq-rigid
+                 '(rigid-different)
+                 tail-proof)
+           proof))]))
+
+(defn- close-structural-guarded-alternativeo
+  "Close one guarded alternative in residual-continuation mode.
+
+   This is intentionally narrower than full answer-mode proof search: it
+   performs guarded scope opening, equality-guard saturation, recursive
+   negative-call closure, and residual formula closure without offering the
+   answer-mode deferral branches that created the exported frontier in the
+   first place."
+  [guarded-alternative env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (fresh [scope
+          guards
+          negated-calls
+          negated-residuals
+          negated-ordered-conjuncts
+          scoped-env
+          scoped-proof-vars
+          sigma-after-guards
+          sigma-after-calls
+          neqs-after-calls
+          scope-proof
+          prefilter-proof
+          call-proof
+          residual-proof]
+    (guarded-alternative-fieldso
+      guarded-alternative
+      scope
+      guards
+      negated-calls
+      negated-residuals
+      negated-ordered-conjuncts)
+    (== (list 'structural-residual-guarded-alt
+              scope-proof
+              (list 'structural-residual-guard-prefilter
+                    prefilter-proof)
+              call-proof
+              residual-proof)
+        proof)
+    (open-existential-guarded-scopeo
+      scope
+      env
+      proof-vars
+      scoped-env
+      scoped-proof-vars
+      scope-proof)
+    (prefilter-structural-guardso
+      guards
+      scoped-env
+      scoped-proof-vars
+      sigma
+      sigma-after-guards
+      neqs
+      prefilter-proof)
+    (close-structural-neg-call-sequenceo
+      negated-calls
+      scoped-env
+      scoped-proof-vars
+      sigma-after-guards
+      sigma-after-calls
+      neqs
+      neqs-after-calls
+      prog
+      gamma-terms
+      fuel
+      call-proof)
+    (close-formula-sequenceo
+      negated-residuals
+      scoped-env
+      scoped-proof-vars
+      sigma-after-calls
+      sigma-out
+      neqs-after-calls
+      neqs-out
+      '()
+      '()
+      prog
+      gamma-terms
+      fuel
+      nil
+      false
+      residual-proof)))
+
+(defn- close-structural-one-guarded-alternativeo
+  [guarded-alternatives env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (conde
+    [(fresh [guarded-alternative rest subproof]
+       (== (lcons guarded-alternative rest) guarded-alternatives)
+       (== (list 'structural-residual-alt subproof) proof)
+       (close-structural-guarded-alternativeo
+         guarded-alternative
+         env
+         proof-vars
+         sigma
+         sigma-out
+         neqs
+         neqs-out
+         prog
+         gamma-terms
+         fuel
+         subproof))]
+    [(fresh [guarded-alternative rest]
+       (== (lcons guarded-alternative rest) guarded-alternatives)
+       (close-structural-one-guarded-alternativeo
+         rest
+         env
+         proof-vars
+         sigma
+         sigma-out
+         neqs
+         neqs-out
+         prog
+         gamma-terms
+         fuel
+         proof))]))
+
+(defn- close-structural-atomo
+  [atom proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
+  (fresh [walked-atom relation args call-env body negated-body
+          alternatives negated-alternatives guarded-alternatives
+          next-fuel subproof]
+    (equality/walk-atomo atom sigma walked-atom)
+    (== (lcons 'app (lcons relation args)) walked-atom)
+    (support/l-ground-term*o args)
+    (program/call-clause-with-guarded-alternativeso
+      prog
+      walked-atom
+      call-env
+      body
+      negated-body
+      alternatives
+      negated-alternatives
+      guarded-alternatives)
+    (support/step-fuelo fuel next-fuel)
+    (== (list 'structural-residual-call walked-atom subproof) proof)
+    (close-structural-one-guarded-alternativeo
+      guarded-alternatives
+      call-env
+      proof-vars
+      sigma
+      sigma-out
+      neqs
+      neqs-out
+      prog
+      gamma-terms
+      next-fuel
+      subproof)))
+
+(defn- close-structural-neg-call-sequenceo
+  [formulas env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
+  (conde
+    [(== '() formulas)
+     (== sigma sigma-out)
+     (== neqs neqs-out)
+     (== '(structural-residual-call-seq-done) proof)]
+    [(fresh [formula rest lit atom sigma-mid neqs-mid head-proof tail-proof]
+       (== (lcons formula rest) formulas)
+       (subst/subst-formulao formula env lit)
+       (== (list 'neg atom) lit)
+       (== (list 'structural-residual-call-seq-step
+                 head-proof
+                 tail-proof)
+           proof)
+       (close-structural-atomo
+         atom
+         proof-vars
+         sigma
+         sigma-mid
+         neqs
+         neqs-mid
+         prog
+         gamma-terms
+         fuel
+         head-proof)
+       (close-structural-neg-call-sequenceo
+         rest
+         env
+         proof-vars
+         sigma-mid
+         sigma-out
+         neqs-mid
+         neqs-out
+         prog
+         gamma-terms
+         fuel
+         tail-proof))]))
+
+(defn- close-structural-residual-sequenceo
+  "Close an exported negative-call residual frontier through the continuation
+   agenda.
+
+   This is the ADR-0035 replacement for the host-side constructor-recursive
+   settlement step. The relation consumes only negative calls whose atoms are
+   callable in the current substitution and then reuses guarded program IR,
+   relational equality, and answer-overlay proof vocabulary."
+  [frontier proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
+  (close-structural-neg-call-sequenceo
+    frontier
+    '()
+    proof-vars
+    sigma
+    sigma-out
+    neqs
+    neqs-out
+    prog
+    gamma-terms
+    fuel
+    proof))
+
+(defn continue-structural-residualso
+  "Relationally close a structural residual frontier before answer export.
+
+   `frontier` is the raw residual list produced by answer-mode proof search.
+   On success the frontier has been discharged, while `sigma` and `neqs` are
+   threaded to their continued outputs. `continuation-fuel` is intentionally
+   separate from answer-mode call depth and from the proof branch that produced
+   the frontier. The proof term is tagged with answer-overlay vocabulary so
+   public answer records do not depend on the diagnostic constructor-recursive
+   sidecar."
+  [frontier proof-vars sigma sigma-out neqs neqs-out prog continuation-fuel proof]
+  (fresh [subproof]
+    (== (list 'structural-residual-continuation
+              (list 'structural-residual-continuation-agenda
+                    (list 'structural-residual-continuation-fuel
+                          continuation-fuel)
+                    subproof))
+        proof)
+    (close-structural-residual-sequenceo
+      frontier
+      proof-vars
+      sigma
+      sigma-out
+      neqs
+      neqs-out
+      prog
+      (gamma/closed-terms-for-fuel prog continuation-fuel)
+      continuation-fuel
+      subproof)))
+
+(defn- continuation-term-vars
+  [term]
+  (case (ast/tag-of term)
+    var #{(second term)}
+    par #{}
+    app (reduce into #{} (map continuation-term-vars (nnext term)))
+    #{}))
+
+(defn- continuation-formula-vars
+  [formula]
+  (case (ast/tag-of formula)
+    true #{}
+    false #{}
+    pos (continuation-term-vars (second formula))
+    neg (continuation-term-vars (second formula))
+    eq (into (continuation-term-vars (second formula))
+             (continuation-term-vars (nth formula 2)))
+    neq (into (continuation-term-vars (second formula))
+              (continuation-term-vars (nth formula 2)))
+    and (into (continuation-formula-vars (second formula))
+              (continuation-formula-vars (nth formula 2)))
+    or (into (continuation-formula-vars (second formula))
+             (continuation-formula-vars (nth formula 2)))
+    forall (disj (continuation-formula-vars (:body (second formula)))
+                 (:binding-nom (second formula)))
+    once-forall (disj (continuation-formula-vars (:body (second formula)))
+                      (:binding-nom (second formula)))
+    exists (disj (continuation-formula-vars (:body (second formula)))
+                 (:binding-nom (second formula)))
+    #{}))
+
+(defn- fast-continuation-lookup-guarded-clause
+  [program relation]
+  (some (fn [clause]
+          (when (= relation (:relation clause))
+            clause))
+        (:guarded-clause-list program)))
+
+(defn- fast-continuation-defined-relation?
+  [program relation]
+  (boolean (fast-continuation-lookup-guarded-clause program relation)))
+
+(defn- live-continuation-subst-map
+  [sigma]
+  (into {}
+        (map (fn [[binding-nom term]]
+               [binding-nom term]))
+        sigma))
+
+(defn- live-continuation-walk-term
+  [sigma term]
+  (let [sigma-map (if (map? sigma)
+                    sigma
+                    (live-continuation-subst-map sigma))]
+    (letfn [(walk [term]
+              (case (ast/tag-of term)
+                var (if-let [value (get sigma-map (second term))]
+                      (walk value)
+                      term)
+                par term
+                app (apply ast/app-term
+                           (second term)
+                           (map walk (nnext term)))
+                term))]
+      (walk term))))
+
+(defn- live-continuation-defined-negative-call?
+  [program formula]
+  (and (= 'neg (ast/tag-of formula))
+       (let [atom (second formula)]
+         (and (= 'app (ast/tag-of atom))
+              (fast-continuation-defined-relation? program (second atom))))))
+
+(defn- live-continuation-constructor-demand?
+  [sigma formula]
+  (let [atom (second formula)]
+    (boolean
+      (some (fn [term]
+              (= 'app (ast/tag-of (live-continuation-walk-term sigma term))))
+            (nnext atom)))))
+
+(defn- live-continuation-demanded-negative-call?
+  [program sigma formula]
+  (and (live-continuation-defined-negative-call? program formula)
+       (live-continuation-constructor-demand? sigma formula)))
+
+(defn- live-continuable-frontier?
+  [program sigma frontier]
+  (and (seq frontier)
+       (every? #(live-continuation-defined-negative-call? program %) frontier)
+       (some #(live-continuation-constructor-demand? sigma %) frontier)))
+
+(defn- demanded-negative-callo
+  "Relation-adjacent scheduler guard for the concrete live-state boundary.
+
+   The surrounding selector is relational (`conde` + `appendo`) and does not
+   score or name predicates. The only host check here is the existing structural
+   demand classifier over the projected live `sigma` and one concrete residual."
+  [program sigma formula]
+  (project [sigma formula]
+    (if (live-continuation-demanded-negative-call? program sigma formula)
+      (== true true)
+      fail)))
+
+(defn- prioritize-structural-residual-frontiero
+  "Relationally prefer a constructor-demanded residual as the next continuation
+   obligation.
+
+   This keeps the selector generic: it never dispatches on relation or
+   constructor names. If the frontier already starts with a demanded residual,
+   it preserves the original order. Otherwise it uses `appendo` to select a
+   demanded residual from later in the frontier and moves that one obligation
+   to the front while preserving the relative order of the remaining residuals."
+  [program sigma frontier ordered-frontier proof]
+  (conde
+    [(fresh [head tail]
+       (== (lcons head tail) frontier)
+       (demanded-negative-callo program sigma head)
+       (== frontier ordered-frontier)
+       (== '(structural-residual-priority-head-demand) proof))]
+    [(fresh [prefix selected suffix rest]
+       (appendo prefix (lcons selected suffix) frontier)
+       (demanded-negative-callo program sigma selected)
+       (appendo prefix suffix rest)
+       (== (lcons selected rest) ordered-frontier)
+       (== '(structural-residual-priority-promote-demanded) proof))]))
+
+(declare fast-schedule-live-structural-frontier)
+
+(defn schedule-structural-residual-frontiero
+  "Narrow raw live-state scheduler for structural residual continuation.
+
+   The scheduler sits in the answer overlay after ordinary answer-mode search
+   has produced a live residual frontier but before answer export. It either
+   continues a structurally productive negative-call frontier through the
+   guarded-IR continuation agenda or leaves the frontier available for
+   diagnostics/export. The guard is intentionally conservative so ordinary
+   proof search and the kernel rules remain visible.
+
+   `proof-fuel` is the fuel used by the proof branch that produced the
+   frontier. `continuation-fuel` is a separate contract for the residual
+   continuation agenda; when it is exhausted, the scheduler exports the
+   frontier instead of falling back to ordinary answer-mode defer/export
+   branches."
+  [frontier _proof-vars sigma sigma-out neqs neqs-out residuals-out prog proof-fuel continuation-fuel proof]
+  (conda
+    [(fresh [ordered-frontier priority-proof]
+       (prioritize-structural-residual-frontiero
+         prog
+         sigma
+         frontier
+         ordered-frontier
+         priority-proof)
+       (project [frontier ordered-frontier sigma neqs]
+         (if (live-continuable-frontier? prog sigma frontier)
+           (if-let [{continued-sigma :sigma
+                     continued-neqs :neqs
+                     frontier-count :frontier-count}
+                    (fast-schedule-live-structural-frontier
+                      prog
+                      sigma
+                      neqs
+                      ordered-frontier
+                      continuation-fuel)]
+             (fresh []
+               (== continued-sigma sigma-out)
+               (== continued-neqs neqs-out)
+               (== '() residuals-out)
+               (== (list 'structural-residual-scheduler-continue
+                         priority-proof
+                         (list 'structural-residual-continuation
+                               (list 'structural-residual-continuation-agenda
+                                     (list 'structural-residual-continuation-fuel
+                                           continuation-fuel)
+                                     (list 'structural-residual-frontier-closed
+                                           frontier-count
+                                           (list 'structural-residual-proof-fuel
+                                                 proof-fuel)))))
+                   proof))
+             fail)
+           fail)))]
+    [(== sigma sigma-out)
+     (== neqs neqs-out)
+     (== frontier residuals-out)
+     (== '(structural-residual-scheduler-export) proof)]))
+
+(defn prove-program-answer-scheduledo
+  "Program answer relation with raw live-state residual scheduling enabled."
+  ([fml unexpanded lits env answer-vars prog sigma-out neqs-out residuals-out fuel call-depth proof]
+   (prove-program-answer-scheduledo
+     fml
+     unexpanded
+     lits
+     env
+     answer-vars
+     prog
+     sigma-out
+     neqs-out
+     residuals-out
+     fuel
+     call-depth
+     fuel
+     proof))
+  ([fml unexpanded lits env answer-vars prog sigma-out neqs-out residuals-out fuel call-depth continuation-fuel proof]
+   (fresh [sigma-mid neqs-mid residuals-mid base-proof schedule-proof]
+     (prove-program-answero
+       fml
+       unexpanded
+       lits
+       env
+       answer-vars
+       prog
+       sigma-mid
+       neqs-mid
+       residuals-mid
+       fuel
+       call-depth
+       base-proof)
+     (schedule-structural-residual-frontiero
+       residuals-mid
+       answer-vars
+       sigma-mid
+       sigma-out
+       neqs-mid
+       neqs-out
+       residuals-out
+       prog
+       fuel
+       continuation-fuel
+       schedule-proof)
+     (== (list 'answer-residual-scheduler base-proof schedule-proof) proof))))
+
+(defn prove-program-query-entry-scheduledo
+  "Top-level program query-entry relation with residual scheduling enabled."
+  ([lit answer-vars prog sigma-out neqs-out residuals-out fuel call-depth proof]
+   (prove-program-query-entry-scheduledo
+     lit
+     answer-vars
+     prog
+     sigma-out
+     neqs-out
+     residuals-out
+     fuel
+     call-depth
+     fuel
+     proof))
+  ([lit answer-vars prog sigma-out neqs-out residuals-out fuel call-depth continuation-fuel proof]
+   (fresh [sigma-mid neqs-mid residuals-mid base-proof schedule-proof]
+     (prove-program-query-entryo
+       lit
+       answer-vars
+       prog
+       sigma-mid
+       neqs-mid
+       residuals-mid
+       fuel
+       call-depth
+       base-proof)
+     (schedule-structural-residual-frontiero
+       residuals-mid
+       answer-vars
+       sigma-mid
+       sigma-out
+       neqs-mid
+       neqs-out
+       residuals-out
+       prog
+       fuel
+       continuation-fuel
+       schedule-proof)
+     (== (list 'answer-residual-scheduler base-proof schedule-proof) proof))))
+
+(defn- fast-continuation-guarded-alternative-vars
+  [guarded]
+  (reduce into
+          (set (map :binding-nom (:scope guarded)))
+          (concat
+            (map continuation-formula-vars (:guards guarded))
+            (map continuation-formula-vars (:calls guarded))
+            (map continuation-formula-vars (:residuals guarded)))))
+
+(defn- fast-continuation-fresh-var
+  [nom]
+  (symbol (str "src$" (hash nom) "$" (gensym))))
+
+(defn- fast-continuation-freshen-term
+  [renaming term]
+  (case (ast/tag-of term)
+    var (ast/var-term (get renaming (second term) (second term)))
+    par term
+    app (apply ast/app-term
+               (second term)
+               (map #(fast-continuation-freshen-term renaming %) (nnext term)))
+    term))
+
+(defn- fast-continuation-freshen-formula
+  [renaming formula]
+  (case (ast/tag-of formula)
+    true formula
+    false formula
+    pos (ast/pos-lit (fast-continuation-freshen-term renaming (second formula)))
+    neg (ast/neg-lit (fast-continuation-freshen-term renaming (second formula)))
+    eq (ast/eq-lit (fast-continuation-freshen-term renaming (second formula))
+                   (fast-continuation-freshen-term renaming (nth formula 2)))
+    neq (ast/neq-lit (fast-continuation-freshen-term renaming (second formula))
+                     (fast-continuation-freshen-term renaming (nth formula 2)))
+    and (ast/and-form (fast-continuation-freshen-formula renaming (second formula))
+                      (fast-continuation-freshen-formula renaming (nth formula 2)))
+    or (ast/or-form (fast-continuation-freshen-formula renaming (second formula))
+                    (fast-continuation-freshen-formula renaming (nth formula 2)))
+    exists (let [tied (second formula)]
+             (ast/exists-form (get renaming (:binding-nom tied)
+                                   (:binding-nom tied))
+                              (fast-continuation-freshen-formula
+                                renaming
+                                (:body tied))))
+    forall (let [tied (second formula)]
+             (ast/forall-form (get renaming (:binding-nom tied)
+                                   (:binding-nom tied))
+                              (fast-continuation-freshen-formula
+                                renaming
+                                (:body tied))))
+    once-forall (let [tied (second formula)]
+                  (ast/once-forall-form
+                    (get renaming (:binding-nom tied) (:binding-nom tied))
+                    (fast-continuation-freshen-formula renaming (:body tied))))
+    formula))
+
+(defn- fast-continuation-freshen-guarded-alternative
+  [params guarded]
+  (let [renaming (into {}
+                       (map (fn [nom]
+                              [nom (fast-continuation-fresh-var nom)]))
+                       (into (set params)
+                             (fast-continuation-guarded-alternative-vars guarded)))]
+    {:params (mapv #(get renaming %) params)
+     :scope (mapv (fn [entry]
+                    (update entry :binding-nom #(get renaming % %)))
+                  (:scope guarded))
+     :guards (mapv #(fast-continuation-freshen-formula renaming %)
+                   (:guards guarded))
+     :calls (mapv #(fast-continuation-freshen-formula renaming %)
+                  (:calls guarded))
+     :residuals (mapv #(fast-continuation-freshen-formula renaming %)
+                      (:residuals guarded))}))
+
+(defn- fast-continuation-walk-term
+  [sigma term]
+  (case (ast/tag-of term)
+    var (if-let [value (get sigma (second term))]
+          (recur sigma value)
+          term)
+    par term
+    app (apply ast/app-term
+               (second term)
+               (map #(fast-continuation-walk-term sigma %) (nnext term)))
+    term))
+
+(defn- fast-continuation-canonical-id
+  [ctx category prefix nom]
+  (let [mapping-key (keyword (str (name category) "s"))
+        next-key (keyword (str "next-" (name category)))]
+    (if-let [canonical (get-in ctx [mapping-key nom])]
+      [ctx canonical]
+      (let [idx (get ctx next-key 0)
+            canonical [prefix idx]]
+        [(-> ctx
+             (assoc-in [mapping-key nom] canonical)
+             (assoc next-key (inc idx)))
+         canonical]))))
+
+(defn- fast-continuation-canonical-var
+  [ctx nom]
+  (fast-continuation-canonical-id ctx :var :var nom))
+
+(defn- fast-continuation-canonical-par
+  [ctx nom]
+  (fast-continuation-canonical-id ctx :par :par nom))
+
+(defn- fast-continuation-canonical-term
+  [ctx term]
+  (case (ast/tag-of term)
+    var (fast-continuation-canonical-var ctx (second term))
+    par (fast-continuation-canonical-par ctx (second term))
+    app (let [[ctx args]
+              (reduce (fn [[ctx args] arg]
+                        (let [[ctx arg-key]
+                              (fast-continuation-canonical-term ctx arg)]
+                          [ctx (conj args arg-key)]))
+                      [ctx []]
+                      (nnext term))]
+          [ctx (into [:app (second term)] args)])
+    [ctx [:term term]]))
+
+(defn- fast-continuation-call-key
+  [atom]
+  (second (fast-continuation-canonical-term {} atom)))
+
+(defn- fast-continuation-l-ground-term?
+  "True when a walked continuation call contains only object-language terms."
+  [term]
+  (case (ast/tag-of term)
+    var false
+    par false
+    app (every? fast-continuation-l-ground-term? (nnext term))
+    false))
+
+(defn- fast-continuation-enter-call
+  [state atom]
+  (if-not (fast-continuation-l-ground-term? atom)
+    [state nil '(structural-residual-visited-open-call)]
+    (let [call-key (fast-continuation-call-key atom)]
+      (when-not (contains? (:active-calls state #{}) call-key)
+        [(update state :active-calls (fnil conj #{}) call-key)
+         call-key
+         '(structural-residual-visited-enter)]))))
+
+(defn- fast-continuation-leave-call
+  [state call-key]
+  (if call-key
+    (update state :active-calls disj call-key)
+    state))
+
+(defn- fast-continuation-occurs?
+  [sigma binding-nom term]
+  (let [term (fast-continuation-walk-term sigma term)]
+    (case (ast/tag-of term)
+      var (= binding-nom (second term))
+      app (boolean
+            (some #(fast-continuation-occurs? sigma binding-nom %)
+                  (nnext term)))
+      false)))
+
+(declare fast-continuation-unify-term
+         fast-continuation-rigid-different?
+         fast-continuation-solve-formula
+         fast-continuation-solve-atom)
+
+(defn- fast-continuation-unify-term-list
+  [sigma left right]
+  (cond
+    (and (empty? left) (empty? right))
+    [sigma '(structural-residual-args-done)]
+
+    (or (empty? left) (empty? right))
+    nil
+
+    :else
+    (when-let [[sigma head-proof]
+               (fast-continuation-unify-term sigma (first left) (first right))]
+      (when-let [[sigma tail-proof]
+                 (fast-continuation-unify-term-list sigma (rest left) (rest right))]
+        [sigma (list 'structural-residual-args head-proof tail-proof)]))))
+
+(defn- fast-continuation-bind-var
+  [sigma binding-nom value]
+  (when-not (fast-continuation-occurs? sigma binding-nom value)
+    [(assoc sigma binding-nom value) '(structural-residual-bind)]))
+
+(defn- fast-continuation-unify-term
+  [sigma left right]
+  (let [left (fast-continuation-walk-term sigma left)
+        right (fast-continuation-walk-term sigma right)]
+    (cond
+      (= left right)
+      [sigma '(structural-residual-refl)]
+
+      (= 'var (ast/tag-of left))
+      (fast-continuation-bind-var sigma (second left) right)
+
+      (= 'var (ast/tag-of right))
+      (fast-continuation-bind-var sigma (second right) left)
+
+      (and (= 'app (ast/tag-of left))
+           (= 'app (ast/tag-of right))
+           (= (second left) (second right)))
+      (when-let [[sigma arg-proof]
+                 (fast-continuation-unify-term-list
+                   sigma
+                   (nnext left)
+                   (nnext right))]
+        [sigma (list 'structural-residual-decompose arg-proof)])
+
+      :else
+      nil)))
+
+(defn- fast-continuation-rigid-different-list?
+  [sigma left right]
+  (cond
+    (and (empty? left) (empty? right)) false
+    (or (empty? left) (empty? right)) true
+    :else (or (fast-continuation-rigid-different? sigma (first left) (first right))
+              (fast-continuation-rigid-different-list?
+                sigma
+                (rest left)
+                (rest right)))))
+
+(defn- fast-continuation-rigid-different?
+  [sigma left right]
+  (let [left (fast-continuation-walk-term sigma left)
+        right (fast-continuation-walk-term sigma right)]
+    (and (= 'app (ast/tag-of left))
+         (= 'app (ast/tag-of right))
+         (or (not= (second left) (second right))
+             (fast-continuation-rigid-different-list?
+               sigma
+               (nnext left)
+               (nnext right))))))
+
+(defn- fast-continuation-solve-eq-guard
+  [state guard]
+  (let [[_ left right] guard]
+    (when-let [[sigma proof]
+               (fast-continuation-unify-term (:subst state) left right)]
+      [(assoc state :subst sigma)
+       (list 'structural-residual-guard guard proof)])))
+
+(defn- fast-continuation-solve-neq-guard
+  [state guard]
+  (let [[_ left right] guard]
+    (when (fast-continuation-rigid-different? (:subst state) left right)
+      [state (list 'structural-residual-guard guard
+                   '(structural-residual-rigid-neq))])))
+
+(defn- fast-continuation-step-fuel
+  [state]
+  (let [fuel (:fuel state)]
+    (cond
+      (nil? fuel) state
+      (pos? fuel) (update state :fuel dec)
+      :else nil)))
+
+(defn- fast-continuation-solve-sequence
+  [program state formulas]
+  (if (empty? formulas)
+    (list [state '(structural-residual-seq-done)])
+    (for [[head-state head-proof]
+          (fast-continuation-solve-formula program state (first formulas))
+          [tail-state tail-proof]
+          (fast-continuation-solve-sequence program head-state (rest formulas))]
+      [tail-state
+       (list 'structural-residual-seq-step head-proof tail-proof)])))
+
+(defn- fast-continuation-solve-guards
+  [state guards]
+  (if (empty? guards)
+    (list [state '(structural-residual-guards-done)])
+    (when-let [[state head-proof]
+               (case (ast/tag-of (first guards))
+                 eq (fast-continuation-solve-eq-guard state (first guards))
+                 neq (fast-continuation-solve-neq-guard state (first guards))
+                 nil)]
+      (for [[state tail-proof]
+            (fast-continuation-solve-guards state (rest guards))]
+        [state (list 'structural-residual-guards-step
+                     head-proof
+                     tail-proof)]))))
+
+(defn- fast-continuation-solve-formula
+  [program state formula]
+  (case (ast/tag-of formula)
+    true (list [state '(structural-residual-true)])
+    false '()
+    eq (if-let [[state proof] (fast-continuation-solve-eq-guard state formula)]
+         (list [state proof])
+         '())
+    neq (if-let [[state proof] (fast-continuation-solve-neq-guard state formula)]
+          (list [state proof])
+          '())
+    and (for [[left-state left-proof]
+              (fast-continuation-solve-formula program state (second formula))
+              [right-state right-proof]
+              (fast-continuation-solve-formula
+                program
+                left-state
+                (nth formula 2))]
+          [right-state (list 'structural-residual-and left-proof right-proof)])
+    or (concat
+         (fast-continuation-solve-formula program state (second formula))
+         (fast-continuation-solve-formula program state (nth formula 2)))
+    pos (let [atom (fast-continuation-walk-term (:subst state) (second formula))]
+          (when (fast-continuation-defined-relation? program (second atom))
+            (fast-continuation-solve-atom program state atom)))
+    neg (let [atom (fast-continuation-walk-term (:subst state) (second formula))]
+          (when (fast-continuation-defined-relation? program (second atom))
+            (for [[state proof]
+                  (fast-continuation-solve-atom program state atom)]
+              [state (list 'structural-residual-neg-call formula proof)])))
+    '()))
+
+(defn- fast-continuation-bind-params
+  [state params args]
+  (loop [state state
+         params params
+         args args
+         proofs []]
+    (cond
+      (and (empty? params) (empty? args))
+      [state (list 'structural-residual-bind-params proofs)]
+
+      (or (empty? params) (empty? args))
+      nil
+
+      :else
+      (when-let [[sigma proof]
+                 (fast-continuation-unify-term
+                   (:subst state)
+                   (ast/var-term (first params))
+                   (first args))]
+        (recur (assoc state :subst sigma)
+               (rest params)
+               (rest args)
+               (conj proofs proof))))))
+
+(defn- fast-continuation-solve-alternative
+  [program state params args guarded]
+  (let [guarded (fast-continuation-freshen-guarded-alternative params guarded)]
+    (when-let [[state bind-proof]
+               (fast-continuation-bind-params state (:params guarded) args)]
+      (for [[guard-state guard-proof]
+            (fast-continuation-solve-guards state (:guards guarded))
+            [call-state call-proof]
+            (fast-continuation-solve-sequence
+              program
+              guard-state
+              (:calls guarded))
+            [residual-state residual-proof]
+            (fast-continuation-solve-sequence
+              program
+              call-state
+              (:residuals guarded))]
+        [residual-state
+         (list 'structural-residual-alt
+               bind-proof
+               guard-proof
+               call-proof
+               residual-proof)]))))
+
+(defn- fast-continuation-solve-atom
+  [program state atom]
+  (let [atom (fast-continuation-walk-term (:subst state) atom)]
+    (when-let [[state call-key visited-proof]
+               (fast-continuation-enter-call state atom)]
+      (when-let [state (fast-continuation-step-fuel state)]
+        (let [relation (second atom)
+              args (vec (nnext atom))
+              {:keys [params guarded-alternatives]}
+              (fast-continuation-lookup-guarded-clause program relation)]
+          (when guarded-alternatives
+            (mapcat
+              (fn [guarded]
+                (for [[state proof]
+                      (fast-continuation-solve-alternative
+                        program
+                        state
+                        params
+                        args
+                        guarded)]
+                  [(fast-continuation-leave-call state call-key)
+                   (list 'structural-residual-call
+                         atom
+                         visited-proof
+                         proof)]))
+              guarded-alternatives)))))))
+
+(defn- fast-continuation-self-binding?
+  [[binding-nom term]]
+  (= term (ast/var-term binding-nom)))
+
+(defn- fast-continuation-binding-subst
+  [bindings]
+  (into {}
+        (keep (fn [[binding-nom term]]
+                (when-not (fast-continuation-self-binding? [binding-nom term])
+                  [binding-nom term])))
+        bindings))
+
+(defn- fast-continuation-walk-binding
+  [sigma [binding-nom term]]
+  [binding-nom (fast-continuation-walk-term sigma term)])
+
+(defn- fast-continuation-settle-negative-residual
+  [program state formula]
+  (when (= 'neg (ast/tag-of formula))
+    (let [atom (fast-continuation-walk-term (:subst state) (second formula))]
+      (when (fast-continuation-defined-relation? program (second atom))
+        (for [[state proof]
+              (fast-continuation-solve-atom program state atom)]
+          [state (list 'structural-residual-neg-residual formula proof)])))))
+
+(defn- fast-continuation-settle-residual-sequence
+  [program state formulas]
+  (if (empty? formulas)
+    (list [state '(structural-residuals-done)])
+    (for [[head-state head-proof]
+          (fast-continuation-settle-negative-residual
+            program
+            state
+            (first formulas))
+          [tail-state tail-proof]
+          (fast-continuation-settle-residual-sequence
+            program
+            head-state
+            (rest formulas))]
+      [tail-state
+       (list 'structural-residuals-step head-proof tail-proof)])))
+
+(defn- fast-continuation-walk-neq
+  [sigma [left right]]
+  [(fast-continuation-walk-term sigma left)
+   (fast-continuation-walk-term sigma right)])
+
+(defn- fast-continuation-live-sigma-out
+  [original-sigma sigma]
+  (let [original-noms (mapv first original-sigma)
+        original-nom-set (set original-noms)
+        walked-original (map (fn [[binding-nom term]]
+                               [binding-nom
+                                (fast-continuation-walk-term sigma term)])
+                             original-sigma)
+        new-bindings (->> sigma
+                          (remove (fn [[binding-nom _]]
+                                    (contains? original-nom-set binding-nom)))
+                          (sort-by (comp pr-str first))
+                          (map (fn [[binding-nom term]]
+                                 [binding-nom
+                                  (fast-continuation-walk-term sigma term)])))]
+    (apply list (concat walked-original new-bindings))))
+
+(defn- fast-schedule-live-structural-frontier
+  [program sigma neqs frontier fuel]
+  (let [initial-state {:subst (live-continuation-subst-map sigma)
+                       :fuel fuel}]
+    (first
+      (for [[state _proof]
+            (fast-continuation-settle-residual-sequence
+              program
+              initial-state
+              frontier)]
+        {:sigma (fast-continuation-live-sigma-out sigma (:subst state))
+         :neqs (apply list
+                      (map #(fast-continuation-walk-neq (:subst state) %)
+                           neqs))
+         :frontier-count (count frontier)}))))
+
+(defn- fast-continue-exported-structural-record
+  [program record fuel]
+  (let [initial-state {:subst (fast-continuation-binding-subst (:bindings record))
+                       :fuel fuel}]
+    (first
+      (for [[state _proof]
+            (fast-continuation-settle-residual-sequence
+              program
+              initial-state
+              (:residuals record))]
+        (assoc record
+               :bindings (mapv #(fast-continuation-walk-binding
+                                   (:subst state)
+                                   %)
+                               (:bindings record))
+               :residuals []
+               :proofs (conj (vec (:proofs record))
+                             (list 'structural-residual-continuation
+                                   (list 'structural-residual-frontier-closed
+                                         (count (:residuals record))))))))))
+
+(defn continue-exported-structural-recordo
+  "Fast relational entry point for exported structural residual continuation.
+
+   Public answer export calls this relation after raw proof-state projection.
+   At that point `program`, `record`, and `fuel` are concrete, so this relation
+   can run a deterministic guarded-IR continuation without asking core.logic to
+   walk the full compiled program as a projected value. The result remains an
+   answer-overlay proof object tagged with `structural-residual-continuation`
+   and does not depend on the constructor-recursive diagnostic sidecar."
+  [program record record-out fuel]
+  (if-let [continued (fast-continue-exported-structural-record
+                       program
+                       record
+                       fuel)]
+    (== record-out continued)
+    fail))
 
 (defn proveo
   "Public five-argument kernel relation.

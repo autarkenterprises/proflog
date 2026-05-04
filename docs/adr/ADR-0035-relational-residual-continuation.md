@@ -1,9 +1,9 @@
 # ADR-0035: Relational Structural Residual Continuation
 
-- Status: accepted
+- Status: completed
 - Date: 2026-05-01
 - Branch: `adr-0035-relational-residual-continuation`
-- AAR: pending
+- AAR: [AAR-0035](../aar/AAR-0035-relational-residual-continuation.md)
 - Depends On:
   - [ADR-0033](ADR-0033-structural-answer-variable-recursion.md)
   - [ADR-0034](ADR-0034-greenfield-implementation-tutorial.md)
@@ -358,4 +358,6 @@ Rejected alternatives:
 - [ADR-0035 Track B Guard Prefiltering](../log/2026-05-03-adr35-track-b-guard-prefilter.md)
 - [ADR-0035 Track C Structural Priority](../log/2026-05-03-adr35-track-c-structural-priority.md)
 - [ADR-0035 Track D Visited Continuation](../log/2026-05-03-adr35-track-d-visited-continuation.md)
+- [List-Kernel Matrix Long-Timeout Sweep](../log/2026-05-03-list-kernel-matrix-long-timeout-sweep.md)
+- [AAR-0035 Relational Structural Residual Continuation](../aar/AAR-0035-relational-residual-continuation.md)
 - [Greenfield Implementation Tutorial and Reference](../GREENFIELD_IMPLEMENTATION_TUTORIAL.md)

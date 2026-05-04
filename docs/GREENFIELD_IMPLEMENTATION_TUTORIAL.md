@@ -1,7 +1,11 @@
 # Greenfield Implementation Tutorial and Reference
 
-Date: 2026-05-01
-Related ADR: [ADR-0034](adr/ADR-0034-greenfield-implementation-tutorial.md)
+Date: 2026-05-03
+Related ADRs:
+[ADR-0034](adr/ADR-0034-greenfield-implementation-tutorial.md),
+[ADR-0035](adr/ADR-0035-relational-residual-continuation.md),
+[ADR-0036](adr/ADR-0036-speculative-relational-arithmetic-and-tabling.md),
+[ADR-0037](adr/ADR-0037-core-logic-minikanren-enhancements.md)
 
 This chapter explains the current greenfield Proflog implementation as a
 whole system. It is written for a reader who needs to understand the design,
@@ -11,6 +15,18 @@ implementation without treating any layer as magic.
 The scope is the greenfield stack under `src/proflog` and `test/proflog`. The
 legacy `cljtap` code remains reference material and experimental prior art, not
 the authority for this implementation.
+
+Current checkpoint:
+
+- ADR-0035 moved the promoted structural residual-continuation path into the
+  answer overlay, so public list-family answer closure no longer depends on
+  the constructor-recursive diagnostic sidecar.
+- ADR-0036 added speculative faster-minikanren relational arithmetic and proved
+  that direct raw `core.logic/tabled` is not a drop-in replacement for
+  Proflog's canonical proof-state tabling.
+- ADR-0037 is a speculative core.logic enhancement branch. Its current
+  `symbolo`/`numbero`/`absento` overlay and relational map/fuel/tree probes are
+  research surfaces, not production proof-search semantics.
 
 ## 1. Orientation
 
@@ -101,10 +117,13 @@ The main implementation namespaces are:
 | First-order layer | [`src/proflog/kernel/first_order.clj`](../src/proflog/kernel/first_order.clj) | Equality-free first-order proof component, including a lean alphaleanTAP-shaped path. |
 | Tabling | [`src/proflog/tabling.clj`](../src/proflog/tabling.clj) | Optional canonical proof-state tabling wrapper around the ordinary kernel. |
 | Query | [`src/proflog/query.clj`](../src/proflog/query.clj) | Top-level success, failure, bounded status, and iterative fuel probing. |
-| Answer overlay | [`src/proflog/answer_overlay.clj`](../src/proflog/answer_overlay.clj) | Answer-mode tableau overlay: answer variables, residuals, call-depth, existential-as-variable execution. |
+| Answer overlay | [`src/proflog/answer_overlay.clj`](../src/proflog/answer_overlay.clj) | Answer-mode tableau overlay: answer variables, residuals, call-depth, existential-as-variable execution, and ADR-0035 structural residual continuation. |
 | Answers | [`src/proflog/answers.clj`](../src/proflog/answers.clj) | Public answer records, export, canonicalization, ranking, diagnostics, parity and ground materialization. |
-| Constructor recursion | [`src/proflog/kernel/constructor_recursive.clj`](../src/proflog/kernel/constructor_recursive.clj) | Guarded-IR constructor-recursive proof and residual-settlement layer. |
+| Constructor recursion | [`src/proflog/kernel/constructor_recursive.clj`](../src/proflog/kernel/constructor_recursive.clj) | Guarded-IR constructor-recursive proof and residual-settlement diagnostic layer. |
 | Hard-family overlay | [`src/proflog/hard_family_overlay.clj`](../src/proflog/hard_family_overlay.clj) | Named non-default status accelerator for restricted hard-family probes. |
+| Relational arithmetic | [`src/proflog/relational_arithmetic.clj`](../src/proflog/relational_arithmetic.clj) | ADR-0036 Clojure translation of faster-minikanren bit-list arithmetic for speculative fuel and arithmetic probes. |
+| MiniKanren constraints | [`src/proflog/minikanren_constraints.clj`](../src/proflog/minikanren_constraints.clj) | ADR-0037 project-local compatibility overlay for `symbolo`, `numbero`, and `absento`; current implementation is a bridge over `predc`/`treec`. |
+| ADR probes | [`src/proflog/relational_fuel_adapter_probe.clj`](../src/proflog/relational_fuel_adapter_probe.clj), [`src/proflog/relational_maps_probe.clj`](../src/proflog/relational_maps_probe.clj), and related probe namespaces | Speculative or measurement-only namespaces. They document evidence and should not be mistaken for default production behavior. |
 | Host probes | [`src/proflog/core_logic_host.clj`](../src/proflog/core_logic_host.clj) and related probe namespaces | Report and instrument the loaded core.logic host implementation. |
 
 The root documentation spine is:
@@ -579,8 +598,16 @@ disunifiers.
 Fuel is an operational guard, not a semantic truth value.
 
 `kernel-support/step-fuelo` consumes one micro-step for non-closing branch
-progress. A `nil` fuel value means unbounded search. A finite integer budget
-must be positive to take another expansion step.
+progress. A `nil` fuel value means unbounded search. Production finite fuel is
+currently represented as host integers constrained by core.logic finite-domain
+relations: the current fuel must be positive, the next fuel must be
+non-negative, and `fuel = next-fuel + 1`.
+
+ADR-0036 and ADR-0037 add an opt-in relational arithmetic path based on
+faster-minikanren bit-list numerals. That path is useful for testing whether
+finite-domain fuel blocks reverse or partial synthesis, but it is not the
+production API. Public callers still pass `nil` or host integers unless a later
+ADR explicitly changes the boundary.
 
 `proflog.gamma` owns bounded closed-term enumeration for the gamma rule. The
 kernel receives a finite `gamma-terms` collection and asks
@@ -671,6 +698,13 @@ tabled relation for the duration of a run.
 This is an operational layer. It should not be read as a different semantic
 kernel.
 
+ADR-0036 checked whether Proflog was trivially duplicating raw core.logic
+tabling. The answer was no: a direct raw `core.logic/tabled` replacement did
+not reproduce the ADR-0035 list-family answer-cache behavior. Proflog's tabling
+layer remains an extension around canonical proof-state keys. Future tabling
+work should be about concrete integration points with that canonical state, not
+about replacing `proflog.tabling` wholesale.
+
 ## 13. Query Status
 
 `proflog.query` exposes top-level truth-status helpers.
@@ -745,6 +779,13 @@ and residual obligations such as a deferred `neg` call or a disequality.
 
 Diagnostics can opt out of residual completion so raw unresolved frontiers
 remain visible.
+
+ADR-0035 adds structural residual continuation to this layer. When an answer
+frontier consists of constructor-demanded negative calls to relations defined by
+the same compiled program, the overlay can continue that frontier through the
+guarded IR before public export. This is the promoted list-family path. It is
+separate from the older constructor-recursive sidecar so ordinary public answer
+closure does not depend on a host-side post-processing layer.
 
 ### Query Entry
 
@@ -823,6 +864,11 @@ answers, exhausts raw search, or reaches `max-raw-proof-limit`. If selected
 answers still have non-disequality residuals, it keeps deepening so later
 closed answers can displace shallower symbolic frontiers.
 
+For structurally demanded recursive frontiers, the raw answer stream can also
+schedule ADR-0035 residual continuation before export. The exported-record
+completion hook is now implemented through `proflog.answer-overlay`, not
+through the constructor-recursive diagnostic namespace.
+
 ### Public Answer APIs
 
 The main answer functions are:
@@ -849,8 +895,10 @@ path.
 ## 16. Constructor-Recursive Layer
 
 `proflog.kernel.constructor-recursive` is a generic proof layer over guarded
-IR. It was introduced as a sidecar layer and is also used by ADR-0033
-structural residual completion.
+IR. It was introduced as a sidecar layer for constructor-recursive proof and
+residual-settlement experiments. After ADR-0035, it is best read as a
+diagnostic and comparison layer: the promoted public answer path uses
+`proflog.answer-overlay` structural residual continuation instead.
 
 It consumes `:guarded-clause-list`, not relation-specific code. Its state is a
 plain host map:
@@ -887,16 +935,22 @@ discharge negative defined-call residuals. If successful, it:
 - clears `:residuals`; and
 - appends a `constructor-recursive-residual-settlement` proof.
 
-ADR-0033 wires this into `answers/complete-structural-residuals` behind a
-conservative classifier:
+ADR-0033 originally wired this into `answers/complete-structural-residuals`
+behind a conservative classifier:
 
 - every residual must be a negative call to a relation defined by the compiled
   program;
 - the frontier must expose constructor demand somewhere; and
 - wholly symbolic recursive families remain residuals.
 
-This is how ordinary raw answer records can close list-family residual
+This was how ordinary raw answer records could close list-family residual
 frontiers without adding list-specific production dispatch.
+
+That description is historically important but no longer the current default.
+ADR-0035 replaced ordinary public residual settlement with answer-overlay
+continuation before export, plus an answer-overlay exported-record continuation
+backstop. The constructor-recursive namespace remains useful for focused tests,
+proof-shape comparison, and guarded-IR experiments.
 
 ## 17. End-To-End Data Flow
 
@@ -1006,9 +1060,11 @@ disequalities, residual calls, and proof structures.
 - validate all terms and formulas against the language; and
 - attach proof evidence.
 
-Then ADR-0033 structural residual completion may call the
-constructor-recursive layer to discharge safe residual frontiers before the
-record is merged and ranked.
+Historically, ADR-0033 structural residual completion could call the
+constructor-recursive layer here. The current ADR-0035 path uses answer-overlay
+structural residual continuation for promoted public answers. That continuation
+may already have run before raw state export; an exported-record continuation
+backstop also lives in `proflog.answer-overlay`.
 
 ### Step 9: Merge, Rank, Return
 
@@ -1064,6 +1120,21 @@ ADR-0032 added host-level probes for core.logic:
 
 These report the loaded core.logic implementation and instrument selected host
 entry points. They are diagnostics and deployment checks, not semantic layers.
+
+ADR-0036 and ADR-0037 add additional speculative probes:
+
+- `proflog.relational-arithmetic` and its upstream-style tests translate
+  faster-minikanren bit-list arithmetic;
+- `proflog.relational-fuel-probe` and
+  `proflog.relational-fuel-adapter-probe` test fuel replacement boundaries;
+- `proflog.fd-fuel-synthesis-probe` records current finite-domain fuel
+  synthesis behavior;
+- `proflog.minikanren-constraints` is a temporary symbolic constraint overlay;
+- `proflog.relational-maps-probe`, `proflog.l-ground-constraint-probe`, and
+  `proflog.core-logic-disequality-probe` capture ADR-0037 evidence.
+
+Those namespaces are intentionally explicit probes or overlays. Promote their
+ideas only through a later ADR decision with production tests.
 
 ### Hard Family Overlay
 
@@ -1128,6 +1199,20 @@ lein test-proflog-hard-families
 lein probe-proflog-list-kernel-matrix <case-id>
 lein probe-core-logic-host
 lein probe-core-logic-count
+lein probe-core-logic-tabling
+```
+
+Speculative ADR-0036/0037 checks are not all aliased. Run focused namespaces
+directly, for example:
+
+```text
+lein test proflog.relational-arithmetic-test proflog.relational-arithmetic-upstream-test
+lein test proflog.minikanren-constraints-test
+lein test proflog.relational-fuel-adapter-probe-test
+lein test proflog.relational-fuel-replacement-test
+lein test proflog.relational-maps-probe-test
+lein test proflog.l-ground-constraint-probe-test
+lein test proflog.core-logic-disequality-probe-test
 ```
 
 The [Test Matrix](TEST_MATRIX.md) defines the project-level coverage policy.
@@ -1146,6 +1231,10 @@ The most important boundaries are:
 - symbolic disequality is the default, not eager disunifier enumeration;
 - host projection must not silently enter the default semantic kernel;
 - proofless fast paths must remain named overlays or preserve a proof mode.
+- raw core.logic tabling is not a replacement for Proflog's canonical-state
+  tabling layer;
+- ADR-0036 bit-list arithmetic and ADR-0037 symbolic constraint overlays are
+  speculative until promoted by a later production ADR.
 
 These boundaries explain many implementation choices that may otherwise look
 indirect. For example, the language compiler builds several synchronized views
@@ -1170,9 +1259,11 @@ Read it as:
   language;
 - there are no remaining symbolic obligations;
 - the attached proof vector contains at least one closure witness;
-- if a `constructor-recursive-residual-settlement` proof appears, then a raw
-  residual frontier was exported first and then discharged by the guarded
-  constructor-recursive layer before public ranking.
+- if a `structural-residual-continuation` proof appears, then ADR-0035
+  continued a constructor-demanded residual frontier through the answer
+  overlay before the final public record was ranked;
+- if a historical `constructor-recursive-residual-settlement` proof appears,
+  then the older guarded-IR sidecar discharged an exported residual frontier.
 
 If the record instead contains:
 

@@ -1,25 +1,31 @@
 # Execution Plan
 
-Date: 2026-04-18
-Integration branch: `greenfield`
+Date: 2026-05-03
+Integration branch: `main`
 
 ## Current Facts
 
 - The repository already contains an experimental Proflog implementation in `src/cljtap/` and `test/cljtap/`.
-- The repository did not previously contain a mission statement, ADR stack, AAR stack, execution tracker, or semantic-variant policy.
 - The greenfield effort will treat the experimental implementation as reference material, not as the codebase to incrementally polish into authority.
-- `greenfield` is a fresh sandbox, so existing code may be removed, rewritten, or refactored wherever the active ADR and tests justify it.
+- The greenfield implementation now lives under `src/proflog/` and `test/proflog/`.
+- `main` is the integration branch. Historical references to the original
+  `greenfield` branch describe the bootstrap lineage, not the current merge
+  target.
 
 ## Branch Policy
 
-- `greenfield` remains the integration branch for the new implementation.
+- `main` is the integration branch for the current implementation.
 - Each implementation ADR should normally use a feature branch named `adr-XXXX-short-name`.
-- Feature branches merge into `greenfield` only after their ADR exit criteria are met and the relevant tests pass.
-- Promotion from `greenfield` to `master` is reserved for coherent, regression-checked milestones.
+- Feature branches merge into `main` only after their ADR exit criteria are met
+  and the relevant tests pass.
+- Speculative ADR branches may be pushed for review without production adoption
+  when their ADR records the guardrails, test evidence, and non-merge decision
+  points.
 
-## Planned Namespace Layout
+## Implementation Namespace Layout
 
-The greenfield implementation should land in a fresh namespace tree:
+The current implementation is rooted in `src/proflog/` and `test/proflog/`.
+The original baseline namespaces were:
 
 ```text
 src/proflog/ast.clj
@@ -43,6 +49,12 @@ test/proflog/query_test.clj
 test/proflog/answers_test.clj
 test/proflog/oracle/herbrand_test.clj
 ```
+
+The implementation has since added profiled kernel layers, answer-overlay
+execution, tabling, constructor-recursive diagnostics, list-family probes,
+relational arithmetic experiments, and ADR-37 core.logic enhancement probes.
+Use [GREENFIELD_IMPLEMENTATION_TUTORIAL.md](GREENFIELD_IMPLEMENTATION_TUTORIAL.md)
+as the current source map.
 
 ## ADR Sequence
 
@@ -117,7 +129,10 @@ List-family kernel generalization has graduated into accepted ADR-0031.
 Structural answer-variable recursion has graduated into accepted ADR-0033.
 The greenfield implementation tutorial reference has graduated into accepted
 ADR-0034.
-Relational residual continuation has graduated into accepted ADR-0035.
+Relational residual continuation has graduated into completed ADR-0035.
+Speculative relational arithmetic and tabling reassessment has graduated into
+proposed ADR-0036.
+Core.logic miniKanren enhancement work has graduated into proposed ADR-0037.
 
 ## ADR-0007 Task List
 
@@ -148,4 +163,4 @@ Each deferred track should become its own ADR if it graduates from backlog to ac
 2. Write the narrowest failing tests that express the ADR success criteria.
 3. Implement only enough code to make those tests pass, and do so substantively: do not satisfy tests by bypassing, defrauding, hard-coding around, or otherwise failing to implement the feature the tests are meant to capture.
 4. Run the targeted greenfield tests and any necessary regression selectors.
-5. Update the ADR, write or update the AAR, then merge back into `greenfield`.
+5. Update the ADR, write or update the AAR, then merge back into `main`.

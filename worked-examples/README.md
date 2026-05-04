@@ -33,3 +33,7 @@ query walkthroughs for the current `test/proflog` suites.
   discharge the symbolic family.
 - Proof terms are quoted in the current greenfield kernel vocabulary rather
   than translated into legacy notation.
+- For current list-family reachability and timing, use
+  [docs/log/2026-05-03-list-kernel-matrix-long-timeout-sweep.md](../docs/log/2026-05-03-list-kernel-matrix-long-timeout-sweep.md)
+  rather than the older pre-ADR-0035 examples as the latest operational
+  baseline.

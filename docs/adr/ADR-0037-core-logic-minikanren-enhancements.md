@@ -111,16 +111,41 @@ recommendation is still conservative: prototype those capabilities behind
 isolated probes and keep production proof search unchanged until the evidence is
 clear.
 
+The second ADR-37 worker phase is complete:
+
+- relational maps: `b311dbe`, with canonical association lists preferred over
+  open Clojure persistent maps;
+- L-ground/tree constraints: `652c42f`, with `treec` useful for no-`par`
+  absence but not a replacement for strict Proflog term recognition;
+- disequality performance: `dd3d2dc`, with no core.logic engine patch justified
+  by current Proflog measurements;
+- relational fuel replacement: `5e8b643`, semantically viable as an
+  opt-in/profiled path but not production-ready until public fuel representation
+  and performance are settled.
+
+The constraint-port decision is recorded in
+[ADR-37 Constraint Port Assessment](../log/2026-05-03-adr37-constraint-port-assessment.md).
+ADR-37 should port faster-minikanren's `symbolo`, `numbero`, and `absento`
+semantics, but not the faster-minikanren engine wholesale. The existing
+`predc`/`treec` overlay remains a compatibility bridge; the next serious
+implementation slice should add native-style positive type constraints,
+generalized `absento`, and canonical residual reification behind the overlay or
+vendor boundary before any production Proflog integration.
+
 ## Candidate Questions
 
 - Can production `step-fuelo` retain the public integer/nil API while delegating
   bounded arithmetic to pure relational bit-list numerals internally?
-- Should `symbolo`, `numbero`, and `absento` become public relations in a
-  project-local core.logic overlay?
+- How should native-style `symbolo`, `numbero`, `stringo`, and generalized
+  `absento` integrate with core.logic disequality, reification, and constraint
+  scheduling?
 - Can Proflog-specific type relations be expressed as reusable core.logic
   predicate or tree constraints without making the kernel less relational?
 - Which Proflog membership checks are actually absence/type constraints and
   would become cleaner or more complete with `absento`-style constraints?
+- Which generic Proflog-motivated constraints are worth carrying, especially
+  relational associative maps, walk-aware absence, and context-aware recursive
+  tree constraints?
 - Which core.logic TODOs are performance-only improvements, and which risk
   changing search order, reification, constraints, nominal behavior, or tabling?
 

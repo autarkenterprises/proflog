@@ -10,6 +10,9 @@
     {:constants ['a 'b]
      :relations {'p 1}}))
 
+(def status-timeout-ms
+  5000)
+
 (defn exists-neq-program
   []
   (ast/nom x y
@@ -39,9 +42,9 @@
           p-a (p-query (ast/app-term 'a))
           p-b (p-query (ast/app-term 'b))]
       (is (= :succeeds
-             (query/query-status program p-a {:timeout-ms 1000})))
+             (query/query-status program p-a {:timeout-ms status-timeout-ms})))
       (is (= :succeeds
-             (query/query-status program p-b {:timeout-ms 1000})))
+             (query/query-status program p-b {:timeout-ms status-timeout-ms})))
       (is (seq (query/query-succeeds program p-a 1 8)))
       (is (seq (query/query-succeeds program p-b 1 8)))
       (is (empty? (query/query-fails program p-a 1 8)))

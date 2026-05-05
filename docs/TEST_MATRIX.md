@@ -1,6 +1,6 @@
 # Test Matrix
 
-Date: 2026-04-18
+Date: 2026-05-03
 
 This matrix is the release gate until a separate automated coverage tool is added. Every ADR must map its code changes to these obligations.
 
@@ -11,6 +11,10 @@ This matrix is the release gate until a separate automated coverage tool is adde
 - Every major relation should be exercised in both straightforward forward use and at least one partially instantiated or reverse-style use when the semantics claim mode freedom.
 - Any uncovered path must be called out in the ADR or AAR with a concrete reason.
 - Performance instrumentation, debug printers, and intentionally unreachable guard code are the only acceptable routine exceptions.
+- Speculative ADR work, including source overlays and probe namespaces, must
+  have focused tests for the claimed behavior even when it is not promoted to
+  production. The ADR must say which probe results are evidence and which are
+  not merge gates.
 
 ## Matrix
 
@@ -26,6 +30,7 @@ This matrix is the release gate until a separate automated coverage tool is adde
 | Query API | succeed/fail race, unresolved search budget handling | user-facing query helpers over sample programs | consistency checks between `A` and `not A` races | yes |
 | Answer discipline | admissible substitutions, residual disequalities, proof attachment | open-query examples with quantified bodies | answer terms contain only language `L` symbols and no `par` | yes |
 | Regression and performance | previously fixed bug cases, ordering/pathology cases | flagship program suite | bounded runtime budgets only after baseline correctness exists | yes |
+| Speculative overlays and probes | direct relation/constraint behavior, compatibility tests, wrapper boundary tests | focused integration probes against one production surface where relevant | before/after measurements or upstream-style behavior tests | no, unless the ADR promotes the feature |
 
 ## Flagship Program Families
 

@@ -39,3 +39,5 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0030](AAR-0030-relational-constructor-search.md) | [ADR-0030](../adr/ADR-0030-relational-constructor-search.md) | completed |
 | [AAR-0031](AAR-0031-list-family-kernel-generalization.md) | [ADR-0031](../adr/ADR-0031-list-family-kernel-generalization.md) | completed |
 | [AAR-0035](AAR-0035-relational-residual-continuation.md) | [ADR-0035](../adr/ADR-0035-relational-residual-continuation.md) | completed |
+| [AAR-0036](AAR-0036-speculative-relational-arithmetic-and-tabling.md) | [ADR-0036](../adr/ADR-0036-speculative-relational-arithmetic-and-tabling.md) | completed |
+| [AAR-0037](AAR-0037-core-logic-minikanren-enhancements.md) | [ADR-0037](../adr/ADR-0037-core-logic-minikanren-enhancements.md) | completed |

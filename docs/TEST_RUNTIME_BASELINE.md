@@ -30,6 +30,15 @@ Current ADR-0013 note:
   older reverse/append rows below therefore describe the pre-ADR-0013 raw
   symbolic behavior and timings, not the current public closed-answer surface.
 
+Current ADR-0035 note:
+
+- The promoted list-kernel matrix now reaches all catalog targets through the
+  ordinary probe path under longer wrappers. The full sweep is recorded in
+  [2026-05-03-list-kernel-matrix-long-timeout-sweep.md](log/2026-05-03-list-kernel-matrix-long-timeout-sweep.md).
+  The practical default gate remains narrower because one row,
+  `append-inverse-flat-longer`, took about `509.5 s` of Clojure-process
+  elapsed time.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |
@@ -69,6 +78,18 @@ Current ADR-0013 note:
 | `reverse([a, b], r)` `query-answers`, `call-depth 2` | `35910.784284 ms` | Returned 2 fallback symbolic frontier records | The answer API now keeps the last productive stage instead of dropping to `[]`, but it still does not reach the concrete reverse answer. |
 | Nested `append(x, y, [[a], [b]])` split enumeration | `>180000 ms` | No result before manual stop | Even the short nested inverse family remains operationally expensive. |
 | Depth-3 forward `append(left, right, z)` answer synthesis | `>360000 ms` | No result before manual stop | Structural depth alone is enough to make open answer export impractical right now. |
+
+## Post-ADR-0035 Long-Timeout List-Kernel Sweep
+
+These rows are not routine gate timings. They record eventual reachability for
+the full `proflog.list-kernel-matrix-probe` catalog after ADR-0035 structural
+residual continuation.
+
+| Probe | Successful runtime | Result | Operational note |
+|---|---:|---|---|
+| Full list-kernel catalog, isolated `900 s` wrappers | varies by row | every catalog row returned `:target-found? true` | Most rows returned within tens of seconds. |
+| `append-inverse-flat-longer` | `509517.493191 ms` | all `5 / 5` splits found at raw `32` | Heavy outlier; keep outside default regression gates unless that cost is explicitly accepted. |
+| Slow reverse and partial reverse rows | `21896.698837 ms` to `70285.584748 ms` | target found | Reverse rows are now eventually reachable, but still too expensive to treat as cheap smoke tests. |
 
 ## Legacy Reference Runs
 

@@ -19,8 +19,11 @@ See [MISSION.md](MISSION.md).
 ## Execution Docs
 
 - [docs/EXECUTION_PLAN.md](docs/EXECUTION_PLAN.md)
+- [docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md](docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md)
+- [worked-examples/README.md](worked-examples/README.md)
 - [LOG.md](LOG.md)
 - [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md)
+- [docs/TEST_RUNTIME_BASELINE.md](docs/TEST_RUNTIME_BASELINE.md)
 - [docs/SEMANTIC_VARIANTS.md](docs/SEMANTIC_VARIANTS.md)
 - [docs/adr/README.md](docs/adr/README.md)
 - [docs/aar/README.md](docs/aar/README.md)
@@ -28,11 +31,10 @@ See [MISSION.md](MISSION.md).
 ## Local Source Stack
 
 - [development-practices.md](development-practices.md)
-- [deep-research-report-summary.md](deep-research-report-summary.md)
-- [deep-research-report.md](deep-research-report.md)
-- [deep-research-report2.md](deep-research-report2.md)
 - [DESIGN.md](DESIGN.md)
-- [LPTableaux.pdf](LPTableaux.pdf)
+- [LESSONS.md](LESSONS.md)
+- [MEMORY.md](MEMORY.md)
+- [LPTableaus.pdf](LPTableaus.pdf)
 
 ## External Primary Sources Reviewed
 

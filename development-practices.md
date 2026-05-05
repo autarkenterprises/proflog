@@ -20,12 +20,12 @@ The following describe certain mandatory software development practices, to ensh
 
 10. Ask questions freely, where clarification is needed, but do not ask for a second opinion merely out of caution - if you have made the right decision, be confident in its correctness, and carry it out.
 
-11. Review these practices reguarly, to keep them in context.
+11. Maintain the documentation layers by purpose. Use `LOG.md` as the inclusive chronological spine for development: record dated process notes, exploration, dead ends, backtracks, scratchpad observations, and links to specialized records. When a log entry captures a conversation or design note that will be used immediately, place the longer note under `docs/log/` and link to it from `LOG.md`. Use `MEMORY.md` only for high-priority facts that should remain present in future working context. Use `LESSONS.md` for durable lessons learned during the project. Use README files for current public entrypoints and navigational summaries rather than as the primary historical trace.
 
-12. Separate slower recursive, reverse, and partial-synthesis regressions into an explicit extended suite rather than placing them on the default fast path. For this repository, use `lein test-proflog-fast` for the normal greenfield regression path, and `lein test-proflog-extended` for the deeper recursive and synthesis probes.
+12. Review these practices reguarly, to keep them in context.
 
-13. Do not neglect the extended suite: run `lein test-proflog-fast` and `lein test-proflog-extended` in parallel while doing active semantic work, but only block on the extended suite after major revisions or before a commit that changes proof search, equality, negation, or query behavior.
+13. Separate slower recursive, reverse, and partial-synthesis regressions into an explicit extended suite rather than placing them on the default fast path. For this repository, use `lein test-proflog-fast` for the normal greenfield regression path, and `lein test-proflog-extended` for the deeper recursive and synthesis probes.
 
-14. Prefer the Clojure MCP tools and the project nREPL for semantic investigation, targeted evaluation, and long-running proof probes. Use shell timeouts and ad hoc scripts only as secondary support when the MCP/nREPL path is insufficient.
+14. Do not neglect the extended suite: run `lein test-proflog-fast` and `lein test-proflog-extended` in parallel while doing active semantic work, but only block on the extended suite after major revisions or before a commit that changes proof search, equality, negation, or query behavior.
 
-15. Maintain the documentation layers by purpose. Use `LOG.md` as the inclusive chronological spine for development: record dated process notes, exploration, dead ends, backtracks, scratchpad observations, and links to specialized records. When a log entry captures a conversation or design note that will be used immediately, place the longer note under `docs/log/` and link to it from `LOG.md`. Use `MEMORY.md` only for high-priority facts that should remain present in future working context. Use `LESSONS.md` for durable lessons learned during the project. Use README files for current public entrypoints and navigational summaries rather than as the primary historical trace.
+15. Prefer the Clojure MCP tools and the project nREPL for semantic investigation, targeted evaluation, and long-running proof probes. Use shell timeouts and ad hoc scripts only as secondary support when the MCP/nREPL path is insufficient.

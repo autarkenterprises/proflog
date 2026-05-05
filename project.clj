@@ -120,7 +120,8 @@
             "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]
             "probe-core-logic-host" ["run" "-m" "proflog.core-logic-host-probe"]
             "probe-core-logic-tabling" ["run" "-m" "proflog.core-logic-tabling-probe"]
-            "probe-core-logic-count" ["run" "-m" "proflog.core-logic-count-probe"]}
+            "probe-core-logic-count" ["run" "-m" "proflog.core-logic-count-probe"]
+            "probe-relational-fuel-performance" ["run" "-m" "proflog.relational-fuel-performance-probe"]}
   :profiles {:core-logic-1.1.1
              {:dependencies ^:replace [[org.clojure/clojure "1.11.1"]
                                        [org.clojure/core.logic "1.1.1"]]}

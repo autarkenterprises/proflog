@@ -1,9 +1,9 @@
 # ADR-0038: Fitting Program Kernel Evaluation
 
-- Status: accepted
+- Status: completed
 - Date: 2026-05-05
 - Branch: `adr-0038-fitting-program-kernel-evaluation`
-- AAR: pending
+- AAR: [AAR-0038](../aar/AAR-0038-fitting-program-kernel-evaluation.md)
 - Depends On:
   - [ADR-0035](ADR-0035-relational-residual-continuation.md)
   - [ADR-0036](ADR-0036-speculative-relational-arithmetic-and-tabling.md)

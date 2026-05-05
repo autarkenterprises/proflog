@@ -36,6 +36,11 @@ complete contemporaneous transcript.
   next development direction: evaluate deep Fitting Proflog programs in
   greenfield through the core proof kernel after source translation, without
   host-side semantic computation or named overlays in the promoted path.
+- Completed ADR-0038 with `proflog.fitting-programs` and focused tests that
+  disable the hard-family overlay and constructor-recursive sidecar while
+  evaluating P1, P2, move-warning, finite-domain, list-family, and
+  group-verifier-frontier examples. The outcome is recorded in
+  [AAR-0038](docs/aar/AAR-0038-fitting-program-kernel-evaluation.md).
 
 ## 2026-05-03
 

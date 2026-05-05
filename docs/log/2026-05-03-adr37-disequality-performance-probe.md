@@ -20,7 +20,7 @@ The harness measures whole-case wall time and per-Var call counts for:
 - `walk*`, reification, `force-ans`;
 - `unify`, `ext`, and occurs check;
 - constraint scheduler functions; and
-- `predc` / `treec` for the ADR-37 overlay constraint path.
+- `predc`, `fixc`, and `treec` for the ADR-37 overlay constraint path.
 
 ## Probe Cases
 
@@ -34,7 +34,7 @@ The runnable cases are:
 - `:core-violated-after-delay` - one delayed disequality falsified by a later
   binding.
 - `:absento-open-tail` - ADR-37 `absento` over an open tail, exercising
-  `treec` plus disequality.
+  the deep `fixc`-based absence path plus disequality.
 - `:proflog-saved-disequality-close` - a Proflog saved `neq` closes after a
   later equality.
 - `:proflog-open-disequality` - a Proflog same-head symbolic `neq` remains
@@ -99,7 +99,7 @@ Summary:
 | `:core-open-residual` | 55.551 | one residual answer | `!=c` 1, `walk*` 6, reify calls 8 |
 | `:core-open-chain-medium` | 88.769 | one residual answer with 32 constraints | `!=c` 32, `run-constraint` 32, `disunify` 544, `recover-vars` 128, `recover-vars-from-term` 256, `walk*` 130, reify calls 161 |
 | `:core-violated-after-delay` | 13.647 | zero answers | `!=c` 1, `run-constraint` 1, `walk*` 2 |
-| `:absento-open-tail` | 18.530 | one delayed `fixc` answer | `treec` 1, `!=` 2, `disunify` 4, `!=c` 0 |
+| `:absento-open-tail` | 18.530 | one delayed `fixc` answer | historical direct-`treec` overlay: `treec` 1, `!=` 2, `disunify` 4, `!=c` 0 |
 | `:proflog-saved-disequality-close` | 4043.773 | one closed proof | unification category 9139 calls / 97.9%, `!=` 127, `!=c` 0, `walk*` 12 |
 | `:proflog-open-disequality` | 483.511 | zero closed proofs | unification category 3636 calls / 99.1%, `!=` 26, `!=c` 0, `walk*` 0 |
 

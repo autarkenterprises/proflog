@@ -80,6 +80,12 @@ projection/enumeration layer at the public API. Adding such a projection would
 reintroduce an operational boundary and should not be hidden in the core
 relation.
 
+The polished adapter tests now cover small ground finite boundaries in both
+directions and an entry chain from host fuel `3` through internal bit-list
+successors `2`, `1`, and `0`. Fully open finite-step enumeration is deliberately
+not treated as a public host-integer stream; the relation may expose symbolic
+bit-list families.
+
 ## Kernel probe result
 
 The simple closing conjunction used by the existing kernel fuel tests runs
@@ -115,19 +121,21 @@ It is not yet a drop-in production replacement:
   integers.
 - The boundary conversion handles ground host integers when the adapter goal is
   built; it is not a delayed relational host-integer encoder.
-- Performance has not been assessed here. ADR-37 still needs a separate timing
-  pass before this can be considered for merge into production fuel handling.
+- A later timing pass found acceptable integrated overhead, but a significant
+  direct one-step slowdown. Production promotion still needs a public fuel
+  representation decision and broader workload timing if the profile is wired
+  into defaults.
+
+See
+[ADR-37 Relational Fuel Performance Probe](2026-05-05-adr37-relational-fuel-performance.md).
 
 ## Validation
 
 ```text
 /usr/bin/time -p timeout -k 10s 180s lein test proflog.relational-fuel-adapter-probe-test
 
-Ran 6 tests containing 16 assertions.
+Ran 8 tests containing 32 assertions.
 0 failures, 0 errors.
-real 74.92
-user 40.45
-sys 2.81
 ```
 
 ```text

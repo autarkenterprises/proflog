@@ -35,13 +35,19 @@ constraints or relations should Proflog be able to use?
   (predc x number? 'numbero))
 
 (defn absento [target term]
-  (treec term
-         (fn [node] (!= target node))
-         'absento))
+  (deep-absento target term))
 ```
 
-This is good enough as a compatibility layer for the ADR-36 arithmetic tests.
-It is not a faithful port of faster-minikanren's native constraint behavior.
+`symbolo` and `numbero` are still compatibility type checks. `absento` is now a
+project-owned deep absence constraint rather than a direct `treec` wrapper. It
+keeps delayed checks over open subterms, supports open and compound targets,
+rejects same-variable target/node aliases, traverses vector/list structures and
+map keys as well as values, and reifies residuals in canonical `absento`
+vocabulary.
+
+This is now good enough as the shared ADR-36/37 absence layer. It is still not a
+full faster-minikanren native constraint system because positive type
+constraints are not yet normalized as disjoint domains.
 
 The sharpest observable gap is conflicting type constraints:
 
@@ -61,33 +67,28 @@ The corresponding faster-minikanren `symbolo-numbero-tests.scm` cases expect no
 answers for every ordering where the same variable is constrained as both a
 symbol and a number.
 
-The `absento` wrapper has better local behavior because `treec` keeps delayed
-constraints alive on open subterms. It still differs from faster-minikanren's
-native `absento` in important ways:
+The `absento` overlay now covers the most important generalized behavior for
+this branch, including target variables and compound targets. It still differs
+from faster-minikanren's native `absento` in narrower ways:
 
-- residual output reifies as lower-level `fixc`/tree machinery rather than a
-  canonical `absento` vocabulary;
 - duplicate and subsumed absence constraints are not normalized;
 - type constraints do not discharge absence facts over atomic typed variables;
-- generalized targets, where the first argument to `absento` is an open or
-  compound term, are not yet tested to faster-minikanren coverage.
+- the positive type constraints do not yet contribute disjointness facts that
+  can simplify disequality or absence stores.
 
 ## Decision
 
 Port the constraint semantics, not the faster-minikanren engine wholesale.
 
-ADR-37 should keep the current `predc`/`treec` overlay as a phase-1 bridge, but
-the next serious implementation slice should be native-style constraints in the
-project's core.logic overlay:
+ADR-37 should keep the current overlay as a phase-1 bridge, but the next serious
+implementation slice should be native-style type constraints in the project's
+core.logic overlay:
 
 1. A shared positive type-constraint primitive, exposed first as `symbolo`,
    `numbero`, and `stringo`.
-2. A generalized `absento` constraint that attaches absence facts to the
-   uninstantiated variables inside the constrained term and propagates those
-   facts when the variables are later instantiated.
-3. Reification and normalization that keep public residuals in canonical
-   miniKanren vocabulary, not implementation artifacts such as `predc` or
-   `fixc`.
+2. Type/absence interaction strong enough to drop redundant absence facts over
+   atomic typed variables.
+3. Store normalization that deduplicates equivalent absence/type facts.
 
 This should be implemented behind the ADR-37 overlay/vendor boundary. Do not
 patch production Proflog proof search merely because the constraints exist.

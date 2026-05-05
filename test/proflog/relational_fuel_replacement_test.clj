@@ -8,6 +8,7 @@
             [proflog.kernel-support :as support]
             [proflog.language :as language]
             [proflog.pretty :as pretty]
+            [proflog.query :as query]
             [proflog.relational-arithmetic :as arith]
             [proflog.relational-fuel-adapter-probe :as adapter]))
 
@@ -84,11 +85,51 @@
       answer-vars
       opts)))
 
+(defn proof-sample-with-step
+  [step-fuelo formula fuel]
+  (with-redefs [support/step-fuelo step-fuelo]
+    (run 1 [proof]
+      (kernel/proveo formula '() '() '() fuel proof))))
+
+(defn query-succeeds-with-step
+  [step-fuelo program query fuel]
+  (with-redefs [support/step-fuelo step-fuelo]
+    (query/query-succeeds program query 1 fuel)))
+
+(defn query-fails-with-step
+  [step-fuelo program query fuel]
+  (with-redefs [support/step-fuelo step-fuelo]
+    (query/query-fails program query 1 fuel)))
+
 (defn ground-decimals
   [records binding-nom]
   (->> records
        (keep #(pretty/peano->int (answers/binding-term % binding-nom)))
        vec))
+
+(defn kernel-fuel-fixtures
+  []
+  (ast/nom x
+    [{:label "direct complementary closure"
+      :formula closing-conjunction}
+     {:label "beta split over two closing branches"
+      :formula (ast/or-form
+                 closing-conjunction
+                 (ast/and-form
+                   (ast/pos-lit (ast/app-term 'q))
+                   (ast/neg-lit (ast/app-term 'q))))}
+     {:label "gamma instantiation"
+      :formula (ast/and-form
+                 (ast/forall-form x
+                                  (ast/pos-lit
+                                    (ast/app-term 'value (ast/var-term x))))
+                 (ast/neg-lit (ast/app-term 'value (ast/app-term 'zero))))}
+     {:label "delta witness"
+      :formula (ast/exists-form
+                 x
+                 (ast/and-form
+                   (ast/pos-lit (ast/app-term 'value (ast/var-term x)))
+                   (ast/neg-lit (ast/app-term 'value (ast/var-term x)))))}]))
 
 (deftest direct-step-replacement-shows-where-bit-list-fuel-leaks
   (testing "production finite-domain fuel synthesizes host integers"
@@ -127,6 +168,27 @@
                             (kernel/proveo closing-conjunction '() '() '() fuel proof)))]
         (is (= production replacement)
             (str "kernel proof mismatch at fuel " fuel))))))
+
+(deftest kernel-fuel-slices-match-production-across-rule-shapes
+  (doseq [{:keys [label formula]} (kernel-fuel-fixtures)
+          fuel (range 0 7)]
+    (testing (str label " at fuel " fuel)
+      (is (= (proof-sample-with-step production-step-fuelo formula fuel)
+             (proof-sample-with-step adapter/step-fuelo formula fuel))))))
+
+(deftest direct-query-proof-surface-matches-production
+  (let [program (replacement-program)
+        succeeds-query (ast/pos-lit
+                         (ast/app-term 'step (numeral 2) (numeral 1)))
+        fails-query (ast/pos-lit
+                      (ast/app-term 'step (numeral 0) (numeral 1)))]
+    (doseq [fuel [0 1 2 4 8]]
+      (testing (str "query succeeds surface at fuel " fuel)
+        (is (= (query-succeeds-with-step production-step-fuelo program succeeds-query fuel)
+               (query-succeeds-with-step adapter/step-fuelo program succeeds-query fuel))))
+      (testing (str "query fails surface at fuel " fuel)
+        (is (= (query-fails-with-step production-step-fuelo program fails-query fuel)
+               (query-fails-with-step adapter/step-fuelo program fails-query fuel)))))))
 
 (deftest answer-mode-partial-and-reverse-synthesis-match-fd-record-shapes
   (testing "partial step synthesis exports the same public answer bindings"

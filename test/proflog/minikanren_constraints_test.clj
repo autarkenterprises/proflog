@@ -71,7 +71,8 @@
     (let [answers (run 1 [q]
                     (mkc/absento 'intval q))]
       (is (= 1 (count answers)))
-      (is (residual-answer? (first answers)))))
+      (is (residual-answer? (first answers)))
+      (is (some #{'absento} (flatten answers)))))
   (testing "an open tail keeps the absence check delayed after known safe structure"
     (let [answers (run 1 [q]
                     (fresh [tail]
@@ -86,6 +87,57 @@
                (mkc/absento 'intval q)
                (== (lcons 'call tail) q)
                (== (lcons 'intval '()) tail)))))))
+
+(deftest absento-handles-general-tree-shapes
+  (testing "compound targets are rejected at any discovered tree node"
+    (is (= '()
+           (run* [q]
+             (mkc/absento '(call intval) '(wrapper (call intval)))
+             (== q :bad)))))
+  (testing "an open target remains live and can later be rejected"
+    (is (= '()
+           (run* [q]
+             (fresh [target]
+               (mkc/absento target '(call intval))
+               (== target 'intval)
+               (== q :bad))))))
+  (testing "an open target may later be safely refined"
+    (is (= '(safe)
+           (run* [q]
+             (fresh [target]
+               (mkc/absento target '(call intval))
+               (== target 'other)
+               (== q 'safe))))))
+  (testing "an open target cannot be the same variable as the constrained node"
+    (is (= '()
+           (run* [q]
+             (fresh [target]
+               (mkc/absento target target)
+               (== q :bad)))))
+    (is (= '()
+           (run* [q]
+             (fresh [target]
+               (mkc/absento target (list target))
+               (== q :bad)))))
+    (is (= '()
+           (run* [q]
+             (fresh [target term]
+               (mkc/absento target term)
+               (== target term)
+               (== q :bad))))))
+  (testing "vectors and map keys are part of the constrained tree"
+    (is (= '()
+           (run* [q]
+             (mkc/absento :forbidden [:ok {:nested :forbidden}])
+             (== q :bad))))
+    (is (= '()
+           (run* [q]
+             (mkc/absento :forbidden {:forbidden :value})
+             (== q :bad))))
+    (is (= '(:ok)
+           (run* [q]
+             (mkc/absento :forbidden {:safe [:value]})
+             (== q :ok))))))
 
 (deftest absento-pushes-down-across-upstream-orderings
   (doseq [[label goal]

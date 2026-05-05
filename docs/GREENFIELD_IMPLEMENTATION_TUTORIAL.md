@@ -5,7 +5,8 @@ Related ADRs:
 [ADR-0034](adr/ADR-0034-greenfield-implementation-tutorial.md),
 [ADR-0035](adr/ADR-0035-relational-residual-continuation.md),
 [ADR-0036](adr/ADR-0036-speculative-relational-arithmetic-and-tabling.md),
-[ADR-0037](adr/ADR-0037-core-logic-minikanren-enhancements.md)
+[ADR-0037](adr/ADR-0037-core-logic-minikanren-enhancements.md),
+[ADR-0038](adr/ADR-0038-fitting-program-kernel-evaluation.md)
 
 This chapter explains the current greenfield Proflog implementation as a
 whole system. It is written for a reader who needs to understand the design,
@@ -23,10 +24,14 @@ Current checkpoint:
   the constructor-recursive diagnostic sidecar.
 - ADR-0036 added speculative faster-minikanren relational arithmetic and proved
   that direct raw `core.logic/tabled` is not a drop-in replacement for
-  Proflog's canonical proof-state tabling.
-- ADR-0037 is a speculative core.logic enhancement branch. Its current
-  `symbolo`/`numbero`/`absento` overlay and relational map/fuel/tree probes are
-  research surfaces, not production proof-search semantics.
+  Proflog's canonical proof-state tabling. Production fuel remains the
+  finite-domain host-integer relation.
+- ADR-0037 completed a project-local miniKanren constraint overlay plus
+  relational map/fuel/tree/performance probes. Those probes are research
+  surfaces, not production proof-search semantics.
+- ADR-0038 is the next active development direction: deep Fitting Proflog
+  programs should be evaluated by the greenfield core proof kernel after source
+  translation, without host-side semantic computation.
 
 ## 1. Orientation
 
@@ -122,7 +127,7 @@ The main implementation namespaces are:
 | Constructor recursion | [`src/proflog/kernel/constructor_recursive.clj`](../src/proflog/kernel/constructor_recursive.clj) | Guarded-IR constructor-recursive proof and residual-settlement diagnostic layer. |
 | Hard-family overlay | [`src/proflog/hard_family_overlay.clj`](../src/proflog/hard_family_overlay.clj) | Named non-default status accelerator for restricted hard-family probes. |
 | Relational arithmetic | [`src/proflog/relational_arithmetic.clj`](../src/proflog/relational_arithmetic.clj) | ADR-0036 Clojure translation of faster-minikanren bit-list arithmetic for speculative fuel and arithmetic probes. |
-| MiniKanren constraints | [`src/proflog/minikanren_constraints.clj`](../src/proflog/minikanren_constraints.clj) | ADR-0037 project-local compatibility overlay for `symbolo`, `numbero`, and `absento`; current implementation is a bridge over `predc`/`treec`. |
+| MiniKanren constraints | [`src/proflog/minikanren_constraints.clj`](../src/proflog/minikanren_constraints.clj) | ADR-0037 project-local compatibility overlay for `symbolo`, `numbero`, and general-purpose `absento`; type checks still use `predc`, while `absento` is a project-owned deep absence constraint. |
 | ADR probes | [`src/proflog/relational_fuel_adapter_probe.clj`](../src/proflog/relational_fuel_adapter_probe.clj), [`src/proflog/relational_maps_probe.clj`](../src/proflog/relational_maps_probe.clj), and related probe namespaces | Speculative or measurement-only namespaces. They document evidence and should not be mistaken for default production behavior. |
 | Host probes | [`src/proflog/core_logic_host.clj`](../src/proflog/core_logic_host.clj) and related probe namespaces | Report and instrument the loaded core.logic host implementation. |
 
@@ -1202,8 +1207,8 @@ lein probe-core-logic-count
 lein probe-core-logic-tabling
 ```
 
-Speculative ADR-0036/0037 checks are not all aliased. Run focused namespaces
-directly, for example:
+Speculative ADR-0036/0037 checks are not all part of default suites. Run
+focused namespaces directly, for example:
 
 ```text
 lein test proflog.relational-arithmetic-test proflog.relational-arithmetic-upstream-test
@@ -1213,6 +1218,7 @@ lein test proflog.relational-fuel-replacement-test
 lein test proflog.relational-maps-probe-test
 lein test proflog.l-ground-constraint-probe-test
 lein test proflog.core-logic-disequality-probe-test
+lein probe-relational-fuel-performance
 ```
 
 The [Test Matrix](TEST_MATRIX.md) defines the project-level coverage policy.
@@ -1233,8 +1239,12 @@ The most important boundaries are:
 - proofless fast paths must remain named overlays or preserve a proof mode.
 - raw core.logic tabling is not a replacement for Proflog's canonical-state
   tabling layer;
-- ADR-0036 bit-list arithmetic and ADR-0037 symbolic constraint overlays are
-  speculative until promoted by a later production ADR.
+- ADR-0036 bit-list fuel remains opt-in and production fuel remains the
+  finite-domain host-integer relation;
+- ADR-0037 probe namespaces are not production proof-search semantics;
+- ADR-0038 promoted Fitting-program outcomes must be proved or classified by
+  the core proof kernel after source translation, not by host-side semantic
+  computation.
 
 These boundaries explain many implementation choices that may otherwise look
 indirect. For example, the language compiler builds several synchronized views

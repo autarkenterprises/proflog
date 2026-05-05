@@ -10,31 +10,11 @@
    Copyright (c) 2015 William E. Byrd."
   (:refer-clojure :exclude [==])
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.core.logic :refer [!= == conde fresh lcons predc run run* treec]]
+            [clojure.core.logic :refer [!= == conde fresh lcons run run*]]
+            [proflog.minikanren-constraints :as mkc]
             [proflog.relational-arithmetic :as arith]))
 
-(declare absento eval-expo not-in-envo lookupo symbolo)
-
-(defn absento
-  "Constraint-style absence guard used by the upstream push-down tests.
-
-   core.logic 1.0.1 does not expose miniKanren's absento constraint. `treec`
-   gives this test-local replacement the delayed behavior the push-down cases
-   need: the constraint waits on open terms and propagates disequality checks
-   when structure is later discovered."
-  [target term]
-  (treec term
-         (fn [node] (!= target node))
-         'absento))
-
-(defn symbolo
-  "Delayed symbol guard used by the translated interpreter tests.
-
-   The faster-minikanren suite uses a real symbolic constraint. Core.logic
-   1.0.1 does not expose that constraint, so this test-local replacement delays
-   until the candidate is ground and then checks Clojure `symbol?`."
-  [x]
-  (predc x symbol? 'symbolo))
+(declare eval-expo not-in-envo lookupo)
 
 (defn number-primo
   [exp env val]
@@ -97,7 +77,7 @@
     [(zero?-primo exp env val)]
     [(*-primo exp env val)]
     [(if-primo exp env val)]
-    [(symbolo exp) (lookupo exp env val)]
+    [(mkc/symbolo exp) (lookupo exp env val)]
     [(fresh [rator rand x body env* a]
        (== (list rator rand) exp)
        (eval-expo rator env (list 'closure x body env*))
@@ -105,7 +85,7 @@
        (eval-expo body (lcons (lcons x a) env*) val))]
     [(fresh [x body]
        (== (list 'lambda (list x) body) exp)
-       (symbolo x)
+       (mkc/symbolo x)
        (== (list 'closure x body env) val)
        (not-in-envo 'lambda env))]))
 
@@ -193,38 +173,38 @@
           [["push-down problems 2"
             (fn [q]
               (fresh [x a d]
-                (absento 'intval x)
+                (mkc/absento 'intval x)
                 (== 'intval a)
                 (== (lcons a d) x)))]
            ["push-down problems 3"
             (fn [q]
               (fresh [x a d]
                 (== (lcons a d) x)
-                (absento 'intval x)
+                (mkc/absento 'intval x)
                 (== 'intval a)))]
            ["push-down problems 4"
             (fn [q]
               (fresh [x a d]
                 (== (lcons a d) x)
                 (== 'intval a)
-                (absento 'intval x)))]
+                (mkc/absento 'intval x)))]
            ["push-down problems 6"
             (fn [q]
               (fresh [x a d]
                 (== 'intval a)
                 (== (lcons a d) x)
-                (absento 'intval x)))]
+                (mkc/absento 'intval x)))]
            ["push-down problems 1"
             (fn [q]
               (fresh [x a d]
-                (absento 'intval x)
+                (mkc/absento 'intval x)
                 (== (lcons a d) x)
                 (== 'intval a)))]
            ["push-down problems 5"
             (fn [q]
               (fresh [x a d]
                 (== 'intval a)
-                (absento 'intval x)
+                (mkc/absento 'intval x)
                 (== (lcons a d) x)))]]]
     (testing label
       (is (= '()

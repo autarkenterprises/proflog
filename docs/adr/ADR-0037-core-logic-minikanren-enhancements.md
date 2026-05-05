@@ -1,9 +1,9 @@
 # ADR-0037: Core.logic miniKanren Feature and Performance Enhancements
 
-- Status: proposed
+- Status: completed
 - Date: 2026-05-03
 - Branch: `adr-0037-core-logic-minikanren-enhancements`
-- AAR: pending
+- AAR: [AAR-0037](../aar/AAR-0037-core-logic-minikanren-enhancements.md)
 - Depends On:
   - [ADR-0032](ADR-0032-core-logic-performance.md)
   - [ADR-0036](ADR-0036-speculative-relational-arithmetic-and-tabling.md)
@@ -29,10 +29,13 @@ Create a separate speculative ADR branch to evaluate whether this project should
 carry a project-local enhanced core.logic profile or overlay before replacing
 production fuel arithmetic.
 
-The branch should be run as a delegated research and implementation track. The
-subagent coordinator may spawn subordinate agents for independent research or
-implementation slices, but production Proflog behavior must not be changed until
-the evidence is concrete.
+The branch should be run as a delegated research and implementation track.
+Production Proflog behavior must not be changed until the evidence is concrete.
+
+Closeout decision: retain the project-local constraint overlay and probe
+namespaces as explicit ADR evidence, keep production proof search unchanged, and
+keep finite-domain `kernel-support/step-fuelo` as the public fuel relation until
+a later ADR accepts a representation migration or bounded projection layer.
 
 ## Work Tracks
 
@@ -75,9 +78,9 @@ Their combined result narrows the next implementation slice:
 ## Phased Plan
 
 1. **Constraint overlay.** Add project-local `symbolo`, `numbero`, and
-   `absento` relations using existing `predc`, `treec`, and disequality
-   machinery where possible. Test ordering, delayed open-term behavior,
-   residual reification, and interaction with disequality.
+   `absento` relations using existing core.logic constraint machinery where
+   possible. Test ordering, delayed open-term behavior, residual reification,
+   generalized targets, and interaction with disequality.
 2. **Arithmetic shim cleanup.** Move the ADR-36 translated arithmetic tests off
    their test-local `symbolo` and `absento` definitions and onto the overlay.
 3. **Fuel adapter probe.** Prototype bit-list relational fuel behind an opt-in
@@ -92,24 +95,38 @@ Their combined result narrows the next implementation slice:
    tabling replacement, nominal unification changes, global occurs-check
    removal, and finite-domain propagation redesign.
 
-## Current Checkpoint
+## Closeout
 
 Phase 1 has a project-local overlay in `proflog.minikanren-constraints`.
+`symbolo` and `numbero` remain `predc`-backed positive type checks, but
+`absento` has been promoted from a direct `treec` wrapper into a project-owned
+deep absence constraint. The current `absento` handles delayed open terms,
+compound and open targets, vectors, map keys and values, upstream push-down
+orderings, same-variable target/node rejection, and canonical residual
+reification in the public `absento` vocabulary.
+
+Phase 2 is complete for the ADR-36 translated arithmetic suite: the upstream
+arithmetic/interpreter tests now use `proflog.minikanren-constraints` instead
+of test-local `symbolo` and `absento` shims.
+
 Phase 3 has an opt-in relational fuel adapter probe. The direct finite-domain
 fuel assessment is narrowed rather than negative: current fixed-fuel
 reverse/partial answer synthesis is not blocked by FD fuel alone, but open or
 reverse synthesis of fuel itself still inherits the hardcoded host integer
-domain. That keeps the relational arithmetic replacement relevant as an
-opt-in/profiled path before any production change.
+domain. The adapter now has expanded tests for small finite boundaries,
+internal bit-list chains, kernel rule shapes, direct query proof surfaces, and
+answer-mode export parity. A focused performance probe shows a real direct
+micro-cost for single `step-fuelo` calls, but only modest integrated overhead on
+the measured Proflog surfaces. That keeps the relational arithmetic replacement
+relevant as an opt-in/profiled path before any production change.
 
 The Proflog integration and core.logic performance audits are recorded as
 separate logs. The integration scope is broader than simply adopting existing
 miniKanren constraints: ADR-37 should also look for Proflog-motivated generic
 core.logic improvements, such as relational maps or delayed tree predicates,
-when those features would be generally useful outside Proflog. Their shared
-recommendation is still conservative: prototype those capabilities behind
-isolated probes and keep production proof search unchanged until the evidence is
-clear.
+when those features would be generally useful outside Proflog. Their closeout
+recommendation is conservative: prototype those capabilities behind isolated
+probes and keep production proof search unchanged until the evidence is clear.
 
 The second ADR-37 worker phase is complete:
 
@@ -120,17 +137,26 @@ The second ADR-37 worker phase is complete:
 - disequality performance: `dd3d2dc`, with no core.logic engine patch justified
   by current Proflog measurements;
 - relational fuel replacement: `5e8b643`, semantically viable as an
-  opt-in/profiled path but not production-ready until public fuel representation
-  and performance are settled.
+  opt-in/profiled path; the later performance probe kept it viable, but it is
+  not production-ready until public fuel representation is settled.
 
 The constraint-port decision is recorded in
 [ADR-37 Constraint Port Assessment](../log/2026-05-03-adr37-constraint-port-assessment.md).
+The pre-integration polish pass is recorded in
+[ADR-36/37 Polish Before Main Integration](../log/2026-05-05-adr36-37-polish.md).
+The relational fuel timing assessment is recorded in
+[ADR-37 Relational Fuel Performance Probe](../log/2026-05-05-adr37-relational-fuel-performance.md).
 ADR-37 should port faster-minikanren's `symbolo`, `numbero`, and `absento`
-semantics, but not the faster-minikanren engine wholesale. The existing
-`predc`/`treec` overlay remains a compatibility bridge; the next serious
-implementation slice should add native-style positive type constraints,
-generalized `absento`, and canonical residual reification behind the overlay or
-vendor boundary before any production Proflog integration.
+semantics, but not the faster-minikanren engine wholesale. The current overlay
+now covers the general-purpose `absento` slice needed by ADR-36/37. The next
+serious constraint slice should add native-style positive type constraints and
+normalization for `symbolo`, `numbero`, and future `stringo` before any
+production Proflog integration.
+
+ADR-37 does not promote relational-arithmetic fuel to production. The adapter is
+viable for fixed public entry fuel and integrated proof/answer surfaces, but
+open or reverse fuel synthesis exposes ADR-36 bit-list numerals. Production
+therefore keeps the finite-domain host-integer fuel relation for now.
 
 ## Candidate Questions
 
@@ -155,8 +181,9 @@ vendor boundary before any production Proflog integration.
 - Keep core.logic changes behind a project-local profile or explicit source
   overlay until upstream compatibility and regression risk are understood.
 - Do not replace production `step-fuelo` until reverse/partial synthesis probes
-  show a concrete benefit and existing integer-fuel callers remain supported or
-  receive an explicit migration.
+  show a concrete benefit, integrated performance remains acceptable, and
+  existing integer-fuel callers remain supported or receive an explicit
+  migration.
 - Treat direct raw core.logic tabling as closed by ADR-0036 unless a new
   canonical-state integration point is discovered.
 - Prefer generic relations and constraints over Proflog-specific shortcuts.
@@ -173,6 +200,8 @@ vendor boundary before any production Proflog integration.
 - Tests for any imported or newly exposed constraints.
 - Focused `step-fuelo` replacement probes showing reverse/partial synthesis
   behavior without finite-domain hard bounds.
+- Focused performance evidence comparing finite-domain fuel with relational
+  arithmetic fuel on direct and integrated Proflog surfaces.
 - Proflog integration audit listing candidate replacements and cases rejected.
 
 ## Initial Test Obligations
@@ -181,6 +210,7 @@ vendor boundary before any production Proflog integration.
 - Existing kernel, query, and synthesis-mode tests affected by fuel handling.
 - Upstream-style constraint tests for `symbolo`, `numbero`, `absento`, and any
   additional imported relation.
+- `lein probe-relational-fuel-performance` for any proposed fuel replacement.
 - Focused performance probes before and after any core.logic engine change.
 
 ## References

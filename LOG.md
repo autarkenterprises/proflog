@@ -20,6 +20,23 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-05
+
+- Closed ADR-0036 and ADR-0037 on branch
+  `adr-0037-core-logic-minikanren-enhancements`. The closeout keeps production
+  `kernel-support/step-fuelo` on finite-domain host integers, retains the
+  relational arithmetic fuel adapter only as an opt-in/probe candidate, closes
+  raw `core.logic/tabled` replacement as a non-replacement, and records the
+  outcomes in
+  [AAR-0036](docs/aar/AAR-0036-speculative-relational-arithmetic-and-tabling.md)
+  and
+  [AAR-0037](docs/aar/AAR-0037-core-logic-minikanren-enhancements.md).
+- Accepted
+  [ADR-0038](docs/adr/ADR-0038-fitting-program-kernel-evaluation.md) as the
+  next development direction: evaluate deep Fitting Proflog programs in
+  greenfield through the core proof kernel after source translation, without
+  host-side semantic computation or named overlays in the promoted path.
+
 ## 2026-05-03
 
 - Continued ADR-0035 Track B on branch `adr-0035-track-b-guard-prefilter` with

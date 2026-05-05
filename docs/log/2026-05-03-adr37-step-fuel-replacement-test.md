@@ -32,6 +32,12 @@ Covered cases:
 - Kernel proof entry:
   - Fixed public fuel boundaries `0`, `1`, `2`, and `nil` produce the same
     first proof shape for a small closing conjunction.
+  - Small finite fuel slices `0..6` produce the same first proof shape across
+    direct complementary closure, beta split, gamma instantiation, and delta
+    witness formulas.
+- Direct query proof surface:
+  - Ground `step(2, 1)` success and `step(0, 1)` failure probes match
+    production across fuel slices `0`, `1`, `2`, `4`, and `8`.
 - Answer-overlay query export:
   - `step(x, 1)` partial synthesis keeps the same exported public answer
     bindings as FD fuel: `x = 2`, `x = 3`.
@@ -52,11 +58,8 @@ Covered cases:
 Result:
 
 ```text
-Ran 5 tests containing 19 assertions.
+Ran 7 tests containing 57 assertions.
 0 failures, 0 errors.
-real 179.80
-user 76.84
-sys 3.33
 ```
 
 Four parallel `:only` timing splits were attempted afterward, but they timed
@@ -66,8 +69,14 @@ test evidence. They are not counted as semantic or performance evidence.
 ## Comparison
 
 The replacement is semantically viable for the next ADR-37 phase on fixed public
-entry fuel and answer-mode query export. On those surfaces, public answer record
-bindings and residuals matched production FD fuel.
+entry fuel, direct kernel rule shapes, direct query proof surfaces, and
+answer-mode query export. On those surfaces, proof samples and public answer
+record bindings/residuals matched production FD fuel.
+
+A later same-JVM performance probe kept the replacement viable: direct one-step
+fuel calls were significantly slower, but measured kernel/query/answer surfaces
+ranged from roughly parity to a 1.35x mean slowdown. See
+[ADR-37 Relational Fuel Performance Probe](2026-05-05-adr37-relational-fuel-performance.md).
 
 The known leak remains direct synthesis of fuel values themselves. FD fuel
 synthesizes host integers, while the relational replacement synthesizes ADR-36
@@ -85,5 +94,7 @@ Required before production:
 - keep the public `nil` / host integer entry API stable;
 - decide whether open/reverse public fuel synthesis should expose bit-list fuel,
   host integer fuel through a bounded projection, or remain unsupported;
-- add more answer-mode regression rows beyond the small `step` / `jump` program;
-- measure the performance delta outside concurrent worker load.
+- add more answer-mode regression rows beyond the small `step` / `jump` program
+  if the profile is promoted from probe to production;
+- re-run the performance probe after any representation-boundary change and add
+  broader workload timing if the profile is promoted from probe to production.

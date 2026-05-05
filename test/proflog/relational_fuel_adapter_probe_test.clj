@@ -47,6 +47,35 @@
            (run 1 [fuel]
              (adapter/step-fuelo fuel nil))))))
 
+(deftest direct-step-ground-boundaries-cover-small-finite-fuel-slices
+  (testing "ground host fuel consumes to the expected internal bit-list successor"
+    (doseq [fuel (range 0 8)]
+      (let [expected (if (pos? fuel)
+                       (list (arith/build-num (dec fuel)))
+                       '())]
+        (is (= expected
+               (run 1 [next-fuel]
+                 (adapter/step-fuelo fuel next-fuel)))
+            (str "unexpected next fuel for host fuel " fuel)))))
+  (testing "known host next-fuel synthesizes the expected internal predecessor"
+    (doseq [next-fuel (range 0 7)]
+      (is (= (list (arith/build-num (inc next-fuel)))
+             (run 1 [fuel]
+               (adapter/step-fuelo fuel next-fuel)))
+          (str "unexpected predecessor for host next fuel " next-fuel)))))
+
+(deftest finite-host-entry-continues-as-a-bit-list-fuel-chain
+  (testing "after entry conversion, recursive steps stay in the internal numeral representation"
+    (is (= (list [(arith/build-num 2)
+                  (arith/build-num 1)
+                  (arith/build-num 0)])
+           (run 1 [q]
+             (fresh [fuel-2 fuel-1 fuel-0]
+               (adapter/step-fuelo 3 fuel-2)
+               (adapter/step-fuelo fuel-2 fuel-1)
+               (adapter/step-fuelo fuel-1 fuel-0)
+               (== [fuel-2 fuel-1 fuel-0] q)))))))
+
 (deftest bit-list-reverse-synthesis-avoids-the-fd-interval-boundary
   (testing "a known internal successor synthesizes an unbounded bit-list predecessor"
     (is (= (list (arith/build-num 1))

@@ -53,6 +53,10 @@
 
    {:id 'clojure.core.logic/predc
     :category :tree-predicate-constraints}
+   {:id 'clojure.core.logic/fixc
+    :category :tree-predicate-constraints}
+   {:id 'clojure.core.logic/-fixc
+    :category :tree-predicate-constraints}
    {:id 'clojure.core.logic/treec
     :category :tree-predicate-constraints}])
 

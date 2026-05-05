@@ -34,10 +34,10 @@
     (is (pos? (calls result 'clojure.core.logic/walk*)))
     (is (pos? (get-in result [:derived :reify-calls])))))
 
-(deftest absento-overlay-uses-tree-and-disequality-constraints
+(deftest absento-overlay-uses-deep-and-disequality-constraints
   (let [result (probe/run-case :absento-open-tail)]
     (is (= 1 (result-count result)))
-    (is (pos? (calls result 'clojure.core.logic/treec)))
+    (is (pos? (calls result 'clojure.core.logic/fixc)))
     (is (pos? (calls result 'clojure.core.logic/!=)))
     (is (pos? (calls result 'clojure.core.logic/disunify)))))
 

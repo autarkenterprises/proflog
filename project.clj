@@ -106,6 +106,8 @@
                                                  "proflog.pelletier-comparison-test"]
             "test-proflog-hard-families" ["test"
                                           "proflog.legacy-hard-families-test"]
+            "test-proflog-fitting-programs" ["test"
+                                             "proflog.fitting-programs-test"]
             "test-proflog-constructor-recursive" ["test"
                                                   ":constructor-recursive"
                                                   "proflog.list-programs-test"

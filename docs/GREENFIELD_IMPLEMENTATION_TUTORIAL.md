@@ -29,9 +29,9 @@ Current checkpoint:
 - ADR-0037 completed a project-local miniKanren constraint overlay plus
   relational map/fuel/tree/performance probes. Those probes are research
   surfaces, not production proof-search semantics.
-- ADR-0038 is the next active development direction: deep Fitting Proflog
-  programs should be evaluated by the greenfield core proof kernel after source
-  translation, without host-side semantic computation.
+- ADR-0038 adds a kernel-backed fitting-program evaluation catalog. Promoted
+  true/false outcomes carry proof evidence; GV associativity remains an
+  explicit bounded proof-search frontier rather than a host-overlay result.
 
 ## 1. Orientation
 
@@ -128,6 +128,7 @@ The main implementation namespaces are:
 | Hard-family overlay | [`src/proflog/hard_family_overlay.clj`](../src/proflog/hard_family_overlay.clj) | Named non-default status accelerator for restricted hard-family probes. |
 | Relational arithmetic | [`src/proflog/relational_arithmetic.clj`](../src/proflog/relational_arithmetic.clj) | ADR-0036 Clojure translation of faster-minikanren bit-list arithmetic for speculative fuel and arithmetic probes. |
 | MiniKanren constraints | [`src/proflog/minikanren_constraints.clj`](../src/proflog/minikanren_constraints.clj) | ADR-0037 project-local compatibility overlay for `symbolo`, `numbero`, and general-purpose `absento`; type checks still use `predc`, while `absento` is a project-owned deep absence constraint. |
+| Fitting program catalog | [`src/proflog/fitting_programs.clj`](../src/proflog/fitting_programs.clj) | ADR-0038 kernel-backed catalog for P1, P2, move-warning, finite-domain, list-family, and GV-frontier examples. |
 | ADR probes | [`src/proflog/relational_fuel_adapter_probe.clj`](../src/proflog/relational_fuel_adapter_probe.clj), [`src/proflog/relational_maps_probe.clj`](../src/proflog/relational_maps_probe.clj), and related probe namespaces | Speculative or measurement-only namespaces. They document evidence and should not be mistaken for default production behavior. |
 | Host probes | [`src/proflog/core_logic_host.clj`](../src/proflog/core_logic_host.clj) and related probe namespaces | Report and instrument the loaded core.logic host implementation. |
 
@@ -1219,6 +1220,7 @@ lein test proflog.relational-maps-probe-test
 lein test proflog.l-ground-constraint-probe-test
 lein test proflog.core-logic-disequality-probe-test
 lein probe-relational-fuel-performance
+lein test-proflog-fitting-programs
 ```
 
 The [Test Matrix](TEST_MATRIX.md) defines the project-level coverage policy.

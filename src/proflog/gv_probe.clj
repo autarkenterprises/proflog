@@ -248,9 +248,16 @@
      :query-status (:value status)
      :query-status-elapsed-ms (:elapsed-ms status)}))
 
-(defn- scenario-config
+(defn scenario-config
   [scenario]
   (case scenario
+    "z1-precomputed-assoc-truth"
+    (ast/nom x y z
+      {:scenario scenario
+       :expected :succeeds
+       :program (gv-assoc-precomputed-program gv-z1 x y z)
+       :relation 'gv_assoc_pre})
+
     "z1-full-assoc-truth"
     (ast/nom x y z w1 w2 w3 w4
       {:scenario scenario
@@ -279,6 +286,13 @@
        :program (gv-assoc-program gv-non-group x y z w1 w2 w3 w4)
        :relation 'gv_assoc})
 
+    "non-group-precomputed-assoc"
+    (ast/nom x y z
+      {:scenario scenario
+       :expected :fails
+       :program (gv-assoc-precomputed-program gv-non-group x y z)
+       :relation 'gv_assoc_pre})
+
     "z2-identity"
     (ast/nom x
       {:scenario scenario
@@ -302,10 +316,12 @@
 
     (throw (ex-info "Unknown GV probe scenario"
                     {:scenario scenario
-                     :supported ["z1-full-assoc-truth"
+                     :supported ["z1-precomputed-assoc-truth"
+                                 "z1-full-assoc-truth"
                                  "z2-precomputed-assoc-truth"
                                  "z2-full-assoc-truth"
                                  "non-group-full-assoc"
+                                 "non-group-precomputed-assoc"
                                  "z2-identity"
                                  "z2-closure"
                                  "z2-inverses"]}))))
@@ -334,10 +350,12 @@
   (let [mode (keyword (or mode-text "status"))
         timeout-ms (Long/parseLong (or timeout-text "15000"))
         scenarios (if (or (nil? scenario) (= "all" scenario))
-                    ["z1-full-assoc-truth"
+                    ["z1-precomputed-assoc-truth"
+                     "z1-full-assoc-truth"
                      "z2-precomputed-assoc-truth"
                      "z2-full-assoc-truth"
-                     "non-group-full-assoc"]
+                     "non-group-full-assoc"
+                     "non-group-precomputed-assoc"]
                     [scenario])]
     (doseq [one-scenario scenarios]
       (run-scenario! one-scenario mode timeout-ms))

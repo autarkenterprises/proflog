@@ -20,6 +20,23 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-06
+
+- Accepted
+  [ADR-0039](docs/adr/ADR-0039-kernel-level-group-verification.md) on branch
+  `adr-0039-kernel-level-group-verification`. The branch will implement a
+  generic proof-producing profiled finite equality-fragment kernel layer.
+  Mandatory exit goals include `Z2` full group associativity success and
+  non-group full associativity failure through the kernel path, plus a
+  significant non-GV transition-system verification family. The spelling for
+  this implementation track is `profiled`, matching the existing kernel
+  layering terminology.
+- Completed ADR-0039 with a generic `proflog.kernel.equality-fragment`
+  component, proof-backed full GV associativity outcomes, and larger
+  transition-system `delta` totality/determinism examples. The outcome is
+  recorded in
+  [AAR-0039](docs/aar/AAR-0039-kernel-level-group-verification.md).
+
 ## 2026-05-05
 
 - Closed ADR-0036 and ADR-0037 on branch

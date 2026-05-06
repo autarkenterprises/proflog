@@ -44,7 +44,7 @@ timeout -k 5s 480s lein test-proflog-fitting-programs
 Current local result:
 
 ```text
-Ran 6 tests containing 65 assertions.
+Ran 6 tests containing 81 assertions.
 0 failures, 0 errors.
 ```
 
@@ -178,21 +178,26 @@ The tests disable `constructor-recursive/settle-record`, so these rows cannot
 pass by post-export sidecar settlement. They must close through the raw
 kernel/answer-overlay path.
 
-## Group-Verifier Frontiers
+## Group-Verifier Associativity
 
 The GV examples build finite group-axiom programs from a multiplication table.
-ADR-38 deliberately does not use the named hard-family overlay to answer them.
+ADR-39 promotes the associativity rows from bounded frontiers to proof-backed
+kernel outcomes. The named hard-family overlay is still disabled in the tests.
 
-Current promoted GV rows are classified as bounded frontiers:
+Current promoted GV rows:
 
 | Case | Mode | Outcome | Classification |
 | --- | --- | --- | --- |
-| Z2 precomputed associativity | quantified status | unresolved | `:precomputed-associativity-universal-search-frontier` |
-| Z1 full seven-universal associativity | quantified status | unresolved | `:full-associativity-universal-search-frontier` |
+| Z1 full seven-universal associativity | quantified success | succeeds | profiled equality-fragment proof |
+| Z2 precomputed associativity | quantified success | succeeds | profiled equality-fragment proof |
+| Z2 full seven-universal associativity | quantified success | succeeds | profiled equality-fragment proof |
+| non-group precomputed associativity | quantified refutation | fails | profiled equality-fragment proof |
+| non-group full seven-universal associativity | quantified refutation | fails | profiled equality-fragment proof |
 
-This is a correctness result in the negative sense: the catalog records what
-the kernel can and cannot currently prove within the committed bounds. It does
-not silently substitute a host table checker for the proof kernel.
+This is still not a group-specific evaluator. The proof terms contain
+`profiled equality-fragment` evidence, and the production equality-fragment
+component does not depend on `gv-probe`, `hard-family-overlay`, or transition
+fixtures.
 
 ## Performance And Correctness Summary
 
@@ -210,7 +215,9 @@ Performance profile:
 - direct finite-domain and shallow P1/P2 rows are comparatively small;
 - `win(4)` and `odd(s(0))` are slower but still practical proof-kernel cases;
 - list answer/partial-synthesis rows dominate the focused suite runtime;
-- GV associativity and deeper P1/P2 rows remain proof-search frontiers.
+- the larger finite-verifier rows are now practical but remain expensive enough
+  to live in focused suites rather than routine fast tests;
+- deeper P1/P2 rows remain proof-search frontiers.
 
 The suite is therefore a minimum viable non-trivial demonstration, not a claim
 that all Fitting-style programs are solved cheaply. It shows forward proof,

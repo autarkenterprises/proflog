@@ -92,8 +92,8 @@
                  (ast/neq-lit (ast/app-term 'a)
                               (ast/app-term 'a)))]))
 
-(deftest program-bearing-proof-search-stays-on-the-full-kernel
-  (testing "program calls keep their procedure-call proof tags even for nullary atoms"
+(deftest equality-fragment-program-bearing-proof-search-enters-profiled-layer
+  (testing "equality-fragment program calls keep procedure-call proof tags and enter the profiled layer"
     (let [propositional-calls (atom 0)
           first-order-calls (atom 0)
           original-propositional-prove propositional/prove
@@ -123,7 +123,8 @@
                         1))]
           (is proof)
           (is (proof/contains-step? proof 'pos-call))
-          (is (not (proof/contains-step? proof 'profiled)))
+          (is (proof/contains-step? proof 'profiled))
+          (is (proof/contains-step? proof 'equality-fragment))
           (is (zero? @propositional-calls))
           (is (zero? @first-order-calls)))))))
 

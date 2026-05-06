@@ -89,15 +89,18 @@
       (is (= :partial-output
              (get-in by-id [:reverse-partial-output-longer-tail :mode]))))))
 
-(deftest group-verifier-cases-are-proof-kernel-results-or-explicit-frontiers
-  (testing "group-verifier associativity forms are recorded as bounded kernel frontiers"
-    (doseq [[case-id classification]
-            [[:gv-z2-precomputed-assoc-bounded-unresolved
-              :precomputed-associativity-universal-search-frontier]
-             [:gv-z1-full-assoc-bounded-unresolved
-              :full-associativity-universal-search-frontier]]]
-      (let [result (assert-outcome case-id :unresolved)]
-        (is (= classification (:classification result)))))))
+(deftest group-verifier-cases-are-proof-kernel-results
+  (testing "group-verifier associativity forms are proved or refuted by the profiled equality-fragment kernel layer"
+    (doseq [[case-id expected]
+            [[:gv-z1-full-assoc-succeeds :succeeds]
+             [:gv-z2-precomputed-assoc-succeeds :succeeds]
+             [:gv-z2-full-assoc-succeeds :succeeds]
+             [:gv-non-group-precomputed-assoc-fails :fails]
+             [:gv-non-group-full-assoc-fails :fails]]]
+      (let [result (assert-outcome case-id expected)]
+        (is (pos? (:proof-count result)))
+        (is (some #{'profiled} (:proof-steps result)))
+        (is (some #{'equality-fragment} (:proof-steps result)))))))
 
 (deftest adr38-catalog-is-broad-and-does-not-reference-hard-overlay
   (let [catalog (fitting/fitting-cases)

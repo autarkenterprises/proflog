@@ -32,34 +32,170 @@ Start a REPL:
 lein repl
 ```
 
-Define and query a first Proflog program:
+Proflog programs should first be readable as Fitting-style logic programs. The
+hand-written pseudo-code notation uses Prolog-like clauses, with one added
+distinction: `:=` marks a definitional helper that the frontend may inline,
+while `:-` marks a real Fitting-style procedure-call relation.
+
+Start with a minimal relation: `p(x)` succeeds exactly when `x = a`.
+
+```prolog
+p(x) :- x = a.
+```
+
+The planned ADR-0010 frontend keeps the same program organization, but writes
+it in Clojure-friendly prefix form:
+
+```clojure
+(require '[proflog.dsl :refer [defproflog q]]
+         '[proflog.query :as query])
+
+(def p-program
+  (defproflog
+    (language
+      (constants a b)
+      (relations (p 1)))
+
+    (rel p [x]
+      (= x a))))
+
+(query/query-status p-program (q (p a)))
+;; => :succeeds
+
+(query/query-status p-program (q (p b)))
+;; => :fails
+```
+
+That frontend form descends to the source clause shape accepted by the current
+language layer:
 
 ```clojure
 (require '[proflog.ast :as ast]
          '[proflog.language :as language]
          '[proflog.query :as query])
 
-(def lang
+(def p-lang
   (language/language
     {:constants ['a 'b]
      :relations {'p 1}}))
 
-(def program
+(def p-program
   (ast/nom x
     (language/compile-program
-      lang
-      [(ast/clause 'p [x]
-                   (ast/eq-lit (ast/var-term x)
-                               (ast/app-term 'a)))])))
+      p-lang
+      [(ast/clause
+         'p
+         [x]
+         (ast/eq-lit (ast/var-term x)
+                     (ast/app-term 'a)))])))
 
-(query/query-status program
-                    (ast/pos-lit (ast/app-term 'p (ast/app-term 'a))))
+(query/query-status
+  p-program
+  (ast/pos-lit (ast/app-term 'p (ast/app-term 'a))))
 ;; => :succeeds
 
-(query/query-status program
-                    (ast/pos-lit (ast/app-term 'p (ast/app-term 'b))))
+(query/query-status
+  p-program
+  (ast/pos-lit (ast/app-term 'p (ast/app-term 'b))))
 ;; => :fails
 ```
+
+Schematic tagged AST for the `p/1` clause body:
+
+```clojure
+(eq (var x) (app a))
+```
+
+A quantified example shows why ADR-0010 also needs definitional helpers and
+inlining:
+
+```prolog
+only-zero(x) := forall y. (x != y or y = zero).
+
+zero-only(x) :- only-zero(x).
+```
+
+In the prefix frontend, `def` introduces a source-level formula abbreviation;
+`rel` introduces a kernel-visible relation.
+
+```clojure
+(def zero-only-program
+  (defproflog
+    (language
+      (constants zero)
+      (functions (s 1))
+      (relations (zero-only 1)))
+
+    (def only-zero [x]
+      (forall [y]
+        (or (!= x y)
+            (= y zero))))
+
+    (rel zero-only [x]
+      (only-zero x))))
+
+(query/query-status zero-only-program
+                    (q (zero-only zero))
+                    {:timeout-ms 2000})
+;; => :succeeds
+
+(query/query-status zero-only-program
+                    (q (zero-only (s zero)))
+                    {:timeout-ms 2000})
+;; => :fails
+```
+
+After frontend inlining, the quantified program descends to the same current
+source clause shape:
+
+```clojure
+(def zero-only-lang
+  (language/language
+    {:constants ['zero]
+     :functions {'s 1}
+     :relations {'zero-only 1}}))
+
+(def zero-only-program
+  (ast/nom x y
+    (language/compile-program
+      zero-only-lang
+      [(ast/clause
+         'zero-only
+         [x]
+         (ast/forall-form
+           y
+           (ast/or-form
+             (ast/neq-lit (ast/var-term x) (ast/var-term y))
+             (ast/eq-lit (ast/var-term y) (ast/app-term 'zero)))))])))
+
+(query/query-status
+  zero-only-program
+  (ast/pos-lit (ast/app-term 'zero-only (ast/app-term 'zero)))
+  {:timeout-ms 2000})
+;; => :succeeds
+
+(query/query-status
+  zero-only-program
+  (ast/pos-lit
+    (ast/app-term 'zero-only
+                  (ast/app-term 's (ast/app-term 'zero))))
+  {:timeout-ms 2000})
+;; => :fails
+```
+
+Schematic tagged AST for the inlined clause body:
+
+```clojure
+(forall
+  (tie y
+    (or
+      (neq (var x) (var y))
+      (eq (var y) (app zero)))))
+```
+
+The prefix DSL is not implemented yet. Until ADR-0010 lands, use the public
+`proflog.ast` constructors and `proflog.language/compile-program` API shown
+above and in the worked examples.
 
 For non-trivial examples, run the focused Fitting and legacy-subsumption gates:
 

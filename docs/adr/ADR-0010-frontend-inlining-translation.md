@@ -59,6 +59,13 @@ This is the kind of source program users should be able to write at the front
 end even when the prover ultimately needs a more inlined or otherwise
 translation-mediated core representation to execute it well.
 
+The surface-syntax assessment in
+[2026-05-06-proflog-surface-dsl-and-inlining.md](../log/2026-05-06-proflog-surface-dsl-and-inlining.md)
+records the follow-on design constraint: a Proflog DSL should preserve
+Fitting-style first-order clause organization rather than adopting ordinary
+Prolog or miniKanren semantics, and this makes the inlining/refusal boundary a
+prerequisite for serious REPL and tutorial authoring.
+
 ## Decision
 
 - Introduce a distinct front-end translation phase before prover compilation.

@@ -90,3 +90,34 @@ The namespace now also records two complementary non-trivial boundaries:
   some later equality forces a contradiction,
 - nested occurs-check failures such as `x = f(g(x))` still close, even when
   the cycle is buried under multiple constructors.
+
+## Direct Formula Descent
+
+These examples begin at the direct formula layer in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md). They do not need
+a source program, a language declaration, or a compiled clause table.
+
+For example:
+
+```clojure
+x = y and y = a and x != a
+```
+
+is built as an `ast/and-form` over equality and disequality literals, then
+evaluated as:
+
+```clojure
+(kernel/prove formula 1 fuel)
+```
+
+The significant parameters are the formula itself, `n = 1`, and the fuel slice.
+The branch-local equality state supplies the rest:
+
+- `sigma` records bindings such as `x = y` and `y = a`;
+- `neqs` records delayed disequalities such as `x != a`;
+- proof terms record when a stored disequality closes after a later equality.
+
+When the same equality machinery appears under `kernel/prove-program`, the
+extra `prog` parameter only provides compiled procedure-call bodies. The
+decomposition, occurs-check, and delayed-disequality behavior shown here is the
+same proof-core behavior used inside source-level examples.

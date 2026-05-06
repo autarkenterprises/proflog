@@ -5,6 +5,7 @@ query walkthroughs for the current `test/proflog` suites.
 
 ## Current Index
 
+- [Frontend To Kernel Descent](./frontend-to-kernel-descent.md)
 - [Query And Program Behavior](./query-and-program-behavior.md)
 - [Reverse Program Synthesis](./reverse-program-synthesis.md)
 - [Integration Families](./integration-families.md)
@@ -28,6 +29,35 @@ query walkthroughs for the current `test/proflog` suites.
 - [Legacy Subsumption Parity Examples](./legacy-subsumption-parity.md)
 - [Constructor-Recursive Profile Examples](./constructor-recursive-profile.md)
 - [Pelletier Problems](./pelletier-problems.md)
+
+## Reading Pattern
+
+Every worked example should now be read through the same descent used in the
+README quickstart:
+
+```text
+Fitting-style source
+=> prefix frontend form, when the example is source-level
+=> backend AST and compiled relation or direct formula
+=> query, answer, or kernel entry point
+=> proof status, exported answers, residuals, runtime, and shortcomings
+```
+
+The reusable details live in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md). Individual
+examples below add local notes about the program family they exercise.
+
+| Example | Main Boundary | Modes |
+| --- | --- | --- |
+| Query And Program Behavior | procedure-call source programs through `query-status` | success, failure, unresolved |
+| Program Calls | compiled relation lookup and subsidiary tableaux | positive and negative calls |
+| Quantified Programs | quantified clause bodies and frontend inlining | success, failure, quantified invariants |
+| Fitting Program Kernel Examples | ADR-38 catalog over compiled Fitting programs | forward, answer, partial synthesis |
+| List Programs | recursive list clauses and answer export | forward, answer, partial synthesis |
+| Answers API | answer-overlay export from compiled queries | bindings, residuals, diagnostics |
+| Kernel Finite Verifier Examples | profiled equality-fragment kernel path | quantified success and refutation |
+| Constructor-Recursive Profile Examples | guarded recursive profile over compiled IR | reverse and partial synthesis |
+| Pelletier Problems | direct theorem formulas without program clauses | first-order proof closure |
 
 ## Conventions
 

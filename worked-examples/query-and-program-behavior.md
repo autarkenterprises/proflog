@@ -300,3 +300,55 @@ Easy non-recursive proofs still surface within budget:
 (query-succeeds-within status-program p(0) 500ms) => non-empty
 (query-fails-within    status-program p(1) 500ms) => non-empty
 ```
+
+## Source To Kernel Descent
+
+This file is the broadest source-program walkthrough and follows
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md).
+
+The status program is the minimal source:
+
+```prolog
+p(x) :- x = zero.
+```
+
+Prefix frontend:
+
+```clojure
+(def status-language
+  (pf/language
+    (constants zero one)
+    (relations (p 1) (undef 1))))
+
+(def status-program
+  (pf/proflog status-language
+    (|- (p x)
+        (= x zero))))
+```
+
+The query `(pf/q (p zero))` descends to:
+
+```clojure
+(pos (app p (app zero)))
+```
+
+`query/query-status` interleaves:
+
+```clojure
+(kernel/prove-program status-program
+                      (neg (app p (app zero)))
+                      1
+                      fuel)
+
+(kernel/prove-program status-program
+                      (pos (app p (app zero)))
+                      1
+                      fuel)
+```
+
+Fitting P1 and P2 add recursive calls, quantifiers, and negative calls, but they
+use the same kernel parameters: compiled `prog`, query `fml`, requested proof
+count `n`, and fuel or timeout slice. Undefined relations such as `undef/1`
+are declared in the language but have no compiled clause entry, which is why
+the query layer can report `:unresolved` instead of manufacturing a success or
+failure proof.

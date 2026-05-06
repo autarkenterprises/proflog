@@ -109,3 +109,29 @@ pretty-prints as:
 The same happens inside answer records, so bindings and residuals can show
 `2`, `1`, and similar numerals directly while unresolved variables remain in
 AST form.
+
+## Frontend To Backend Position
+
+This file sits below the source examples described in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md). It explains the
+backend contracts that `proflog.frontend` targets:
+
+```clojure
+(pf/q (p (s zero)))
+=> (ast/pos-lit
+     (ast/app-term 'p
+                   (ast/app-term 's (ast/app-term 'zero))))
+```
+
+The language validator then checks the emitted formula against the declared
+language before any call to `kernel/prove-program`. The parameters at this
+layer are not proof-search knobs; they are source-shape constraints:
+
+- constants, functions, and relation arities in the language declaration;
+- nominal binders used for relation parameters and quantifier variables;
+- normalized positive and negated clause bodies stored by
+  `language/compile-program`.
+
+That is why malformed symbols, wrong arities, and internal `par(...)` terms are
+rejected here. Once a worked example reaches the kernel, it should already be a
+well-formed formula in the compiled language.

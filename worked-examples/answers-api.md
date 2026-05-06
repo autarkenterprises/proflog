@@ -653,3 +653,64 @@ For the current list-family reverse / append cases, the answer remains:
 - raw pure-core access: yes,
 - full closed synthesis parity from that raw stream within the measured slice:
   no.
+
+## Source To Kernel Descent
+
+The answer API examples use the same frontend/backend descent as the quickstart,
+then switch to the answer-overlay entry point described in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md).
+
+For a source query:
+
+```prolog
+reverse([a, b], r)?
+```
+
+the intended frontend query-binder syntax is still future work. The current
+test builds the open query at the backend layer so `r` is an answer variable
+rather than a constant:
+
+```clojure
+(ast/nom r
+  (ast/pos-lit
+    (ast/app-term
+      'reverse
+      (ast/app-term 'cons
+                    (ast/app-term 'a)
+                    (ast/app-term 'cons
+                                  (ast/app-term 'b)
+                                  (ast/app-term 'null)))
+      (ast/var-term r))))
+```
+
+The schematic formula is:
+
+```clojure
+(pos
+  (app reverse
+       (app cons (app a) (app cons (app b) (app null)))
+       (var r)))
+```
+
+The public answer call is:
+
+```clojure
+(answers/query-answers
+  list-program
+  query
+  [r]
+  {:fuel fuel
+   :call-depth call-depth
+   :max-raw-proof-limit raw-limit})
+```
+
+The exported variable vector `[r]` is part of the API contract: only those
+logic variables are turned into public answer bindings. Residuals are compiled
+formulas or calls that remain after the admitted proof slice, and proof terms
+show how each record was obtained.
+
+When this file distinguishes raw-kernel streams, generic post-processing, and
+specialty materializers, it is documenting a real implementation boundary. The
+source program has already become compiled Proflog formulae in all three cases;
+the difference is how much answer export and family-specific materialization is
+allowed after the proof states are produced.

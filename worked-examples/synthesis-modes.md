@@ -166,3 +166,60 @@ current greenfield exporter:
 - recursive families come back with explicit residual negated calls,
 - and the residuals show exactly what deeper work remains instead of hiding it
   behind a flattened or overcommitted answer.
+
+## Source To Kernel Descent
+
+The answer examples use the same compiled-program path described in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md), but their public
+entry point is the answer overlay rather than `query-status`.
+
+A representative source relation is Peano addition:
+
+```prolog
+plus(x, y, z) :- x = zero and z = y.
+plus(x, y, z) :- exists x1 z1.
+                   x = s(x1)
+                   and z = s(z1)
+                   and plus(x1, y, z1).
+```
+
+The prefix frontend can express that as multiple `|-` clauses, which the
+backend compiler combines into one disjunctive compiled body:
+
+```clojure
+(pf/proflog peano-language
+  (|- (plus x y z)
+      (and (= x zero)
+           (= z y)))
+
+  (|- (plus x y z)
+      (exists [x1 z1]
+        (and (= x (s x1))
+             (= z (s z1))
+             (plus x1 y z1)))))
+```
+
+The source-level open query:
+
+```prolog
+plus(x, y, z)?
+```
+
+is currently built at the backend layer, because `pf/q` does not yet provide a
+source-level answer-variable binder. Schematically, the query formula is:
+
+```clojure
+(pos (app plus (var x) (var y) (var z)))
+```
+
+and the answer path is:
+
+```clojure
+(answers/query-answers plus-program query [x y z] opts)
+```
+
+The important parameters are the exported variables `[x y z]`, the recursive
+`call-depth`, the proof `fuel`, and the raw proof limit. Residuals such as
+`not plus(a_4, s(a_3), a_3)` are compiled program calls that the admitted
+answer slice did not fully discharge. They are part of the answer record, not
+post-hoc prose.

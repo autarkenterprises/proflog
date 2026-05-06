@@ -169,3 +169,76 @@ The important implementation point is that the singleton case only closes once
 equality decomposition is allowed to carry an earlier parameter binding forward
 to a later constructor clash. That was the defect fixed by the equality
 regression added alongside this family.
+
+## Source To Kernel Descent
+
+These examples use the source-to-kernel path described in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md). The central
+`zero-only/1` case can be read at all layers:
+
+```prolog
+only-zero(x) := forall y. (x != y or y = zero).
+zero-only(x) :- only-zero(x).
+```
+
+```clojure
+(def peano-language
+  (pf/language
+    (constants zero)
+    (functions (s 1))
+    (relations (zero-only 1))))
+
+(def zero-only-program
+  (pf/proflog peano-language
+    (:= (only-zero x)
+      (forall [y]
+        (or (!= x y)
+            (= y zero))))
+
+    (|- (zero-only x)
+        (only-zero x))))
+```
+
+After frontend inlining, the compiled `zero-only/1` entry has one relation
+parameter and one local quantified nom:
+
+```clojure
+{:relation zero-only
+ :params [x]
+ :body
+ (forall
+   (tie y
+     (or
+       (neq (var x) (var y))
+       (eq (var y) (app zero)))))
+ :negated-body
+ (exists
+   (tie y
+     (and
+       (eq (var x) (var y))
+       (neq (var y) (app zero)))))}
+```
+
+The success query descends as:
+
+```clojure
+(pf/q (zero-only zero))
+=> (pos (app zero-only (app zero)))
+
+(query/query-succeeds zero-only-program query 1 fuel)
+=> (kernel/prove-program zero-only-program
+                         (neg (app zero-only (app zero)))
+                         1
+                         fuel)
+```
+
+The failure query for `zero-only(s(zero))` uses the positive query formula
+instead, because `query/query-fails` asks the kernel to close the query itself.
+
+The finite-domain families follow the same shape. `subset`, `acyclic`, and
+`sorted2` are written as nullary or unary relations with quantified bodies.
+Inline helpers such as `le_inline` should be treated like `only-zero`: they are
+source definitions that must be expanded before the Procedure Call Rule sees
+the compiled program. Their kernel parameters are the quantified noms in the
+body, the relation arguments in `:params`, `n` proof records, and the admitted
+`fuel` or timeout slice.

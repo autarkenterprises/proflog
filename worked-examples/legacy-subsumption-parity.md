@@ -154,3 +154,44 @@ Shortcoming: PA12 through PA20 are covered as explicit
 `query-answers` can cheaply enumerate every Peano stream. The suite deliberately
 records that operational boundary while still validating each accepted answer
 against the compiled Proflog clause.
+
+## Source To Kernel Descent
+
+The parity rows compare legacy behavior to greenfield behavior after the source
+program has been translated to compiled Proflog formulas. The common descent is
+summarized in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md).
+
+For a representative Peano row:
+
+```prolog
+plus(x, zero, x).
+plus(x, s(y1), s(z1)) :- plus(x, y1, z1).
+```
+
+the current frontend-compatible form keeps variables in the head and moves
+patterns into the body:
+
+```clojure
+(pf/proflog peano-language
+  (|- (plus x y z)
+      (and (= y zero)
+           (= z x)))
+
+  (|- (plus x y z)
+      (exists [y1 z1]
+        (and (= y (s y1))
+             (= z (s z1))
+             (plus x y1 z1)))))
+```
+
+Forward rows such as `plus(4, 3, 7)` use `query/query-succeeds`, which descends
+to `kernel/prove-program` on the negated ground query. Open rows such as
+`plus(x, 3, 5)` use the ADR-41 profiled constructor-recursive answer path with
+exported variable `[x]`.
+
+The timing table is therefore not comparing host arithmetic to Proflog
+arithmetic. It compares proof and answer behavior over the compiled guarded
+clause. The recorded asymmetry fix also belongs at this layer: restoring
+second-argument recursion changed the compiled recursive body, so the proof
+cost now follows the intended Peano descent argument.

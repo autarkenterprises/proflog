@@ -223,3 +223,101 @@ The suite is therefore a minimum viable non-trivial demonstration, not a claim
 that all Fitting-style programs are solved cheaply. It shows forward proof,
 refutation, answer synthesis, partial synthesis, and honest unresolved
 classification through the greenfield kernel boundary.
+
+## Source To Kernel Descent
+
+The shared descent contract is documented in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md). This catalog is
+the main non-trivial application of that contract.
+
+Fitting P1 can be written as source:
+
+```prolog
+even(x) :- x = zero
+        or exists y. (x = s(y) and odd(y)).
+
+odd(x) :- forall y. (even(y) -> x != y).
+```
+
+In prefix frontend form:
+
+```clojure
+(def p1-language
+  (pf/language
+    (constants zero)
+    (functions (s 1))
+    (relations (even 1) (odd 1))))
+
+(def p1-program
+  (pf/proflog p1-language
+    (|- (even x)
+      (or (= x zero)
+          (exists [y]
+            (and (= x (s y))
+                 (odd y)))))
+
+    (|- (odd x)
+      (forall [y]
+        (implies (even y)
+                 (!= x y))))))
+```
+
+The backend stores `even/1` and `odd/1` as compiled relation entries. A query
+such as `(pf/q (odd (s zero)))` descends to:
+
+```clojure
+(pos (app odd (app s (app zero))))
+```
+
+`query/query-succeeds` then calls `kernel/prove-program` on the negated query,
+with `prog = p1-program`, `fml = (neg (app odd ...))`, `n = 1`, and the current
+fuel slice. The proof is non-trivial because the call to `odd/1` opens a
+universal body and then calls back into `even/1`.
+
+Fitting P2 can be written with the move test inlined:
+
+```prolog
+win(x) :- exists y.
+            ((x = s(y) or x = s(s(y))) and not win(y)).
+```
+
+The frontend equivalent is:
+
+```clojure
+(def p2-program
+  (pf/proflog p2-language
+    (|- (win x)
+      (exists [y]
+        (and (or (= x (s y))
+                 (= x (s (s y))))
+             (not (win y)))))))
+```
+
+The warning example deliberately contrasts that with a real auxiliary
+procedure:
+
+```prolog
+win(x) :- exists y. (move(x, y) and not win(y)).
+move(x, y) :- x = s(y) or x = s(s(y)).
+```
+
+If `move/2` is compiled with `:-`, the kernel must evaluate it through an
+ordinary procedure call. ADR-0010 also supports a different source contract:
+
+```clojure
+(:= (move x y)
+  (or (= x (s y))
+      (= x (s (s y)))))
+```
+
+Under `:=`, `move` is inlined before compilation, so the kernel receives the
+same formula shape as the inlined P2 program rather than an auxiliary runtime
+relation. The catalog keeps both behaviors visible because Fitting's warning is
+about that operational boundary.
+
+The list and finite-verifier rows descend the same way but use specialized
+kernel entrances after compilation. List answer rows export variables through
+`answers/query-answers` or the raw matrix helper, with explicit `call-depth`,
+`fuel`, and raw proof limits. GV rows enter `query/query-status`, but
+`kernel/prove-program` selects the proof-producing equality-fragment profile
+from the compiled finite formula shape.

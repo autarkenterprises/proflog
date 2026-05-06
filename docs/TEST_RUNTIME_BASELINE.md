@@ -126,6 +126,12 @@ Current ADR-0010 frontend note:
 - The ADR-0010 frontend commit gate passed `lein test-proflog-fast` with
   `Ran 124 tests containing 405 assertions`, `0 failures, 0 errors`, and
   `elapsed 74.84 s`.
+- The worked-example descent enrichment pass on 2026-05-06 reran both standard
+  greenfield gates. `lein test-proflog-fast` passed with
+  `Ran 124 tests containing 405 assertions`, `0 failures, 0 errors`, and
+  `elapsed 75.22 s`. `lein test-proflog-extended` passed with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `elapsed 204.88 s`.
 
 ## Committed Test Iterations
 

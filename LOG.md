@@ -77,6 +77,13 @@ complete contemporaneous transcript.
   docstring updates, and an AAR audit. Historical list and GV probe records now
   stay visible without being presented as current capability boundaries. See
   [AAR-0043](docs/aar/AAR-0043-greenfield-documentation-refresh.md).
+- Enriched the worked-example corpus on branch
+  `adr-0010-dsl-quickstart-docs` with a shared frontend-to-kernel descent
+  reference and per-example source/backend/kernel notes. The pass records that
+  current open answer examples still build answer variables with backend
+  `ast/nom` / `ast/var-term` until the frontend grows a query-binder form.
+  Fresh `test-proflog-fast` and `test-proflog-extended` runtimes are recorded
+  in [TEST_RUNTIME_BASELINE](docs/TEST_RUNTIME_BASELINE.md).
 
 ## 2026-05-05
 

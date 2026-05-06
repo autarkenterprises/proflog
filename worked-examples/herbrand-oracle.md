@@ -47,3 +47,28 @@ This is a small but valuable oracle test. It does not depend on any user
 programs, quantifiers, or recursive search. It simply says that on fully
 ground terms, the kernel's equality and disequality behavior agrees with plain
 structural identity over the AST.
+
+## Direct Formula Descent
+
+This file is deliberately below the Proflog source layer documented in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md). There is no
+program and no query wrapper. Each oracle case builds a direct equality or
+disequality formula:
+
+```clojure
+(ast/eq-lit left right)
+(ast/neq-lit left right)
+```
+
+and calls:
+
+```clojure
+(kernel/prove formula 1 fuel)
+```
+
+The parameters are the two ground AST terms inside `formula`, `n = 1`, and the
+fuel slice. The expected result is closure-oriented: a proof of `left = right`
+means that equality is impossible for those ground terms, while a proof of
+`left != right` means the disequality is impossible. The structural host oracle
+is used only as an external correctness comparator for those fully ground
+formulas, not as part of Proflog evaluation.

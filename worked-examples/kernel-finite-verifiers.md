@@ -240,3 +240,41 @@ The component is a finite equality-fragment prover, not a complete replacement
 for the full relational kernel. General procedure-call recursion, open answer
 synthesis, and non-equality first-order reasoning still belong to the existing
 kernel and answer-overlay paths.
+
+## Source To Kernel Descent
+
+These examples are the clearest promoted use of a profiled kernel component.
+They still follow the frontend/backend descent described in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md).
+
+Each verifier builds a normal compiled Proflog program. A group associativity
+row, for example, is exposed as a nullary relation:
+
+```prolog
+assoc() :- forall x. forall y. forall z.
+             finite-table-associativity-body(x, y, z).
+```
+
+A transition-system determinism row is the same shape:
+
+```prolog
+delta-deterministic() :- forall s. forall symbol.
+                           forall t1. forall t2.
+                             matching-delta-rows(s, symbol, t1, t2)
+                             -> t1 = t2.
+```
+
+The prefix frontend equivalent would use `|-` for the nullary verifier
+relation and inline finite table bodies with `:=` where those helpers are not
+intended to be runtime procedure calls. The backend query for each row is:
+
+```clojure
+(pos (app verifier-name))
+```
+
+At `kernel/prove-program`, `prog` is the compiled finite table program, `fml`
+is the nullary verifier query or its negation, `n` is the requested proof count,
+and `fuel` is the focused-suite slice. The equality-fragment profile is allowed
+only after procedure calls have expanded to finite equality/disequality
+structure. Its proof tag is therefore evidence of a kernel-level finite formula
+profile, not a group-specific or transition-specific evaluator.

@@ -182,3 +182,47 @@ Operational note:
   treated as such when budgeting run time.
 
 Those are phase-2 closure items on `ADR-0009`.
+
+## Source To Kernel Descent
+
+These families are ordinary source-level Proflog programs. The shared descent
+is documented in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md).
+
+The `tc/2` source stays intentionally inline:
+
+```prolog
+tc(x, y) :- (x = a and y = b)
+         or (x = b and y = c)
+         or exists z. (((x = a and z = b)
+                        or (x = b and z = c))
+                       and tc(z, y)).
+```
+
+In prefix frontend form, the recursive branch remains visible:
+
+```clojure
+(|- (tc x y)
+  (or (and (= x a) (= y b))
+      (and (= x b) (= y c))
+      (exists [z]
+        (and (or (and (= x a) (= z b))
+                 (and (= x b) (= z c)))
+             (tc z y)))))
+```
+
+The backend compiles one `tc/2` body with relation parameters `[x y]` and a
+local existential nom `z`. A query such as `tc(a, c)` descends to:
+
+```clojure
+(pos (app tc (app a) (app c)))
+```
+
+`query/query-succeeds` asks `kernel/prove-program` to close the negated query;
+the recursive call in the body is handled by the same Procedure Call Rule as
+the top-level call.
+
+The `plus/3` examples use the same multiple-clause-to-disjunction descent shown
+in [Synthesis Modes](./synthesis-modes.md). Here the mode is forward
+truth/falsity, so the exported-answer parameters are absent. The relevant
+kernel parameters are only `prog`, the ground query formula, `n`, and `fuel`.

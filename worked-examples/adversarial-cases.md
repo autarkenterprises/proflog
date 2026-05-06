@@ -75,3 +75,48 @@ These tests are not about raw speed. They guard a correctness property:
 procedure-call closure must be order-insensitive with respect to equalities on
 the same branch. If these regressions fail, the prover can miss real
 contradictions simply because the equalities arrived "too late".
+
+## Source To Kernel Descent
+
+The adversarial program is intentionally the same small source relation used in
+the quickstart:
+
+```prolog
+p(x) :- x = zero.
+```
+
+In prefix frontend form:
+
+```clojure
+(def status-language
+  (pf/language
+    (constants zero)
+    (relations (p 1))))
+
+(def status-program
+  (pf/proflog status-language
+    (|- (p x)
+        (= x zero))))
+```
+
+The compiled clause is:
+
+```clojure
+{:relation p
+ :params [x]
+ :body (eq (var x) (app zero))
+ :negated-body (neq (var x) (app zero))}
+```
+
+The adversarial part is not the source program; it is the kernel branch order.
+The formula:
+
+```clojure
+p(x) and x = zero
+```
+
+first saves a call whose argument is still open, then applies an equality step.
+At `kernel/prove-program`, the `prog` parameter supplies the compiled `p/1`
+body, while the branch state carries the later substitution `x = zero`.
+`eq-triggered-call` and `eq-triggered-neg-call` show that the saved call is
+rechecked after the equality state changes.

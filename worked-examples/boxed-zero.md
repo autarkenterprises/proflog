@@ -165,3 +165,76 @@ returns an answer record with:
 - a concrete binding `x = 0`
 - no residual constraints
 - explicit proof terms explaining why that answer is valid
+
+## Source To Kernel Descent
+
+`boxed-zero/1` follows the source descent in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md), but it exercises
+both existential and universal binders in one clause:
+
+```prolog
+boxed-zero(x) :- exists y.
+                   (x = y
+                    and forall z. (y != z or z = zero)).
+```
+
+The prefix frontend form is:
+
+```clojure
+(def boxed-zero-language
+  (pf/language
+    (constants zero)
+    (functions (s 1))
+    (relations (boxed-zero 1))))
+
+(def boxed-zero-program
+  (pf/proflog boxed-zero-language
+    (|- (boxed-zero x)
+      (exists [y]
+        (and (= x y)
+             (forall [z]
+               (or (!= y z)
+                   (= z zero))))))))
+```
+
+The compiled relation has one parameter and two nested quantified noms:
+
+```clojure
+{:relation boxed-zero
+ :params [x]
+ :body
+ (exists
+   (tie y
+     (and
+       (eq (var x) (var y))
+       (forall
+         (tie z
+           (or
+             (neq (var y) (var z))
+             (eq (var z) (app zero))))))))
+ :negated-body
+ (once-forall
+   (tie y
+     (or
+       (neq (var x) (var y))
+       (exists
+         (tie z
+           (and
+             (eq (var y) (var z))
+             (neq (var z) (app zero))))))))}
+```
+
+The ground failure `boxed-zero(2)` uses:
+
+```clojure
+(query/query-fails boxed-zero-program
+                   (pf/q (boxed-zero (s (s zero))))
+                   1
+                   fuel)
+```
+
+so the kernel closes the positive query formula. The open answer case uses the
+same compiled program and query formula, but routes through
+`answers/query-answers` with exported variable `[x]`. The returned binding
+`x = zero` is therefore an answer-overlay export from kernel proof states, not
+a host-side singleton computation.

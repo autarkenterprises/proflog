@@ -54,3 +54,61 @@ The namespace also keeps the complementary negative examples:
 - a plain negative call does not close when the clause body remains open,
 - and compiled clause lookup still fails cleanly when no matching relation
   exists.
+
+## Source To Kernel Descent
+
+This example follows the common descent in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md).
+
+At the hand-written source layer, the first relation is:
+
+```prolog
+pair-eq(x, y) :- x = y.
+```
+
+The prefix frontend form is:
+
+```clojure
+(def pair-language
+  (pf/language
+    (constants zero one)
+    (relations (pair-eq 2))))
+
+(def pair-program
+  (pf/proflog pair-language
+    (|- (pair-eq x y)
+        (= x y))))
+```
+
+That compiles to one relation entry whose parameters are the two formal
+object-language arguments:
+
+```clojure
+{:relation pair-eq
+ :params [x y]
+ :body (eq (var x) (var y))
+ :negated-body (neq (var x) (var y))}
+```
+
+The query `(pf/q (pair-eq zero one))` becomes:
+
+```clojure
+(pos (app pair-eq (app zero) (app one)))
+```
+
+`query/query-fails` passes that positive formula to
+`kernel/prove-program`, and the Procedure Call Rule opens the compiled body
+under `x = zero` and `y = one`. The proof closes because `zero = one` is a
+constructor clash. The negative-call example uses the same compiled relation,
+but starts from the negated formula and closes when the body is reflexive.
+
+The isolation example is likewise source-level Proflog:
+
+```prolog
+p(x) :- q(x).
+```
+
+The important kernel parameter is `prog`: the subsidiary tableau for `p(zero)`
+receives only the compiled `p/1` body and the program's clause table. It does
+not inherit caller-branch literals such as `not q(zero)` as if they were
+additional facts.

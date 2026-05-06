@@ -60,3 +60,39 @@ surface rather than in any user-facing claim about relational source-program
 synthesis. It is a worked example of what the kernel can currently do with a
 directly supplied compiled shape, not evidence that arbitrary surface clauses
 can already be synthesized soundly.
+
+## Backend To Kernel Descent
+
+This example starts below the frontend described in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md). There is no
+Fitting-style source clause and no `pf/proflog` wrapper because the test
+intentionally leaves part of the compiled program shape relational.
+
+The synthesized object is a compiled clause entry:
+
+```clojure
+{:relation p
+ :params [x]
+ :body body
+ :negated-body negated-body}
+```
+
+The query formula is ordinary:
+
+```clojure
+(pos (app p (app one)))
+```
+
+and the kernel entry is:
+
+```clojure
+(kernel/prove-program synthesized-program query 1 fuel)
+```
+
+The current proof is meaningful only at that backend boundary. It shows that
+the relational kernel can discover a body such as `zero = one` that closes a
+positive call. It does not yet provide a frontend synthesis contract, because
+the backend representation can be made incoherent by choosing unrelated
+`:body` and `:negated-body` formulae. A future source-level synthesis feature
+would need to synthesize clauses before `language/compile-program` and let the
+compiler derive the negated body.

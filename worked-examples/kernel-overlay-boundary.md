@@ -78,3 +78,36 @@ The practical reading is:
   `answer_overlay.clj`,
 - and support-layer changes should be treated as proof-core changes because
   they affect both.
+
+## Source To Kernel Descent
+
+The boundary described here begins after the source program has already followed
+the descent in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md). Both paths
+receive the same compiled `program` and backend `query` formula.
+
+For a ground status probe:
+
+```clojure
+(query/query-succeeds program query 1 fuel)
+```
+
+the call descends to:
+
+```clojure
+(kernel/prove-program program (normalize/negate-formula query) 1 fuel)
+```
+
+For an answer probe:
+
+```clojure
+(answers/query-answer-diagnostics program query [x] opts)
+```
+
+the call descends to an answer-overlay relation that carries the same compiled
+program and formula plus exported variables, call depth, residual state, and raw
+proof limits.
+
+That means the split is not about source syntax. It is about result shape:
+kernel status asks whether a formula closes; answer overlay asks which public
+variables and residual obligations can be exported from proof states.

@@ -408,3 +408,63 @@ the first nested forward and nested suffix append answers, public inverse
 append enumeration, and long-timeout raw matrix reachability. The remaining
 constraint is operational cost and default-suite placement, not absence of the
 semantic targets.
+
+## Source To Kernel Descent
+
+The list examples are ordinary recursive Proflog programs after the descent
+described in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md).
+
+The source append relation is:
+
+```prolog
+append([], ys, ys).
+append(cons(head, tail), ys, cons(head, rest)) :-
+  append(tail, ys, rest).
+```
+
+The current frontend-compatible form keeps relation heads variable-only and
+puts constructor patterns in the body:
+
+```clojure
+(pf/proflog list-language
+  (|- (append xs ys zs)
+      (and (= xs null)
+           (= zs ys)))
+
+  (|- (append xs ys zs)
+      (exists [head tail rest]
+        (and (= xs (cons head tail))
+             (= zs (cons head rest))
+             (append tail ys rest)))))
+```
+
+The backend compiler combines those clauses into one disjunctive compiled body
+for `append/3`. A forward query such as `append([a], [b], [a,b])` descends to a
+ground `pos` formula and uses `query/query-succeeds` or `query/query-fails`.
+
+An answer query such as:
+
+```prolog
+append(x, y, [a, b, c])?
+```
+
+is currently constructed with backend answer variables, because the frontend
+query wrapper does not yet have an answer-binder form. Schematically, it
+descends to:
+
+```clojure
+(pos
+  (app append
+       (var x)
+       (var y)
+       (app cons (app a)
+                 (app cons (app b)
+                           (app cons (app c) (app null))))))
+```
+
+and the public call exports `[x y]` through `answers/query-answers`. The
+parameters that control the examples are the exported variable list, `fuel`,
+`call-depth`, and raw proof limit. The residuals and long-timeout matrix rows
+record where recursive proof search remains expensive after this source has
+already become compiled kernel formulae.

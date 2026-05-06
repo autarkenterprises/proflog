@@ -83,3 +83,29 @@ lein test-proflog-pelletier-prompt
 lein test-proflog-pelletier
 lein test-proflog-pelletier-exploratory
 ```
+
+## Direct Formula Descent
+
+Pelletier problems use the direct theorem-formula layer from
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md). They are not
+Proflog procedure programs.
+
+The source proposition or first-order theorem is translated directly to
+`proflog.ast` formula constructors. A typical quantified theorem:
+
+```clojure
+(E y (A x (=> (f y) (f x))))
+```
+
+becomes an `exists` formula containing a `forall` formula and is evaluated as:
+
+```clojure
+(kernel/prove normalized-negated-theorem 1 fuel)
+```
+
+There is no `prog` parameter because there are no compiled clauses. Formula
+profile selection may route pure propositional problems to the propositional
+component and equality-free first-order problems to the first-order component,
+but the proof obligation is still the emitted formula. This is why Pelletier
+coverage demonstrates theorem-proving strength adjacent to Proflog, rather than
+procedure-call evaluation itself.

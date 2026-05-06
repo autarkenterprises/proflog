@@ -127,3 +127,62 @@ satisfies all of the following:
 The practical point is that rejecting legacy's `(par ...)` answer is necessary
 but not sufficient. The implementation must replace that artifact with the
 real object-language witnesses that make the program true.
+
+## Source To Kernel Descent
+
+The source program is small enough to show all layers:
+
+```prolog
+p(x) :- exists y. x != y.
+```
+
+Prefix frontend:
+
+```clojure
+(def witness-language
+  (pf/language
+    (constants a b)
+    (relations (p 1))))
+
+(def witness-program
+  (pf/proflog witness-language
+    (|- (p x)
+      (exists [y]
+        (!= x y)))))
+```
+
+The compiled clause has one relation parameter and one existential nom:
+
+```clojure
+{:relation p
+ :params [x]
+ :body
+ (exists
+   (tie y
+     (neq (var x) (var y))))
+ :negated-body
+ (once-forall
+   (tie y
+     (eq (var x) (var y))))}
+```
+
+For the ground query `p(a)`, `query/query-succeeds` validates:
+
+```clojure
+(pos (app p (app a)))
+```
+
+and then calls:
+
+```clojure
+(kernel/prove-program witness-program
+                      (neg (app p (app a)))
+                      1
+                      fuel)
+```
+
+The key ADR-0018 correction is in the kernel's instantiation boundary. The
+single-use universal created by the negated existential may instantiate with
+declared object-language terms such as `a` and `b`, but public answer export
+must not leak internal `(par ...)` witnesses. That is why this example reports
+both ground query status and explicit bounded materialization behavior.

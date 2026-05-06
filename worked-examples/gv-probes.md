@@ -145,3 +145,40 @@ After ADR-39, the current architectural takeaway is:
 - the named overlay is retained as a historical and compatibility boundary,
 - and future hard-family work should distinguish remaining raw-stream/list
   issues from the now-promoted finite equality-fragment verifier path.
+
+## Source To Kernel Descent
+
+The current promoted GV rows should be read through the profiled-kernel path in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md), not through the
+old named hard-family overlay.
+
+Source-level associativity is a finite quantified Proflog proposition:
+
+```prolog
+assoc() :- forall x. forall y. forall z.
+             forall xy. forall yz. forall lhs. forall rhs.
+               (mul(x, y, xy)
+                and mul(y, z, yz)
+                and mul(xy, z, lhs)
+                and mul(x, yz, rhs))
+               -> lhs = rhs.
+```
+
+The generated backend program contains ordinary finite clauses for the table
+lookups and a nullary `assoc/0` clause for the proposition. The query formula
+is:
+
+```clojure
+(pos (app assoc))
+```
+
+`query/query-status` sends that formula to `kernel/prove-program`. When the
+expanded branch is a finite equality formula with no active procedure calls
+left, the equality-fragment profile can close it and returns proof evidence
+under `profiled equality-fragment`.
+
+The important parameters are the compiled finite table program, the nullary
+query formula, `n = 1`, the timeout or fuel budget, and the seven universal noms
+introduced by the full associativity proposition. The tests audit that the
+profile does not dispatch on GV names, which is why transition-system verifier
+rows can use the same component.

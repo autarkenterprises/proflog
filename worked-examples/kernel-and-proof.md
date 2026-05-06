@@ -74,3 +74,32 @@ system relies on:
 
 That makes the proof object useful both for debugging and for worked examples
 like the ones under this folder.
+
+## Direct Kernel Descent
+
+Unlike source-program examples, these tests start at the direct formula layer
+from [Frontend To Kernel Descent](./frontend-to-kernel-descent.md). There is no
+`pf/language`, no `language/compile-program`, and no Procedure Call Rule unless
+the formula explicitly contains a program call in a `prove-program` test.
+
+The direct complementary closure example is schematically:
+
+```clojure
+(kernel/prove
+  (and (pos (app p))
+       (neg (app p)))
+  1
+  fuel)
+```
+
+The four kernel parameters reduce to three here:
+
+- `fml`: the formula whose branch should close;
+- `n`: the requested number of proof terms;
+- `fuel`: the admitted proof-search slice.
+
+For program-bearing proof objects, the same proof vocabulary appears underneath
+`kernel/prove-program`; the extra `prog` parameter supplies compiled relation
+bodies for `pos-call` and `neg-call` steps. This is why the proof terms shown in
+source-level examples can be compared directly with the proof terms in this
+file.

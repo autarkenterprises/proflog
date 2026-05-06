@@ -102,3 +102,50 @@ The profile is explicit. It is not yet the default `query-answers` behavior for
 every recursive program, because the public answer API still preserves symbolic
 frontiers in cases where eager constructor-recursive enumeration would be too
 expensive or would change answer-surface expectations.
+
+## Source To Kernel Descent
+
+The profile consumes compiled Proflog structure, not relation-specific host
+procedures. The shared layers are described in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md).
+
+For Peano addition, the source program is:
+
+```prolog
+plus(x, zero, x).
+plus(x, s(y1), s(z1)) :- plus(x, y1, z1).
+```
+
+The prefix frontend shape is:
+
+```clojure
+(pf/proflog peano-language
+  (|- (plus x y z)
+      (and (= y zero)
+           (= z x)))
+
+  (|- (plus x y z)
+      (exists [y1 z1]
+        (and (= y (s y1))
+             (= z (s z1))
+             (plus x y1 z1)))))
+```
+
+At the backend layer, that becomes a guarded recursive compiled body over the
+relation parameters `[x y z]`. The constructor-recursive profile receives the
+compiled guarded IR plus a query such as:
+
+```clojure
+(pos (app plus (var x) (app s (app s (app s (app zero))))
+                (app s (app s (app s (app s (app s (app zero))))))))
+```
+
+for `plus(x, 3, 5)`.
+
+The profile's public parameters are the same semantic ingredients as the
+answer API: compiled program, query formula, exported variables, proof fuel,
+and answer limit. Its proof records must contain `profiled`,
+`constructor-recursive`, and `structural-residual-continuation` evidence. That
+is the genericity claim: the profile reasons over constructor-recursive clause
+shape after compilation, and the tests reject the old diagnostic sidecar and
+known list-family shortcuts.

@@ -57,3 +57,35 @@ So the helper contract is:
 - return `()` when the slice budget is exhausted,
 - and never confuse that empty operational result with semantic falsity or
   semantic truth.
+
+## Source To Kernel Descent
+
+The helper examples use the same compiled programs described in
+[Frontend To Kernel Descent](./frontend-to-kernel-descent.md). The extra
+parameters are operational budgets.
+
+A bounded success probe:
+
+```clojure
+(query/query-succeeds-within p2-program (pf/q (win zero)) 1 25)
+```
+
+repeatedly calls:
+
+```clojure
+(query/query-succeeds p2-program query 1 fuel)
+```
+
+with increasing finite fuel until either a proof appears or the wall-clock
+deadline has passed. The query formula still descends normally:
+
+```clojure
+(pf/q (win zero))
+=> (pos (app win (app zero)))
+```
+
+and `query/query-succeeds` still asks `kernel/prove-program` to close the
+negated query. The important distinction is that `timeout-ms` bounds the
+iterative probing loop, while `fuel` bounds each individual proof-search slice.
+An empty result from these helpers means "no proof in this slice," not "the
+opposite semantic status was proved."

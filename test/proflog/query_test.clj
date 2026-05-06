@@ -68,6 +68,30 @@
       [(ast/clause 'p [x]
                    (ast/eq-lit (ast/var-term x) (ast/app-term 'zero)))])))
 
+(defn tamper-p-clause-body
+  [program body]
+  (let [patch-clause (fn [clause]
+                       (assoc clause
+                              :body body
+                              :negated-body body))
+        patch-list (fn [clauses]
+                     (apply list (map patch-clause clauses)))]
+    (-> program
+        (update-in [:clauses 'p] patch-clause)
+        (update :clause-list patch-list)
+        (update :alternative-clause-list patch-list)
+        (update :guarded-clause-list patch-list))))
+
+(defn inconsistent-status-program
+  []
+  (tamper-p-clause-body
+    (status-program)
+    ;; This is an intentionally invalid compiled-program artifact: a closed
+    ;; constructor clash can close a subsidiary tableau, so making it both the
+    ;; body and the negated body lets the same declared relation prove both
+    ;; sides of the public query-status semidecision boundary.
+    (ast/eq-lit (ast/app-term 'zero) (numeral 1))))
+
 (defn p2-program
   []
   (ast/nom x y
@@ -125,6 +149,19 @@
                program
                (ast/pos-lit (ast/app-term 'undef (numeral 0)))
                {:timeout-ms 1000}))))))
+
+(deftest query-status-can-report-inconsistent-for-unsound-compiled-program
+  (testing "a validated query can still expose an inconsistent compiled-program artifact"
+    (let [program (inconsistent-status-program)
+          query (ast/pos-lit (ast/app-term 'p (numeral 0)))]
+      (is (seq (query/query-succeeds program query 1 4)))
+      (is (seq (query/query-fails program query 1 4)))
+      (is (= :inconsistent
+             (query/query-status
+               program
+               query
+               {:timeout-ms 1000
+                :poll-ms 0}))))))
 
 (deftest direct-query-probes-stay-on-the-pure-kernel-path
   (testing "query-succeeds and query-fails do not route through the answer overlay"

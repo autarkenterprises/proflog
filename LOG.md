@@ -65,6 +65,13 @@ complete contemporaneous transcript.
   integrated `profiled constructor-recursive` records instead of calling the
   diagnostic sidecar directly. See
   [AAR-0041](docs/aar/AAR-0041-relational-constructor-recursive-profile.md).
+- Added a query-status boundary characterization showing that `:inconsistent`
+  is reachable when a valid compiled program is deliberately corrupted so a
+  declared relation's body and negated body are the same closed constructor
+  clash. The red pass failed against the ordinary compiled program with
+  `actual: :succeeds`; the final focused test and `test-proflog-fast` timings
+  are recorded in
+  [TEST_RUNTIME_BASELINE](docs/TEST_RUNTIME_BASELINE.md).
 
 ## 2026-05-05
 

@@ -84,6 +84,19 @@ Current ADR-0041 note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `elapsed 278.50 s`.
 
+Current query-status boundary note:
+
+- A red characterization pass on 2026-05-06 wired the new inconsistent-status
+  assertion to an ordinary compiled `p(0)` program; it failed with
+  `actual: :succeeds` and `elapsed 19.65 s`.
+- The final characterization test
+  `proflog.query-test/query-status-can-report-inconsistent-for-unsound-compiled-program`
+  passed with `Ran 1 tests containing 3 assertions`, `0 failures, 0 errors`,
+  and `elapsed 15.12 s`.
+- The commit gate passed `lein test-proflog-fast` with
+  `Ran 118 tests containing 384 assertions`, `0 failures, 0 errors`, and
+  `elapsed 74.65 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

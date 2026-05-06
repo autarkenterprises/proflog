@@ -98,6 +98,7 @@ as the current source map.
 | [ADR-0037](adr/ADR-0037-core-logic-minikanren-enhancements.md) | completed | `adr-0037-core-logic-minikanren-enhancements` | project-local core.logic miniKanren feature and performance enhancements | ADR-0032, ADR-0036 | miniKanren implementation survey, core.logic TODO/performance audit, constraint feature tests, fuel replacement probes, and Proflog integration audit | project-local overlay and probe surfaces retained, production proof search unchanged, finite-domain fuel kept; [AAR-0037](aar/AAR-0037-core-logic-minikanren-enhancements.md) records the outcome |
 | [ADR-0038](adr/ADR-0038-fitting-program-kernel-evaluation.md) | completed | `adr-0038-fitting-program-kernel-evaluation` | definitive greenfield evaluation of deep Fitting Proflog programs through the core proof kernel | ADR-0035, ADR-0036, ADR-0037 | deeper P1/P2 tests, list and finite-domain status catalog, group-verifier kernel evaluations, proof-shape assertions, and named-overlay source audits | [AAR-0038](aar/AAR-0038-fitting-program-kernel-evaluation.md) records the kernel-backed fitting-program catalog, proof evidence for promoted true/false outcomes, and explicit GV associativity frontiers |
 | [ADR-0039](adr/ADR-0039-kernel-level-group-verification.md) | completed | `adr-0039-kernel-level-group-verification` | kernel-level finite equality verification for full group-verifier associativity and significant transition-system examples | ADR-0023, ADR-0026, ADR-0038 | full GV associativity success/failure rows, significant non-GV transition-system totality/determinism rows, proof-shape assertions, and source audits against family dispatch | the equality-fragment kernel component proves/refutes full GV associativity and larger transition-system laws without hard-family overlay or family-name dispatch; [AAR-0039](aar/AAR-0039-kernel-level-group-verification.md) records the outcome |
+| [ADR-0040](adr/ADR-0040-legacy-subsumption-parity.md) | completed | `adr-0040-legacy-subsumption-parity` | focused greenfield parity and extended subsumption gates for remaining legacy-covered rows | ADR-0035, ADR-0038, ADR-0039 | GV identity/closure/inverses parity plus larger group rows, finite-domain disjointness/totality parity plus larger rows, and Peano reverse/partial synthesis parity plus larger rows | focused selector passes; [AAR-0040](aar/AAR-0040-legacy-subsumption-parity.md) records timings, profile boundaries, and shortcomings |
 
 ## Deferred Tracks
 
@@ -137,6 +138,7 @@ completed ADR-0036.
 Core.logic miniKanren enhancement work has graduated into completed ADR-0037.
 Deep Fitting-program kernel evaluation has graduated into completed ADR-0038.
 Kernel-level finite equality verification has graduated into completed ADR-0039.
+Legacy subsumption parity gates have graduated into completed ADR-0040.
 
 ## ADR-0007 Task List
 

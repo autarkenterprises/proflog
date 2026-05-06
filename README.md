@@ -16,6 +16,61 @@ miniKanren/core.logic, and the local research reports.
 
 See [MISSION.md](MISSION.md).
 
+## Quickstart
+
+Prerequisite: install Leiningen with a working JDK.
+
+Run the fast greenfield regression suite:
+
+```text
+lein test-proflog-fast
+```
+
+Start a REPL:
+
+```text
+lein repl
+```
+
+Define and query a first Proflog program:
+
+```clojure
+(require '[proflog.ast :as ast]
+         '[proflog.language :as language]
+         '[proflog.query :as query])
+
+(def lang
+  (language/language
+    {:constants ['a 'b]
+     :relations {'p 1}}))
+
+(def program
+  (ast/nom x
+    (language/compile-program
+      lang
+      [(ast/clause 'p [x]
+                   (ast/eq-lit (ast/var-term x)
+                               (ast/app-term 'a)))])))
+
+(query/query-status program
+                    (ast/pos-lit (ast/app-term 'p (ast/app-term 'a))))
+;; => :succeeds
+
+(query/query-status program
+                    (ast/pos-lit (ast/app-term 'p (ast/app-term 'b))))
+;; => :fails
+```
+
+For non-trivial examples, run the focused Fitting and legacy-subsumption gates:
+
+```text
+lein test-proflog-fitting-programs
+lein test-proflog-legacy-subsumption
+```
+
+The worked examples in [worked-examples/](worked-examples/README.md) show how
+programs are defined, translated, queried, and evaluated.
+
 ## Execution Docs
 
 - [docs/EXECUTION_PLAN.md](docs/EXECUTION_PLAN.md)

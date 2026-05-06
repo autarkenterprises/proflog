@@ -1,11 +1,15 @@
 # Legacy Program Parity Matrix
 
-Date: 2026-04-22
-Branch: `adr-0009-legacy-program-closure`
+Date: 2026-05-06
+Branch: `main`
 Related ADRs:
 
 - `docs/adr/ADR-0008-test-gap-closure.md`
 - `docs/adr/ADR-0009-legacy-program-closure.md`
+- `docs/adr/ADR-0035-relational-residual-continuation.md`
+- `docs/adr/ADR-0038-fitting-program-kernel-evaluation.md`
+- `docs/adr/ADR-0039-kernel-level-group-verification.md`
+- `docs/adr/ADR-0040-legacy-subsumption-parity.md`
 
 This matrix tracks end-to-end legacy program families against the current
 greenfield suite. It deliberately excludes the legacy micro-regression sections
@@ -17,6 +21,8 @@ families.
 - `Comparable`: a greenfield family exists at roughly the same semantic layer.
 - `Partial`: a greenfield family exists, but legacy still covers materially
   deeper forward, failure, inverse, or recursive behavior.
+- `Operational gap`: greenfield can reach the semantic target, but only through
+  a focused/profiled path or with runtimes too high for the default gate.
 - `Absent`: no comparable greenfield family exists yet.
 - `Deferred`: explicitly tracked as future experimental work, not yet promoted.
 
@@ -28,26 +34,27 @@ families.
 | Inline Nim `P2` | [J-family / nim-program](../test/cljtap/alphaleantap_ep_test.clj), [MV05-MV06](../test/cljtap/alphaleantap_ep_test.clj) | [query_test.clj](../test/proflog/query_test.clj), [answers_test.clj](../test/proflog/answers_test.clj), [nim_synthesis_test.clj](../test/proflog/nim_synthesis_test.clj) | Comparable | Greenfield covers direct truth/falsity, bounded answer behavior, and deeper winning-move witnesses. |
 | Factored `move` warning | [move-program / MV01-MV06](../test/cljtap/alphaleantap_ep_test.clj) | [query_test.clj](../test/proflog/query_test.clj) | Comparable | Greenfield now distinguishes decidable ground `move/2` from the unresolved factored `win/1` cases, and contrasts both against the inline Nim program. |
 | `member` list relation | [Q04-Q07](../test/cljtap/alphaleantap_ep_test.clj) | [list_programs_test.clj](../test/proflog/list_programs_test.clj) | Comparable | Greenfield now covers direct hit, recursive hit, empty-list failure, and non-member failure, which meets or exceeds the legacy semantic surface for `member`. |
-| `append` / `reverse` list relations | [Y01-Y12](../test/cljtap/alphaleantap_ep_test.clj) | [list_programs_test.clj](../test/proflog/list_programs_test.clj), [synthesis_modes_test.clj](../test/proflog/synthesis_modes_test.clj), [answers_test.clj](../test/proflog/answers_test.clj), [parity_test.clj](../test/proflog/parity_test.clj) | Mixed | The greenfield answer surface is now strong for the known closed-answer cases: targeted `query-answers` probes for `reverse([a,b], r)` and inverse `append` complete in about `8-10 s`. Raw direct proof search is still worse than legacy: on 2026-04-26 legacy `Y04` and `Y08` each passed in about `12 s`, while greenfield raw `append([a,b],[c],[a,b,c])` and `reverse([a,b],[b,a])` each timed out at `180 s`. ADR-0017 kernel tabling did not fix that raw-list gap. |
-| Nested and deep `append` list families | [Y13-Y15](../test/cljtap/alphaleantap_ep_test.clj), [Z01-Z04](../test/cljtap/alphaleantap_ep_test.clj) | [list_programs_test.clj](../test/proflog/list_programs_test.clj), [synthesis_modes_test.clj](../test/proflog/synthesis_modes_test.clj), [parity_test.clj](../test/proflog/parity_test.clj) | Partial | Legacy still completes `Y15` (`17.76 s`) and `Z04` (`17.06 s`) on the current machine. Greenfield generic `query-answers` now also closes the known nested inverse, nested forward, and nested suffix list families through the same list-family fast path, but depth-3 combined append synthesis remains beyond the current generic path. The dedicated parity mode still matters as the explicit closed-answer API and bounded fallback materializer. |
+| `append` / `reverse` list relations | [Y01-Y12](../test/cljtap/alphaleantap_ep_test.clj) | [list_programs_test.clj](../test/proflog/list_programs_test.clj), [synthesis_modes_test.clj](../test/proflog/synthesis_modes_test.clj), [answers_test.clj](../test/proflog/answers_test.clj), [parity_test.clj](../test/proflog/parity_test.clj), [AAR-0035](aar/AAR-0035-relational-residual-continuation.md) | Operational gap | Greenfield reaches the known closed answer targets through the answer overlay and long-timeout list-kernel matrix. The remaining gap is operational: some raw/default paths remain much slower than legacy and stay outside the fast gate. ADR-0035 records that every list-kernel catalog row eventually found its target, but rows such as `reverse-input-flat` still take tens of seconds. |
+| Nested and deep `append` list families | [Y13-Y15](../test/cljtap/alphaleantap_ep_test.clj), [Z01-Z04](../test/cljtap/alphaleantap_ep_test.clj) | [list_programs_test.clj](../test/proflog/list_programs_test.clj), [synthesis_modes_test.clj](../test/proflog/synthesis_modes_test.clj), [parity_test.clj](../test/proflog/parity_test.clj), [2026-05-03 long-timeout sweep](log/2026-05-03-list-kernel-matrix-long-timeout-sweep.md) | Operational gap | Greenfield no longer lacks the semantic targets: the long-timeout sweep found every list-kernel catalog target. The practical gap is cost and default availability. `append-inverse-flat-longer` found all five splits but took about `509.5 s` and required raw limit `32`, so it remains a stress probe rather than a default regression. |
 | Transitive closure `tc` | [TC01-TC06](../test/cljtap/alphaleantap_ep_test.clj) | [integration_families_test.clj](../test/proflog/integration_families_test.clj) | Comparable | Greenfield now covers direct edges, the recursive `a -> c` path, and the simple no-path cases on the inline small graph. |
-| Peano `plus` | [PA01-PA23](../test/cljtap/alphaleantap_ep_test.clj) | [integration_families_test.clj](../test/proflog/integration_families_test.clj), [synthesis_modes_test.clj](../test/proflog/synthesis_modes_test.clj) | Comparable | Greenfield now combines multi-step ground truth/falsity checks with symbolic open and partial answer-family coverage. |
+| Peano `plus` | [PA01-PA23](../test/cljtap/alphaleantap_ep_test.clj) | [integration_families_test.clj](../test/proflog/integration_families_test.clj), [synthesis_modes_test.clj](../test/proflog/synthesis_modes_test.clj), [legacy_subsumption_test.clj](../test/proflog/legacy_subsumption_test.clj), [AAR-0040](aar/AAR-0040-legacy-subsumption-parity.md) | Comparable | ADR-40 adds focused PA12-PA20 answer, reverse, and partial-synthesis parity rows plus extended cases. Ground forward proofs still use the ordinary kernel. PA12-PA20 answer parity uses the generic constructor-recursive profile over compiled guarded clauses, so this row is semantically comparable with a documented profile boundary. |
 | Quantified singleton and mixed clause bodies | [X-family](../test/cljtap/alphaleantap_ep_test.clj), quantified spec families below | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Comparable | Greenfield now executes direct quantified clause bodies and includes finite-domain specification families such as `sorted2`, `subset`, and `acyclic`. |
 | Sortedness `sorted2` | [SO01-SO05](../test/cljtap/alphaleantap_ep_test.clj) | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Comparable | Greenfield now covers the legacy empty, singleton, sorted, unsorted, and two-element sorted cases for `sorted2`. |
 | Subset relations | [SS01-SS03](../test/cljtap/alphaleantap_ep_test.clj) | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Comparable | Greenfield now covers the legacy true, false, and reflexive subset cases over the finite domain `{a, b, c}`. |
 | Graph properties `acyclic` | [GP01-GP03](../test/cljtap/alphaleantap_ep_test.clj) | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Comparable | Greenfield now covers the acyclic `a→b→c` case and the two cyclic counterexamples `a→b→a` and `a→b→c→a`. |
-| Group verifier `GV` | [GV01-GV09](../test/cljtap/alphaleantap_ep_test.clj) | [probe-proflog-gv](../src/proflog/gv_probe.clj) | Absent | No stable greenfield family exists yet, but ADR-0014 now has an exploratory probe runner for the exact legacy-style `GV` formulas. The first probe slice is unfavorable: greenfield resolves `Z₂` identity, but `Z₂` closure, inverses, precomputed associativity, full associativity, and even `Z₁` full associativity remain unresolved within the measured probe windows. So the current `GV` picture is not overlapping capability parity with legacy; it is still a gap. |
-| Finite-domain reasoning `FD` | [FD01-FD07](../test/cljtap/alphaleantap_ep_test.clj) | none | Absent | No greenfield family exists yet. ADR-0014 also targets at least one representative `FD` query so the repo can classify its answer-stream behavior instead of leaving it as an undifferentiated future-performance problem. |
+| Group verifier `GV` | [GV01-GV09](../test/cljtap/alphaleantap_ep_test.clj) | [gv_probe.clj](../src/proflog/gv_probe.clj), [kernel_finite_verifiers_test.clj](../test/proflog/kernel_finite_verifiers_test.clj), [legacy_subsumption_test.clj](../test/proflog/legacy_subsumption_test.clj), [AAR-0039](aar/AAR-0039-kernel-level-group-verification.md), [AAR-0040](aar/AAR-0040-legacy-subsumption-parity.md) | Comparable | Supersedes the older ADR-0014 gap. ADR-39 promotes full GV associativity success/failure through the proof-producing equality-fragment profile, and ADR-40 adds identity, closure, and inverses parity plus larger `Z3` rows. The remaining concern is focused-suite cost, not absent greenfield coverage. |
+| Finite-domain reasoning `FD` | [FD01-FD07](../test/cljtap/alphaleantap_ep_test.clj) | [fitting_programs.clj](../src/proflog/fitting_programs.clj), [fitting_programs_test.clj](../test/proflog/fitting_programs_test.clj), [legacy_subsumption_test.clj](../test/proflog/legacy_subsumption_test.clj), [AAR-0038](aar/AAR-0038-fitting-program-kernel-evaluation.md), [AAR-0040](aar/AAR-0040-legacy-subsumption-parity.md) | Comparable | Supersedes the older absent entry. Greenfield covers finite-domain facts, disjointness, uniqueness, undefined totality, and ADR-40 extended disjointness/totality rows. Shortcoming: `warm-cool-disjoint` has success proof evidence, but bounded two-sided `query-status` can report `:inconsistent`; ADR-40 asserts the success proof directly and records the status behavior. |
 
-## Immediate Closure Order
+## Current Closure Status
 
-1. Produce worked examples for the greenfield families already present:
-   `P1`, inline Nim, quantified clause bodies, `tc`, `plus`, list families, and
-   structured answer-mode families.
-2. Deepen the `Partial` rows that are already in greenfield:
-   `member`, `append`/`reverse`, nested/deep `append`, `tc`, `plus`, and richer
-   quantified specification programs.
-3. Build the `Absent` rows in mission-relevant order:
-   `move` warning, `sorted2`, `subset`, and `acyclic`.
-4. Revisit the `Deferred` rows only after the earlier closures expose whether
-   they are semantic work, performance work, or both.
+There are no known remaining named legacy program-family gaps after ADR-40 when
+focused/profiled greenfield selectors are counted. The remaining work is
+operational:
+
+1. Reduce list-family answer and proof-search runtimes enough to move the
+   long-timeout stress rows into routine gates.
+2. Decide whether constructor-recursive Peano answer parity should remain a
+   focused proof profile or be folded into the ordinary public answer path.
+3. Repair or further specify bounded two-sided `query-status` behavior for
+   universal finite-domain encodings that can currently appear inconsistent
+   even when success proof evidence exists.

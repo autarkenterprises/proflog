@@ -44,6 +44,10 @@ complete contemporaneous transcript.
   remaining profile boundaries in
   [AAR-0040](docs/aar/AAR-0040-legacy-subsumption-parity.md) and
   [Legacy Subsumption Parity Examples](worked-examples/legacy-subsumption-parity.md).
+- Updated
+  [LEGACY_PROGRAM_PARITY_MATRIX](docs/LEGACY_PROGRAM_PARITY_MATRIX.md) after
+  ADR-40 so the matrix no longer lists GV and FD as absent and distinguishes
+  remaining operational/profile gaps from missing named-family coverage.
 
 ## 2026-05-05
 

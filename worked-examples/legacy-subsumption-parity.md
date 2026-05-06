@@ -16,7 +16,7 @@ Current result:
 ```text
 Ran 3 tests containing 63 assertions.
 0 failures, 0 errors.
-elapsed 120.54 s
+elapsed 50.37 s
 ```
 
 ## Group Verifier Rows
@@ -62,12 +62,12 @@ shortcut.
 
 | Row | Outcome | Runtime |
 |---|---|---:|
-| `z2-identity` | succeeds | `856.145 ms` |
-| `z2-closure` | succeeds | `77.389 ms` |
-| `z2-inverses` | succeeds | `53.596 ms` |
-| `z3 identity` | succeeds | `962.273 ms` |
-| `z3 closure` | succeeds | `2059.279 ms` |
-| `z3 inverses` | succeeds | `811.033 ms` |
+| `z2-identity` | succeeds | `430.475 ms` |
+| `z2-closure` | succeeds | `52.508 ms` |
+| `z2-inverses` | succeeds | `32.085 ms` |
+| `z3 identity` | succeeds | `410.048 ms` |
+| `z3 closure` | succeeds | `986.148 ms` |
+| `z3 inverses` | succeeds | `405.171 ms` |
 
 ## Finite-Domain Rows
 
@@ -92,10 +92,10 @@ unresolved.
 
 | Row | Outcome | Runtime |
 |---|---|---:|
-| `warm/cool disjoint` | succeeds | `3.282 ms`; ADR-42 status probe `526 ms` |
-| `extended finite-domain disjointness` | succeeds | `26.541 ms` |
-| `finite totality is undefined` | unresolved | `2454.314 ms` |
-| `extended finite totality is undefined` | unresolved | `3401.862 ms` |
+| `warm/cool disjoint` | succeeds | `1.745 ms`; ADR-42 status probe `526 ms` |
+| `extended finite-domain disjointness` | succeeds | `11.403 ms` |
+| `finite totality is undefined` | unresolved | `3497.516 ms` |
+| `extended finite totality is undefined` | unresolved | `3320.326 ms` |
 
 ADR-42 corrected the earlier `:inconsistent` status for `warm/cool disjoint`.
 The issue was not supervaluation semantics; it was an equality-fragment proof
@@ -118,38 +118,39 @@ The direct forward rows run through the ordinary proof kernel:
 
 | Row | Outcome | Runtime |
 |---|---|---:|
-| `PA10 forward 3 + 4 = 7` | succeeds | `70586.114 ms` |
-| `PA11 / extended forward 4 + 3 = 7` | succeeds | `11456.428 ms` |
+| `PA10 forward 3 + 4 = 7` | succeeds | `25198.864 ms` |
+| `PA11 / extended forward 4 + 3 = 7` | succeeds | `3680.729 ms` |
 
 These timings explain the earlier probe asymmetry. A first ADR-40 fixture draft
 accidentally recursed on the first argument, making `4 + 3 = 7` look worse than
 `3 + 4 = 7`. After restoring the legacy second-argument recursion, `3 + 4 = 7`
 is correctly the slower row because its second argument has four successors.
 
-The open answer rows run through the constructor-recursive profile over the
-compiled guarded clause. This still uses the translated Proflog formula
-representation, but it is a profiled answer path rather than the default public
-answer exporter.
+The open answer rows now run through the ADR-41 promoted
+`profiled constructor-recursive` answer profile over compiled guarded clauses.
+This still uses the translated Proflog formula representation and the ADR-35
+structural residual continuation engine, but it is an explicit profile rather
+than the default public answer exporter.
 
 | Row | Answer | Runtime |
 |---|---|---:|
-| `PA12 ? + 3 = 5` | `2` | `29.909 ms` |
-| extended `? + 3 = 6` | `3` | `11.843 ms` |
-| `PA13/PA15 3 + ? = 5` | `2` | `14.453 ms` |
-| extended `3 + ? = 6` | `3` | `15.640 ms` |
-| `PA14 3 + 4 = ?` | `7` | `7.692 ms` |
-| extended `4 + 3 = ?` | `7` | `6.319 ms` |
-| `PA16 x + x = 4` | `2` | `7.086 ms` |
-| extended `x + x = 6` | `3` | `11.063 ms` |
-| `PA17 x + x = 3` | no answer | `6.738 ms` |
-| `PA18 / extended x + x = 5` | no answer | `10.846 ms` |
-| `PA19 all pairs summing to 3` | `[0,3] [1,2] [2,1] [3,0]` | `9.105 ms` |
-| extended all pairs summing to 4 | `[0,4] [1,3] [2,2] [3,1] [4,0]` | `11.712 ms` |
-| `PA20 fixed addend 2` | includes `[0,2] [1,3] [2,4] [3,5]` | `50.322 ms` |
-| extended fixed addend 3 | includes `[0,3] [1,4] [2,5] [3,6]` | `53.246 ms` |
+| `PA12 ? + 3 = 5` | `2` | `15.283 ms` |
+| extended `? + 3 = 6` | `3` | `3.959 ms` |
+| `PA13/PA15 3 + ? = 5` | `2` | `4.693 ms` |
+| extended `3 + ? = 6` | `3` | `5.009 ms` |
+| `PA14 3 + 4 = ?` | `7` | `3.794 ms` |
+| extended `4 + 3 = ?` | `7` | `4.135 ms` |
+| `PA16 x + x = 4` | `2` | `4.950 ms` |
+| extended `x + x = 6` | `3` | `4.312 ms` |
+| `PA17 x + x = 3` | no answer | `5.789 ms` |
+| `PA18 / extended x + x = 5` | no answer | `5.662 ms` |
+| `PA19 all pairs summing to 3` | `[0,3] [1,2] [2,1] [3,0]` | `6.732 ms` |
+| extended all pairs summing to 4 | `[0,4] [1,3] [2,2] [3,1] [4,0]` | `5.945 ms` |
+| `PA20 fixed addend 2` | includes `[0,2] [1,3] [2,4] [3,5]` | `27.725 ms` |
+| extended fixed addend 3 | includes `[0,3] [1,4] [2,5] [3,6]` | `25.594 ms` |
 
-Shortcoming: PA12 through PA20 are covered as constructor-recursive profiled
-answer rows, not as a claim that raw default `query-answers` can cheaply
-enumerate every Peano stream. The suite deliberately records that operational
-boundary while still validating each accepted answer against the compiled
-Proflog clause.
+Shortcoming: PA12 through PA20 are covered as explicit
+`profiled constructor-recursive` answer rows, not as a claim that raw default
+`query-answers` can cheaply enumerate every Peano stream. The suite deliberately
+records that operational boundary while still validating each accepted answer
+against the compiled Proflog clause.

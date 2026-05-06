@@ -26,6 +26,7 @@ query walkthroughs for the current `test/proflog` suites.
 - [Fitting Program Kernel Examples](./fitting-programs.md)
 - [Kernel Finite Verifier Examples](./kernel-finite-verifiers.md)
 - [Legacy Subsumption Parity Examples](./legacy-subsumption-parity.md)
+- [Constructor-Recursive Profile Examples](./constructor-recursive-profile.md)
 - [Pelletier Problems](./pelletier-problems.md)
 
 ## Conventions

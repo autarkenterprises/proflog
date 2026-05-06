@@ -63,6 +63,26 @@ Current ADR-0042 note:
   `elapsed 85.00 s`, plus `lein test-proflog-extended` with
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `elapsed 231.52 s`.
+- After ADR-41 landed on top, `lein test-proflog-kernel-finite-verifiers` was
+  rerun with `Ran 4 tests containing 67 assertions`, `0 failures, 0 errors`, and
+  `elapsed 113.40 s`.
+
+Current ADR-0041 note:
+
+- The promoted constructor-recursive profile namespace passed on 2026-05-06 with
+  `Ran 4 tests containing 21 assertions`, `0 failures, 0 errors`, and
+  `elapsed 11.32 s`.
+- The constructor-recursive gate, now including the promoted profile tests,
+  passed with `Ran 10 tests containing 42 assertions`, `0 failures, 0 errors`,
+  and `elapsed 39.97 s`.
+- The ADR-40 legacy-subsumption selector passed after migrating Peano answer rows
+  to the promoted profile with `Ran 3 tests containing 63 assertions`,
+  `0 failures, 0 errors`, and `elapsed 50.37 s`.
+- The ADR-41 final commit gate passed `lein test-proflog-fast` with
+  `Ran 117 tests containing 381 assertions`, `0 failures, 0 errors`, and
+  `elapsed 106.12 s`, plus `lein test-proflog-extended` with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `elapsed 278.50 s`.
 
 ## Committed Test Iterations
 

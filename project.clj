@@ -116,6 +116,7 @@
                                                   ":constructor-recursive"
                                                   "proflog.list-programs-test"
                                                   "proflog.constructor-recursive-kernel-test"
+                                                  "proflog.kernel.constructor-recursive-profile-test"
                                                   "proflog.kernel.constructor-recursive-test"]
             "test-proflog-core-logic-host" ["test"
                                             "proflog.core-logic-host-test"]

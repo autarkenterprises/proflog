@@ -29,9 +29,11 @@ rows produce profiled equality-fragment proof evidence, and the totality rows
 remain unresolved rather than being collapsed into false.
 
 Peano open answer behavior now uses the generic constructor-recursive profile
-over the compiled guarded Proflog clause. That gives direct open-answer coverage
-for first-argument synthesis, second-argument synthesis, sum synthesis, halving,
-odd non-halving, all-pairs enumeration, and fixed-addend answer streams.
+over the compiled guarded Proflog clause. ADR-41 later promoted that path to
+integrated `profiled constructor-recursive` proof records backed by the ADR-35
+structural continuation engine. That gives direct open-answer coverage for
+first-argument synthesis, second-argument synthesis, sum synthesis, halving, odd
+non-halving, all-pairs enumeration, and fixed-addend answer streams.
 
 ## Plus Timing Diagnosis
 
@@ -60,12 +62,14 @@ three-step row.
 ## What Remains
 
 The suite is a focused selector, not a fast-path regression. The direct kernel
-`PA10 3 + 4 = 7` row still takes about one minute on the current machine.
+`PA10 3 + 4 = 7` row remains the expensive row, although the ADR-41 rerun
+recorded it at `25198.864 ms` on the current machine.
 
-Peano PA12 through PA20 parity is covered through the constructor-recursive
-profile rather than the ordinary public `query-answers` path. This is an
-operational profile boundary, not a claim that the default answer exporter can
-fully enumerate every legacy Peano stream cheaply.
+Peano PA12 through PA20 parity is covered through the promoted
+`profiled constructor-recursive` profile rather than the ordinary public
+`query-answers` path. This is an operational profile boundary, not a claim that
+the default answer exporter can fully enumerate every legacy Peano stream
+cheaply.
 
 ADR-42 later corrected the `warm-cool-disjoint` status behavior recorded during
 ADR-40. The root cause was equality-fragment proof-variable scoping across
@@ -81,7 +85,7 @@ Focused verification:
 timeout -k 5s 900s lein test-proflog-legacy-subsumption
   Ran 3 tests containing 63 assertions.
   0 failures, 0 errors.
-  elapsed 120.54 s
+  elapsed 50.37 s
 ```
 
 Regression verification:

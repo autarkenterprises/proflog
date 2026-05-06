@@ -59,6 +59,12 @@ complete contemporaneous transcript.
   equality-fragment profile. `warm-cool-disjoint` now reports `:succeeds` rather
   than `:inconsistent`; the promoted finite verifier suite still passes. See
   [AAR-0042](docs/aar/AAR-0042-equality-fragment-status-consistency.md).
+- Completed ADR-0041 by adding the promoted
+  `proflog.kernel.constructor-recursive-profile` answer profile over the ADR-35
+  structural residual continuation engine. ADR-40 Peano answer rows now emit
+  integrated `profiled constructor-recursive` records instead of calling the
+  diagnostic sidecar directly. See
+  [AAR-0041](docs/aar/AAR-0041-relational-constructor-recursive-profile.md).
 
 ## 2026-05-05
 

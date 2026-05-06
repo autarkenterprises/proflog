@@ -2268,26 +2268,31 @@
                            neqs))
          :frontier-count (count frontier)}))))
 
-(defn- fast-continue-exported-structural-record
-  [program record fuel]
+(defn- fast-continue-exported-structural-records
+  [program record fuel limit]
   (let [initial-state {:subst (fast-continuation-binding-subst (:bindings record))
                        :fuel fuel}]
-    (first
-      (for [[state _proof]
-            (fast-continuation-settle-residual-sequence
-              program
-              initial-state
-              (:residuals record))]
+    (mapv
+      (fn [[state _proof]]
         (assoc record
                :bindings (mapv #(fast-continuation-walk-binding
                                    (:subst state)
                                    %)
-                               (:bindings record))
+                                (:bindings record))
                :residuals []
                :proofs (conj (vec (:proofs record))
                              (list 'structural-residual-continuation
                                    (list 'structural-residual-frontier-closed
-                                         (count (:residuals record))))))))))
+                                         (count (:residuals record)))))))
+      (take limit
+            (fast-continuation-settle-residual-sequence
+              program
+              initial-state
+              (:residuals record))))))
+
+(defn- fast-continue-exported-structural-record
+  [program record fuel]
+  (first (fast-continue-exported-structural-records program record fuel 1)))
 
 (defn continue-exported-structural-recordo
   "Fast relational entry point for exported structural residual continuation.
@@ -2305,6 +2310,16 @@
                        fuel)]
     (== record-out continued)
     fail))
+
+(defn continue-exported-structural-records
+  "Return up to `limit` structural continuations for an exported record.
+
+   This is the enumerating companion to
+   `continue-exported-structural-recordo`. It reuses the same generic guarded-IR
+   continuation engine and proof vocabulary, but returns concrete records for
+   profiled answer paths that need more than the first continuation."
+  [program record fuel limit]
+  (fast-continue-exported-structural-records program record fuel limit))
 
 (defn proveo
   "Public five-argument kernel relation.

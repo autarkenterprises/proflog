@@ -4,7 +4,7 @@
             [proflog.ast :as ast]
             [proflog.fitting-programs :as fitting]
             [proflog.gv-probe :as gv-probe]
-            [proflog.kernel.constructor-recursive :as constructor-recursive]
+            [proflog.kernel.constructor-recursive-profile :as constructor-profile]
             [proflog.language :as language]
             [proflog.pretty :as pretty]
             [proflog.proof :as proof]
@@ -357,7 +357,10 @@
 (defn constructor-recursive-proofs?
   [records]
   (every? (fn [record]
-            (some #(proof/contains-step? % 'constructor-recursive)
+            (some #(and (proof/contains-step? % 'profiled)
+                        (proof/contains-step? % 'constructor-recursive)
+                        (proof/contains-step? % 'structural-residual-continuation)
+                        (not (proof/contains-step? % 'constructor-recursive-call)))
                   (:proofs record)))
           records))
 
@@ -365,7 +368,7 @@
   [label program query answer-vars expected opts]
   (timed-row
     label
-    #(let [records (constructor-recursive/query-records
+    #(let [records (constructor-profile/query-records
                      program
                      query
                      answer-vars
@@ -380,7 +383,7 @@
   [label program query answer-vars expected opts]
   (timed-row
     label
-    #(let [records (constructor-recursive/query-records
+    #(let [records (constructor-profile/query-records
                      program
                      query
                      answer-vars
@@ -397,7 +400,7 @@
   [label program query answer-vars expected opts]
   (timed-row
     label
-    #(let [records (constructor-recursive/query-records
+    #(let [records (constructor-profile/query-records
                      program
                      query
                      answer-vars
@@ -414,7 +417,7 @@
   [label program query answer-vars opts]
   (timed-row
     label
-    #(let [records (constructor-recursive/query-records
+    #(let [records (constructor-profile/query-records
                      program
                      query
                      answer-vars

@@ -65,6 +65,15 @@ Ran 68 tests containing 203 assertions.
 elapsed 231.52 s
 ```
 
+Post-ADR-0041 confirmation:
+
+```text
+timeout -k 5s 240s lein test-proflog-kernel-finite-verifiers
+Ran 4 tests containing 67 assertions.
+0 failures, 0 errors.
+elapsed 113.40 s
+```
+
 An nREPL probe also measured the corrected public status:
 
 ```text

@@ -1,9 +1,9 @@
 # ADR-0041: Relational Constructor-Recursive Profile
 
-- Status: proposed
+- Status: completed
 - Date: 2026-05-06
 - Branch: `adr-0041-relational-constructor-recursive-profile`
-- AAR: pending
+- AAR: [AAR-0041](../aar/AAR-0041-relational-constructor-recursive-profile.md)
 - Depends On:
   - [ADR-0031](ADR-0031-list-family-kernel-generalization.md)
   - [ADR-0035](ADR-0035-relational-residual-continuation.md)

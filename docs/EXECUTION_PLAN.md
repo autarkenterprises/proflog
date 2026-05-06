@@ -99,6 +99,8 @@ as the current source map.
 | [ADR-0038](adr/ADR-0038-fitting-program-kernel-evaluation.md) | completed | `adr-0038-fitting-program-kernel-evaluation` | definitive greenfield evaluation of deep Fitting Proflog programs through the core proof kernel | ADR-0035, ADR-0036, ADR-0037 | deeper P1/P2 tests, list and finite-domain status catalog, group-verifier kernel evaluations, proof-shape assertions, and named-overlay source audits | [AAR-0038](aar/AAR-0038-fitting-program-kernel-evaluation.md) records the kernel-backed fitting-program catalog, proof evidence for promoted true/false outcomes, and explicit GV associativity frontiers |
 | [ADR-0039](adr/ADR-0039-kernel-level-group-verification.md) | completed | `adr-0039-kernel-level-group-verification` | kernel-level finite equality verification for full group-verifier associativity and significant transition-system examples | ADR-0023, ADR-0026, ADR-0038 | full GV associativity success/failure rows, significant non-GV transition-system totality/determinism rows, proof-shape assertions, and source audits against family dispatch | the equality-fragment kernel component proves/refutes full GV associativity and larger transition-system laws without hard-family overlay or family-name dispatch; [AAR-0039](aar/AAR-0039-kernel-level-group-verification.md) records the outcome |
 | [ADR-0040](adr/ADR-0040-legacy-subsumption-parity.md) | completed | `adr-0040-legacy-subsumption-parity` | focused greenfield parity and extended subsumption gates for remaining legacy-covered rows | ADR-0035, ADR-0038, ADR-0039 | GV identity/closure/inverses parity plus larger group rows, finite-domain disjointness/totality parity plus larger rows, and Peano reverse/partial synthesis parity plus larger rows | focused selector passes; [AAR-0040](aar/AAR-0040-legacy-subsumption-parity.md) records timings, profile boundaries, and shortcomings |
+| [ADR-0041](adr/ADR-0041-relational-constructor-recursive-profile.md) | proposed | `adr-0041-relational-constructor-recursive-profile` | promote constructor-recursive descent into a relationally pure dispatched kernel profile | ADR-0031, ADR-0035, ADR-0040 | dispatch proof-shape tests, non-list constructor recursion, Peano forward/reverse/partial rows through one relation, source audits for no host-side semantic procedures | constructor-recursive proof/answer behavior is integrated as a generic relational profile, ADR-40 Peano rows no longer call the diagnostic sidecar directly, and an AAR records performance and remaining unsupported shapes |
+| [ADR-0042](adr/ADR-0042-equality-fragment-status-consistency.md) | proposed | `adr-0042-equality-fragment-status-consistency` | assess and correct equality-fragment `:inconsistent` status behavior for universal finite-domain formulas | ADR-0039, ADR-0040 | `warm-cool-disjoint` status regression, failure-side non-closure for unsound universal branch proofs, positive control with real counterexample, ADR-39 GV/transition regressions | `query-status` no longer reports `:inconsistent` for `warm-cool-disjoint`, equality-fragment universal/disjunction discipline is tested, and promoted equality-fragment rows remain sound |
 
 ## Deferred Tracks
 
@@ -139,6 +141,9 @@ Core.logic miniKanren enhancement work has graduated into completed ADR-0037.
 Deep Fitting-program kernel evaluation has graduated into completed ADR-0038.
 Kernel-level finite equality verification has graduated into completed ADR-0039.
 Legacy subsumption parity gates have graduated into completed ADR-0040.
+Relational constructor-recursive profile promotion has graduated into proposed
+ADR-0041.
+Equality-fragment status consistency has graduated into proposed ADR-0042.
 
 ## ADR-0007 Task List
 

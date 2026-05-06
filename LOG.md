@@ -48,6 +48,13 @@ complete contemporaneous transcript.
   [LEGACY_PROGRAM_PARITY_MATRIX](docs/LEGACY_PROGRAM_PARITY_MATRIX.md) after
   ADR-40 so the matrix no longer lists GV and FD as absent and distinguishes
   remaining operational/profile gaps from missing named-family coverage.
+- Proposed
+  [ADR-0041](docs/adr/ADR-0041-relational-constructor-recursive-profile.md) for
+  promoting constructor-recursive descent into a relationally pure dispatched
+  kernel profile, and
+  [ADR-0042](docs/adr/ADR-0042-equality-fragment-status-consistency.md) for
+  assessing and correcting the equality-fragment `:inconsistent` status
+  behavior on universal finite-domain formulas.
 
 ## 2026-05-05
 

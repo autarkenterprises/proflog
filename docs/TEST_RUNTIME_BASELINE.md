@@ -50,6 +50,20 @@ Current ADR-0040 note:
   Peano answer-mode parity rows use the constructor-recursive profile and close
   in milliseconds.
 
+Current ADR-0042 note:
+
+- The focused equality-fragment status selector passed on 2026-05-06 with
+  `Ran 1 tests containing 16 assertions`, `0 failures, 0 errors`, and
+  `elapsed 31.82 s`.
+- The full kernel finite verifier suite passed after the proof-scoping fix with
+  `Ran 4 tests containing 67 assertions`, `0 failures, 0 errors`, and
+  `elapsed 135.63 s`.
+- The ADR-42 commit gate also passed `lein test-proflog-fast` with
+  `Ran 117 tests containing 381 assertions`, `0 failures, 0 errors`, and
+  `elapsed 85.00 s`, plus `lein test-proflog-extended` with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `elapsed 231.52 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

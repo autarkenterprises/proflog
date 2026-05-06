@@ -43,7 +43,7 @@ families.
 | Subset relations | [SS01-SS03](../test/cljtap/alphaleantap_ep_test.clj) | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Comparable | Greenfield now covers the legacy true, false, and reflexive subset cases over the finite domain `{a, b, c}`. |
 | Graph properties `acyclic` | [GP01-GP03](../test/cljtap/alphaleantap_ep_test.clj) | [quantified_programs_test.clj](../test/proflog/quantified_programs_test.clj) | Comparable | Greenfield now covers the acyclic `a→b→c` case and the two cyclic counterexamples `a→b→a` and `a→b→c→a`. |
 | Group verifier `GV` | [GV01-GV09](../test/cljtap/alphaleantap_ep_test.clj) | [gv_probe.clj](../src/proflog/gv_probe.clj), [kernel_finite_verifiers_test.clj](../test/proflog/kernel_finite_verifiers_test.clj), [legacy_subsumption_test.clj](../test/proflog/legacy_subsumption_test.clj), [AAR-0039](aar/AAR-0039-kernel-level-group-verification.md), [AAR-0040](aar/AAR-0040-legacy-subsumption-parity.md) | Comparable | Supersedes the older ADR-0014 gap. ADR-39 promotes full GV associativity success/failure through the proof-producing equality-fragment profile, and ADR-40 adds identity, closure, and inverses parity plus larger `Z3` rows. The remaining concern is focused-suite cost, not absent greenfield coverage. |
-| Finite-domain reasoning `FD` | [FD01-FD07](../test/cljtap/alphaleantap_ep_test.clj) | [fitting_programs.clj](../src/proflog/fitting_programs.clj), [fitting_programs_test.clj](../test/proflog/fitting_programs_test.clj), [legacy_subsumption_test.clj](../test/proflog/legacy_subsumption_test.clj), [AAR-0038](aar/AAR-0038-fitting-program-kernel-evaluation.md), [AAR-0040](aar/AAR-0040-legacy-subsumption-parity.md) | Comparable | Supersedes the older absent entry. Greenfield covers finite-domain facts, disjointness, uniqueness, undefined totality, and ADR-40 extended disjointness/totality rows. Shortcoming: `warm-cool-disjoint` has success proof evidence, but bounded two-sided `query-status` can report `:inconsistent`; ADR-40 asserts the success proof directly and records the status behavior. |
+| Finite-domain reasoning `FD` | [FD01-FD07](../test/cljtap/alphaleantap_ep_test.clj) | [fitting_programs.clj](../src/proflog/fitting_programs.clj), [fitting_programs_test.clj](../test/proflog/fitting_programs_test.clj), [legacy_subsumption_test.clj](../test/proflog/legacy_subsumption_test.clj), [kernel_finite_verifiers_test.clj](../test/proflog/kernel_finite_verifiers_test.clj), [AAR-0038](aar/AAR-0038-fitting-program-kernel-evaluation.md), [AAR-0040](aar/AAR-0040-legacy-subsumption-parity.md), [AAR-0042](aar/AAR-0042-equality-fragment-status-consistency.md) | Comparable | Supersedes the older absent entry. Greenfield covers finite-domain facts, disjointness, uniqueness, undefined totality, and ADR-40 extended disjointness/totality rows. ADR-42 corrects `warm-cool-disjoint` bounded status from `:inconsistent` to `:succeeds` by preventing branch-local universal witness rebinding in the equality-fragment profile. |
 
 ## Current Closure Status
 
@@ -55,6 +55,7 @@ operational:
    long-timeout stress rows into routine gates.
 2. Decide whether constructor-recursive Peano answer parity should remain a
    focused proof profile or be folded into the ordinary public answer path.
-3. Repair or further specify bounded two-sided `query-status` behavior for
-   universal finite-domain encodings that can currently appear inconsistent
-   even when success proof evidence exists.
+3. Keep tightening default/public operational paths after profiled finite-domain
+   proofs decline. ADR-42 fixed the known unsound `warm-cool-disjoint`
+   `:inconsistent` status, but high-fuel ordinary fallback can still be too slow
+   to use as a cheap negative assertion.

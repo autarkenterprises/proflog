@@ -92,15 +92,17 @@ unresolved.
 
 | Row | Outcome | Runtime |
 |---|---|---:|
-| `warm/cool disjoint` | success proof exists | `3.282 ms` |
+| `warm/cool disjoint` | succeeds | `3.282 ms`; ADR-42 status probe `526 ms` |
 | `extended finite-domain disjointness` | succeeds | `26.541 ms` |
 | `finite totality is undefined` | unresolved | `2454.314 ms` |
 | `extended finite totality is undefined` | unresolved | `3401.862 ms` |
 
-Shortcoming: `warm/cool disjoint` has profiled proof evidence, but the bounded
-two-sided `query-status` probe reports `:inconsistent` for this universal
-encoding because the failure semidecision also finds a closure. The test records
-that by checking the success proof directly.
+ADR-42 corrected the earlier `:inconsistent` status for `warm/cool disjoint`.
+The issue was not supervaluation semantics; it was an equality-fragment proof
+scoping bug that allowed different disjunctive branches to bind the same
+universal proof witness differently. The profile now requires branch-local
+requirements to merge into one compatible witness assignment before a split proof
+is accepted, so the bounded public status reports `:succeeds`.
 
 ## Peano Plus Rows
 

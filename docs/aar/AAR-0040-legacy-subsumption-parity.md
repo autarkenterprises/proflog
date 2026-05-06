@@ -67,11 +67,11 @@ profile rather than the ordinary public `query-answers` path. This is an
 operational profile boundary, not a claim that the default answer exporter can
 fully enumerate every legacy Peano stream cheaply.
 
-`warm-cool-disjoint` has proof evidence, but the bounded two-sided
-`query-status` probe currently reports `:inconsistent` for that universal
-finite-domain encoding because the failure semidecision can also find a
-closure. ADR-40 therefore asserts the success proof evidence for that row and
-records the status behavior as a shortcoming.
+ADR-42 later corrected the `warm-cool-disjoint` status behavior recorded during
+ADR-40. The root cause was equality-fragment proof-variable scoping across
+disjunction, not supervaluation semantics. The bounded status now reports
+`:succeeds`; ADR-40's direct success-proof row remains useful as the historical
+parity baseline.
 
 ## Verification
 

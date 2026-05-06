@@ -285,9 +285,9 @@
 
 (deftest finite-domain-disjointness-and-totality-have-extended-greenfield-rows
   (testing "legacy FD05 disjointness is covered by the greenfield finite-domain program"
-    ;; FD05 is proof-backed, but the bounded two-sided status probe currently
-    ;; reports :inconsistent because the failure semidecision also finds a
-    ;; closure for this universal disjointness encoding.
+    ;; FD05 is proof-backed. ADR-0042 also corrected the earlier bounded
+    ;; two-sided :inconsistent status by preserving one shared universal witness
+    ;; requirement across equality-fragment split branches.
     (assert-profiled-equality-success-proof "warm/cool disjoint"
                                             (fitting/finite-domain-program)
                                             'warm-cool-disjoint))

@@ -55,6 +55,10 @@ complete contemporaneous transcript.
   [ADR-0042](docs/adr/ADR-0042-equality-fragment-status-consistency.md) for
   assessing and correcting the equality-fragment `:inconsistent` status
   behavior on universal finite-domain formulas.
+- Completed ADR-0042 with a proof-variable requirement discipline in the
+  equality-fragment profile. `warm-cool-disjoint` now reports `:succeeds` rather
+  than `:inconsistent`; the promoted finite verifier suite still passes. See
+  [AAR-0042](docs/aar/AAR-0042-equality-fragment-status-consistency.md).
 
 ## 2026-05-05
 

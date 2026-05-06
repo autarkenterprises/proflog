@@ -339,7 +339,7 @@
 ;; engine below remains generic over equality-fragment formulas and emits proof
 ;; terms; it does not inspect benchmark ids or evaluate source-level tables.
 
-(declare close-branch
+(declare close-branch-result
          equality-fragment-formula?
          unify-term
          terms-same?)
@@ -552,56 +552,101 @@
   [args]
   (every? l-ground-term? args))
 
-(defn- close-next
+(defn- proof-result
+  ([proof]
+   {:proof proof
+    :requirements []})
+  ([proof requirements]
+   {:proof proof
+    :requirements (vec requirements)}))
+
+(defn- wrap-proof
+  [result f]
+  (when result
+    (assoc result :proof (f (:proof result)))))
+
+(defn- proof-var-requirements
+  [old-sigma new-sigma proof-vars]
+  (->> proof-vars
+       (keep (fn [binding-nom]
+               (let [term (ast/var-term binding-nom)
+                     old-term (support/walk-term-pure term old-sigma)
+                     new-term (support/walk-term-pure term new-sigma)]
+                 (when-not (support/same-walked-term? old-term new-term)
+                   [binding-nom new-term]))))
+       vec))
+
+(defn- merge-requirements
+  [sigma proof-vars & requirement-lists]
+  (loop [merged-sigma sigma
+         requirements (seq (mapcat identity requirement-lists))]
+    (if-not requirements
+      (proof-var-requirements sigma merged-sigma proof-vars)
+      (let [[binding-nom value] (first requirements)
+            step (unify-term (ast/var-term binding-nom) value merged-sigma)]
+        (when (= :ok (:status step))
+          (recur (:sigma step) (next requirements)))))))
+
+(defn- close-next-result
   [agenda env proof-vars sigma neqs gamma-terms]
   (when (seq agenda)
-    (close-branch agenda env proof-vars sigma neqs gamma-terms)))
+    (close-branch-result agenda env proof-vars sigma neqs gamma-terms)))
 
-(defn close-branch
+(defn close-branch-result
   [agenda env proof-vars sigma neqs gamma-terms]
   (when (seq agenda)
     (let [[formula rest-agenda] (select-formula (vec agenda))]
       (case (ast/tag-of formula)
         and
-        (let [proof (close-branch (conj rest-agenda
-                                        (second formula)
-                                        (nth formula 2))
-                                  env
-                                  proof-vars
-                                  sigma
-                                  neqs
-                                  gamma-terms)]
-          (when proof
-            (list 'eq-frag-host-conj proof)))
+        (wrap-proof
+          (close-branch-result (conj rest-agenda
+                                     (second formula)
+                                     (nth formula 2))
+                               env
+                               proof-vars
+                               sigma
+                               neqs
+                               gamma-terms)
+          #(list 'eq-frag-host-conj %))
 
         or
-        (let [left-proof (close-branch (conj rest-agenda (second formula))
-                                       env
-                                       proof-vars
-                                       sigma
-                                       neqs
-                                       gamma-terms)
-              right-proof (when left-proof
-                            (close-branch (conj rest-agenda (nth formula 2))
-                                          env
-                                          proof-vars
-                                          sigma
-                                          neqs
-                                          gamma-terms))]
-          (when (and left-proof right-proof)
-            (list 'eq-frag-host-split left-proof right-proof)))
+        (let [left-result (close-branch-result (conj rest-agenda (second formula))
+                                               env
+                                               proof-vars
+                                               sigma
+                                               neqs
+                                               gamma-terms)
+              right-result (when left-result
+                             (close-branch-result (conj rest-agenda (nth formula 2))
+                                                  env
+                                                  proof-vars
+                                                  sigma
+                                                  neqs
+                                                  gamma-terms))
+              requirements (when (and left-result right-result)
+                             (merge-requirements sigma
+                                                 proof-vars
+                                                 (:requirements left-result)
+                                                 (:requirements right-result)))]
+          (when requirements
+            (proof-result
+              (list 'eq-frag-host-split
+                    (:proof left-result)
+                    (:proof right-result))
+              requirements)))
 
         false
-        '(eq-frag-host-false-close)
+        (proof-result '(eq-frag-host-false-close))
 
         true
-        (when-let [proof (close-next rest-agenda
-                                     env
-                                     proof-vars
-                                     sigma
-                                     neqs
-                                     gamma-terms)]
-          (list 'eq-frag-host-skip-true proof))
+        (wrap-proof
+          (close-next-result rest-agenda
+                             env
+                             proof-vars
+                             sigma
+                             neqs
+                             gamma-terms)
+          #(list 'eq-frag-host-skip-true %))
 
         exists
         (let [tied (second formula)
@@ -609,15 +654,15 @@
               body (subst/subst-formula
                      (:body tied)
                      (cons [(:binding-nom tied) (fresh-host-par)]
-                           narrowed-env))
-              proof (close-branch (conj rest-agenda body)
-                                  env
-                                  proof-vars
-                                  sigma
-                                  neqs
-                                  gamma-terms)]
-          (when proof
-            (list 'eq-frag-host-witness proof)))
+                           narrowed-env))]
+          (wrap-proof
+            (close-branch-result (conj rest-agenda body)
+                                 env
+                                 proof-vars
+                                 sigma
+                                 neqs
+                                 gamma-terms)
+            #(list 'eq-frag-host-witness %)))
 
         forall
         (let [tied (second formula)
@@ -628,28 +673,29 @@
                                  (:body tied)
                                  (cons [(:binding-nom tied) candidate]
                                        narrowed-env))]
-                      (when-let [proof (close-branch (conj rest-agenda body)
-                                                     env
-                                                     proof-vars
-                                                     sigma
-                                                     neqs
-                                                     gamma-terms)]
-                        (list 'eq-frag-host-univ-candidate candidate proof))))
+                      (wrap-proof
+                        (close-branch-result (conj rest-agenda body)
+                                             env
+                                             proof-vars
+                                             sigma
+                                             neqs
+                                             gamma-terms)
+                        #(list 'eq-frag-host-univ-candidate candidate %))))
                   gamma-terms)
             (when-not (seq gamma-terms)
               (let [[term binding-nom] (fresh-host-var)
                     body (subst/subst-formula
                            (:body tied)
                            (cons [(:binding-nom tied) term]
-                                 narrowed-env))
-                    proof (close-branch (conj rest-agenda body)
-                                        env
-                                        (cons binding-nom proof-vars)
-                                        sigma
-                                        neqs
-                                        gamma-terms)]
-                (when proof
-                  (list 'eq-frag-host-univ-var proof))))))
+                                 narrowed-env))]
+                (wrap-proof
+                  (close-branch-result (conj rest-agenda body)
+                                       env
+                                       (cons binding-nom proof-vars)
+                                       sigma
+                                       neqs
+                                       gamma-terms)
+                  #(list 'eq-frag-host-univ-var %))))))
 
         once-forall
         (let [tied (second formula)
@@ -660,28 +706,29 @@
                                  (:body tied)
                                  (cons [(:binding-nom tied) candidate]
                                        narrowed-env))]
-                      (when-let [proof (close-branch (conj rest-agenda body)
-                                                     env
-                                                     proof-vars
-                                                     sigma
-                                                     neqs
-                                                     gamma-terms)]
-                        (list 'eq-frag-host-once-univ-candidate candidate proof))))
+                      (wrap-proof
+                        (close-branch-result (conj rest-agenda body)
+                                             env
+                                             proof-vars
+                                             sigma
+                                             neqs
+                                             gamma-terms)
+                        #(list 'eq-frag-host-once-univ-candidate candidate %))))
                   gamma-terms)
             (when-not (seq gamma-terms)
               (let [[term binding-nom] (fresh-host-var)
                     body (subst/subst-formula
                            (:body tied)
                            (cons [(:binding-nom tied) term]
-                                 narrowed-env))
-                    proof (close-branch (conj rest-agenda body)
-                                        env
-                                        (cons binding-nom proof-vars)
-                                        sigma
-                                        neqs
-                                        gamma-terms)]
-                (when proof
-                  (list 'eq-frag-host-once-univ-var proof))))))
+                                 narrowed-env))]
+                (wrap-proof
+                  (close-branch-result (conj rest-agenda body)
+                                       env
+                                       (cons binding-nom proof-vars)
+                                       sigma
+                                       neqs
+                                       gamma-terms)
+                  #(list 'eq-frag-host-once-univ-var %))))))
 
         eq
         (let [lit (subst/subst-formula formula env)
@@ -690,20 +737,32 @@
               step (unify-term left right sigma)]
           (case (:status step)
             :contradiction
-            (list 'eq-frag-host-eq-contradiction (:proof step))
+            (proof-result (list 'eq-frag-host-eq-contradiction (:proof step)))
 
             :ok
             (if-let [bad-neq (violated-neq neqs (:sigma step))]
-              (list 'eq-frag-host-eq-step
-                    (:proof step)
-                    (list 'eq-frag-host-neq-violated bad-neq))
-              (when-let [proof (close-next rest-agenda
-                                           env
-                                           proof-vars
-                                           (:sigma step)
-                                           (prune-neqs neqs (:sigma step))
-                                           gamma-terms)]
-                (list 'eq-frag-host-eq-step (:proof step) proof)))))
+              (proof-result
+                (list 'eq-frag-host-eq-step
+                      (:proof step)
+                      (list 'eq-frag-host-neq-violated bad-neq))
+                (proof-var-requirements sigma (:sigma step) proof-vars))
+              (when-let [result (close-next-result rest-agenda
+                                                   env
+                                                   proof-vars
+                                                   (:sigma step)
+                                                   (prune-neqs neqs (:sigma step))
+                                                   gamma-terms)]
+                (let [requirements (merge-requirements
+                                      sigma
+                                      proof-vars
+                                      (proof-var-requirements sigma
+                                                              (:sigma step)
+                                                              proof-vars)
+                                      (:requirements result))]
+                  (when requirements
+                    (proof-result
+                      (list 'eq-frag-host-eq-step (:proof step) (:proof result))
+                      requirements)))))))
 
         neq
         (let [lit (subst/subst-formula formula env)
@@ -711,32 +770,41 @@
               right (nth lit 2)]
           (cond
             (terms-same? left right sigma)
-            '(eq-frag-host-refl-close (refl-close))
+            (proof-result '(eq-frag-host-refl-close (refl-close)))
 
             (let [step (unify-term left right sigma)]
               (and (= :ok (:status step))
                    (proof-bindings? sigma (:sigma step) proof-vars)
                    step))
             (let [step (unify-term left right sigma)]
-              (list 'eq-frag-host-neq-close (:proof step)))
+              (proof-result
+                (list 'eq-frag-host-neq-close (:proof step))
+                (proof-var-requirements sigma (:sigma step) proof-vars)))
 
             (rigid-different? left right sigma)
-            (when-let [proof (close-next rest-agenda
-                                         env
-                                         proof-vars
-                                         sigma
-                                         neqs
-                                         gamma-terms)]
-              (list 'eq-frag-host-neq-rigid proof))
+            (wrap-proof
+              (close-next-result rest-agenda
+                                 env
+                                 proof-vars
+                                 sigma
+                                 neqs
+                                 gamma-terms)
+              #(list 'eq-frag-host-neq-rigid %))
 
             :else
-            (when-let [proof (close-next rest-agenda
-                                         env
-                                         proof-vars
-                                         sigma
-                                         (cons [left right] neqs)
-                                         gamma-terms)]
-              (list 'eq-frag-host-neq-store proof))))))))
+            (wrap-proof
+              (close-next-result rest-agenda
+                                 env
+                                 proof-vars
+                                 sigma
+                                 (cons [left right] neqs)
+                                 gamma-terms)
+              #(list 'eq-frag-host-neq-store %))))))))
+
+(defn close-branch
+  [agenda env proof-vars sigma neqs gamma-terms]
+  (some-> (close-branch-result agenda env proof-vars sigma neqs gamma-terms)
+          :proof))
 
 (defn prove-host
   "Return one proof term when `formula` closes as a finite equality fragment."

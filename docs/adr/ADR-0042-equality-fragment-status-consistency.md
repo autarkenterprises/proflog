@@ -1,9 +1,9 @@
 # ADR-0042: Equality-Fragment Status Consistency
 
-- Status: proposed
+- Status: completed
 - Date: 2026-05-06
 - Branch: `adr-0042-equality-fragment-status-consistency`
-- AAR: pending
+- AAR: [AAR-0042](../aar/AAR-0042-equality-fragment-status-consistency.md)
 - Depends On:
   - [ADR-0039](ADR-0039-kernel-level-group-verification.md)
   - [ADR-0040](ADR-0040-legacy-subsumption-parity.md)

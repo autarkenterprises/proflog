@@ -44,3 +44,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0038](AAR-0038-fitting-program-kernel-evaluation.md) | [ADR-0038](../adr/ADR-0038-fitting-program-kernel-evaluation.md) | completed |
 | [AAR-0039](AAR-0039-kernel-level-group-verification.md) | [ADR-0039](../adr/ADR-0039-kernel-level-group-verification.md) | completed |
 | [AAR-0040](AAR-0040-legacy-subsumption-parity.md) | [ADR-0040](../adr/ADR-0040-legacy-subsumption-parity.md) | completed |
+| [AAR-0042](AAR-0042-equality-fragment-status-consistency.md) | [ADR-0042](../adr/ADR-0042-equality-fragment-status-consistency.md) | completed |

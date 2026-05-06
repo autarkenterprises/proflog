@@ -2,9 +2,12 @@
   (:require [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [proflog.ast :as ast]
+            [proflog.fitting-programs :as fitting]
             [proflog.finite-transition-systems :as transition]
             [proflog.gv-probe :as gv-probe]
             [proflog.hard-family-overlay :as hard-family-overlay]
+            [proflog.kernel.equality-fragment :as equality-fragment]
+            [proflog.language :as language]
             [proflog.proof :as proof]
             [proflog.query :as query]))
 
@@ -28,6 +31,38 @@
         (str label " should use the equality-fragment layer"))
     (is (not (proof/contains-step? proof 'hard-family-overlay))
         (str label " must not use the hard-family overlay"))))
+
+(def finite-domain-status-language
+  (language/language
+    {:constants ['red 'green]
+     :relations {'not-red 0
+                 'not-red-or-not-red 0}}))
+
+(defn- finite-domain-status-program
+  []
+  (ast/nom x
+    (let [vx (ast/var-term x)
+          red (ast/app-term 'red)]
+      (language/compile-program
+        finite-domain-status-language
+        [(ast/clause 'not-red
+                     []
+                     (ast/forall-form x
+                                      (ast/neq-lit vx red)))
+         (ast/clause 'not-red-or-not-red
+                     []
+                     (ast/forall-form
+                       x
+                       (ast/or-form
+                         (ast/neq-lit vx red)
+                         (ast/neq-lit vx red))))]))))
+
+(defn- status-for
+  [program query]
+  (query/query-status program query
+                      {:timeout-ms 20000
+                       :proof-limit 1
+                       :poll-ms 0}))
 
 (defn- assert-gv-status
   [scenario expected]
@@ -94,3 +129,26 @@
     (is (not (str/includes? source "gv-probe")))
     (is (not (str/includes? source "finite-transition-systems")))
     (is (not (str/includes? source "hard-family-overlay")))))
+
+(deftest equality-fragment-status-does-not-rebind-universal-witness-per-branch
+  (testing "FD05 warm/cool disjointness has success proof evidence but no failure proof"
+    (let [program (fitting/finite-domain-program)
+          query (query-for-relation 'warm-cool-disjoint)]
+      (is (= :succeeds (status-for program query)))
+      (assert-profiled-equality-proof
+        (query/query-succeeds program query 1 32)
+        "warm/cool disjoint")
+      (is (empty? (equality-fragment/prove-program-host program query 1 32))
+          "the profiled positive failure side must not close with branch-local bindings")))
+  (testing "real shared counterexamples still refute universal finite-domain formulas"
+    (let [program (finite-domain-status-program)
+          not-red (query-for-relation 'not-red)
+          not-red-or-not-red (query-for-relation 'not-red-or-not-red)]
+      (is (= :fails (status-for program not-red)))
+      (assert-profiled-equality-proof
+        (query/query-fails program not-red 1 16)
+        "not-red")
+      (is (= :fails (status-for program not-red-or-not-red)))
+      (assert-profiled-equality-proof
+        (query/query-fails program not-red-or-not-red 1 16)
+        "not-red-or-not-red"))))

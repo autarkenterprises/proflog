@@ -2,7 +2,14 @@
   "NNF conversion for the greenfield Proflog implementation.
 
    The surface layer may use explicit `not` and `implies`; the compiled core
-   should retain only NNF connectives, quantifiers, and literals."
+   should retain only NNF connectives, quantifiers, and literals.
+
+   This matters operationally because the kernel does not implement a generic
+   runtime negation connective. Fitting's procedure-call rule for a negative
+   atom opens a subsidiary tableau for the negation of the called relation's
+   defining body. The language compiler therefore precomputes each compiled
+   clause's `:negated-body` through this namespace, keeping negative calls as
+   ordinary positive work over NNF formulas."
   (:require [proflog.ast :as ast]))
 
 (declare to-nnf negate-formula)

@@ -14,7 +14,11 @@ direct kernel entry-call descent and remapped the relevant stage numbers; those
 entries are kept here as branch-local runtime history until the new policy is
 re-baselined explicitly.
 
-Current post-ADR-0011 notes from the direct-entry / completion-ranked path:
+Historical post-ADR-0011 notes from the direct-entry / completion-ranked path:
+
+These notes predate ADR-0013 and ADR-0035. They are retained to explain why
+later answer-overlay and residual-continuation work happened; they are not
+current public `query-answers` capability claims.
 
 - Nested suffix `append([[a,b]], z, [[a,b],[c]])` does not recover the concrete
   suffix at raw caps `8`, `16`, or `32`, but a longer exploratory probe showed
@@ -97,6 +101,23 @@ Current query-status boundary note:
   `Ran 118 tests containing 384 assertions`, `0 failures, 0 errors`, and
   `elapsed 74.65 s`.
 
+Current ADR-0043 documentation-refresh note:
+
+- Historical exploratory runtime rows are now labelled as historical rather
+  than current capability boundaries. The post-ADR-35 sweep is the current
+  reachability reference for the raw list-kernel matrix.
+- The current focused reverse answer row
+  `proflog.answers-test/query-answers-use-call-depth-1-to-refine-the-direct-reverse-frontier`
+  passed with `Ran 1 tests containing 2 assertions`, `0 failures, 0 errors`,
+  and `elapsed 14.06 s`.
+- The current focused inverse append row
+  `proflog.answers-test/query-answers-prefer-the-first-concrete-inverse-append-split-over-symbolic-frontiers`
+  passed with `Ran 1 tests containing 2 assertions`, `0 failures, 0 errors`,
+  and `elapsed 10.91 s`.
+- The ADR-43 commit gate passed `lein test-proflog-fast` with
+  `Ran 118 tests containing 384 assertions`, `0 failures, 0 errors`, and
+  `elapsed 67.73 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |
@@ -111,8 +132,8 @@ Current query-status boundary note:
 | `query-stage-diagnostics-summarize-proof-families` | `proflog.answers-test` | duplicate `dup(x)` stage diagnostics at first unfolded stage | `20.16 s` | The stronger harness now reports duplicate exported answers separately from distinct proof signatures. |
 | `query-answer-diagnostics-can-explain-a-recursive-symbolic-frontier` | `proflog.answers-test` | `reverse([a,b], r)` diagnostics at `call-depth 1` | `17.67 s` | Captures the first symbolic frontier as `r = []` plus deferred `reverse/append` obligations. |
 | `query-stage-diagnostics-distinguish-productive-and-dry-reverse-stages` | `proflog.answers-test` | `reverse([a,b], r)` stage sweep across depths `0`, `1`, `2` | `95.98 s` | Confirms stage `1` is productive while stage `2` is completely dry at `fuel 32`, `raw-limit 1`. |
-| `query-answers-fall-back-to-the-last-productive-stage` | `proflog.answers-test` | `reverse([a,b], r)` at staged depths `1` and `2` | `74.93 s` | `call-depth 2` now falls back to the last productive stage instead of returning `[]` when the deeper stage goes dry. |
-| `query-answers-use-a-deeper-productive-stage-for-inverse-append` | `proflog.answers-test` | `append(a, b, [a,b,c])` inverse query at `call-depth 2` | `66.08 s` | Staged deepening reaches the first recursive split family, not just the base split. |
+| `query-answers-use-call-depth-1-to-refine-the-direct-reverse-frontier` | `proflog.answers-test` | `reverse([a,b], r)` at `call-depth 1`, `fuel 64`, `max-raw-proof-limit 64` | `14.06 s` | Current public `query-answers` returns the closed answer `r = [b,a]` with no residuals while diagnostics still expose the raw symbolic frontier. |
+| `query-answers-prefer-the-first-concrete-inverse-append-split-over-symbolic-frontiers` | `proflog.answers-test` | `append(a, b, [a,b,c])` inverse query at `call-depth 1` | `10.91 s` | Current public `query-answers` returns all four closed inverse splits with empty residuals. |
 | `member-empty-list-fails` | `proflog.list-programs-test` | `member(a, [])` | `565.030374 ms` | Immediate constructor-clash failure after opening the existential list shape. |
 | `append-two-step-ground-case-succeeds` | `proflog.list-programs-test` | `append([a, b], [c], [a, b, c])` | `154219.489533 ms` | Required fuel `256`; semantically closed but expensive. |
 | `append-forward-query-binds-a-three-element-result` | `proflog.list-programs-test` | `append([a], [b, c], z)` | `68873.149268 ms` | Concrete three-element result exported at call-depth `2`; shallow `neq` residuals remain. |
@@ -120,7 +141,14 @@ Current query-status boundary note:
 | `append-nested-forward-query-binds-the-concrete-result` | `proflog.list-programs-test` | `append([[a]], [[b]], z)` | `41655.620203 ms` | Concrete nested binding exported at call-depth `2`; shallow `neq` residuals remain. |
 | `append-nested-suffix-query-binds-the-concrete-second-argument` | `proflog.list-programs-test` | `append([[a, b]], z, [[a, b], [c]])` | `26539.838541 ms` | Concrete nested suffix exported at call-depth `2`; shallow `neq` residuals remain. |
 
-## Exploratory Runtime Boundaries
+## Historical Exploratory Runtime Boundaries
+
+These rows are retained as branch-local history from earlier answer-mode and
+raw-export probes. They are not the current capability boundary when a later
+section or focused test row contradicts them. In particular, ADR-35 and ADR-43
+supersede the older reverse, inverse-append, and nested-append "no closed answer
+yet" readings for current public `query-answers` or long-timeout matrix
+reachability.
 
 | Probe | Final successful runtime | Result | Operational note |
 |---|---:|---|---|
@@ -133,9 +161,9 @@ Current query-status boundary note:
 | `reverse([a, b], r)` diagnostics, `call-depth 1`, `raw-limit 1` | `1815.796755 ms` | 1 symbolic frontier | Exports `r = []` with deferred `reverse([b], a_3)` and `append(a_3, [a], [])` obligations. |
 | `reverse([a, b], r)` stage diagnostics, stages `0..2`, raw-limit `1` | `73709.59746 ms` | Stage `0` defer-call, stage `1` first recursive frontier, stage `2` dry | The reverse gap is currently a dry deeper stage, not just duplicate answer export. |
 | `reverse([a, b], r)` diagnostics, `call-depth 2`, `raw-limit 1` | `54681.940331 ms` | 0 raw proofs | The first fully unfolded raw proof does not appear at this fuel slice. |
-| `reverse([a, b], r)` `query-answers`, `call-depth 2` | `35910.784284 ms` | Returned 2 fallback symbolic frontier records | The answer API now keeps the last productive stage instead of dropping to `[]`, but it still does not reach the concrete reverse answer. |
-| Nested `append(x, y, [[a], [b]])` split enumeration | `>180000 ms` | No result before manual stop | Even the short nested inverse family remains operationally expensive. |
-| Depth-3 forward `append(left, right, z)` answer synthesis | `>360000 ms` | No result before manual stop | Structural depth alone is enough to make open answer export impractical right now. |
+| `reverse([a, b], r)` `query-answers`, `call-depth 2` | `35910.784284 ms` | Returned 2 fallback symbolic frontier records | Historical pre-ADR-43 row. Current focused coverage now returns `r = [b,a]` through public `query-answers` at `call-depth 1`. |
+| Nested `append(x, y, [[a], [b]])` split enumeration | `>180000 ms` | No result before manual stop | Historical row. The post-ADR-35 long-timeout matrix later found `append-inverse-nested` `3 / 3` at raw `8` in `13283.4934 ms`. |
+| Depth-3 forward `append(left, right, z)` answer synthesis | `>360000 ms` | No result before manual stop | Historical row from the pre-ADR-35/41 answer-export boundary. Keep as a record of that failed exploratory slice, not as a current general claim about all focused or parity paths. |
 
 ## Post-ADR-0035 Long-Timeout List-Kernel Sweep
 

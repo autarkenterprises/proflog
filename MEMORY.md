@@ -1,5 +1,27 @@
 # Memory
 
+## 2026-05-06 ADR-0043 Documentation Refresh
+
+- ADR-0043 branch: `adr-0043-greenfield-doc-refresh`.
+- Current source-reader map:
+  - `docs/GREENFIELD_SOURCE_MAP.md`
+- Treat older MEMORY/LESSONS/worked-example statements about list-family and GV
+  gaps as historical unless they cite ADR-35 or later for list rows, or ADR-39
+  or later for GV/finite-verifier rows.
+- Current list-family facts:
+  - public `query-answers` has focused passing rows for
+    `reverse([a,b], r) => r = [b,a]` and all four
+    `append(x,y,[a,b,c])` splits;
+  - the raw list-kernel long-timeout matrix eventually reaches every catalog
+    target, with `append-inverse-flat-longer` still the expensive outlier at
+    about `509.5 s`.
+- Current GV/finite-verifier facts:
+  - promoted GV associativity rows now close through
+    `profiled equality-fragment` proof evidence;
+  - the named hard-family overlay is historical/compatibility infrastructure,
+    not the only current route for promoted GV results;
+  - ADR-42 fixed the known `warm-cool-disjoint` `:inconsistent` status bug.
+
 ## 2026-04-29 ADR-0026 Kernel Layer Interoperation
 
 - Completed branch: `adr-0026-kernel-layer-interoperation`.

@@ -14,6 +14,12 @@ This checklist is not a promise to clone the legacy suite wholesale. It is a
 prioritized closure plan for the greenfield implementation, plus a short list
 of explicitly experimental tracks that should be evaluated rather than assumed.
 
+ADR-0043 status note: this file remains a historical checklist from ADR-0008.
+For current family-by-family parity, use
+[LEGACY_PROGRAM_PARITY_MATRIX.md](LEGACY_PROGRAM_PARITY_MATRIX.md). The bullets
+below are retained as closure history, with selected current-status notes added
+where later ADRs superseded the original gaps.
+
 ## P0: Mission-Critical Parity Gaps
 
 - [ ] Expand base tableau and NNF regression depth in `test/proflog/kernel_test.clj`,
@@ -49,10 +55,13 @@ of explicitly experimental tracks that should be evaluated rather than assumed.
   already adds non-trivial symbolic answer-export checks for recursive
   `append` behavior and should be treated as the first committed step in this
   area rather than as unrelated branch work.
-  Additional current coverage: `test/proflog/list_programs_test.clj` now adds
-  prompt base-case `append`/`reverse` checks plus open-result export for
-  `append([], [a], z)`. `member` and deeper non-empty recursive list proofs
-  remain operationally unresolved and are not baseline regressions yet.
+  Additional current coverage: `test/proflog/list_programs_test.clj` now covers
+  `member`, direct `append`/`reverse` proofs and refutations, concrete forward
+  answer export, nested forward append, and nested suffix append. Current
+  `test/proflog/answers_test.clj` also covers public reverse output
+  `reverse([a,b], r)` and all four inverse `append(x,y,[a,b,c])` splits. The
+  long-timeout list-kernel matrix eventually reaches every catalog target, with
+  remaining gaps classified as operational cost rather than absent semantics.
 - [ ] Deepen proof-object regressions in `test/proflog/proof_test.clj`.
   Cover call-related proof structure, nested recursive call proofs, saved-formula
   behavior, and richer equality-proof tags.
@@ -77,17 +86,19 @@ of explicitly experimental tracks that should be evaluated rather than assumed.
   Prioritize transitive closure, Peano arithmetic, and additional quantified
   specification programs.
   Current incorporated coverage: `test/proflog/integration_families_test.clj`
-  adds prompt direct-edge `tc` checks and the zero-left base case for Peano
-  `plus`. Deeper recursive closure/composition cases remain exploratory.
+  covers direct and recursive `tc` success, no-path `tc` failures, Peano
+  zero-left base cases, non-base ground successes, and wrong-sum refutations.
+  ADR-40/41 add focused Peano reverse and partial-synthesis parity rows through
+  the constructor-recursive profile.
 
 ## P1: Feasibility Determinations
 
-- [ ] Determine whether full reverse program synthesis is feasible with the
+- [x] Determine whether full reverse program synthesis is feasible with the
   current greenfield implementation.
   This means probing whether `src/proflog` can support synthesis where the
   program itself is left relationally open, rather than only reverse or partial
   query answering against a compiled program.
-- [ ] If full reverse program synthesis is not currently feasible, document the
+- [x] If full reverse program synthesis is not currently feasible, document the
   exact boundary.
   Record whether the blocker is language compilation, program representation,
   kernel call discipline, answer export, or operational search behavior.
@@ -105,21 +116,31 @@ of explicitly experimental tracks that should be evaluated rather than assumed.
 - [ ] Add deeper inverse list-structure coverage, including multi-split
   `append` queries and nested-list examples, if the core list-program work
   proves stable.
+  Current status: public inverse `append(x,y,[a,b,c])`, nested forward append,
+  nested suffix append, and long-timeout nested inverse matrix coverage now
+  exist. Remaining work is runtime/default-suite placement for the expensive
+  stress rows.
 - [ ] Add more end-to-end quantified specification families such as sortedness
   and subset once the core quantified-body regressions are in place.
+  Current status: `test/proflog/quantified_programs_test.clj` now covers
+  sortedness, subset, and acyclic graph specifications.
 - [ ] Add broader proof-debugging regressions only after the semantic surface is
   stable enough that proof shape is not expected to churn.
 
 ## Future Experiments
 
-- [ ] Evaluate whether the legacy `GV` family should become a greenfield
+- [x] Evaluate whether the legacy `GV` family should become a greenfield
   experiment track.
   Treat it as a future semantic stress test for quantified specifications, not
   as baseline parity work.
-- [ ] Evaluate whether the legacy `FD` family should become a greenfield
+  Current status: ADR-39/40 promoted proof-backed GV rows, including full
+  associativity success/failure through the equality-fragment profile.
+- [x] Evaluate whether the legacy `FD` family should become a greenfield
   experiment track.
   Treat it as a future exploration of finite-domain style reasoning rather than
   a default mission requirement.
+  Current status: ADR-38/40/42 promoted finite-domain rows and corrected the
+  known `warm-cool-disjoint` status inconsistency.
 
 ## Notes
 

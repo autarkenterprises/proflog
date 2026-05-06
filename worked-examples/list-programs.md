@@ -375,30 +375,36 @@ Recorded successful runtime for the final committed iteration:
 ## Current Boundary
 
 The greenfield list program itself already contains `member`, recursive
-`append`, and recursive `reverse`, but the current committed namespace still
-stops short of:
+`append`, and recursive `reverse`. The basic `list-programs-test` namespace is
+still deliberately narrower than the full answer-synthesis surface: it focuses
+on direct proof/refutation, one concrete forward answer, and representative
+nested answer recovery. Broader inverse enumeration now lives in
+`proflog.answers-test` and the long-timeout matrix probes rather than in this
+small worked-example namespace.
 
-- inverse split enumeration,
-- nested-list families beyond the first forward case.
+Current public answer coverage now includes the full four-way inverse split
+family for:
 
-The main remaining gap inside the basic list family is inverse split
-enumeration for `append(x, y, [a, b, c])`. In the latest long successful probe,
-that query took:
-
-```text
-1372558.603771 ms
+```clojure
+append(x, y, [a, b, c])
 ```
 
-and still returned only the base split plus the first recursive split family.
-So the semantic story is improving faster than the operational story: deeper
-ground append and reverse now close, and the first nested forward append answer
-binds correctly, but inverse list enumeration remains a serious performance
-boundary.
+The focused regression
+`query-answers-prefer-the-first-concrete-inverse-append-split-over-symbolic-frontiers`
+records all four closed splits with empty residuals and passed during ADR-0043
+cleanup in `10.91 s`.
+
+The raw-kernel matrix also reaches the short nested inverse family:
+
+```text
+append-inverse-nested: 3 / 3 splits, raw 8, 13283.4934 ms
+```
 
 This boundary is intentional for the committed baseline: the current slice now
 covers base cases, recovered recursive `member`, one- and two-step ground
 `member` including the empty-list miss, `append` including a concrete
 three-element synthesized result, singleton and two-element ground `reverse`,
-and the first nested forward and nested suffix append answers, without
-pretending that inverse enumeration and the deeper nested list families are
-already closed.
+the first nested forward and nested suffix append answers, public inverse
+append enumeration, and long-timeout raw matrix reachability. The remaining
+constraint is operational cost and default-suite placement, not absence of the
+semantic targets.

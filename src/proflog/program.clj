@@ -1,5 +1,17 @@
 (ns proflog.program
-  "Compiled-program helpers for the Procedure Call Rule."
+  "Compiled-program helpers for Fitting's Procedure Call Rule.
+
+   The proof kernels should not know how source clauses were grouped, validated,
+   or optimized. They only need the operation described by the procedure-call
+   rule: given a ground atom over a defined relation, find the relation's
+   compiled clause, bind formal parameters to actual arguments, and prove the
+   selected body in a subsidiary tableau.
+
+   This namespace keeps that operation relational. Compiled programs retain
+   sequential clause views because core.logic can search them with `membero`;
+   the richer map view remains useful to host-side callers and diagnostics.
+   Alternative and guarded-alternative lookups expose extra IR only to the
+   layers that need it, without changing the ordinary call contract."
   (:refer-clojure :exclude [==])
   (:require [clojure.core.logic :refer [== conde fresh lcons membero]]))
 

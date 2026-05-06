@@ -1,4 +1,10 @@
 (ns proflog.core-logic-host
+  "Report which core.logic implementation the current JVM is actually using.
+
+   Several ADR-32/37 experiments depended on distinguishing Maven artifacts,
+   local source overlays, and instrumented development copies. Keeping that
+   check in its own namespace prevents deployment diagnostics from becoming
+   proof-search behavior."
   (:require [clojure.core.logic]
             [clojure.java.io :as io]
             [clojure.string :as str])

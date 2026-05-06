@@ -1,5 +1,27 @@
 (ns proflog.language
-  "Language declarations, validation, and surface-to-core compilation."
+  "Language declarations, validation, and surface-to-core compilation.
+
+   Fitting's Proflog semantics assume a fixed first-order language `L` and a
+   program with one defining formula per relation symbol. User-facing examples
+   in this repository are slightly more ergonomic: constants can be declared
+   separately from functions, and multiple surface clauses can define the same
+   relation. This namespace is the boundary that reconciles those surfaces with
+   the kernel's core representation.
+
+   Compilation performs four semantic jobs:
+
+   - reject terms, atoms, formulas, and clauses outside the declared language;
+   - alpha-rename clause parameters so separate source clauses cannot capture
+     one another during grouping;
+   - normalize clause bodies into NNF so negative procedure calls can use a
+     precomputed negated body; and
+   - build synchronized compiled-program views for the ordinary Procedure Call
+     Rule, alternative-aware negative calls, and guarded answer/profile layers.
+
+   The compiler is intentionally host-side because language validation and
+   finite clause grouping are public-entry tasks. The compiled data it produces
+   is shaped so lookup and argument binding remain relational inside
+   `proflog.program` and the proof kernels."
   (:require [clojure.set :as set]
             [clojure.core.logic :refer [lvar]]
             [clojure.core.logic.nominal :as nominal]

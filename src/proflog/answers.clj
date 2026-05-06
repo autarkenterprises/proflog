@@ -1339,8 +1339,9 @@
    that entry boundary. Within that bound, answer-mode call deferral is a
    relational choice inside the kernel rather than a staged answer-layer pass.
 
-   On this branch, known list-family `append/3` and `reverse/2` queries also
-   reuse the ADR-0012 closed-answer materializer as an extensional fast path.
+   Current public `query-answers` also lets known list-family `append/3` and
+   `reverse/2` queries reuse the ADR-0012 closed-answer materializer as an
+   extensional fast path.
    When that path can already produce the requested closed answers, those
    records are returned directly; otherwise they are merged with the symbolic
    frontier so concrete closed answers can displace shallower residual ones."

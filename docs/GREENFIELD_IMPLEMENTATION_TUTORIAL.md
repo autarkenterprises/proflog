@@ -7,7 +7,8 @@ Related ADRs:
 [ADR-0036](adr/ADR-0036-speculative-relational-arithmetic-and-tabling.md),
 [ADR-0037](adr/ADR-0037-core-logic-minikanren-enhancements.md),
 [ADR-0038](adr/ADR-0038-fitting-program-kernel-evaluation.md),
-[ADR-0039](adr/ADR-0039-kernel-level-group-verification.md)
+[ADR-0039](adr/ADR-0039-kernel-level-group-verification.md),
+[ADR-0043](adr/ADR-0043-greenfield-documentation-refresh.md)
 
 This chapter explains the current greenfield Proflog implementation as a
 whole system. It is written for a reader who needs to understand the design,
@@ -39,6 +40,16 @@ Current checkpoint:
   group-verifier associativity and significant transition-system totality /
   determinism examples now close with `profiled equality-fragment` proof
   evidence rather than hard-family overlay results.
+- ADR-0040 and ADR-0041 close the remaining named legacy-vs-greenfield
+  program-family gaps when focused/profiled selectors are counted. Peano
+  answer rows now use the promoted `profiled constructor-recursive` profile,
+  while ordinary ground forward proofs still exercise the core kernel.
+- ADR-0042 corrects the known equality-fragment `:inconsistent` status bug for
+  universal finite-domain formulas by tightening proof-variable requirements
+  across disjunctive branches.
+- ADR-0043 refreshes current-facing documentation and adds
+  [Greenfield Source Map](GREENFIELD_SOURCE_MAP.md) as the exhaustive
+  namespace-level reader guide.
 
 ## 1. Orientation
 
@@ -109,6 +120,11 @@ The answer overlay adds:
 - answer-export behavior for existential witnesses.
 
 ## 2. Source Map
+
+This section summarizes the implementation path. The exhaustive namespace map is
+[Greenfield Source Map](GREENFIELD_SOURCE_MAP.md), which covers every current
+`src/proflog` namespace and identifies which files are production semantics,
+profiles, examples, or ADR probes.
 
 The main implementation namespaces are:
 

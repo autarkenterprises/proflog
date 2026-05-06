@@ -1,5 +1,25 @@
 # Lessons
 
+## 2026-05-06
+
+- Current-facing docs must distinguish historical probe failures from current
+  capability boundaries. Earlier list-family notes saying that reverse,
+  inverse append, or nested inverse append did not surface closed answers are
+  still useful history, but ADR-35/41/43 changed the present interpretation:
+  public `query-answers` now covers `reverse([a,b], r)` and all four
+  `append(x,y,[a,b,c])` splits in focused rows, and the long-timeout raw matrix
+  eventually reaches every catalog target.
+- The same rule applies to group-verifier notes. The first GV probes correctly
+  recorded greenfield weakness, then the hard-family overlay improved a named
+  surface, and ADR-39 promoted a proof-producing equality-fragment profile.
+  Current docs should lead with the promoted `profiled equality-fragment`
+  evidence and keep overlay-only or timeout records clearly historical.
+- A source map is not just navigational convenience on this project. Because
+  Proflog's implementation intentionally separates source syntax, compiled IR,
+  proof kernel, profiled layers, query status, answer export, and probes, a
+  reader needs to know which namespace is semantic authority and which namespace
+  is an ADR measurement or compatibility surface.
+
 ## 2026-04-29
 
 - ADR-0027 removed the projected `subst-formulao` kernel-facing boundary by
@@ -85,7 +105,8 @@
 - The exporter still keeps a defensive top-level filter for obviously impossible residuals such as `neq(t, t)`, but that is a guardrail, not the main semantic fix.
 - This still does not prove that every exported residual set is globally satisfiable. It closes the direct stale-disequality leak, not all possible multi-formula inconsistency patterns.
 - `clojure.core.logic/run` result slices must be forced before timing or summarizing them. In the new diagnostics helper, leaving the raw slice lazy made the later export walk absorb the actual search cost and produced misleading timing attribution.
-- For the current list/search gap, the stable fresh-process measurements are:
+- Historical ADR-0013/0014 list-search measurements, later superseded as
+  current capability claims by ADR-35 and ADR-43, were:
   `reverse([a,b], r)` at `call-depth 1` reaches one symbolic frontier quickly, but `call-depth 2` finds no first raw proof at the same fuel slice; `append(a,b,[a,b,c])` reaches the first two split families, then starts duplicating proof paths before the deeper splits surface.
 - The stronger stage diagnostics sharpen that split:
   `reverse([a,b], r)` is dry at stage `2` for the current fuel slice, while `append(a,b,[a,b,c])` remains productive through stage `2`.
@@ -142,7 +163,8 @@
   `nil` as unbounded descent, just as `fuel=nil` means unbounded step budget.
   The current answer collectors are not equally open-ended: `proof-limit` and
   `max-raw-proof-limit` are still finite numeric controls in the answer layer.
-- The first long raw-kernel list probes sharpen the current boundary:
+- The first long raw-kernel list probes sharpened the historical ADR-0014
+  boundary:
   - `reverse([a,b], r)` with `fuel=nil` and `call-depth=1` exhausts without
     exporting `[b,a]`,
   - `reverse([a,b], r)` with `fuel=nil` and `call-depth=2`, `3`, `4`, and `nil`
@@ -153,10 +175,9 @@
   - `append(x, y, [a,b,c])` with `fuel=nil` and `call-depth=nil` exports the
     correct base split immediately, but not the deeper three closed legacy
     splits within the measured fifteen-minute slice.
-- So the current obstacle is not "the pure core cannot be accessed at all." The
-  pure-core path is accessible. The obstacle is that, even there, the raw
-  kernel/export stream still does not surface full reverse / append synthesis
-  parity within the measured long slices.
+- The durable lesson was not "the pure core cannot be accessed at all." The
+  pure-core path was accessible, but raw kernel/export slices could lag far
+  behind public answer and focused-profile capabilities.
 - The kernel comparison against legacy is now concrete enough to use as an
   architectural input. The biggest structural differences are:
   - greenfield carries explicit `sigma` / disequality / residual state in the

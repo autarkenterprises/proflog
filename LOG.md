@@ -72,6 +72,11 @@ complete contemporaneous transcript.
   `actual: :succeeds`; the final focused test and `test-proflog-fast` timings
   are recorded in
   [TEST_RUNTIME_BASELINE](docs/TEST_RUNTIME_BASELINE.md).
+- Completed ADR-0043 on branch `adr-0043-greenfield-doc-refresh` with a
+  current greenfield source map, stale runtime/example cleanup, source-boundary
+  docstring updates, and an AAR audit. Historical list and GV probe records now
+  stay visible without being presented as current capability boundaries. See
+  [AAR-0043](docs/aar/AAR-0043-greenfield-documentation-refresh.md).
 
 ## 2026-05-05
 

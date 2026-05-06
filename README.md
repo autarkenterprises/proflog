@@ -75,6 +75,7 @@ programs are defined, translated, queried, and evaluated.
 
 - [docs/EXECUTION_PLAN.md](docs/EXECUTION_PLAN.md)
 - [docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md](docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md)
+- [docs/GREENFIELD_SOURCE_MAP.md](docs/GREENFIELD_SOURCE_MAP.md)
 - [worked-examples/README.md](worked-examples/README.md)
 - [LOG.md](LOG.md)
 - [docs/TEST_MATRIX.md](docs/TEST_MATRIX.md)

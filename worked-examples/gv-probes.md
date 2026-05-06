@@ -117,29 +117,31 @@ Update on `2026-05-06`:
 - The hard-family overlay remains a named compatibility surface, but it is no
   longer the only path for these GV results.
 
-## Current Interpretation
+## Historical Interpretation And Current Update
 
 This first `GV` slice did **not** show greenfield and legacy having different
 overlapping strengths at the time it was measured.
 
-Instead, it shows:
+At that time, it showed:
 
 - greenfield can resolve the simplest `GV` identity case,
-- but greenfield is currently weaker than legacy on the broader `GV` family,
+- but greenfield was weaker than legacy on the broader `GV` family,
 - because even legacy-solvable cases such as `Z₂` precomputed associativity and
-  `Z₁` full associativity do not currently resolve in the measured greenfield
+  `Z₁` full associativity did not resolve in the measured greenfield
   windows.
 
-That last bullet is now historically important but needs a narrower reading.
-After the generic existential equality fast path landed, `Z₁` full
-associativity moved into the "resolves on a named overlay" column, not the
-"resolves on the pure query surface" column. The harder `Z₂` associativity
-cases remain the live gap.
+That last bullet is now historical. After the generic existential equality fast
+path landed, `Z1` full associativity first moved into the "resolves on a named
+overlay" column. ADR-39 then superseded that boundary by adding the
+proof-producing equality-fragment profile, and ADR-40/42 kept the promoted GV
+and finite-verifier rows green while tightening status consistency.
 
 After ADR-39, the current architectural takeaway is:
 
 - greenfield now has a distinct kernel-level `GV` capability for the promoted
   finite equality associativity rows,
+- `Z2` full associativity and the non-group full associativity refutation are
+  no longer open GV gaps in the promoted suite,
 - the named overlay is retained as a historical and compatibility boundary,
 - and future hard-family work should distinguish remaining raw-stream/list
   issues from the now-promoted finite equality-fragment verifier path.

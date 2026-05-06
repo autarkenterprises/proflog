@@ -73,6 +73,22 @@
               (pos? (get result :closed-count 0)))
           (str case-id " should expose proof-backed ground or answer results")))))
 
+(deftest fitting-catalog-exercises-forward-answer-and-partial-synthesis-modes
+  (let [catalog (fitting/fitting-cases)
+        by-id (into {} (map (juxt :id identity) catalog))]
+    (testing "forward mode is represented by ground query proof cases"
+      (is (= :query (get-in by-id [:p2-win-4-succeeds :kind])))
+      (is (= :query (get-in by-id [:fd-color-red-succeeds :kind]))))
+    (testing "answer synthesis is represented by inverse and open-list rows"
+      (is (= :inverse-splits (get-in by-id [:append-inverse-flat :mode])))
+      (is (= :input-synthesis
+             (get-in by-id [:reverse-input-flat-longer :mode])))
+      (is (= :output-synthesis
+             (get-in by-id [:reverse-output-deep-nested-longer :mode]))))
+    (testing "partial synthesis is represented by a constructor-constrained output row"
+      (is (= :partial-output
+             (get-in by-id [:reverse-partial-output-longer-tail :mode]))))))
+
 (deftest group-verifier-cases-are-proof-kernel-results-or-explicit-frontiers
   (testing "group-verifier associativity forms are recorded as bounded kernel frontiers"
     (doseq [[case-id classification]

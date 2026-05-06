@@ -32,6 +32,8 @@ Current checkpoint:
 - ADR-0038 adds a kernel-backed fitting-program evaluation catalog. Promoted
   true/false outcomes carry proof evidence; GV associativity remains an
   explicit bounded proof-search frontier rather than a host-overlay result.
+  A tutorial-ready walkthrough is maintained in
+  [Fitting Program Kernel Examples](../worked-examples/fitting-programs.md).
 
 ## 1. Orientation
 

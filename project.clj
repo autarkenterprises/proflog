@@ -110,6 +110,8 @@
                                              "proflog.fitting-programs-test"]
             "test-proflog-kernel-finite-verifiers" ["test"
                                                     "proflog.kernel-finite-verifiers-test"]
+            "test-proflog-legacy-subsumption" ["test"
+                                               "proflog.legacy-subsumption-test"]
             "test-proflog-constructor-recursive" ["test"
                                                   ":constructor-recursive"
                                                   "proflog.list-programs-test"

@@ -39,6 +39,17 @@ Current ADR-0035 note:
   `append-inverse-flat-longer`, took about `509.5 s` of Clojure-process
   elapsed time.
 
+Current ADR-0040 note:
+
+- The focused legacy-subsumption selector passed on 2026-05-06 with
+  `Ran 3 tests containing 63 assertions`, `0 failures, 0 errors`, and
+  `elapsed 120.54 s`.
+- Passing per-row timings are recorded in
+  [AAR-0040](aar/AAR-0040-legacy-subsumption-parity.md). The expensive row is
+  the direct kernel Peano proof `PA10 forward 3 + 4 = 7` at `70586.114 ms`.
+  Peano answer-mode parity rows use the constructor-recursive profile and close
+  in milliseconds.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

@@ -36,6 +36,14 @@ complete contemporaneous transcript.
   transition-system `delta` totality/determinism examples. The outcome is
   recorded in
   [AAR-0039](docs/aar/AAR-0039-kernel-level-group-verification.md).
+- Completed ADR-0040 on branch `adr-0040-legacy-subsumption-parity` with a
+  focused greenfield legacy-subsumption selector for the remaining GV,
+  finite-domain, and Peano PA12-PA20 parity rows, each paired with an extended
+  row. The closeout records passing runtimes, the corrected Peano recursion
+  direction behind the `plus(3,4,7)` / `plus(4,3,7)` timing probe, and the
+  remaining profile boundaries in
+  [AAR-0040](docs/aar/AAR-0040-legacy-subsumption-parity.md) and
+  [Legacy Subsumption Parity Examples](worked-examples/legacy-subsumption-parity.md).
 
 ## 2026-05-05
 

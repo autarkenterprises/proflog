@@ -112,6 +112,51 @@ Schematic tagged AST for the `p/1` clause body:
 (eq (var x) (app a))
 ```
 
+Schematically, the compiled program stores that body as the formula the
+Procedure Call Rule will use when the kernel sees a saved `p(...)` literal:
+
+```clojure
+{:relation p
+ :params [x]
+ :body (eq (var x) (app a))
+ :negated-body (neq (var x) (app a))}
+```
+
+The query wrapper is similarly thin. The surface query:
+
+```clojure
+(pf/q (p a))
+```
+
+descends to a formula:
+
+```clojure
+(pos (app p (app a)))
+```
+
+`query/query-status` then probes the kernel in both semidecision directions.
+Schematically:
+
+```clojure
+;; Success probe: close a tableau for the negated query.
+(kernel/prove-program
+  p-program
+  (neg (app p (app a)))
+  1
+  fuel)
+
+;; Failure probe: close a tableau for the query itself.
+(kernel/prove-program
+  p-program
+  (pos (app p (app a)))
+  1
+  fuel)
+```
+
+So the frontend wrapper does not evaluate the program by host-side search. It
+builds a compiled program plus a query formula, and the query API passes those
+formulas to the proof kernel.
+
 A quantified example shows why ADR-0010 also needs definitional helpers and
 inlining:
 
@@ -198,6 +243,30 @@ Schematic tagged AST for the inlined clause body:
     (or
       (neq (var x) (var y))
       (eq (var y) (app zero)))))
+```
+
+The query descent is the same. For example:
+
+```clojure
+(pf/q (zero-only (s zero)))
+```
+
+becomes:
+
+```clojure
+(pos (app zero-only (app s (app zero))))
+```
+
+The success probe asks the kernel to close:
+
+```clojure
+(neg (app zero-only (app s (app zero))))
+```
+
+and the failure probe asks it to close:
+
+```clojure
+(pos (app zero-only (app s (app zero))))
 ```
 
 The prefix DSL is not implemented yet. Until ADR-0010 lands, use the public

@@ -108,6 +108,8 @@
                                           "proflog.legacy-hard-families-test"]
             "test-proflog-fitting-programs" ["test"
                                              "proflog.fitting-programs-test"]
+            "test-proflog-kernel-finite-verifiers" ["test"
+                                                    "proflog.kernel-finite-verifiers-test"]
             "test-proflog-constructor-recursive" ["test"
                                                   ":constructor-recursive"
                                                   "proflog.list-programs-test"

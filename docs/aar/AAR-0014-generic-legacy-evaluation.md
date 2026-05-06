@@ -65,9 +65,11 @@ it from the kernel.
 - ADR-0014 has not yet closed the hard unsatisfied families.
 - The branch still does not have a broad `FD` classification story; it has one
   promoted representative query, not a family closure.
-- The broader `GV` slice remains open. `Z₂` precomputed associativity,
-  `Z₂` full associativity, and the non-group associativity probes are still the
-  meaningful hard cases.
+- Historical note: at ADR-0014 closeout, the broader `GV` slice remained open.
+  `Z₂` precomputed associativity, `Z₂` full associativity, and the non-group
+  associativity probes were still the meaningful hard cases. ADR-39 later
+  promoted these finite equality-fragment rows through the profiled kernel
+  component.
 - The raw pure-core list probes did not recover generic reverse/append parity
   within the measured long slices.
 

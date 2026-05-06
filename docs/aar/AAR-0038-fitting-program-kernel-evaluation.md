@@ -34,10 +34,15 @@ against target bindings.
 
 ## What Remains
 
-Full group-verifier associativity is still a proof-search frontier. ADR-38 does
-not hide that behind the hard-family overlay. The catalog records both
-precomputed Z2 associativity and full Z1 associativity as bounded unresolved
-kernel frontiers with explicit classifications.
+Historical note: at ADR-38 closeout, full group-verifier associativity was
+still a proof-search frontier. ADR-38 did not hide that behind the hard-family
+overlay. The catalog recorded both precomputed Z2 associativity and full Z1
+associativity as bounded unresolved kernel frontiers with explicit
+classifications.
+
+ADR-39 later promotes those GV rows, plus Z2 full associativity and non-group
+associativity refutations, through a profiled finite equality-fragment kernel
+component. See [AAR-0039](AAR-0039-kernel-level-group-verification.md).
 
 Deeper P1/P2 rows such as P1 `odd(3)` and larger Nim positions are also too
 expensive for the default ADR-38 test gate. They should be promoted only after a
@@ -76,11 +81,8 @@ lein test-proflog-hard-families
 
 ## Follow-Up
 
-The next useful work is search-control, not another host-side evaluator. The
-highest-value frontiers are:
+After ADR-39, the highest-value remaining frontiers are:
 
-- make full associativity-style universal formulas practical through the core
-  proof kernel;
 - promote deeper P1/P2 rows once their proof paths are bounded enough for a
   test gate; and
 - keep finite-domain and list-family examples in the ADR-38 catalog as

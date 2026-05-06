@@ -6,7 +6,8 @@ Related ADRs:
 [ADR-0035](adr/ADR-0035-relational-residual-continuation.md),
 [ADR-0036](adr/ADR-0036-speculative-relational-arithmetic-and-tabling.md),
 [ADR-0037](adr/ADR-0037-core-logic-minikanren-enhancements.md),
-[ADR-0038](adr/ADR-0038-fitting-program-kernel-evaluation.md)
+[ADR-0038](adr/ADR-0038-fitting-program-kernel-evaluation.md),
+[ADR-0039](adr/ADR-0039-kernel-level-group-verification.md)
 
 This chapter explains the current greenfield Proflog implementation as a
 whole system. It is written for a reader who needs to understand the design,
@@ -30,10 +31,14 @@ Current checkpoint:
   relational map/fuel/tree/performance probes. Those probes are research
   surfaces, not production proof-search semantics.
 - ADR-0038 adds a kernel-backed fitting-program evaluation catalog. Promoted
-  true/false outcomes carry proof evidence; GV associativity remains an
-  explicit bounded proof-search frontier rather than a host-overlay result.
+  true/false outcomes carry proof evidence; its original GV associativity rows
+  were recorded as explicit bounded frontiers rather than host-overlay results.
   A tutorial-ready walkthrough is maintained in
   [Fitting Program Kernel Examples](../worked-examples/fitting-programs.md).
+- ADR-0039 adds a profiled finite equality-fragment kernel component. Full
+  group-verifier associativity and significant transition-system totality /
+  determinism examples now close with `profiled equality-fragment` proof
+  evidence rather than hard-family overlay results.
 
 ## 1. Orientation
 
@@ -122,6 +127,7 @@ The main implementation namespaces are:
 | Profile dispatch | [`src/proflog/formula_profile.clj`](../src/proflog/formula_profile.clj) | Classify formulas for specialized theorem proving layers. |
 | Propositional layer | [`src/proflog/kernel/propositional.clj`](../src/proflog/kernel/propositional.clj) | Small proof-producing propositional tableau component. |
 | First-order layer | [`src/proflog/kernel/first_order.clj`](../src/proflog/kernel/first_order.clj) | Equality-free first-order proof component, including a lean alphaleanTAP-shaped path. |
+| Equality-fragment layer | [`src/proflog/kernel/equality_fragment.clj`](../src/proflog/kernel/equality_fragment.clj) | ADR-0039 proof-producing finite equality-fragment component for compiled call-free equality verifier bodies. |
 | Tabling | [`src/proflog/tabling.clj`](../src/proflog/tabling.clj) | Optional canonical proof-state tabling wrapper around the ordinary kernel. |
 | Query | [`src/proflog/query.clj`](../src/proflog/query.clj) | Top-level success, failure, bounded status, and iterative fuel probing. |
 | Answer overlay | [`src/proflog/answer_overlay.clj`](../src/proflog/answer_overlay.clj) | Answer-mode tableau overlay: answer variables, residuals, call-depth, existential-as-variable execution, and ADR-0035 structural residual continuation. |
@@ -130,7 +136,8 @@ The main implementation namespaces are:
 | Hard-family overlay | [`src/proflog/hard_family_overlay.clj`](../src/proflog/hard_family_overlay.clj) | Named non-default status accelerator for restricted hard-family probes. |
 | Relational arithmetic | [`src/proflog/relational_arithmetic.clj`](../src/proflog/relational_arithmetic.clj) | ADR-0036 Clojure translation of faster-minikanren bit-list arithmetic for speculative fuel and arithmetic probes. |
 | MiniKanren constraints | [`src/proflog/minikanren_constraints.clj`](../src/proflog/minikanren_constraints.clj) | ADR-0037 project-local compatibility overlay for `symbolo`, `numbero`, and general-purpose `absento`; type checks still use `predc`, while `absento` is a project-owned deep absence constraint. |
-| Fitting program catalog | [`src/proflog/fitting_programs.clj`](../src/proflog/fitting_programs.clj) | ADR-0038 kernel-backed catalog for P1, P2, move-warning, finite-domain, list-family, and GV-frontier examples. |
+| Fitting program catalog | [`src/proflog/fitting_programs.clj`](../src/proflog/fitting_programs.clj) | ADR-0038/0039 kernel-backed catalog for P1, P2, move-warning, finite-domain, list-family, and proof-backed GV examples. |
+| Finite transition systems | [`src/proflog/finite_transition_systems.clj`](../src/proflog/finite_transition_systems.clj) | ADR-0039 non-GV verifier examples for larger `delta` totality and determinism laws. |
 | ADR probes | [`src/proflog/relational_fuel_adapter_probe.clj`](../src/proflog/relational_fuel_adapter_probe.clj), [`src/proflog/relational_maps_probe.clj`](../src/proflog/relational_maps_probe.clj), and related probe namespaces | Speculative or measurement-only namespaces. They document evidence and should not be mistaken for default production behavior. |
 | Host probes | [`src/proflog/core_logic_host.clj`](../src/proflog/core_logic_host.clj) and related probe namespaces | Report and instrument the loaded core.logic host implementation. |
 

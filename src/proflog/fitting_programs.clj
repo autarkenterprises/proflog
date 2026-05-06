@@ -214,6 +214,7 @@
      :program program
      :query (ast/pos-lit (app relation))
      :expected expected
+     :proof-limit 1
      :timeout-ms timeout-ms
      :poll-ms poll-ms
      :classification classification}))
@@ -346,19 +347,25 @@
      (list-case :reverse-output-deep-nested-longer)
      (list-case :reverse-partial-output-longer-tail)
      (gv-case
-       {:id :gv-z2-precomputed-assoc-bounded-unresolved
-        :scenario "z2-precomputed-assoc-truth"
-        :expected :unresolved
-        :timeout-ms 1
-        :poll-ms 0
-        :classification :precomputed-associativity-universal-search-frontier})
-     (gv-case
-       {:id :gv-z1-full-assoc-bounded-unresolved
+       {:id :gv-z1-full-assoc-succeeds
         :scenario "z1-full-assoc-truth"
-        :expected :unresolved
-        :timeout-ms 1
-        :poll-ms 0
-        :classification :full-associativity-universal-search-frontier})]))
+        :expected :succeeds})
+     (gv-case
+       {:id :gv-z2-precomputed-assoc-succeeds
+        :scenario "z2-precomputed-assoc-truth"
+        :expected :succeeds})
+     (gv-case
+       {:id :gv-z2-full-assoc-succeeds
+        :scenario "z2-full-assoc-truth"
+        :expected :succeeds})
+     (gv-case
+       {:id :gv-non-group-precomputed-assoc-fails
+        :scenario "non-group-precomputed-assoc"
+        :expected :fails})
+     (gv-case
+       {:id :gv-non-group-full-assoc-fails
+        :scenario "non-group-full-assoc"
+        :expected :fails})]))
 
 (defn case-by-id
   [case-id]

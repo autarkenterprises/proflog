@@ -42,3 +42,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0036](AAR-0036-speculative-relational-arithmetic-and-tabling.md) | [ADR-0036](../adr/ADR-0036-speculative-relational-arithmetic-and-tabling.md) | completed |
 | [AAR-0037](AAR-0037-core-logic-minikanren-enhancements.md) | [ADR-0037](../adr/ADR-0037-core-logic-minikanren-enhancements.md) | completed |
 | [AAR-0038](AAR-0038-fitting-program-kernel-evaluation.md) | [ADR-0038](../adr/ADR-0038-fitting-program-kernel-evaluation.md) | completed |
+| [AAR-0039](AAR-0039-kernel-level-group-verification.md) | [ADR-0039](../adr/ADR-0039-kernel-level-group-verification.md) | completed |

@@ -29,16 +29,16 @@
                            (ast/eq-lit (ast/var-term x)
                                        (ast/var-term y)))))))])))
 
-(deftest z1-full-assoc-truth-is-not-resolved-by-the-first-pure-query-slice
-  (testing "the trivial-group associativity truth query is not resolved by the first pure kernel slice"
+(deftest z1-full-assoc-truth-is-now-resolved-by-the-profiled-kernel-slice
+  (testing "the trivial-group associativity truth query now resolves on the profiled kernel path"
     (let [{:keys [program relation]}
           ((deref #'gv-probe/scenario-config) "z1-full-assoc-truth")
           query-formula (ast/pos-lit (ast/app-term relation))]
-      (is (= :unresolved
+      (is (= :succeeds
              (query/query-status
                program
                query-formula
-               {:timeout-ms 1
+               {:timeout-ms 2000
                 :proof-limit 1
                 :poll-ms 0}))))))
 

@@ -30,6 +30,7 @@
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
+            [proflog.kernel.equality-fragment :as equality-fragment]
             [proflog.formula-profile :as formula-profile]
             [proflog.kernel.first-order :as first-order]
             [proflog.gamma :as gamma]
@@ -296,7 +297,7 @@
        (branch-first-order-featureo fml unexpanded lits)])))
 
 (defn- profiled-closeo
-  [fml unexpanded lits env sigma sigma-out neqs neqs-out prog fuel proof]
+  [fml unexpanded lits env sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
   (let [active-relations (active-program-relations prog)]
     (fresh [kind subproof next-fuel]
       (support/step-fuelo fuel next-fuel)
@@ -749,7 +750,7 @@
     ;; Once the residual branch is isolated from active program calls and
     ;; equality state, a specialized kernel layer may close it as a single
     ;; proof-producing background step.
-    [(profiled-closeo fml unexpanded lits env sigma sigma-out neqs neqs-out prog fuel proof)]
+    [(profiled-closeo fml unexpanded lits env sigma sigma-out neqs neqs-out prog gamma-terms fuel proof)]
 
     ;; ================================================================
     ;; Alpha rule: conjunction
@@ -1381,12 +1382,18 @@
 (defn prove-program
   "Return up to `n` proof terms closing `fml` relative to `prog`.
 
-   This keeps the program explicit and otherwise starts from the empty kernel
-   state, mirroring the paper's use of a fixed Proflog program during proof
-   search."
+  This keeps the program explicit and otherwise starts from the empty kernel
+  state, mirroring the paper's use of a fixed Proflog program during proof
+  search."
   ([prog fml n]
-   (run n [proof]
-        (prove-programo fml '() '() '() prog proof)))
+   (let [profiled (equality-fragment/prove-program-host prog fml n)]
+     (if (seq profiled)
+       profiled
+       (run n [proof]
+            (prove-programo fml '() '() '() prog proof)))))
   ([prog fml n fuel]
-   (run n [proof]
-        (prove-programo fml '() '() '() prog fuel proof))))
+   (let [profiled (equality-fragment/prove-program-host prog fml n fuel)]
+     (if (seq profiled)
+       profiled
+       (run n [proof]
+            (prove-programo fml '() '() '() prog fuel proof))))))

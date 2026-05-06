@@ -104,10 +104,23 @@ Update on `2026-04-25`:
   [test/proflog/legacy_hard_families_test.clj](/home/jpt4/code/proflog/test/proflog/legacy_hard_families_test.clj:1),
   while the pure query surface remains unresolved there
 
+Update on `2026-05-06`:
+
+- ADR-39 adds a profiled finite equality-fragment kernel component.
+- The pure query surface now resolves the mandatory GV associativity rows with
+  `profiled equality-fragment` proof evidence:
+  - `z1-full-assoc-truth` succeeds,
+  - `z2-precomputed-assoc-truth` succeeds,
+  - `z2-full-assoc-truth` succeeds,
+  - `non-group-precomputed-assoc` fails, and
+  - `non-group-full-assoc` fails.
+- The hard-family overlay remains a named compatibility surface, but it is no
+  longer the only path for these GV results.
+
 ## Current Interpretation
 
-This first `GV` slice does **not** show greenfield and legacy having different
-overlapping strengths.
+This first `GV` slice did **not** show greenfield and legacy having different
+overlapping strengths at the time it was measured.
 
 Instead, it shows:
 
@@ -123,11 +136,10 @@ associativity moved into the "resolves on a named overlay" column, not the
 "resolves on the pure query surface" column. The harder `Z₂` associativity
 cases remain the live gap.
 
-So the current architectural takeaway is:
+After ADR-39, the current architectural takeaway is:
 
-- greenfield does not yet have a distinct pure-kernel `GV` capability win that
-  would argue for preserving the present structure unchanged,
-- a non-default overlay can already recover at least one additional
-  legacy-aligned `GV` success,
-- and the repo is therefore justified in considering larger architectural
-  revision if later ADR-14 probes keep the same shape.
+- greenfield now has a distinct kernel-level `GV` capability for the promoted
+  finite equality associativity rows,
+- the named overlay is retained as a historical and compatibility boundary,
+- and future hard-family work should distinguish remaining raw-stream/list
+  issues from the now-promoted finite equality-fragment verifier path.

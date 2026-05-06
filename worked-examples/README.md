@@ -24,6 +24,7 @@ query walkthroughs for the current `test/proflog` suites.
 - [Nim Synthesis](./nim-synthesis.md)
 - [Synthesis Modes](./synthesis-modes.md)
 - [Fitting Program Kernel Examples](./fitting-programs.md)
+- [Kernel Finite Verifier Examples](./kernel-finite-verifiers.md)
 - [Pelletier Problems](./pelletier-problems.md)
 
 ## Conventions

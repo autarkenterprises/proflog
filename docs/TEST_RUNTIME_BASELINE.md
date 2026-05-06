@@ -118,6 +118,15 @@ Current ADR-0043 documentation-refresh note:
   `Ran 118 tests containing 384 assertions`, `0 failures, 0 errors`, and
   `elapsed 67.73 s`.
 
+Current ADR-0010 frontend note:
+
+- The focused frontend selector passed on 2026-05-06 with
+  `Ran 6 tests containing 21 assertions`, `0 failures, 0 errors`, and
+  `elapsed 12.25 s`.
+- The ADR-0010 frontend commit gate passed `lein test-proflog-fast` with
+  `Ran 124 tests containing 405 assertions`, `0 failures, 0 errors`, and
+  `elapsed 74.84 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

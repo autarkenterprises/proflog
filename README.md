@@ -35,10 +35,11 @@ lein repl
 Proflog programs should first be readable as Fitting-style logic programs. The
 hand-written notation uses Prolog-like clauses, with one added distinction:
 `:=` marks a definitional helper that the frontend may inline, while `:-` marks
-a real Fitting-style procedure-call relation. The planned ADR-0010 frontend
-should accept the same source either through a parser or through a Clojure macro
-using prefix clause operators. In prefix form, `(:= head body)` is a
-definitional helper and `(|- head body)` is a real relation clause.
+a real Fitting-style procedure-call relation. The ADR-0010 frontend
+is currently a Clojure macro surface using prefix clause operators. A later
+textual parser can use the same translation contract. In prefix form,
+`(:= head body)` is a definitional helper and `(|- head body)` is a real
+relation clause.
 Language declarations remain reusable frontend values, so multiple programs can
 compile against the same language.
 
@@ -48,7 +49,7 @@ Start with a minimal relation: `p(x)` succeeds exactly when `x = a`.
 p(x) :- x = a.
 ```
 
-The planned frontend keeps that program visible inside a thin parser/macro
+The implemented frontend keeps that program visible inside a thin macro
 wrapper:
 
 ```clojure
@@ -357,9 +358,9 @@ and the kernel probes are:
   fuel)
 ```
 
-The prefix DSL is not implemented yet. Until ADR-0010 lands, use the public
-`proflog.ast` constructors and `proflog.language/compile-program` API shown
-above and in the worked examples.
+The public `proflog.ast` constructors and `proflog.language/compile-program`
+API remain available for lower-level inspection, tests, and examples that need
+to talk directly about the backend representation.
 
 For non-trivial examples, run the focused Fitting and legacy-subsumption gates:
 

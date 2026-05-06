@@ -67,6 +67,7 @@
                                     "proflog.existential-disequality-test"
                                     "proflog.gamma-test"
                                     "proflog.closed-term-gamma-test"
+                                    "proflog.frontend-test"
                                     "proflog.formula-profile-test"
                                     "proflog.kernel.dispatch-test"
                                     "proflog.kernel.first-order-test"

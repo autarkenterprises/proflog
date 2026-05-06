@@ -1,9 +1,9 @@
 # ADR-0010: Ergonomic Front End And Prover-Amenable Inlining Translation
 
-- Status: proposed
+- Status: completed
 - Date: 2026-04-22
-- Branch: `adr-0010-frontend-inlining`
-- AAR: pending
+- Branch: `adr-0010-dsl-quickstart-docs`
+- AAR: [AAR-0010](../aar/AAR-0010-frontend-inlining-translation.md)
 
 ## Context
 
@@ -88,6 +88,20 @@ REPL and tutorial authoring.
 - When a helper predicate is not eligible for safe translation, the front end
   should reject it or warn clearly rather than silently compiling it into a
   semantically weaker prover program.
+
+## Implementation
+
+ADR-0010 is implemented by `proflog.frontend`.
+
+- `language` is a macro that builds reusable frontend language declarations.
+- `proflog` is a macro that translates visible prefix source forms into
+  `proflog.ast` clauses and calls `proflog.language/compile-program`.
+- `q` is a macro that translates visible source queries into backend formulas.
+- `(:= head body)` introduces a nonrecursive definitional helper and is inlined
+  before backend compilation.
+- `(|- head body)` introduces a real kernel-visible Proflog relation clause.
+- Recursive definitional helpers are rejected with source-facing helper
+  identifiers in diagnostic data.
 
 ## Consequences
 

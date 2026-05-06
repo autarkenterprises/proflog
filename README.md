@@ -122,6 +122,10 @@ Procedure Call Rule will use when the kernel sees a saved `p(...)` literal:
  :negated-body (neq (var x) (app a))}
 ```
 
+Here `x` is the compiled relation parameter for `p/1`. At a procedure call such
+as `p(a)` or `p(b)`, the kernel binds that parameter to the actual query
+argument inside the subsidiary tableau opened for the clause body.
+
 The query wrapper is similarly thin. The surface query:
 
 ```clojure
@@ -135,7 +139,16 @@ descends to a formula:
 ```
 
 `query/query-status` then probes the kernel in both semidecision directions.
-Schematically:
+The kernel call has four parameters:
+
+- `prog`: the compiled program containing `:language`, `:clause-list`, and the
+  normalized clause bodies.
+- `fml`: the formula the tableau kernel must close.
+- `n`: the maximum number of proof terms to return.
+- `fuel`: the current finite proof-search slice, chosen by the query wrapper's
+  bounded iterative-deepening loop.
+
+For `p(a)`, the two schematic kernel calls are:
 
 ```clojure
 ;; Success probe: close a tableau for the negated query.
@@ -149,6 +162,28 @@ Schematically:
 (kernel/prove-program
   p-program
   (pos (app p (app a)))
+  1
+  fuel)
+```
+
+For `p(b)`, the query formula is:
+
+```clojure
+(pos (app p (app b)))
+```
+
+and the kernel probes are:
+
+```clojure
+(kernel/prove-program
+  p-program
+  (neg (app p (app b)))
+  1
+  fuel)
+
+(kernel/prove-program
+  p-program
+  (pos (app p (app b)))
   1
   fuel)
 ```
@@ -235,7 +270,7 @@ source clause shape:
 ;; => :fails
 ```
 
-Schematic tagged AST for the inlined clause body:
+Schematic tagged AST for the inlined `zero-only/1` clause body:
 
 ```clojure
 (forall
@@ -245,7 +280,56 @@ Schematic tagged AST for the inlined clause body:
       (eq (var y) (app zero)))))
 ```
 
-The query descent is the same. For example:
+The compiled relation parameter is `x`, the object-language argument to
+`zero-only/1`. The quantified `y` is local to the clause body and is represented
+by a nominal tie. Schematically, the compiled clause is:
+
+```clojure
+{:relation zero-only
+ :params [x]
+ :body
+ (forall
+   (tie y
+     (or
+       (neq (var x) (var y))
+       (eq (var y) (app zero)))))
+ :negated-body
+ (exists
+   (tie y
+     (and
+       (eq (var x) (var y))
+       (neq (var y) (app zero)))))}
+```
+
+The query descent is the same. For `zero-only(zero)`:
+
+```clojure
+(pf/q (zero-only zero))
+```
+
+becomes:
+
+```clojure
+(pos (app zero-only (app zero)))
+```
+
+and the two kernel probes are:
+
+```clojure
+(kernel/prove-program
+  zero-only-program
+  (neg (app zero-only (app zero)))
+  1
+  fuel)
+
+(kernel/prove-program
+  zero-only-program
+  (pos (app zero-only (app zero)))
+  1
+  fuel)
+```
+
+For `zero-only(s(zero))`:
 
 ```clojure
 (pf/q (zero-only (s zero)))
@@ -257,16 +341,20 @@ becomes:
 (pos (app zero-only (app s (app zero))))
 ```
 
-The success probe asks the kernel to close:
+and the kernel probes are:
 
 ```clojure
-(neg (app zero-only (app s (app zero))))
-```
+(kernel/prove-program
+  zero-only-program
+  (neg (app zero-only (app s (app zero))))
+  1
+  fuel)
 
-and the failure probe asks it to close:
-
-```clojure
-(pos (app zero-only (app s (app zero))))
+(kernel/prove-program
+  zero-only-program
+  (pos (app zero-only (app s (app zero))))
+  1
+  fuel)
 ```
 
 The prefix DSL is not implemented yet. Until ADR-0010 lands, use the public

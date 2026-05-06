@@ -39,6 +39,8 @@ a real Fitting-style procedure-call relation. The planned ADR-0010 frontend
 should accept the same source either through a parser or through a Clojure macro
 using prefix clause operators. In prefix form, `(:= head body)` is a
 definitional helper and `(|- head body)` is a real relation clause.
+Language declarations remain reusable frontend values, so multiple programs can
+compile against the same language.
 
 Start with a minimal relation: `p(x)` succeeds exactly when `x = a`.
 
@@ -50,22 +52,23 @@ The planned frontend keeps that program visible inside a thin parser/macro
 wrapper:
 
 ```clojure
-(require '[proflog.frontend :refer [proflog q]]
+(require '[proflog.frontend :as pf]
          '[proflog.query :as query])
 
-(def p-program
-  (proflog
-    (language
-      (constants a b)
-      (relations (p 1)))
+(def p-language
+  (pf/language
+    (constants a b)
+    (relations (p 1))))
 
+(def p-program
+  (pf/proflog p-language
     (|- (p x)
         (= x a))))
 
-(query/query-status p-program (q (p a)))
+(query/query-status p-program (pf/q (p a)))
 ;; => :succeeds
 
-(query/query-status p-program (q (p b)))
+(query/query-status p-program (pf/q (p b)))
 ;; => :fails
 ```
 
@@ -122,13 +125,14 @@ In the prefix frontend, `:=` introduces a source-level formula abbreviation;
 `|-` introduces a kernel-visible relation.
 
 ```clojure
-(def zero-only-program
-  (proflog
-    (language
-      (constants zero)
-      (functions (s 1))
-      (relations (zero-only 1)))
+(def peano-language
+  (pf/language
+    (constants zero)
+    (functions (s 1))
+    (relations (zero-only 1))))
 
+(def zero-only-program
+  (pf/proflog peano-language
     (:= (only-zero x)
       (forall [y]
         (or (!= x y)
@@ -138,12 +142,12 @@ In the prefix frontend, `:=` introduces a source-level formula abbreviation;
         (only-zero x))))
 
 (query/query-status zero-only-program
-                    (q (zero-only zero))
+                    (pf/q (zero-only zero))
                     {:timeout-ms 2000})
 ;; => :succeeds
 
 (query/query-status zero-only-program
-                    (q (zero-only (s zero)))
+                    (pf/q (zero-only (s zero)))
                     {:timeout-ms 2000})
 ;; => :fails
 ```

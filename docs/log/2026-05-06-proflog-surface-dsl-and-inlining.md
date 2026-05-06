@@ -71,6 +71,12 @@ and quantifier precedence. The surface should still be thin enough that the
 program remains visible inside the parser/macro wrapper; it should not feel like
 an `eval` form or like miniKanren's `run`.
 
+Frontend language declarations should remain reusable values, matching the
+backend's `proflog.language/language` boundary. A small inline language form may
+be convenient sugar, but it must not be the only accepted frontend shape:
+multiple source programs should be able to compile against one shared frontend
+language declaration.
+
 ## Inlining Dependency
 
 The DSL cannot be considered complete while helper-predicate inlining remains
@@ -115,7 +121,14 @@ with Clojure's top-level `def`. In concrete surface syntax the two forms can be
 prefix operators:
 
 ```clojure
-(proflog
+(def peano-language
+  (language
+    (constants zero)
+    (functions (s 1))
+    (relations (move 2)
+               (win 1))))
+
+(proflog peano-language
   (:= (move x y)
     (or (= x (s y))
         (= x (s (s y)))))

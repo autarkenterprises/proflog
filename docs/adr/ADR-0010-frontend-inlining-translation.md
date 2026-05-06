@@ -63,8 +63,9 @@ The surface-syntax assessment in
 [2026-05-06-proflog-surface-dsl-and-inlining.md](../log/2026-05-06-proflog-surface-dsl-and-inlining.md)
 records the follow-on design constraint: a Proflog DSL should preserve
 Fitting-style first-order clause organization rather than adopting ordinary
-Prolog or miniKanren semantics, and this makes the inlining/refusal boundary a
-prerequisite for serious REPL and tutorial authoring.
+Prolog or miniKanren semantics, use visible parser/macro source forms such as
+prefix `:=` and `|-`, and treat the inlining/refusal boundary as a prerequisite
+for serious REPL and tutorial authoring.
 
 ## Decision
 

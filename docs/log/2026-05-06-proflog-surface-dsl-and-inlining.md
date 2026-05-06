@@ -67,7 +67,9 @@ Prefix notation can preserve the same first-order clause organization while
 making Clojure interop substantially simpler: terms, formulas, definitional
 helpers, and relations can be ordinary lists/forms with predictable macro
 expansion instead of a separate infix parser for `=`, `!=`, `and`, `or`, `:-`,
-and quantifier precedence.
+and quantifier precedence. The surface should still be thin enough that the
+program remains visible inside the parser/macro wrapper; it should not feel like
+an `eval` form or like miniKanren's `run`.
 
 ## Inlining Dependency
 
@@ -107,23 +109,25 @@ The inlining question has several possible resolutions:
   the system can justify it as a definitional extension.
 
 The current preferred direction is the two-kind predicate system, with explicit
-definitional helpers as the first implementation step. In concrete surface
-syntax that could be prefix/Clojure-friendly rather than Prolog-infix:
+definitional helpers as the first implementation step. The Proflog-level
+definitional form should not be called `def`, because that collides mentally
+with Clojure's top-level `def`. In concrete surface syntax the two forms can be
+prefix operators:
 
 ```clojure
-(defproflog
-  (def move [x y]
+(proflog
+  (:= (move x y)
     (or (= x (s y))
         (= x (s (s y)))))
 
-  (rel win [x]
+  (|- (win x)
     (exists [y]
       (and (move x y)
            (not (win y))))))
 ```
 
-Here `def` means source-level formula abbreviation, eligible for inlining before
-`language/compile-program`, while `rel` means a real Proflog relation evaluated
+Here `:=` means source-level formula abbreviation, eligible for inlining before
+`language/compile-program`, while `|-` means a real Proflog relation evaluated
 through Fitting's procedure-call rule. The frontend must still be polarity-aware
 when inlining calls under negation, capture-safe when substituting bodies, and
 clear when recursive or otherwise unsafe helper definitions are rejected.

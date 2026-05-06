@@ -33,9 +33,12 @@ lein repl
 ```
 
 Proflog programs should first be readable as Fitting-style logic programs. The
-hand-written pseudo-code notation uses Prolog-like clauses, with one added
-distinction: `:=` marks a definitional helper that the frontend may inline,
-while `:-` marks a real Fitting-style procedure-call relation.
+hand-written notation uses Prolog-like clauses, with one added distinction:
+`:=` marks a definitional helper that the frontend may inline, while `:-` marks
+a real Fitting-style procedure-call relation. The planned ADR-0010 frontend
+should accept the same source either through a parser or through a Clojure macro
+using prefix clause operators. In prefix form, `(:= head body)` is a
+definitional helper and `(|- head body)` is a real relation clause.
 
 Start with a minimal relation: `p(x)` succeeds exactly when `x = a`.
 
@@ -43,21 +46,21 @@ Start with a minimal relation: `p(x)` succeeds exactly when `x = a`.
 p(x) :- x = a.
 ```
 
-The planned ADR-0010 frontend keeps the same program organization, but writes
-it in Clojure-friendly prefix form:
+The planned frontend keeps that program visible inside a thin parser/macro
+wrapper:
 
 ```clojure
-(require '[proflog.dsl :refer [defproflog q]]
+(require '[proflog.frontend :refer [proflog q]]
          '[proflog.query :as query])
 
 (def p-program
-  (defproflog
+  (proflog
     (language
       (constants a b)
       (relations (p 1)))
 
-    (rel p [x]
-      (= x a))))
+    (|- (p x)
+        (= x a))))
 
 (query/query-status p-program (q (p a)))
 ;; => :succeeds
@@ -115,24 +118,24 @@ only-zero(x) := forall y. (x != y or y = zero).
 zero-only(x) :- only-zero(x).
 ```
 
-In the prefix frontend, `def` introduces a source-level formula abbreviation;
-`rel` introduces a kernel-visible relation.
+In the prefix frontend, `:=` introduces a source-level formula abbreviation;
+`|-` introduces a kernel-visible relation.
 
 ```clojure
 (def zero-only-program
-  (defproflog
+  (proflog
     (language
       (constants zero)
       (functions (s 1))
       (relations (zero-only 1)))
 
-    (def only-zero [x]
+    (:= (only-zero x)
       (forall [y]
         (or (!= x y)
             (= y zero))))
 
-    (rel zero-only [x]
-      (only-zero x))))
+    (|- (zero-only x)
+        (only-zero x))))
 
 (query/query-status zero-only-program
                     (q (zero-only zero))

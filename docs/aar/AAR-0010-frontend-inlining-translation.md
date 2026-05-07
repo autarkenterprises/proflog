@@ -39,6 +39,9 @@ abbreviations without becoming semantically weaker runtime Proflog relations.
   `(pf/run program [x] (p x) opts)` for the ordinary public answer path, while
   `(pf/answer-query [x] (p x))` remains available when diagnostics need the
   raw `:query` and `:answer-vars` pair.
+- The worked-example corpus now introduces that `run` surface before lower-level
+  answer/profile APIs, and the core frontend, AST, and language files carry
+  reader-facing comments that explain the mathematical translation boundary.
 - Unsupported recursive helpers fail during macro expansion with the source
   helper identifier in diagnostic data.
 
@@ -73,6 +76,26 @@ elapsed 610.08 s.
 
 The fast and extended suite timings above came from concurrent gate runs, so the
 wall times include resource contention from the paired process.
+
+The later worked-example and source-comment pass on 2026-05-07 reran the same
+gates after documentation-only/source-comment edits:
+
+```text
+lein test proflog.frontend-test
+Ran 10 tests containing 30 assertions.
+0 failures, 0 errors.
+elapsed 12.36 s.
+
+lein test-proflog-fast
+Ran 128 tests containing 414 assertions.
+0 failures, 0 errors.
+elapsed 73.39 s.
+
+lein test-proflog-extended
+Ran 68 tests containing 203 assertions.
+0 failures, 0 errors.
+elapsed 206.75 s.
+```
 
 The focused suite covers:
 

@@ -159,6 +159,16 @@ Current ADR-0010 frontend note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `elapsed 610.08 s`. The fast and extended gates were run concurrently, so
   these wall times include resource contention from the paired run.
+- The ADR-0010 worked-example and source-comment pass on 2026-05-07 kept the
+  same test surface while making `pf/run` the default open-answer example form
+  and adding reader-facing comments to the frontend / AST / language compiler
+  layer. `lein test proflog.frontend-test` passed with
+  `Ran 10 tests containing 30 assertions`, `0 failures, 0 errors`, and
+  `elapsed 12.36 s`. The commit gate passed `lein test-proflog-fast` with
+  `Ran 128 tests containing 414 assertions`, `0 failures, 0 errors`, and
+  `elapsed 73.39 s`, plus `lein test-proflog-extended` with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `elapsed 206.75 s`. The fast and extended gates were run concurrently.
 
 ## Committed Test Iterations
 

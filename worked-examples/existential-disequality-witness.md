@@ -59,12 +59,20 @@ answer.
 
 ## Greenfield Execution
 
-The same program is compiled through the greenfield language boundary:
+The same program is compiled through the greenfield frontend and language
+boundary:
 
 ```clojure
-(language/language
-  {:constants ['a 'b]
-   :relations {'p 1}})
+(def witness-language
+  (pf/language
+    (constants a b)
+    (relations (p 1))))
+
+(def witness-program
+  (pf/proflog witness-language
+    (|- (p x)
+      (exists [y]
+        (!= x y)))))
 ```
 
 Before ADR-0018, greenfield behavior measured on 2026-04-26 was:
@@ -103,7 +111,9 @@ query-ground-answers p(answer),
   max-depth 0, fuel 8               => [(app a) (app b)]
 query-parity-answers p(answer),
   max-term-size 0, fuel 8           => [(app a) (app b)]
-query-answers p(answer), fuel 8     => []
+(pf/run witness-program [answer]
+  (p answer)
+  {:fuel 8})                        => []
 ```
 
 The last line is deliberate. The generic symbolic answer overlay still avoids

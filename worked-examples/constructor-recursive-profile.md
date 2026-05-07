@@ -149,3 +149,27 @@ and answer limit. Its proof records must contain `profiled`,
 is the genericity claim: the profile reasons over constructor-recursive clause
 shape after compilation, and the tests reject the old diagnostic sidecar and
 known list-family shortcuts.
+
+At the default answer surface, the same query would be written with `pf/run`:
+
+```clojure
+(pf/run plus-program [x]
+  (plus x (s (s (s zero))) (s (s (s (s (s zero))))))
+  {:fuel 24
+   :limit 2})
+```
+
+This worked example deliberately routes the translated query into the promoted
+constructor-recursive profile instead of the default `answers/query-answers`
+surface. That is when the lower-level builder is useful:
+
+```clojure
+(let [{:keys [query answer-vars]}
+      (pf/answer-query [x]
+        (plus x (s (s (s zero))) (s (s (s (s (s zero)))))))]
+  (profile/query-records plus-program query answer-vars {:fuel 24 :limit 2}))
+```
+
+The frontend contribution is still generic: it supplies the compiled program,
+the backend query formula, and the exported variable vector. The profiled layer
+then decides how to continue the residual recursive frontier.

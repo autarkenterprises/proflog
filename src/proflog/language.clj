@@ -29,6 +29,15 @@
             [proflog.normalize :as normalize]
             [proflog.subst :as subst]))
 
+;; -----------------------------------------------------------------------------
+;; Signature construction
+;;
+;; A Proflog program is interpreted relative to a fixed first-order language.
+;; Constants are just zero-arity function symbols, but the frontend lets authors
+;; list them separately because that is how mathematical examples are usually
+;; written. Relation symbols live in a separate namespace from term constructors.
+;; -----------------------------------------------------------------------------
+
 (defn fresh-nom
   "Create a fresh nom for compile-time alpha-renaming.
 
@@ -61,7 +70,11 @@
      :relations relations}))
 
 (defn language
-  "Construct a normalized language declaration."
+  "Construct a normalized language declaration.
+
+   The returned map is the compiler's signature object. It records constants for
+   bounded Herbrand materialization, and records all term-forming symbols under
+   `:functions` with explicit arities."
   [declaration]
   (let [{:keys [functions relations] :as normalized}
         (normalize-declaration-map declaration)]
@@ -75,13 +88,25 @@
                         {:symbol sym :arity arity}))))
     normalized))
 
-(defn- declared-function-arity [lang sym]
+(defn- declared-function-arity
+  "Return the declared arity for a term-forming symbol, or nil if absent."
+  [lang sym]
   (get-in lang [:functions sym]))
 
-(defn- declared-relation-arity [lang sym]
+(defn- declared-relation-arity
+  "Return the declared arity for a relation symbol, or nil if absent."
+  [lang sym]
   (get-in lang [:relations sym]))
 
 (declare validate-formula)
+
+;; -----------------------------------------------------------------------------
+;; Surface validation
+;;
+;; Validation is where bare AST syntax becomes a formula over a particular
+;; language. The AST says `(app f ...)`; this layer decides whether `f` may be a
+;; function symbol in term position or a relation symbol in atom position.
+;; -----------------------------------------------------------------------------
 
 (defn validate-term
   "Validate a term against the declared object language.
@@ -235,10 +260,12 @@
       [scope current])))
 
 (defn- guard-formula?
+  "True for equality-shaped conjuncts that can act as constructor guards."
   [formula]
   (contains? #{'eq 'neq} (ast/tag-of formula)))
 
 (defn- defined-call-formula?
+  "True for positive or negative calls to relations defined by this program."
   [defined-relations formula]
   (when (contains? #{'pos 'neg} (ast/tag-of formula))
     (let [atom (second formula)]
@@ -254,6 +281,7 @@
     0))
 
 (defn- formula-static-constructor-size
+  "Count constructor structure visible in one non-quantified formula."
   [formula]
   (case (ast/tag-of formula)
     pos (let [atom (second formula)]
@@ -277,6 +305,7 @@
   calls)
 
 (defn- guarded-alternative-demand-score
+  "Rank guarded alternatives by the visible recursive demand they expose."
   [guarded]
   [(- (count (:calls guarded)))
    (- (reduce + (map formula-static-constructor-size (:guards guarded))))
@@ -334,7 +363,12 @@
                                                      (:residuals grouped))))}))
 
 (defn- clause-group->core-clause
-  "Compile a group of same-relation surface clauses into one Fitting-style clause."
+  "Compile a group of same-relation surface clauses into one Fitting-style clause.
+
+   Fitting's core presentation has one defining formula per relation. We recover
+   that shape by giving the relation a fresh common parameter vector, rewriting
+   each surface clause body from its original parameters to those fresh
+   parameters, normalizing each body to NNF, and disjoining the alternatives."
   [lang defined-relations relation clauses]
   (let [arity (declared-relation-arity lang relation)
         fresh-params (vec (repeatedly arity #(fresh-nom (gensym (str relation "-p")))))
@@ -363,10 +397,12 @@
      :guarded-alternatives (apply list ordered-guarded-alternatives)}))
 
 (defn- ordinary-clause-view
+  "Projection used by the ordinary Procedure Call Rule."
   [clause]
   (select-keys clause [:relation :params :body :negated-body]))
 
 (defn- alternative-clause-view
+  "Projection that preserves top-level alternatives for answer diagnostics."
   [clause]
   (select-keys clause [:relation
                        :params
@@ -376,6 +412,7 @@
                        :negated-alternatives]))
 
 (defn- guarded-clause-view
+  "Projection that exposes guarded alternatives to profiled recursive layers."
   [clause]
   (select-keys clause [:relation
                        :params
@@ -406,16 +443,18 @@
                 groups)]
       {:language lang
        :clauses compiled-clauses
-       ;; Keep a sequential view for the purely relational procedure-call rule.
+       ;; Keep a sequential view for the purely relational Procedure Call
+       ;; Rule. The kernel can use `membero` over this list without projecting
+       ;; through the host map.
        :clause-list (apply list (map ordinary-clause-view (vals compiled-clauses)))
        ;; Keep top-level alternatives separate so ordinary call lookup
-       ;; preserves the historical compiled-clause shape and answer-mode search
-       ;; order.
+       ;; preserves the historical compiled-clause shape while answer-mode
+       ;; diagnostics can still inspect alternative boundaries.
        :alternative-clause-list (apply list
                                        (map alternative-clause-view
                                             (vals compiled-clauses)))
-       ;; Keep guarded alternative metadata in its own list so future
-       ;; source-to-IR execution paths can opt in without perturbing ordinary
+       ;; Keep guarded alternative metadata in its own list so profiled
+       ;; constructor-recursive paths can opt in without perturbing ordinary
        ;; procedure-call lookup.
        :guarded-clause-list (apply list
                                    (map guarded-clause-view

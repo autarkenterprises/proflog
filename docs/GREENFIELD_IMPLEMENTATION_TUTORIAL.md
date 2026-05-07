@@ -146,7 +146,7 @@ The main implementation namespaces are:
 
 | Layer | Source | Responsibility |
 |---|---|---|
-| Frontend | [`src/proflog/frontend.clj`](../src/proflog/frontend.clj) | ADR-0010 prefix source surface: reusable languages, `(|- ...)` relation clauses, `(:= ...)` nonrecursive helper inlining, and query formula translation to backend AST. |
+| Frontend | [`src/proflog/frontend.clj`](../src/proflog/frontend.clj) | ADR-0010 prefix source surface: reusable languages, `(|- ...)` relation clauses, `(:= ...)` nonrecursive helper inlining, `pf/q` closed-query translation, and `pf/run` open-answer evaluation through backend AST. |
 | AST | [`src/proflog/ast.clj`](../src/proflog/ast.clj) | Tagged constructors and recognizers for object-language terms, literals, formulas, clauses, and nominal variables. |
 | Language | [`src/proflog/language.clj`](../src/proflog/language.clj) | Declaration normalization, validation, alpha-renaming, source-clause compilation, alternatives, guarded alternatives. |
 | NNF | [`src/proflog/normalize.clj`](../src/proflog/normalize.clj) | Convert surface formulas to negation normal form and compute formula negation. |
@@ -345,6 +345,27 @@ bind exported variables at the same place the program is evaluated:
 `pf/answer-query`, then delegates to `answers/query-answers`. `answer-query`
 remains available when a diagnostic needs the raw
 `{:query formula :answer-vars [noms...]}` pair.
+
+Schematically, the `run` form above descends to:
+
+```clojure
+(ast/nom r
+  (answers/query-answers
+    reverse-program
+    (pos (app reverse
+              (app cons (app a) (app cons (app b) (app null)))
+              (var r)))
+    [r]
+    opts))
+```
+
+The four visible pieces are preserved across the descent:
+
+- `reverse-program` is the compiled `pf/proflog` program.
+- `[r]` declares the answer variables whose bindings may be exported.
+- `(reverse ... r)` is translated to a backend `pos` formula.
+- `opts` supplies operational answer-search bounds such as `:fuel`,
+  `:call-depth`, and `:max-raw-proof-limit`.
 
 The language layer is a compiler. It does not prove anything.
 
@@ -1223,6 +1244,20 @@ Internally, this constructs the same query formula and answer-var vector that
 `(:language program)` and checks that requested answer variables are distinct
 free noms in the query. It then searches the tableau for the negated query
 because success is closure of the query's negation.
+
+The lower-level shape is useful when an example deliberately bypasses the
+ordinary answer API:
+
+```clojure
+(let [{:keys [query answer-vars]}
+      (pf/answer-query [x y]
+        (append x y (cons a (cons b null))))]
+  (some-profile-or-diagnostic append-program query answer-vars opts))
+```
+
+That pattern should be read as an escape hatch. Tutorial-facing answer examples
+should start with `pf/run` unless the point of the example is exactly that
+alternate evaluator boundary.
 
 ### Step 5: Query Entry
 

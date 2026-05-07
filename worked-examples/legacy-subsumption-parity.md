@@ -190,6 +190,26 @@ to `kernel/prove-program` on the negated ground query. Open rows such as
 `plus(x, 3, 5)` use the ADR-41 profiled constructor-recursive answer path with
 exported variable `[x]`.
 
+At the ordinary frontend answer surface, the row has the same visible shape as a
+miniKanren-style query:
+
+```clojure
+(pf/run peano-program [x]
+  (plus x (s (s (s zero))) (s (s (s (s (s zero))))))
+  opts)
+```
+
+The parity suite uses the lower-level `pf/answer-query` only because it must
+feed the translated query into `constructor-profile/query-records` rather than
+the default `answers/query-answers` evaluator:
+
+```clojure
+(let [{:keys [query answer-vars]}
+      (pf/answer-query [x]
+        (plus x (s (s (s zero))) (s (s (s (s (s zero)))))))]
+  (constructor-profile/query-records peano-program query answer-vars opts))
+```
+
 The timing table is therefore not comparing host arithmetic to Proflog
 arithmetic. It compares proof and answer behavior over the compiled guarded
 clause. The recorded asymmetry fix also belongs at this layer: restoring

@@ -233,8 +233,22 @@ The ground failure `boxed-zero(2)` uses:
                    fuel)
 ```
 
-so the kernel closes the positive query formula. The open answer case uses the
-same compiled program and query formula, but routes through
-`answers/query-answers` with exported variable `[x]`. The returned binding
+so the kernel closes the positive query formula. The ordinary open answer case
+uses `pf/run`:
+
+```clojure
+(pf/run boxed-zero-program [x]
+  (boxed-zero x)
+  {:fuel fuel
+   :proof-limit 1})
+```
+
+Inside that call, the frontend emits:
+
+```clojure
+(pos (app boxed-zero (var x)))
+```
+
+and exports `[x]` through `answers/query-answers`. The returned binding
 `x = zero` is therefore an answer-overlay export from kernel proof states, not
 a host-side singleton computation.

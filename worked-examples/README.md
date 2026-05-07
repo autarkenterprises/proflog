@@ -39,13 +39,18 @@ README quickstart:
 Fitting-style source
 => prefix frontend form, when the example is source-level
 => backend AST and compiled relation or direct formula
-=> query, answer, or kernel entry point
+=> `pf/q` for closed queries or `pf/run` for ordinary open answers
+=> lower-level answer/profile/kernel entry point, when the example needs one
 => proof status, exported answers, residuals, runtime, and shortcomings
 ```
 
 The reusable details live in
 [Frontend To Kernel Descent](./frontend-to-kernel-descent.md). Individual
 examples below add local notes about the program family they exercise.
+`pf/run` is the default surface for open answer examples. `pf/answer-query` is
+shown only when a worked example needs to expose the translated backend formula
+and answer-variable vector before passing them to a diagnostic or profiled
+evaluator.
 
 | Example | Main Boundary | Modes |
 | --- | --- | --- |

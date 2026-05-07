@@ -222,11 +222,12 @@ Schematically, the query formula is:
 Internally, the answer path uses the same query formula and exported variables:
 
 ```clojure
-(answers/query-answers
-  plus-program
-  (pos (app plus (var x) (var y) (var z)))
-  [x y z]
-  opts)
+(ast/nom x y z
+  (answers/query-answers
+    plus-program
+    (pos (app plus (var x) (var y) (var z)))
+    [x y z]
+    opts))
 ```
 
 The important parameters are the exported variables `[x y z]`, the recursive

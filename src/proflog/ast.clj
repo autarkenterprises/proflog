@@ -30,6 +30,19 @@
 
 ;; -----------------------------------------------------------------------------
 ;; Core tagged constructors
+;;
+;; The object language deliberately has a small vocabulary:
+;;
+;; - `(var n)` is a user/source variable represented by a nominal name `n`;
+;; - `(par n)` is an internal rigid parameter introduced by proof search;
+;; - `(app f ...)` is either a function application term or an atomic relation
+;;   application, depending on where it appears and what the declared language
+;;   says about `f`.
+;;
+;; Formula constructors mirror the usual first-order connectives. They are
+;; intentionally syntax only: no constructor below checks arity, declaration
+;; membership, or whether a symbol is a function or a relation. Those checks live
+;; in `proflog.language`, which knows the program's signature.
 ;; -----------------------------------------------------------------------------
 
 (defn var-term
@@ -142,17 +155,23 @@
   (when (seq? node)
     (first node)))
 
-(defn var-term? [node]
+(defn var-term?
+  "Return true for a syntactically well-shaped object-language variable."
+  [node]
   (and (seq? node)
        (= 'var (first node))
        (nil? (nnext node))))
 
-(defn par-term? [node]
+(defn par-term?
+  "Return true for a syntactically well-shaped internal parameter term."
+  [node]
   (and (seq? node)
        (= 'par (first node))
        (nil? (nnext node))))
 
-(defn app-term? [node]
+(defn app-term?
+  "Return true for a tagged application with a symbolic head."
+  [node]
   (and (seq? node)
        (= 'app (first node))
        (symbol? (second node))))
@@ -227,7 +246,12 @@
     :else false))
 
 (defn nnf-formula?
-  "Return true when `node` is already in the NNF-oriented greenfield core."
+  "Return true when `node` is already in the NNF-oriented greenfield core.
+
+   Surface `not` and `implies` are excluded here because the proof kernel works
+   over negation normal form. Negative information is represented by negative
+   literals, disequality, and dualized quantifiers instead of a runtime `not`
+   connective."
   [node]
   (cond
     (literal? node) true

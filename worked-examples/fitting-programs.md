@@ -316,8 +316,31 @@ relation. The catalog keeps both behaviors visible because Fitting's warning is
 about that operational boundary.
 
 The list and finite-verifier rows descend the same way but use specialized
-kernel entrances after compilation. List answer rows export variables through
-`answers/query-answers` or the raw matrix helper, with explicit `call-depth`,
-`fuel`, and raw proof limits. GV rows enter `query/query-status`, but
+kernel entrances after compilation. Ordinary list answer rows now use the
+frontend answer surface:
+
+```clojure
+(pf/run list-program [x y]
+  (append x y (cons a (cons b (cons c null))))
+  {:call-depth call-depth
+   :fuel fuel
+   :max-raw-proof-limit raw-limit})
+```
+
+This emits the backend formula:
+
+```clojure
+(pos
+  (app append
+       (var x)
+       (var y)
+       (app cons (app a)
+                 (app cons (app b)
+                           (app cons (app c) (app null))))))
+```
+
+and exports `[x y]` through `answers/query-answers`. When the catalog names a
+raw matrix helper instead, it is deliberately bypassing the default answer API
+after this same frontend translation. GV rows enter `query/query-status`, but
 `kernel/prove-program` selects the proof-producing equality-fragment profile
 from the compiled finite formula shape.

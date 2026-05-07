@@ -234,6 +234,27 @@ also identify exported answer variables. The normal frontend form is:
    :max-raw-proof-limit limit})
 ```
 
+That form is only an ergonomic wrapper. Its descent is:
+
+```clojure
+(ast/nom x
+  (answers/query-answers
+    program
+    (pos (app relation (var x)))
+    [x]
+    {:fuel fuel
+     :call-depth call-depth
+     :max-raw-proof-limit limit}))
+```
+
+The parameters in that call are:
+
+- `program`: the compiled `pf/proflog` result;
+- query formula: the backend `pos` formula emitted from the source query;
+- `[x]`: the exported answer-variable noms whose bindings appear in records;
+- `fuel`, `call-depth`, and raw proof limit: operational bounds for the answer
+  overlay and recursive procedure-call descent.
+
 When a worked example needs to show the exact backend formula, the lower-level
 builder is still available:
 

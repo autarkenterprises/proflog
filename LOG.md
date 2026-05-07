@@ -37,6 +37,12 @@ complete contemporaneous transcript.
 - Streamlined that answer surface with `pf/run`, which binds answer variables in
   the evaluation form and delegates directly to `answers/query-answers`;
   `answer-query` remains the lower-level builder for diagnostics.
+- Extended the `pf/run` presentation through the worked examples and tutorial,
+  distinguishing ordinary answer evaluation from lower-level profile/diagnostic
+  paths that still consume the translated `answer-query` pair. Added explanatory
+  code comments to the frontend, AST, and language compiler layers for readers
+  approaching the code from logic and theorem-proving rather than Clojure
+  implementation details.
 
 ## 2026-05-06
 

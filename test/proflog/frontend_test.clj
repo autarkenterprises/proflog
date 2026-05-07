@@ -121,6 +121,23 @@
         (is (= '[x x]
                (some-> ex .getCause ex-data :bindings)))))))
 
+(deftest frontend-run-evaluates-open-answer-query
+  (testing "run keeps answer vars in the frontend binding form"
+    (let [records (pf/run p-a-program [x]
+                    (p x)
+                    {:proof-limit 1})
+          record (first records)]
+      (is (= (ast/app-term 'a)
+             (-> record :bindings first second)))
+      (is (empty? (:residuals record))))))
+
+(deftest frontend-run-uses-default-answer-options
+  (testing "run can omit the options map"
+    (let [records (pf/run p-a-program [x]
+                    (p x))]
+      (is (= (ast/app-term 'a)
+             (-> records first :bindings first second))))))
+
 (deftest frontend-inline-helper-translates-before-backend-compilation
   (testing "only-zero is a frontend helper, not a runtime relation"
     (is (nil? (get-in zero-only-program [:clauses 'only-zero])))

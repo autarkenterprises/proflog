@@ -7,8 +7,10 @@
    `proflog` translates visible source clauses into compiled programs, and `q`
    translates visible closed queries into kernel-facing formulas.
    `answer-query` binds visible answer variables and returns the query formula
-   plus the answer-variable vector expected by `proflog.answers`."
+   plus the answer-variable vector expected by `proflog.answers`. `run` is the
+   ergonomic frontend evaluator for open answer queries."
   (:require [proflog.ast :as ast]
+            [proflog.answers :as answers]
             [proflog.language :as backend-language]))
 
 (defn- malformed!
@@ -308,11 +310,7 @@
                 {:bindings bindings}))
   bindings)
 
-(defmacro answer-query
-  "Bind visible answer variables for a frontend query.
-
-   Returns a map compatible with the public answer APIs:
-   {:query formula :answer-vars [noms...]}."
+(defn- emit-answer-query-map
   [bindings formula]
   (let [bindings (validate-answer-query-bindings bindings)
         noms (atom (vec bindings))
@@ -321,6 +319,33 @@
                           bindings))
         code (emit-formula formula env {} noms #{})
         unique-noms (vec (distinct @noms))]
+    {:bindings bindings
+     :code code
+     :unique-noms unique-noms}))
+
+(defmacro answer-query
+  "Bind visible answer variables for a frontend query.
+
+   Returns a map compatible with the public answer APIs:
+   {:query formula :answer-vars [noms...]}."
+  [bindings formula]
+  (let [{:keys [bindings code unique-noms]} (emit-answer-query-map bindings formula)]
     `(ast/nom ~@unique-noms
        {:query ~code
         :answer-vars [~@bindings]})))
+
+(defmacro run
+  "Evaluate a frontend open answer query.
+
+   Example:
+   (run program [x] (p x) {:proof-limit 1})"
+  ([program bindings formula]
+   `(run ~program ~bindings ~formula {}))
+  ([program bindings formula opts]
+   (let [{:keys [bindings code unique-noms]} (emit-answer-query-map bindings formula)]
+     `(ast/nom ~@unique-noms
+        (answers/query-answers
+          ~program
+          ~code
+          [~@bindings]
+          ~opts)))))

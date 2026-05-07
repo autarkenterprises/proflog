@@ -449,11 +449,12 @@ An answer query such as:
 append(x, y, [a, b, c])?
 ```
 
-is constructed with the frontend answer-query binder:
+is evaluated with the frontend answer form:
 
 ```clojure
-(pf/answer-query [x y]
-  (append x y (cons a (cons b (cons c null)))))
+(pf/run append-program [x y]
+  (append x y (cons a (cons b (cons c null))))
+  opts)
 ```
 
 Schematically, it descends to:
@@ -468,8 +469,8 @@ Schematically, it descends to:
                            (app cons (app c) (app null))))))
 ```
 
-and the public call exports `[x y]` through `answers/query-answers`. The
-parameters that control the examples are the exported variable list, `fuel`,
-`call-depth`, and raw proof limit. The residuals and long-timeout matrix rows
-record where recursive proof search remains expensive after this source has
-already become compiled kernel formulae.
+and `pf/run` exports `[x y]` through `answers/query-answers`. The parameters
+that control the examples are the exported variable list, `fuel`, `call-depth`,
+and raw proof limit. The residuals and long-timeout matrix rows record where
+recursive proof search remains expensive after this source has already become
+compiled kernel formulae.

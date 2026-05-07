@@ -34,6 +34,9 @@ complete contemporaneous transcript.
   bind exported variables at the frontend layer and pass the resulting `:query`
   / `:answer-vars` pair to `proflog.answers` without manual backend nominal
   boilerplate.
+- Streamlined that answer surface with `pf/run`, which binds answer variables in
+  the evaluation form and delegates directly to `answers/query-answers`;
+  `answer-query` remains the lower-level builder for diagnostics.
 
 ## 2026-05-06
 
@@ -96,7 +99,7 @@ complete contemporaneous transcript.
   `adr-0010-dsl-quickstart-docs` with a shared frontend-to-kernel descent
   reference and per-example source/backend/kernel notes. That pass initially
   recorded the open-answer query-binder gap; the 2026-05-07 ADR-0010 addendum
-  closes it with `pf/answer-query`.
+  closes it with `pf/answer-query` and the streamlined `pf/run` evaluator.
   Fresh `test-proflog-fast` and `test-proflog-extended` runtimes are recorded
   in [TEST_RUNTIME_BASELINE](docs/TEST_RUNTIME_BASELINE.md).
 

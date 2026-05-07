@@ -56,9 +56,10 @@ The implemented ADR-0010 surface is Clojure-readable prefix syntax:
 The program remains visible inside a thin wrapper. `pf/language` builds a
 reusable language value. `pf/proflog` compiles relation clauses against that
 language. `pf/q` turns a visible closed query into the same backend formula
-shape the kernel already accepts. `pf/answer-query` binds visible answer
-variables for open answer queries and returns the query formula plus the
-answer-var vector expected by `proflog.answers`.
+shape the kernel already accepts. `pf/run` binds visible answer variables and
+evaluates open answer queries through `proflog.answers`; `pf/answer-query`
+exposes the same translated query formula plus answer-var vector for diagnostic
+or alternate answer paths.
 
 Definitions are inlined at this layer:
 
@@ -223,19 +224,24 @@ produce proofs within the admitted slice.
 ## Answer Layer
 
 Open-answer examples use the same compiled program and query formula, but they
-also identify exported answer variables. The frontend form is:
+also identify exported answer variables. The normal frontend form is:
 
 ```clojure
-(let [{:keys [query answer-vars]}
-      (pf/answer-query [x]
-        (relation x))]
-  (answers/query-answers
-    program
-    query
-    answer-vars
-    {:fuel fuel
-     :call-depth call-depth
-     :max-raw-proof-limit limit}))
+(pf/run program [x]
+  (relation x)
+  {:fuel fuel
+   :call-depth call-depth
+   :max-raw-proof-limit limit})
+```
+
+When a worked example needs to show the exact backend formula, the lower-level
+builder is still available:
+
+```clojure
+(pf/answer-query [x]
+  (relation x))
+;; => {:query (pos (app relation (var x)))
+;;     :answer-vars [x]}
 ```
 
 The answer path routes through `proflog.answer-overlay`, which reuses the proof

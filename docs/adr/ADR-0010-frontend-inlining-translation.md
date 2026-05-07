@@ -100,6 +100,9 @@ ADR-0010 is implemented by `proflog.frontend`.
 - `answer-query` is a macro that binds visible answer variables in a query and
   returns `{:query formula :answer-vars [noms...]}` for the existing answer
   APIs.
+- `run` is a macro that evaluates the same answer-variable scope through
+  `proflog.answers/query-answers` so ordinary open-answer examples do not need
+  destructuring boilerplate.
 - `(:= head body)` introduces a nonrecursive definitional helper and is inlined
   before backend compilation.
 - `(|- head body)` introduces a real kernel-visible Proflog relation clause.
@@ -117,16 +120,15 @@ through `pf/proflog`.
 The accepted frontend form is:
 
 ```clojure
-(pf/answer-query [x y]
+(pf/run program [x y]
   (append x y (cons a (cons b null))))
-;; => {:query ...
-;;     :answer-vars [x y]}
+;; => answer records
 ```
 
-This form does not evaluate the query. It only establishes a frontend-visible
-binding scope for exported answer variables and emits the backend formula plus
-the exact answer-var vector expected by `proflog.answers`. Public evaluation
-remains explicit:
+`run` establishes a frontend-visible binding scope for exported answer
+variables and delegates to `answers/query-answers`. The lower-level
+`answer-query` form remains available when a caller needs to feed the same
+query into diagnostics or another answer API:
 
 ```clojure
 (let [{:keys [query answer-vars]}
@@ -139,6 +141,7 @@ The form deliberately complements, rather than replaces, `q`:
 
 - `(pf/q (p a))` remains the thin closed-query formula builder.
 - `(pf/answer-query [x] (p x))` is the open-query builder for answer APIs.
+- `(pf/run program [x] (p x) opts)` is the ergonomic open-answer evaluator.
 - Bound answer variables emit `(var ...)` terms.
 - Unbound symbols continue to emit nullary `app` constants.
 - Duplicate or malformed answer binding vectors are rejected at macro

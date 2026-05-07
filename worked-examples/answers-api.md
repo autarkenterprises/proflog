@@ -666,17 +666,18 @@ For a source query:
 reverse([a, b], r)?
 ```
 
-the frontend query binder keeps `r` as an answer variable rather than a
-constant:
+the frontend `run` form keeps `r` as an answer variable rather than a constant
+and evaluates through the public answer API:
 
 ```clojure
-(pf/answer-query [r]
-  (reverse (cons a (cons b null)) r))
-;; => {:query ...
-;;     :answer-vars [r]}
+(pf/run list-program [r]
+  (reverse (cons a (cons b null)) r)
+  {:fuel fuel
+   :call-depth call-depth
+   :max-raw-proof-limit raw-limit})
 ```
 
-The schematic formula is:
+The schematic query formula produced inside that call is:
 
 ```clojure
 (pos
@@ -685,23 +686,18 @@ The schematic formula is:
        (var r)))
 ```
 
-The public answer call is:
+For diagnostics, the lower-level builder exposes the query and exported-variable
+vector without evaluating:
 
 ```clojure
-(let [{:keys [query answer-vars]}
-      (pf/answer-query [r]
-        (reverse (cons a (cons b null)) r))]
-  (answers/query-answers
-    list-program
-    query
-    answer-vars
-    {:fuel fuel
-     :call-depth call-depth
-     :max-raw-proof-limit raw-limit}))
+(pf/answer-query [r]
+  (reverse (cons a (cons b null)) r))
+;; => {:query ...
+;;     :answer-vars [r]}
 ```
 
-The exported variable vector returned in `:answer-vars` is part of the API
-contract: only those logic variables are turned into public answer bindings.
+The exported variable vector is part of the API contract: only those logic
+variables are turned into public answer bindings.
 Residuals are compiled formulas or calls that remain after the admitted proof
 slice, and proof terms show how each record was obtained.
 

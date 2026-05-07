@@ -63,8 +63,9 @@ Current checkpoint:
 - The worked examples now share
   [Frontend To Kernel Descent](../worked-examples/frontend-to-kernel-descent.md)
   as their source-to-kernel reading pattern. Open answer examples now use the
-  ADR-0010 `answer-query` frontend form to bind exported variables while
-  leaving `proflog.answers` as the explicit evaluator.
+  ADR-0010 `run` frontend form to bind exported variables at the public
+  evaluator surface, while `answer-query` remains the lower-level query builder
+  for diagnostics and alternate answer APIs.
 
 ## 1. Orientation
 
@@ -331,20 +332,19 @@ are written in prefix form by moving constructor patterns into the body:
              (append tail ys rest)))))
 ```
 
-Closed frontend queries use `pf/q`. Open answer queries use `pf/answer-query`
-to bind exported variables and emit the query formula expected by
-`proflog.answers`:
+Closed frontend queries use `pf/q`. Open answer queries usually use `pf/run` to
+bind exported variables at the same place the program is evaluated:
 
 ```clojure
-(let [{:keys [query answer-vars]}
-      (pf/answer-query [r]
-        (reverse (cons a (cons b null)) r))]
-  (answers/query-answers reverse-program query answer-vars opts))
+(pf/run reverse-program [r]
+  (reverse (cons a (cons b null)) r)
+  opts)
 ```
 
-`answer-query` does not evaluate the query. It returns
-`{:query formula :answer-vars [noms...]}`, keeping the answer API explicit
-while removing backend nominal boilerplate from ordinary source-level examples.
+`run` is intentionally thin: it uses the same frontend translation as
+`pf/answer-query`, then delegates to `answers/query-answers`. `answer-query`
+remains available when a diagnostic needs the raw
+`{:query formula :answer-vars [noms...]}` pair.
 
 The language layer is a compiler. It does not prove anything.
 
@@ -1138,8 +1138,7 @@ The practical rule is:
 
 The following walk-through describes the normal path for a source-level program
 and a public answer query. Program authoring now starts at the ADR-0010
-frontend when possible, and open answer query construction uses
-`pf/answer-query`.
+frontend when possible, and open answer evaluation uses `pf/run`.
 
 ### Step 1: Source Declaration
 
@@ -1211,19 +1210,19 @@ For a positive open query such as:
 append(x, y, [a, b])
 ```
 
-the frontend constructs the query and answer-var vector together:
+the frontend binds answer variables and evaluates the query in one form:
 
 ```clojure
-(let [{:keys [query answer-vars]}
-      (pf/answer-query [x y]
-        (append x y (cons a (cons b null))))]
-  (answers/query-answers append-program query answer-vars opts))
+(pf/run append-program [x y]
+  (append x y (cons a (cons b null)))
+  opts)
 ```
 
-The answer layer validates that query against `(:language program)` and checks
-that requested answer variables are distinct free noms in the query. It then
-searches the tableau for the negated query because success is closure of the
-query's negation.
+Internally, this constructs the same query formula and answer-var vector that
+`pf/answer-query` exposes. The answer layer validates that query against
+`(:language program)` and checks that requested answer variables are distinct
+free noms in the query. It then searches the tableau for the negated query
+because success is closure of the query's negation.
 
 ### Step 5: Query Entry
 
@@ -1452,7 +1451,8 @@ The most important boundaries are:
   are source abbreviations, while `|-` relations remain kernel-visible
   Procedure Call Rule relations;
 - current frontend closed queries use `pf/q`, while open answer queries use
-  `pf/answer-query` to bind exported variables;
+  `pf/run` at the public surface and `pf/answer-query` for lower-level query
+  construction;
 - raw core.logic tabling is not a replacement for Proflog's canonical-state
   tabling layer;
 - ADR-0036 bit-list fuel remains opt-in and production fuel remains the
@@ -1519,7 +1519,7 @@ Frontend changes should preserve:
 - rejection of unsupported recursive helpers unless a later ADR defines a
   bounded unfolding semantics;
 - clear handling of the `pf/q` closed-query and `pf/answer-query` open-answer
-  boundary.
+  builder, plus the thin `pf/run` answer-evaluation surface.
 
 Language/compiler changes should preserve:
 

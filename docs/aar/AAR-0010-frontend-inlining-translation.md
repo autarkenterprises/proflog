@@ -15,6 +15,8 @@ The implemented surface is deliberately thin:
 - `proflog` translates visible source clauses into `proflog.ast` clauses and
   delegates compilation to `proflog.language/compile-program`.
 - `q` translates visible source queries into backend formulas.
+- `run` binds visible answer variables and evaluates open queries through
+  `proflog.answers/query-answers`.
 - `answer-query` binds visible answer variables and returns the query formula
   plus `:answer-vars` vector used by `proflog.answers`.
 - `(:= head body)` introduces a source-level definitional helper.
@@ -34,9 +36,9 @@ abbreviations without becoming semantically weaker runtime Proflog relations.
 - The factored Nim `move/2` warning is covered as a frontend regression:
   `move/2` is inlined and never appears as a compiled runtime relation.
 - The open-query frontend boundary is now explicit. Users can write
-  `(pf/answer-query [x] (p x))` and pass the resulting `:query` and
-  `:answer-vars` to `answers/query-answers` without manually constructing
-  `ast/nom` / `ast/var-term`.
+  `(pf/run program [x] (p x) opts)` for the ordinary public answer path, while
+  `(pf/answer-query [x] (p x))` remains available when diagnostics need the
+  raw `:query` and `:answer-vars` pair.
 - Unsupported recursive helpers fail during macro expansion with the source
   helper identifier in diagnostic data.
 
@@ -54,20 +56,23 @@ or proof-obligation-based unfolding.
 
 ```text
 lein test proflog.frontend-test
-Ran 8 tests containing 27 assertions.
+Ran 10 tests containing 30 assertions.
 0 failures, 0 errors.
-elapsed 14.21 s.
+elapsed 26.96 s.
 
 lein test-proflog-fast
-Ran 126 tests containing 411 assertions.
+Ran 128 tests containing 414 assertions.
 0 failures, 0 errors.
-elapsed 81.60 s.
+elapsed 180.26 s.
 
 lein test-proflog-extended
 Ran 68 tests containing 203 assertions.
 0 failures, 0 errors.
-elapsed 215.41 s.
+elapsed 610.08 s.
 ```
+
+The fast and extended suite timings above came from concurrent gate runs, so the
+wall times include resource contention from the paired process.
 
 The focused suite covers:
 
@@ -75,6 +80,7 @@ The focused suite covers:
 - `p(x) :- x = a` translation into backend clause bodies;
 - query formula translation through `q`;
 - open answer query binding through `answer-query`;
+- open answer evaluation through `run`;
 - `zero-only/1` helper inlining with quantified bodies;
 - factored Nim source translating to the inline executable `win/1` form;
 - duplicate answer-query binding rejection;

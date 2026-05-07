@@ -20,6 +20,18 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-07
+
+- Refreshed
+  [Greenfield Implementation Tutorial](docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md)
+  in light of ADR-0010 and the worked-example descent pass. The tutorial now
+  presents the prefix frontend before raw backend constructors, documents
+  `:=` helper inlining versus `|-` runtime relations, records the current
+  open-answer query-binder boundary, and distinguishes the ADR-0041 promoted
+  constructor-recursive profile from the older diagnostic sidecar. Fresh fast
+  and extended suite runtimes are recorded in
+  [TEST_RUNTIME_BASELINE](docs/TEST_RUNTIME_BASELINE.md).
+
 ## 2026-05-06
 
 - Accepted

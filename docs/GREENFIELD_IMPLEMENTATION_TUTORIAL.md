@@ -1,13 +1,17 @@
 # Greenfield Implementation Tutorial and Reference
 
-Date: 2026-05-03
+Date: 2026-05-07
 Related ADRs:
+[ADR-0010](adr/ADR-0010-frontend-inlining-translation.md),
 [ADR-0034](adr/ADR-0034-greenfield-implementation-tutorial.md),
 [ADR-0035](adr/ADR-0035-relational-residual-continuation.md),
 [ADR-0036](adr/ADR-0036-speculative-relational-arithmetic-and-tabling.md),
 [ADR-0037](adr/ADR-0037-core-logic-minikanren-enhancements.md),
 [ADR-0038](adr/ADR-0038-fitting-program-kernel-evaluation.md),
 [ADR-0039](adr/ADR-0039-kernel-level-group-verification.md),
+[ADR-0040](adr/ADR-0040-legacy-subsumption-parity.md),
+[ADR-0041](adr/ADR-0041-relational-constructor-recursive-profile.md),
+[ADR-0042](adr/ADR-0042-equality-fragment-status-consistency.md),
 [ADR-0043](adr/ADR-0043-greenfield-documentation-refresh.md)
 
 This chapter explains the current greenfield Proflog implementation as a
@@ -21,6 +25,12 @@ the authority for this implementation.
 
 Current checkpoint:
 
+- ADR-0010 adds the current executable frontend: reusable prefix
+  `proflog.frontend/language` declarations, visible `(|- ...)` relation
+  clauses, nonrecursive `(:= ...)` helper inlining, and `q` query formula
+  translation. The README quickstart now shows the full descent from
+  Fitting-style pseudo-code to frontend source, backend AST, compiled clauses,
+  query formulas, and `kernel/prove-program` calls.
 - ADR-0035 moved the promoted structural residual-continuation path into the
   answer overlay, so public list-family answer closure no longer depends on
   the constructor-recursive diagnostic sidecar.
@@ -50,6 +60,12 @@ Current checkpoint:
 - ADR-0043 refreshes current-facing documentation and adds
   [Greenfield Source Map](GREENFIELD_SOURCE_MAP.md) as the exhaustive
   namespace-level reader guide.
+- The worked examples now share
+  [Frontend To Kernel Descent](../worked-examples/frontend-to-kernel-descent.md)
+  as their source-to-kernel reading pattern. They also record the current
+  answer-query boundary: open answer examples still construct exported
+  variables with backend `ast/nom` / `ast/var-term` until the frontend grows a
+  source-level query-binder form.
 
 ## 1. Orientation
 
@@ -71,7 +87,7 @@ The implementation is not a monolith. It is a stack of deliberately narrow
 components:
 
 ```text
-public source declarations, clauses, queries
+Fitting-style source or prefix frontend declarations, clauses, queries
   |
   v
 AST constructors and validators
@@ -130,10 +146,12 @@ The main implementation namespaces are:
 
 | Layer | Source | Responsibility |
 |---|---|---|
+| Frontend | [`src/proflog/frontend.clj`](../src/proflog/frontend.clj) | ADR-0010 prefix source surface: reusable languages, `(|- ...)` relation clauses, `(:= ...)` nonrecursive helper inlining, and query formula translation to backend AST. |
 | AST | [`src/proflog/ast.clj`](../src/proflog/ast.clj) | Tagged constructors and recognizers for object-language terms, literals, formulas, clauses, and nominal variables. |
 | Language | [`src/proflog/language.clj`](../src/proflog/language.clj) | Declaration normalization, validation, alpha-renaming, source-clause compilation, alternatives, guarded alternatives. |
 | NNF | [`src/proflog/normalize.clj`](../src/proflog/normalize.clj) | Convert surface formulas to negation normal form and compute formula negation. |
 | Substitution | [`src/proflog/subst.clj`](../src/proflog/subst.clj) | Pure and relational substitution over terms and formulas with binder shadowing. |
+| Pretty printing | [`src/proflog/pretty.clj`](../src/proflog/pretty.clj) | Host-side presentation helpers for examples and diagnostics; not a semantic layer. |
 | Program calls | [`src/proflog/program.clj`](../src/proflog/program.clj) | Relational lookup of compiled clauses and binding of formal parameters to actual call arguments. |
 | Kernel | [`src/proflog/kernel.clj`](../src/proflog/kernel.clj) | Full Fitting-style tableau relation with equality, disequality, procedure calls, fuel, and proof terms. |
 | Equality | [`src/proflog/equality.clj`](../src/proflog/equality.clj) | Free-constructor equality, walking, occurs checks, unification, atom closure, disequality violations. |
@@ -149,6 +167,8 @@ The main implementation namespaces are:
 | Answer overlay | [`src/proflog/answer_overlay.clj`](../src/proflog/answer_overlay.clj) | Answer-mode tableau overlay: answer variables, residuals, call-depth, existential-as-variable execution, and ADR-0035 structural residual continuation. |
 | Answers | [`src/proflog/answers.clj`](../src/proflog/answers.clj) | Public answer records, export, canonicalization, ranking, diagnostics, parity and ground materialization. |
 | Constructor recursion | [`src/proflog/kernel/constructor_recursive.clj`](../src/proflog/kernel/constructor_recursive.clj) | Guarded-IR constructor-recursive proof and residual-settlement diagnostic layer. |
+| Constructor-recursive profile | [`src/proflog/kernel/constructor_recursive_profile.clj`](../src/proflog/kernel/constructor_recursive_profile.clj) | ADR-0041 promoted answer profile that emits integrated `profiled constructor-recursive` records over compiled guarded IR. |
+| Equality fast path | [`src/proflog/equality_fast_path.clj`](../src/proflog/equality_fast_path.clj) | Restricted host-side equality-only helper used by named hard-family overlays; not the authoritative proof kernel. |
 | Hard-family overlay | [`src/proflog/hard_family_overlay.clj`](../src/proflog/hard_family_overlay.clj) | Named non-default status accelerator for restricted hard-family probes. |
 | Relational arithmetic | [`src/proflog/relational_arithmetic.clj`](../src/proflog/relational_arithmetic.clj) | ADR-0036 Clojure translation of faster-minikanren bit-list arithmetic for speculative fuel and arithmetic probes. |
 | MiniKanren constraints | [`src/proflog/minikanren_constraints.clj`](../src/proflog/minikanren_constraints.clj) | ADR-0037 project-local compatibility overlay for `symbolo`, `numbero`, and general-purpose `absento`; type checks still use `predc`, while `absento` is a project-owned deep absence constraint. |
@@ -229,7 +249,112 @@ That split is one of the central semantic safeguards. The prover may create
 rigid parameters internally, but the public object language remains the
 declared language `L`.
 
-## 4. Language Declarations And Compilation
+## 4. Frontend, Language Declarations, And Compilation
+
+The current public authoring path starts with Fitting-style Proflog notation and
+then uses the ADR-0010 prefix frontend as the executable Clojure surface. The
+backend AST and compiler remain public and are still used heavily in tests, but
+new tutorial examples should show the frontend first when the example is a
+source-level program.
+
+Hand-written Proflog:
+
+```prolog
+only-zero(x) := forall y. (x != y or y = zero).
+zero-only(x) :- only-zero(x).
+```
+
+Executable prefix frontend:
+
+```clojure
+(require '[proflog.frontend :as pf]
+         '[proflog.query :as query])
+
+(def peano-language
+  (pf/language
+    (constants zero)
+    (functions (s 1))
+    (relations (zero-only 1))))
+
+(def zero-only-program
+  (pf/proflog peano-language
+    (:= (only-zero x)
+      (forall [y]
+        (or (!= x y)
+            (= y zero))))
+
+    (|- (zero-only x)
+        (only-zero x))))
+
+(query/query-status zero-only-program
+                    (pf/q (zero-only zero))
+                    {:timeout-ms 2000})
+;; => :succeeds
+```
+
+The frontend operators are intentionally distinct:
+
+- `(|- head body)` creates a real kernel-visible Proflog relation clause.
+- `(:= head body)` creates a nonrecursive source helper that is inlined before
+  backend compilation.
+
+This distinction is the current answer to Fitting's auxiliary-relation warning.
+If a helper is written with `|-`, calls to it are evaluated by the Procedure
+Call Rule and may have different operational behavior. If a nonrecursive helper
+is written with `:=`, it is substituted into caller bodies before the compiler
+computes the core clause.
+
+Frontend language declarations are reusable values. Several frontend programs
+can compile against the same `pf/language` result, matching the lower-level
+`language/language` contract.
+
+The current frontend accepts variable-only relation heads. Prolog-like pattern
+heads such as:
+
+```prolog
+append([], ys, ys).
+append(cons(head, tail), ys, cons(head, rest)) :-
+  append(tail, ys, rest).
+```
+
+are written in prefix form by moving constructor patterns into the body:
+
+```clojure
+(pf/proflog list-language
+  (|- (append xs ys zs)
+      (and (= xs null)
+           (= zs ys)))
+
+  (|- (append xs ys zs)
+      (exists [head tail rest]
+        (and (= xs (cons head tail))
+             (= zs (cons head rest))
+             (append tail ys rest)))))
+```
+
+Closed frontend queries use `pf/q`. Open answer queries still need explicit
+backend answer variables:
+
+```clojure
+(ast/nom r
+  (let [input (ast/app-term
+                'cons
+                (ast/app-term 'a)
+                (ast/app-term
+                  'cons
+                  (ast/app-term 'b)
+                  (ast/app-term 'null)))]
+    (answers/query-answers
+      reverse-program
+      (ast/pos-lit
+        (ast/app-term 'reverse input (ast/var-term r)))
+      [r]
+      opts)))
+```
+
+That is a current frontend boundary, not a kernel limitation. The program can
+be compiled through `pf/proflog`, while the open query formula is built with
+`ast/nom` until a later source-level query-binder form exists.
 
 The language layer is a compiler. It does not prove anything.
 
@@ -665,15 +790,21 @@ Proofs are tagged lists. Examples of step tags include:
 - `neg-call`;
 - `neg-call-guarded-alt`;
 - `profiled`;
-- `constructor-recursive-*`.
+- `constructor-recursive`;
+- `structural-residual-continuation`;
+- `constructor-recursive-*` for the older diagnostic sidecar.
 
 `proflog.proof/contains-step?` and `collect-steps` support tests and
 diagnostics. The implementation intentionally keeps proof terms inspectable
 instead of hiding closure evidence behind opaque objects.
 
 Proof terms are not only presentation. They are used to verify that the right
-layer closed a branch, that optimized or constructor-recursive layers are
-actually exercised, and that public answer records retain evidence.
+layer closed a branch, that optimized or constructor-recursive profiles are
+actually exercised, and that public answer records retain evidence. Current
+promoted constructor-recursive answer records should contain integrated
+`profiled constructor-recursive` and `structural-residual-continuation`
+evidence; `constructor-recursive-*` tags identify the older diagnostic sidecar
+or comparison tests.
 
 ## 11. Profiled Proof Layers
 
@@ -923,7 +1054,7 @@ answer surface, not the ordinary kernel proof relation, and the raw matrix
 probes intentionally bypass it when they need to measure the central proof
 path.
 
-## 16. Constructor-Recursive Layer
+## 16. Constructor-Recursive Layers
 
 `proflog.kernel.constructor-recursive` is a generic proof layer over guarded
 IR. It was introduced as a sidecar layer for constructor-recursive proof and
@@ -983,28 +1114,62 @@ continuation before export, plus an answer-overlay exported-record continuation
 backstop. The constructor-recursive namespace remains useful for focused tests,
 proof-shape comparison, and guarded-IR experiments.
 
+ADR-0041 adds the promoted profile in
+`proflog.kernel.constructor-recursive-profile`. That profile is the current
+accepted path for Peano-style open, reverse, and partial synthesis rows in the
+legacy-subsumption suite. It still operates after source translation over
+compiled guarded IR; it is not a host-side arithmetic or list evaluator.
+
+The promoted profile returns answer records in the same public shape as
+`proflog.answers`:
+
+```clojure
+{:bindings [[x term] ...]
+ :residuals []
+ :proofs [(profiled constructor-recursive
+                    structural-residual-continuation
+                    ...)]}
+```
+
+The tests assert that promoted records contain `profiled`,
+`constructor-recursive`, and `structural-residual-continuation` evidence and do
+not contain the older `constructor-recursive-call` diagnostic tag. The source
+audit also rejects dispatch on known list-family or Peano row names.
+
+The practical rule is:
+
+- use `answer-overlay` / `answers` for ordinary public answer behavior;
+- use `constructor-recursive-profile` when a focused ADR/test explicitly asks
+  for the promoted guarded-recursive profile;
+- use `constructor-recursive` as a diagnostic oracle and comparison layer, not
+  as the default public answer path.
+
 ## 17. End-To-End Data Flow
 
-The following walk-through describes the normal path for a public answer query.
+The following walk-through describes the normal path for a source-level program
+and a public answer query. Program authoring now starts at the ADR-0010
+frontend when possible; open answer query construction still uses backend noms
+until a frontend query-binder form is added.
 
 ### Step 1: Source Declaration
 
-The caller defines a language:
+The caller defines a reusable frontend language:
 
 ```clojure
-(language/language
-  {:constants ['zero 'null]
-   :functions {'s 1
-               'cons 2}
-   :relations {'append 3}})
+(pf/language
+  (constants zero null)
+  (functions (s 1)
+             (cons 2))
+  (relations (append 3)))
 ```
 
-The language layer normalizes constants, validates namespaces, and records
-function and relation arities.
+The frontend delegates to `language/language`, which normalizes constants,
+validates namespaces, and records function and relation arities. The lower-level
+map form remains available when tests need direct backend construction.
 
 ### Step 2: Source Clauses
 
-The caller constructs clauses with AST constructors. For append, the source
+The caller writes visible frontend clauses. For append, the hand-written source
 shape is:
 
 ```text
@@ -1016,8 +1181,25 @@ append(xs, ys, zs) :-
        and append(tail, ys, rest)
 ```
 
-The actual source is a tagged formula built with `ast/and-form`,
-`ast/or-form`, `ast/exists-form`, `ast/eq-lit`, and `ast/pos-lit`.
+The executable prefix source is:
+
+```clojure
+(pf/proflog list-language
+  (|- (append xs ys zs)
+      (and (= xs null)
+           (= zs ys)))
+
+  (|- (append xs ys zs)
+      (exists [head tail rest]
+        (and (= xs (cons head tail))
+             (= zs (cons head rest))
+             (append tail ys rest)))))
+```
+
+`pf/proflog` translates that visible source to `ast/clause` forms and calls
+`language/compile-program`. Tests and low-level examples may still construct
+those tagged formulas directly with `ast/and-form`, `ast/or-form`,
+`ast/exists-form`, `ast/eq-lit`, and `ast/pos-lit`.
 
 ### Step 3: Compilation
 
@@ -1033,14 +1215,38 @@ guarded views.
 `answers/query-answers` validates the query against `(:language program)` and
 checks that requested answer variables are distinct free noms in the query.
 
-For a positive query such as:
+For a positive open query such as:
 
 ```text
 append(x, y, [a, b])
 ```
 
-the answer layer searches the tableau for the negated query because success is
-closure of the query's negation.
+the current code constructs the query with backend answer variables:
+
+```clojure
+(ast/nom x y
+  (let [target (ast/app-term
+                 'cons
+                 (ast/app-term 'a)
+                 (ast/app-term
+                   'cons
+                   (ast/app-term 'b)
+                   (ast/app-term 'null)))]
+    (answers/query-answers
+      append-program
+      (ast/pos-lit
+        (ast/app-term 'append
+                      (ast/var-term x)
+                      (ast/var-term y)
+                      target))
+      [x y]
+      opts)))
+```
+
+The answer layer validates that query against `(:language program)` and checks
+that requested answer variables are distinct free noms in the query. It then
+searches the tableau for the negated query because success is closure of the
+query's negation.
 
 ### Step 5: Query Entry
 
@@ -1185,6 +1391,7 @@ lein test-proflog-fast
 It covers the core stack:
 
 - AST;
+- frontend;
 - language;
 - normalization;
 - substitution;
@@ -1264,6 +1471,11 @@ The most important boundaries are:
 - symbolic disequality is the default, not eager disunifier enumeration;
 - host projection must not silently enter the default semantic kernel;
 - proofless fast paths must remain named overlays or preserve a proof mode.
+- ADR-0010 helper inlining is a frontend translation boundary; `:=` helpers
+  are source abbreviations, while `|-` relations remain kernel-visible
+  Procedure Call Rule relations;
+- current frontend closed queries use `pf/q`, while open answer queries still
+  need backend answer-variable construction;
 - raw core.logic tabling is not a replacement for Proflog's canonical-state
   tabling layer;
 - ADR-0036 bit-list fuel remains opt-in and production fuel remains the
@@ -1272,6 +1484,10 @@ The most important boundaries are:
 - ADR-0038 promoted Fitting-program outcomes must be proved or classified by
   the core proof kernel after source translation, not by host-side semantic
   computation.
+- ADR-0039/0042 finite equality-fragment results are proof-producing profile
+  results over compiled formula shape, not named group-verifier evaluation.
+- ADR-0041 constructor-recursive answer rows use a promoted generic profile
+  over compiled guarded IR, distinct from the older diagnostic sidecar.
 
 These boundaries explain many implementation choices that may otherwise look
 indirect. For example, the language compiler builds several synchronized views
@@ -1317,6 +1533,16 @@ one is found later.
 
 When changing the implementation, first identify the layer being changed.
 
+Frontend changes should preserve:
+
+- reusable language declarations;
+- traceable descent to `proflog.ast` and `proflog.language`;
+- explicit distinction between `:=` helper inlining and `|-` runtime
+  relations;
+- rejection of unsupported recursive helpers unless a later ADR defines a
+  bounded unfolding semantics;
+- clear handling of the current closed-query versus open-answer-query boundary.
+
 Language/compiler changes should preserve:
 
 - declaration validation;
@@ -1358,13 +1584,15 @@ Diagnostics and probes should preserve:
 
 ## 23. Minimal Mental Model
 
-The implementation can be remembered as five invariants:
+The implementation can be remembered as six invariants:
 
-1. The language layer owns source validity and compiled-program invariants.
-2. The kernel owns branch closure through explicit tableau state.
-3. Equality is explicit `sigma` plus symbolic `neqs`, not hidden rewriting.
-4. The answer overlay exports controlled state: bindings, residuals, proofs.
-5. Specialized layers may help, but they must be named, proof-producing or
+1. The frontend owns ergonomic source translation, including explicit helper
+   inlining.
+2. The language layer owns source validity and compiled-program invariants.
+3. The kernel owns branch closure through explicit tableau state.
+4. Equality is explicit `sigma` plus symbolic `neqs`, not hidden rewriting.
+5. The answer overlay exports controlled state: bindings, residuals, proofs.
+6. Specialized layers may help, but they must be named, proof-producing or
    explicitly diagnostic, and separated from the default semantics.
 
 Those invariants are what let Proflog remain both a research implementation and

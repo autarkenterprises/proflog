@@ -132,6 +132,13 @@ Current ADR-0010 frontend note:
   `elapsed 75.22 s`. `lein test-proflog-extended` passed with
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `elapsed 204.88 s`.
+- The tutorial refresh on 2026-05-07 reran both standard greenfield gates after
+  documenting the ADR-0010 frontend, open-answer query-binder boundary, and
+  ADR-0041 constructor-recursive profile. `lein test-proflog-fast` passed with
+  `Ran 124 tests containing 405 assertions`, `0 failures, 0 errors`, and
+  `elapsed 99.12 s`. `lein test-proflog-extended` passed with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `elapsed 265.39 s`.
 
 ## Committed Test Iterations
 

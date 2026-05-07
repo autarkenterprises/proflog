@@ -56,9 +56,9 @@ The implemented ADR-0010 surface is Clojure-readable prefix syntax:
 The program remains visible inside a thin wrapper. `pf/language` builds a
 reusable language value. `pf/proflog` compiles relation clauses against that
 language. `pf/q` turns a visible closed query into the same backend formula
-shape the kernel already accepts. Open answer queries still use explicit
-`ast/nom` and `ast/var-term` bindings until the frontend grows a source-level
-query-binder form.
+shape the kernel already accepts. `pf/answer-query` binds visible answer
+variables for open answer queries and returns the query formula plus the
+answer-var vector expected by `proflog.answers`.
 
 Definitions are inlined at this layer:
 
@@ -223,15 +223,16 @@ produce proofs within the admitted slice.
 ## Answer Layer
 
 Open-answer examples use the same compiled program and query formula, but they
-also identify exported answer variables. In the current code, these examples
-build open queries at the backend layer:
+also identify exported answer variables. The frontend form is:
 
 ```clojure
-(ast/nom x
+(let [{:keys [query answer-vars]}
+      (pf/answer-query [x]
+        (relation x))]
   (answers/query-answers
     program
-    (ast/pos-lit (ast/app-term 'relation (ast/var-term x)))
-    [x]
+    query
+    answer-vars
     {:fuel fuel
      :call-depth call-depth
      :max-raw-proof-limit limit}))

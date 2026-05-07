@@ -26,11 +26,14 @@ complete contemporaneous transcript.
   [Greenfield Implementation Tutorial](docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md)
   in light of ADR-0010 and the worked-example descent pass. The tutorial now
   presents the prefix frontend before raw backend constructors, documents
-  `:=` helper inlining versus `|-` runtime relations, records the current
-  open-answer query-binder boundary, and distinguishes the ADR-0041 promoted
-  constructor-recursive profile from the older diagnostic sidecar. Fresh fast
-  and extended suite runtimes are recorded in
+  `:=` helper inlining versus `|-` runtime relations, and distinguishes the
+  ADR-0041 promoted constructor-recursive profile from the older diagnostic
+  sidecar. Fresh fast and extended suite runtimes are recorded in
   [TEST_RUNTIME_BASELINE](docs/TEST_RUNTIME_BASELINE.md).
+- Added the ADR-0010 frontend `answer-query` form so open answer examples can
+  bind exported variables at the frontend layer and pass the resulting `:query`
+  / `:answer-vars` pair to `proflog.answers` without manual backend nominal
+  boilerplate.
 
 ## 2026-05-06
 
@@ -91,9 +94,9 @@ complete contemporaneous transcript.
   [AAR-0043](docs/aar/AAR-0043-greenfield-documentation-refresh.md).
 - Enriched the worked-example corpus on branch
   `adr-0010-dsl-quickstart-docs` with a shared frontend-to-kernel descent
-  reference and per-example source/backend/kernel notes. The pass records that
-  current open answer examples still build answer variables with backend
-  `ast/nom` / `ast/var-term` until the frontend grows a query-binder form.
+  reference and per-example source/backend/kernel notes. That pass initially
+  recorded the open-answer query-binder gap; the 2026-05-07 ADR-0010 addendum
+  closes it with `pf/answer-query`.
   Fresh `test-proflog-fast` and `test-proflog-extended` runtimes are recorded
   in [TEST_RUNTIME_BASELINE](docs/TEST_RUNTIME_BASELINE.md).
 

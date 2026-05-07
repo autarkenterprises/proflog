@@ -5,7 +5,9 @@
    existing backend forms from `proflog.ast` and `proflog.language`. It does not
    evaluate programs. `language` builds a reusable language declaration,
    `proflog` translates visible source clauses into compiled programs, and `q`
-   translates visible source queries into kernel-facing formulas."
+   translates visible closed queries into kernel-facing formulas.
+   `answer-query` binds visible answer variables and returns the query formula
+   plus the answer-variable vector expected by `proflog.answers`."
   (:require [proflog.ast :as ast]
             [proflog.language :as backend-language]))
 
@@ -293,3 +295,32 @@
         unique-noms (vec (distinct @noms))]
     `(ast/nom ~@unique-noms
        ~code)))
+
+(defn- validate-answer-query-bindings
+  [bindings]
+  (when-not (and (vector? bindings)
+                 (seq bindings)
+                 (every? symbol? bindings))
+    (malformed! "Expected answer-query bindings like [x y]"
+                {:bindings bindings}))
+  (when-not (= (count bindings) (count (distinct bindings)))
+    (malformed! "Duplicate frontend answer-query bindings"
+                {:bindings bindings}))
+  bindings)
+
+(defmacro answer-query
+  "Bind visible answer variables for a frontend query.
+
+   Returns a map compatible with the public answer APIs:
+   {:query formula :answer-vars [noms...]}."
+  [bindings formula]
+  (let [bindings (validate-answer-query-bindings bindings)
+        noms (atom (vec bindings))
+        env (into {} (map (fn [binding]
+                            [binding `(ast/var-term ~binding)])
+                          bindings))
+        code (emit-formula formula env {} noms #{})
+        unique-noms (vec (distinct @noms))]
+    `(ast/nom ~@unique-noms
+       {:query ~code
+        :answer-vars [~@bindings]})))

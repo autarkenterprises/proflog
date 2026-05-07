@@ -362,6 +362,23 @@ The public `proflog.ast` constructors and `proflog.language/compile-program`
 API remain available for lower-level inspection, tests, and examples that need
 to talk directly about the backend representation.
 
+Open answer queries use the same frontend layer. `pf/answer-query` binds the
+visible answer variables and returns the backend query plus the answer-variable
+vector expected by `proflog.answers`:
+
+```clojure
+(require '[proflog.answers :as answers])
+
+(let [{:keys [query answer-vars]}
+      (pf/answer-query [x]
+        (p x))]
+  (answers/query-answers p-program query answer-vars {:proof-limit 1}))
+;; schematically => [{:bindings [[x a]], :residuals [], :proofs [...]}]
+```
+
+`answer-query` is still only a query builder. It does not evaluate the program;
+the explicit `answers/query-answers` call remains the answer API boundary.
+
 For non-trivial examples, run the focused Fitting and legacy-subsumption gates:
 
 ```text

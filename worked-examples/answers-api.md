@@ -666,21 +666,14 @@ For a source query:
 reverse([a, b], r)?
 ```
 
-the intended frontend query-binder syntax is still future work. The current
-test builds the open query at the backend layer so `r` is an answer variable
-rather than a constant:
+the frontend query binder keeps `r` as an answer variable rather than a
+constant:
 
 ```clojure
-(ast/nom r
-  (ast/pos-lit
-    (ast/app-term
-      'reverse
-      (ast/app-term 'cons
-                    (ast/app-term 'a)
-                    (ast/app-term 'cons
-                                  (ast/app-term 'b)
-                                  (ast/app-term 'null)))
-      (ast/var-term r))))
+(pf/answer-query [r]
+  (reverse (cons a (cons b null)) r))
+;; => {:query ...
+;;     :answer-vars [r]}
 ```
 
 The schematic formula is:
@@ -695,19 +688,22 @@ The schematic formula is:
 The public answer call is:
 
 ```clojure
-(answers/query-answers
-  list-program
-  query
-  [r]
-  {:fuel fuel
-   :call-depth call-depth
-   :max-raw-proof-limit raw-limit})
+(let [{:keys [query answer-vars]}
+      (pf/answer-query [r]
+        (reverse (cons a (cons b null)) r))]
+  (answers/query-answers
+    list-program
+    query
+    answer-vars
+    {:fuel fuel
+     :call-depth call-depth
+     :max-raw-proof-limit raw-limit}))
 ```
 
-The exported variable vector `[r]` is part of the API contract: only those
-logic variables are turned into public answer bindings. Residuals are compiled
-formulas or calls that remain after the admitted proof slice, and proof terms
-show how each record was obtained.
+The exported variable vector returned in `:answer-vars` is part of the API
+contract: only those logic variables are turned into public answer bindings.
+Residuals are compiled formulas or calls that remain after the admitted proof
+slice, and proof terms show how each record was obtained.
 
 When this file distinguishes raw-kernel streams, generic post-processing, and
 specialty materializers, it is documenting a real implementation boundary. The

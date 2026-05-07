@@ -205,8 +205,14 @@ The source-level open query:
 plus(x, y, z)?
 ```
 
-is currently built at the backend layer, because `pf/q` does not yet provide a
-source-level answer-variable binder. Schematically, the query formula is:
+is built with the frontend answer-query binder:
+
+```clojure
+(pf/answer-query [x y z]
+  (plus x y z))
+```
+
+Schematically, the query formula is:
 
 ```clojure
 (pos (app plus (var x) (var y) (var z)))
@@ -215,7 +221,10 @@ source-level answer-variable binder. Schematically, the query formula is:
 and the answer path is:
 
 ```clojure
-(answers/query-answers plus-program query [x y z] opts)
+(let [{:keys [query answer-vars]}
+      (pf/answer-query [x y z]
+        (plus x y z))]
+  (answers/query-answers plus-program query answer-vars opts))
 ```
 
 The important parameters are the exported variables `[x y z]`, the recursive

@@ -62,10 +62,9 @@ Current checkpoint:
   namespace-level reader guide.
 - The worked examples now share
   [Frontend To Kernel Descent](../worked-examples/frontend-to-kernel-descent.md)
-  as their source-to-kernel reading pattern. They also record the current
-  answer-query boundary: open answer examples still construct exported
-  variables with backend `ast/nom` / `ast/var-term` until the frontend grows a
-  source-level query-binder form.
+  as their source-to-kernel reading pattern. Open answer examples now use the
+  ADR-0010 `answer-query` frontend form to bind exported variables while
+  leaving `proflog.answers` as the explicit evaluator.
 
 ## 1. Orientation
 
@@ -332,29 +331,20 @@ are written in prefix form by moving constructor patterns into the body:
              (append tail ys rest)))))
 ```
 
-Closed frontend queries use `pf/q`. Open answer queries still need explicit
-backend answer variables:
+Closed frontend queries use `pf/q`. Open answer queries use `pf/answer-query`
+to bind exported variables and emit the query formula expected by
+`proflog.answers`:
 
 ```clojure
-(ast/nom r
-  (let [input (ast/app-term
-                'cons
-                (ast/app-term 'a)
-                (ast/app-term
-                  'cons
-                  (ast/app-term 'b)
-                  (ast/app-term 'null)))]
-    (answers/query-answers
-      reverse-program
-      (ast/pos-lit
-        (ast/app-term 'reverse input (ast/var-term r)))
-      [r]
-      opts)))
+(let [{:keys [query answer-vars]}
+      (pf/answer-query [r]
+        (reverse (cons a (cons b null)) r))]
+  (answers/query-answers reverse-program query answer-vars opts))
 ```
 
-That is a current frontend boundary, not a kernel limitation. The program can
-be compiled through `pf/proflog`, while the open query formula is built with
-`ast/nom` until a later source-level query-binder form exists.
+`answer-query` does not evaluate the query. It returns
+`{:query formula :answer-vars [noms...]}`, keeping the answer API explicit
+while removing backend nominal boilerplate from ordinary source-level examples.
 
 The language layer is a compiler. It does not prove anything.
 
@@ -1148,8 +1138,8 @@ The practical rule is:
 
 The following walk-through describes the normal path for a source-level program
 and a public answer query. Program authoring now starts at the ADR-0010
-frontend when possible; open answer query construction still uses backend noms
-until a frontend query-binder form is added.
+frontend when possible, and open answer query construction uses
+`pf/answer-query`.
 
 ### Step 1: Source Declaration
 
@@ -1221,26 +1211,13 @@ For a positive open query such as:
 append(x, y, [a, b])
 ```
 
-the current code constructs the query with backend answer variables:
+the frontend constructs the query and answer-var vector together:
 
 ```clojure
-(ast/nom x y
-  (let [target (ast/app-term
-                 'cons
-                 (ast/app-term 'a)
-                 (ast/app-term
-                   'cons
-                   (ast/app-term 'b)
-                   (ast/app-term 'null)))]
-    (answers/query-answers
-      append-program
-      (ast/pos-lit
-        (ast/app-term 'append
-                      (ast/var-term x)
-                      (ast/var-term y)
-                      target))
-      [x y]
-      opts)))
+(let [{:keys [query answer-vars]}
+      (pf/answer-query [x y]
+        (append x y (cons a (cons b null))))]
+  (answers/query-answers append-program query answer-vars opts))
 ```
 
 The answer layer validates that query against `(:language program)` and checks
@@ -1474,8 +1451,8 @@ The most important boundaries are:
 - ADR-0010 helper inlining is a frontend translation boundary; `:=` helpers
   are source abbreviations, while `|-` relations remain kernel-visible
   Procedure Call Rule relations;
-- current frontend closed queries use `pf/q`, while open answer queries still
-  need backend answer-variable construction;
+- current frontend closed queries use `pf/q`, while open answer queries use
+  `pf/answer-query` to bind exported variables;
 - raw core.logic tabling is not a replacement for Proflog's canonical-state
   tabling layer;
 - ADR-0036 bit-list fuel remains opt-in and production fuel remains the
@@ -1541,7 +1518,8 @@ Frontend changes should preserve:
   relations;
 - rejection of unsupported recursive helpers unless a later ADR defines a
   bounded unfolding semantics;
-- clear handling of the current closed-query versus open-answer-query boundary.
+- clear handling of the `pf/q` closed-query and `pf/answer-query` open-answer
+  boundary.
 
 Language/compiler changes should preserve:
 

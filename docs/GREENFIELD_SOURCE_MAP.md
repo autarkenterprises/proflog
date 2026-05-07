@@ -26,7 +26,7 @@ AST and declarations
 
 | Namespace | Role | Reader note |
 |---|---|---|
-| `proflog.frontend` | Prefix Proflog frontend and helper-inlining translator. | ADR-0010 surface layer: reusable frontend languages, visible `(|- ...)` relation clauses, `(:= ...)` nonrecursive inline helpers, query formula translation, and descent to `proflog.ast` / `proflog.language`. |
+| `proflog.frontend` | Prefix Proflog frontend and helper-inlining translator. | ADR-0010 surface layer: reusable frontend languages, visible `(|- ...)` relation clauses, `(:= ...)` nonrecursive inline helpers, closed query formula translation through `q`, open answer query binding through `answer-query`, and descent to `proflog.ast` / `proflog.language`. |
 | `proflog.ast` | Tagged object-language terms, formulas, clauses, and nominal helpers. | This is the data contract shared by the compiler, kernel, examples, and tests. Tagged lists make formulas recursively decomposable inside miniKanren goals. |
 | `proflog.language` | Language declarations, validation, alpha-renaming, and source-to-core compilation. | This is where Fitting's one-clause-per-relation core shape is recovered from ergonomic surface clauses by grouping, normalizing, and precomputing each relation body's NNF negation. |
 | `proflog.normalize` | Negation normal form and formula negation. | Procedure-call negation depends on this layer: negative calls use a compiled clause's precomputed NNF negated body rather than a host-side `not` wrapper. |

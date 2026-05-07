@@ -449,9 +449,14 @@ An answer query such as:
 append(x, y, [a, b, c])?
 ```
 
-is currently constructed with backend answer variables, because the frontend
-query wrapper does not yet have an answer-binder form. Schematically, it
-descends to:
+is constructed with the frontend answer-query binder:
+
+```clojure
+(pf/answer-query [x y]
+  (append x y (cons a (cons b (cons c null)))))
+```
+
+Schematically, it descends to:
 
 ```clojure
 (pos

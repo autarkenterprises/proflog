@@ -97,11 +97,52 @@ ADR-0010 is implemented by `proflog.frontend`.
 - `proflog` is a macro that translates visible prefix source forms into
   `proflog.ast` clauses and calls `proflog.language/compile-program`.
 - `q` is a macro that translates visible source queries into backend formulas.
+- `answer-query` is a macro that binds visible answer variables in a query and
+  returns `{:query formula :answer-vars [noms...]}` for the existing answer
+  APIs.
 - `(:= head body)` introduces a nonrecursive definitional helper and is inlined
   before backend compilation.
 - `(|- head body)` introduces a real kernel-visible Proflog relation clause.
 - Recursive definitional helpers are rejected with source-facing helper
   identifiers in diagnostic data.
+
+## Query-Binder Addendum
+
+The initial completed ADR-0010 frontend left open answer queries at the backend
+boundary: examples still had to allocate answer noms with `ast/nom`, build a
+query with `ast/var-term`, and pass the same noms to `answers/query-answers`.
+That contradicted the frontend goal once tutorials started presenting programs
+through `pf/proflog`.
+
+The accepted frontend form is:
+
+```clojure
+(pf/answer-query [x y]
+  (append x y (cons a (cons b null))))
+;; => {:query ...
+;;     :answer-vars [x y]}
+```
+
+This form does not evaluate the query. It only establishes a frontend-visible
+binding scope for exported answer variables and emits the backend formula plus
+the exact answer-var vector expected by `proflog.answers`. Public evaluation
+remains explicit:
+
+```clojure
+(let [{:keys [query answer-vars]}
+      (pf/answer-query [x y]
+        (append x y (cons a (cons b null))))]
+  (answers/query-answers program query answer-vars opts))
+```
+
+The form deliberately complements, rather than replaces, `q`:
+
+- `(pf/q (p a))` remains the thin closed-query formula builder.
+- `(pf/answer-query [x] (p x))` is the open-query builder for answer APIs.
+- Bound answer variables emit `(var ...)` terms.
+- Unbound symbols continue to emit nullary `app` constants.
+- Duplicate or malformed answer binding vectors are rejected at macro
+  expansion.
 
 ## Consequences
 

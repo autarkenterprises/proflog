@@ -1,5 +1,6 @@
 (ns proflog.frontend-test
   (:require [clojure.test :refer [deftest is testing]]
+            [proflog.answers :as answers]
             [proflog.ast :as ast]
             [proflog.frontend :as pf]
             [proflog.query :as query]))
@@ -89,6 +90,36 @@
              (ast/app-term 'zero-only
                            (ast/app-term 's (ast/app-term 'zero))))
            (pf/q (zero-only (s zero)))))))
+
+(deftest frontend-answer-query-binds-exported-vars
+  (testing "answer-query binds visible answer variables for the answer APIs"
+    (let [{:keys [query answer-vars]} (pf/answer-query [x] (p x))
+          answer-var (first answer-vars)]
+      (is (= (ast/pos-lit (ast/app-term 'p (ast/var-term answer-var)))
+             query))
+      (is (= 1 (count answer-vars)))
+      (let [records (answers/query-answers
+                      p-a-program
+                      query
+                      answer-vars
+                      {:proof-limit 1})]
+        (is (= (ast/app-term 'a)
+               (-> records first :bindings first second)))
+        (is (= answer-var
+               (-> records first :bindings first first)))))))
+
+(deftest frontend-answer-query-rejects-duplicate-bindings
+  (testing "answer-query reports malformed binding vectors at expansion time"
+    (try
+      (macroexpand
+        '(proflog.frontend/answer-query [x x]
+           (p x)))
+      (is false "duplicate frontend answer bindings should fail")
+      (catch clojure.lang.Compiler$CompilerException ex
+        (is (= "Duplicate frontend answer-query bindings"
+               (some-> ex .getCause ex-message)))
+        (is (= '[x x]
+               (some-> ex .getCause ex-data :bindings)))))))
 
 (deftest frontend-inline-helper-translates-before-backend-compilation
   (testing "only-zero is a frontend helper, not a runtime relation"

@@ -109,6 +109,8 @@
                                           "proflog.legacy-hard-families-test"]
             "test-proflog-fitting-programs" ["test"
                                              "proflog.fitting-programs-test"]
+            "test-proflog-turing-completeness" ["test"
+                                                "proflog.turing-completeness-test"]
             "test-proflog-kernel-finite-verifiers" ["test"
                                                     "proflog.kernel-finite-verifiers-test"]
             "test-proflog-legacy-subsumption" ["test"

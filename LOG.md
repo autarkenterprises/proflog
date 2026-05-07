@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-05-07
 
+- Completed
+  [ADR-0044](docs/adr/ADR-0044-turing-completeness-demonstration.md) with a
+  two-counter Minsky machine interpreter written through the ADR-0010 frontend.
+  The opt-in `lein test-proflog-turing-completeness` suite passed in
+  `94.45 s`, while multi-step transfer recursion and open predecessor
+  synthesis timeouts were recorded as runtime boundaries rather than promoted
+  tests. See
+  [AAR-0044](docs/aar/AAR-0044-turing-completeness-demonstration.md) and
+  [Turing Completeness Example](worked-examples/turing-completeness.md).
 - Refreshed
   [Greenfield Implementation Tutorial](docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md)
   in light of ADR-0010 and the worked-example descent pass. The tutorial now

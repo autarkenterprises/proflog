@@ -103,6 +103,7 @@ as the current source map.
 | [ADR-0041](adr/ADR-0041-relational-constructor-recursive-profile.md) | completed | `adr-0041-relational-constructor-recursive-profile` | promote constructor-recursive descent into a relationally pure dispatched kernel profile | ADR-0031, ADR-0035, ADR-0040 | dispatch proof-shape tests, non-list constructor recursion, Peano forward/reverse/partial rows through one relation, source audits for no host-side semantic procedures | `proflog.kernel.constructor-recursive-profile` now emits integrated `profiled constructor-recursive` records through the ADR-0035 structural continuation engine; ADR-40 Peano rows no longer call the diagnostic sidecar directly; [AAR-0041](aar/AAR-0041-relational-constructor-recursive-profile.md) records performance and remaining unsupported shapes |
 | [ADR-0042](adr/ADR-0042-equality-fragment-status-consistency.md) | completed | `adr-0042-equality-fragment-status-consistency` | assess and correct equality-fragment `:inconsistent` status behavior for universal finite-domain formulas | ADR-0039, ADR-0040 | `warm-cool-disjoint` status regression, failure-side non-closure for unsound universal branch proofs, positive control with real counterexample, ADR-39 GV/transition regressions | `query-status` now reports `:succeeds` for `warm-cool-disjoint`; [AAR-0042](aar/AAR-0042-equality-fragment-status-consistency.md) records the proof-variable requirement discipline and preserved finite-verifier suite |
 | [ADR-0043](adr/ADR-0043-greenfield-documentation-refresh.md) | completed | `adr-0043-greenfield-doc-refresh` | refresh stale runtime/tutorial/example/source documentation for the greenfield implementation | ADR-0035, ADR-0038, ADR-0039, ADR-0040, ADR-0041, ADR-0042 | documentation audit for stale runtime claims, source-reader map for `src/proflog`, and comment/docstring review of source-language-to-kernel layers | current-facing docs distinguish historical runtime boundaries from current evidence; every greenfield namespace is mapped for readers; [AAR-0043](aar/AAR-0043-greenfield-documentation-refresh.md) records the audit and verification |
+| [ADR-0044](adr/ADR-0044-turing-completeness-demonstration.md) | completed | `adr-0044-turing-completeness` | Proflog-level implementation of a minimal Turing-complete two-counter Minsky machine model | ADR-0010, ADR-0038, ADR-0043 | generic interpreter clauses, concrete transfer and incrementer instruction tables, forward proof rows, frontend `pf/run` answer/partial-synthesis rows, no host-side step evaluator source audit, worked example/tutorial/README links | [AAR-0044](aar/AAR-0044-turing-completeness-demonstration.md) |
 
 ## Deferred Tracks
 
@@ -146,6 +147,7 @@ Legacy subsumption parity gates have graduated into completed ADR-0040.
 Relational constructor-recursive profile promotion has graduated into completed
 ADR-0041.
 Equality-fragment status consistency has graduated into completed ADR-0042.
+The Turing-completeness demonstration has graduated into completed ADR-0044.
 
 ## ADR-0007 Task List
 

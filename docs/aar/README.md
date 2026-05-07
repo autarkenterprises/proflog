@@ -48,3 +48,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0041](AAR-0041-relational-constructor-recursive-profile.md) | [ADR-0041](../adr/ADR-0041-relational-constructor-recursive-profile.md) | completed |
 | [AAR-0042](AAR-0042-equality-fragment-status-consistency.md) | [ADR-0042](../adr/ADR-0042-equality-fragment-status-consistency.md) | completed |
 | [AAR-0043](AAR-0043-greenfield-documentation-refresh.md) | [ADR-0043](../adr/ADR-0043-greenfield-documentation-refresh.md) | completed |
+| [AAR-0044](AAR-0044-turing-completeness-demonstration.md) | [ADR-0044](../adr/ADR-0044-turing-completeness-demonstration.md) | completed |

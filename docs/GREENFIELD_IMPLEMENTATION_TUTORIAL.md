@@ -12,7 +12,8 @@ Related ADRs:
 [ADR-0040](adr/ADR-0040-legacy-subsumption-parity.md),
 [ADR-0041](adr/ADR-0041-relational-constructor-recursive-profile.md),
 [ADR-0042](adr/ADR-0042-equality-fragment-status-consistency.md),
-[ADR-0043](adr/ADR-0043-greenfield-documentation-refresh.md)
+[ADR-0043](adr/ADR-0043-greenfield-documentation-refresh.md),
+[ADR-0044](adr/ADR-0044-turing-completeness-demonstration.md)
 
 This chapter explains the current greenfield Proflog implementation as a
 whole system. It is written for a reader who needs to understand the design,
@@ -66,6 +67,12 @@ Current checkpoint:
   ADR-0010 `run` frontend form to bind exported variables at the public
   evaluator surface, while `answer-query` remains the lower-level query builder
   for diagnostics and alternate answer APIs.
+- ADR-0044 adds a two-counter Minsky machine interpreter as a
+  Turing-completeness demonstration. It is intentionally an opt-in slow suite,
+  documented in
+  [Turing Completeness Example](../worked-examples/turing-completeness.md),
+  because finite runs close through the kernel but are not cheap enough for the
+  routine greenfield gates.
 
 ## 1. Orientation
 
@@ -173,6 +180,7 @@ The main implementation namespaces are:
 | Relational arithmetic | [`src/proflog/relational_arithmetic.clj`](../src/proflog/relational_arithmetic.clj) | ADR-0036 Clojure translation of faster-minikanren bit-list arithmetic for speculative fuel and arithmetic probes. |
 | MiniKanren constraints | [`src/proflog/minikanren_constraints.clj`](../src/proflog/minikanren_constraints.clj) | ADR-0037 project-local compatibility overlay for `symbolo`, `numbero`, and general-purpose `absento`; type checks still use `predc`, while `absento` is a project-owned deep absence constraint. |
 | Fitting program catalog | [`src/proflog/fitting_programs.clj`](../src/proflog/fitting_programs.clj) | ADR-0038/0039 kernel-backed catalog for P1, P2, move-warning, finite-domain, list-family, and proof-backed GV examples. |
+| Turing-completeness catalog | [`src/proflog/turing_completeness.clj`](../src/proflog/turing_completeness.clj) | ADR-0044 two-counter Minsky machine interpreter written as frontend Proflog clauses, plus concrete transfer and incrementer instruction tables. |
 | Finite transition systems | [`src/proflog/finite_transition_systems.clj`](../src/proflog/finite_transition_systems.clj) | ADR-0039 non-GV verifier examples for larger `delta` totality and determinism laws. |
 | ADR probes | [`src/proflog/relational_fuel_adapter_probe.clj`](../src/proflog/relational_fuel_adapter_probe.clj), [`src/proflog/relational_maps_probe.clj`](../src/proflog/relational_maps_probe.clj), and related probe namespaces | Speculative or measurement-only namespaces. They document evidence and should not be mistaken for default production behavior. |
 | Host probes | [`src/proflog/core_logic_host.clj`](../src/proflog/core_logic_host.clj) and related probe namespaces | Report and instrument the loaded core.logic host implementation. |
@@ -1445,6 +1453,8 @@ lein test-proflog-constructor-recursive
 lein test-proflog-pelletier
 lein test-proflog-parity
 lein test-proflog-hard-families
+lein test-proflog-fitting-programs
+lein test-proflog-turing-completeness
 lein probe-proflog-list-kernel-matrix <case-id>
 lein probe-core-logic-host
 lein probe-core-logic-count
@@ -1463,7 +1473,6 @@ lein test proflog.relational-maps-probe-test
 lein test proflog.l-ground-constraint-probe-test
 lein test proflog.core-logic-disequality-probe-test
 lein probe-relational-fuel-performance
-lein test-proflog-fitting-programs
 ```
 
 The [Test Matrix](TEST_MATRIX.md) defines the project-level coverage policy.
@@ -1500,6 +1509,10 @@ The most important boundaries are:
   results over compiled formula shape, not named group-verifier evaluation.
 - ADR-0041 constructor-recursive answer rows use a promoted generic profile
   over compiled guarded IR, distinct from the older diagnostic sidecar.
+- ADR-0044 two-counter machine reachability is encoded as Proflog clauses and
+  evaluated through kernel/query/answer surfaces. The opt-in suite demonstrates
+  representability and small finite runs, not efficient or decidable arbitrary
+  reachability.
 
 These boundaries explain many implementation choices that may otherwise look
 indirect. For example, the language compiler builds several synchronized views

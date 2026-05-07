@@ -1,7 +1,9 @@
 # Greenfield Source Map
 
-Date: 2026-05-06
-Related ADR: [ADR-0043](adr/ADR-0043-greenfield-documentation-refresh.md)
+Date: 2026-05-07
+Related ADRs:
+[ADR-0043](adr/ADR-0043-greenfield-documentation-refresh.md),
+[ADR-0044](adr/ADR-0044-turing-completeness-demonstration.md)
 
 This map is the current reader path for `src/proflog`. It is intentionally more
 mechanical than the tutorial: every greenfield namespace is listed so a reader
@@ -72,6 +74,7 @@ AST and declarations
 |---|---|---|
 | `proflog.fitting-programs` | ADR-38/39 catalog of Fitting-style programs and verifier examples. | Builds public AST/source clauses and evaluates them through proof-backed query surfaces for tutorial and regression use. |
 | `proflog.finite-transition-systems` | Non-GV finite verifier examples. | Shows the equality-fragment profile is generic by verifying transition-table totality and determinism laws. |
+| `proflog.turing-completeness` | ADR-44 two-counter Minsky machine demonstration. | Defines a reusable frontend language, generic Proflog interpreter clauses, transfer/incrementer instruction tables, and term helpers. It does not evaluate machine steps on the host. |
 | `proflog.gv-probe` | Legacy group-verifier reconstruction probes. | Historical and exploratory GV probe surface. Current promoted GV proof evidence lives in the equality-fragment test/catalog path. |
 | `proflog.list-kernel-matrix-probe` | Raw-kernel append/reverse capability matrix. | Bypasses public answer conveniences to ask what the raw kernel/export path can eventually surface. |
 | `proflog.legacy-stream-probe` | Raw-stream probes for legacy-style open list queries. | Used to classify at which layer a difficult legacy answer first appears. |

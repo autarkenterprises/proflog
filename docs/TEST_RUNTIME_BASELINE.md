@@ -170,6 +170,30 @@ Current ADR-0010 frontend note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `elapsed 206.75 s`. The fast and extended gates were run concurrently.
 
+Current ADR-0044 Turing-completeness note:
+
+- Red TDD check on 2026-05-07 failed before implementation with
+  `Could not locate proflog/turing_completeness` and `elapsed 9.34 s`.
+- The explicit opt-in TC suite is `lein test-proflog-turing-completeness`; it
+  is not part of `test-proflog-fast` or `test-proflog-extended`.
+- The full TC suite passed with
+  `Ran 5 tests containing 12 assertions`, `0 failures, 0 errors`, and
+  `elapsed 94.45 s`.
+- The ADR-0044 commit gate also passed `lein test-proflog-fast` with
+  `Ran 128 tests containing 414 assertions`, `0 failures, 0 errors`, and
+  `elapsed 85.62 s`, plus `lein test-proflog-extended` with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `elapsed 227.20 s`. The fast and extended gates were run concurrently.
+- Focused passing rows: step branch proofs `31.46 s`, second instruction-table
+  bounded run `26.51 s`, frontend transfer answer export `73.66 s`, frontend
+  instruction partial synthesis `21.68 s`, and source audit `9.85 s`.
+- Exploratory runtime boundaries retained for future search-control work:
+  transfer `halts-in-steps` probes for sampled multi-step transfers timed out
+  inside `180 s` wrappers, direct ground three-step transfer trace timed out
+  inside a `180 s` wrapper, and open one-step predecessor synthesis over
+  `step/2` timed out inside a `180 s` wrapper. These were not promoted to the
+  passing suite.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

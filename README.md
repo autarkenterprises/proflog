@@ -384,6 +384,17 @@ lein test-proflog-fitting-programs
 lein test-proflog-legacy-subsumption
 ```
 
+For the opt-in Turing-completeness demonstration, run:
+
+```text
+lein test-proflog-turing-completeness
+```
+
+This suite is slower than the routine greenfield gates. It demonstrates a
+two-counter Minsky machine interpreter written as Proflog clauses, including
+forward transition proofs, answer export for a finite transfer trace, and
+partial synthesis over an instruction relation.
+
 The worked examples in [worked-examples/](worked-examples/README.md) show how
 programs are defined, translated, queried, and evaluated.
 

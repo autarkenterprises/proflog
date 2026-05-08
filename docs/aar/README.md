@@ -54,3 +54,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0047](AAR-0047-ski-quine-evaluation.md) | [ADR-0047](../adr/ADR-0047-ski-quine-evaluation.md) | completed |
 | [AAR-0048](AAR-0048-robinson-q-proof-profiles.md) | [ADR-0048](../adr/ADR-0048-robinson-q-proof-profiles.md) | completed |
 | [AAR-0049](AAR-0049-robinson-q3-case-split-profile.md) | [ADR-0049](../adr/ADR-0049-robinson-q3-case-split-profile.md) | completed |
+| [AAR-0050](AAR-0050-kernel-interleaved-robinson-q-theory.md) | [ADR-0050](../adr/ADR-0050-kernel-interleaved-robinson-q-theory.md) | completed |

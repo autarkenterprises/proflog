@@ -1,9 +1,10 @@
 (ns proflog.robinson-q-probe
-  "Timing probe for ADR-0048 Robinson Q proof paths.
+  "Timing probe for Robinson Q proof paths.
 
    This is a reproducible documentation aid rather than a regression gate. The
    committed tests assert correctness; this namespace records wall-clock timing
-   for the shared ordinary-vs-profiled examples."
+   for the shared ordinary-vs-profiled examples, including the ADR-0050
+   kernel-interleaved Q theory profile."
   (:require [proflog.query :as query]
             [proflog.robinson-q :as rq]))
 

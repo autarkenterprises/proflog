@@ -109,6 +109,7 @@ as the current source map.
 | [ADR-0047](adr/ADR-0047-ski-quine-evaluation.md) | completed | `adr-0047-ski-quine` | evaluate the SKI self-reproducing omega term through contextual reduction | ADR-0046 | red quine evaluation test, isolated `full-step/2` contextual reduction relation, focused timing, worked-example update | [AAR-0047](aar/AAR-0047-ski-quine-evaluation.md) |
 | [ADR-0048](adr/ADR-0048-robinson-q-proof-profiles.md) | completed | `adr-0048-robinson-q` | represent Robinson Q both as ordinary first-order assumptions and as an opt-in deduction-modulo proof profile | ADR-0004, ADR-0023, ADR-0043 | Q language/axiom helpers, ordinary Q-as-antecedent proofs, profiled Q conversion proofs, generic proof-profile dispatch tests, common performance comparison | [AAR-0048](aar/AAR-0048-robinson-q-proof-profiles.md) |
 | [ADR-0049](adr/ADR-0049-robinson-q3-case-split-profile.md) | completed | `adr-0049-robinson-q3-profile` | close Robinson Q3 under the `:robinson-q` profile with a recorded predecessor-or-zero case-split rule | ADR-0048 | red Q3 profile proof test, ordinary Q3 control, proof evidence assertions, documentation update | [AAR-0049](aar/AAR-0049-robinson-q3-case-split-profile.md) |
+| [ADR-0050](adr/ADR-0050-kernel-interleaved-robinson-q-theory.md) | completed | `adr-0050-kernel-q-theory` | refactor Robinson Q profile from query-time host preprocessing into kernel-interleaved relational theory rules | ADR-0048, ADR-0049 | proof-shape tests for kernel quantifier/disequality evidence, source audit against old host normalizer/recognizer, focused Q regression | [AAR-0050](aar/AAR-0050-kernel-interleaved-robinson-q-theory.md) |
 
 ## Deferred Tracks
 
@@ -157,6 +158,8 @@ Minsky trace performance and the second TC demonstration have graduated into
 completed ADR-0045 and ADR-0046.
 Robinson Q proof-profile work has graduated into completed ADR-0048.
 Robinson Q3 case-split profile work has graduated into completed ADR-0049.
+Kernel-interleaved Robinson Q theory-rule work has graduated into completed
+ADR-0050.
 
 ## ADR-0007 Task List
 

@@ -1,13 +1,12 @@
 # Robinson Q Proof Profile Example
 
-This example documents `test/proflog/robinson_q_test.clj`, ADR-0048, and
-ADR-0049. It
-shows Robinson arithmetic Q in two forms:
+This example documents `test/proflog/robinson_q_test.clj`, ADR-0048,
+ADR-0049, and ADR-0050. It shows Robinson arithmetic Q in two forms:
 
 - ordinary first-order assumptions: `Q1 and ... and Q7 -> theorem`;
-- an opt-in proof profile: visible Q arithmetic terms are converted before the
-  existing kernel checks equality, and Q3 closes by a recorded
-  predecessor-or-zero case split.
+- an opt-in proof profile: Robinson-Q theory rules are bound into the ordinary
+  tableau kernel and may close a branch when proof search reaches a relevant
+  disequality.
 
 Run the focused regression:
 
@@ -18,9 +17,9 @@ lein test-proflog-robinson-q
 Current result:
 
 ```text
-Ran 6 tests containing 48 assertions.
+Ran 9 tests containing 64 assertions.
 0 failures, 0 errors.
-wall 8.89 s
+real 13.06 s
 ```
 
 Run the timing comparison:
@@ -29,7 +28,7 @@ Run the timing comparison:
 lein probe-proflog-robinson-q
 ```
 
-The comparison probe passed in `wall 7.83 s` on 2026-05-08.
+The comparison probe passed in `real 10.87 s` on 2026-05-08.
 
 ## Hand-Written Theory
 
@@ -156,8 +155,14 @@ the language:
 ```
 
 The query still descends to the ordinary proof kernel, but first passes through
-`proflog.proof-profile`. The `:robinson-q` method normalizes visible arithmetic
-terms by these conversion rules:
+`proflog.proof-profile`. The `:robinson-q` method binds
+`proflog.kernel/*theory-profile-closeo*` to
+`proflog.kernel.robinson-q-profile/robinson-q-theory-closeo`, then calls the
+normal kernel relation. That hook is tried inside `kernel/close-agendao` next
+to the other branch-closing rules.
+
+The Q theory rule uses a miniKanren normal-form relation over terms. It can
+close a disequality branch when both sides are equal modulo these conversions:
 
 ```text
 add(x, zero) -> x
@@ -166,18 +171,27 @@ mul(x, zero) -> zero
 mul(x, s(y)) -> add(mul(x, y), x)
 ```
 
-For Q7 itself, the profiled proof contains an explicit conversion marker:
+For Q7 itself, the profiled proof contains ordinary quantifier steps followed
+by an explicit theory closure:
 
 ```clojure
-(profiled robinson-q
-  ((q-rewrite :mul-succ
-     (app mul (var x) (app s (var y)))
-     (app add (app mul (var x) (var y)) (var x))))
-  ...)
+(witness
+  (witness
+    (profiled robinson-q
+      (q-convert-close
+        (q-normal-mul
+          (q-normal-par)
+          (q-normal-s (q-normal-par))
+          (q-rewrite :mul-succ
+            (app mul (par a_0) (app s (par a_1)))
+            (app add (app mul (par a_0) (par a_1)) (par a_0)))
+          ...)
+        ...))))
 ```
 
 That is the semantic difference. Under ordinary Q, Q7 is an assumption. Under
-`:robinson-q`, Q7 is proved by conversion plus equality closure.
+`:robinson-q`, Q7 is proved by ordinary tableau universal refutation followed
+by conversion closure on the exposed disequality.
 
 Q3 is not a conversion. It is proved by closing the negated theorem shape:
 
@@ -185,17 +199,44 @@ Q3 is not a conversion. It is proved by closing the negated theorem shape:
 exists x. x != zero and once-forall y. x != s(y)
 ```
 
-The profiled proof records that theory step directly:
+The profiled proof shows the ordinary kernel work around the theory step:
 
 ```clojure
-(profiled robinson-q
-  ((q3-case-split predecessor-or-zero (var x) (var y)))
-  (q3-close))
+(witness
+  (conj
+    (neq-store
+      (once-univ
+        (profiled robinson-q
+          (q3-case-split predecessor-or-zero
+                         (par a_0)
+                         (var a_1)))))))
 ```
 
 Under ordinary Q, the same formula is proved as `Q1 and ... and Q7 -> Q3`, so
 Q3 is available as an assumption. Under the profile, Q3 is a trusted
-Robinson-Q case-split rule of the selected proof system.
+Robinson-Q case-split rule of the selected proof system. The important point is
+that the case split fires only after `witness`, `neq-store`, and `once-univ`
+have exposed the two branch obligations.
+
+## Kernel Rule Shape
+
+The theory hook receives the same branch-local state as ordinary close rules:
+
+- `fml`: the selected formula currently being expanded or closed;
+- `unexpanded`: the rest of the branch agenda;
+- `lits`: saved positive and negative atoms;
+- `env`: bound-variable substitution introduced by quantifier rules;
+- `proof-vars`: gamma-introduced proof variables;
+- `sigma` / `sigma-out`: incoming and outgoing equality substitution;
+- `neqs` / `neqs-out`: incoming and outgoing delayed disequalities;
+- `prog`: the compiled program, here empty except for language metadata;
+- `gamma-terms`: bounded closed-term candidates for gamma rules;
+- `fuel`: bounded search fuel;
+- `proof`: the proof term produced by the branch rule.
+
+ADR-0050 deliberately keeps the Q normalizer directional from a known branch
+term to a normal form. It is relational proof machinery, not a host-side
+formula transformer, but it is not a general reverse arithmetic synthesizer.
 
 ## Correctness And Performance
 
@@ -203,37 +244,42 @@ Focused test:
 
 ```text
 lein test-proflog-robinson-q
-Ran 6 tests containing 48 assertions.
+Ran 9 tests containing 64 assertions.
 0 failures, 0 errors.
-wall 8.89 s
+real 13.06 s
 ```
 
 Comparison probe:
 
 | Formula | Ordinary Q fuel | Ordinary elapsed | Profile fuel | Profile elapsed |
 |---|---:|---:|---:|---:|
-| `Q3` | 32 | `8.527 ms` | 32 | `2.278 ms` |
-| `Q7` | 32 | `2.931 ms` | 16 | `1.631 ms` |
-| `add(1, zero) = 1` | 48 | `2.457 ms` | 16 | `2.394 ms` |
-| `mul(2, zero) = zero` | 48 | `2.732 ms` | 16 | `0.776 ms` |
-| `add(1, 2) = 3` | 64 | `2.469 ms` | 16 | `0.716 ms` |
-| `mul(2, 2) = 4` | 96 | `3.089 ms` | 16 | `1.074 ms` |
+| `Q3` | 32 | `7.800 ms` | 32 | `2189.978 ms` |
+| `Q7` | 32 | `2.707 ms` | 16 | `382.799 ms` |
+| `add(1, zero) = 1` | 48 | `2.296 ms` | 16 | `14.692 ms` |
+| `mul(2, zero) = zero` | 48 | `3.165 ms` | 16 | `10.914 ms` |
+| `add(1, 2) = 3` | 64 | `2.798 ms` | 16 | `52.573 ms` |
+| `mul(2, 2) = 4` | 96 | `2.580 ms` | 16 | `239.788 ms` |
 
 The elapsed values above are the in-process row timings printed by
-`lein probe-proflog-robinson-q`; the full Leiningen process took `wall 7.83 s`.
+`lein probe-proflog-robinson-q`; the full Leiningen process took `real 10.87 s`.
 
 ## Shortcomings
 
-The `:robinson-q` profile is a trusted conversion layer, not a derivation of Q
-from weaker arithmetic principles. Proof records make that explicit by wrapping
-the kernel proof in `profiled robinson-q` and listing `q-rewrite` or
-`q3-case-split` steps.
+The `:robinson-q` profile is a trusted theory layer, not a derivation of Q from
+weaker arithmetic principles. Proof records make that explicit by wrapping the
+branch closure in `profiled robinson-q` and listing `q-rewrite` or
+`q3-case-split` evidence.
 
 Q3 is included only as the exact predecessor-or-zero branch closure needed to
 prove Q3 itself. It is not a general predecessor-synthesis engine, and it is not
 a rewrite rule.
 
-The initial conversion happens before ordinary kernel proof search. It handles
-visible Q arithmetic terms in formulas, including terms under quantifiers, but
-it is not yet a branch-local congruence engine that renormalizes after every
-later equality substitution.
+The ADR-0050 profile is slower than the old host preprocessor because
+conversion now participates in kernel proof search. That cost is intentional for
+the current demonstration: the tests assert that ordinary kernel steps and Q
+theory steps are interleaved in one proof object.
+
+The Q normalizer is still intentionally narrow. It rewrites known branch terms
+over `zero`, `s`, `add`, and `mul`, and leaves symbolic right arguments neutral
+when no Q root rule applies. It is not yet a full congruence-closure or
+deduction-modulo framework for arbitrary user theories.

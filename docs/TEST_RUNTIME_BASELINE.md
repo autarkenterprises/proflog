@@ -318,6 +318,34 @@ Current ADR-0049 Robinson Q3 note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `wall 200.61 s`.
 
+Current ADR-0050 kernel-interleaved Robinson Q note:
+
+- Red TDD checks on 2026-05-08 proved the architecture gap: the old profile
+  proofs did not contain ordinary kernel `witness`, `once-univ`, or `neq-store`
+  evidence around the Q theory steps, and a source audit still found the old
+  host-side `q-normalize-formula` and `q3-predecessor-refutation?` proof path.
+- After adding `kernel/*theory-profile-closeo*` and refactoring
+  `:robinson-q` into a kernel-bound miniKanren theory rule,
+  `lein test-proflog-robinson-q` passed with
+  `Ran 9 tests containing 64 assertions`, `0 failures, 0 errors`, and
+  `real 13.06 s`.
+- The reproducible comparison probe `lein probe-proflog-robinson-q` passed with
+  `real 10.87 s`. Per-row in-process timings:
+
+| Formula | Ordinary Q fuel | Ordinary elapsed | Profile fuel | Profile elapsed |
+|---|---:|---:|---:|---:|
+| `Q3` | 32 | `7.800 ms` | 32 | `2189.978 ms` |
+| `Q7` | 32 | `2.707 ms` | 16 | `382.799 ms` |
+| `add(1, zero) = 1` | 48 | `2.296 ms` | 16 | `14.692 ms` |
+| `mul(2, zero) = zero` | 48 | `3.165 ms` | 16 | `10.914 ms` |
+| `add(1, 2) = 3` | 64 | `2.798 ms` | 16 | `52.573 ms` |
+| `mul(2, 2) = 4` | 96 | `2.580 ms` | 16 | `239.788 ms` |
+- The ADR-0050 commit gate ran fast and extended concurrently. Fast passed with
+  `Ran 137 tests containing 478 assertions`, `0 failures, 0 errors`, and
+  `real 80.66 s`. Extended passed with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `real 197.40 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

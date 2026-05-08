@@ -77,9 +77,24 @@
    management to the Fitting-style rule clauses below."
   nil)
 
+(def ^:dynamic *theory-profile-closeo*
+  "Optional theory-profile branch rule.
+
+   Ordinary proof search leaves this unbound. A language-selected proof profile
+   may bind it to a miniKanren relation that can close or advance the currently
+   focused branch formula. This keeps theory extensions interleaved with the
+   tableau kernel instead of making them query-time preprocessors."
+  nil)
+
 (defn- recursive-prove-stateo
   [& args]
   (apply (or *recursive-prove-stateo* prove-stateo) args))
+
+(defn- theory-profile-closeo
+  [& args]
+  (if-let [closeo *theory-profile-closeo*]
+    (apply closeo args)
+    fail))
 
 ;; ---------------------------------------------------------------------------
 ;; Profiled branch interoperation
@@ -751,6 +766,15 @@
     ;; equality state, a specialized kernel layer may close it as a single
     ;; proof-producing background step.
     [(profiled-closeo fml unexpanded lits env sigma sigma-out neqs neqs-out prog gamma-terms fuel proof)]
+
+    ;; ================================================================
+    ;; Language-selected theory profile hook
+    ;; ================================================================
+    ;;
+    ;; Deduction-modulo and other theory profiles can bind a relational branch
+    ;; rule here. When unbound, this clause fails and the ordinary kernel rules
+    ;; below run unchanged.
+    [(theory-profile-closeo fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof)]
 
     ;; ================================================================
     ;; Alpha rule: conjunction

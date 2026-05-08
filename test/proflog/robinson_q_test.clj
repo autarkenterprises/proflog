@@ -1,6 +1,9 @@
 (ns proflog.robinson-q-test
   (:require [clojure.test :refer [deftest is testing]]
+            [clojure.core.logic :refer [run]]
+            [clojure.string :as str]
             [proflog.frontend :as pf]
+            [proflog.kernel.robinson-q-profile :as rq-profile]
             [proflog.language :as language]
             [proflog.proof :as proof]
             [proflog.query :as query]
@@ -94,7 +97,7 @@
         (is (proof/contains-step? proof 'robinson-q))))))
 
 (deftest profiled-robinson-q-records-repeated-arithmetic-conversion
-  (testing "profile conversion records repeated add/mul rewrites before kernel equality closure"
+  (testing "profile conversion records repeated add/mul rewrites at branch closure"
     (let [add-proof (first-success-proof
                       rq/profile-program
                       (rq/eq (rq/add (rq/numeral 1)
@@ -112,6 +115,25 @@
       (is mul-proof)
       (is (proof/contains-step? mul-proof 'q-rewrite)))))
 
+(deftest robinson-q-normalizer-canonically-rewrites-ground-arithmetic
+  (testing "ground Q arithmetic does not leak unreduced neutral alternatives"
+    (let [add-results (run 2 [out proof]
+                        (rq-profile/q-normal-termo
+                          (rq/add (rq/numeral 1) (rq/numeral 2))
+                          out
+                          proof))
+          mul-results (run 2 [out proof]
+                        (rq-profile/q-normal-termo
+                          (rq/mul (rq/numeral 2) (rq/numeral 2))
+                          out
+                          proof))]
+      (is (= 1 (count add-results)))
+      (is (= (rq/numeral 3) (ffirst add-results)))
+      (is (proof/contains-step? (second (first add-results)) 'q-rewrite))
+      (is (= 1 (count mul-results)))
+      (is (= (rq/numeral 4) (ffirst mul-results)))
+      (is (proof/contains-step? (second (first mul-results)) 'q-rewrite)))))
+
 (deftest q3-is-proved-by-ordinary-assumptions-and-profile-case-split
   (testing "ordinary Q proves Q3 from assumptions, while the profile records the Q3 case split"
     (let [ordinary-proof (first-success-proof
@@ -128,3 +150,22 @@
       (is (proof/contains-step? profile-proof 'profiled))
       (is (proof/contains-step? profile-proof 'robinson-q))
       (is (proof/contains-step? profile-proof 'q3-case-split)))))
+
+(deftest profiled-robinson-q-theory-rules-are-interleaved-with-kernel-steps
+  (testing "Q theory closure happens after ordinary kernel branch decomposition"
+    (let [q3-proof (first-success-proof rq/profile-program rq/q3 32)
+          q7-proof (first-success-proof rq/profile-program rq/q7 16)]
+      (is (proof/contains-step? q3-proof 'witness))
+      (is (proof/contains-step? q3-proof 'once-univ))
+      (is (proof/contains-step? q3-proof 'neq-store))
+      (is (proof/contains-step? q3-proof 'q3-case-split))
+      (is (proof/contains-step? q7-proof 'witness))
+      (is (proof/contains-step? q7-proof 'q-rewrite)))))
+
+(deftest robinson-q-profile-source-uses-kernel-theory-rules
+  (testing "the Q profile no longer proves by whole-formula host preprocessing"
+    (let [source (slurp "src/proflog/kernel/robinson_q_profile.clj")]
+      (is (str/includes? source "robinson-q-theory-closeo"))
+      (is (str/includes? source "q-normal-termo"))
+      (is (not (str/includes? source "q-normalize-formula")))
+      (is (not (str/includes? source "q3-predecessor-refutation?"))))))

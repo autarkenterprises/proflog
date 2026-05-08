@@ -112,3 +112,5 @@ evaluator.
 - Extend proof-profile selection only through the generic
   `proflog.proof-profile/prove-program*` multimethod so future theory profiles
   do not add Q-shaped conditionals to the query layer.
+- ADR-0050 later replaced the host-side whole-formula profile path with a
+  kernel-interleaved theory hook.

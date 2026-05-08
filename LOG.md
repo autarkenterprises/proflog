@@ -61,6 +61,22 @@ complete contemporaneous transcript.
   `0 failures, 0 errors`, `wall 200.61 s`. See
   [AAR-0049](docs/aar/AAR-0049-robinson-q3-case-split-profile.md).
 - Completed
+  [ADR-0050](docs/adr/ADR-0050-kernel-interleaved-robinson-q-theory.md) to
+  correct the `:robinson-q` profile architecture. The old host-side
+  whole-formula normalizer and Q3 structural recognizer were replaced by a
+  generic kernel theory hook plus miniKanren branch rules. The red checks first
+  showed that Q proofs lacked ordinary `witness`, `once-univ`, and `neq-store`
+  evidence and that the old host proof path was still present. After
+  implementation, `lein test-proflog-robinson-q` passed with `Ran 9 tests
+  containing 64 assertions`, `0 failures, 0 errors`, `real 13.06 s`; the
+  comparison probe passed in `real 10.87 s`; and the concurrent gates passed:
+  `lein test-proflog-fast` with `Ran 137 tests containing 478 assertions`,
+  `0 failures, 0 errors`, `real 80.66 s`; and
+  `lein test-proflog-extended` with `Ran 68 tests containing 203 assertions`,
+  `0 failures, 0 errors`, `real 197.40 s`. See
+  [AAR-0050](docs/aar/AAR-0050-kernel-interleaved-robinson-q-theory.md) and
+  [Robinson Q Proof Profile Example](worked-examples/robinson-q.md).
+- Completed
   [ADR-0047](docs/adr/ADR-0047-ski-quine-evaluation.md) on branch
   `adr-0047-ski-quine`. Direct `eval-for(3, omega, omega)` for the SKI
   self-reproducing term timed out inside a `240 s` wrapper, and adding

@@ -95,3 +95,5 @@ search.
   fuel-controlled theory-rule ADR.
 - Keep `q3-case-split` proof evidence separate from `q-rewrite` evidence so
   proof consumers can audit which Robinson-Q theory mechanisms were trusted.
+- ADR-0050 later moved the Q3 case split from a host-side formula recognizer
+  into a kernel-interleaved theory rule.

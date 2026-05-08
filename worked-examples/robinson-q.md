@@ -1,7 +1,7 @@
 # Robinson Q Proof Profile Example
 
 This example documents `test/proflog/robinson_q_test.clj`, ADR-0048,
-ADR-0049, and ADR-0050. It shows Robinson arithmetic Q in two forms:
+ADR-0049, ADR-0050, and ADR-0051. It shows Robinson arithmetic Q in two forms:
 
 - ordinary first-order assumptions: `Q1 and ... and Q7 -> theorem`;
 - an opt-in proof profile: Robinson-Q theory rules are bound into the ordinary
@@ -17,9 +17,9 @@ lein test-proflog-robinson-q
 Current result:
 
 ```text
-Ran 9 tests containing 64 assertions.
+Ran 10 tests containing 73 assertions.
 0 failures, 0 errors.
-real 13.06 s
+real 14.96 s
 ```
 
 Run the timing comparison:
@@ -28,7 +28,7 @@ Run the timing comparison:
 lein probe-proflog-robinson-q
 ```
 
-The comparison probe passed in `real 10.87 s` on 2026-05-08.
+The comparison probe passed in `real 12.01 s` on 2026-05-08.
 
 ## Hand-Written Theory
 
@@ -218,6 +218,49 @@ Robinson-Q case-split rule of the selected proof system. The important point is
 that the case split fires only after `witness`, `neq-store`, and `once-univ`
 have exposed the two branch obligations.
 
+ADR-0051 adds a fuller Q3 use for larger refutations. The theorem:
+
+```text
+forall x. x != zero -> exists y. add(y, s(zero)) = x
+```
+
+negates to:
+
+```text
+exists x. x != zero and once-forall y. add(y, s(zero)) != x
+```
+
+The profile now closes that branch by storing `x != zero`, instantiating the
+single-use universal with a proof variable, normalizing `add(y, s(zero))` to
+`s(y)`, and using Q3 to choose that proof variable as `x`'s predecessor:
+
+```clojure
+(witness
+  (conj
+    (neq-store
+      (once-univ
+        (profiled robinson-q
+          (q3-predecessor-intro
+            predecessor-or-zero
+            (par a_0)
+            (var a_1)
+            (q-convert-close
+              (q-normal-add
+                (q-normal-var)
+                (q-normal-s (q-normal-zero))
+                (q-rewrite :add-succ ...)
+                (q-normal-s
+                  (q-normal-add
+                    (q-normal-var)
+                    (q-normal-zero)
+                    (q-rewrite :add-zero ...))))
+              (q-normal-par))))))))
+```
+
+The proof term is deliberately different from `q3-case-split`: this is Q3 used
+inside a larger branch after Q4/Q5 conversion, not merely Q3's direct refutation
+shape.
+
 ## Kernel Rule Shape
 
 The theory hook receives the same branch-local state as ordinary close rules:
@@ -244,9 +287,9 @@ Focused test:
 
 ```text
 lein test-proflog-robinson-q
-Ran 9 tests containing 64 assertions.
+Ran 10 tests containing 73 assertions.
 0 failures, 0 errors.
-real 13.06 s
+real 14.96 s
 ```
 
 Comparison probe:
@@ -259,9 +302,10 @@ Comparison probe:
 | `mul(2, zero) = zero` | 48 | `3.165 ms` | 16 | `10.914 ms` |
 | `add(1, 2) = 3` | 64 | `2.798 ms` | 16 | `52.573 ms` |
 | `mul(2, 2) = 4` | 96 | `2.580 ms` | 16 | `239.788 ms` |
+| `forall x. x != zero -> exists y. add(y, s(zero)) = x` | 64 | `2.761 ms` | 48 | `649.812 ms` |
 
 The elapsed values above are the in-process row timings printed by
-`lein probe-proflog-robinson-q`; the full Leiningen process took `real 10.87 s`.
+`lein probe-proflog-robinson-q`; the full Leiningen process took `real 12.01 s`.
 
 ## Shortcomings
 
@@ -270,9 +314,10 @@ weaker arithmetic principles. Proof records make that explicit by wrapping the
 branch closure in `profiled robinson-q` and listing `q-rewrite` or
 `q3-case-split` evidence.
 
-Q3 is included only as the exact predecessor-or-zero branch closure needed to
-prove Q3 itself. It is not a general predecessor-synthesis engine, and it is not
-a rewrite rule.
+Q3 is still not a rewrite rule. The full-Q3 rule is relevance controlled: it
+requires a saved nonzero premise and a current Q-normalized successor of a
+proof-local universal variable. It does not introduce arbitrary predecessors
+without a branch obligation that can immediately use them.
 
 The ADR-0050 profile is slower than the old host preprocessor because
 conversion now participates in kernel proof search. That cost is intentional for

@@ -110,6 +110,7 @@ as the current source map.
 | [ADR-0048](adr/ADR-0048-robinson-q-proof-profiles.md) | completed | `adr-0048-robinson-q` | represent Robinson Q both as ordinary first-order assumptions and as an opt-in deduction-modulo proof profile | ADR-0004, ADR-0023, ADR-0043 | Q language/axiom helpers, ordinary Q-as-antecedent proofs, profiled Q conversion proofs, generic proof-profile dispatch tests, common performance comparison | [AAR-0048](aar/AAR-0048-robinson-q-proof-profiles.md) |
 | [ADR-0049](adr/ADR-0049-robinson-q3-case-split-profile.md) | completed | `adr-0049-robinson-q3-profile` | close Robinson Q3 under the `:robinson-q` profile with a recorded predecessor-or-zero case-split rule | ADR-0048 | red Q3 profile proof test, ordinary Q3 control, proof evidence assertions, documentation update | [AAR-0049](aar/AAR-0049-robinson-q3-case-split-profile.md) |
 | [ADR-0050](adr/ADR-0050-kernel-interleaved-robinson-q-theory.md) | completed | `adr-0050-kernel-q-theory` | refactor Robinson Q profile from query-time host preprocessing into kernel-interleaved relational theory rules | ADR-0048, ADR-0049 | proof-shape tests for kernel quantifier/disequality evidence, source audit against old host normalizer/recognizer, focused Q regression | [AAR-0050](aar/AAR-0050-kernel-interleaved-robinson-q-theory.md) |
+| [ADR-0051](adr/ADR-0051-full-robinson-q3-theory-rule.md) | completed | `adr-0051-full-q3-rule` | add a full kernel-interleaved Q3 predecessor rule for larger deduction-modulo refutations | ADR-0048, ADR-0049, ADR-0050 | red add-one-predecessor theorem test, proof evidence for Q3 predecessor introduction plus Q4/Q5 conversion, focused Q regression and standard gates | [AAR-0051](aar/AAR-0051-full-robinson-q3-theory-rule.md) |
 
 ## Deferred Tracks
 
@@ -160,6 +161,7 @@ Robinson Q proof-profile work has graduated into completed ADR-0048.
 Robinson Q3 case-split profile work has graduated into completed ADR-0049.
 Kernel-interleaved Robinson Q theory-rule work has graduated into completed
 ADR-0050.
+Full Robinson Q3 predecessor-rule work has graduated into completed ADR-0051.
 
 ## ADR-0007 Task List
 

@@ -140,6 +140,24 @@
             (add (mul (ast/var-term x) (ast/var-term y))
                  (ast/var-term x)))))))
 
+(def q3-add-one-predecessor
+  "A Q3-dependent theorem: every nonzero value is one more than something.
+
+   Q5 and Q4 reduce `add(y, s(zero))` to `s(y)`, so this theorem is Q3
+   expressed through the addition symbols. It is used to test that the
+   deduction-modulo profile can use Q3 inside a larger refutation, not only to
+   prove Q3's own direct refutation shape.
+   "
+  (ast/nom x y
+    (ast/forall-form
+      x
+      (ast/implies-form
+        (neq (ast/var-term x) zero)
+        (ast/exists-form
+          y
+          (eq (add (ast/var-term y) (s zero))
+              (ast/var-term x)))))))
+
 (def axioms
   "The seven Robinson Q axiom formulas with stable labels."
   [[:q1 q1]

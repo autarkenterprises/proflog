@@ -16,7 +16,8 @@ Related ADRs:
 [ADR-0044](adr/ADR-0044-turing-completeness-demonstration.md),
 [ADR-0048](adr/ADR-0048-robinson-q-proof-profiles.md),
 [ADR-0049](adr/ADR-0049-robinson-q3-case-split-profile.md),
-[ADR-0050](adr/ADR-0050-kernel-interleaved-robinson-q-theory.md)
+[ADR-0050](adr/ADR-0050-kernel-interleaved-robinson-q-theory.md),
+[ADR-0051](adr/ADR-0051-full-robinson-q3-theory-rule.md)
 
 This chapter explains the current greenfield Proflog implementation as a
 whole system. It is written for a reader who needs to understand the design,
@@ -92,6 +93,10 @@ Current checkpoint:
   a kernel-bound theory-rule hook. Q conversion and Q3 closure now fire inside
   `kernel/close-agendao` after ordinary branch decomposition exposes the
   relevant disequality.
+- ADR-0051 extends that hook with a full-Q3 predecessor rule. It proves
+  `forall x. x != zero -> exists y. add(y, s(zero)) = x` by using a saved
+  nonzero premise, a proof-local universal variable, and Q4/Q5 conversion in
+  one branch proof.
 
 ## 1. Orientation
 
@@ -189,7 +194,7 @@ The main implementation namespaces are:
 | Propositional layer | [`src/proflog/kernel/propositional.clj`](../src/proflog/kernel/propositional.clj) | Small proof-producing propositional tableau component. |
 | First-order layer | [`src/proflog/kernel/first_order.clj`](../src/proflog/kernel/first_order.clj) | Equality-free first-order proof component, including a lean alphaleanTAP-shaped path. |
 | Equality-fragment layer | [`src/proflog/kernel/equality_fragment.clj`](../src/proflog/kernel/equality_fragment.clj) | ADR-0039 proof-producing finite equality-fragment component for compiled call-free equality verifier bodies. |
-| Robinson Q profile | [`src/proflog/kernel/robinson_q_profile.clj`](../src/proflog/kernel/robinson_q_profile.clj) | ADR-0048/0049/0050 profile for kernel-interleaved Q `add`/`mul` conversion and Q3 predecessor-or-zero case-split closure. |
+| Robinson Q profile | [`src/proflog/kernel/robinson_q_profile.clj`](../src/proflog/kernel/robinson_q_profile.clj) | ADR-0048/0049/0050/0051 profile for kernel-interleaved Q `add`/`mul` conversion, Q3 case-split closure, and full-Q3 predecessor use in larger refutations. |
 | Tabling | [`src/proflog/tabling.clj`](../src/proflog/tabling.clj) | Optional canonical proof-state tabling wrapper around the ordinary kernel. |
 | Query | [`src/proflog/query.clj`](../src/proflog/query.clj) | Top-level success, failure, bounded status, and iterative fuel probing. |
 | Answer overlay | [`src/proflog/answer_overlay.clj`](../src/proflog/answer_overlay.clj) | Answer-mode tableau overlay: answer variables, residuals, call-depth, existential-as-variable execution, and ADR-0035 structural residual continuation. |
@@ -836,6 +841,7 @@ Proofs are tagged lists. Examples of step tags include:
 - `robinson-q`;
 - `q-rewrite`;
 - `q3-case-split`;
+- `q3-predecessor-intro`;
 - `constructor-recursive`;
 - `structural-residual-continuation`;
 - `constructor-recursive-*` for the older diagnostic sidecar.
@@ -885,10 +891,12 @@ profile metadata uses `:default`, which calls the existing `kernel/prove-program
 path. A language with `{:proof-profile :robinson-q}` routes through
 `proflog.kernel.robinson-q-profile`, which binds a miniKanren theory rule into
 `kernel/close-agendao`. That rule can close a currently selected disequality by
-normalizing visible Q `add` and `mul` terms, or close Q3's predecessor-or-zero
-refutation branch with `q3-case-split`. The surrounding proof still contains
-ordinary kernel steps such as `witness`, `once-univ`, and `neq-store`. This
-differs from `proflog.formula-profile`: formula
+normalizing visible Q `add` and `mul` terms, close Q3's direct
+predecessor-or-zero refutation branch with `q3-case-split`, or use full Q3 when
+a saved nonzero term meets a Q-normalized successor of a proof-local universal
+variable. The surrounding proof still contains ordinary kernel steps such as
+`witness`, `once-univ`, and `neq-store`. This differs from
+`proflog.formula-profile`: formula
 profiles classify a branch by shape, while proof profiles are selected by the
 declared language.
 

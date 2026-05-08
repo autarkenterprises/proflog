@@ -346,6 +346,33 @@ Current ADR-0050 kernel-interleaved Robinson Q note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `real 197.40 s`.
 
+Current ADR-0051 full Robinson Q3 rule note:
+
+- Red TDD check on 2026-05-08 proved the missing full-Q3 behavior: ordinary
+  Q-as-antecedent proved `q3-add-one-predecessor`, but the profiled path
+  returned `nil`, producing 6 focused failures in
+  `proflog.robinson-q-test/full-q3-profile-rule-proves-add-one-predecessor-theorem`.
+- After adding `q3-predecessor-intro`, `lein test-proflog-robinson-q` passed
+  with `Ran 10 tests containing 73 assertions`, `0 failures, 0 errors`, and
+  `real 14.96 s`.
+- The reproducible comparison probe `lein probe-proflog-robinson-q` passed with
+  `real 12.01 s`. Per-row in-process timings:
+
+| Formula | Ordinary Q fuel | Ordinary elapsed | Profile fuel | Profile elapsed |
+|---|---:|---:|---:|---:|
+| `Q3` | 32 | `7.851 ms` | 32 | `2218.523 ms` |
+| `Q7` | 32 | `2.916 ms` | 16 | `446.169 ms` |
+| `add(1, zero) = 1` | 48 | `2.835 ms` | 16 | `19.881 ms` |
+| `mul(2, zero) = zero` | 48 | `3.764 ms` | 16 | `12.010 ms` |
+| `add(1, 2) = 3` | 64 | `3.800 ms` | 16 | `61.401 ms` |
+| `mul(2, 2) = 4` | 96 | `4.026 ms` | 16 | `342.546 ms` |
+| `q3-add-one-predecessor` | 64 | `2.761 ms` | 48 | `649.812 ms` |
+- The ADR-0051 commit gate ran fast and extended concurrently. Fast passed with
+  `Ran 138 tests containing 487 assertions`, `0 failures, 0 errors`, and
+  `real 89.92 s`. Extended passed with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `real 226.94 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

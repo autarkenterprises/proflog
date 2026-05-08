@@ -116,3 +116,10 @@ exists x. x != zero and forall y. add(y, s(zero)) != x
 under the `:robinson-q` profile, with proof evidence showing ordinary tableau
 steps, a full-Q3 predecessor introduction, Q4/Q5 conversion, and equality or
 disequality closure.
+
+## Follow-Up
+
+ADR-0051 implements this minimal acceptance test with the proof tag
+`q3-predecessor-intro`. The implemented rule remains relevance-controlled: it
+uses a saved nonzero premise and a current Q-normalized successor of a
+proof-local universal variable, not unrestricted predecessor generation.

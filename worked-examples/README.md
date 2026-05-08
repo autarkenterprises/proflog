@@ -67,7 +67,7 @@ evaluator.
 | Answers API | answer-overlay export from compiled queries | bindings, residuals, diagnostics |
 | Kernel Finite Verifier Examples | profiled equality-fragment kernel path | quantified success and refutation |
 | Constructor-Recursive Profile Examples | guarded recursive profile over compiled IR | reverse and partial synthesis |
-| Robinson Q Proof Profile Example | ordinary Q assumptions and opt-in kernel-interleaved deduction-modulo rules | theorem proving, profiled equality conversion, Q3 case split, timing comparison |
+| Robinson Q Proof Profile Example | ordinary Q assumptions and opt-in kernel-interleaved deduction-modulo rules | theorem proving, profiled equality conversion, Q3 case split, full-Q3 predecessor use, timing comparison |
 | Pelletier Problems | direct theorem formulas without program clauses | first-order proof closure |
 
 ## Conventions

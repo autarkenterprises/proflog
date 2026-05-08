@@ -85,6 +85,20 @@ complete contemporaneous transcript.
   without Q3 shows that no proof can avoid Q3 or an equivalent lemma. See
   [Robinson Q3 Full Rule Rationale](docs/log/2026-05-08-robinson-q3-full-rule-rationale.md).
 - Completed
+  [ADR-0051](docs/adr/ADR-0051-full-robinson-q3-theory-rule.md) to add the
+  full-Q3 predecessor rule required by that rationale. The profiled theorem
+  `rq/q3-add-one-predecessor` now proves by storing `x != zero`, instantiating
+  the single-use universal, reducing `add(y, s(zero))` by Q5/Q4, and closing
+  with `q3-predecessor-intro`. The focused selector passed with `Ran 10 tests
+  containing 73 assertions`, `0 failures, 0 errors`, `real 14.96 s`; the
+  comparison probe passed in `real 12.01 s`; and the concurrent gates passed:
+  `lein test-proflog-fast` with `Ran 138 tests containing 487 assertions`,
+  `0 failures, 0 errors`, `real 89.92 s`; and
+  `lein test-proflog-extended` with `Ran 68 tests containing 203 assertions`,
+  `0 failures, 0 errors`, `real 226.94 s`. See
+  [AAR-0051](docs/aar/AAR-0051-full-robinson-q3-theory-rule.md) and
+  [Robinson Q Proof Profile Example](worked-examples/robinson-q.md).
+- Completed
   [ADR-0047](docs/adr/ADR-0047-ski-quine-evaluation.md) on branch
   `adr-0047-ski-quine`. Direct `eval-for(3, omega, omega)` for the SKI
   self-reproducing term timed out inside a `240 s` wrapper, and adding

@@ -140,6 +140,8 @@ deduction-modulo architecture rather than a production arithmetic solver.
   predecessor synthesis procedure. The theorem-theoretic rationale for a full
   Q3 rule is recorded in
   [Robinson Q3 Full Rule Rationale](../log/2026-05-08-robinson-q3-full-rule-rationale.md).
+  ADR-0051 later addressed the motivating larger refutation with
+  `q3-predecessor-intro`.
 - The theory hook is generic, but no second external theory profile has been
   ported to it yet.
 - Performance is slower than ADR-0048/0049's host preprocessor. Future theory

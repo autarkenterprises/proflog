@@ -151,6 +151,25 @@
       (is (proof/contains-step? profile-proof 'robinson-q))
       (is (proof/contains-step? profile-proof 'q3-case-split)))))
 
+(deftest full-q3-profile-rule-proves-add-one-predecessor-theorem
+  (testing "Q3 can be used inside a larger refutation after Q4/Q5 conversion"
+    (let [ordinary-proof (first-success-proof
+                           rq/ordinary-program
+                           (rq/q-implies rq/q3-add-one-predecessor)
+                           64)
+          profile-proof (first-success-proof
+                          rq/profile-program
+                          rq/q3-add-one-predecessor
+                          48)]
+      (is ordinary-proof)
+      (is (not (proof/contains-step? ordinary-proof 'robinson-q)))
+      (is profile-proof)
+      (is (proof/contains-step? profile-proof 'witness))
+      (is (proof/contains-step? profile-proof 'once-univ))
+      (is (proof/contains-step? profile-proof 'neq-store))
+      (is (proof/contains-step? profile-proof 'q3-predecessor-intro))
+      (is (proof/contains-step? profile-proof 'q-rewrite)))))
+
 (deftest profiled-robinson-q-theory-rules-are-interleaved-with-kernel-steps
   (testing "Q theory closure happens after ordinary kernel branch decomposition"
     (let [q3-proof (first-success-proof rq/profile-program rq/q3 32)
@@ -168,4 +187,5 @@
       (is (str/includes? source "robinson-q-theory-closeo"))
       (is (str/includes? source "q-normal-termo"))
       (is (not (str/includes? source "q-normalize-formula")))
-      (is (not (str/includes? source "q3-predecessor-refutation?"))))))
+      (is (not (str/includes? source "q3-predecessor-refutation?")))
+      (is (not (str/includes? source "q3-add-one-predecessor"))))))

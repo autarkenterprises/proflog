@@ -47,6 +47,20 @@ complete contemporaneous transcript.
   [AAR-0048](docs/aar/AAR-0048-robinson-q-proof-profiles.md) and
   [Robinson Q Proof Profile Example](worked-examples/robinson-q.md).
 - Completed
+  [ADR-0049](docs/adr/ADR-0049-robinson-q3-case-split-profile.md) so Q3 proves
+  under both Robinson Q versions. Ordinary Q proves `(rq/q-implies rq/q3)` from
+  the Q antecedent, while the `:robinson-q` profile closes the negated Q3 branch
+  with `q3-case-split predecessor-or-zero` proof evidence. The red profile test
+  first failed with `profile-proof` equal to `nil`; after implementation,
+  `lein test-proflog-robinson-q` passed with `Ran 6 tests containing 48
+  assertions`, `0 failures, 0 errors`, and `wall 8.89 s`. The comparison probe
+  passed in `wall 7.83 s`. The concurrent commit gates passed:
+  `lein test-proflog-fast` with `Ran 134 tests containing 462 assertions`,
+  `0 failures, 0 errors`, `wall 73.22 s`; and
+  `lein test-proflog-extended` with `Ran 68 tests containing 203 assertions`,
+  `0 failures, 0 errors`, `wall 200.61 s`. See
+  [AAR-0049](docs/aar/AAR-0049-robinson-q3-case-split-profile.md).
+- Completed
   [ADR-0047](docs/adr/ADR-0047-ski-quine-evaluation.md) on branch
   `adr-0047-ski-quine`. Direct `eval-for(3, omega, omega)` for the SKI
   self-reproducing term timed out inside a `240 s` wrapper, and adding

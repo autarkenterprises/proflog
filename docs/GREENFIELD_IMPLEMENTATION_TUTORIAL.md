@@ -14,7 +14,8 @@ Related ADRs:
 [ADR-0042](adr/ADR-0042-equality-fragment-status-consistency.md),
 [ADR-0043](adr/ADR-0043-greenfield-documentation-refresh.md),
 [ADR-0044](adr/ADR-0044-turing-completeness-demonstration.md),
-[ADR-0048](adr/ADR-0048-robinson-q-proof-profiles.md)
+[ADR-0048](adr/ADR-0048-robinson-q-proof-profiles.md),
+[ADR-0049](adr/ADR-0049-robinson-q3-case-split-profile.md)
 
 This chapter explains the current greenfield Proflog implementation as a
 whole system. It is written for a reader who needs to understand the design,
@@ -84,6 +85,8 @@ Current checkpoint:
   conversion layer that records `profiled robinson-q` and `q-rewrite` proof
   evidence. The worked example is
   [Robinson Q Proof Profile Example](../worked-examples/robinson-q.md).
+- ADR-0049 extends `:robinson-q` with Q3's predecessor-or-zero case split. Its
+  proof evidence is `q3-case-split`, deliberately distinct from `q-rewrite`.
 
 ## 1. Orientation
 
@@ -181,7 +184,7 @@ The main implementation namespaces are:
 | Propositional layer | [`src/proflog/kernel/propositional.clj`](../src/proflog/kernel/propositional.clj) | Small proof-producing propositional tableau component. |
 | First-order layer | [`src/proflog/kernel/first_order.clj`](../src/proflog/kernel/first_order.clj) | Equality-free first-order proof component, including a lean alphaleanTAP-shaped path. |
 | Equality-fragment layer | [`src/proflog/kernel/equality_fragment.clj`](../src/proflog/kernel/equality_fragment.clj) | ADR-0039 proof-producing finite equality-fragment component for compiled call-free equality verifier bodies. |
-| Robinson Q profile | [`src/proflog/kernel/robinson_q_profile.clj`](../src/proflog/kernel/robinson_q_profile.clj) | ADR-0048 deduction-modulo conversion for visible Q `add` and `mul` terms before ordinary kernel proof search. |
+| Robinson Q profile | [`src/proflog/kernel/robinson_q_profile.clj`](../src/proflog/kernel/robinson_q_profile.clj) | ADR-0048/0049 profile for visible Q `add`/`mul` conversion and Q3 predecessor-or-zero case-split closure before ordinary kernel proof search. |
 | Tabling | [`src/proflog/tabling.clj`](../src/proflog/tabling.clj) | Optional canonical proof-state tabling wrapper around the ordinary kernel. |
 | Query | [`src/proflog/query.clj`](../src/proflog/query.clj) | Top-level success, failure, bounded status, and iterative fuel probing. |
 | Answer overlay | [`src/proflog/answer_overlay.clj`](../src/proflog/answer_overlay.clj) | Answer-mode tableau overlay: answer variables, residuals, call-depth, existential-as-variable execution, and ADR-0035 structural residual continuation. |
@@ -827,6 +830,7 @@ Proofs are tagged lists. Examples of step tags include:
 - `profiled`;
 - `robinson-q`;
 - `q-rewrite`;
+- `q3-case-split`;
 - `constructor-recursive`;
 - `structural-residual-continuation`;
 - `constructor-recursive-*` for the older diagnostic sidecar.
@@ -875,8 +879,10 @@ ADR-0048 adds a second kind of profile: language-selected theory conversion.
 profile metadata uses `:default`, which calls the existing `kernel/prove-program`
 path. A language with `{:proof-profile :robinson-q}` routes through
 `proflog.kernel.robinson-q-profile`, which normalizes visible `add` and `mul`
-terms, wraps proof evidence with `profiled robinson-q`, and then delegates to
-the ordinary kernel. This differs from `proflog.formula-profile`: formula
+terms, closes Q3's predecessor-or-zero refutation branch with
+`q3-case-split`, wraps proof evidence with `profiled robinson-q`, and then
+delegates other normalized formulas to the ordinary kernel. This differs from
+`proflog.formula-profile`: formula
 profiles classify a branch by shape, while proof profiles are selected by the
 declared language.
 

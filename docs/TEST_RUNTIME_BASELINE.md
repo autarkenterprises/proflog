@@ -293,6 +293,31 @@ Current ADR-0048 Robinson Q note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `wall 197.59 s`.
 
+Current ADR-0049 Robinson Q3 note:
+
+- Red TDD check on 2026-05-08 proved the boundary: ordinary Q3 proof existed,
+  but the profile proof was `nil`, producing 4 focused failures in
+  `proflog.robinson-q-test/q3-is-proved-by-ordinary-assumptions-and-profile-case-split`.
+- After adding the `q3-case-split` profile rule, `lein test-proflog-robinson-q`
+  passed with `Ran 6 tests containing 48 assertions`, `0 failures, 0 errors`,
+  and `wall 8.89 s`.
+- The reproducible comparison probe `lein probe-proflog-robinson-q` passed with
+  `wall 7.83 s`. Per-row in-process timings:
+
+| Formula | Ordinary Q fuel | Ordinary elapsed | Profile fuel | Profile elapsed |
+|---|---:|---:|---:|---:|
+| `Q3` | 32 | `8.527 ms` | 32 | `2.278 ms` |
+| `Q7` | 32 | `2.931 ms` | 16 | `1.631 ms` |
+| `add(1, zero) = 1` | 48 | `2.457 ms` | 16 | `2.394 ms` |
+| `mul(2, zero) = zero` | 48 | `2.732 ms` | 16 | `0.776 ms` |
+| `add(1, 2) = 3` | 64 | `2.469 ms` | 16 | `0.716 ms` |
+| `mul(2, 2) = 4` | 96 | `3.089 ms` | 16 | `1.074 ms` |
+- The ADR-0049 commit gate ran fast and extended concurrently. Fast passed with
+  `Ran 134 tests containing 462 assertions`, `0 failures, 0 errors`, and
+  `wall 73.22 s`. Extended passed with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `wall 200.61 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

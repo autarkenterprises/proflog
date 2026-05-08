@@ -9,7 +9,8 @@
 
 (def common-theorems
   "The formulas used to compare Q-as-antecedent and profiled conversion."
-  [[:q7 rq/q7 32 16]
+  [[:q3 rq/q3 32 32]
+   [:q7 rq/q7 32 16]
    [:add-one-zero (rq/eq (rq/add (rq/numeral 1) rq/zero)
                          (rq/numeral 1))
     48 16]

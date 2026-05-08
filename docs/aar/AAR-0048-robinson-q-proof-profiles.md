@@ -89,6 +89,8 @@ assert `profiled`, `robinson-q`, and repeated `q-rewrite` evidence.
 Q3 was intentionally not promoted into the deduction-modulo conversion profile.
 It is a predecessor-or-zero case split rather than a terminating rewrite rule.
 Adding it without relevance controls would risk unbounded predecessor search.
+ADR-0049 later added a focused `q3-case-split` rule for proving Q3 itself
+without turning Q3 into a rewrite or general predecessor synthesizer.
 
 The profile normalizes visible terms before kernel proof search. It is not yet
 a branch-local congruence engine that renormalizes after every later equality
@@ -106,6 +108,7 @@ evaluator.
 - Consider a later ADR for branch-local theory conversion if Q terms need to
   normalize after equality substitutions or generated term instantiation.
 - Treat Q3 as a separate controlled case-split problem, not as a rewrite.
+  ADR-0049 completed the focused Q3 theorem case.
 - Extend proof-profile selection only through the generic
   `proflog.proof-profile/prove-program*` multimethod so future theory profiles
   do not add Q-shaped conditionals to the query layer.

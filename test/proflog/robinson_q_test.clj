@@ -111,3 +111,20 @@
       (is (proof/contains-step? add-proof 'q-rewrite))
       (is mul-proof)
       (is (proof/contains-step? mul-proof 'q-rewrite)))))
+
+(deftest q3-is-proved-by-ordinary-assumptions-and-profile-case-split
+  (testing "ordinary Q proves Q3 from assumptions, while the profile records the Q3 case split"
+    (let [ordinary-proof (first-success-proof
+                           rq/ordinary-program
+                           (rq/q-implies rq/q3)
+                           32)
+          profile-proof (first-success-proof
+                          rq/profile-program
+                          rq/q3
+                          32)]
+      (is ordinary-proof)
+      (is (not (proof/contains-step? ordinary-proof 'robinson-q)))
+      (is profile-proof)
+      (is (proof/contains-step? profile-proof 'profiled))
+      (is (proof/contains-step? profile-proof 'robinson-q))
+      (is (proof/contains-step? profile-proof 'q3-case-split)))))

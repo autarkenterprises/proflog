@@ -217,3 +217,21 @@ ADR-0048 was completed the same day. The promoted common comparison covers Q7,
 `mul(2, 2) = 4` through both paths. The focused selector passed with
 `Ran 5 tests containing 42 assertions`, and the standard fast/extended gates
 passed after the proof-profile dispatch change.
+
+ADR-0049 then added Q3 to the profiled comparison without turning it into a
+rewrite. The ordinary path proves `Q1 and ... and Q7 -> Q3`; the profiled path
+recognizes the refutation branch:
+
+```text
+exists x. x != zero and once-forall y. x != s(y)
+```
+
+and records:
+
+```text
+q3-case-split predecessor-or-zero
+```
+
+inside the `profiled robinson-q` proof. This closes Q3 itself while preserving
+the earlier warning that unrestricted predecessor-or-zero splitting needs a
+separate relevance and fuel policy.

@@ -1,11 +1,13 @@
 # Robinson Q Proof Profile Example
 
-This example documents `test/proflog/robinson_q_test.clj` and ADR-0048. It
+This example documents `test/proflog/robinson_q_test.clj`, ADR-0048, and
+ADR-0049. It
 shows Robinson arithmetic Q in two forms:
 
 - ordinary first-order assumptions: `Q1 and ... and Q7 -> theorem`;
-- an opt-in deduction-modulo profile: visible Q arithmetic terms are converted
-  before the existing kernel checks equality.
+- an opt-in proof profile: visible Q arithmetic terms are converted before the
+  existing kernel checks equality, and Q3 closes by a recorded
+  predecessor-or-zero case split.
 
 Run the focused regression:
 
@@ -16,9 +18,9 @@ lein test-proflog-robinson-q
 Current result:
 
 ```text
-Ran 5 tests containing 42 assertions.
+Ran 6 tests containing 48 assertions.
 0 failures, 0 errors.
-wall 8.94 s
+wall 8.89 s
 ```
 
 Run the timing comparison:
@@ -27,7 +29,7 @@ Run the timing comparison:
 lein probe-proflog-robinson-q
 ```
 
-The comparison probe passed in `wall 7.82 s` on 2026-05-08.
+The comparison probe passed in `wall 7.83 s` on 2026-05-08.
 
 ## Hand-Written Theory
 
@@ -177,39 +179,59 @@ For Q7 itself, the profiled proof contains an explicit conversion marker:
 That is the semantic difference. Under ordinary Q, Q7 is an assumption. Under
 `:robinson-q`, Q7 is proved by conversion plus equality closure.
 
+Q3 is not a conversion. It is proved by closing the negated theorem shape:
+
+```text
+exists x. x != zero and once-forall y. x != s(y)
+```
+
+The profiled proof records that theory step directly:
+
+```clojure
+(profiled robinson-q
+  ((q3-case-split predecessor-or-zero (var x) (var y)))
+  (q3-close))
+```
+
+Under ordinary Q, the same formula is proved as `Q1 and ... and Q7 -> Q3`, so
+Q3 is available as an assumption. Under the profile, Q3 is a trusted
+Robinson-Q case-split rule of the selected proof system.
+
 ## Correctness And Performance
 
 Focused test:
 
 ```text
 lein test-proflog-robinson-q
-Ran 5 tests containing 42 assertions.
+Ran 6 tests containing 48 assertions.
 0 failures, 0 errors.
-wall 8.94 s
+wall 8.89 s
 ```
 
 Comparison probe:
 
 | Formula | Ordinary Q fuel | Ordinary elapsed | Profile fuel | Profile elapsed |
 |---|---:|---:|---:|---:|
-| `Q7` | 32 | `7.639 ms` | 16 | `2.144 ms` |
-| `add(1, zero) = 1` | 48 | `2.064 ms` | 16 | `2.899 ms` |
-| `mul(2, zero) = zero` | 48 | `2.855 ms` | 16 | `1.487 ms` |
-| `add(1, 2) = 3` | 64 | `3.283 ms` | 16 | `1.234 ms` |
-| `mul(2, 2) = 4` | 96 | `4.675 ms` | 16 | `1.451 ms` |
+| `Q3` | 32 | `8.527 ms` | 32 | `2.278 ms` |
+| `Q7` | 32 | `2.931 ms` | 16 | `1.631 ms` |
+| `add(1, zero) = 1` | 48 | `2.457 ms` | 16 | `2.394 ms` |
+| `mul(2, zero) = zero` | 48 | `2.732 ms` | 16 | `0.776 ms` |
+| `add(1, 2) = 3` | 64 | `2.469 ms` | 16 | `0.716 ms` |
+| `mul(2, 2) = 4` | 96 | `3.089 ms` | 16 | `1.074 ms` |
 
 The elapsed values above are the in-process row timings printed by
-`lein probe-proflog-robinson-q`; the full Leiningen process took `wall 7.82 s`.
+`lein probe-proflog-robinson-q`; the full Leiningen process took `wall 7.83 s`.
 
 ## Shortcomings
 
 The `:robinson-q` profile is a trusted conversion layer, not a derivation of Q
 from weaker arithmetic principles. Proof records make that explicit by wrapping
-the kernel proof in `profiled robinson-q` and listing `q-rewrite` steps.
+the kernel proof in `profiled robinson-q` and listing `q-rewrite` or
+`q3-case-split` steps.
 
-Q3 is not included in the conversion profile. It is a predecessor-or-zero case
-split, not a terminating rewrite. Adding it would require relevance and fuel
-controls so the prover does not generate unbounded predecessor cases.
+Q3 is included only as the exact predecessor-or-zero branch closure needed to
+prove Q3 itself. It is not a general predecessor-synthesis engine, and it is not
+a rewrite rule.
 
 The initial conversion happens before ordinary kernel proof search. It handles
 visible Q arithmetic terms in formulas, including terms under quantifiers, but

@@ -4,7 +4,8 @@ Date: 2026-05-07
 Related ADRs:
 [ADR-0043](adr/ADR-0043-greenfield-documentation-refresh.md),
 [ADR-0044](adr/ADR-0044-turing-completeness-demonstration.md),
-[ADR-0048](adr/ADR-0048-robinson-q-proof-profiles.md)
+[ADR-0048](adr/ADR-0048-robinson-q-proof-profiles.md),
+[ADR-0049](adr/ADR-0049-robinson-q3-case-split-profile.md)
 
 This map is the current reader path for `src/proflog`. It is intentionally more
 mechanical than the tutorial: every greenfield namespace is listed so a reader
@@ -56,7 +57,7 @@ AST and declarations
 | `proflog.kernel.propositional` | Pure propositional proof layer. | Used for call-free propositional branches and Pelletier-style theorem fragments where equality and procedure calls are absent. |
 | `proflog.kernel.first-order` | Equality-free first-order proof layer. | Provides the lean first-order search policy used for Pelletier closure while preserving the full kernel for equality and Proflog programs. |
 | `proflog.kernel.equality-fragment` | Finite equality-fragment verifier profile. | ADR-39/42 layer for call-free equality-heavy finite verifier bodies such as group associativity and transition-system laws. It is generic over equality formulas, not over family names. |
-| `proflog.kernel.robinson-q-profile` | Deduction-modulo conversion profile for Robinson Q. | Normalizes visible `add` and `mul` terms by Q conversion rules, wraps proof evidence with `profiled robinson-q` and `q-rewrite`, then delegates to the ordinary kernel. Q3 is intentionally not a rewrite. |
+| `proflog.kernel.robinson-q-profile` | Deduction-modulo and case-split profile for Robinson Q. | Normalizes visible `add` and `mul` terms by Q conversion rules, records Q3's predecessor-or-zero branch closure with `q3-case-split`, wraps proof evidence with `profiled robinson-q`, then delegates non-theory closures to the ordinary kernel. Q3 is intentionally not a rewrite. |
 | `proflog.kernel.constructor-recursive` | Diagnostic constructor-recursive proof layer. | This older sidecar consumes guarded-clause IR to prove/resettle constructor-recursive residuals. It remains useful as a diagnostic oracle and comparison point. |
 | `proflog.kernel.constructor-recursive-profile` | Promoted constructor-recursive answer profile. | ADR-41 profile that emits integrated `profiled constructor-recursive` proof records through the answer-overlay record shape instead of using the old diagnostic sidecar API. |
 | `proflog.equality-fast-path` | Host-side equality-only acceleration. | A restricted hard-family helper for existential equality/disequality conjunctions. It is an overlay, not the authoritative kernel semantics. |

@@ -128,6 +128,7 @@
             "probe-proflog-legacy-stream" ["run" "-m" "proflog.legacy-stream-probe"]
             "probe-proflog-list-kernel-matrix" ["run" "-m" "proflog.list-kernel-matrix-probe"]
             "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]
+            "probe-proflog-turing-completeness" ["run" "-m" "proflog.turing-completeness-long-probe"]
             "probe-core-logic-host" ["run" "-m" "proflog.core-logic-host-probe"]
             "probe-core-logic-tabling" ["run" "-m" "proflog.core-logic-tabling-probe"]
             "probe-core-logic-count" ["run" "-m" "proflog.core-logic-count-probe"]

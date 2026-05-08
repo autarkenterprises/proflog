@@ -75,6 +75,7 @@ AST and declarations
 | `proflog.fitting-programs` | ADR-38/39 catalog of Fitting-style programs and verifier examples. | Builds public AST/source clauses and evaluates them through proof-backed query surfaces for tutorial and regression use. |
 | `proflog.finite-transition-systems` | Non-GV finite verifier examples. | Shows the equality-fragment profile is generic by verifying transition-table totality and determinism laws. |
 | `proflog.turing-completeness` | ADR-44 two-counter Minsky machine demonstration. | Defines a reusable frontend language, generic Proflog interpreter clauses, transfer/incrementer instruction tables, and term helpers. It does not evaluate machine steps on the host. |
+| `proflog.turing-completeness-long-probe` | ADR-44 long runtime-boundary probes. | Reproducible CLI-only diagnostics for slow recursive and reverse two-counter machine queries. These probes are not tests and are not part of default semantics. |
 | `proflog.gv-probe` | Legacy group-verifier reconstruction probes. | Historical and exploratory GV probe surface. Current promoted GV proof evidence lives in the equality-fragment test/catalog path. |
 | `proflog.list-kernel-matrix-probe` | Raw-kernel append/reverse capability matrix. | Bypasses public answer conveniences to ask what the raw kernel/export path can eventually surface. |
 | `proflog.legacy-stream-probe` | Raw-stream probes for legacy-style open list queries. | Used to classify at which layer a difficult legacy answer first appears. |

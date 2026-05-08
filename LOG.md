@@ -26,11 +26,21 @@ complete contemporaneous transcript.
   [ADR-0044](docs/adr/ADR-0044-turing-completeness-demonstration.md) with a
   two-counter Minsky machine interpreter written through the ADR-0010 frontend.
   The opt-in `lein test-proflog-turing-completeness` suite passed in
-  `94.45 s`, while multi-step transfer recursion and open predecessor
-  synthesis timeouts were recorded as runtime boundaries rather than promoted
-  tests. See
+  `68.64 s` after the long-probe smoke-test follow-up, while multi-step
+  transfer recursion and open predecessor synthesis timeouts were recorded as
+  runtime boundaries rather than promoted tests. See
   [AAR-0044](docs/aar/AAR-0044-turing-completeness-demonstration.md) and
   [Turing Completeness Example](worked-examples/turing-completeness.md).
+- Revisited the ADR-0044 runtime boundaries with longer diagnostic probes.
+  `halts-in-steps` for the three-step transfer eventually closed in `783.72 s`,
+  and open predecessor synthesis returned answers in `645.66 s`. The direct
+  ground three-step trace did not return before a controlled stop at about
+  thirty minutes, and the five-step recursive transfer timed out after a
+  `1800 s` wrapper. See
+  [2026-05-07 ADR-0044 long Turing probes](docs/log/2026-05-07-adr44-long-turing-probes.md).
+  The follow-up gates passed: `lein test-proflog-turing-completeness` in
+  `68.64 s`, `lein test-proflog-fast` in `60.67 s`, and
+  `lein test-proflog-extended` in `184.10 s`.
 - Refreshed
   [Greenfield Implementation Tutorial](docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md)
   in light of ADR-0010 and the worked-example descent pass. The tutorial now

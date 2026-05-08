@@ -177,8 +177,8 @@ Current ADR-0044 Turing-completeness note:
 - The explicit opt-in TC suite is `lein test-proflog-turing-completeness`; it
   is not part of `test-proflog-fast` or `test-proflog-extended`.
 - The full TC suite passed with
-  `Ran 5 tests containing 12 assertions`, `0 failures, 0 errors`, and
-  `elapsed 94.45 s`.
+  `Ran 6 tests containing 13 assertions`, `0 failures, 0 errors`, and
+  `elapsed 68.64 s` after adding the long-probe identifier smoke test.
 - The ADR-0044 commit gate also passed `lein test-proflog-fast` with
   `Ran 128 tests containing 414 assertions`, `0 failures, 0 errors`, and
   `elapsed 85.62 s`, plus `lein test-proflog-extended` with
@@ -193,6 +193,20 @@ Current ADR-0044 Turing-completeness note:
   inside a `180 s` wrapper, and open one-step predecessor synthesis over
   `step/2` timed out inside a `180 s` wrapper. These were not promoted to the
   passing suite.
+- Follow-up long probes on 2026-05-07 refined those boundaries:
+  `recursive-transfer-3-steps` succeeded with one proof in `elapsed 783.72 s`;
+  `open-predecessor-step` returned four answer records in `elapsed 645.66 s`;
+  `direct-ground-three-step-trace` produced no proof before controlled stop at
+  about thirty minutes; and `recursive-transfer-5-steps` timed out with status
+  `124` after a `1800 s` wrapper. See
+  [2026-05-07 ADR-0044 long Turing probes](log/2026-05-07-adr44-long-turing-probes.md).
+- The follow-up commit gate passed `lein test-proflog-turing-completeness` with
+  `Ran 6 tests containing 13 assertions`, `0 failures, 0 errors`, and
+  `elapsed 68.64 s`; `lein test-proflog-fast` with
+  `Ran 128 tests containing 414 assertions`, `0 failures, 0 errors`, and
+  `elapsed 60.67 s`; and `lein test-proflog-extended` with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `elapsed 184.10 s`.
 
 ## Committed Test Iterations
 

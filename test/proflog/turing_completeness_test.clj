@@ -5,7 +5,8 @@
             [proflog.frontend :as pf]
             [proflog.proof :as proof]
             [proflog.query :as query]
-            [proflog.turing-completeness :as tc]))
+            [proflog.turing-completeness :as tc]
+            [proflog.turing-completeness-long-probe :as long-probe]))
 
 (defn- succeeds?
   [program formula fuel]
@@ -103,3 +104,10 @@
     (is (not (str/includes? source "query/query-succeeds")))
     (is (not (str/includes? source "answers/query-answers")))
     (is (not (re-find #"defn-?\s+(step|run|halts-in)" source)))))
+
+(deftest long-probe-identifiers-are-stable
+  (is (= ["direct-ground-three-step-trace"
+          "open-predecessor-step"
+          "recursive-transfer-3-steps"
+          "recursive-transfer-5-steps"]
+         (long-probe/probe-ids))))

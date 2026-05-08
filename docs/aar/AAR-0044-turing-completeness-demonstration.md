@@ -44,9 +44,9 @@ Final focused result:
 
 ```text
 lein test-proflog-turing-completeness
-Ran 5 tests containing 12 assertions.
+Ran 6 tests containing 13 assertions.
 0 failures, 0 errors.
-elapsed_seconds 94.45
+elapsed_seconds 68.64
 ```
 
 Standard gate result:
@@ -63,14 +63,45 @@ Ran 68 tests containing 203 assertions.
 elapsed_seconds 227.20
 ```
 
+Follow-up diagnostic probes on 2026-05-07 clarified the runtime boundary:
+
+- `recursive-transfer-3-steps` eventually succeeded in `783.72 s`;
+- `open-predecessor-step` eventually returned four answer records in `645.66 s`;
+- `direct-ground-three-step-trace` produced no proof before controlled stop at
+  about thirty minutes;
+- `recursive-transfer-5-steps` timed out after a `1800 s` wrapper.
+
+The full record is in
+[2026-05-07 ADR-0044 long Turing probes](../log/2026-05-07-adr44-long-turing-probes.md).
+
+The follow-up commit gate passed:
+
+```text
+lein test-proflog-turing-completeness
+Ran 6 tests containing 13 assertions.
+0 failures, 0 errors.
+elapsed_seconds 68.64
+
+lein test-proflog-fast
+Ran 128 tests containing 414 assertions.
+0 failures, 0 errors.
+elapsed_seconds 60.67
+
+lein test-proflog-extended
+Ran 68 tests containing 203 assertions.
+0 failures, 0 errors.
+elapsed_seconds 184.10
+```
+
 ## Shortcomings
 
 The demonstration is definitive about representability, not about efficient
-reachability. Direct open predecessor synthesis over `step/2` timed out inside a
-180s wrapper, and recursive multi-step transfer proofs through `halts-in-steps`
-timed out inside 180s wrappers for the sampled transfer cases. The passing
-suite therefore uses individual `step/2` proofs, one bounded recursive
-incrementer run, and an explicit three-step transfer trace for answer export.
+reachability. Follow-up probes show that some originally timed-out cases do
+eventually return valid results, but only after ten-plus minute searches.
+Deeper recursive traces and some direct proof formulations remain impractical.
+The passing suite therefore uses individual `step/2` proofs, one bounded
+recursive incrementer run, an explicit three-step transfer trace for answer
+export, and instruction-relation partial synthesis.
 
 This is the correct operational reading: Proflog can encode a Turing-complete
 machine model in its kernel-level source language, but arbitrary machine

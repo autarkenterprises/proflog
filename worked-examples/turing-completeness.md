@@ -40,6 +40,18 @@ Two-counter machines are Turing-complete. Proflog therefore has the same
 expressive lower bound when it can represent arbitrary finite instruction
 tables and a generic transition relation over those tables.
 
+Citation trail: the counter-machine family used here is the standard Minsky
+machine / register-machine model associated with Marvin Minsky's universality
+work. The historical sources to cite are Minsky's 1961 Annals of Mathematics
+paper, "Recursive Unsolvability of Post's Problem of 'Tag' and Other Topics in
+the Theory of Turing Machines," and Minsky's 1967 book, *Computation: Finite and
+Infinite Machines*. The 1961 paper establishes universality through extremely
+restricted machine models; the 1967 book is the canonical reference for the
+program-machine / counter-machine presentation. Bibliographic records:
+[Cambridge Core JSL review of the 1961 paper](https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/marvin-l-minsky-recursive-unsolvability-of-posts-problem-of-tag-and-other-topics-in-the-theory-of-turing-machines-annals-of-mathematics-second-series-vol-74-1961-pp-437455/E592A179A70AA2CE2721126EFDBD099A)
+and
+[Open Library record for the 1967 book](https://openlibrary.org/books/OL5535641M).
+
 ## Prolog-Style Pseudo-Code
 
 The generic interpreter is written as ordinary Proflog clauses. A representative
@@ -133,8 +145,103 @@ incrementer machine:
                (halts-in-steps 3))))
 ```
 
-The generic interpreter source is quoted once and appended to each concrete
-instruction table by `machine-program`:
+The small Clojure helpers below only construct object-language terms for tests
+and examples. They are not machine evaluators:
+
+```clojure
+(defn app
+  [sym & args]
+  (apply ast/app-term sym args))
+
+(defn numeral
+  [n]
+  (if (zero? n)
+    (app 'zero)
+    (app 's (numeral (dec n)))))
+
+(defn config
+  [label counter0 counter1]
+  (app 'cfg
+       (app label)
+       (numeral counter0)
+       (numeral counter1)))
+```
+
+The generic interpreter source is a quoted list of frontend clauses. It is
+defined once as `interpreter-source`:
+
+```clojure
+(def ^:private interpreter-source
+  '((|- (step before after)
+      (exists [label next c0 c1]
+        (and (= before (cfg label c0 c1))
+             (inc0 label next)
+             (= after (cfg next (s c0) c1)))))
+
+    (|- (step before after)
+      (exists [label next c0 c1]
+        (and (= before (cfg label c0 c1))
+             (inc1 label next)
+             (= after (cfg next c0 (s c1))))))
+
+    (|- (step before after)
+      (exists [label dec zero-next c1]
+        (and (= before (cfg label zero c1))
+             (decjz0 label dec zero-next)
+             (= after (cfg zero-next zero c1)))))
+
+    (|- (step before after)
+      (exists [label dec zero-next pred c1]
+        (and (= before (cfg label (s pred) c1))
+             (decjz0 label dec zero-next)
+             (= after (cfg dec pred c1)))))
+
+    (|- (step before after)
+      (exists [label dec zero-next c0]
+        (and (= before (cfg label c0 zero))
+             (decjz1 label dec zero-next)
+             (= after (cfg zero-next c0 zero)))))
+
+    (|- (step before after)
+      (exists [label dec zero-next c0 pred]
+        (and (= before (cfg label c0 (s pred)))
+             (decjz1 label dec zero-next)
+             (= after (cfg dec c0 pred)))))
+
+    (|- (run start final)
+      (= start final))
+
+    (|- (run start final)
+      (exists [middle]
+        (and (step start middle)
+             (run middle final))))
+
+    (|- (run-for steps start final)
+      (and (= steps zero)
+           (= start final)))
+
+    (|- (run-for steps start final)
+      (exists [rest middle]
+        (and (= steps (s rest))
+             (step start middle)
+             (run-for rest middle final))))
+
+    (|- (halt-config config)
+      (exists [label c0 c1]
+        (and (= config (cfg label c0 c1))
+             (halt-state label))))
+
+    (|- (halts-in start final)
+      (and (halt-config final)
+           (run start final)))
+
+    (|- (halts-in-steps steps start final)
+      (and (halt-config final)
+           (run-for steps start final)))))
+```
+
+`machine-program` appends those generic interpreter clauses to concrete
+instruction-table clauses:
 
 ```clojure
 (defmacro machine-program
@@ -143,6 +250,23 @@ instruction table by `machine-program`:
      ~@interpreter-source
      ~@instruction-forms))
 ```
+
+This is ordinary Clojure macro syntax. The backtick starts a syntax-quoted
+template. `~@interpreter-source` splices every clause in the quoted
+`interpreter-source` list into the `pf/proflog` form. `~@instruction-forms`
+splices every clause supplied to `(machine-program ...)` after the interpreter.
+The macro expansion is therefore equivalent to writing:
+
+```clojure
+(pf/proflog counter-machine-language
+  ;; every generic `step`, `run`, `run-for`, and halt clause
+  ;; ...
+  ;; then every concrete instruction-table clause
+  ;; ...)
+```
+
+The generated program is still a compiled Proflog program. The macro only
+assembles source clauses before translation.
 
 The transfer machine is then just instruction-table clauses:
 
@@ -160,6 +284,19 @@ The transfer machine is then just instruction-table clauses:
 
     (|- (halt-state label)
       (= label halt-label))))
+```
+
+The second machine proves the interpreter is generic over instruction tables:
+
+```clojure
+(def incrementer-machine
+  (machine-program
+    (|- (inc0 label next)
+      (and (= label i0)
+           (= next ihalt)))
+
+    (|- (halt-state label)
+      (= label ihalt))))
 ```
 
 This shape matters: the interpreter is generic, and the concrete machine is not
@@ -298,14 +435,106 @@ Current promoted checks:
 | `frontend-run-exports-the-transfer-machine-final-config` | answer | exports `cfg(halt-label, 0, 1)` with no residuals | `73.66 s` |
 | `frontend-run-can-partially-synthesize-an-instruction` | partial synthesis | exports `label = l1` for `inc1(label, l0)` | `21.68 s` |
 | `turing-completeness-namespace-does-not-contain-a-host-step-evaluator` | source audit | no host query/answer evaluator or host `step`/`run` functions in the namespace | `9.85 s` |
+| `long-probe-identifiers-are-stable` | diagnostic surface | confirms long-probe CLI IDs without running long probes | `8.87 s` |
 
 The full opt-in suite passed with:
 
 ```text
-Ran 5 tests containing 12 assertions.
+Ran 6 tests containing 13 assertions.
 0 failures, 0 errors.
-elapsed_seconds 94.45
+elapsed_seconds 68.64
 ```
+
+## Long Diagnostic Probes
+
+The promoted TC tests are deliberately not the hardest recursive or reverse
+queries. Those harder forms are tracked by
+`proflog.turing-completeness-long-probe` and the alias:
+
+```text
+lein probe-proflog-turing-completeness <probe-id>
+```
+
+The stable probe identifiers are:
+
+```text
+recursive-transfer-3-steps
+recursive-transfer-5-steps
+direct-ground-three-step-trace
+open-predecessor-step
+```
+
+The three-step recursive transfer eventually succeeds, but it is not an
+appropriate regression test:
+
+```text
+timeout -k 5s 900s /usr/bin/time -f 'elapsed_seconds %e' \
+  lein probe-proflog-turing-completeness recursive-transfer-3-steps
+
+{:starting-probe "recursive-transfer-3-steps"}
+{:result :succeeds,
+ :proof-count 1,
+ :first-proof-tag neg-call,
+ :probe "recursive-transfer-3-steps",
+ :elapsed-ms 773835.238895}
+elapsed_seconds 783.72
+```
+
+The open predecessor query also eventually returns, but only after a long
+answer-mode search. The first answer is the expected concrete predecessor; the
+remaining answers are symbolic residual alternatives:
+
+```text
+timeout -k 30s 7200s nice -n 10 /usr/bin/time -f 'elapsed_seconds %e' \
+  lein probe-proflog-turing-completeness open-predecessor-step
+
+{:starting-probe "open-predecessor-step"}
+{:result :answers,
+ :answer-count 4,
+ :answers
+ [{:bindings [[before cfg(l1, s(zero), s(zero))]],
+   :residuals [],
+   :proof-count 3}
+  {:bindings [[before cfg(_0, zero, s(s(zero)))]],
+   :residuals [(neg inc0(_0, l0))],
+   :proof-count 2}
+  {:bindings [[before cfg(_0, s(zero), s(s(s(zero))))]],
+   :residuals [(neg decjz1(_0, l0, _1))],
+   :proof-count 10}
+  {:bindings [[before cfg(_0, s(s(zero)), s(s(zero)))]],
+   :residuals [(neg decjz0(_0, l0, _1))],
+   :proof-count 1}],
+ :probe "open-predecessor-step",
+ :elapsed-ms 637275.435493}
+elapsed_seconds 645.66
+```
+
+The direct ground three-step trace did not return before a controlled stop at
+about thirty minutes:
+
+```text
+timeout -k 30s 7200s nice -n 10 /usr/bin/time -f 'elapsed_seconds %e' \
+  lein probe-proflog-turing-completeness direct-ground-three-step-trace
+
+{:starting-probe "direct-ground-three-step-trace"}
+;; no proof result before controlled stop at about 30 minutes
+```
+
+The five-step recursive transfer did not return before a thirty-minute wrapper:
+
+```text
+timeout -k 30s 1800s nice -n 10 /usr/bin/time -f 'elapsed_seconds %e' \
+  lein probe-proflog-turing-completeness recursive-transfer-5-steps
+
+{:starting-probe "recursive-transfer-5-steps"}
+;; process exited with timeout status 124 after the 1800s wrapper
+```
+
+These results answer the viability question directly. Some nontrivial TC
+witnesses are viable through the current kernel, including recursive bounded
+execution and reverse answer search, but the scaling is poor and highly
+sensitive to query formulation. They are evidence for future proof-search
+performance work, not candidates for the normal TC regression suite.
 
 ## Correctness And Shortcomings
 
@@ -321,9 +550,14 @@ Operational shortcomings:
 
 - the direct three-step transfer answer is slow even when the trace shape is
   supplied explicitly;
-- a direct open predecessor query over `step/2` timed out inside a 180s wrapper;
-- recursive `halts-in-steps` transfer probes for sampled multi-step transfers
-  also timed out inside 180s wrappers;
+- a direct open predecessor query over `step/2` timed out inside a 180s wrapper
+  but eventually returned in `645.66 s`;
+- `halts-in-steps(3, cfg(l0,1,0), cfg(halt-label,0,1))` timed out inside a
+  180s wrapper but eventually closed in `783.72 s`;
+- `halts-in-steps(5, cfg(l0,2,0), cfg(halt-label,0,2))` did not return inside a
+  30-minute wrapper;
+- a direct ground three-step trace did not return before a controlled stop at
+  about thirty minutes;
 - unbounded `run/2` is present for the expressiveness argument, but it should
   not be treated as a practical default enumerator for arbitrary machine
   histories.

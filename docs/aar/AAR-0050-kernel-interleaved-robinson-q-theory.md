@@ -137,7 +137,9 @@ deduction-modulo architecture rather than a production arithmetic solver.
 - `q-normal-termo` is directional from a known branch term to a normal form. It
   is not a public reverse arithmetic synthesizer.
 - Q3 remains a focused predecessor-or-zero branch rule. It is not a general
-  predecessor synthesis procedure.
+  predecessor synthesis procedure. The theorem-theoretic rationale for a full
+  Q3 rule is recorded in
+  [Robinson Q3 Full Rule Rationale](../log/2026-05-08-robinson-q3-full-rule-rationale.md).
 - The theory hook is generic, but no second external theory profile has been
   ported to it yet.
 - Performance is slower than ADR-0048/0049's host preprocessor. Future theory

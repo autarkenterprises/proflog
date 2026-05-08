@@ -76,6 +76,14 @@ complete contemporaneous transcript.
   `0 failures, 0 errors`, `real 197.40 s`. See
   [AAR-0050](docs/aar/AAR-0050-kernel-interleaved-robinson-q-theory.md) and
   [Robinson Q Proof Profile Example](worked-examples/robinson-q.md).
+- Logged the rationale for a future full Q3 theory rule. The note records why
+  the current focused `q3-case-split` proves Q3 itself but is not enough for
+  larger tableau refutations that need to introduce a predecessor and continue
+  with `x = s(p)`. The example theorem is
+  `forall x. x != zero -> exists y. add(y, s(zero)) = x`; its negated tableau
+  branch requires general Q3 use, and a model of Q1, Q2, Q4, Q5, Q6, and Q7
+  without Q3 shows that no proof can avoid Q3 or an equivalent lemma. See
+  [Robinson Q3 Full Rule Rationale](docs/log/2026-05-08-robinson-q3-full-rule-rationale.md).
 - Completed
   [ADR-0047](docs/adr/ADR-0047-ski-quine-evaluation.md) on branch
   `adr-0047-ski-quine`. Direct `eval-for(3, omega, omega)` for the SKI

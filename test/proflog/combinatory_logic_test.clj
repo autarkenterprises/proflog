@@ -78,6 +78,22 @@
                                    (ski/c 'b)))
         96)))
 
+(deftest ski-omega-quine-reproduces-itself-through-a-guided-trace
+  (let [sii (ski/sii)
+        i-sii (ski/ap (ski/c 'icomb) sii)
+        omega (ski/omega)
+        expanded (ski/ap i-sii i-sii)
+        left-contracted (ski/ap sii i-sii)]
+    (is (proof-backed?
+          (succeeds?
+            (ski/reduction-trace-formula
+              [omega
+               expanded
+               left-contracted
+               omega]
+              {:relation 'full-step})
+            160)))))
+
 (deftest ski-answer-mode-exports-a-reduced-term
   (let [records (pf/run (ski/program) [result]
                   (eval-for (s (s zero))

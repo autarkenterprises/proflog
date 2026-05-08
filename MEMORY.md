@@ -1,5 +1,17 @@
 # Memory
 
+## 2026-05-08 ADR-0047 SKI Quine
+
+- ADR-0047 branch: `adr-0047-ski-quine`.
+- Direct `eval-for(3, omega, omega)` for `omega = (S I I)(S I I)` timed out
+  inside `240 s`; treating the quine as an open recursive evaluator row is not
+  currently viable.
+- Adding right-argument contextual reduction directly to `step/2` made the full
+  SKI suite time out inside `900 s`; keep ADR-0046 `step/2` unchanged.
+- The accepted quine route is the isolated `full-step/2` relation plus a guided
+  three-edge trace. It passed in `95.44 s`; the full SKI selector passed in
+  `301.98 s`.
+
 ## 2026-05-08 ADR-0045/0046 TC Follow-Up
 
 - ADR-0045 completed on branch `adr-0045-0046-tc-performance`: the Minsky

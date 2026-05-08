@@ -72,3 +72,10 @@ opt-in TC suite, but it is too slow for the routine fast or extended gates.
 Right-argument contextual reduction, a lambda-to-SKI translator, and unbounded
 normalization are intentionally out of scope. They should be added only with
 new ADRs and red tests because contextual search has a visible runtime cost.
+
+## Later Update: ADR-0047
+
+ADR-0047 added right-argument contextual reduction in a separate `full-step/2`
+relation for the omega quine trace. It did not add the rule to the default
+`step/2` relation, because that made the full SKI selector exceed a `900 s`
+guard.

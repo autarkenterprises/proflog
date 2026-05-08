@@ -51,3 +51,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0044](AAR-0044-turing-completeness-demonstration.md) | [ADR-0044](../adr/ADR-0044-turing-completeness-demonstration.md) | completed |
 | [AAR-0045](AAR-0045-minsky-trace-performance.md) | [ADR-0045](../adr/ADR-0045-minsky-trace-performance.md) | completed |
 | [AAR-0046](AAR-0046-combinatory-logic-turing-completeness.md) | [ADR-0046](../adr/ADR-0046-combinatory-logic-turing-completeness.md) | completed |
+| [AAR-0047](AAR-0047-ski-quine-evaluation.md) | [ADR-0047](../adr/ADR-0047-ski-quine-evaluation.md) | completed |

@@ -1,5 +1,5 @@
 (ns proflog.combinatory-logic
-  "SKI combinatory logic programs for ADR-0046.
+  "SKI combinatory logic programs for ADR-0046 and ADR-0047.
 
    The semantics are ordinary Proflog clauses written through the ADR-0010
    frontend. Host helpers in this namespace build object-language terms for
@@ -23,6 +23,7 @@
     (functions (s 1)
                (ap 2))
     (relations (step 2)
+               (full-step 2)
                (eval-for 3))))
 
 (defn c
@@ -62,6 +63,37 @@
   [x]
   (ap (ap (ap (c 'scomb) (c 'kcomb)) (c 'kcomb)) x))
 
+(defn sii
+  "Build `S I I`, the SKI duplicator."
+  []
+  (ap (ap (c 'scomb) (c 'icomb)) (c 'icomb)))
+
+(defn omega
+  "Build `(S I I) (S I I)`, the self-reproducing SKI term."
+  []
+  (ap (sii) (sii)))
+
+(defn reduction-trace-formula
+  "Build a formula asserting each adjacent SKI term is connected by a relation.
+
+   This is a query-construction helper only. It does not reduce a term on the
+   host; each edge in the supplied trace is proved by the compiled relation.
+   The default relation is `step/2`; pass `{:relation 'full-step}` for the
+   fuller contextual relation used by the quine example."
+  ([terms]
+   (reduction-trace-formula terms {}))
+  ([terms {:keys [relation]
+           :or {relation 'step}}]
+   (let [terms (vec terms)]
+     (when (< (count terms) 2)
+       (throw (ex-info "A reduction trace needs at least two terms"
+                       {:terms terms})))
+     (reduce ast/and-form
+             (mapv (fn [[before after]]
+                     (ast/pos-lit
+                       (ast/app-term relation before after)))
+                   (partition 2 1 terms))))))
+
 ;; -----------------------------------------------------------------------------
 ;; Program
 ;; -----------------------------------------------------------------------------
@@ -100,7 +132,25 @@
       (exists [rest middle]
         (and (= steps (s rest))
              (step start middle)
-             (eval-for rest middle final))))))
+             (eval-for rest middle final))))
+
+    ;; Full contextual one-step reduction for focused examples that need
+    ;; argument-position contraction. Keeping it separate from `step/2` avoids
+    ;; slowing the ADR-0046 examples that only need root and left-spine search.
+    (|- (full-step before after)
+      (step before after))
+
+    (|- (full-step before after)
+      (exists [function argument reduced-function]
+        (and (= before (ap function argument))
+             (full-step function reduced-function)
+             (= after (ap reduced-function argument)))))
+
+    (|- (full-step before after)
+      (exists [function argument reduced-argument]
+        (and (= before (ap function argument))
+             (full-step argument reduced-argument)
+             (= after (ap function reduced-argument)))))))
 
 (defn program
   "Return the compiled SKI program."

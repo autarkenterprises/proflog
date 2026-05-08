@@ -11,6 +11,11 @@
   required a left-spine application-context rule because the next redex is in
   function position. Add such rules as Proflog clauses with red tests, and
   record the search cost because answer-mode paths can slow down sharply.
+- ADR-0047 tightened that lesson: right-argument contextual reduction is needed
+  to prove the standard omega quine, but adding it to the default `step/2`
+  relation made the SKI suite exceed a `900 s` guard. Isolate fuller search
+  relations when they demonstrate expressiveness but materially broaden the
+  ordinary proof-search branching factor.
 
 ## 2026-05-06
 

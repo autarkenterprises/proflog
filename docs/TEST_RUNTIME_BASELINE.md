@@ -241,6 +241,32 @@ Current ADR-0045/0046 Turing-completeness performance note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `elapsed 195.92 s`.
 
+Current ADR-0047 SKI quine note:
+
+- Direct `eval-for(3, omega, omega)` was attempted first against the ADR-0046
+  relation and timed out inside a `240 s` wrapper.
+- Adding argument-position contextual reduction directly to `step/2` made the
+  focused quine trace pass in `37.13 s`, but made the full SKI suite time out
+  inside a `900 s` wrapper. That implementation was rejected.
+- The accepted design keeps ADR-0046 `step/2` unchanged and adds a separate
+  `full-step/2` relation for focused full-context traces.
+- The focused quine trace
+  `ski-omega-quine-reproduces-itself-through-a-guided-trace` passed with
+  `Ran 1 tests containing 1 assertions`, `0 failures, 0 errors`, and
+  `elapsed 95.44 s`.
+- The full SKI selector `lein test-proflog-combinatory-logic` passed after the
+  quine addition with `Ran 7 tests containing 13 assertions`,
+  `0 failures, 0 errors`, and `elapsed 301.98 s`.
+- The aggregate `lein test-proflog-turing-completeness` selector passed after
+  the quine addition with `Ran 15 tests containing 30 assertions`,
+  `0 failures, 0 errors`, and `elapsed 438.34 s`.
+- The ADR-0047 fast gate passed `lein test-proflog-fast` with
+  `Ran 128 tests containing 414 assertions`, `0 failures, 0 errors`, and
+  `elapsed 96.41 s`.
+- The ADR-0047 extended gate passed `lein test-proflog-extended` with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `elapsed 237.72 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

@@ -23,6 +23,19 @@ complete contemporaneous transcript.
 ## 2026-05-08
 
 - Completed
+  [ADR-0047](docs/adr/ADR-0047-ski-quine-evaluation.md) on branch
+  `adr-0047-ski-quine`. Direct `eval-for(3, omega, omega)` for the SKI
+  self-reproducing term timed out inside a `240 s` wrapper, and adding
+  argument-context reduction directly to `step/2` made the SKI selector time
+  out inside a `900 s` wrapper. The accepted implementation isolates full
+  contextual reduction in `full-step/2` and proves the guided omega trace in
+  `95.44 s`; the full combinatory selector passed in `301.98 s`, and the
+  aggregate TC selector passed in `438.34 s`. Standard gates passed too:
+  `lein test-proflog-fast` in `96.41 s` and
+  `lein test-proflog-extended` in `237.72 s`. See
+  [AAR-0047](docs/aar/AAR-0047-ski-quine-evaluation.md) and
+  [Combinatory Logic Example](worked-examples/combinatory-logic.md).
+- Completed
   [ADR-0045](docs/adr/ADR-0045-minsky-trace-performance.md) and
   [ADR-0046](docs/adr/ADR-0046-combinatory-logic-turing-completeness.md) on
   branch `adr-0045-0046-tc-performance`. ADR-0045 adds a trace-shaped Minsky

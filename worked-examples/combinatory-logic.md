@@ -47,6 +47,7 @@ The key relations are:
 
 ```text
 step(before, after)
+full-step(before, after)
 eval-for(steps, start, final)
 ```
 
@@ -84,6 +85,24 @@ eval-for(s(rest), start, final) :-
     and eval-for(rest, middle, final).
 ```
 
+ADR-0047 adds a separate full-context one-step relation for focused examples
+that need argument-position reduction:
+
+```prolog
+full-step(before, after) :-
+  step(before, after).
+
+full-step(ap(function, argument), ap(reduced-function, argument)) :-
+  full-step(function, reduced-function).
+
+full-step(ap(function, argument), ap(function, reduced-argument)) :-
+  full-step(argument, reduced-argument).
+```
+
+This rule is intentionally separate from `step/2`. A direct experiment adding
+argument-position contextual reduction to `step/2` made the whole SKI suite
+time out inside a `900 s` guard.
+
 Boolean-style examples use the standard encodings:
 
 ```text
@@ -106,6 +125,7 @@ compiles clauses with the ADR-0010 `pf/proflog` frontend:
     (functions (s 1)
                (ap 2))
     (relations (step 2)
+               (full-step 2)
                (eval-for 3))))
 ```
 
@@ -143,7 +163,22 @@ The source-level program is:
       (exists [rest middle]
         (and (= steps (s rest))
              (step start middle)
-             (eval-for rest middle final))))))
+             (eval-for rest middle final))))
+
+    (|- (full-step before after)
+      (step before after))
+
+    (|- (full-step before after)
+      (exists [function argument reduced-function]
+        (and (= before (ap function argument))
+             (full-step function reduced-function)
+             (= after (ap reduced-function argument)))))
+
+    (|- (full-step before after)
+      (exists [function argument reduced-argument]
+        (and (= before (ap function argument))
+             (full-step argument reduced-argument)
+             (= after (ap function reduced-argument)))))))
 ```
 
 The Clojure helpers in the namespace only construct terms:
@@ -154,6 +189,9 @@ The Clojure helpers in the namespace only construct terms:
 
 (ski/skk (ski/c 'a))
 ;; ap(ap(ap(scomb, kcomb), kcomb), a)
+
+(ski/omega)
+;; ap(ap(ap(scomb, icomb), icomb), ap(ap(scomb, icomb), icomb))
 
 (ski/choose (ski/false-term) (ski/c 'a) (ski/c 'b))
 ;; ap(ap(ap(kcomb, icomb), a), b)
@@ -247,6 +285,49 @@ The promoted answer row exports:
  :residuals []}
 ```
 
+The ADR-0047 quine example uses the standard self-reproducing SKI term:
+
+```text
+omega = (S I I) (S I I)
+```
+
+The proof is not the trivial zero-step equality case. The guided trace proves
+three positive `full-step/2` edges:
+
+```clojure
+(let [sii (ski/sii)
+      i-sii (ski/ap (ski/c 'icomb) sii)
+      omega (ski/omega)
+      expanded (ski/ap i-sii i-sii)
+      left-contracted (ski/ap sii i-sii)]
+  (query/query-succeeds
+    (ski/program)
+    (ski/reduction-trace-formula
+      [omega
+       expanded
+       left-contracted
+       omega]
+      {:relation 'full-step})
+    1
+    160))
+```
+
+The trace is:
+
+```text
+(S I I) (S I I)
+=> (I (S I I)) (I (S I I))
+=> (S I I) (I (S I I))
+=> (S I I) (S I I)
+```
+
+Direct `eval-for(3, omega, omega)` was attempted first and timed out inside a
+`240 s` guard under the ADR-0046 relation. Adding right-argument context
+directly to `step/2` still left direct bounded evaluation unable to finish
+inside a `360 s` guard and made the full SKI suite time out inside `900 s`.
+The promoted result is therefore a guided kernel trace, not open recursive
+discovery of the loop.
+
 ## Test Results
 
 Run the focused suite explicitly:
@@ -263,15 +344,24 @@ Current promoted checks:
 | `ski-skk-identity-fully-evaluates` | bounded forward recursion | `eval-for(2, SKK a, a)` succeeds | `44.29 s` |
 | `ski-boolean-true-fully-evaluates` | bounded forward recursion | `choose(K, a, b)` reduces to `a` | `20.09 s` |
 | `ski-boolean-false-fully-evaluates` | bounded forward recursion | `choose(K I, a, b)` reduces to `b` through the left-spine context rule | `45.29 s` |
+| `ski-omega-quine-reproduces-itself-through-a-guided-trace` | guided full-context trace | proves `(S I I)(S I I)` returns to itself after three positive reductions | `95.44 s` |
 | `ski-answer-mode-exports-a-reduced-term` | answer | exports `result = a` for `SKK a` with no residuals | `206.87 s` |
 | `combinatory-logic-namespace-does-not-contain-a-host-evaluator` | source audit | no host query/answer evaluator or host `step`/`eval`/`reduce` function in the namespace | `15.80 s` |
 
-The full focused suite passed with:
+The ADR-0046 full focused suite passed with:
 
 ```text
 Ran 6 tests containing 12 assertions.
 0 failures, 0 errors.
 elapsed_seconds 225.50
+```
+
+After ADR-0047, the full focused suite passed with:
+
+```text
+Ran 7 tests containing 13 assertions.
+0 failures, 0 errors.
+elapsed_seconds 301.98
 ```
 
 ## Correctness And Shortcomings
@@ -295,6 +385,9 @@ Operational shortcomings:
 - no confluence, normalization, or arbitrary open-ended reduction theorem is
   claimed;
 - the suite is opt-in and should not be placed on the routine fast path.
+- direct recursive quine discovery with `eval-for(3, omega, omega)` remains
+  too slow for promotion; the passing quine result uses a trace-shaped formula
+  over kernel-proved `full-step/2` edges.
 
 The current result is a second, independent minimum viable demonstration:
 Proflog can encode and evaluate finite computations in a known

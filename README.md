@@ -395,7 +395,7 @@ two-counter Minsky machine interpreter written as Proflog clauses, including
 forward transition proofs, answer export, partial synthesis over an instruction
 relation, and a deeper trace-shaped Minsky proof. It also includes an
 independent SKI combinatory-logic demonstration with root reductions, bounded
-evaluation, and answer export.
+evaluation, answer export, and a guided self-reproducing omega quine trace.
 
 The new TC demonstrations can also be run separately:
 

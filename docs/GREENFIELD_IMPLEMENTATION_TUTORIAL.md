@@ -68,11 +68,14 @@ Current checkpoint:
   evaluator surface, while `answer-query` remains the lower-level query builder
   for diagnostics and alternate answer APIs.
 - ADR-0044 adds a two-counter Minsky machine interpreter as a
-  Turing-completeness demonstration. It is intentionally an opt-in slow suite,
+  Turing-completeness demonstration. ADR-0045 adds a trace-shaped proof formula
+  for deeper known Minsky runs, and ADR-0046 adds an independent SKI
+  combinatory-logic demonstration. These are intentionally opt-in slow suites,
   documented in
-  [Turing Completeness Example](../worked-examples/turing-completeness.md),
-  because finite runs close through the kernel but are not cheap enough for the
-  routine greenfield gates.
+  [Turing Completeness Example](../worked-examples/turing-completeness.md) and
+  [Combinatory Logic Example](../worked-examples/combinatory-logic.md), because
+  finite runs close through the kernel but are not cheap enough for the routine
+  greenfield gates.
 
 ## 1. Orientation
 
@@ -180,7 +183,8 @@ The main implementation namespaces are:
 | Relational arithmetic | [`src/proflog/relational_arithmetic.clj`](../src/proflog/relational_arithmetic.clj) | ADR-0036 Clojure translation of faster-minikanren bit-list arithmetic for speculative fuel and arithmetic probes. |
 | MiniKanren constraints | [`src/proflog/minikanren_constraints.clj`](../src/proflog/minikanren_constraints.clj) | ADR-0037 project-local compatibility overlay for `symbolo`, `numbero`, and general-purpose `absento`; type checks still use `predc`, while `absento` is a project-owned deep absence constraint. |
 | Fitting program catalog | [`src/proflog/fitting_programs.clj`](../src/proflog/fitting_programs.clj) | ADR-0038/0039 kernel-backed catalog for P1, P2, move-warning, finite-domain, list-family, and proof-backed GV examples. |
-| Turing-completeness catalog | [`src/proflog/turing_completeness.clj`](../src/proflog/turing_completeness.clj) | ADR-0044 two-counter Minsky machine interpreter written as frontend Proflog clauses, plus concrete transfer and incrementer instruction tables. |
+| Turing-completeness catalog | [`src/proflog/turing_completeness.clj`](../src/proflog/turing_completeness.clj) | ADR-0044/45 two-counter Minsky machine interpreter written as frontend Proflog clauses, concrete transfer/incrementer instruction tables, and trace-shaped proof formulas. |
+| Combinatory-logic catalog | [`src/proflog/combinatory_logic.clj`](../src/proflog/combinatory_logic.clj) | ADR-0046 SKI combinatory-logic reduction program written as frontend Proflog clauses. |
 | Finite transition systems | [`src/proflog/finite_transition_systems.clj`](../src/proflog/finite_transition_systems.clj) | ADR-0039 non-GV verifier examples for larger `delta` totality and determinism laws. |
 | ADR probes | [`src/proflog/relational_fuel_adapter_probe.clj`](../src/proflog/relational_fuel_adapter_probe.clj), [`src/proflog/relational_maps_probe.clj`](../src/proflog/relational_maps_probe.clj), and related probe namespaces | Speculative or measurement-only namespaces. They document evidence and should not be mistaken for default production behavior. |
 | Host probes | [`src/proflog/core_logic_host.clj`](../src/proflog/core_logic_host.clj) and related probe namespaces | Report and instrument the loaded core.logic host implementation. |

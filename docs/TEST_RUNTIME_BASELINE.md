@@ -208,6 +208,38 @@ Current ADR-0044 Turing-completeness note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `elapsed 184.10 s`.
 
+Current ADR-0045/0046 Turing-completeness performance note:
+
+- ADR-0045 added a trace-shaped formula helper for known finite Minsky runs.
+  The helper builds a conjunction of compiled `step/2` calls and optional
+  `halt-config/1`; it does not execute a machine transition on the host.
+- The direct recursive five-step transfer remained non-viable in ADR-0044:
+  `recursive-transfer-5-steps` timed out after a `1800 s` wrapper. The
+  trace-shaped five-step transfer now closes through the kernel with
+  `Ran 1 tests containing 1 assertions`, `0 failures, 0 errors`, and
+  `elapsed 58.89 s`.
+- The full ADR-0045 namespace passed with
+  `Ran 2 tests containing 4 assertions`, `0 failures, 0 errors`, and
+  `elapsed 55.02 s`. A post-docstring focused alias rerun passed with the same
+  assertion count and `elapsed 47.70 s`.
+- ADR-0046 added an independent SKI combinatory-logic TC demonstration. Its
+  focused rows passed with these timings: root reductions `31.33 s`, `SKK a`
+  bounded evaluation `44.29 s`, boolean true `20.09 s`, boolean false
+  `45.29 s`, answer-mode `SKK a` export `206.87 s`, and source audit
+  `15.80 s`.
+- The full ADR-0046 namespace passed with
+  `Ran 6 tests containing 12 assertions`, `0 failures, 0 errors`, and
+  `elapsed 225.50 s`.
+- The aggregate `lein test-proflog-turing-completeness` selector now includes
+  ADR-0044, ADR-0045, and ADR-0046. It passed with
+  `Ran 14 tests containing 29 assertions`, `0 failures, 0 errors`, and
+  `elapsed 328.17 s`.
+- The ADR-0045/0046 commit gate passed `lein test-proflog-fast` with
+  `Ran 128 tests containing 414 assertions`, `0 failures, 0 errors`, and
+  `elapsed 69.66 s`, plus `lein test-proflog-extended` with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `elapsed 195.92 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

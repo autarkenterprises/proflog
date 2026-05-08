@@ -104,6 +104,8 @@ as the current source map.
 | [ADR-0042](adr/ADR-0042-equality-fragment-status-consistency.md) | completed | `adr-0042-equality-fragment-status-consistency` | assess and correct equality-fragment `:inconsistent` status behavior for universal finite-domain formulas | ADR-0039, ADR-0040 | `warm-cool-disjoint` status regression, failure-side non-closure for unsound universal branch proofs, positive control with real counterexample, ADR-39 GV/transition regressions | `query-status` now reports `:succeeds` for `warm-cool-disjoint`; [AAR-0042](aar/AAR-0042-equality-fragment-status-consistency.md) records the proof-variable requirement discipline and preserved finite-verifier suite |
 | [ADR-0043](adr/ADR-0043-greenfield-documentation-refresh.md) | completed | `adr-0043-greenfield-doc-refresh` | refresh stale runtime/tutorial/example/source documentation for the greenfield implementation | ADR-0035, ADR-0038, ADR-0039, ADR-0040, ADR-0041, ADR-0042 | documentation audit for stale runtime claims, source-reader map for `src/proflog`, and comment/docstring review of source-language-to-kernel layers | current-facing docs distinguish historical runtime boundaries from current evidence; every greenfield namespace is mapped for readers; [AAR-0043](aar/AAR-0043-greenfield-documentation-refresh.md) records the audit and verification |
 | [ADR-0044](adr/ADR-0044-turing-completeness-demonstration.md) | completed | `adr-0044-turing-completeness` | Proflog-level implementation of a minimal Turing-complete two-counter Minsky machine model | ADR-0010, ADR-0038, ADR-0043 | generic interpreter clauses, concrete transfer and incrementer instruction tables, forward proof rows, frontend `pf/run` answer/partial-synthesis rows, no host-side step evaluator source audit, worked example/tutorial/README links | [AAR-0044](aar/AAR-0044-turing-completeness-demonstration.md) |
+| [ADR-0045](adr/ADR-0045-minsky-trace-performance.md) | completed | `adr-0045-0046-tc-performance` | improve currently impractical Minsky two-counter trace evaluation while preserving kernel-facing semantics | ADR-0044 | red trace-performance test for a five-step transfer, trace-shaped formula construction, proof/answer evidence, source audit against host-side step evaluation | [AAR-0045](aar/AAR-0045-minsky-trace-performance.md) |
+| [ADR-0046](adr/ADR-0046-combinatory-logic-turing-completeness.md) | completed | `adr-0045-0046-tc-performance` | add a second Turing-completeness demonstration using SKI combinatory logic | ADR-0010, ADR-0044 | red namespace test, SKI root-reduction tests, fully evaluating examples, answer-mode export, source audit, worked example | [AAR-0046](aar/AAR-0046-combinatory-logic-turing-completeness.md) |
 
 ## Deferred Tracks
 
@@ -148,6 +150,8 @@ Relational constructor-recursive profile promotion has graduated into completed
 ADR-0041.
 Equality-fragment status consistency has graduated into completed ADR-0042.
 The Turing-completeness demonstration has graduated into completed ADR-0044.
+Minsky trace performance and the second TC demonstration have graduated into
+completed ADR-0045 and ADR-0046.
 
 ## ADR-0007 Task List
 

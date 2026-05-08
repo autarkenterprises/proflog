@@ -30,7 +30,7 @@ This matrix is the release gate until a separate automated coverage tool is adde
 | Query API | succeed/fail race, unresolved search budget handling | user-facing query helpers over sample programs | consistency checks between `A` and `not A` races | yes |
 | Answer discipline | admissible substitutions, residual disequalities, proof attachment | open-query examples with quantified bodies | answer terms contain only language `L` symbols and no `par` | yes |
 | Regression and performance | previously fixed bug cases, ordering/pathology cases | flagship program suite | bounded runtime budgets only after baseline correctness exists | yes |
-| Minimal TC demonstration | transition clauses, bounded reachability, answer export, instruction partial synthesis | two-counter Minsky machine transfer and incrementer programs | source audit for absence of host-side machine evaluator; runtime-boundary notes for non-promoted slow probes | opt-in focused gate |
+| Minimal TC demonstrations | transition clauses, bounded reachability, trace-shaped proof, symbolic reduction, answer export, instruction partial synthesis | two-counter Minsky machine transfer/incrementer programs and SKI combinatory logic | source audits for absence of host-side machine/SKI evaluators; runtime-boundary notes for non-promoted slow probes | opt-in focused gates |
 | Speculative overlays and probes | direct relation/constraint behavior, compatibility tests, wrapper boundary tests | focused integration probes against one production surface where relevant | before/after measurements or upstream-style behavior tests | no, unless the ADR promotes the feature |
 
 ## Flagship Program Families
@@ -40,7 +40,7 @@ This matrix is the release gate until a separate automated coverage tool is adde
 - Undefined self-reference such as `p <- not p`.
 - Extensional definitions such as subset or set equality using universal quantification.
 - Global specification examples such as sortedness or uniqueness over structural relations.
-- Two-counter Minsky machine interpreter (`lein test-proflog-turing-completeness`).
+- Two-counter Minsky machine interpreter and SKI combinatory logic (`lein test-proflog-turing-completeness`).
 
 ## Equality Oracle Requirements
 

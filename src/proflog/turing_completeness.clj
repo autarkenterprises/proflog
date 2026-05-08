@@ -1,5 +1,5 @@
 (ns proflog.turing-completeness
-  "Two-counter Minsky machine programs for ADR-0044.
+  "Two-counter Minsky machine programs for ADR-0044 and ADR-0045.
 
    This namespace demonstrates expressive power, not a new evaluator. The
    machine semantics below are written with the public ADR-0010 frontend and are
@@ -56,6 +56,29 @@
        (app label)
        (numeral counter0)
        (numeral counter1)))
+
+(defn trace-formula
+  "Build a formula asserting each adjacent state is connected by `step/2`.
+
+   This helper constructs a Proflog query formula only. The caller supplies the
+   states, and every edge is still proved by the compiled `step/2` relation.
+   Set `:halt? true` to also require `(halt-config final-state)`."
+  ([states]
+   (trace-formula states {}))
+  ([states {:keys [halt?]}]
+   (let [states (vec states)]
+     (when (< (count states) 2)
+       (throw (ex-info "A trace formula needs at least two states"
+                       {:states states})))
+     (let [step-formulas (mapv (fn [[before after]]
+                                 (ast/pos-lit
+                                   (ast/app-term 'step before after)))
+                               (partition 2 1 states))
+           formulas (cond-> step-formulas
+                      halt? (conj (ast/pos-lit
+                                    (ast/app-term 'halt-config
+                                                  (peek states)))))]
+       (reduce ast/and-form formulas)))))
 
 ;; -----------------------------------------------------------------------------
 ;; Generic two-counter interpreter

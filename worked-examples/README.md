@@ -26,6 +26,7 @@ query walkthroughs for the current `test/proflog` suites.
 - [Synthesis Modes](./synthesis-modes.md)
 - [Fitting Program Kernel Examples](./fitting-programs.md)
 - [Turing Completeness Example](./turing-completeness.md)
+- [Combinatory Logic Example](./combinatory-logic.md)
 - [Kernel Finite Verifier Examples](./kernel-finite-verifiers.md)
 - [Legacy Subsumption Parity Examples](./legacy-subsumption-parity.md)
 - [Constructor-Recursive Profile Examples](./constructor-recursive-profile.md)
@@ -59,7 +60,8 @@ evaluator.
 | Program Calls | compiled relation lookup and subsidiary tableaux | positive and negative calls |
 | Quantified Programs | quantified clause bodies and frontend inlining | success, failure, quantified invariants |
 | Fitting Program Kernel Examples | ADR-38 catalog over compiled Fitting programs | forward, answer, partial synthesis |
-| Turing Completeness Example | ADR-44 two-counter machine interpreter through frontend and kernel | forward, answer, partial synthesis |
+| Turing Completeness Example | ADR-44/45 two-counter machine interpreter through frontend and kernel | forward, answer, partial synthesis, trace-shaped proof |
+| Combinatory Logic Example | ADR-46 SKI symbolic reduction through frontend and kernel | forward, bounded evaluation, answer |
 | List Programs | recursive list clauses and answer export | forward, answer, partial synthesis |
 | Answers API | answer-overlay export from compiled queries | bindings, residuals, diagnostics |
 | Kernel Finite Verifier Examples | profiled equality-fragment kernel path | quantified success and refutation |

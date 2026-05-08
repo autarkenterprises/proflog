@@ -20,6 +20,25 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-08
+
+- Completed
+  [ADR-0045](docs/adr/ADR-0045-minsky-trace-performance.md) and
+  [ADR-0046](docs/adr/ADR-0046-combinatory-logic-turing-completeness.md) on
+  branch `adr-0045-0046-tc-performance`. ADR-0045 adds a trace-shaped Minsky
+  formula helper so the five-step transfer from `cfg(l0,2,0)` to
+  `cfg(halt-label,0,2)` closes through compiled `step/2` calls; the focused
+  namespace passed in `55.02 s`. ADR-0046 adds an independent SKI
+  combinatory-logic TC demonstration with root reductions, bounded evaluation,
+  answer export, and source audit; the focused namespace passed in `225.50 s`.
+  The aggregate `lein test-proflog-turing-completeness` selector passed in
+  `328.17 s`. The standard gates passed as well: `lein test-proflog-fast` in
+  `69.66 s` and `lein test-proflog-extended` in `195.92 s`.
+  See [AAR-0045](docs/aar/AAR-0045-minsky-trace-performance.md),
+  [AAR-0046](docs/aar/AAR-0046-combinatory-logic-turing-completeness.md),
+  [Turing Completeness Example](worked-examples/turing-completeness.md), and
+  [Combinatory Logic Example](worked-examples/combinatory-logic.md).
+
 ## 2026-05-07
 
 - Completed

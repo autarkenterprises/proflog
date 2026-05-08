@@ -1,5 +1,17 @@
 # Lessons
 
+- For TC demonstrations, distinguish representability from proof-search shape.
+  ADR-0045 showed that the same compiled Minsky `step/2` semantics can make a
+  five-step transfer practical when expressed as a finite conjunction of trace
+  edges, even though the direct recursive `halts-in-steps/3` formulation remains
+  non-viable under long time controls. Keep both: the shaped proof is a
+  demonstration, and the direct recursive form is performance evidence.
+- For symbolic rewriting demos, context rules are semantic surface area. The
+  ADR-0046 SKI boolean-false row was not merely slow under root reduction; it
+  required a left-spine application-context rule because the next redex is in
+  function position. Add such rules as Proflog clauses with red tests, and
+  record the search cost because answer-mode paths can slow down sharply.
+
 ## 2026-05-06
 
 - Current-facing docs must distinguish historical probe failures from current

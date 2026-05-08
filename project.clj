@@ -110,7 +110,13 @@
             "test-proflog-fitting-programs" ["test"
                                              "proflog.fitting-programs-test"]
             "test-proflog-turing-completeness" ["test"
-                                                "proflog.turing-completeness-test"]
+                                                "proflog.turing-completeness-test"
+                                                "proflog.minsky-trace-performance-test"
+                                                "proflog.combinatory-logic-test"]
+            "test-proflog-minsky-trace-performance" ["test"
+                                                      "proflog.minsky-trace-performance-test"]
+            "test-proflog-combinatory-logic" ["test"
+                                              "proflog.combinatory-logic-test"]
             "test-proflog-kernel-finite-verifiers" ["test"
                                                     "proflog.kernel-finite-verifiers-test"]
             "test-proflog-legacy-subsumption" ["test"

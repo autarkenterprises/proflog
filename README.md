@@ -392,8 +392,17 @@ lein test-proflog-turing-completeness
 
 This suite is slower than the routine greenfield gates. It demonstrates a
 two-counter Minsky machine interpreter written as Proflog clauses, including
-forward transition proofs, answer export for a finite transfer trace, and
-partial synthesis over an instruction relation.
+forward transition proofs, answer export, partial synthesis over an instruction
+relation, and a deeper trace-shaped Minsky proof. It also includes an
+independent SKI combinatory-logic demonstration with root reductions, bounded
+evaluation, and answer export.
+
+The new TC demonstrations can also be run separately:
+
+```text
+lein test-proflog-minsky-trace-performance
+lein test-proflog-combinatory-logic
+```
 
 The worked examples in [worked-examples/](worked-examples/README.md) show how
 programs are defined, translated, queried, and evaluated.

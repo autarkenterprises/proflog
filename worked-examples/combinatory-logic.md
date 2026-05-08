@@ -1,0 +1,301 @@
+# Combinatory Logic Example
+
+ADR-0046 adds a second Turing-completeness demonstration using SKI
+combinatory logic. The implementation lives in
+`src/proflog/combinatory_logic.clj`, and its opt-in regression suite is
+`test/proflog/combinatory_logic_test.clj`.
+
+This example is intentionally different from the two-counter Minsky machine.
+Minsky execution exercises state transitions and Peano counters. SKI execution
+exercises symbolic term rewriting over first-order constructor trees.
+
+Citation trail: SKI belongs to the standard combinatory-logic tradition. The
+historical references are Moses Schoenfinkel's 1924 paper, "On the Building
+Blocks of Mathematical Logic," and Curry and Feys' 1958 book,
+*Combinatory Logic, Volume I*. SKI combinators are a standard
+Turing-complete basis for computation.
+
+## Term Model
+
+The object language has constants:
+
+```text
+scomb
+kcomb
+icomb
+a
+b
+c
+zero
+```
+
+Applications are first-order terms:
+
+```text
+ap(left, right)
+```
+
+Peano numerals bound evaluation depth:
+
+```text
+zero
+s(zero)
+s(s(zero))
+```
+
+The key relations are:
+
+```text
+step(before, after)
+eval-for(steps, start, final)
+```
+
+## Prolog-Style Pseudo-Code
+
+The root SKI reductions are ordinary Proflog clauses:
+
+```prolog
+step(ap(icomb, x), x).
+
+step(ap(ap(kcomb, x), y), x).
+
+step(ap(ap(ap(scomb, x), y), z),
+     ap(ap(x, z), ap(y, z))).
+```
+
+Curried SKI terms also need a left-spine application context. This lets the
+kernel reduce the function side of an outer application, as in
+`((K I) a) b`:
+
+```prolog
+step(ap(function, argument), ap(reduced-function, argument)) :-
+  step(function, reduced-function).
+```
+
+The bounded evaluator is the usual finite reflexive reduction relation:
+
+```prolog
+eval-for(zero, start, final) :-
+  start = final.
+
+eval-for(s(rest), start, final) :-
+  exists middle.
+    step(start, middle)
+    and eval-for(rest, middle, final).
+```
+
+Boolean-style examples use the standard encodings:
+
+```text
+true  = K
+false = K I
+choose(boolean, then, else) = ((boolean then) else)
+```
+
+## Frontend Definition
+
+The executable frontend program declares the object-language signature and then
+compiles clauses with the ADR-0010 `pf/proflog` frontend:
+
+```clojure
+(def ski-language
+  (pf/language
+    (constants zero
+               scomb kcomb icomb
+               a b c)
+    (functions (s 1)
+               (ap 2))
+    (relations (step 2)
+               (eval-for 3))))
+```
+
+The source-level program is:
+
+```clojure
+(def ski-program
+  (pf/proflog ski-language
+    (|- (step before after)
+      (exists [x]
+        (and (= before (ap icomb x))
+             (= after x))))
+
+    (|- (step before after)
+      (exists [x y]
+        (and (= before (ap (ap kcomb x) y))
+             (= after x))))
+
+    (|- (step before after)
+      (exists [x y z]
+        (and (= before (ap (ap (ap scomb x) y) z))
+             (= after (ap (ap x z) (ap y z))))))
+
+    (|- (step before after)
+      (exists [function argument reduced-function]
+        (and (= before (ap function argument))
+             (step function reduced-function)
+             (= after (ap reduced-function argument)))))
+
+    (|- (eval-for steps start final)
+      (and (= steps zero)
+           (= start final)))
+
+    (|- (eval-for steps start final)
+      (exists [rest middle]
+        (and (= steps (s rest))
+             (step start middle)
+             (eval-for rest middle final))))))
+```
+
+The Clojure helpers in the namespace only construct terms:
+
+```clojure
+(ski/ap (ski/c 'icomb) (ski/c 'a))
+;; ap(icomb, a)
+
+(ski/skk (ski/c 'a))
+;; ap(ap(ap(scomb, kcomb), kcomb), a)
+
+(ski/choose (ski/false-term) (ski/c 'a) (ski/c 'b))
+;; ap(ap(ap(kcomb, icomb), a), b)
+```
+
+They do not reduce or evaluate SKI terms.
+
+## Backend Descent
+
+The K rule:
+
+```clojure
+(|- (step before after)
+  (exists [x y]
+    (and (= before (ap (ap kcomb x) y))
+         (= after x))))
+```
+
+descends to a compiled `step/2` alternative whose body is schematically:
+
+```clojure
+(exists
+  (tie x
+    (exists
+      (tie y
+        (and
+          (eq (var before)
+              (app ap
+                   (app ap (app kcomb) (var x))
+                   (var y)))
+          (eq (var after) (var x)))))))
+```
+
+The Procedure Call Rule proves `step/2` by choosing one compiled alternative,
+binding the formal parameters `before` and `after` to the actual query terms,
+and proving the body. The left-spine context rule is just another compiled
+`step/2` alternative; it recursively calls `step/2` inside the kernel.
+
+## Evaluation Process
+
+Closed proof checks use `query/query-succeeds`:
+
+```clojure
+(query/query-succeeds
+  (ski/program)
+  (ast/pos-lit
+    (ast/app-term 'step
+                  (ski/ap (ski/ap (ski/c 'kcomb) (ski/c 'a))
+                          (ski/c 'b))
+                  (ski/c 'a)))
+  1
+  32)
+```
+
+The parameters are:
+
+| Parameter | Meaning |
+|---|---|
+| `(ski/program)` | compiled Proflog program containing the SKI clauses |
+| formula | positive literal to prove |
+| `1` | requested proof limit |
+| `32` | fuel bound for proof search |
+
+Answer-mode checks use `pf/run`, which binds answer variables at the frontend
+surface and delegates to the public answer API:
+
+```clojure
+(pf/run (ski/program) [result]
+  (eval-for (s (s zero))
+            (ap (ap (ap scomb kcomb) kcomb) a)
+            result)
+  {:fuel 64
+   :call-depth 4
+   :proof-limit 4
+   :max-raw-proof-limit 16})
+```
+
+The options are:
+
+| Option | Meaning |
+|---|---|
+| `:fuel` | proof-search fuel passed to the kernel |
+| `:call-depth` | answer-overlay procedure-call expansion depth |
+| `:proof-limit` | number of exported answer records requested |
+| `:max-raw-proof-limit` | upper bound for raw proof slices considered during answer export |
+
+The promoted answer row exports:
+
+```clojure
+{:bindings [[result a]]
+ :residuals []}
+```
+
+## Test Results
+
+Run the focused suite explicitly:
+
+```text
+lein test-proflog-combinatory-logic
+```
+
+Current promoted checks:
+
+| Test | Mode | Outcome | Focused runtime |
+|---|---|---|---:|
+| `ski-root-reductions-close-through-the-kernel` | forward | proves I, K, and S root reductions with procedure-call evidence | `31.33 s` |
+| `ski-skk-identity-fully-evaluates` | bounded forward recursion | `eval-for(2, SKK a, a)` succeeds | `44.29 s` |
+| `ski-boolean-true-fully-evaluates` | bounded forward recursion | `choose(K, a, b)` reduces to `a` | `20.09 s` |
+| `ski-boolean-false-fully-evaluates` | bounded forward recursion | `choose(K I, a, b)` reduces to `b` through the left-spine context rule | `45.29 s` |
+| `ski-answer-mode-exports-a-reduced-term` | answer | exports `result = a` for `SKK a` with no residuals | `206.87 s` |
+| `combinatory-logic-namespace-does-not-contain-a-host-evaluator` | source audit | no host query/answer evaluator or host `step`/`eval`/`reduce` function in the namespace | `15.80 s` |
+
+The full focused suite passed with:
+
+```text
+Ran 6 tests containing 12 assertions.
+0 failures, 0 errors.
+elapsed_seconds 225.50
+```
+
+## Correctness And Shortcomings
+
+Correctness guardrails:
+
+- every reduction rule is a compiled Proflog clause;
+- the left-spine context rule is a recursive kernel-level `step/2` clause, not
+  a host evaluator;
+- proof tests inspect procedure-call evidence;
+- answer-mode tests require an empty-residual exported result;
+- source audit rejects hidden host-side query, answer, step, eval, reduce, or
+  rewrite helpers.
+
+Operational shortcomings:
+
+- the answer-mode SKK example is slow after adding the left-spine context rule;
+- only function-position contextual reduction is implemented, because the
+  promoted examples do not need right-argument reduction;
+- there is no lambda-to-SKI translator;
+- no confluence, normalization, or arbitrary open-ended reduction theorem is
+  claimed;
+- the suite is opt-in and should not be placed on the routine fast path.
+
+The current result is a second, independent minimum viable demonstration:
+Proflog can encode and evaluate finite computations in a known
+Turing-complete symbolic rewriting calculus through the proof kernel.

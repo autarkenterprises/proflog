@@ -1,9 +1,11 @@
 # Turing Completeness Example
 
 ADR-0044 demonstrates that Proflog can encode a known minimal
-Turing-complete model: two-counter Minsky machines. The implementation lives in
-`src/proflog/turing_completeness.clj`, and its opt-in regression suite is
-`test/proflog/turing_completeness_test.clj`.
+Turing-complete model: two-counter Minsky machines. ADR-0045 adds a
+trace-shaped proof path for deeper known finite runs. The implementation lives
+in `src/proflog/turing_completeness.clj`, and the relevant opt-in regression
+suites are `test/proflog/turing_completeness_test.clj` and
+`test/proflog/minsky_trace_performance_test.clj`.
 
 This is an expressive-power demonstration. It does not claim that arbitrary
 machine reachability is decidable or cheap. The tests prove small finite runs
@@ -418,15 +420,51 @@ It exports:
  :residuals []}
 ```
 
+ADR-0045 adds a trace-shaped formula helper for deeper known runs:
+
+```clojure
+(tc/trace-formula
+  [(tc/config 'l0 2 0)
+   (tc/config 'l1 1 0)
+   (tc/config 'l0 1 1)
+   (tc/config 'l1 0 1)
+   (tc/config 'l0 0 2)
+   (tc/config 'halt-label 0 2)]
+  {:halt? true})
+```
+
+This helper constructs a formula equivalent to:
+
+```clojure
+(and (step cfg0 cfg1)
+     (and (step cfg1 cfg2)
+          (and (step cfg2 cfg3)
+               (and (step cfg3 cfg4)
+                    (and (step cfg4 cfg5)
+                         (halt-config cfg5))))))
+```
+
+It does not execute the machine on the host. Every edge is still a call to the
+compiled `step/2` relation, and `halt-config/1` is still proved from the
+compiled halt clauses.
+
 ## Test Results
 
-Run the focused suite explicitly:
+Run the aggregate TC suite explicitly:
 
 ```text
 lein test-proflog-turing-completeness
 ```
 
-Current promoted checks:
+That selector now includes this Minsky example, the ADR-0045 Minsky trace
+performance namespace, and the ADR-0046 SKI combinatory-logic namespace. To run
+only the Minsky trace-performance addition:
+
+```text
+lein test-proflog-minsky-trace-performance
+```
+
+Current ADR-0044 promoted checks:
 
 | Test | Mode | Outcome | Focused runtime |
 |---|---|---|---:|
@@ -437,12 +475,41 @@ Current promoted checks:
 | `turing-completeness-namespace-does-not-contain-a-host-step-evaluator` | source audit | no host query/answer evaluator or host `step`/`run` functions in the namespace | `9.85 s` |
 | `long-probe-identifiers-are-stable` | diagnostic surface | confirms long-probe CLI IDs without running long probes | `8.87 s` |
 
-The full opt-in suite passed with:
+Current ADR-0045 promoted checks:
+
+| Test | Mode | Outcome | Focused runtime |
+|---|---|---|---:|
+| `five-step-transfer-closes-through-a-guided-step-trace` | forward trace formula | proves the five transition edges from `cfg(l0,2,0)` to `cfg(halt-label,0,2)` plus `halt-config` | `58.89 s` |
+| `trace-helper-does-not-contain-a-host-machine-evaluator` | source audit | verifies the helper is formula construction only and no host `step`/`run` evaluator was added | `15.83 s` |
+
+The focused ADR-0045 namespace passed with:
+
+```text
+Ran 2 tests containing 4 assertions.
+0 failures, 0 errors.
+elapsed_seconds 55.02
+```
+
+Before ADR-0045, the comparable direct recursive five-step formulation
+`halts-in-steps(5, cfg(l0,2,0), cfg(halt-label,0,2))` did not return inside a
+`1800 s` wrapper. The trace-shaped query therefore converts a non-viable
+regression candidate into a passing kernel proof, while retaining the original
+recursive formulation as diagnostic evidence for future search-control work.
+
+The original ADR-0044 namespace passed with:
 
 ```text
 Ran 6 tests containing 13 assertions.
 0 failures, 0 errors.
 elapsed_seconds 68.64
+```
+
+The aggregate TC selector passed with:
+
+```text
+Ran 14 tests containing 29 assertions.
+0 failures, 0 errors.
+elapsed_seconds 328.17
 ```
 
 ## Long Diagnostic Probes

@@ -1,5 +1,20 @@
 # Memory
 
+## 2026-05-08 ADR-0045/0046 TC Follow-Up
+
+- ADR-0045 completed on branch `adr-0045-0046-tc-performance`: the Minsky
+  five-step transfer now has a trace-shaped formula helper that closes through
+  compiled `step/2` calls, not a host step evaluator. The original recursive
+  `halts-in-steps(5, cfg(l0,2,0), cfg(halt-label,0,2))` remains a long-probe
+  performance diagnostic.
+- ADR-0046 completed on the same branch: SKI combinatory logic is now a second
+  TC demonstration with root reductions, left-spine contextual reduction,
+  bounded `eval-for/3`, and answer export. The answer-mode SKK row is slow
+  (`206.87 s`) but passing.
+- The aggregate TC selector is now `lein test-proflog-turing-completeness`,
+  with focused selectors `lein test-proflog-minsky-trace-performance` and
+  `lein test-proflog-combinatory-logic`.
+
 ## 2026-05-06 ADR-0043 Documentation Refresh
 
 - ADR-0043 branch: `adr-0043-greenfield-doc-refresh`.

@@ -7,9 +7,9 @@
    The bounded helpers in this namespace use finite fuel slices so the caller
    can recover predictably without trying to forcibly stop an in-process proof
    search."
-  (:require [proflog.kernel :as kernel]
-            [proflog.language :as language]
-            [proflog.normalize :as normalize]))
+  (:require [proflog.language :as language]
+            [proflog.normalize :as normalize]
+            [proflog.proof-profile :as proof-profile]))
 
 (defn- next-fuel
   "Conservative iterative-deepening schedule for bounded operational probes."
@@ -47,7 +47,7 @@
    (query-succeeds program query n nil))
   ([program query n fuel]
    (let [checked-query (language/validate-query (:language program) query)]
-     (kernel/prove-program
+     (proof-profile/prove-program
        program
        (normalize/negate-formula checked-query)
        n
@@ -60,7 +60,7 @@
    (query-fails program query n nil))
   ([program query n fuel]
    (let [checked-query (language/validate-query (:language program) query)]
-     (kernel/prove-program program checked-query n fuel))))
+     (proof-profile/prove-program program checked-query n fuel))))
 
 (defn query-succeeds-within
   "Run `query-succeeds` with an explicit wall-clock budget."

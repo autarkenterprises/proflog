@@ -107,6 +107,7 @@ as the current source map.
 | [ADR-0045](adr/ADR-0045-minsky-trace-performance.md) | completed | `adr-0045-0046-tc-performance` | improve currently impractical Minsky two-counter trace evaluation while preserving kernel-facing semantics | ADR-0044 | red trace-performance test for a five-step transfer, trace-shaped formula construction, proof/answer evidence, source audit against host-side step evaluation | [AAR-0045](aar/AAR-0045-minsky-trace-performance.md) |
 | [ADR-0046](adr/ADR-0046-combinatory-logic-turing-completeness.md) | completed | `adr-0045-0046-tc-performance` | add a second Turing-completeness demonstration using SKI combinatory logic | ADR-0010, ADR-0044 | red namespace test, SKI root-reduction tests, fully evaluating examples, answer-mode export, source audit, worked example | [AAR-0046](aar/AAR-0046-combinatory-logic-turing-completeness.md) |
 | [ADR-0047](adr/ADR-0047-ski-quine-evaluation.md) | completed | `adr-0047-ski-quine` | evaluate the SKI self-reproducing omega term through contextual reduction | ADR-0046 | red quine evaluation test, isolated `full-step/2` contextual reduction relation, focused timing, worked-example update | [AAR-0047](aar/AAR-0047-ski-quine-evaluation.md) |
+| [ADR-0048](adr/ADR-0048-robinson-q-proof-profiles.md) | completed | `adr-0048-robinson-q` | represent Robinson Q both as ordinary first-order assumptions and as an opt-in deduction-modulo proof profile | ADR-0004, ADR-0023, ADR-0043 | Q language/axiom helpers, ordinary Q-as-antecedent proofs, profiled Q conversion proofs, generic proof-profile dispatch tests, common performance comparison | [AAR-0048](aar/AAR-0048-robinson-q-proof-profiles.md) |
 
 ## Deferred Tracks
 
@@ -153,6 +154,7 @@ Equality-fragment status consistency has graduated into completed ADR-0042.
 The Turing-completeness demonstration has graduated into completed ADR-0044.
 Minsky trace performance and the second TC demonstration have graduated into
 completed ADR-0045 and ADR-0046.
+Robinson Q proof-profile work has graduated into completed ADR-0048.
 
 ## ADR-0007 Task List
 

@@ -191,3 +191,29 @@ assumption-driven tableau proofs. Deduction modulo produces proofs modulo a
 trusted conversion relation. If Proflog implements this, proof objects must
 record theory steps explicitly so users can audit which arithmetic conversions
 were used.
+
+## ADR-0048 Implementation Obligation
+
+The follow-up implementation track is ADR-0048. It must implement both readings
+instead of choosing one prematurely:
+
+- Q as ordinary formulas passed in the antecedent of an implication;
+- Q as an opt-in `:robinson-q` proof profile using deduction-modulo conversion
+  for terminating `add` and `mul` equations.
+
+The opt-in mechanism itself must be generic. A language should be able to
+select a proof profile, and query execution should dispatch through that
+profile without embedding Robinson-Q-specific conditionals at each call site.
+
+The common comparison suite should include formulas that both paths can prove,
+record runtimes for each path, and document where the two readings diverge. In
+particular, Q7 under the ordinary path is proof from an assumption, while Q7
+under `:robinson-q` is proof by conversion plus reflexive equality. Q3 remains
+outside the initial conversion profile because its predecessor-or-zero shape is
+a controlled case split rather than a terminating rewrite.
+
+ADR-0048 was completed the same day. The promoted common comparison covers Q7,
+`add(1, zero) = 1`, `mul(2, zero) = zero`, `add(1, 2) = 3`, and
+`mul(2, 2) = 4` through both paths. The focused selector passed with
+`Ran 5 tests containing 42 assertions`, and the standard fast/extended gates
+passed after the proof-profile dispatch change.

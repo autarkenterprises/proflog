@@ -30,6 +30,7 @@ query walkthroughs for the current `test/proflog` suites.
 - [Kernel Finite Verifier Examples](./kernel-finite-verifiers.md)
 - [Legacy Subsumption Parity Examples](./legacy-subsumption-parity.md)
 - [Constructor-Recursive Profile Examples](./constructor-recursive-profile.md)
+- [Robinson Q Proof Profile Example](./robinson-q.md)
 - [Pelletier Problems](./pelletier-problems.md)
 
 ## Reading Pattern
@@ -66,6 +67,7 @@ evaluator.
 | Answers API | answer-overlay export from compiled queries | bindings, residuals, diagnostics |
 | Kernel Finite Verifier Examples | profiled equality-fragment kernel path | quantified success and refutation |
 | Constructor-Recursive Profile Examples | guarded recursive profile over compiled IR | reverse and partial synthesis |
+| Robinson Q Proof Profile Example | ordinary Q assumptions and opt-in deduction-modulo conversion | theorem proving, profiled equality conversion, timing comparison |
 | Pelletier Problems | direct theorem formulas without program clauses | first-order proof closure |
 
 ## Conventions

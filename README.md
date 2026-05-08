@@ -384,6 +384,14 @@ lein test-proflog-fitting-programs
 lein test-proflog-legacy-subsumption
 ```
 
+For Robinson arithmetic Q as both ordinary assumptions and an opt-in
+deduction-modulo profile, run:
+
+```text
+lein test-proflog-robinson-q
+lein probe-proflog-robinson-q
+```
+
 For the opt-in Turing-completeness demonstration, run:
 
 ```text

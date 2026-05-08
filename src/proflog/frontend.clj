@@ -38,6 +38,7 @@
 ;;   constants: nullary function symbols
 ;;   functions: term-forming symbols with arities
 ;;   relations: predicate symbols with arities
+;;   proof-profile: optional query-time proof system selection
 ;;
 ;; The result is still a reusable backend language value, so several programs can
 ;; be compiled against the same signature.
@@ -66,9 +67,15 @@
       constants {:constants (vec entries)}
       functions {:functions (into {} (map arity-entry entries))}
       relations {:relations (into {} (map arity-entry entries))}
+      proof-profile (do
+                      (when-not (and (= 1 (count entries))
+                                     (keyword? (first entries)))
+                        (malformed! "Expected a proof profile section like (proof-profile :profile-name)"
+                                    {:section section}))
+                      {:proof-profile (first entries)})
       (malformed! "Unknown language section"
                   {:section section
-                   :known-sections '(constants functions relations)}))))
+                   :known-sections '(constants functions relations proof-profile)}))))
 
 (defn- parse-language-declaration
   "Merge all frontend declaration sections into the backend declaration map."

@@ -29,6 +29,23 @@ complete contemporaneous transcript.
   plus refutation proof-object sketches for Q7 when promoted to a rewrite
   rule. See
   [Robinson Q And Deduction Modulo Notes](docs/log/2026-05-08-robinson-q-deduction-modulo.md).
+- Extended the Robinson Q note and opened
+  [ADR-0048](docs/adr/ADR-0048-robinson-q-proof-profiles.md) on branch
+  `adr-0048-robinson-q`. ADR-0048 requires both Q-as-antecedent and
+  `:robinson-q` deduction-modulo proof-profile implementations, a generic
+  language-level profile opt-in, and a shared correctness/performance
+  comparison.
+- Completed ADR-0048 with `proflog.robinson-q`, generic
+  `proflog.proof-profile` dispatch, and the `:robinson-q` conversion profile.
+  The focused selector passed with `Ran 5 tests containing 42 assertions`,
+  `0 failures, 0 errors`, and `wall 8.94 s`; the comparison probe passed in
+  `wall 7.82 s`. The standard concurrent gates passed:
+  `lein test-proflog-fast` with `Ran 133 tests containing 456 assertions`,
+  `0 failures, 0 errors`, `wall 75.27 s`; and
+  `lein test-proflog-extended` with `Ran 68 tests containing 203 assertions`,
+  `0 failures, 0 errors`, `wall 197.59 s`. See
+  [AAR-0048](docs/aar/AAR-0048-robinson-q-proof-profiles.md) and
+  [Robinson Q Proof Profile Example](worked-examples/robinson-q.md).
 - Completed
   [ADR-0047](docs/adr/ADR-0047-ski-quine-evaluation.md) on branch
   `adr-0047-ski-quine`. Direct `eval-for(3, omega, omega)` for the SKI

@@ -36,6 +36,8 @@
 ;; Constants are just zero-arity function symbols, but the frontend lets authors
 ;; list them separately because that is how mathematical examples are usually
 ;; written. Relation symbols live in a separate namespace from term constructors.
+;; Optional proof-profile metadata is kept with the language because it changes
+;; how validated formulas are proved, not whether their symbols are well formed.
 ;; -----------------------------------------------------------------------------
 
 (defn fresh-nom
@@ -49,7 +51,7 @@
 
 (defn normalize-declaration-map
   "Turn constants into explicit zero-arity functions."
-  [{:keys [constants functions relations] :as declaration}]
+  [{:keys [constants functions relations proof-profile] :as declaration}]
   (let [constants (vec (or constants []))
         functions (or functions {})
         relations (or relations {})
@@ -64,10 +66,12 @@
       (throw (ex-info "Term symbols may not also be declared as relation symbols"
                       {:overlap relation-overlap
                        :declaration declaration})))
-    {:constants (set constants)
-     :functions (merge (into {} (map (fn [sym] [sym 0]) constants))
-                       functions)
-     :relations relations}))
+    (cond-> {:constants (set constants)
+             :functions (merge (into {} (map (fn [sym] [sym 0]) constants))
+                               functions)
+             :relations relations}
+      (some? proof-profile)
+      (assoc :proof-profile proof-profile))))
 
 (defn language
   "Construct a normalized language declaration.
@@ -86,6 +90,10 @@
       (when-not (and (symbol? sym) (integer? arity) (<= 0 arity))
         (throw (ex-info "Invalid relation declaration"
                         {:symbol sym :arity arity}))))
+    (when-let [proof-profile (:proof-profile normalized)]
+      (when-not (keyword? proof-profile)
+        (throw (ex-info "Invalid proof profile declaration"
+                        {:proof-profile proof-profile}))))
     normalized))
 
 (defn- declared-function-arity

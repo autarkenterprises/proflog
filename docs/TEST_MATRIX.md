@@ -31,6 +31,7 @@ This matrix is the release gate until a separate automated coverage tool is adde
 | Answer discipline | admissible substitutions, residual disequalities, proof attachment | open-query examples with quantified bodies | answer terms contain only language `L` symbols and no `par` | yes |
 | Regression and performance | previously fixed bug cases, ordering/pathology cases | flagship program suite | bounded runtime budgets only after baseline correctness exists | yes |
 | Minimal TC demonstrations | transition clauses, bounded reachability, trace-shaped proof, symbolic reduction, self-reproduction trace, answer export, instruction partial synthesis | two-counter Minsky machine transfer/incrementer programs and SKI combinatory logic | source audits for absence of host-side machine/SKI evaluators; runtime-boundary notes for non-promoted slow probes | opt-in focused gates |
+| Proof profiles and deduction modulo | language-level profile metadata, profile dispatch, theory conversion proof markers | Robinson Q as ordinary assumptions and as `:robinson-q` conversion profile | common theorem timing comparison and proof evidence distinguishing assumptions from conversion | yes when production query dispatch changes |
 | Speculative overlays and probes | direct relation/constraint behavior, compatibility tests, wrapper boundary tests | focused integration probes against one production surface where relevant | before/after measurements or upstream-style behavior tests | no, unless the ADR promotes the feature |
 
 ## Flagship Program Families
@@ -41,6 +42,7 @@ This matrix is the release gate until a separate automated coverage tool is adde
 - Extensional definitions such as subset or set equality using universal quantification.
 - Global specification examples such as sortedness or uniqueness over structural relations.
 - Two-counter Minsky machine interpreter and SKI combinatory logic (`lein test-proflog-turing-completeness`).
+- Robinson arithmetic Q ordinary/proof-profile comparison (`lein test-proflog-robinson-q`).
 
 ## Equality Oracle Requirements
 

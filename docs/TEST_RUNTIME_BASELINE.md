@@ -267,6 +267,32 @@ Current ADR-0047 SKI quine note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `elapsed 237.72 s`.
 
+Current ADR-0048 Robinson Q note:
+
+- Red TDD check on 2026-05-08 failed before implementation with
+  `Could not locate proflog/robinson_q` and `Tests failed`.
+- The focused Robinson Q selector passed with
+  `Ran 5 tests containing 42 assertions`, `0 failures, 0 errors`, and
+  `wall 8.94 s`.
+- The focused language/frontend/query regression selector passed after adding
+  proof-profile dispatch with `Ran 22 tests containing 68 assertions`,
+  `0 failures, 0 errors`, and `wall 25.54 s`.
+- The reproducible comparison probe `lein probe-proflog-robinson-q` passed with
+  `wall 7.82 s`. Per-row in-process timings:
+
+| Formula | Ordinary Q fuel | Ordinary elapsed | Profile fuel | Profile elapsed |
+|---|---:|---:|---:|---:|
+| `Q7` | 32 | `7.639 ms` | 16 | `2.144 ms` |
+| `add(1, zero) = 1` | 48 | `2.064 ms` | 16 | `2.899 ms` |
+| `mul(2, zero) = zero` | 48 | `2.855 ms` | 16 | `1.487 ms` |
+| `add(1, 2) = 3` | 64 | `3.283 ms` | 16 | `1.234 ms` |
+| `mul(2, 2) = 4` | 96 | `4.675 ms` | 16 | `1.451 ms` |
+- The ADR-0048 commit gate ran fast and extended concurrently. Fast passed with
+  `Ran 133 tests containing 456 assertions`, `0 failures, 0 errors`, and
+  `wall 75.27 s`. Extended passed with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `wall 197.59 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

@@ -24,6 +24,8 @@ the right one for a source clause. Those are language-layer obligations.
 - compute the positive and negative body views used by procedure calls;
 - build alternative and guarded-alternative metadata used by the answer overlay
   and constructor-recursive layer.
+- preserve optional proof-profile metadata so query evaluation can opt in to a
+  language-selected theory layer.
 
 It does not prove anything. Proof search starts later, in `proflog.kernel` or
 `proflog.answer-overlay`.
@@ -37,7 +39,8 @@ A language declaration is a Clojure map:
  :functions {'s 1
              'cons 2}
  :relations {'append 3
-             'reverse 2}}
+             'reverse 2}
+ :proof-profile :robinson-q}
 ```
 
 `language/language` normalizes and validates this declaration.
@@ -49,6 +52,11 @@ Constants are syntactic sugar for zero-arity functions. After normalization,
 Function and relation symbols are separate namespaces. A symbol may not be both
 a term constructor and a relation. A constant may not also be declared as a
 positive-arity function.
+
+`:proof-profile` is optional. When present, it must be a keyword. The default
+query path treats an absent profile as `:default`, which calls the existing
+program kernel. Profile keys such as `:robinson-q` are interpreted by
+`proflog.proof-profile`, not by the language validator itself.
 
 ## AST Contract
 

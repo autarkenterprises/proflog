@@ -69,6 +69,7 @@
                                     "proflog.closed-term-gamma-test"
                                     "proflog.frontend-test"
                                     "proflog.formula-profile-test"
+                                    "proflog.robinson-q-test"
                                     "proflog.kernel.dispatch-test"
                                     "proflog.kernel.first-order-test"
                                     "proflog.kernel.propositional-test"
@@ -117,6 +118,8 @@
                                                       "proflog.minsky-trace-performance-test"]
             "test-proflog-combinatory-logic" ["test"
                                               "proflog.combinatory-logic-test"]
+            "test-proflog-robinson-q" ["test"
+                                        "proflog.robinson-q-test"]
             "test-proflog-kernel-finite-verifiers" ["test"
                                                     "proflog.kernel-finite-verifiers-test"]
             "test-proflog-legacy-subsumption" ["test"
@@ -135,6 +138,7 @@
             "probe-proflog-list-kernel-matrix" ["run" "-m" "proflog.list-kernel-matrix-probe"]
             "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]
             "probe-proflog-turing-completeness" ["run" "-m" "proflog.turing-completeness-long-probe"]
+            "probe-proflog-robinson-q" ["run" "-m" "proflog.robinson-q-probe"]
             "probe-core-logic-host" ["run" "-m" "proflog.core-logic-host-probe"]
             "probe-core-logic-tabling" ["run" "-m" "proflog.core-logic-tabling-probe"]
             "probe-core-logic-count" ["run" "-m" "proflog.core-logic-count-probe"]

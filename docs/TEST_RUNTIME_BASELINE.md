@@ -233,7 +233,8 @@ Current ADR-0045/0046 Turing-completeness performance note:
 - The aggregate `lein test-proflog-turing-completeness` selector now includes
   ADR-0044, ADR-0045, and ADR-0046. It passed with
   `Ran 14 tests containing 29 assertions`, `0 failures, 0 errors`, and
-  `elapsed 328.17 s`.
+  `elapsed 328.17 s`. A post-merge completion-audit rerun on `main` passed with
+  the same assertion count and `elapsed 308.91 s`.
 - The ADR-0045/0046 commit gate passed `lein test-proflog-fast` with
   `Ran 128 tests containing 414 assertions`, `0 failures, 0 errors`, and
   `elapsed 69.66 s`, plus `lein test-proflog-extended` with

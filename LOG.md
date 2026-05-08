@@ -32,7 +32,8 @@ complete contemporaneous transcript.
   combinatory-logic TC demonstration with root reductions, bounded evaluation,
   answer export, and source audit; the focused namespace passed in `225.50 s`.
   The aggregate `lein test-proflog-turing-completeness` selector passed in
-  `328.17 s`. The standard gates passed as well: `lein test-proflog-fast` in
+  `328.17 s`, and a post-merge completion-audit rerun on `main` passed in
+  `308.91 s`. The standard gates passed as well: `lein test-proflog-fast` in
   `69.66 s` and `lein test-proflog-extended` in `195.92 s`.
   See [AAR-0045](docs/aar/AAR-0045-minsky-trace-performance.md),
   [AAR-0046](docs/aar/AAR-0046-combinatory-logic-turing-completeness.md),

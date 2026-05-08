@@ -129,6 +129,61 @@ The proof remains nontrivial in the proof object because it uses an explicit
 theory conversion step. But it is not a derivation from Q7 as an assumption;
 Q7 has been moved into definitional equality for the profile.
 
+## Proof-Object Sketches
+
+For the positive theorem presentation:
+
+```text
+Goal:
+  forall x y. mul(x, s(y)) = add(mul(x, y), x)
+```
+
+a proof object should look like a quantifier/equality proof with an explicit
+Q-conversion step:
+
+```text
+(forall-intro a)
+(forall-intro b)
+(q-rewrite mul-succ
+  :from mul(a, s(b))
+  :to   add(mul(a, b), a))
+(eq-reflexive add(mul(a, b), a))
+```
+
+The exact Clojure data shape can differ, but the important audit property is
+that the proof term exposes both:
+
+- the universal-parameter introductions; and
+- the trusted `mul-succ` theory conversion used before reflexivity.
+
+For the refutation-tableau presentation, the prover starts from the negated
+theorem:
+
+```text
+exists x y. mul(x, s(y)) != add(mul(x, y), x)
+```
+
+A proof object could record:
+
+```text
+(exists-witness a)
+(exists-witness b)
+(q-rewrite mul-succ
+  :from mul(a, s(b))
+  :to   add(mul(a, b), a))
+(close-neq-reflexive add(mul(a, b), a))
+```
+
+In ordinary first-order tableau terms, this is closure of a branch containing a
+disequality whose two sides are equal modulo the Q conversion relation. In
+deduction-modulo terms, it is closure by convertibility plus equality
+reflexivity.
+
+This proof is "more than Q7 is an axiom" in the narrow sense that the proof
+object contains a conversion trace. It is still not a derivation of Q7 from
+weaker arithmetic principles; it is a check that the theorem formula is
+convertibly reflexive under the active `:robinson-q` profile.
+
 ## Design Boundary
 
 Promoting Q axioms to rules changes proof meaning. Ordinary formulas produce

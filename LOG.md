@@ -25,8 +25,9 @@ complete contemporaneous transcript.
 - Logged design notes on representing Robinson arithmetic Q in Proflog and on
   a possible deduction-modulo `:robinson-q` proof profile. The note records
   Q's function-symbol language, the distinction between axioms as assumptions
-  versus theory conversion rules, Q3 as a controlled case split, and the proof
-  shape for Q7 when promoted to a rewrite rule. See
+  versus theory conversion rules, Q3 as a controlled case split, and positive
+  plus refutation proof-object sketches for Q7 when promoted to a rewrite
+  rule. See
   [Robinson Q And Deduction Modulo Notes](docs/log/2026-05-08-robinson-q-deduction-modulo.md).
 - Completed
   [ADR-0047](docs/adr/ADR-0047-ski-quine-evaluation.md) on branch

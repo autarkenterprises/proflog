@@ -59,3 +59,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0052](AAR-0052-unified-robinson-q3-theory-rule.md) | [ADR-0052](../adr/ADR-0052-unified-robinson-q3-theory-rule.md) | completed |
 | [AAR-0053](AAR-0053-robinson-q-theorem-examples.md) | [ADR-0053](../adr/ADR-0053-robinson-q-theorem-examples.md) | completed |
 | [AAR-0054](AAR-0054-robinson-q-prime-evenness.md) | [ADR-0054](../adr/ADR-0054-robinson-q-prime-evenness.md) | completed |
+| [AAR-0055](AAR-0055-ski-relational-routing.md) | [ADR-0055](../adr/ADR-0055-ski-relational-routing.md) | completed |

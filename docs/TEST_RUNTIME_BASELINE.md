@@ -267,6 +267,25 @@ Current ADR-0047 SKI quine note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `elapsed 237.72 s`.
 
+Current ADR-0055 SKI routing note:
+
+- The red route check first failed in `9.59 s` because the previous SKI test
+  helpers entered `query/query-succeeds` and `answers/query-answers`.
+- The promoted route check
+  `ski-evaluation-does-not-route-through-public-or-profiled-shortcuts` passed
+  with `Ran 1 tests containing 5 assertions`, `0 failures, 0 errors`, and
+  `real 29.14 s`.
+- The promoted answer row
+  `ski-answer-mode-exports-a-reduced-term` passed with
+  `Ran 1 tests containing 2 assertions`, `0 failures, 0 errors`, and
+  `real 49.32 s`.
+- The full SKI selector `lein test-proflog-combinatory-logic` passed with
+  `Ran 8 tests containing 18 assertions`, `0 failures, 0 errors`, and
+  `real 176.02 s`.
+- The aggregate `lein test-proflog-turing-completeness` selector passed with
+  `Ran 16 tests containing 35 assertions`, `0 failures, 0 errors`, and
+  `real 273.27 s`.
+
 Current ADR-0048 Robinson Q note:
 
 - Red TDD check on 2026-05-08 failed before implementation with

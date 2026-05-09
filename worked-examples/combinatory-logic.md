@@ -232,18 +232,28 @@ and proving the body. The left-spine context rule is just another compiled
 
 ## Evaluation Process
 
-Closed proof checks use `query/query-succeeds`:
+Closed proof checks in the route-audit tests bypass public proof-profile
+dispatch. They validate the formula, negate it for tableau refutation, and call
+the relational kernel directly:
 
 ```clojure
-(query/query-succeeds
-  (ski/program)
-  (ast/pos-lit
-    (ast/app-term 'step
-                  (ski/ap (ski/ap (ski/c 'kcomb) (ski/c 'a))
-                          (ski/c 'b))
-                  (ski/c 'a)))
-  1
-  32)
+(let [program (ski/program)
+      formula (ast/pos-lit
+                (ast/app-term 'step
+                              (ski/ap (ski/ap (ski/c 'kcomb) (ski/c 'a))
+                                      (ski/c 'b))
+                              (ski/c 'a)))
+      checked-formula (language/validate-query (:language program) formula)
+      negated-formula (normalize/negate-formula checked-formula)]
+  (run 1 [proof]
+    (kernel/prove-programo
+      negated-formula
+      '()
+      '()
+      '()
+      program
+      32
+      proof)))
 ```
 
 The parameters are:
@@ -251,32 +261,63 @@ The parameters are:
 | Parameter | Meaning |
 |---|---|
 | `(ski/program)` | compiled Proflog program containing the SKI clauses |
-| formula | positive literal to prove |
-| `1` | requested proof limit |
+| `formula` | positive object-language literal to prove |
+| `checked-formula` | query after language validation |
+| `negated-formula` | NNF negation used as the tableau refutation target |
+| `'()` environment arguments | initial substitution, disequality, and residual state |
 | `32` | fuel bound for proof search |
+| `proof` | relational proof term returned by `kernel/prove-programo` |
 
-Answer-mode checks use `pf/run`, which binds answer variables at the frontend
-surface and delegates to the public answer API:
+Answer-mode route-audit checks likewise bypass `pf/run` and the public
+`answers/query-answers` wrapper. They still use ordinary language validation,
+but the proof state is produced by the answer overlay relations:
 
 ```clojure
-(pf/run (ski/program) [result]
-  (eval-for (s (s zero))
-            (ap (ap (ap scomb kcomb) kcomb) a)
-            result)
-  {:fuel 64
-   :call-depth 4
-   :proof-limit 4
-   :max-raw-proof-limit 16})
+(ast/nom result
+  (let [program (ski/program)
+        query (ast/pos-lit
+                (ast/app-term 'eval-for
+                              (ski/numeral 2)
+                              (ski/skk (ski/c 'a))
+                              (ast/var-term result)))
+        checked-query (language/validate-query (:language program) query)
+        checked-answer-vars [result]
+        negated-query (normalize/negate-formula checked-query)]
+    (run 16 [answer-vars-out sigma-out neqs-out residuals-out proof]
+      (== answer-vars-out checked-answer-vars)
+      (answer-overlay/prove-program-query-entry-scheduledo
+        negated-query
+        checked-answer-vars
+        program
+        sigma-out
+        neqs-out
+        residuals-out
+        64
+        4
+        96
+        proof))))
 ```
 
-The options are:
+The answer parameters are:
 
-| Option | Meaning |
+| Parameter | Meaning |
 |---|---|
-| `:fuel` | proof-search fuel passed to the kernel |
-| `:call-depth` | answer-overlay procedure-call expansion depth |
-| `:proof-limit` | number of exported answer records requested |
-| `:max-raw-proof-limit` | upper bound for raw proof slices considered during answer export |
+| `query` | positive object-language `eval-for/3` literal |
+| `checked-answer-vars` | answer variable noms to export after proof search |
+| `negated-query` | NNF negation used as the answer-tableau entry |
+| `answer-vars-out` | relation output used to keep the answer-variable vector visible |
+| `sigma-out` | relational substitution accumulated during proof search |
+| `neqs-out` | relational disequality constraints accumulated during proof search |
+| `residuals-out` | unresolved residual goals after scheduler completion |
+| `64` | proof-search fuel passed to the answer overlay |
+| `4` | answer-overlay procedure-call expansion depth |
+| `96` | residual-continuation fuel for the relational scheduler |
+| `proof` | relational proof term for the raw answer state |
+
+The test then uses the private answer-record exporter as presentation only. The
+raw state has already been found by `prove-program-query-entry-scheduledo`,
+which invokes `prove-program-query-entryo` and the relational residual
+scheduler.
 
 The promoted answer row exports:
 
@@ -284,6 +325,13 @@ The promoted answer row exports:
 {:bindings [[result a]]
  :residuals []}
 ```
+
+ADR-0055 adds a route trace around these helpers. The trace records calls to
+`kernel/prove-programo`,
+`answer-overlay/prove-program-query-entry-scheduledo`, and
+`answer-overlay/prove-program-query-entryo`, and fails if SKI evaluation enters
+`kernel/prove-program`, `query/query-succeeds`, `answers/query-answers`,
+constructor-recursive sidecars, or the equality-fragment host profile.
 
 The ADR-0047 quine example uses the standard self-reproducing SKI term:
 
@@ -340,12 +388,13 @@ Current promoted checks:
 
 | Test | Mode | Outcome | Focused runtime |
 |---|---|---|---:|
+| `ski-evaluation-does-not-route-through-public-or-profiled-shortcuts` | route audit | records direct relational kernel and scheduled answer-overlay calls while forbidding public dispatch, constructor-recursive sidecars, and equality-fragment host shortcuts | `29.14 s` |
 | `ski-root-reductions-close-through-the-kernel` | forward | proves I, K, and S root reductions with procedure-call evidence | `31.33 s` |
 | `ski-skk-identity-fully-evaluates` | bounded forward recursion | `eval-for(2, SKK a, a)` succeeds | `44.29 s` |
 | `ski-boolean-true-fully-evaluates` | bounded forward recursion | `choose(K, a, b)` reduces to `a` | `20.09 s` |
 | `ski-boolean-false-fully-evaluates` | bounded forward recursion | `choose(K I, a, b)` reduces to `b` through the left-spine context rule | `45.29 s` |
 | `ski-omega-quine-reproduces-itself-through-a-guided-trace` | guided full-context trace | proves `(S I I)(S I I)` returns to itself after three positive reductions | `95.44 s` |
-| `ski-answer-mode-exports-a-reduced-term` | answer | exports `result = a` for `SKK a` with no residuals | `206.87 s` |
+| `ski-answer-mode-exports-a-reduced-term` | answer | exports `result = a` for `SKK a` with no residuals through the scheduled answer-overlay relation | `49.32 s` |
 | `combinatory-logic-namespace-does-not-contain-a-host-evaluator` | source audit | no host query/answer evaluator or host `step`/`eval`/`reduce` function in the namespace | `15.80 s` |
 
 The ADR-0046 full focused suite passed with:
@@ -362,6 +411,23 @@ After ADR-0047, the full focused suite passed with:
 Ran 7 tests containing 13 assertions.
 0 failures, 0 errors.
 elapsed_seconds 301.98
+```
+
+After ADR-0055, the full focused suite passed with the route guard and direct
+relational answer helper:
+
+```text
+Ran 8 tests containing 18 assertions.
+0 failures, 0 errors.
+real 176.02
+```
+
+The aggregate Turing-completeness selector also passed after ADR-0055:
+
+```text
+Ran 16 tests containing 35 assertions.
+0 failures, 0 errors.
+real 273.27
 ```
 
 ## Correctness And Shortcomings

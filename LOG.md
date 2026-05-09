@@ -22,6 +22,20 @@ complete contemporaneous transcript.
 
 ## 2026-05-09
 
+- Completed
+  [ADR-0055](docs/adr/ADR-0055-ski-relational-routing.md) on branch
+  `adr-0055-ski-relational-routing`. The red route guard first failed because
+  SKI tests entered `query/query-succeeds` and `answers/query-answers`.
+  Closed proof rows now call `kernel/prove-programo` directly, and the answer
+  row calls `answer-overlay/prove-program-query-entry-scheduledo`, which
+  invokes `prove-program-query-entryo` and the relational residual scheduler.
+  The route guard passed in `29.14 s`, the answer selector passed in
+  `49.32 s`, and the full SKI selector passed with `Ran 8 tests containing 18
+  assertions`, `0 failures, 0 errors`, `real 176.02 s`. The aggregate
+  `lein test-proflog-turing-completeness` selector passed with `Ran 16 tests
+  containing 35 assertions`, `0 failures, 0 errors`, `real 273.27 s`. See
+  [AAR-0055](docs/aar/AAR-0055-ski-relational-routing.md) and
+  [Combinatory Logic Example](worked-examples/combinatory-logic.md).
 - Audited the current `:robinson-q` profile for remaining expressivity gaps.
   The theorem
   `forall x. x != zero -> exists y. s(add(y, s(zero))) = s(x)` is valid in Q

@@ -420,6 +420,7 @@ programs are defined, translated, queried, and evaluated.
 
 ## Execution Docs
 
+- [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
 - [docs/EXECUTION_PLAN.md](docs/EXECUTION_PLAN.md)
 - [docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md](docs/GREENFIELD_IMPLEMENTATION_TUTORIAL.md)
 - [docs/GREENFIELD_SOURCE_MAP.md](docs/GREENFIELD_SOURCE_MAP.md)

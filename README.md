@@ -392,6 +392,9 @@ lein test-proflog-robinson-q
 lein probe-proflog-robinson-q
 ```
 
+The worked example in [worked-examples/robinson-q.md](worked-examples/robinson-q.md)
+includes Q conversion, Q3, and the corrected prime/evenness formulas.
+
 For the opt-in Turing-completeness demonstration, run:
 
 ```text

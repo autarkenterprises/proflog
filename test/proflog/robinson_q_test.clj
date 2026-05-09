@@ -4,6 +4,8 @@
             [clojure.string :as str]
             [proflog.ast :as ast]
             [proflog.frontend :as pf]
+            [proflog.kernel :as kernel]
+            [proflog.kernel.equality-fragment :as equality-fragment]
             [proflog.kernel.robinson-q-profile :as rq-profile]
             [proflog.language :as language]
             [proflog.proof :as proof]
@@ -256,6 +258,54 @@
               (str label " should use Q3 predecessor equality"))
           (is (not (proof/contains-step? profile-proof 'q3-predecessor-equality))
               (str label " should be conversion-only")))))))
+
+(deftest corrected-prime-evenness-examples-prove-as-q-antecedents-under-both-languages
+  (testing "corrected primality excludes one and excludes two from the evenness theorem"
+    (doseq [[label theorem fuel]
+            [[:no-two-factor rq/prime-other-than-two-has-no-two-factor 128]
+             [:not-left-even rq/prime-other-than-two-is-not-left-even 128]]]
+      (let [ordinary-proof (first-success-proof
+                             rq/ordinary-program
+                             (rq/q-implies theorem)
+                             fuel)
+            profile-proof (first-success-proof
+                            rq/profile-program
+                            (rq/q-implies theorem)
+                            fuel)]
+        (is ordinary-proof (str "ordinary Q should prove corrected prime example " label))
+        (is (not (proof/contains-step? ordinary-proof 'robinson-q))
+            "ordinary Q should not silently use the Robinson-Q profile")
+        (is profile-proof (str "profiled language should preserve the Q-as-antecedent proof for " label))
+        (is (proof/contains-step? profile-proof 'equality-fragment)
+            "the corrected prime examples should close through the generic equality fragment")
+        (is (not (proof/contains-step? profile-proof 'q-rewrite))
+            "these examples follow from the inline prime definition, not Q arithmetic conversion")
+        (is (not (proof/contains-step? profile-proof 'q3-predecessor-equality))
+            "these examples do not need Q3 predecessor synthesis")))))
+
+(deftest robinson-q-profile-preserves-equality-fragment-fast-path
+  (testing "Q profile dispatch keeps the generic equality-fragment sidecar before full Q search"
+    (let [calls (atom [])
+          sentinel '((profiled equality-fragment prime-fast-path))]
+      (with-redefs [equality-fragment/prove-program-host
+                    (fn [program formula proof-limit fuel]
+                      (swap! calls conj [program formula proof-limit fuel])
+                      sentinel)
+                    kernel/prove-programo
+                    (fn [& _]
+                      (throw (ex-info "full Q kernel should not run after equality-fragment success"
+                                      {})))]
+        (is (= sentinel
+               (rq-profile/prove-program
+                 rq/profile-program
+                 rq/prime-other-than-two-has-no-two-factor
+                 1
+                 128)))
+        (is (= [[rq/profile-program
+                 rq/prime-other-than-two-has-no-two-factor
+                 1
+                 128]]
+               @calls))))))
 
 (deftest profiled-robinson-q-theory-rules-are-interleaved-with-kernel-steps
   (testing "Q theory closure happens after ordinary kernel branch decomposition"

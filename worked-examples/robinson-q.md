@@ -1,7 +1,7 @@
 # Robinson Q Proof Profile Example
 
 This example documents `test/proflog/robinson_q_test.clj`, ADR-0048 through
-ADR-0052. It shows Robinson arithmetic Q in two forms:
+ADR-0054. It shows Robinson arithmetic Q in two forms:
 
 - ordinary first-order assumptions: `Q1 and ... and Q7 -> theorem`;
 - an opt-in proof profile: Robinson-Q theory rules are bound into the ordinary
@@ -17,9 +17,9 @@ lein test-proflog-robinson-q
 Current result:
 
 ```text
-Ran 12 tests containing 88 assertions.
+Ran 15 tests containing 123 assertions.
 0 failures, 0 errors.
-real 22.24 s
+real 20.69 s
 ```
 
 Run the timing comparison:
@@ -405,6 +405,121 @@ The right side `s(x)` becomes `s(s(y))` under the temporary Q3 equality:
                         (q-rewrite :add-zero ...))))))
               (q-normal-s (q-normal-par)))))))))
 
+## Corrected Prime Evenness Example
+
+ADR-0054 records the corrected version of a proposed prime/evenness example.
+The original informal definition omitted `x != s(zero)`, which would classify
+one as prime. The original theorem also said every prime is not even, but two
+is both prime and even.
+
+The corrected hand-written helper is an inline abbreviation:
+
+```text
+is-prime(x) :=
+  x != zero
+  AND x != s(zero)
+  AND forall y. forall z.
+    mul(y, z) = x ->
+      ((y = x AND z = s(zero))
+       OR
+       (y = s(zero) AND z = x))
+```
+
+It is not declared as a Q relation. Q's language has function symbols and
+equality only, so the implemented form is a formula helper:
+
+```clojure
+(rq/prime-form x)
+```
+
+The factor theorem keeps the original `x`, `y`, `z` shape but adds the
+necessary exception for two:
+
+```text
+forall x y z.
+  is-prime(x)
+  AND x != s(s(zero))
+  AND mul(y, z) = x
+  ->
+  y != s(s(zero)) AND z != s(s(zero))
+```
+
+The backend catalog exposes this as:
+
+```clojure
+rq/prime-other-than-two-has-no-two-factor
+```
+
+There is also a divisibility-oriented left-factor theorem:
+
+```text
+forall x.
+  is-prime(x)
+  AND x != s(s(zero))
+  ->
+  forall n. mul(s(s(zero)), n) != x
+```
+
+The left orientation is intentional. Robinson Q does not include multiplication
+commutativity, so a worked example should not hide orientation behind the
+informal word "even".
+
+The passing regression path proves these formulas as ordinary Q consequences:
+
+```clojure
+(query/query-succeeds
+  rq/ordinary-program
+  (rq/q-implies rq/prime-other-than-two-has-no-two-factor)
+  1
+  128)
+```
+
+The same Q-as-antecedent formula also closes under the profiled language:
+
+```clojure
+(query/query-succeeds
+  rq/profile-program
+  (rq/q-implies rq/prime-other-than-two-has-no-two-factor)
+  1
+  128)
+```
+
+This is deliberately not presented as a Q conversion proof. The proof closes
+through the generic equality-fragment sidecar from the inline definition of
+primality:
+
+```clojure
+(profiled
+  equality-fragment
+  ...)
+```
+
+The tests assert that these proofs do not contain `q-rewrite` or
+`q3-predecessor-equality`.
+
+The theorem-only profile path is not yet a passing demonstration:
+
+```clojure
+(query/query-succeeds
+  rq/profile-program
+  rq/prime-other-than-two-has-no-two-factor
+  1
+  128)
+```
+
+On 2026-05-09 that query did not finish inside:
+
+```text
+timeout -k 5s 60s ...
+real 60.07 s
+```
+
+The search-control issue is that the profile must instantiate the universal
+factor variables inside `prime-form` with branch-local factor terms. The
+ordinary Q-as-antecedent equality-fragment path finds a quick closure, but the
+theorem-only profiled search still does not. That is recorded as a current
+shortcoming rather than hidden by the passing Q-as-antecedent example.
+
 ## Kernel Rule Shape
 
 The theory hook receives the same branch-local state as ordinary close rules:
@@ -431,9 +546,9 @@ Focused test:
 
 ```text
 lein test-proflog-robinson-q
-Ran 13 tests containing 109 assertions.
+Ran 15 tests containing 123 assertions.
 0 failures, 0 errors.
-real 22.66 s
+real 20.69 s
 ```
 
 Comparison probe:
@@ -451,9 +566,11 @@ Comparison probe:
 | `forall x. add(x, s(s(zero))) = s(s(x))` | 64 | `2.289 ms` | 16 | `87.787 ms` |
 | `forall x. mul(x, s(s(zero))) = add(add(zero, x), x)` | 96 | `2.595 ms` | 16 | `133.538 ms` |
 | `forall x. x != zero -> exists y. add(y, s(s(zero))) = s(x)` | 64 | `3.175 ms` | 32 | `1174.210 ms` |
+| `prime-other-than-two-has-no-two-factor` as Q antecedent | 128 | `4.470 ms` | 128 | `4.385 ms` |
+| `prime-other-than-two-is-not-left-even` as Q antecedent | 128 | `1.855 ms` | 128 | `2.140 ms` |
 
 The elapsed values above are the in-process row timings printed by
-`lein probe-proflog-robinson-q`; the full Leiningen process took `real 14.80 s`.
+`lein probe-proflog-robinson-q`; the full Leiningen process took `real 12.27 s`.
 
 ## Shortcomings
 
@@ -477,6 +594,14 @@ The Q normalizer is still intentionally narrow. It rewrites known branch terms
 over `zero`, `s`, `add`, and `mul`, and leaves symbolic right arguments neutral
 when no Q root rule applies. It is not yet a full congruence-closure or
 deduction-modulo framework for arbitrary user theories.
+
+The ADR-0054 prime/evenness formulas close only on the documented
+Q-as-antecedent path. The theorem-only `:robinson-q` query for
+`prime-other-than-two-has-no-two-factor` did not finish inside a 60s wrapper at
+fuel 128. Future work should teach the theorem-only profile or the generic
+equality-fragment layer to use branch-local factor terms as universal
+instantiation candidates without opening the large search space seen in the
+current probe.
 
 The profile intentionally does not prove:
 

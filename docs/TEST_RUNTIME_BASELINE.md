@@ -427,6 +427,33 @@ Current ADR-0053 Robinson Q theorem examples note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `real 228.07 s`.
 
+Current ADR-0054 Robinson Q prime/evenness note:
+
+- Red TDD check on 2026-05-09 added corrected prime/evenness tests before the
+  public helpers existed. The focused selector failed with
+  `No such var: rq/prime-other-than-two-has-no-two-factor` and `real 8.74 s`.
+- After adding the corrected inline prime formula helpers and preserving the
+  equality-fragment sidecar under the `:robinson-q` profile,
+  `lein test-proflog-robinson-q` passed with
+  `Ran 15 tests containing 123 assertions`, `0 failures, 0 errors`, and
+  `real 20.69 s`.
+- The reproducible comparison probe `lein probe-proflog-robinson-q` passed with
+  `real 12.27 s`. Per-row in-process timings for the new corrected examples:
+
+| Formula | Ordinary Q fuel | Ordinary elapsed | Profile fuel | Profile elapsed |
+|---|---:|---:|---:|---:|
+| `prime-other-than-two-has-no-two-factor` as Q antecedent | 128 | `4.470 ms` | 128 | `4.385 ms` |
+| `prime-other-than-two-is-not-left-even` as Q antecedent | 128 | `1.855 ms` | 128 | `2.140 ms` |
+
+- The theorem-only `:robinson-q` query for
+  `prime-other-than-two-has-no-two-factor` at fuel 128 did not finish inside a
+  `timeout -k 5s 60s` wrapper: `real 60.07 s`.
+- The ADR-0054 commit gate ran fast and extended concurrently. Fast passed with
+  `Ran 143 tests containing 537 assertions`, `0 failures, 0 errors`, and
+  `real 84.57 s`. Extended passed with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `real 200.09 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

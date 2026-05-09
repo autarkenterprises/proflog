@@ -1,6 +1,6 @@
 # Greenfield Source Map
 
-Date: 2026-05-07
+Date: 2026-05-09
 Related ADRs:
 [ADR-0043](adr/ADR-0043-greenfield-documentation-refresh.md),
 [ADR-0044](adr/ADR-0044-turing-completeness-demonstration.md),
@@ -8,7 +8,9 @@ Related ADRs:
 [ADR-0049](adr/ADR-0049-robinson-q3-case-split-profile.md),
 [ADR-0050](adr/ADR-0050-kernel-interleaved-robinson-q-theory.md),
 [ADR-0051](adr/ADR-0051-full-robinson-q3-theory-rule.md),
-[ADR-0052](adr/ADR-0052-unified-robinson-q3-theory-rule.md)
+[ADR-0052](adr/ADR-0052-unified-robinson-q3-theory-rule.md),
+[ADR-0053](adr/ADR-0053-robinson-q-theorem-examples.md),
+[ADR-0054](adr/ADR-0054-robinson-q-prime-evenness.md)
 
 This map is the current reader path for `src/proflog`. It is intentionally more
 mechanical than the tutorial: every greenfield namespace is listed so a reader
@@ -60,7 +62,7 @@ AST and declarations
 | `proflog.kernel.propositional` | Pure propositional proof layer. | Used for call-free propositional branches and Pelletier-style theorem fragments where equality and procedure calls are absent. |
 | `proflog.kernel.first-order` | Equality-free first-order proof layer. | Provides the lean first-order search policy used for Pelletier closure while preserving the full kernel for equality and Proflog programs. |
 | `proflog.kernel.equality-fragment` | Finite equality-fragment verifier profile. | ADR-39/42 layer for call-free equality-heavy finite verifier bodies such as group associativity and transition-system laws. It is generic over equality formulas, not over family names. |
-| `proflog.kernel.robinson-q-profile` | Deduction-modulo and Q3 profile for Robinson Q. | Binds a miniKanren theory rule into `kernel/close-agendao`; it normalizes visible `add` and `mul` terms by Q conversion rules, stores exposed nonzero disequalities for Q3, and closes active disequalities with the unified `q3-predecessor-equality` rule when one proof-local universal predecessor makes the Q-normalized sides identical. Q3 is intentionally not a rewrite. |
+| `proflog.kernel.robinson-q-profile` | Deduction-modulo and Q3 profile for Robinson Q. | Preserves the generic equality-fragment sidecar when it can close first, then binds a miniKanren theory rule into `kernel/close-agendao`; it normalizes visible `add` and `mul` terms by Q conversion rules, stores exposed nonzero disequalities for Q3, and closes active disequalities with the unified `q3-predecessor-equality` rule when one proof-local universal predecessor makes the Q-normalized sides identical. Q3 is intentionally not a rewrite. |
 | `proflog.kernel.constructor-recursive` | Diagnostic constructor-recursive proof layer. | This older sidecar consumes guarded-clause IR to prove/resettle constructor-recursive residuals. It remains useful as a diagnostic oracle and comparison point. |
 | `proflog.kernel.constructor-recursive-profile` | Promoted constructor-recursive answer profile. | ADR-41 profile that emits integrated `profiled constructor-recursive` proof records through the answer-overlay record shape instead of using the old diagnostic sidecar API. |
 | `proflog.equality-fast-path` | Host-side equality-only acceleration. | A restricted hard-family helper for existential equality/disequality conjunctions. It is an overlay, not the authoritative kernel semantics. |
@@ -83,8 +85,8 @@ AST and declarations
 | `proflog.finite-transition-systems` | Non-GV finite verifier examples. | Shows the equality-fragment profile is generic by verifying transition-table totality and determinism laws. |
 | `proflog.turing-completeness` | ADR-44/45 two-counter Minsky machine demonstration. | Defines a reusable frontend language, generic Proflog interpreter clauses, transfer/incrementer instruction tables, trace-shaped proof formulas, and term helpers. It does not evaluate machine steps on the host. |
 | `proflog.combinatory-logic` | ADR-46/47 SKI combinatory-logic demonstration. | Defines SKI reduction, isolated full-context reduction for the omega quine trace, and bounded evaluation as frontend Proflog clauses. Host helpers construct terms only; they do not reduce SKI expressions. |
-| `proflog.robinson-q` | ADR-0048/0053 Robinson arithmetic Q formulas and term helpers. | Exposes Q's function-only language, Q1-Q7 formulas, Q3-dependent predecessor theorems, promoted symbolic conversion theorems, ordinary Q-as-antecedent helpers, and profiled empty programs for tests and examples. |
-| `proflog.robinson-q-probe` | Robinson Q timing comparison probe. | Reproducible CLI probe for the common ordinary-vs-profiled Robinson Q formula set; not a semantic gate beyond the promoted tests. |
+| `proflog.robinson-q` | ADR-0048/0054 Robinson arithmetic Q formulas and term helpers. | Exposes Q's function-only language, Q1-Q7 formulas, Q3-dependent predecessor theorems, promoted symbolic conversion theorems, corrected inline prime/evenness formulas, ordinary Q-as-antecedent helpers, and profiled empty programs for tests and examples. |
+| `proflog.robinson-q-probe` | Robinson Q timing comparison probe. | Reproducible CLI probe for the common ordinary-vs-profiled Robinson Q formula set, including ADR-0054's passing Q-as-antecedent prime rows and documented theorem-only profile boundary; not a semantic gate beyond the promoted tests. |
 | `proflog.turing-completeness-long-probe` | ADR-44 long runtime-boundary probes. | Reproducible CLI-only diagnostics for slow recursive and reverse two-counter machine queries. These probes are not tests and are not part of default semantics. |
 | `proflog.gv-probe` | Legacy group-verifier reconstruction probes. | Historical and exploratory GV probe surface. Current promoted GV proof evidence lives in the equality-fragment test/catalog path. |
 | `proflog.list-kernel-matrix-probe` | Raw-kernel append/reverse capability matrix. | Bypasses public answer conveniences to ask what the raw kernel/export path can eventually surface. |

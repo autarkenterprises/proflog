@@ -57,6 +57,24 @@ complete contemporaneous transcript.
   `Ran 141 tests containing 523 assertions`, `real 98.85 s`; extended with
   `Ran 68 tests containing 203 assertions`, `real 228.07 s`. See
   [AAR-0053](docs/aar/AAR-0053-robinson-q-theorem-examples.md).
+- Completed
+  [ADR-0054](docs/adr/ADR-0054-robinson-q-prime-evenness.md) on branch
+  `adr-0054-robinson-q-prime-evenness`. Corrected the proposed Q primality
+  helper by excluding both zero and one, corrected the "prime is not even"
+  theorem by excluding two, and added two catalog formulas:
+  `prime-other-than-two-has-no-two-factor` and
+  `prime-other-than-two-is-not-left-even`. The red selector first failed with
+  `No such var: rq/prime-other-than-two-has-no-two-factor`, `real 8.74 s`;
+  after implementation, `lein test-proflog-robinson-q` passed with `Ran 15
+  tests containing 123 assertions`, `real 20.69 s`, and the comparison probe
+  passed in `real 12.27 s`. The concurrent standard gates passed: fast with
+  `Ran 143 tests containing 537 assertions`, `real 84.57 s`; extended with
+  `Ran 68 tests containing 203 assertions`, `real 200.09 s`. The theorem-only
+  `:robinson-q` version of the factor theorem remains a documented search
+  boundary: fuel 128 did not finish inside `timeout -k 5s 60s`,
+  `real 60.07 s`. See
+  [AAR-0054](docs/aar/AAR-0054-robinson-q-prime-evenness.md) and
+  [Robinson Q Proof Profile Example](worked-examples/robinson-q.md).
 
 ## 2026-05-08
 

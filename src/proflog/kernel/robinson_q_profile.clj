@@ -11,6 +11,7 @@
             [proflog.ast :as ast]
             [proflog.equality :as equality]
             [proflog.kernel :as kernel]
+            [proflog.kernel.equality-fragment :as equality-fragment]
             [proflog.kernel-support :as support]
             [proflog.subst :as subst]))
 
@@ -315,13 +316,20 @@
 (defn prove-program
   "Prove with Robinson-Q theory rules interleaved into the core kernel."
   [program formula proof-limit fuel]
-  (binding [kernel/*theory-profile-closeo* robinson-q-theory-closeo]
-    ;; `run` returns a lazy sequence. Realize it before leaving the dynamic
-    ;; binding, or the kernel will resume proof search after the theory hook is
-    ;; unbound and the profile will appear to prove nothing.
-    (doall
-      (if (nil? fuel)
-        (run proof-limit [proof]
-          (kernel/prove-programo formula '() '() '() program proof))
-        (run proof-limit [proof]
-          (kernel/prove-programo formula '() '() '() program fuel proof))))))
+  (let [profiled (equality-fragment/prove-program-host
+                   program
+                   formula
+                   proof-limit
+                   fuel)]
+    (if (seq profiled)
+      profiled
+      (binding [kernel/*theory-profile-closeo* robinson-q-theory-closeo]
+        ;; `run` returns a lazy sequence. Realize it before leaving the dynamic
+        ;; binding, or the kernel will resume proof search after the theory hook
+        ;; is unbound and the profile will appear to prove nothing.
+        (doall
+          (if (nil? fuel)
+            (run proof-limit [proof]
+              (kernel/prove-programo formula '() '() '() program proof))
+            (run proof-limit [proof]
+              (kernel/prove-programo formula '() '() '() program fuel proof))))))))

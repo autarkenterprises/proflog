@@ -37,6 +37,14 @@
     zero
     (s (numeral (dec n)))))
 
+(def one
+  "The standard Q numeral one, `s(zero)`."
+  (numeral 1))
+
+(def two
+  "The standard Q numeral two, `s(s(zero))`."
+  (numeral 2))
+
 (defn eq
   "Construct an equality formula."
   [left right]
@@ -220,6 +228,88 @@
           y
           (eq (add (ast/var-term y) (numeral 2))
               (s (ast/var-term x))))))))
+
+(defn prime-form
+  "Build the corrected inline Robinson-Q primality formula for one term.
+
+   This is a formula abbreviation, not an object-language `prime/1` relation.
+   Q's language has function symbols and equality only. A future frontend may
+   expose this as `is-prime(x) := ...`, but the helper must inline before the
+   formula reaches the kernel.
+
+   The two explicit disequalities are essential: the divisor condition alone
+   would classify one as prime, so the abbreviation excludes both zero and one.
+   "
+  [term]
+  (ast/nom y z
+    (let [vy (ast/var-term y)
+          vz (ast/var-term z)]
+      (and* [(neq term zero)
+             (neq term one)
+             (ast/forall-form
+               y
+               (ast/forall-form
+                 z
+                 (ast/implies-form
+                   (eq (mul vy vz) term)
+                   (ast/or-form
+                     (and* [(eq vy term)
+                            (eq vz one)])
+                     (and* [(eq vy one)
+                            (eq vz term)])))))]))))
+
+(def prime-other-than-two-has-no-two-factor
+  "Corrected factor theorem for the inline Q primality abbreviation.
+
+   The informal statement \"any prime number is not even\" must exclude two,
+   because two is prime and even. This theorem keeps the user's original
+   factor-variable shape while adding the required `x != two` premise:
+   if a prime other than two factors as `mul(y, z) = x`, then neither factor is
+   two.
+
+   The proof is a first-order/equality consequence of `prime-form`; it does not
+   require Q arithmetic conversion or Q3 predecessor synthesis.
+   "
+  (ast/nom x y z
+    (let [vx (ast/var-term x)
+          vy (ast/var-term y)
+          vz (ast/var-term z)]
+      (ast/forall-form
+        x
+        (ast/forall-form
+          y
+          (ast/forall-form
+            z
+            (ast/implies-form
+              (and* [(prime-form vx)
+                     (neq vx two)
+                     (eq (mul vy vz) vx)])
+              (and* [(neq vy two)
+                     (neq vz two)]))))))))
+
+(def prime-other-than-two-is-not-left-even
+  "Divisibility-oriented correction of the prime/evenness statement.
+
+   This states the left-factor version of evenness directly:
+   a prime other than two has no `n` with `mul(two, n) = x`. Q by itself does
+   not include multiplication commutativity, so the left-factor orientation is
+   made explicit rather than hidden behind an informal word such as \"even\".
+
+   Like `prime-other-than-two-has-no-two-factor`, this closes from the inline
+   primality definition and equality reasoning; it is not a multiplication
+   normal-form theorem.
+   "
+  (ast/nom x n
+    (let [vx (ast/var-term x)
+          vn (ast/var-term n)]
+      (ast/forall-form
+        x
+        (ast/implies-form
+          (and* [(prime-form vx)
+                 (neq vx two)])
+          (ast/forall-form
+            n
+            (neq (mul two vn) vx)))))))
 
 (def axioms
   "The seven Robinson Q axiom formulas with stable labels."

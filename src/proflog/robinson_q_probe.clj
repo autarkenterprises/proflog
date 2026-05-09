@@ -9,7 +9,14 @@
             [proflog.robinson-q :as rq]))
 
 (def common-theorems
-  "The formulas used to compare Q-as-antecedent and profiled conversion."
+  "The formulas used to compare Q-as-antecedent and profiled conversion.
+
+   Most rows ask the `:robinson-q` profile to prove the theorem directly.
+   ADR-0054's prime rows are marked `:q-antecedent` because the corrected
+   theorem-only profile search remains a documented runtime boundary; those
+   rows instead confirm that the profiled language still preserves the generic
+   Q-as-antecedent equality-fragment proof path.
+   "
   [[:q3 rq/q3 32 32]
    [:q7 rq/q7 32 16]
    [:add-one-zero (rq/eq (rq/add (rq/numeral 1) rq/zero)
@@ -40,7 +47,17 @@
    [:q3-add-two-successor
     rq/q3-add-two-successor
     64
-    32]])
+    32]
+   [:prime-other-than-two-has-no-two-factor
+    rq/prime-other-than-two-has-no-two-factor
+    128
+    128
+    :q-antecedent]
+   [:prime-other-than-two-is-not-left-even
+    rq/prime-other-than-two-is-not-left-even
+    128
+    128
+    :q-antecedent]])
 
 (defn- elapsed-ms
   "Return `[value elapsed-ms]` for one thunk."
@@ -64,11 +81,14 @@
      :elapsed-ms ms}))
 
 (defn- profile-row
-  [[label theorem _ordinary-fuel profile-fuel]]
-  (let [[proofs ms] (elapsed-ms
+  [[label theorem _ordinary-fuel profile-fuel profile-mode]]
+  (let [profile-formula (if (= :q-antecedent profile-mode)
+                          (rq/q-implies theorem)
+                          theorem)
+        [proofs ms] (elapsed-ms
                       #(query/query-succeeds
                          rq/profile-program
-                         theorem
+                         profile-formula
                          1
                          profile-fuel))]
     {:path :robinson-q-profile

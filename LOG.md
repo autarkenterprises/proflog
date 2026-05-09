@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-05-09
 
+- Started
+  [ADR-0057](docs/adr/ADR-0057-relational-equality-fragment.md) on branch
+  `adr-0057-relational-equality-fragment`. The ADR scopes an opt-in
+  relational replacement experiment for the equality-fragment host engine,
+  including a relational closed-term gamma enumerator, route guards against
+  `prove-program-host` and `gamma/closed-terms-for-fuel`, representative GV and
+  transition-system gates, timing probes, and an explicit promotion or
+  rejection decision in the future AAR.
 - Started ADR-0056 to compose an authoritative greenfield user guide from the
   current implementation tutorial, source map, `src/proflog` code, and worked
   examples. See

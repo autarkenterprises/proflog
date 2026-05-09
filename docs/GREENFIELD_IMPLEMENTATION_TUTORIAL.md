@@ -19,12 +19,17 @@ Related ADRs:
 [ADR-0050](adr/ADR-0050-kernel-interleaved-robinson-q-theory.md),
 [ADR-0051](adr/ADR-0051-full-robinson-q3-theory-rule.md),
 [ADR-0052](adr/ADR-0052-unified-robinson-q3-theory-rule.md),
-[ADR-0053](adr/ADR-0053-robinson-q-theorem-examples.md)
+[ADR-0053](adr/ADR-0053-robinson-q-theorem-examples.md),
+[ADR-0056](adr/ADR-0056-greenfield-user-guide.md)
 
 This chapter explains the current greenfield Proflog implementation as a
 whole system. It is written for a reader who needs to understand the design,
 the code, and the proof-state mechanics well enough to extend the
 implementation without treating any layer as magic.
+
+For the public-facing reference on how to write and evaluate programs, start
+with [Proflog Greenfield User Guide](USER_GUIDE.md). This tutorial remains the
+deeper maintainer-oriented explanation of implementation mechanics.
 
 The scope is the greenfield stack under `src/proflog` and `test/proflog`. The
 legacy `cljtap` code remains reference material and experimental prior art, not

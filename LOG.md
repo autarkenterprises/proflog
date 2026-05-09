@@ -22,6 +22,17 @@ complete contemporaneous transcript.
 
 ## 2026-05-09
 
+- Started ADR-0056 to compose an authoritative greenfield user guide from the
+  current implementation tutorial, source map, `src/proflog` code, and worked
+  examples. See
+  [ADR-0056](docs/adr/ADR-0056-greenfield-user-guide.md).
+- Completed ADR-0056 by adding
+  [Proflog Greenfield User Guide](docs/USER_GUIDE.md), linking it from the
+  README, and recording the documentation-only AAR. The guide covers the public
+  frontend, AST/language descent, query and answer APIs, kernel semantics,
+  proof profiles, example families, test commands, all current `src/proflog`
+  namespaces, and current operational boundaries. See
+  [AAR-0056](docs/aar/AAR-0056-greenfield-user-guide.md).
 - Completed
   [ADR-0055](docs/adr/ADR-0055-ski-relational-routing.md) on branch
   `adr-0055-ski-relational-routing`. The red route guard first failed because

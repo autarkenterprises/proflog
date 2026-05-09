@@ -10,12 +10,16 @@ Related ADRs:
 [ADR-0051](adr/ADR-0051-full-robinson-q3-theory-rule.md),
 [ADR-0052](adr/ADR-0052-unified-robinson-q3-theory-rule.md),
 [ADR-0053](adr/ADR-0053-robinson-q-theorem-examples.md),
-[ADR-0054](adr/ADR-0054-robinson-q-prime-evenness.md)
+[ADR-0054](adr/ADR-0054-robinson-q-prime-evenness.md),
+[ADR-0056](adr/ADR-0056-greenfield-user-guide.md)
 
 This map is the current reader path for `src/proflog`. It is intentionally more
 mechanical than the tutorial: every greenfield namespace is listed so a reader
 can tell whether a file is part of the source language, the proof kernel, the
 query/answer surface, a promoted verifier/profile, or an ADR probe.
+
+For user-facing guidance that turns this inventory into normal workflows, see
+[Proflog Greenfield User Guide](USER_GUIDE.md).
 
 The core implementation flow is:
 

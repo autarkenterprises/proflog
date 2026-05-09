@@ -142,3 +142,23 @@ theorem and the intended deduction-modulo proof shape.
   parameters rather than proof-local universal variables.
 - Performance remains acceptable for focused coverage, but the profiled Q path
   is materially slower than ordinary Q-as-antecedent on the current examples.
+
+## Follow-Up: Contextual Q3 Gap
+
+A 2026-05-09 expressivity audit found a concrete theorem that ordinary Q proves
+but the current profile cannot:
+
+```text
+forall x. x != zero -> exists y. s(add(y, s(zero))) = s(x)
+```
+
+Ordinary Q-as-antecedent proved it at fuel 16 in `7.708565 ms`. The
+`:robinson-q` profile returned `()` at fuel 16 in `16140.786164 ms` and also
+returned `()` at fuel 384. The issue is not Q conversion: the profile can reduce
+`add(y, s(zero))` to `s(y)`. The issue is that `q3-predecessor-intro` only
+closes top-level `x != s(y)` disequalities; it does not expose the predecessor
+equality `x = s(y)` so equality/congruence can close `s(s(y)) != s(x)`.
+
+See
+[Robinson Q Profile Expressivity Gap](../log/2026-05-09-robinson-q-profile-expressivity-gap.md)
+for the probe definition and timings.

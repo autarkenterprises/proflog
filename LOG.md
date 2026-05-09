@@ -20,6 +20,17 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-09
+
+- Audited the current `:robinson-q` profile for remaining expressivity gaps.
+  The theorem
+  `forall x. x != zero -> exists y. s(add(y, s(zero))) = s(x)` is valid in Q
+  and ordinary Q-as-antecedent proves it at fuel 16, but the profile returns no
+  proof through fuel 384. This shows that ADR-0051's full-Q3 rule still closes
+  only top-level predecessor disequalities; it does not expose `x = s(y)` for
+  later congruence under successor contexts. See
+  [Robinson Q Profile Expressivity Gap](docs/log/2026-05-09-robinson-q-profile-expressivity-gap.md).
+
 ## 2026-05-08
 
 - Logged design notes on representing Robinson arithmetic Q in Proflog and on

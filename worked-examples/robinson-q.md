@@ -328,3 +328,16 @@ The Q normalizer is still intentionally narrow. It rewrites known branch terms
 over `zero`, `s`, `add`, and `mul`, and leaves symbolic right arguments neutral
 when no Q root rule applies. It is not yet a full congruence-closure or
 deduction-modulo framework for arbitrary user theories.
+
+A follow-up expressivity audit found a concrete remaining Q3 gap:
+
+```text
+forall x. x != zero -> exists y. s(add(y, s(zero))) = s(x)
+```
+
+Ordinary Q-as-antecedent proves this theorem at fuel 16. The profile returns
+`()` through fuel 384. The theorem needs the predecessor equality from Q3 to be
+used under an outer successor context: Q conversion exposes `s(s(y)) != s(x)`,
+but the current `q3-predecessor-intro` rule only closes top-level
+`x != s(y)`-style disequalities. See
+[Robinson Q Profile Expressivity Gap](../docs/log/2026-05-09-robinson-q-profile-expressivity-gap.md).

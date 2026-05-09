@@ -298,6 +298,113 @@ Its profiled proof uses the same Q3 marker. The difference is that Q3 supplies
 There is now one current Q3 proof marker. Direct Q3, add-one Q3, and contextual
 Q3 all use `q3-predecessor-equality`.
 
+## Three Worked Theorems
+
+ADR-0053 promotes three additional non-trivial theorems as reusable examples.
+Each one is proved twice in the regression suite: once as
+`Q1 and ... and Q7 -> theorem`, and once through the empty
+`:robinson-q` profile program.
+
+### Add Two On The Right
+
+```text
+forall x. add(x, s(s(zero))) = s(s(x))
+```
+
+This is a pure conversion theorem. The profiled proof universally instantiates
+`x`, then closes the exposed disequality by Q conversion alone:
+
+```clojure
+(witness
+  (profiled robinson-q
+    (q-convert-close
+      (q-normal-add
+        (q-normal-par)
+        (q-normal-s (q-normal-s (q-normal-zero)))
+        (q-rewrite :add-succ ...)
+        (q-normal-s
+          (q-normal-add
+            (q-normal-par)
+            (q-normal-s (q-normal-zero))
+            (q-rewrite :add-succ ...)
+            (q-normal-s
+              (q-normal-add
+                (q-normal-par)
+                (q-normal-zero)
+                (q-rewrite :add-zero ...))))))
+      (q-normal-s (q-normal-s (q-normal-par))))))
+```
+
+There is no `q3-predecessor-equality` marker because Q3 is not needed.
+
+### Multiply By Two Normal Form
+
+```text
+forall x. mul(x, s(s(zero))) = add(add(zero, x), x)
+```
+
+This theorem is intentionally stated in Robinson-Q normal form. Q7 and Q6
+convert the left side:
+
+```text
+mul(x, s(s(zero)))
+-> add(mul(x, s(zero)), x)
+-> add(add(mul(x, zero), x), x)
+-> add(add(zero, x), x)
+```
+
+It does not simplify further to informal `x + x`, because the Q equations
+recurse on the right argument and Q has no induction axiom proving
+`add(zero, x) = x` for arbitrary symbolic `x`.
+
+The profiled proof contains `q-rewrite` for the `mul-succ` and `mul-zero`
+conversions and `q-normal-add-neutral` where symbolic right arguments stop
+further computation.
+
+### Q3 Add-Two Successor
+
+```text
+forall x. x != zero -> exists y. add(y, s(s(zero))) = s(x)
+```
+
+This theorem combines Q3 with conversion. The negated branch has:
+
+```text
+exists x. x != zero and once-forall y. add(y, s(s(zero))) != s(x)
+```
+
+The profile stores `x != zero`, chooses the proof-local `y` as Q3's
+predecessor witness for `x = s(y)`, then converts the left side to `s(s(y))`.
+The right side `s(x)` becomes `s(s(y))` under the temporary Q3 equality:
+
+```clojure
+(witness
+  (conj
+    (neq-store
+      (once-univ
+        (profiled robinson-q
+          (q3-predecessor-equality
+            predecessor-or-zero
+            (par a_0)
+            (var a_1)
+            (par-bind)
+            (q-convert-close
+              (q-normal-add
+                (q-normal-var)
+                (q-normal-s (q-normal-s (q-normal-zero)))
+                (q-rewrite :add-succ ...)
+                (q-normal-s
+                  (q-normal-add
+                    (q-normal-var)
+                    (q-normal-s (q-normal-zero))
+                    (q-rewrite :add-succ ...)
+                    (q-normal-s
+                      (q-normal-add
+                        (q-normal-var)
+                        (q-normal-zero)
+                        (q-rewrite :add-zero ...))))))
+              (q-normal-s (q-normal-par)))))))))
+
 ## Kernel Rule Shape
 
 The theory hook receives the same branch-local state as ordinary close rules:
@@ -324,9 +431,9 @@ Focused test:
 
 ```text
 lein test-proflog-robinson-q
-Ran 12 tests containing 88 assertions.
+Ran 13 tests containing 109 assertions.
 0 failures, 0 errors.
-real 22.24 s
+real 22.66 s
 ```
 
 Comparison probe:
@@ -341,9 +448,12 @@ Comparison probe:
 | `mul(2, 2) = 4` | 96 | `3.221 ms` | 16 | `232.891 ms` |
 | `forall x. x != zero -> exists y. add(y, s(zero)) = x` | 64 | `2.266 ms` | 48 | `545.513 ms` |
 | `forall x. x != zero -> exists y. s(add(y, s(zero))) = s(x)` | 16 | `2.035 ms` | 16 | `762.420 ms` |
+| `forall x. add(x, s(s(zero))) = s(s(x))` | 64 | `2.289 ms` | 16 | `87.787 ms` |
+| `forall x. mul(x, s(s(zero))) = add(add(zero, x), x)` | 96 | `2.595 ms` | 16 | `133.538 ms` |
+| `forall x. x != zero -> exists y. add(y, s(s(zero))) = s(x)` | 64 | `3.175 ms` | 32 | `1174.210 ms` |
 
 The elapsed values above are the in-process row timings printed by
-`lein probe-proflog-robinson-q`; the full Leiningen process took `real 11.37 s`.
+`lein probe-proflog-robinson-q`; the full Leiningen process took `real 14.80 s`.
 
 ## Shortcomings
 

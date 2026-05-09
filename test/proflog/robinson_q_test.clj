@@ -218,6 +218,45 @@
                   1
                   16)))))
 
+(deftest nontrivial-q-theorem-examples-prove-under-both-q-versions
+  (testing "promoted Q theorem examples prove as ordinary assumptions and as profiled theory proofs"
+    (doseq [[label theorem ordinary-fuel profile-fuel needs-q3?]
+            [[:add-right-two-successors
+              rq/add-right-two-successors
+              64
+              16
+              false]
+             [:mul-right-two-normal-form
+              rq/mul-right-two-normal-form
+              96
+              16
+              false]
+             [:q3-add-two-successor
+              rq/q3-add-two-successor
+              64
+              32
+              true]]]
+      (let [ordinary-proof (first-success-proof
+                             rq/ordinary-program
+                             (rq/q-implies theorem)
+                             ordinary-fuel)
+            profile-proof (first-success-proof
+                            rq/profile-program
+                            theorem
+                            profile-fuel)]
+        (is ordinary-proof (str "ordinary Q should prove " label))
+        (is (not (proof/contains-step? ordinary-proof 'robinson-q))
+            "ordinary Q should not use the profile")
+        (is profile-proof (str "profiled Q should prove " label))
+        (is (proof/contains-step? profile-proof 'profiled))
+        (is (proof/contains-step? profile-proof 'robinson-q))
+        (is (proof/contains-step? profile-proof 'q-rewrite))
+        (if needs-q3?
+          (is (proof/contains-step? profile-proof 'q3-predecessor-equality)
+              (str label " should use Q3 predecessor equality"))
+          (is (not (proof/contains-step? profile-proof 'q3-predecessor-equality))
+              (str label " should be conversion-only")))))))
+
 (deftest profiled-robinson-q-theory-rules-are-interleaved-with-kernel-steps
   (testing "Q theory closure happens after ordinary kernel branch decomposition"
     (let [q3-proof (first-success-proof rq/profile-program rq/q3 32)

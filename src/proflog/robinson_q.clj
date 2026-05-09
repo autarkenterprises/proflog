@@ -176,6 +176,51 @@
           (eq (s (add (ast/var-term y) (s zero)))
               (s (ast/var-term x))))))))
 
+(def add-right-two-successors
+  "A symbolic Q conversion theorem for adding two on the right.
+
+   Q5 peels each right-side successor and Q4 discharges the final right-zero
+   case, so `add(x, s(s(zero)))` converts to `s(s(x))` without needing
+   induction.
+   "
+  (ast/nom x
+    (ast/forall-form
+      x
+      (eq (add (ast/var-term x) (numeral 2))
+          (s (s (ast/var-term x)))))))
+
+(def mul-right-two-normal-form
+  "A symbolic Q conversion theorem for multiplying by two on the right.
+
+   Q7 and Q6 reduce `mul(x, s(s(zero)))` to
+   `add(add(zero, x), x)`. This intentionally leaves `add(zero, x)` in normal
+   form: Q's defining equations recurse on the right argument, and Robinson Q
+   has no induction principle proving `add(zero, x) = x` for all `x`.
+   "
+  (ast/nom x
+    (ast/forall-form
+      x
+      (eq (mul (ast/var-term x) (numeral 2))
+          (add (add zero (ast/var-term x))
+               (ast/var-term x))))))
+
+(def q3-add-two-successor
+  "A Q3-dependent theorem combining predecessor equality with add-two conversion.
+
+   For nonzero `x`, Q3 supplies `x = s(y)`. Q5/Q4 reduce
+   `add(y, s(s(zero)))` to `s(s(y))`, which matches `s(x)` under that Q3
+   predecessor equality.
+   "
+  (ast/nom x y
+    (ast/forall-form
+      x
+      (ast/implies-form
+        (neq (ast/var-term x) zero)
+        (ast/exists-form
+          y
+          (eq (add (ast/var-term y) (numeral 2))
+              (s (ast/var-term x))))))))
+
 (def axioms
   "The seven Robinson Q axiom formulas with stable labels."
   [[:q1 q1]

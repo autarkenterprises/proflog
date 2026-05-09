@@ -18,7 +18,8 @@ Related ADRs:
 [ADR-0049](adr/ADR-0049-robinson-q3-case-split-profile.md),
 [ADR-0050](adr/ADR-0050-kernel-interleaved-robinson-q-theory.md),
 [ADR-0051](adr/ADR-0051-full-robinson-q3-theory-rule.md),
-[ADR-0052](adr/ADR-0052-unified-robinson-q3-theory-rule.md)
+[ADR-0052](adr/ADR-0052-unified-robinson-q3-theory-rule.md),
+[ADR-0053](adr/ADR-0053-robinson-q-theorem-examples.md)
 
 This chapter explains the current greenfield Proflog implementation as a
 whole system. It is written for a reader who needs to understand the design,
@@ -94,6 +95,9 @@ Current checkpoint:
   `forall x. x != zero -> exists y. s(add(y, s(zero))) = s(x)` with
   `q3-predecessor-equality` evidence after ordinary branch decomposition
   exposes a saved nonzero premise and an active proof-local universal variable.
+- ADR-0053 promotes three non-trivial Q theorem examples that prove under both
+  Q-as-antecedent and `:robinson-q`: right-addition by two, multiplication by
+  two to Q-normal form, and a Q3 add-two successor theorem.
 
 ## 1. Orientation
 

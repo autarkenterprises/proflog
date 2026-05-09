@@ -404,6 +404,29 @@ Current ADR-0052 unified Robinson Q3 rule note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `real 241.21 s`.
 
+Current ADR-0053 Robinson Q theorem examples note:
+
+- Red TDD check on 2026-05-09 added tests for three public theorem examples
+  before adding the catalog definitions. The focused selector failed with
+  `No such var: rq/add-right-two-successors` and `real 10.83 s`.
+- After adding the theorem catalog entries and proof checks,
+  `lein test-proflog-robinson-q` passed with
+  `Ran 13 tests containing 109 assertions`, `0 failures, 0 errors`, and
+  `real 22.66 s`.
+- The reproducible comparison probe `lein probe-proflog-robinson-q` passed with
+  `real 14.80 s`. Per-row in-process timings for the new examples:
+
+| Formula | Ordinary Q fuel | Ordinary elapsed | Profile fuel | Profile elapsed |
+|---|---:|---:|---:|---:|
+| `add-right-two-successors` | 64 | `2.289 ms` | 16 | `87.787 ms` |
+| `mul-right-two-normal-form` | 96 | `2.595 ms` | 16 | `133.538 ms` |
+| `q3-add-two-successor` | 64 | `3.175 ms` | 32 | `1174.210 ms` |
+- The ADR-0053 commit gate ran fast and extended concurrently. Fast passed with
+  `Ran 141 tests containing 523 assertions`, `0 failures, 0 errors`, and
+  `real 98.85 s`. Extended passed with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `real 228.07 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

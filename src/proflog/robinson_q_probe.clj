@@ -28,7 +28,19 @@
    [:q3-contextual-successor-predecessor
     rq/q3-contextual-successor-predecessor
     16
-    16]])
+    16]
+   [:add-right-two-successors
+    rq/add-right-two-successors
+    64
+    16]
+   [:mul-right-two-normal-form
+    rq/mul-right-two-normal-form
+    96
+    16]
+   [:q3-add-two-successor
+    rq/q3-add-two-successor
+    64
+    32]])
 
 (defn- elapsed-ms
   "Return `[value elapsed-ms]` for one thunk."

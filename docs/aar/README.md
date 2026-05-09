@@ -57,3 +57,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0050](AAR-0050-kernel-interleaved-robinson-q-theory.md) | [ADR-0050](../adr/ADR-0050-kernel-interleaved-robinson-q-theory.md) | completed |
 | [AAR-0051](AAR-0051-full-robinson-q3-theory-rule.md) | [ADR-0051](../adr/ADR-0051-full-robinson-q3-theory-rule.md) | completed |
 | [AAR-0052](AAR-0052-unified-robinson-q3-theory-rule.md) | [ADR-0052](../adr/ADR-0052-unified-robinson-q3-theory-rule.md) | completed |
+| [AAR-0053](AAR-0053-robinson-q-theorem-examples.md) | [ADR-0053](../adr/ADR-0053-robinson-q-theorem-examples.md) | completed |

@@ -112,6 +112,7 @@ as the current source map.
 | [ADR-0050](adr/ADR-0050-kernel-interleaved-robinson-q-theory.md) | completed | `adr-0050-kernel-q-theory` | refactor Robinson Q profile from query-time host preprocessing into kernel-interleaved relational theory rules | ADR-0048, ADR-0049 | proof-shape tests for kernel quantifier/disequality evidence, source audit against old host normalizer/recognizer, focused Q regression | [AAR-0050](aar/AAR-0050-kernel-interleaved-robinson-q-theory.md) |
 | [ADR-0051](adr/ADR-0051-full-robinson-q3-theory-rule.md) | completed | `adr-0051-full-q3-rule` | add a full kernel-interleaved Q3 predecessor rule for larger deduction-modulo refutations | ADR-0048, ADR-0049, ADR-0050 | red add-one-predecessor theorem test, proof evidence for Q3 predecessor introduction plus Q4/Q5 conversion, focused Q regression and standard gates | [AAR-0051](aar/AAR-0051-full-robinson-q3-theory-rule.md) |
 | [ADR-0052](adr/ADR-0052-unified-robinson-q3-theory-rule.md) | completed | `adr-0052-final-q3-deduction-modulo` | replace incremental Q3 closers with one unified predecessor-equality theory rule | ADR-0048, ADR-0049, ADR-0050, ADR-0051 | red contextual Q3 theorem, unified proof evidence, source audit against old Q3 closers, focused Q regression and standard gates | [AAR-0052](aar/AAR-0052-unified-robinson-q3-theory-rule.md) |
+| [ADR-0053](adr/ADR-0053-robinson-q-theorem-examples.md) | completed | `adr-0053-q-theorem-examples` | promote three non-trivial Robinson Q theorem examples under both Q proof paths | ADR-0048, ADR-0052 | symbolic addition theorem, symbolic multiplication normal-form theorem, Q3 add-two successor theorem, proof evidence checks, timing probe rows | [AAR-0053](aar/AAR-0053-robinson-q-theorem-examples.md) |
 
 ## Deferred Tracks
 
@@ -165,6 +166,7 @@ ADR-0050.
 Full Robinson Q3 predecessor-rule work has graduated into completed ADR-0051.
 Unified Robinson Q3 predecessor-equality work has graduated into completed
 ADR-0052.
+Robinson Q theorem examples have graduated into completed ADR-0053.
 
 ## ADR-0007 Task List
 

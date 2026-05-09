@@ -44,6 +44,19 @@ complete contemporaneous transcript.
   extended with `Ran 68 tests containing 203 assertions`, `real 241.21 s`. See
   [AAR-0052](docs/aar/AAR-0052-unified-robinson-q3-theory-rule.md) and
   [Robinson Q Proof Profile Example](worked-examples/robinson-q.md).
+- Completed
+  [ADR-0053](docs/adr/ADR-0053-robinson-q-theorem-examples.md) on branch
+  `adr-0053-q-theorem-examples`. Added three non-trivial theorem examples:
+  `forall x. add(x, s(s(zero))) = s(s(x))`,
+  `forall x. mul(x, s(s(zero))) = add(add(zero, x), x)`, and
+  `forall x. x != zero -> exists y. add(y, s(s(zero))) = s(x)`. The red
+  selector first failed on the missing public theorem var in `real 10.83 s`;
+  after implementation, `lein test-proflog-robinson-q` passed with `Ran 13
+  tests containing 109 assertions`, `real 22.66 s`, and the comparison probe
+  passed in `real 14.80 s`. The concurrent standard gates passed: fast with
+  `Ran 141 tests containing 523 assertions`, `real 98.85 s`; extended with
+  `Ran 68 tests containing 203 assertions`, `real 228.07 s`. See
+  [AAR-0053](docs/aar/AAR-0053-robinson-q-theorem-examples.md).
 
 ## 2026-05-08
 

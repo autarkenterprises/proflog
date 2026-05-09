@@ -127,3 +127,11 @@ evidence showing:
 - Q conversion of `add(y, s(zero))` to `s(y)`;
 - Q3 predecessor use for `x = s(y)`;
 - equality or congruence closure under the outer successor context.
+
+## Resolution
+
+ADR-0052 implemented that direction. The current `:robinson-q` profile uses a
+single `q3-predecessor-equality` rule for direct Q3, add-one Q3, and this
+contextual theorem. The old `q3-case-split` and `q3-predecessor-intro` proof
+markers are now historical. See
+[AAR-0052](../aar/AAR-0052-unified-robinson-q3-theory-rule.md).

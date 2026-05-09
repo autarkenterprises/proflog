@@ -4,7 +4,7 @@
    This is a reproducible documentation aid rather than a regression gate. The
    committed tests assert correctness; this namespace records wall-clock timing
    for the shared ordinary-vs-profiled examples, including the ADR-0050
-   kernel-interleaved Q theory profile and ADR-0051 full-Q3 rule."
+   kernel-interleaved Q theory profile and ADR-0052 unified Q3 rule."
   (:require [proflog.query :as query]
             [proflog.robinson-q :as rq]))
 
@@ -24,7 +24,11 @@
    [:mul-two-two (rq/eq (rq/mul (rq/numeral 2) (rq/numeral 2))
                         (rq/numeral 4))
     96 16]
-   [:q3-add-one-predecessor rq/q3-add-one-predecessor 64 48]])
+   [:q3-add-one-predecessor rq/q3-add-one-predecessor 64 48]
+   [:q3-contextual-successor-predecessor
+    rq/q3-contextual-successor-predecessor
+    16
+    16]])
 
 (defn- elapsed-ms
   "Return `[value elapsed-ms]` for one thunk."

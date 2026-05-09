@@ -30,6 +30,20 @@ complete contemporaneous transcript.
   only top-level predecessor disequalities; it does not expose `x = s(y)` for
   later congruence under successor contexts. See
   [Robinson Q Profile Expressivity Gap](docs/log/2026-05-09-robinson-q-profile-expressivity-gap.md).
+- Completed
+  [ADR-0052](docs/adr/ADR-0052-unified-robinson-q3-theory-rule.md) on branch
+  `adr-0052-final-q3-deduction-modulo`. The old direct and add-one Q3 closers
+  were replaced with one `q3-predecessor-equality-closeo` rule, and the profile
+  now proves direct Q3, `q3-add-one-predecessor`, and the contextual theorem
+  above with one `q3-predecessor-equality` proof marker. The red selector first
+  failed with `Ran 12 tests containing 88 assertions`, `15 failures`,
+  `real 36.46 s`; after implementation, `lein test-proflog-robinson-q` passed
+  with `Ran 12 tests containing 88 assertions`, `real 22.24 s`, the comparison
+  probe passed in `real 11.37 s`, and the concurrent standard gates passed:
+  fast with `Ran 140 tests containing 502 assertions`, `real 100.89 s`;
+  extended with `Ran 68 tests containing 203 assertions`, `real 241.21 s`. See
+  [AAR-0052](docs/aar/AAR-0052-unified-robinson-q3-theory-rule.md) and
+  [Robinson Q Proof Profile Example](worked-examples/robinson-q.md).
 
 ## 2026-05-08
 

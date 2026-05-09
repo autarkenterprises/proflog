@@ -3,9 +3,9 @@
 
    The `:robinson-q` proof profile binds `robinson-q-theory-closeo` into the
    ordinary tableau kernel. The rules here are miniKanren relations over the
-   current branch state: they close disequalities modulo Q conversion and close
-   Q3's predecessor-or-zero branch only after ordinary tableau steps have
-   exposed the relevant disequalities."
+   current branch state: they close disequalities modulo Q conversion and use
+   Q3 as a trusted, relevance-controlled predecessor equality only after
+   ordinary tableau steps have exposed a nonzero obligation."
   (:refer-clojure :exclude [==])
   (:require [clojure.core.logic :refer [!= == conde fresh lcons membero run]]
             [proflog.ast :as ast]
@@ -207,33 +207,18 @@
       [(== (list 'app 'zero) walked-left)
        (== term walked-right)])))
 
-(defn- q-successor-disequalityo
-  "Recognize `x != s(y)` after branch substitution and equality walking."
-  [fml env sigma x predecessor]
-  (fresh [lit left right walked-left walked-right]
-    (subst/subst-formulao fml env lit)
-    (== (list 'neq left right) lit)
-    (equality/walk*o left sigma walked-left)
-    (equality/walk*o right sigma walked-right)
-    (conde
-      [(== x walked-left)
-       (== (list 'app 's predecessor) walked-right)]
-      [(== (list 'app 's predecessor) walked-left)
-       (== x walked-right)])))
+(defn- q-proof-var-termo
+  "Recognize a proof-local universal variable as a possible Q3 witness.
 
-(defn- q-proof-var-successoro
-  "Recognize a successor whose predecessor is a proof-local universal variable.
-
-   A full Q3 branch use is sound only when the active universal variable can be
-   chosen as the predecessor supplied by Q3. A fixed parameter or compound term
-   would incorrectly claim that Q3 gives a specific predecessor, so the rule is
-   deliberately limited to a single proof-local `(var ...)`.
+   Q3 may choose the active universal variable as the predecessor of a saved
+   nonzero term. It must not choose a fixed parameter or closed compound term:
+   that would claim Q3 supplies a particular predecessor rather than some
+   predecessor.
    "
-  [term proof-vars predecessor]
+  [proof-vars predecessor]
   (fresh [predecessor-nom]
-    (== (list 'app 's (list 'var predecessor-nom)) term)
-    (membero predecessor-nom proof-vars)
-    (== (list 'var predecessor-nom) predecessor)))
+    (== (list 'var predecessor-nom) predecessor)
+    (membero predecessor-nom proof-vars)))
 
 (defn- q-zero-disequality-formulao
   "Recognize `x != zero` after branch substitution and equality walking."
@@ -253,9 +238,10 @@
   "Keep Q3's `x != zero` premise available for the later successor case.
 
    The ordinary free-constructor kernel may discharge `par != zero` as rigidly
-   true and forget it. Q3 needs that premise when the branch later reaches
-   `x != s(y)`, so the Robinson-Q profile stores this one theory-relevant
-   disequality and continues through the ordinary kernel.
+   true and forget it. Q3 needs that premise when the branch later reaches a
+   disequality that can be refuted by choosing a predecessor, so the Robinson-Q
+   profile stores this one theory-relevant disequality and continues through the
+   ordinary kernel.
    "
   [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
   (fresh [x next rest next-fuel subproof]
@@ -277,58 +263,44 @@
                          next-fuel
                          subproof)))
 
-(defn- q3-case-splito
-  "Close Q3's predecessor-or-zero branch when both premises are exposed."
-  [fml env proof-vars sigma sigma-out neqs neqs-out proof]
-  (fresh [x predecessor]
-    (q-successor-disequalityo fml env sigma x predecessor)
-    (q-proof-var-successoro (list 'app 's predecessor) proof-vars predecessor)
-    (q-zero-disequalityo x neqs sigma)
-    (== sigma sigma-out)
-    (== neqs neqs-out)
-    (== (list 'profiled
-              'robinson-q
-              (list 'q3-case-split
-                    'predecessor-or-zero
-                    x
-                    predecessor))
-        proof)))
+(defn- q3-predecessor-equality-closeo
+  "Close a disequality by using Q3 as one temporary predecessor equality.
 
-(defn- q3-predecessor-intro-closeo
-  "Use Q3 after Q conversion to close a downstream universal disequality.
-
-   This is the full-Q3 case absent from ADR-0050. When a branch already contains
-   `x != zero`, Q3 permits choosing the active proof-local universal variable as
-   a predecessor of `x`. If the current disequality normalizes to
-   `x != s(v)` or `s(v) != x`, the branch closes. This covers formulas such as
-   `add(v, s(zero)) != x`, whose successor shape is visible only after Q5/Q4
-   conversion.
+   ADR-0052 replaces the earlier direct-shape and add-one Q3 closers with this
+   single rule. When a branch has already stored `x != zero`, Q3 permits the
+   active proof-local universal variable `v` to witness `x = s(v)`. The rule
+   applies that equality in a temporary equality state, Q-normalizes both sides
+   of the active disequality, and closes only if the sides are then already the
+   same. This handles direct Q3, add-one Q3 through Q4/Q5, and successor-context
+   uses without allowing arbitrary predecessor generation.
    "
   [fml env proof-vars sigma sigma-out neqs neqs-out proof]
-  (fresh [lit left right walked-left walked-right
-          normal-left normal-right left-proof right-proof
-          nonzero predecessor]
+  (fresh [lit left right nonzero predecessor q3-sigma q3-proof
+          walked-left walked-right normal-left normal-right
+          left-proof right-proof]
     (subst/subst-formulao fml env lit)
     (== (list 'neq left right) lit)
-    (equality/walk*o left sigma walked-left)
-    (equality/walk*o right sigma walked-right)
+    (q-zero-disequalityo nonzero neqs sigma)
+    (q-proof-var-termo proof-vars predecessor)
+    (equality/unify-termo nonzero
+                          (list 'app 's predecessor)
+                          sigma
+                          q3-sigma
+                          q3-proof)
+    (equality/walk*o left q3-sigma walked-left)
+    (equality/walk*o right q3-sigma walked-right)
     (q-normal-termo walked-left normal-left left-proof)
     (q-normal-termo walked-right normal-right right-proof)
-    (conde
-      [(== nonzero normal-left)
-       (q-zero-disequalityo nonzero neqs sigma)
-       (q-proof-var-successoro normal-right proof-vars predecessor)]
-      [(== nonzero normal-right)
-       (q-zero-disequalityo nonzero neqs sigma)
-       (q-proof-var-successoro normal-left proof-vars predecessor)])
+    (equality/same-termo normal-left normal-right q3-sigma)
     (== sigma sigma-out)
     (== neqs neqs-out)
     (== (list 'profiled
               'robinson-q
-              (list 'q3-predecessor-intro
+              (list 'q3-predecessor-equality
                     'predecessor-or-zero
                     nonzero
                     predecessor
+                    q3-proof
                     (list 'q-convert-close left-proof right-proof)))
         proof)))
 
@@ -337,9 +309,8 @@
   [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
   (conde
     [(q-convert-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
-    [(q3-case-splito fml env proof-vars sigma sigma-out neqs neqs-out proof)]
-    [(q3-zero-storeo fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof)]
-    [(q3-predecessor-intro-closeo fml env proof-vars sigma sigma-out neqs neqs-out proof)]))
+    [(q3-predecessor-equality-closeo fml env proof-vars sigma sigma-out neqs neqs-out proof)]
+    [(q3-zero-storeo fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof)]))
 
 (defn prove-program
   "Prove with Robinson-Q theory rules interleaved into the core kernel."

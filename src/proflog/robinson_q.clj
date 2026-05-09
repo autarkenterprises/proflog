@@ -158,6 +158,24 @@
           (eq (add (ast/var-term y) (s zero))
               (ast/var-term x)))))))
 
+(def q3-contextual-successor-predecessor
+  "A Q3-dependent theorem under a successor context.
+
+   Q3 supplies `x = s(y)` for nonzero `x`; Q5 and Q4 reduce
+   `add(y, s(zero))` to `s(y)`. The final equality then closes only if the Q3
+   predecessor equality can be used under the outer successor on both sides:
+   `s(add(y, s(zero))) = s(x)`.
+   "
+  (ast/nom x y
+    (ast/forall-form
+      x
+      (ast/implies-form
+        (neq (ast/var-term x) zero)
+        (ast/exists-form
+          y
+          (eq (s (add (ast/var-term y) (s zero)))
+              (s (ast/var-term x))))))))
+
 (def axioms
   "The seven Robinson Q axiom formulas with stable labels."
   [[:q1 q1]

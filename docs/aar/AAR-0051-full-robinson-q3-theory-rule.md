@@ -162,3 +162,7 @@ equality `x = s(y)` so equality/congruence can close `s(s(y)) != s(x)`.
 See
 [Robinson Q Profile Expressivity Gap](../log/2026-05-09-robinson-q-profile-expressivity-gap.md)
 for the probe definition and timings.
+
+ADR-0052 later addressed this gap by replacing the separate Q3 closers with the
+unified `q3-predecessor-equality` rule. See
+[AAR-0052](AAR-0052-unified-robinson-q3-theory-rule.md).

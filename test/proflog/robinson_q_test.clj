@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is testing]]
             [clojure.core.logic :refer [run]]
             [clojure.string :as str]
+            [proflog.ast :as ast]
             [proflog.frontend :as pf]
             [proflog.kernel.robinson-q-profile :as rq-profile]
             [proflog.language :as language]
@@ -25,6 +26,24 @@
 (defn first-success-proof
   [program formula fuel]
   (first (query/query-succeeds program formula 1 fuel)))
+
+(def q3-false-double-predecessor
+  "A deliberately false guard theorem.
+
+   Q3 says every nonzero value has one predecessor. It does not imply that every
+   nonzero value has two predecessors; `s(zero)` is the standard counterexample.
+   The unified Q3 rule must therefore not close this theorem merely by
+   unifying a predecessor variable with another successor.
+   "
+  (ast/nom x y
+    (ast/forall-form
+      x
+      (ast/implies-form
+        (rq/neq (ast/var-term x) rq/zero)
+        (ast/exists-form
+          y
+          (rq/eq (ast/var-term x)
+                 (rq/s (rq/s (ast/var-term y)))))))))
 
 (deftest robinson-q-language-keeps-arithmetic-in-term-namespace
   (testing "Q uses constants and function symbols, not procedural relations"
@@ -149,7 +168,8 @@
       (is profile-proof)
       (is (proof/contains-step? profile-proof 'profiled))
       (is (proof/contains-step? profile-proof 'robinson-q))
-      (is (proof/contains-step? profile-proof 'q3-case-split)))))
+      (is (proof/contains-step? profile-proof 'q3-predecessor-equality))
+      (is (not (proof/contains-step? profile-proof 'q3-case-split))))))
 
 (deftest full-q3-profile-rule-proves-add-one-predecessor-theorem
   (testing "Q3 can be used inside a larger refutation after Q4/Q5 conversion"
@@ -167,8 +187,36 @@
       (is (proof/contains-step? profile-proof 'witness))
       (is (proof/contains-step? profile-proof 'once-univ))
       (is (proof/contains-step? profile-proof 'neq-store))
-      (is (proof/contains-step? profile-proof 'q3-predecessor-intro))
+      (is (proof/contains-step? profile-proof 'q3-predecessor-equality))
+      (is (not (proof/contains-step? profile-proof 'q3-predecessor-intro)))
       (is (proof/contains-step? profile-proof 'q-rewrite)))))
+
+(deftest final-q3-profile-rule-proves-contextual-predecessor-theorem
+  (testing "Q3 is available as a predecessor equality under Q conversion and congruence"
+    (let [ordinary-proof (first-success-proof
+                           rq/ordinary-program
+                           (rq/q-implies rq/q3-contextual-successor-predecessor)
+                           16)
+          profile-proof (first-success-proof
+                          rq/profile-program
+                          rq/q3-contextual-successor-predecessor
+                          16)]
+      (is ordinary-proof)
+      (is (not (proof/contains-step? ordinary-proof 'robinson-q)))
+      (is profile-proof)
+      (is (proof/contains-step? profile-proof 'witness))
+      (is (proof/contains-step? profile-proof 'once-univ))
+      (is (proof/contains-step? profile-proof 'neq-store))
+      (is (proof/contains-step? profile-proof 'q3-predecessor-equality))
+      (is (proof/contains-step? profile-proof 'q-rewrite)))))
+
+(deftest final-q3-profile-rule-does-not-invent-second-predecessors
+  (testing "the trusted Q3 equality must not force a deeper successor shape"
+    (is (empty? (query/query-succeeds
+                  rq/profile-program
+                  q3-false-double-predecessor
+                  1
+                  16)))))
 
 (deftest profiled-robinson-q-theory-rules-are-interleaved-with-kernel-steps
   (testing "Q theory closure happens after ordinary kernel branch decomposition"
@@ -177,7 +225,8 @@
       (is (proof/contains-step? q3-proof 'witness))
       (is (proof/contains-step? q3-proof 'once-univ))
       (is (proof/contains-step? q3-proof 'neq-store))
-      (is (proof/contains-step? q3-proof 'q3-case-split))
+      (is (proof/contains-step? q3-proof 'q3-predecessor-equality))
+      (is (not (proof/contains-step? q3-proof 'q3-case-split)))
       (is (proof/contains-step? q7-proof 'witness))
       (is (proof/contains-step? q7-proof 'q-rewrite)))))
 
@@ -186,6 +235,9 @@
     (let [source (slurp "src/proflog/kernel/robinson_q_profile.clj")]
       (is (str/includes? source "robinson-q-theory-closeo"))
       (is (str/includes? source "q-normal-termo"))
+      (is (str/includes? source "q3-predecessor-equality-closeo"))
       (is (not (str/includes? source "q-normalize-formula")))
       (is (not (str/includes? source "q3-predecessor-refutation?")))
+      (is (not (str/includes? source "q3-case-splito")))
+      (is (not (str/includes? source "q3-predecessor-intro-closeo")))
       (is (not (str/includes? source "q3-add-one-predecessor"))))))

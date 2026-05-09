@@ -1,7 +1,7 @@
 # Robinson Q Proof Profile Example
 
-This example documents `test/proflog/robinson_q_test.clj`, ADR-0048,
-ADR-0049, ADR-0050, and ADR-0051. It shows Robinson arithmetic Q in two forms:
+This example documents `test/proflog/robinson_q_test.clj`, ADR-0048 through
+ADR-0052. It shows Robinson arithmetic Q in two forms:
 
 - ordinary first-order assumptions: `Q1 and ... and Q7 -> theorem`;
 - an opt-in proof profile: Robinson-Q theory rules are bound into the ordinary
@@ -17,9 +17,9 @@ lein test-proflog-robinson-q
 Current result:
 
 ```text
-Ran 10 tests containing 73 assertions.
+Ran 12 tests containing 88 assertions.
 0 failures, 0 errors.
-real 14.96 s
+real 22.24 s
 ```
 
 Run the timing comparison:
@@ -28,7 +28,7 @@ Run the timing comparison:
 lein probe-proflog-robinson-q
 ```
 
-The comparison probe passed in `real 12.01 s` on 2026-05-08.
+The comparison probe passed in `real 11.37 s` on 2026-05-09.
 
 ## Hand-Written Theory
 
@@ -193,7 +193,8 @@ That is the semantic difference. Under ordinary Q, Q7 is an assumption. Under
 `:robinson-q`, Q7 is proved by ordinary tableau universal refutation followed
 by conversion closure on the exposed disequality.
 
-Q3 is not a conversion. It is proved by closing the negated theorem shape:
+Q3 is not a conversion. It is a trusted predecessor-equality branch rule. The
+direct theorem is proved by closing the negated theorem shape:
 
 ```text
 exists x. x != zero and once-forall y. x != s(y)
@@ -207,18 +208,23 @@ The profiled proof shows the ordinary kernel work around the theory step:
     (neq-store
       (once-univ
         (profiled robinson-q
-          (q3-case-split predecessor-or-zero
-                         (par a_0)
-                         (var a_1)))))))
+          (q3-predecessor-equality
+            predecessor-or-zero
+            (par a_0)
+            (var a_1)
+            (par-bind)
+            (q-convert-close
+              (q-normal-par)
+              (q-normal-s (q-normal-var))))))))))
 ```
 
 Under ordinary Q, the same formula is proved as `Q1 and ... and Q7 -> Q3`, so
 Q3 is available as an assumption. Under the profile, Q3 is a trusted
-Robinson-Q case-split rule of the selected proof system. The important point is
-that the case split fires only after `witness`, `neq-store`, and `once-univ`
-have exposed the two branch obligations.
+Robinson-Q theory rule of the selected proof system. The important point is
+that the Q3 equality fires only after `witness`, `neq-store`, and `once-univ`
+have exposed the nonzero premise and the active universal proof variable.
 
-ADR-0051 adds a fuller Q3 use for larger refutations. The theorem:
+The same proof tag also handles larger refutations. The theorem:
 
 ```text
 forall x. x != zero -> exists y. add(y, s(zero)) = x
@@ -240,10 +246,11 @@ single-use universal with a proof variable, normalizing `add(y, s(zero))` to
     (neq-store
       (once-univ
         (profiled robinson-q
-          (q3-predecessor-intro
+          (q3-predecessor-equality
             predecessor-or-zero
             (par a_0)
             (var a_1)
+            (par-bind)
             (q-convert-close
               (q-normal-add
                 (q-normal-var)
@@ -257,9 +264,39 @@ single-use universal with a proof variable, normalizing `add(y, s(zero))` to
               (q-normal-par))))))))
 ```
 
-The proof term is deliberately different from `q3-case-split`: this is Q3 used
-inside a larger branch after Q4/Q5 conversion, not merely Q3's direct refutation
-shape.
+ADR-0052 adds the contextual theorem that exposed the final gap in the
+incremental implementation:
+
+```text
+forall x. x != zero -> exists y. s(add(y, s(zero))) = s(x)
+```
+
+Its profiled proof uses the same Q3 marker. The difference is that Q3 supplies
+`x = s(y)` under an outer successor context, so Q conversion must expose
+`s(s(y))` on the left and `s(x)` on the right:
+
+```clojure
+(q3-predecessor-equality
+  predecessor-or-zero
+  (par a_0)
+  (var a_1)
+  (par-bind)
+  (q-convert-close
+    (q-normal-s
+      (q-normal-add
+        (q-normal-var)
+        (q-normal-s (q-normal-zero))
+        (q-rewrite :add-succ ...)
+        (q-normal-s
+          (q-normal-add
+            (q-normal-var)
+            (q-normal-zero)
+            (q-rewrite :add-zero ...)))))
+    (q-normal-s (q-normal-par))))
+```
+
+There is now one current Q3 proof marker. Direct Q3, add-one Q3, and contextual
+Q3 all use `q3-predecessor-equality`.
 
 ## Kernel Rule Shape
 
@@ -287,37 +324,39 @@ Focused test:
 
 ```text
 lein test-proflog-robinson-q
-Ran 10 tests containing 73 assertions.
+Ran 12 tests containing 88 assertions.
 0 failures, 0 errors.
-real 14.96 s
+real 22.24 s
 ```
 
 Comparison probe:
 
 | Formula | Ordinary Q fuel | Ordinary elapsed | Profile fuel | Profile elapsed |
 |---|---:|---:|---:|---:|
-| `Q3` | 32 | `7.800 ms` | 32 | `2189.978 ms` |
-| `Q7` | 32 | `2.707 ms` | 16 | `382.799 ms` |
-| `add(1, zero) = 1` | 48 | `2.296 ms` | 16 | `14.692 ms` |
-| `mul(2, zero) = zero` | 48 | `3.165 ms` | 16 | `10.914 ms` |
-| `add(1, 2) = 3` | 64 | `2.798 ms` | 16 | `52.573 ms` |
-| `mul(2, 2) = 4` | 96 | `2.580 ms` | 16 | `239.788 ms` |
-| `forall x. x != zero -> exists y. add(y, s(zero)) = x` | 64 | `2.761 ms` | 48 | `649.812 ms` |
+| `Q3` | 32 | `8.389 ms` | 32 | `1957.861 ms` |
+| `Q7` | 32 | `3.704 ms` | 16 | `297.713 ms` |
+| `add(1, zero) = 1` | 48 | `2.491 ms` | 16 | `11.719 ms` |
+| `mul(2, zero) = zero` | 48 | `3.396 ms` | 16 | `11.465 ms` |
+| `add(1, 2) = 3` | 64 | `2.256 ms` | 16 | `46.196 ms` |
+| `mul(2, 2) = 4` | 96 | `3.221 ms` | 16 | `232.891 ms` |
+| `forall x. x != zero -> exists y. add(y, s(zero)) = x` | 64 | `2.266 ms` | 48 | `545.513 ms` |
+| `forall x. x != zero -> exists y. s(add(y, s(zero))) = s(x)` | 16 | `2.035 ms` | 16 | `762.420 ms` |
 
 The elapsed values above are the in-process row timings printed by
-`lein probe-proflog-robinson-q`; the full Leiningen process took `real 12.01 s`.
+`lein probe-proflog-robinson-q`; the full Leiningen process took `real 11.37 s`.
 
 ## Shortcomings
 
 The `:robinson-q` profile is a trusted theory layer, not a derivation of Q from
 weaker arithmetic principles. Proof records make that explicit by wrapping the
 branch closure in `profiled robinson-q` and listing `q-rewrite` or
-`q3-case-split` evidence.
+`q3-predecessor-equality` evidence.
 
-Q3 is still not a rewrite rule. The full-Q3 rule is relevance controlled: it
-requires a saved nonzero premise and a current Q-normalized successor of a
-proof-local universal variable. It does not introduce arbitrary predecessors
-without a branch obligation that can immediately use them.
+Q3 is still not a rewrite rule. The unified Q3 rule is relevance controlled: it
+requires a saved nonzero premise, an active proof-local universal variable, and
+an active disequality that becomes reflexive after temporarily applying the Q3
+equality and Q conversion. It does not introduce arbitrary predecessors without
+a branch obligation that can immediately use them.
 
 The ADR-0050 profile is slower than the old host preprocessor because
 conversion now participates in kernel proof search. That cost is intentional for
@@ -329,15 +368,12 @@ over `zero`, `s`, `add`, and `mul`, and leaves symbolic right arguments neutral
 when no Q root rule applies. It is not yet a full congruence-closure or
 deduction-modulo framework for arbitrary user theories.
 
-A follow-up expressivity audit found a concrete remaining Q3 gap:
+The profile intentionally does not prove:
 
 ```text
-forall x. x != zero -> exists y. s(add(y, s(zero))) = s(x)
+forall x. x != zero -> exists y. x = s(s(y))
 ```
 
-Ordinary Q-as-antecedent proves this theorem at fuel 16. The profile returns
-`()` through fuel 384. The theorem needs the predecessor equality from Q3 to be
-used under an outer successor context: Q conversion exposes `s(s(y)) != s(x)`,
-but the current `q3-predecessor-intro` rule only closes top-level
-`x != s(y)`-style disequalities. See
-[Robinson Q Profile Expressivity Gap](../docs/log/2026-05-09-robinson-q-profile-expressivity-gap.md).
+That formula is false in the standard model because `s(zero)` is nonzero but
+has no double predecessor. The regression suite keeps this as a focused guard
+against using Q3 as unrestricted successor unification.

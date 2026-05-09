@@ -373,6 +373,37 @@ Current ADR-0051 full Robinson Q3 rule note:
   `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
   `real 226.94 s`.
 
+Current ADR-0052 unified Robinson Q3 rule note:
+
+- Red TDD check on 2026-05-09 proved the remaining Q3 boundary: ordinary
+  Q-as-antecedent proved the contextual successor theorem, but the profiled
+  path returned no proof and the proof-shape/source-audit expectations still
+  found the old Q3 closers. The focused selector failed with
+  `Ran 12 tests containing 88 assertions`, `15 failures, 0 errors`, and
+  `real 36.46 s`.
+- After replacing `q3-case-splito` and `q3-predecessor-intro-closeo` with the
+  unified `q3-predecessor-equality-closeo`, `lein test-proflog-robinson-q`
+  passed with `Ran 12 tests containing 88 assertions`, `0 failures, 0 errors`,
+  and `real 22.24 s`.
+- The reproducible comparison probe `lein probe-proflog-robinson-q` passed with
+  `real 11.37 s`. Per-row in-process timings:
+
+| Formula | Ordinary Q fuel | Ordinary elapsed | Profile fuel | Profile elapsed |
+|---|---:|---:|---:|---:|
+| `Q3` | 32 | `8.389 ms` | 32 | `1957.861 ms` |
+| `Q7` | 32 | `3.704 ms` | 16 | `297.713 ms` |
+| `add(1, zero) = 1` | 48 | `2.491 ms` | 16 | `11.719 ms` |
+| `mul(2, zero) = zero` | 48 | `3.396 ms` | 16 | `11.465 ms` |
+| `add(1, 2) = 3` | 64 | `2.256 ms` | 16 | `46.196 ms` |
+| `mul(2, 2) = 4` | 96 | `3.221 ms` | 16 | `232.891 ms` |
+| `q3-add-one-predecessor` | 64 | `2.266 ms` | 48 | `545.513 ms` |
+| `q3-contextual-successor-predecessor` | 16 | `2.035 ms` | 16 | `762.420 ms` |
+- The ADR-0052 commit gate ran fast and extended concurrently. Fast passed with
+  `Ran 140 tests containing 502 assertions`, `0 failures, 0 errors`, and
+  `real 100.89 s`. Extended passed with
+  `Ran 68 tests containing 203 assertions`, `0 failures, 0 errors`, and
+  `real 241.21 s`.
+
 ## Committed Test Iterations
 
 | Test var | Namespace | Query family | Final successful runtime | Notes |

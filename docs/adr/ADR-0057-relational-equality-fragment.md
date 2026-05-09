@@ -1,9 +1,9 @@
 # ADR-0057: Relational Equality-Fragment Experiment
 
-- Status: accepted
+- Status: completed
 - Date: 2026-05-09
 - Branch: `adr-0057-relational-equality-fragment`
-- AAR: pending
+- AAR: [AAR-0057](../aar/AAR-0057-relational-equality-fragment.md)
 - Depends On:
   - [ADR-0020](ADR-0020-pure-gamma-candidate-boundary.md)
   - [ADR-0039](ADR-0039-kernel-level-group-verification.md)

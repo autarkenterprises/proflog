@@ -71,6 +71,21 @@ Current ADR-0042 note:
   rerun with `Ran 4 tests containing 67 assertions`, `0 failures, 0 errors`, and
   `elapsed 113.40 s`.
 
+Current ADR-0057 note:
+
+- The focused relation-backed equality-fragment selector passed on 2026-05-09
+  with `Ran 5 tests containing 32 assertions`, `0 failures, 0 errors`, and
+  `real 82.97 s` in an isolated run. The final concurrent commit-gate rerun
+  passed with the same assertions and `real 198.56 s`.
+- `lein probe-proflog-relational-equality-fragment` passed with `real 106.21 s`.
+  The slowest relation-backed row was
+  `nondeterministic-delta-deterministic` at `60515.029 ms`; all ADR-0039 GV and
+  transition rows produced `profiled relational-equality-fragment` evidence.
+- The final ADR-0057 gate also reran the existing finite verifier suite
+  (`real 221.58 s`), Fitting program suite (`real 172.93 s`), fast suite
+  (`real 196.31 s`), and extended suite (`real 319.86 s`), all with `0`
+  failures and `0` errors.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

@@ -115,7 +115,7 @@ as the current source map.
 | [ADR-0053](adr/ADR-0053-robinson-q-theorem-examples.md) | completed | `adr-0053-q-theorem-examples` | promote three non-trivial Robinson Q theorem examples under both Q proof paths | ADR-0048, ADR-0052 | symbolic addition theorem, symbolic multiplication normal-form theorem, Q3 add-two successor theorem, proof evidence checks, timing probe rows | [AAR-0053](aar/AAR-0053-robinson-q-theorem-examples.md) |
 | [ADR-0055](adr/ADR-0055-ski-relational-routing.md) | completed | `adr-0055-ski-relational-routing` | trace SKI test evaluation and require direct relational kernel/answer-overlay routes | ADR-0046, ADR-0047 | red route guard against public proof/answer wrappers, direct kernel proof helper, scheduled relational answer-overlay helper, focused timing update | [AAR-0055](aar/AAR-0055-ski-relational-routing.md) |
 | [ADR-0056](adr/ADR-0056-greenfield-user-guide.md) | completed | `adr-0056-greenfield-user-guide` | compose an authoritative greenfield user guide from the tutorial, source map, code review, and worked examples | ADR-0010, ADR-0034, ADR-0043, ADR-0055 | documentation-only source/documentation review, README link, AAR, and whitespace verification | [AAR-0056](aar/AAR-0056-greenfield-user-guide.md) |
-| [ADR-0057](adr/ADR-0057-relational-equality-fragment.md) | accepted | `adr-0057-relational-equality-fragment` | experiment with an opt-in purely relational equality-fragment profile, including relational closed-term gamma enumeration | ADR-0020, ADR-0039, ADR-0042, ADR-0055 | red route guards against the deterministic equality-fragment host engine and host gamma materialization; relational gamma enumeration tests; relational equality-fragment proof/refutation smoke rows | opt-in relational profile proves/refutes representative finite equality-fragment rows with timing data, classifies the full ADR-0039 row set, and records an AAR with the promotion decision |
+| [ADR-0057](adr/ADR-0057-relational-equality-fragment.md) | completed | `adr-0057-relational-equality-fragment` | experiment with an opt-in relation-backed equality-fragment profile, including relational closed-term gamma enumeration | ADR-0020, ADR-0039, ADR-0042, ADR-0055 | red route guards against the deterministic equality-fragment host engine and host gamma materialization; relational gamma enumeration tests; full finite-verifier parity rows | [AAR-0057](aar/AAR-0057-relational-equality-fragment.md) |
 
 ## Deferred Tracks
 
@@ -170,7 +170,7 @@ Full Robinson Q3 predecessor-rule work has graduated into completed ADR-0051.
 Unified Robinson Q3 predecessor-equality work has graduated into completed
 ADR-0052.
 Robinson Q theorem examples have graduated into completed ADR-0053.
-The relational equality-fragment experiment has graduated into accepted
+The relational equality-fragment experiment has graduated into completed
 ADR-0057.
 
 ## ADR-0007 Task List

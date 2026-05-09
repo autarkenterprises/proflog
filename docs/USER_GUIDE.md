@@ -532,10 +532,13 @@ search when a formula fragment permits it.
 | Constructor-recursive profile | Explicit answer-profile API | `proflog.kernel.constructor-recursive-profile` | Guarded recursive answer rows such as Peano/list partial synthesis. |
 | Tabled kernel | Explicit tabled API | `proflog.tabling` | Experimental canonical proof-state reuse. |
 
-The equality-fragment layer contains both a relation-shaped component and a
-deterministic finite proof engine. The latter is host-side but generic over
-equality-fragment formulas; it does not dispatch on group-verifier names or
-test identifiers.
+The equality-fragment layer contains the production deterministic finite proof
+engine and ADR-0057's opt-in relation-backed finite route. The production
+engine remains the default because it is faster on several rows. The
+ADR-0057 route emits `profiled relational-equality-fragment` evidence, uses
+relational gamma generation and relation-backed equality/disequality checks,
+and covers the same promoted finite verifier rows without calling the
+production host equality engine.
 
 The Robinson Q profile binds theory rules into the ordinary kernel rather than
 preprocessing formulas. It normalizes `add` and `mul` terms by Q4-Q7 conversion,
@@ -696,9 +699,9 @@ These boundaries are intentional in the current implementation:
   answer search.
 - Production finite fuel is `nil` or host integers. The bit-list relational
   arithmetic fuel experiments remain probe material.
-- Equality-fragment proof acceleration is generic but includes a deterministic
-  host engine. It is a proof-producing profile, not a pure relation in every
-  branch.
+- Equality-fragment proof acceleration is generic. The default remains a
+  deterministic host-backed proof engine; ADR-0057 also provides an opt-in
+  relation-backed finite route with full finite-verifier completion parity.
 - The hard-family overlay is non-default and should not be used as the semantic
   authority when a kernel/profile proof exists.
 - Long Turing-completeness and quine examples demonstrate expressivity, not

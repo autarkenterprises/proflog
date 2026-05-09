@@ -122,6 +122,8 @@
                                         "proflog.robinson-q-test"]
             "test-proflog-kernel-finite-verifiers" ["test"
                                                     "proflog.kernel-finite-verifiers-test"]
+            "test-proflog-relational-equality-fragment" ["test"
+                                                         "proflog.kernel.relational-equality-fragment-test"]
             "test-proflog-legacy-subsumption" ["test"
                                                "proflog.legacy-subsumption-test"]
             "test-proflog-constructor-recursive" ["test"
@@ -139,6 +141,7 @@
             "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]
             "probe-proflog-turing-completeness" ["run" "-m" "proflog.turing-completeness-long-probe"]
             "probe-proflog-robinson-q" ["run" "-m" "proflog.robinson-q-probe"]
+            "probe-proflog-relational-equality-fragment" ["run" "-m" "proflog.relational-equality-fragment-probe"]
             "probe-core-logic-host" ["run" "-m" "proflog.core-logic-host-probe"]
             "probe-core-logic-tabling" ["run" "-m" "proflog.core-logic-tabling-probe"]
             "probe-core-logic-count" ["run" "-m" "proflog.core-logic-count-probe"]

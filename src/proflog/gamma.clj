@@ -6,7 +6,7 @@
    necessary finite Herbrand enumeration policy for declared object-language
    constructors."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [fail membero]]
+  (:require [clojure.core.logic :refer [== fail fresh lcons membero or*]]
             [proflog.ast :as ast]))
 
 (def ^:dynamic *closed-term-depth-cap*
@@ -29,6 +29,19 @@
   "Stable ordering for declared constructor symbols."
   [entry]
   [(val entry) (str (key entry))])
+
+(defn constructor-facts
+  "Return declared function symbols as ordered `[symbol arity]` facts.
+
+   Host language declarations are maps because they are compiler products. The
+   relational gamma experiment needs a sequence-oriented view that miniKanren
+   can traverse with ordinary membership. Constants appear here as arity-zero
+   function facts, matching `proflog.language/language` normalization."
+  [lang]
+  (->> (:functions lang)
+       (sort-by declaration-order)
+       (mapv (fn [[sym arity]]
+               [sym arity]))))
 
 (defn- tuples
   "Cartesian power of `xs` with width `n`."
@@ -135,14 +148,178 @@
             (closed-terms-up-to-depth lang (fuel->closed-term-depth fuel))))
     []))
 
-(defn closed-term-candidateo
-  "Relate `term` to one supplied closed gamma candidate.
+(def ^:private relational-candidate-source-tag
+  ::relational-candidate-source)
 
-   Candidate generation is intentionally outside this relation. The proof
-   kernel supplies a finite concrete collection as explicit state, so this
-   relation remains ordinary miniKanren membership rather than host-side
-   inspection of `fuel` or `prog`."
+(defn relational-candidate-source?
+  "True for the opt-in ADR-0057 relational gamma source descriptor."
+  [source]
+  (and (map? source)
+       (= relational-candidate-source-tag (:kind source))))
+
+(defn candidate-source-empty?
+  "True when a gamma source has no finite candidate terms.
+
+   The proof-variable universal fallback is useful when no finite closed
+   candidates exist. For finite verifier languages, however, continuing to
+   explore that fallback creates a large unsound-for-performance search branch
+   that the deterministic engine intentionally avoids."
+  [source]
+  (cond
+    (relational-candidate-source? source)
+    (empty? (:constructors source))
+
+    :else
+    (not (seq source))))
+
+(defn relational-candidate-source
+  "Build an opt-in relational gamma source for a language or compiled program.
+
+   Unlike `closed-terms-for-fuel`, this function does not enumerate terms. It
+   only records the constructor facts and depth bound needed by
+   `closed-term-candidateo` to generate candidates relationally during proof
+   search. Passing a compiled program preserves the current call-free guard used
+   by the production host enumerator."
+  [lang-or-prog fuel]
+  (let [lang (if (:language lang-or-prog)
+               (and (program-call-free? lang-or-prog)
+                    (:language lang-or-prog))
+               lang-or-prog)]
+    {:kind relational-candidate-source-tag
+     :constructors (if lang
+                     (vec (reverse (constructor-facts lang)))
+                     [])
+     :max-depth (fuel->closed-term-depth fuel)}))
+
+(defn- any-goalo
+  "Return a disjunction over `goals`, or fail for an empty branch set."
+  [goals]
+  (let [goals (seq goals)]
+    (if goals
+      (or* goals)
+      fail)))
+
+(defn constructor-facto
+  "Relate `sym` and `arity` to one constructor fact in `constructor-facts`."
+  [constructor-facts sym arity]
+  (if (seq constructor-facts)
+    (membero [sym arity] (apply list constructor-facts))
+    fail))
+
+(declare closed-term-up-to-deptho
+         closed-term-exact-deptho)
+
+(defn- all-args-up-to-deptho
+  "Relate `args` to `arity` closed terms whose depth is at most `max-depth`."
+  [constructor-facts arity max-depth args]
+  (if (zero? arity)
+    (== args '())
+    (fresh [arg rest]
+      (== (lcons arg rest) args)
+      (closed-term-up-to-deptho constructor-facts max-depth arg)
+      (all-args-up-to-deptho constructor-facts (dec arity) max-depth rest))))
+
+(defn- args-first-exact-at-indexo
+  "Relate constructor arguments whose first max-depth argument is at `idx`.
+
+   This keeps exact-depth generation finite without duplicating binary terms
+   such as `node(depth1, depth1)` through both argument positions. Arguments
+   before `idx` must be shallower; the selected argument is exact; later
+   arguments may be any term up to that exact depth."
+  [constructor-facts idx arity shallower-depth exact-depth args]
+  (cond
+    (zero? arity)
+    fail
+
+    (zero? idx)
+    (fresh [arg rest]
+      (== (lcons arg rest) args)
+      (closed-term-exact-deptho constructor-facts exact-depth arg)
+      (all-args-up-to-deptho constructor-facts
+                             (dec arity)
+                             exact-depth
+                             rest))
+
+    :else
+    (fresh [arg rest]
+      (== (lcons arg rest) args)
+      (closed-term-up-to-deptho constructor-facts shallower-depth arg)
+      (args-first-exact-at-indexo constructor-facts
+                                  (dec idx)
+                                  (dec arity)
+                                  shallower-depth
+                                  exact-depth
+                                  rest))))
+
+(defn- args-with-first-exacto
+  "Relate `args` to constructor arguments that make a term exact-depth."
+  [constructor-facts arity exact-depth args]
+  (let [shallower-depth (dec exact-depth)]
+    (any-goalo
+      (map (fn [idx]
+             (args-first-exact-at-indexo constructor-facts
+                                         idx
+                                         arity
+                                         shallower-depth
+                                         exact-depth
+                                         args))
+           (range arity)))))
+
+(defn closed-term-exact-deptho
+  "Relate `term` to a closed constructor term of exactly `depth`.
+
+   The depth argument is a ground operational bound supplied by the proof
+   profile. The relation remains open in `term`, so proof search can choose the
+   closed object-language term inside miniKanren instead of receiving a
+   pre-materialized host vector."
+  [constructor-facts depth term]
+  (if (neg? depth)
+    fail
+    (any-goalo
+      (for [[sym arity] constructor-facts]
+        (cond
+          (zero? arity)
+          (if (zero? depth)
+            (== term (ast/app-term sym))
+            fail)
+
+          (pos? depth)
+          (fresh [args]
+            (== (lcons 'app (lcons sym args)) term)
+            (args-with-first-exacto constructor-facts
+                                    arity
+                                    (dec depth)
+                                    args))
+
+          :else
+          fail)))))
+
+(defn closed-term-up-to-deptho
+  "Relate `term` to a closed constructor term no deeper than `max-depth`."
+  [constructor-facts max-depth term]
+  (if (neg? max-depth)
+    fail
+    (any-goalo
+      (map (fn [depth]
+             (closed-term-exact-deptho constructor-facts depth term))
+           (range (inc max-depth))))))
+
+(defn closed-term-candidateo
+  "Relate `term` to one closed gamma candidate.
+
+   The production path supplies a finite concrete collection as explicit state,
+   preserving the ADR-0020 membership boundary. ADR-0057 adds an opt-in
+   relational source descriptor that generates bounded closed terms inside
+   miniKanren without calling `closed-terms-for-fuel`."
   [terms term]
-  (if (seq terms)
+  (cond
+    (relational-candidate-source? terms)
+    (closed-term-up-to-deptho (:constructors terms)
+                              (:max-depth terms)
+                              term)
+
+    (seq terms)
     (membero term (apply list terms))
+
+    :else
     fail))

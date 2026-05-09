@@ -241,6 +241,47 @@ for the full relational kernel. General procedure-call recursion, open answer
 synthesis, and non-equality first-order reasoning still belong to the existing
 kernel and answer-overlay paths.
 
+## ADR-0057 Relation-Backed Parity Route
+
+ADR-0057 adds an opt-in relation-backed finite route:
+
+```clojure
+(equality-fragment/prove-program-relational program query 1 16 :succeeds)
+(equality-fragment/prove-program-relational program query 1 16 :fails)
+```
+
+The last argument names the public query outcome being demonstrated. For
+`:succeeds`, the route proves the negated query formula; for `:fails`, it proves
+the query formula itself. Returned proof evidence is compact:
+
+```clojure
+(pos-call (profiled relational-equality-fragment relational-proof))
+(neg-call (profiled relational-equality-fragment relational-proof))
+```
+
+The compact marker means the finite route found an internal relational proof,
+but does not reify the whole equality-fragment proof tree. That matters for the
+larger transition rows, where full proof trees are very large.
+
+The ADR-0057 comparison probe passed with `real 106.21 s`:
+
+| Row | Host ms | Relation-backed ms |
+|---|---:|---:|
+| `z1-full-assoc-truth` | `7.790` | `203.453` |
+| `z2-precomputed-assoc-truth` | `14.162` | `83.748` |
+| `z2-full-assoc-truth` | `19.938` | `667.185` |
+| `non-group-precomputed-assoc` | `83.473` | `91.309` |
+| `non-group-full-assoc` | `13.244` | `87.405` |
+| `complete-delta-total` | `8283.238` | `6884.622` |
+| `complete-delta-deterministic` | `151.795` | `4366.812` |
+| `incomplete-delta-total` | `25.260` | `18.374` |
+| `nondeterministic-delta-deterministic` | `7327.128` | `60515.029` |
+
+The focused ADR-0057 selector passed with `Ran 5 tests containing 32
+assertions`, `0 failures, 0 errors`, `real 82.97 s`. This establishes
+completion parity with the production equality-fragment route, not uniform
+duration parity.
+
 ## Source To Kernel Descent
 
 These examples are the clearest promoted use of a profiled kernel component.

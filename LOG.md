@@ -22,6 +22,24 @@ complete contemporaneous transcript.
 
 ## 2026-05-09
 
+- Started
+  [ADR-0057](docs/adr/ADR-0057-relational-equality-fragment.md) on branch
+  `adr-0057-relational-equality-fragment`. The ADR scopes an opt-in
+  relational replacement experiment for the equality-fragment host engine,
+  including a relational closed-term gamma enumerator, route guards against
+  `prove-program-host` and `gamma/closed-terms-for-fuel`, representative GV and
+  transition-system gates, timing probes, and an explicit promotion or
+  rejection decision in the future AAR.
+- Completed
+  [ADR-0057](docs/adr/ADR-0057-relational-equality-fragment.md) by adding an
+  opt-in relation-backed equality-fragment route with relational gamma
+  generation and full ADR-0039 finite-verifier completion parity. The focused
+  selector passed with `Ran 5 tests containing 32 assertions`, `0 failures`,
+  `0 errors`, `real 82.97 s`; the comparison probe passed in `real 106.21 s`.
+  The final concurrent gates passed: relational equality-fragment `real
+  198.56 s`, kernel finite verifiers `real 221.58 s`, Fitting programs `real
+  172.93 s`, fast `real 196.31 s`, and extended `real 319.86 s`.
+  See [AAR-0057](docs/aar/AAR-0057-relational-equality-fragment.md).
 - Started ADR-0056 to compose an authoritative greenfield user guide from the
   current implementation tutorial, source map, `src/proflog` code, and worked
   examples. See

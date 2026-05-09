@@ -61,3 +61,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0054](AAR-0054-robinson-q-prime-evenness.md) | [ADR-0054](../adr/ADR-0054-robinson-q-prime-evenness.md) | completed |
 | [AAR-0055](AAR-0055-ski-relational-routing.md) | [ADR-0055](../adr/ADR-0055-ski-relational-routing.md) | completed |
 | [AAR-0056](AAR-0056-greenfield-user-guide.md) | [ADR-0056](../adr/ADR-0056-greenfield-user-guide.md) | completed |
+| [AAR-0057](AAR-0057-relational-equality-fragment.md) | [ADR-0057](../adr/ADR-0057-relational-equality-fragment.md) | completed |

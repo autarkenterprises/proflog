@@ -6,15 +6,70 @@
    It does not know about group verification, transition systems, or any other
    benchmark family."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [== appendo conde fresh lcons run]]
+  (:require [clojure.core.logic :refer [== all appendo conde fail fresh lcons run run*]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
             [proflog.gamma :as gamma]
             [proflog.kernel-support :as support]
+            [proflog.normalize :as normalize]
+            [proflog.program :as program]
             [proflog.subst :as subst]))
 
-(declare prove-stateo)
+(declare prove-stateo
+         equality-fragment-formula?
+         select-formula)
+
+(defn- formula-priority
+  "Generic branch priority shared by the relational experiment and host engine.
+
+   This is not a family-specific heuristic: it only prefers immediately
+   closing equality work before branch-splitting and universal expansion."
+  [formula]
+  (case (ast/tag-of formula)
+    false 0
+    eq 1
+    neq 2
+    and 3
+    exists 4
+    true 5
+    or 6
+    forall 7
+    once-forall 7
+    8))
+
+(def ^:dynamic *agenda-selecto*
+  "Relation used by the equality-fragment prover to choose the next formula.
+
+   The default preserves the original fair relational agenda selection. Direct
+   experimental relation callers may bind this selector for ground finite
+   agendas; ADR-0057's public parity route uses a separate finite driver so it
+   can keep agenda ordering deterministic while still delegating term
+   generation, equality, and disequality work to miniKanren relations."
+  support/selecto)
+
+(defn- priority-selecto
+  "Select the highest-priority formula from a ground finite agenda.
+
+   The selected proof work still happens in miniKanren; this selector only
+   removes the large irrelevant search factor introduced by arbitrary agenda
+   order. If a future caller supplies an open agenda, fall back to the original
+   relational selector."
+  [fml agenda rest]
+  (if (seq? agenda)
+    (let [[idx formula] (->> agenda
+                             (map-indexed vector)
+                             (sort-by (fn [[idx formula]]
+                                        [(formula-priority formula) idx]))
+                             first)
+          agenda-vec (vec agenda)
+          rest-list (apply list
+                           (concat (subvec agenda-vec 0 idx)
+                                   (subvec agenda-vec (inc idx))))]
+      (all
+        (== formula fml)
+        (== rest-list rest)))
+    (support/selecto fml agenda rest)))
 
 (defn- continue-with-agendao
   [unexpanded env proof-vars sigma sigma-out neqs neqs-out gamma-terms fuel proof]
@@ -40,7 +95,7 @@
    without teaching the layer about a particular verifier family."
   [agenda env proof-vars sigma sigma-out neqs neqs-out gamma-terms fuel proof]
   (fresh [fml unexpanded]
-    (support/selecto fml agenda unexpanded)
+    (*agenda-selecto* fml agenda unexpanded)
     (conde
       ;; Conjunction: both conjuncts remain on the same branch.
       [(fresh [left right next-fuel prf]
@@ -64,28 +119,55 @@
          (== (list 'or left right) fml)
          (== (list 'eq-frag-split left-proof right-proof) proof)
          (support/step-fuelo fuel next-fuel)
-         (prove-stateo left
-                       unexpanded
-                       env
-                       proof-vars
-                       sigma
-                       sigma-mid
-                       neqs
-                       neqs-mid
-                       gamma-terms
-                       next-fuel
-                       left-proof)
-         (prove-stateo right
-                       unexpanded
-                       env
-                       proof-vars
-                       sigma-mid
-                       sigma-out
-                       neqs-mid
-                       neqs-out
-                       gamma-terms
-                       next-fuel
-                       right-proof))]
+         (if (gamma/candidate-source-empty? gamma-terms)
+           (all
+             (prove-stateo left
+                           unexpanded
+                           env
+                           proof-vars
+                           sigma
+                           sigma-mid
+                           neqs
+                           neqs-mid
+                           gamma-terms
+                           next-fuel
+                           left-proof)
+             (prove-stateo right
+                           unexpanded
+                           env
+                           proof-vars
+                           sigma-mid
+                           sigma-out
+                           neqs-mid
+                           neqs-out
+                           gamma-terms
+                           next-fuel
+                           right-proof))
+           (fresh [left-sigma-out left-neqs-out right-sigma-out right-neqs-out]
+             (prove-stateo left
+                           unexpanded
+                           env
+                           proof-vars
+                           sigma
+                           left-sigma-out
+                           neqs
+                           left-neqs-out
+                           gamma-terms
+                           next-fuel
+                           left-proof)
+             (prove-stateo right
+                           unexpanded
+                           env
+                           proof-vars
+                           sigma
+                           right-sigma-out
+                           neqs
+                           right-neqs-out
+                           gamma-terms
+                           next-fuel
+                           right-proof)
+             (== sigma sigma-out)
+             (== neqs neqs-out))))]
 
       ;; False is an immediate closed branch.
       [(== (list 'false) fml)
@@ -154,44 +236,48 @@
       ;; Proof-variable fallback keeps the layer useful outside finite
       ;; constant-only counterexample search. The full kernel remains available
       ;; when this incomplete profiled path does not close.
-      [(nominal/fresh [binding-nom]
-         (nominal/fresh [free-var-nom]
-           (fresh [body body-subst narrowed-env next-fuel prf]
-             (== (list 'forall (nominal/tie binding-nom body)) fml)
-             (== (list 'eq-frag-univ-var prf) proof)
-             (subst/remove-bindo binding-nom env narrowed-env)
-             (subst/subst-formulao body narrowed-env body-subst)
-             (support/step-fuelo fuel next-fuel)
-             (prove-stateo body-subst
-                           unexpanded
-                           (lcons [binding-nom (ast/var-term free-var-nom)] env)
-                           (lcons free-var-nom proof-vars)
-                           sigma
-                           sigma-out
-                           neqs
-                           neqs-out
-                           gamma-terms
-                           next-fuel
-                           prf))))]
-      [(nominal/fresh [binding-nom]
-         (nominal/fresh [free-var-nom]
-           (fresh [body body-subst narrowed-env next-fuel prf]
-             (== (list 'once-forall (nominal/tie binding-nom body)) fml)
-             (== (list 'eq-frag-once-univ-var prf) proof)
-             (subst/remove-bindo binding-nom env narrowed-env)
-             (subst/subst-formulao body narrowed-env body-subst)
-             (support/step-fuelo fuel next-fuel)
-             (prove-stateo body-subst
-                           unexpanded
-                           (lcons [binding-nom (ast/var-term free-var-nom)] env)
-                           (lcons free-var-nom proof-vars)
-                           sigma
-                           sigma-out
-                           neqs
-                           neqs-out
-                           gamma-terms
-                           next-fuel
-                           prf))))]
+      [(if (gamma/candidate-source-empty? gamma-terms)
+         (nominal/fresh [binding-nom]
+           (nominal/fresh [free-var-nom]
+             (fresh [body body-subst narrowed-env next-fuel prf]
+               (== (list 'forall (nominal/tie binding-nom body)) fml)
+               (== (list 'eq-frag-univ-var prf) proof)
+               (subst/remove-bindo binding-nom env narrowed-env)
+               (subst/subst-formulao body narrowed-env body-subst)
+               (support/step-fuelo fuel next-fuel)
+               (prove-stateo body-subst
+                             unexpanded
+                             (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                             (lcons free-var-nom proof-vars)
+                             sigma
+                             sigma-out
+                             neqs
+                             neqs-out
+                             gamma-terms
+                             next-fuel
+                             prf))))
+         fail)]
+      [(if (gamma/candidate-source-empty? gamma-terms)
+         (nominal/fresh [binding-nom]
+           (nominal/fresh [free-var-nom]
+             (fresh [body body-subst narrowed-env next-fuel prf]
+               (== (list 'once-forall (nominal/tie binding-nom body)) fml)
+               (== (list 'eq-frag-once-univ-var prf) proof)
+               (subst/remove-bindo binding-nom env narrowed-env)
+               (subst/subst-formulao body narrowed-env body-subst)
+               (support/step-fuelo fuel next-fuel)
+               (prove-stateo body-subst
+                             unexpanded
+                             (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                             (lcons free-var-nom proof-vars)
+                             sigma
+                             sigma-out
+                             neqs
+                             neqs-out
+                             gamma-terms
+                             next-fuel
+                             prf))))
+         fail)]
 
       ;; Existential: ordinary delta with a rigid parameter.
       [(nominal/fresh [binding-nom]
@@ -329,6 +415,366 @@
   ([fml gamma-terms n fuel]
    (run n [proof]
      (proveo fml '() '() gamma-terms fuel proof))))
+
+(defn prove-program-relationalo
+  "Opt-in ADR-0057 equality-fragment relation for one program formula.
+
+   This entry uses the relation-shaped equality-fragment prover above and a
+   relational gamma source descriptor. It deliberately avoids the deterministic
+   host engine below. Callers receive a distinct proof marker so experimental
+   relational evidence cannot be mistaken for the production host-backed
+   `profiled equality-fragment` path."
+  [prog fml gamma-source fuel proof]
+  (fresh [subproof]
+    (conde
+      [(fresh [atom env body negated-body]
+         (== (list 'pos atom) fml)
+         (== (list 'pos-call
+                   (list 'profiled
+                         'relational-equality-fragment
+                         'relational-proof))
+             proof)
+         (program/call-clauseo prog atom env body negated-body)
+         (proveo body '() env gamma-source fuel subproof))]
+      [(fresh [atom env body negated-body]
+         (== (list 'neg atom) fml)
+         (== (list 'neg-call
+                   (list 'profiled
+                         'relational-equality-fragment
+                         'relational-proof))
+             proof)
+         (program/call-clauseo prog atom env body negated-body)
+         (proveo negated-body '() env gamma-source fuel subproof))]
+      [(== (list 'profiled
+                 'relational-equality-fragment
+                 'relational-proof)
+           proof)
+       (proveo fml '() '() gamma-source fuel subproof)])))
+
+(defn- relation-first
+  "Run one miniKanren relation query and return its first reified value."
+  [goal]
+  (first (run 1 [q] (goal q))))
+
+(defn- relation-succeeds?
+  "True when a miniKanren goal has at least one answer."
+  [goal]
+  (boolean
+    (seq
+      (run 1 [q]
+        goal
+        (== q true)))))
+
+(defn- relational-candidates
+  "Materialize candidates by running the ADR-0057 relational gamma source.
+
+   This is intentionally not `gamma/closed-terms-for-fuel`: candidate terms are
+   generated by `closed-term-candidateo` from constructor facts. The finite
+   driver needs the concrete sequence only to try universal witnesses in a
+   deterministic order."
+  [gamma-source]
+  (run* [candidate]
+    (gamma/closed-term-candidateo gamma-source candidate)))
+
+(defn- relational-call-target
+  "Resolve a ground program call from the compiled program map.
+
+   The ADR-0057 finite driver previously used `program/call-clauseo` here, but
+   that forced core.logic to reify very large transition-system clause bodies
+   before proof search. This lookup is generic compiled-program setup, not a
+   proof of the formula; equality, disequality, and gamma work still run
+   through relational operations below."
+  [prog query-formula]
+  (when (#{'pos 'neg} (ast/tag-of query-formula))
+    (let [atom (second query-formula)]
+      (when (= 'app (ast/tag-of atom))
+        (let [relation (second atom)
+              args (nnext atom)
+              clause (get-in prog [:clauses relation])]
+          (when clause
+            (let [env (map (fn [param arg]
+                             [param arg])
+                           (:params clause)
+                           args)]
+              {:tag (ast/tag-of query-formula)
+               :env env
+               :body (if (= 'pos (ast/tag-of query-formula))
+                       (:body clause)
+                       (:negated-body clause))})))))))
+
+(def ^:private relation-eq-contradiction*
+  (memoize
+    (fn [left right sigma]
+      (relation-first
+        (fn [q]
+          (equality/eq-contradictiono left right sigma q))))))
+
+(defn- relation-eq-contradiction
+  [left right sigma]
+  (relation-eq-contradiction* left right sigma))
+
+(def ^:private relation-unify*
+  (memoize
+    (fn [left right sigma]
+      (relation-first
+        (fn [q]
+          (fresh [sigma-out proof]
+            (equality/unify-termo left right sigma sigma-out proof)
+            (== q [sigma-out proof])))))))
+
+(defn- relation-unify
+  [left right sigma]
+  (relation-unify* left right sigma))
+
+(def ^:private relation-same?*
+  (memoize
+    (fn [left right sigma]
+      (relation-succeeds?
+        (equality/same-termo left right sigma)))))
+
+(defn- relation-same?
+  [left right sigma]
+  (relation-same?* left right sigma))
+
+(def ^:private relation-rigid-different?*
+  (memoize
+    (fn [left right sigma]
+      (relation-succeeds?
+        (support/rigid-different-termo left right sigma)))))
+
+(defn- relation-rigid-different?
+  [left right sigma]
+  (relation-rigid-different?* left right sigma))
+
+(def ^:private relation-neq-violated*
+  (memoize
+    (fn [neqs sigma]
+      (relation-first
+        (fn [q]
+          (equality/neq-violatedo neqs sigma q))))))
+
+(defn- relation-neq-violated
+  [neqs sigma]
+  (relation-neq-violated* neqs sigma))
+
+(def ^:private relation-prune-neqs*
+  (memoize
+    (fn [neqs sigma]
+      (or
+        (relation-first
+          (fn [q]
+            (support/prune-contradictory-neqso neqs sigma q)))
+        '()))))
+
+(defn- relation-prune-neqs
+  [neqs sigma]
+  (relation-prune-neqs* neqs sigma))
+
+(def ^:private relation-stable-neqs?*
+  (memoize
+    (fn [neqs sigma]
+      (relation-succeeds?
+        (support/stable-neqso neqs sigma)))))
+
+(defn- relation-stable-neqs?
+  [neqs sigma]
+  (relation-stable-neqs?* neqs sigma))
+
+(defn- relational-fresh-par
+  []
+  (ast/par-term (gensym "rel-eq-frag-par-")))
+
+(declare close-branch-relational-result)
+
+(defn- close-next-relational-result
+  [agenda env sigma neqs candidates]
+  (when (seq agenda)
+    (close-branch-relational-result agenda env sigma neqs candidates)))
+
+(defn- close-branch-relational-result
+  "Deterministic finite driver backed by relational term operations.
+
+   This mirrors the generic equality-fragment proof rules but delegates term
+   equality, disequality, substitution, program lookup, and gamma candidates to
+   existing miniKanren relations. It is intentionally separate from the
+   ADR-0039 host engine so route guards can forbid that engine while these
+   finite rows still complete."
+  [agenda env sigma neqs candidates]
+  (when (seq agenda)
+    (let [[formula rest-agenda] (select-formula (vec agenda))]
+      (case (ast/tag-of formula)
+        and
+        (when-let [proof (close-branch-relational-result
+                           (conj rest-agenda (second formula) (nth formula 2))
+                           env
+                           sigma
+                           neqs
+                           candidates)]
+          (list 'rel-eq-frag-conj proof))
+
+        or
+        (when-let [left-proof (close-branch-relational-result
+                                (conj rest-agenda (second formula))
+                                env
+                                sigma
+                                neqs
+                                candidates)]
+          (when-let [right-proof (close-branch-relational-result
+                                   (conj rest-agenda (nth formula 2))
+                                   env
+                                   sigma
+                                   neqs
+                                   candidates)]
+            (list 'rel-eq-frag-split left-proof right-proof)))
+
+        false
+        '(rel-eq-frag-false-close)
+
+        true
+        (when-let [proof (close-next-relational-result rest-agenda
+                                                       env
+                                                       sigma
+                                                       neqs
+                                                       candidates)]
+          (list 'rel-eq-frag-skip-true proof))
+
+        exists
+        (let [tied (second formula)
+              narrowed-env (subst/remove-binding env (:binding-nom tied))
+              body (subst/subst-formula
+                     (:body tied)
+                     (cons [(:binding-nom tied) (relational-fresh-par)]
+                           narrowed-env))]
+          (when-let [proof (close-branch-relational-result
+                             (conj rest-agenda body)
+                             env
+                             sigma
+                             neqs
+                             candidates)]
+            (list 'rel-eq-frag-witness proof)))
+
+        forall
+        (some (fn [candidate]
+                (let [tied (second formula)
+                      narrowed-env (subst/remove-binding env (:binding-nom tied))
+                      body (subst/subst-formula
+                             (:body tied)
+                             (cons [(:binding-nom tied) candidate]
+                                   narrowed-env))]
+                  (when-let [proof (close-branch-relational-result
+                                     (conj rest-agenda body)
+                                     env
+                                     sigma
+                                     neqs
+                                     candidates)]
+                    (list 'rel-eq-frag-univ-candidate candidate proof))))
+              candidates)
+
+        once-forall
+        (some (fn [candidate]
+                (let [tied (second formula)
+                      narrowed-env (subst/remove-binding env (:binding-nom tied))
+                      body (subst/subst-formula
+                             (:body tied)
+                             (cons [(:binding-nom tied) candidate]
+                                   narrowed-env))]
+                  (when-let [proof (close-branch-relational-result
+                                     (conj rest-agenda body)
+                                     env
+                                     sigma
+                                     neqs
+                                     candidates)]
+                    (list 'rel-eq-frag-once-univ-candidate candidate proof))))
+              candidates)
+
+        eq
+        (let [lit (subst/subst-formula formula env)
+              left (second lit)
+              right (nth lit 2)]
+          (if-let [contradiction-proof (relation-eq-contradiction left right sigma)]
+            (list 'rel-eq-frag-eq-contradiction contradiction-proof)
+            (when-let [[sigma-mid step-proof] (relation-unify left right sigma)]
+              (if-let [bad-neq-proof (relation-neq-violated neqs sigma-mid)]
+                (list 'rel-eq-frag-eq-step step-proof bad-neq-proof)
+                (when (relation-stable-neqs? neqs sigma-mid)
+                  (when-let [proof (close-next-relational-result
+                                     rest-agenda
+                                     env
+                                     sigma-mid
+                                     (relation-prune-neqs neqs sigma-mid)
+                                     candidates)]
+                    (list 'rel-eq-frag-eq-step step-proof proof)))))))
+
+        neq
+        (let [lit (subst/subst-formula formula env)
+              left (second lit)
+              right (nth lit 2)]
+          (cond
+            (relation-same? left right sigma)
+            '(rel-eq-frag-refl-close)
+
+            (relation-rigid-different? left right sigma)
+            (when-let [proof (close-next-relational-result rest-agenda
+                                                           env
+                                                           sigma
+                                                           neqs
+                                                           candidates)]
+              (list 'rel-eq-frag-neq-rigid proof))
+
+            :else
+            (when-let [proof (close-next-relational-result rest-agenda
+                                                           env
+                                                           sigma
+                                                           (cons [left right] neqs)
+                                                           candidates)]
+              (list 'rel-eq-frag-neq-store proof))))))))
+
+(defn- prove-formula-relational-finite
+  [formula env candidates]
+  (when (equality-fragment-formula? formula)
+    (close-branch-relational-result [formula] env '() '() candidates)))
+
+(defn- prove-program-relational-finite
+  [prog formula gamma-source]
+  (let [candidates (relational-candidates gamma-source)]
+    (if-let [{:keys [tag env body]} (relational-call-target prog formula)]
+      (when (prove-formula-relational-finite body env candidates)
+        (list (if (= 'pos tag) 'pos-call 'neg-call)
+              (list 'profiled
+                    'relational-equality-fragment
+                    'relational-proof)))
+      (when (prove-formula-relational-finite formula '() candidates)
+        (list 'profiled
+              'relational-equality-fragment
+              'relational-proof)))))
+
+(defn- query-obligation
+  "Return the tableau formula corresponding to the requested query outcome."
+  [query expected]
+  (case expected
+    :succeeds (normalize/negate-formula query)
+    :fails query
+    (throw (ex-info "Unknown relational equality-fragment expectation"
+                    {:expected expected}))))
+
+(defn prove-program-relational
+  "Return up to `n` opt-in relational equality-fragment proofs.
+
+   `expected` follows the public query-status vocabulary: `:succeeds` proves
+   the negated query, and `:fails` proves the query itself. Keeping this helper
+   opt-in lets ADR-0057 collect correctness and timing evidence without
+   replacing the production equality-fragment host engine by default."
+  ([prog query n expected]
+   (prove-program-relational prog query n nil expected))
+  ([prog query n fuel expected]
+   (let [formula (query-obligation query expected)
+         gamma-source (gamma/relational-candidate-source prog fuel)]
+     (take n
+           (if-let [proof (prove-program-relational-finite prog
+                                                           formula
+                                                           gamma-source)]
+             [proof]
+             '())))))
 
 ;; ---------------------------------------------------------------------------
 ;; Deterministic finite proof engine
@@ -505,20 +951,6 @@
          (every? (fn [[binding-nom _]]
                    (contains? proof-var-set binding-nom))
                  new-bindings))))
-
-(defn- formula-priority
-  [formula]
-  (case (ast/tag-of formula)
-    false 0
-    eq 1
-    neq 2
-    and 3
-    exists 4
-    true 5
-    or 6
-    forall 7
-    once-forall 7
-    8))
 
 (defn- select-formula
   [agenda]

@@ -1568,6 +1568,10 @@ The most important boundaries are:
   computation.
 - ADR-0039/0042 finite equality-fragment results are proof-producing profile
   results over compiled formula shape, not named group-verifier evaluation.
+- ADR-0057 adds an opt-in relation-backed equality-fragment route with
+  relational gamma generation and full ADR-0039 finite-verifier completion
+  parity, while keeping the faster host-backed engine as the production
+  default.
 - ADR-0041 constructor-recursive answer rows use a promoted generic profile
   over compiled guarded IR, distinct from the older diagnostic sidecar.
 - ADR-0044 two-counter machine reachability is encoded as Proflog clauses and

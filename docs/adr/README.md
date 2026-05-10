@@ -68,3 +68,4 @@ Use ADRs for every feature-sized decision before implementation starts. Each ADR
 | [ADR-0057](ADR-0057-relational-equality-fragment.md) | completed | `adr-0057-relational-equality-fragment` | experimental relation-backed equality-fragment profile, including relational gamma term enumeration | [AAR-0057](../aar/AAR-0057-relational-equality-fragment.md) |
 | [ADR-0058](ADR-0058-willard-sjas-language-profile.md) | proposed | `adr-0058-sjas-profile-design` | design staged Willard-style Type-A semantic-tableaux SJAS language profiles | pending |
 | [ADR-0059](ADR-0059-willard-sjas-profile-independent-review.md) | completed | `review/sjas-lang-profile-design` | independent SJAS corpus-to-Proflog synthesis for reconciliation with ADR-0058 | n/a |
+| [ADR-0060](ADR-0060-willard-sjas-mvp.md) | proposed | `adr-0060-willard-sjas-mvp` | implement the MVP Willard SJAS-lang builder, profiles, examples, and tests | pending |

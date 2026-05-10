@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-05-10
 
+- Started [ADR-0060](docs/adr/ADR-0060-willard-sjas-mvp.md) on branch
+  `adr-0060-willard-sjas-mvp` to implement the MVP Willard SJAS-lang from
+  ADR-0058 and ADR-0059. The implementation target includes the frontend
+  system builder, `:willard-sjas-tableau0` and `:willard-sjas-level1` proof
+  profiles, generated Group-Zero through Group-3 axiom bases, relational
+  arithmetic/classifier/certificate predicates, reflected/external clause
+  boundary tests, route audits, worked examples, timing records, and a final
+  completion audit. Initial documentation gate: `lein test-proflog-fast` passed
+  with `143` tests, `537` assertions, `0` failures, `0` errors,
+  `real 73.38 s`.
 - On branch `review/sjas-lang-profile-design`, recorded an independent SJAS
   design review (nachlass posture, Willard commitments, Proflog proof-profile
   mapping, and implementation slices) without altering ADR-0058’s branch-owned

@@ -51,6 +51,19 @@ complete contemporaneous transcript.
   [Willard SJAS Profile Design Notes](docs/log/2026-05-10-willard-sjas-profile-design.md).
   Verification: `lein test-proflog-fast` passed with `143` tests, `537`
   assertions, `0` failures, `0` errors, `real 86.43 s`.
+- Clarified the ADR-0058 reflected-system boundary for user-supplied SJAS
+  programs. The local 2001 Willard `IS(A)` witness defines Group-3 as a
+  self-reference to proofs from `IS(A)`, and its Appendix B spells this as
+  proofs from Group-Zero/Group-1/Group-2 plus the self sentence. The local 2013
+  `ISD(A)` / `IS#_D(beta)` witness makes the dependency sharper: replacing the
+  infinite Group-2 schema with finite beta changes the "I am" fragment of
+  Group-3. Therefore a Proflog clause that is meant to be cited by the internal
+  `tableau-proof` predicate is effectively a finite Group-2 or Group-2b
+  reflected extension, while ordinary external Proflog code may reuse a fixed
+  SJAS basis only if it is not included in `axiom-member`. See
+  [Willard SJAS Profile Design Notes](docs/log/2026-05-10-willard-sjas-profile-design.md).
+  Verification: `lein test-proflog-fast` passed with `143` tests, `537`
+  assertions, `0` failures, `0` errors, `real 73.20 s`.
 
 ## 2026-05-09
 

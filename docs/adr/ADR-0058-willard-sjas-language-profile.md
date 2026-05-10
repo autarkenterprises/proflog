@@ -128,6 +128,22 @@ SJAS system through a thin SJAS-specific frontend that:
 - generates Group-3 once as `SelfCons0` or `SelfCons1`;
 - compiles a query entrypoint that proves from the generated SJAS axiom basis.
 
+The frontend must make the reflected-system boundary explicit. In the default
+"program in SJAS" mode, user beta axioms and any user program clauses intended
+to be cited by the internal proof predicate are part of the generated reflected
+system. They should be compiled as finite Group-2 data, or as a named finite
+Group-2b extension, before Group-3 is generated. Changing these clauses changes
+the system whose consistency is asserted, so it must also change the generated
+Group-3 formula and its system identifier.
+
+An optional external-application mode may let a fixed SJAS basis be reused by
+ordinary Proflog code. In that mode, external clauses are not axioms of "this
+system"; the reflected proof predicate must not cite them through
+`axiom-member`, and `SelfCons0` / `SelfCons1` does not assert their consistency.
+The first tutorial path should prefer the reflected mode, because it is the one
+that corresponds to writing a program inside the SJAS rather than merely calling
+an SJAS theory from outside.
+
 Current Proflog programs do not have a general free-standing axiom-context slot.
 They mostly expose relation clauses; examples such as Robinson Q and Pelletier
 compose axioms into theorem formulas. SJAS therefore needs a new generated
@@ -169,11 +185,16 @@ program being reflected:
   and proof-code facts needed by the demonstrator.
 - Group-2 should be finite in the first implementation. For an `IS#_D(beta)`
   demonstrator, beta is a finite list of Pi-star-1 axioms supplied as ordinary
-  proper axioms. The infinite `ISD(A)` schema is a later generalization.
+  proper axioms. Reflected user program clauses belong here as finite beta data,
+  or in a separately named finite Group-2b extension, when those clauses are to
+  be available to the internal proof predicate. The infinite `ISD(A)` schema is
+  a later generalization.
 - Group-3 is the generated self-consistency fixed-point formula. It is an
   ordinary proper axiom of the reflected SJAS, not an unlabelled host-side rule.
-  Its code for "this system" must include Group-Zero, Group-1, Group-2, and the
-  Group-3 formula itself.
+  Its code for "this system" must include Group-Zero, Group-1, Group-2, any
+  reflected Group-2b user extension, and the Group-3 formula itself. It is
+  therefore generated per reflected system, not shared across systems with
+  different beta/program clauses.
 
 Predicates for coding logical statements as SJAS-arithmetic terms are declared
 in the language and defined in the Group-1/coding prelude. Examples include
@@ -218,6 +239,9 @@ for each item below.
 - Authoring tests show that a user can create an SJAS system by supplying
   profile choice, beta axioms, and ordinary Proflog clauses, without manually
   constructing Group-3 or object-language axiom membership.
+- Boundary tests show that changing a reflected beta axiom or reflected program
+  clause changes the generated system id and Group-3 formula, while changing an
+  external-application clause does not.
 - Bounded contradiction probes try to find simultaneous Pi-star-1/complement
   proofs and record their outcomes and timings.
 - Source audits reject host proof checkers and whole-formula proof-time

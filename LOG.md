@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-05-10
 
+- On branch `review/sjas-lang-profile-design`, recorded an independent SJAS
+  design review (nachlass posture, Willard commitments, Proflog proof-profile
+  mapping, and implementation slices) without altering ADR-0058’s branch-owned
+  text. Added [ADR-0059](docs/adr/ADR-0059-willard-sjas-profile-independent-review.md)
+  and [Willard SJAS — Independent Agent Review Synthesis](docs/log/2026-05-10-willard-sjas-agent-review-synthesis.md).
+  ADR-0058 remains the sibling canonical design ADR from the parallel effort.
 - Reviewed the local Willard SJAS corpus in `sjas/nachlass/` and extracted the
   implementation-relevant requirements for a Proflog SJAS language profile. The
   first viable target is the Type-A, semantic-tableaux, Level-1 line rather than

@@ -20,6 +20,18 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-10
+
+- Reviewed the local Willard SJAS corpus in `sjas/nachlass/` and extracted the
+  implementation-relevant requirements for a Proflog SJAS language profile. The
+  first viable target is the Type-A, semantic-tableaux, Level-1 line rather than
+  the later Hilbert/theta-function line, because it matches Proflog's
+  Fitting-style kernel and existing proof-profile architecture. Opened
+  [ADR-0058](docs/adr/ADR-0058-willard-sjas-language-profile.md) and the longer
+  [Willard SJAS Profile Design Notes](docs/log/2026-05-10-willard-sjas-profile-design.md).
+  Verification for the documentation branch: `lein test-proflog-fast` passed
+  with `143` tests, `537` assertions, `0` failures, `0` errors, `real 99.84 s`.
+
 ## 2026-05-09
 
 - Started

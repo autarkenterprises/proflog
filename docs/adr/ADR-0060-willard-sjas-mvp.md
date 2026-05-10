@@ -1,9 +1,9 @@
 # ADR-0060: Willard SJAS MVP Implementation
 
-- Status: proposed
+- Status: completed
 - Date: 2026-05-10
 - Branch: `adr-0060-willard-sjas-mvp`
-- AAR: pending
+- AAR: [AAR-0060](../aar/AAR-0060-willard-sjas-mvp.md)
 
 ## Context
 

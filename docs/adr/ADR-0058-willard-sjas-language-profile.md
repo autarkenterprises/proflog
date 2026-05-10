@@ -1,9 +1,9 @@
 # ADR-0058: Willard SJAS Language Profile Design
 
-- Status: proposed
+- Status: completed
 - Date: 2026-05-10
 - Branch: `adr-0058-sjas-profile-design`
-- AAR: pending
+- AAR: [AAR-0060](../aar/AAR-0060-willard-sjas-mvp.md)
 
 ## Context
 
@@ -258,4 +258,14 @@ for each item below.
 
 ## After Action Summary
 
-Pending.
+ADR-0060 implemented the MVP SJAS-lang substrate described here. The completed
+artifact adds `proflog.willard-sjas`,
+`proflog.kernel.willard-sjas-profile`, the focused `lein test-proflog-sjas`
+selector, worked examples, runtime records, and [AAR-0060](../aar/AAR-0060-willard-sjas-mvp.md).
+
+The implementation intentionally remains an MVP: it includes finite generated
+axiom bases, profile evidence, formula-class checks, finite arithmetic graph
+facts, and miniature relation-backed proof-certificate predicates. It does not
+claim Tab-1 theorem reuse, a complete tableau certificate checker, full
+U-grounding arithmetic, or Willard's external consistency-preservation
+metatheorem.

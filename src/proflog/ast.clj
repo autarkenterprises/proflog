@@ -218,6 +218,24 @@
        (nil? (nnext node))
        (formula? (:body (second node)))))
 
+(defn bounded-quantifier-form?
+  "Return true when `node` is an SJAS bounded quantifier form.
+
+   The Willard SJAS surface keeps bounded quantification visible until NNF
+   lowering can turn it into an ordinary quantifier plus a relational `leq`
+   guard. The tie body is therefore a small map, not a formula directly."
+  [node quantifier-tag]
+  (and (seq? node)
+       (= quantifier-tag (first node))
+       (nominal/tie? (second node))
+       (nil? (nnext node))
+       (let [payload (:body (second node))]
+         (and (map? payload)
+              (contains? payload :bound)
+              (contains? payload :body)
+              (term? (:bound payload))
+              (formula? (:body payload))))))
+
 (defn formula?
   "Return true when `node` is a well-formed greenfield surface formula."
   [node]
@@ -243,6 +261,8 @@
     (quantifier-form? node 'forall) true
     (quantifier-form? node 'once-forall) true
     (quantifier-form? node 'exists) true
+    (bounded-quantifier-form? node 'bounded-forall) true
+    (bounded-quantifier-form? node 'bounded-exists) true
     :else false))
 
 (defn nnf-formula?
@@ -277,4 +297,8 @@
     (and (nominal/tie? (second node))
          (nil? (nnext node))
          (nnf-formula? (:body (second node))))
+    (and (bounded-quantifier-form? node 'bounded-forall)
+         (nnf-formula? (:body (:body (second node)))))
+    (and (bounded-quantifier-form? node 'bounded-exists)
+         (nnf-formula? (:body (:body (second node)))))
     :else false))

@@ -359,12 +359,9 @@
                  [~@params]
                  ~(emit-formula body env helpers noms #{}))))
 
-(defmacro proflog
-  "Compile visible prefix Proflog source clauses against a reusable language.
-
-   `(:= head body)` introduces an inline source-level helper.
-   `(|- head body)` introduces a real Proflog relation clause."
-  [frontend-language & source-forms]
+(defn- emit-clause-vector
+  "Emit a vector of backend clause constructors for visible frontend source."
+  [source-forms]
   (let [parsed (mapv parse-clause-form source-forms)
         helpers (helper-map parsed)
         relation-forms (filterv #(= :relation (:kind %)) parsed)
@@ -375,9 +372,27 @@
       (malformed! "A Proflog program must contain at least one relation clause"
                   {:source-forms source-forms}))
     `(ast/nom ~@unique-noms
-       (backend-language/compile-program
-         ~frontend-language
-         [~@clauses]))))
+       [~@clauses])))
+
+(defmacro clauses
+  "Translate visible prefix Proflog source clauses without compiling a program.
+
+   This is the hook used by higher-level builders such as `proflog.willard-sjas`.
+   It keeps frontend helper expansion and variable binding in one place while
+   letting another namespace decide how generated clauses and user clauses are
+   assembled into a final program."
+  [& source-forms]
+  (emit-clause-vector source-forms))
+
+(defmacro proflog
+  "Compile visible prefix Proflog source clauses against a reusable language.
+
+   `(:= head body)` introduces an inline source-level helper.
+   `(|- head body)` introduces a real Proflog relation clause."
+  [frontend-language & source-forms]
+  `(backend-language/compile-program
+     ~frontend-language
+     ~(emit-clause-vector source-forms)))
 
 (defmacro q
   "Translate one visible frontend query/formula into a backend formula."

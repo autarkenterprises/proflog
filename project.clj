@@ -124,6 +124,8 @@
                                                     "proflog.kernel-finite-verifiers-test"]
             "test-proflog-relational-equality-fragment" ["test"
                                                          "proflog.kernel.relational-equality-fragment-test"]
+            "test-proflog-sjas" ["test"
+                                 "proflog.willard-sjas-test"]
             "test-proflog-legacy-subsumption" ["test"
                                                "proflog.legacy-subsumption-test"]
             "test-proflog-constructor-recursive" ["test"

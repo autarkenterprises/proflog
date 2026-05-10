@@ -1,5 +1,6 @@
 (ns proflog.normalize-test
   (:require [clojure.test :refer [deftest is testing]]
+            [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.normalize :as normalize]))
 
@@ -70,3 +71,39 @@
                    (ast/and-form
                      (ast/pos-lit (ast/app-term 'p (ast/var-term x)))
                      (ast/neg-lit (ast/app-term 'q (ast/var-term x))))))))))))
+
+(deftest to-nnf-lowers-sjas-bounded-quantifiers-through-leq-guards
+  (testing "bounded quantifiers become ordinary quantifiers plus relational leq guards"
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            two (ast/app-term 'two)
+            guard-atom (ast/app-term 'leq x-term two)
+            body (ast/pos-lit (ast/app-term 'p x-term))
+            bounded-forall (list 'bounded-forall
+                                  (nominal/tie x {:bound two
+                                                  :body body}))
+            bounded-exists (list 'bounded-exists
+                                  (nominal/tie x {:bound two
+                                                  :body body}))]
+        (is (ast/formula? bounded-forall))
+        (is (ast/formula? bounded-exists))
+        (is (= (ast/forall-form
+                 x
+                 (ast/or-form (ast/neg-lit guard-atom) body))
+               (normalize/to-nnf bounded-forall)))
+        (is (ast/nnf-formula? (normalize/to-nnf bounded-forall)))
+        (is (= (ast/exists-form
+                 x
+                 (ast/and-form (ast/pos-lit guard-atom) body))
+               (normalize/to-nnf bounded-exists)))
+        (is (ast/nnf-formula? (normalize/to-nnf bounded-exists)))
+        (is (= (ast/exists-form
+                 x
+                 (ast/and-form (ast/pos-lit guard-atom)
+                               (ast/neg-lit (ast/app-term 'p x-term))))
+               (normalize/negate-formula bounded-forall)))
+        (is (= (ast/once-forall-form
+                 x
+                 (ast/or-form (ast/neg-lit guard-atom)
+                              (ast/neg-lit (ast/app-term 'p x-term))))
+               (normalize/negate-formula bounded-exists)))))))

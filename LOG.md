@@ -32,6 +32,25 @@ complete contemporaneous transcript.
   completion audit. Initial documentation gate: `lein test-proflog-fast` passed
   with `143` tests, `537` assertions, `0` failures, `0` errors,
   `real 73.38 s`.
+- Completed ADR-0060 by adding `proflog.willard-sjas`,
+  `proflog.kernel.willard-sjas-profile`, `lein test-proflog-sjas`, focused
+  tests, worked examples, user-guide/README links, runtime records, and
+  [AAR-0060](docs/aar/AAR-0060-willard-sjas-mvp.md). The MVP generates finite
+  Group-Zero through Group-3 axiom bases, stable object-language formula codes,
+  `axiom-member` facts, reflected Group-2b user-clause entries, external
+  application clauses, relation-backed finite `mult/3` examples, miniature
+  certificate predicates, bounded-quantifier NNF lowering through `leq/2`
+  guards, and proof terms tagged with `willard-sjas-tableau0` or
+  `willard-sjas-level1`. Verification: `lein test-proflog-sjas` passed with
+  `9` tests, `61` assertions, `0` failures, `0` errors, `real 30.95 s`;
+  the focused bounded-quantifier NNF selector passed with `1` test, `8`
+  assertions, `0` failures, `0` errors, `real 6.75 s`;
+  the focused frontend clause-emission selector passed with `1` test, `3`
+  assertions, `0` failures, `0` errors, `real 17.47 s`;
+  `lein test-proflog-fast` passed with `145` tests, `548` assertions, `0`
+  failures, `0` errors, `real 89.21 s`;
+  `lein test-proflog-extended` passed with `68` tests, `203` assertions, `0`
+  failures, `0` errors, `real 255.14 s`.
 - On branch `review/sjas-lang-profile-design`, recorded an independent SJAS
   design review (nachlass posture, Willard commitments, Proflog proof-profile
   mapping, and implementation slices) without altering ADR-0058’s branch-owned

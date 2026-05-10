@@ -31,6 +31,7 @@ query walkthroughs for the current `test/proflog` suites.
 - [Legacy Subsumption Parity Examples](./legacy-subsumption-parity.md)
 - [Constructor-Recursive Profile Examples](./constructor-recursive-profile.md)
 - [Robinson Q Proof Profile Example](./robinson-q.md)
+- [Willard SJAS MVP Example](./willard-sjas.md)
 - [Pelletier Problems](./pelletier-problems.md)
 
 ## Reading Pattern
@@ -68,6 +69,7 @@ evaluator.
 | Kernel Finite Verifier Examples | profiled equality-fragment kernel path | quantified success and refutation |
 | Constructor-Recursive Profile Examples | guarded recursive profile over compiled IR | reverse and partial synthesis |
 | Robinson Q Proof Profile Example | ordinary Q assumptions and opt-in kernel-interleaved deduction-modulo rules | theorem proving, profiled equality conversion, unified Q3 predecessor-equality use, timing comparison |
+| Willard SJAS MVP Example | finite generated SJAS basis with reflected clauses and profile dispatch | system building, formula classes, forward proof, answer synthesis, certificate checks |
 | Pelletier Problems | direct theorem formulas without program clauses | first-order proof closure |
 
 ## Conventions

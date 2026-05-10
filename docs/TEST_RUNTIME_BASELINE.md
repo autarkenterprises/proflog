@@ -86,6 +86,32 @@ Current ADR-0057 note:
   (`real 196.31 s`), and extended suite (`real 319.86 s`), all with `0`
   failures and `0` errors.
 
+Current ADR-0060 note:
+
+- The focused Willard SJAS MVP selector `lein test-proflog-sjas` passed on
+  2026-05-10 with `Ran 9 tests containing 61 assertions`, `0 failures`,
+  `0 errors`, and `real 30.95 s`.
+- The focused bounded-quantifier NNF selector
+  `lein test :only proflog.normalize-test/to-nnf-lowers-sjas-bounded-quantifiers-through-leq-guards`
+  passed with `Ran 1 tests containing 8 assertions`, `0 failures`, `0 errors`,
+  and `real 6.75 s`.
+- The focused frontend clause-emission selector
+  `lein test :only proflog.frontend-test/frontend-can-emit-clauses-for-higher-level-builders`
+  passed with `Ran 1 tests containing 3 assertions`, `0 failures`, `0 errors`,
+  and `real 17.47 s`.
+- The suite includes profile-language shape, Delta-star-0 / Pi-star-1 /
+  Sigma-star-1 classifiers, generated Group-Zero through Group-3 metadata,
+  reflected versus external clause boundary checks, source-facing builder
+  lowering, finite `mult/3` forward and answer-mode examples, miniature
+  certificate acceptance/rejection, selected profile proof evidence,
+  source-route audit, and a Level-1 bounded contradiction probe at fuel `4`.
+- The ADR-0060 commit gate passed `lein test-proflog-fast` with `Ran 145 tests
+  containing 548 assertions`, `0 failures`, `0 errors`, and `real 89.21 s`,
+  plus `lein test-proflog-extended` with `Ran 68 tests containing 203
+  assertions`, `0 failures`, `0 errors`, and `real 255.14 s`. The extended
+  gate was run concurrently with the earlier source-level fast gate; the final
+  fast rerun was serial after adding the direct frontend regression.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

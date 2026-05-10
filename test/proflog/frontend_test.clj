@@ -82,6 +82,20 @@
       (is (= (ast/neq-lit (ast/var-term param) (ast/app-term 'a))
              (:negated-body clause))))))
 
+(deftest frontend-can-emit-clauses-for-higher-level-builders
+  (testing "clauses reuses helper inlining without compiling a program"
+    (let [clauses (pf/clauses
+                    (:= (is-a x)
+                      (= x a))
+                    (|- (p x)
+                        (is-a x)))
+          clause (first clauses)
+          param (first (:params clause))]
+      (is (= 1 (count clauses)))
+      (is (= 'p (:relation clause)))
+      (is (= (ast/eq-lit (ast/var-term param) (ast/app-term 'a))
+             (:body clause))))))
+
 (deftest frontend-query-macro-builds-backend-formulas
   (testing "q is a thin formula builder"
     (is (= (ast/pos-lit (ast/app-term 'p (ast/app-term 'a)))

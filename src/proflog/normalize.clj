@@ -12,6 +12,26 @@
    ordinary positive work over NNF formulas."
   (:require [proflog.ast :as ast]))
 
+(defn- leq-guard-atom
+  "Return the relational atom used to guard an SJAS bounded quantifier."
+  [binding-nom bound-term]
+  (ast/app-term 'leq (ast/var-term binding-nom) bound-term))
+
+(defn- leq-guard-literal
+  "Return the relational guard used when lowering an SJAS bounded quantifier.
+
+   Bounded quantifiers are surface syntax. The core proof kernel already knows
+   how to handle ordinary quantifiers and procedure-call atoms, so lowering
+   `(bounded-forall x n body)` to `forall x. leq(x,n) -> body` keeps the kernel
+   generic while preserving the bound as a normal Proflog relation call."
+  [binding-nom bound-term]
+  (ast/pos-lit (leq-guard-atom binding-nom bound-term)))
+
+(defn- negated-leq-guard-literal
+  "Return the NNF literal for the false branch of a bounded-universal guard."
+  [binding-nom bound-term]
+  (ast/neg-lit (leq-guard-atom binding-nom bound-term)))
+
 (declare to-nnf negate-formula)
 
 (defn negate-formula
@@ -46,6 +66,18 @@
                ;; than re-enqueueing an ordinary universal indefinitely.
                (ast/once-forall-form (:binding-nom tied)
                                      (negate-formula (:body tied))))
+      bounded-forall (let [tied (second formula)
+                           b (:binding-nom tied)
+                           {:keys [bound body]} (:body tied)]
+                       (ast/exists-form b
+                         (ast/and-form (leq-guard-literal b bound)
+                                       (negate-formula body))))
+      bounded-exists (let [tied (second formula)
+                           b (:binding-nom tied)
+                           {:keys [bound body]} (:body tied)]
+                       (ast/once-forall-form b
+                         (ast/or-form (negated-leq-guard-literal b bound)
+                                      (negate-formula body))))
       not (to-nnf (second formula))
       implies (negate-formula (to-nnf formula))
       (throw (ex-info "Unsupported formula for NNF negation"
@@ -78,5 +110,17 @@
       exists (let [tied (second formula)]
                (ast/exists-form (:binding-nom tied)
                                 (to-nnf (:body tied))))
+      bounded-forall (let [tied (second formula)
+                           b (:binding-nom tied)
+                           {:keys [bound body]} (:body tied)]
+                       (ast/forall-form b
+                         (ast/or-form (negated-leq-guard-literal b bound)
+                                      (to-nnf body))))
+      bounded-exists (let [tied (second formula)
+                           b (:binding-nom tied)
+                           {:keys [bound body]} (:body tied)]
+                       (ast/exists-form b
+                         (ast/and-form (leq-guard-literal b bound)
+                                       (to-nnf body))))
       (throw (ex-info "Unsupported formula for NNF compilation"
                       {:formula formula})))))

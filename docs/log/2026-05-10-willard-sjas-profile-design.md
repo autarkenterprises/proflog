@@ -255,17 +255,101 @@ This suggests an explicit boundary:
   valid, whether a formula is Delta-star-0/Pi-star-1, or whether a bounded
   arithmetic fact is true.
 
+## Q Comparison And Axiom Membership
+
+Existing Proflog examples do not use object-language axiom codes in the SJAS
+sense.
+
+- Robinson Q has stable host-side labels such as `:q1` through `:q7`, and the
+  ordinary Q path conjoins Q's axioms into an implication antecedent. The Q
+  profile path promotes selected Q principles to trusted theory rules. Neither
+  path asks the object language to decide whether a proof step cites an allowed
+  Q axiom.
+- Pelletier examples carry a host-side `:axioms` vector that is conjoined with
+  the negated theorem before kernel proof search. Again, there is no reflected
+  predicate for axiom membership.
+- Kernel proof terms contain tags such as `profiled`, `q-rewrite`, or
+  `witness`, but those are evidence produced by the prover, not
+  object-language formula identifiers.
+
+SJAS is different because its self-consistency axiom quantifies over proofs
+from this very system. A relational checker for
+`tableau-proof(system, theorem-code, proof-code)` must inspect proof
+certificates. If a certificate cites an axiom, the checker needs an
+object-language relation such as:
+
+```text
+axiom-member(system, formula-code)
+```
+
+This is a new reflected-coding layer. It should be generated from the SJAS
+axiom basis and exposed to the proof predicate as object-language data, not
+used as a hidden host-side shortcut.
+
+## Authoring Model
+
+An SJAS programmer should not manually construct the fixed-point
+self-consistency axiom. The intended authoring flow is a dedicated SJAS
+frontend or builder:
+
+```clojure
+(sjas/system
+  {:profile :willard-sjas-tableau0}
+  (language
+    (constants zero one)
+    (functions [pred 1] [sub 2] [div 2] [max 2] [log 1]
+               [root 2] [count 2] [add 2] [dbl 1])
+    (relations [leq 2] [lt 2] [mult 3] ...))
+  (beta
+    ;; finite user-supplied Pi-star-1 axioms for the first demonstrator
+    ...)
+  (program
+    ;; ordinary Proflog relation clauses over the SJAS language
+    ...))
+```
+
+The builder would then:
+
+1. generate Group-Zero and Group-1 from the selected profile;
+2. validate and store the user beta axioms as Group-2;
+3. reserve stable formula identifiers for Group-Zero through Group-2 and the
+   future Group-3 formula;
+4. generate the fixed-point `SelfCons0` or `SelfCons1` formula once;
+5. add Group-3 to the reflected axiom basis;
+6. generate object-language `axiom-member` facts/relations and proof-coding
+   support;
+7. expose a thin query API that proves user theorems from the generated SJAS
+   basis.
+
+Current Proflog has relation clauses but not a general arbitrary axiom-context
+slot in compiled programs. The SJAS implementation therefore needs either:
+
+- a generated system object carrying `:program`, `:axioms`, `:axiom-formula`,
+  and reflected coding relations; or
+- a query wrapper that conjoins the generated axiom formula with each user
+  theorem, while still passing the reflected axiom membership data to the
+  `tableau-proof` checker.
+
+The first route is cleaner for tutorial use because it lets users write "a
+program in SJAS" as one system, not as repeated manual implications. In either
+route, the user writes beta axioms and Proflog clauses; the frontend supplies
+the self-consistency axiom.
+
 ## Profile Architecture
 
 The profile should follow ADR-0048 through ADR-0052's proof-profile pattern:
 
-- language metadata selects `:proof-profile :willard-sjas-level1`;
+- language metadata selects `:proof-profile :willard-sjas-tableau0` or
+  `:proof-profile :willard-sjas-level1`;
 - `proflog.proof-profile/prove-program*` dispatches to a new profile namespace;
 - the profile binds `kernel/*theory-profile-closeo*` to a kernel-interleaved
   relation;
 - proof terms identify the trusted profile step, for example:
 
 ```clojure
+(profiled willard-sjas-tableau0
+  (proof-code-check ...))
+
 (profiled willard-sjas-level1
   (delta-star-0-close ...))
 

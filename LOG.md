@@ -40,6 +40,17 @@ complete contemporaneous transcript.
   coding predicates live in Proflog. Verification: `lein test-proflog-fast`
   passed with `143` tests, `537` assertions, `0` failures, `0` errors,
   `real 70.33 s`.
+- Logged the Q-versus-SJAS axiom-membership distinction and the intended
+  programmer-facing SJAS authoring model. Existing Q/Pelletier examples use
+  host-side axiom labels or conjoined antecedents, not reflected
+  object-language axiom membership. SJAS needs a generated system wrapper or
+  query wrapper that carries the axiom basis, reflected `axiom-member`
+  relation, proof-coding relations, and generated Group-3 self-consistency
+  axiom so users can write beta axioms and ordinary Proflog clauses without
+  hand-constructing the fixed point. See
+  [Willard SJAS Profile Design Notes](docs/log/2026-05-10-willard-sjas-profile-design.md).
+  Verification: `lein test-proflog-fast` passed with `143` tests, `537`
+  assertions, `0` failures, `0` errors, `real 86.43 s`.
 
 ## 2026-05-09
 

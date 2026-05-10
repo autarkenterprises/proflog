@@ -112,6 +112,44 @@ fixed-point formula. After translation, it must not use host Clojure to decide
 bounded arithmetic truth, formula-class membership, or proof-certificate
 validity.
 
+## Authoring Model
+
+Users should not hand-write the self-consistency axiom. They should write an
+SJAS system through a thin SJAS-specific frontend that:
+
+- accepts the selected profile, such as `:willard-sjas-tableau0`;
+- accepts the user-visible U-grounding language extensions and ordinary
+  Proflog relation clauses;
+- accepts a finite beta list of user-supplied proper axioms for the first
+  demonstrator;
+- generates Group-Zero, Group-1, and Group-2;
+- reserves stable formula identifiers for every generated and user-supplied
+  axiom;
+- generates Group-3 once as `SelfCons0` or `SelfCons1`;
+- compiles a query entrypoint that proves from the generated SJAS axiom basis.
+
+Current Proflog programs do not have a general free-standing axiom-context slot.
+They mostly expose relation clauses; examples such as Robinson Q and Pelletier
+compose axioms into theorem formulas. SJAS therefore needs a new generated
+system object or query wrapper that carries both the compiled Proflog clauses
+and the generated axiom basis. Query execution can initially prove:
+
+```text
+Group-Zero and Group-1 and Group-2 and Group-3 -> user theorem
+```
+
+while the reflected proof predicate simultaneously reasons over generated
+object-language facts such as:
+
+```text
+axiom-member(this-system, formula-code)
+```
+
+The `axiom-member` layer is new to SJAS. It is required because SJAS reasons
+inside the object language about proofs from "this system"; ordinary Q proofs
+do not need it because Q axioms are either external antecedents or trusted
+profile rules selected by the Proflog prover.
+
 ## Axiom Group Placement
 
 The Proflog language declaration only declares the SJAS signature. It names
@@ -139,7 +177,7 @@ program being reflected:
 
 Predicates for coding logical statements as SJAS-arithmetic terms are declared
 in the language and defined in the Group-1/coding prelude. Examples include
-`wff`, `pi-star-1-code`, `neg-pair`, `axiom-code`, `subst-proof`, and
+`wff`, `pi-star-1-code`, `neg-pair`, `axiom-member`, `subst-proof`, and
 `tableau-proof`. The profile may accelerate these only through auditable
 relational theory rules; it must not replace them with a host proof checker.
 
@@ -177,6 +215,9 @@ for each item below.
   through the selected profile.
 - The later Level-1 demonstrator proves or exposes its generated `SelfCons1`
   statement through the selected profile.
+- Authoring tests show that a user can create an SJAS system by supplying
+  profile choice, beta axioms, and ordinary Proflog clauses, without manually
+  constructing Group-3 or object-language axiom membership.
 - Bounded contradiction probes try to find simultaneous Pi-star-1/complement
   proofs and record their outcomes and timings.
 - Source audits reject host proof checkers and whole-formula proof-time

@@ -31,6 +31,15 @@ complete contemporaneous transcript.
   [Willard SJAS Profile Design Notes](docs/log/2026-05-10-willard-sjas-profile-design.md).
   Verification for the documentation branch: `lein test-proflog-fast` passed
   with `143` tests, `537` assertions, `0` failures, `0` errors, `real 99.84 s`.
+- Refined ADR-0058 after follow-up design review to state the executable
+  SJAS-lang motivation explicitly: mechanizing SJAS should expose the
+  correspondence between logical restrictions and what programs can run. The
+  design now stages a first ordinary-tableau `IS(A)`-style profile,
+  `:willard-sjas-tableau0`, before the Level-1 `:willard-sjas-level1` profile,
+  and records where Group-Zero, Group-1, Group-2, Group-3, and proof/syntax
+  coding predicates live in Proflog. Verification: `lein test-proflog-fast`
+  passed with `143` tests, `537` assertions, `0` failures, `0` errors,
+  `real 70.33 s`.
 
 ## 2026-05-09
 

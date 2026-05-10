@@ -24,21 +24,42 @@ layer and a kernel-interleaved theory hook from the Robinson-Q work. That is the
 right extension point for SJAS. A new SJAS profile must not be a host-side proof
 checker or a whole-formula preprocessor hidden behind the query API.
 
+The purpose of this work is not only to reproduce a metamathematical
+construction. It is to investigate the correspondence between Willard-style
+logical restrictions and the computational behavior of an executable
+`SJAS-lang`: what must be mechanized to make the axioms and deductive apparatus
+run inside Proflog, and what kinds of programs become possible or impossible
+once multiplication, reflection, proof coding, and bounded formula classes are
+made executable rather than informal.
+
 ## Decision
 
-Design the first SJAS implementation target as a Type-A, semantic-tableaux,
-Level-1 profile named `:willard-sjas-level1`.
+Design the SJAS work as a staged Type-A semantic-tableaux profile sequence.
 
-This profile will target the Willard line where:
+The first implementation pass should target the least complex corpus-faithful
+mechanization: an ordinary semantic-tableaux `IS(A)`-style profile, tentatively
+named `:willard-sjas-tableau0`. This pass does not add proof-list, Tab-k, or
+Tab-1 theorem reuse. It reflects the earlier line where the self-consistency
+axiom says there is no semantic-tableaux proof of contradiction from this
+system.
+
+The second pass should promote the profile to the Level-1 `ISD(A)` /
+`IS#_D(beta)` line, named `:willard-sjas-level1`. This line may still select
+plain semantic tableaux as the reflected deduction method `D`; Tab-1 theorem
+reuse is an additional stronger apparatus, not a prerequisite for the first
+executable SJAS-lang.
+
+Both passes target the Willard line where:
 
 - addition is available as a total function;
 - multiplication is represented as a three-place relation, not a total
   function symbol;
-- the deduction apparatus is Fitting/Smullyan style semantic tableaux, plus a
-  later limited Tab-1 proof-list rule if the implementation claims ISD(A) or
-  IS#_D(beta);
-- self-consistency is Level-1, meaning no simultaneous proofs of a Pi-star-1
-  formula and its negation under the selected apparatus.
+- the base deduction apparatus is Fitting/Smullyan style semantic tableaux;
+- stronger proof-list/Tab-1 reuse is optional and must be explicitly named when
+  claimed;
+- self-consistency is either Level-0-minus contradiction-freedom for the first
+  `IS(A)`-style pass or Level-1 no-Pi-star-1/complement-pair consistency for
+  the later `ISD(A)` / `IS#_D(beta)` pass.
 
 Defer the Hilbert/theta-function line. It is mathematically important, but it is
 less aligned with the current Proflog kernel and includes a conjectural premise
@@ -50,11 +71,12 @@ Add a public namespace such as `proflog.willard-sjas` for corpus-derived data
 and formula construction:
 
 - `u-grounding-language`;
+- `tableau0-profile-language`;
 - `level1-profile-language`;
 - U-grounding term builders;
 - bounded quantifier constructors;
 - Delta-star-0 / Pi-star-1 / Sigma-star-1 classifiers;
-- `SelfCons1` formula construction;
+- ordinary-tableau `SelfCons0` and Level-1 `SelfCons1` formula construction;
 - finite `IS#_D(beta)`-style system construction.
 
 Add a kernel profile namespace such as `proflog.kernel.willard-sjas-profile`:
@@ -68,6 +90,10 @@ Add a kernel profile namespace such as `proflog.kernel.willard-sjas-profile`:
 Extend `proflog.proof-profile/prove-program*` with:
 
 ```clojure
+(defmethod prove-program* :willard-sjas-tableau0
+  [_profile program formula proof-limit fuel]
+  (willard-sjas-profile/prove-program program formula proof-limit fuel))
+
 (defmethod prove-program* :willard-sjas-level1
   [_profile program formula proof-limit fuel]
   (willard-sjas-profile/prove-program program formula proof-limit fuel))
@@ -76,6 +102,7 @@ Extend `proflog.proof-profile/prove-program*` with:
 Proof terms must expose profile use:
 
 ```clojure
+(profiled willard-sjas-tableau0 ...)
 (profiled willard-sjas-level1 ...)
 ```
 
@@ -85,13 +112,45 @@ fixed-point formula. After translation, it must not use host Clojure to decide
 bounded arithmetic truth, formula-class membership, or proof-certificate
 validity.
 
+## Axiom Group Placement
+
+The Proflog language declaration only declares the SJAS signature. It names
+symbols such as `zero`, `one`, U-grounding functions, order relations, `mult/3`,
+and proof-coding predicates. It does not by itself assert that those symbols
+behave correctly.
+
+The SJAS builder must generate a named axiom basis and compile it into the
+program being reflected:
+
+- Group-Zero behavior lives as proper axioms and, where needed for execution,
+  relation-backed definitions for the initial constants and U-grounding
+  operations. The language declaration contains the symbols; the axiom group
+  gives them their object-language behavior.
+- Group-1 lives as the finite grounding/coding prelude: Pi-star-1 axioms and
+  Proflog relations sufficient for Delta-star-0 arithmetic, order, syntax-code,
+  and proof-code facts needed by the demonstrator.
+- Group-2 should be finite in the first implementation. For an `IS#_D(beta)`
+  demonstrator, beta is a finite list of Pi-star-1 axioms supplied as ordinary
+  proper axioms. The infinite `ISD(A)` schema is a later generalization.
+- Group-3 is the generated self-consistency fixed-point formula. It is an
+  ordinary proper axiom of the reflected SJAS, not an unlabelled host-side rule.
+  Its code for "this system" must include Group-Zero, Group-1, Group-2, and the
+  Group-3 formula itself.
+
+Predicates for coding logical statements as SJAS-arithmetic terms are declared
+in the language and defined in the Group-1/coding prelude. Examples include
+`wff`, `pi-star-1-code`, `neg-pair`, `axiom-code`, `subst-proof`, and
+`tableau-proof`. The profile may accelerate these only through auditable
+relational theory rules; it must not replace them with a host proof checker.
+
 ## Consequences
 
 - This gives Proflog a clear route to demonstrate a nontrivial Willard-style
   self-justifying axiom system while preserving the distinction between formal
   proof execution and external metatheory.
-- The first profile is intentionally modest. It should demonstrate a finite
-  `IS#_D(beta)`-style system before claiming anything about full ISD(A).
+- The first profile is intentionally modest. It should demonstrate an
+  `IS(A)`-style ordinary-tableau system before claiming Level-1, Tab-1, or full
+  ISD(A).
 - The formula classifier and proof-certificate checker are likely to be the
   main performance risks.
 - Documentation must state that bounded contradiction probes do not prove
@@ -113,8 +172,11 @@ for each item below.
   malformed or open-branch certificates.
 - If Tab-1 is claimed, proof-list tests enforce the intermediate theorem class
   restriction.
-- The finite SJAS demonstrator proves its generated `SelfCons1` statement and
-  at least one ordinary beta consequence through the selected profile.
+- The first finite SJAS demonstrator exposes its generated ordinary-tableau
+  self-consistency axiom and proves at least one ordinary beta consequence
+  through the selected profile.
+- The later Level-1 demonstrator proves or exposes its generated `SelfCons1`
+  statement through the selected profile.
 - Bounded contradiction probes try to find simultaneous Pi-star-1/complement
   proofs and record their outcomes and timings.
 - Source audits reject host proof checkers and whole-formula proof-time
@@ -125,8 +187,9 @@ for each item below.
 - The design note remains linked from this ADR and from `LOG.md`.
 - A future implementation ADR can follow this record without re-reviewing the
   Willard corpus from scratch.
-- The first implementation target, profile name, proof route, source/proof-time
-  boundary, test obligations, and known shortcomings are explicit.
+- The staged implementation targets, profile names, proof routes,
+  source/proof-time boundary, test obligations, axiom-group placement, and
+  known shortcomings are explicit.
 
 ## After Action Summary
 

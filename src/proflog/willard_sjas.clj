@@ -1,8 +1,8 @@
 (ns proflog.willard-sjas
   "MVP Willard-style SJAS language builder.
 
-   This namespace is the source-to-kernel construction layer for ADR-0060. It
-   builds finite SJAS systems with stable formula codes, generated axiom-member
+   This namespace is the source-to-kernel construction layer for the SJAS MVP on
+   branch `review/sjas-lang-profile-design`. It builds finite SJAS systems with stable formula codes, generated axiom-member
    facts, relation-backed arithmetic examples, and miniature proof-certificate
    predicates. Host Clojure is used here only to assemble that finite source
    object; the compiled program still routes proof search through Proflog's

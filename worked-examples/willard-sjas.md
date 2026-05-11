@@ -1,8 +1,6 @@
 # Willard SJAS MVP Example
 
-This example documents ADR-0058 through ADR-0060 and
-`test/proflog/willard_sjas_test.clj`. It demonstrates the MVP Willard-style
-SJAS language substrate now exposed by `proflog.willard-sjas`.
+This example tracks `test/proflog/willard_sjas_test.clj` and the SJAS MVP substrate in `proflog.willard-sjas`.
 
 Run the focused regression:
 
@@ -71,6 +69,10 @@ the fixed SJAS U-grounding vocabulary. `beta` formulas lower through
 `proflog.frontend/q`. `reflected` and `external` clauses lower through
 `proflog.frontend/clauses`, preserving ordinary frontend helper inlining and
 variable binding.
+
+Use `(forall<= [x] bound body)` or `(exists<= [x] bound body)` in frontend
+formulas; they compile to the same bounded AST nodes that `proflog.normalize`
+lowers with relational `leq/2` guards.
 
 The lower-level builder also accepts backend formulas and clauses directly,
 which is useful for tests and generated examples:

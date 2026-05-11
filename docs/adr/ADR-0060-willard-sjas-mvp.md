@@ -2,14 +2,15 @@
 
 - Status: completed
 - Date: 2026-05-10
-- Branch: `adr-0060-willard-sjas-mvp`
+- Branch: `review/sjas-lang-profile-design`
 - AAR: [AAR-0060](../aar/AAR-0060-willard-sjas-mvp.md)
 
 ## Context
 
-ADR-0058 defines the staged Willard-style SJAS language profile and ADR-0059
-records an independent review of the same corpus and Proflog integration
-boundary. The next step is to turn those records into an executable MVP:
+Prior design notes capture Type-A arithmetic and tableau-centered SJAS reflection.
+This ADR implements a runnable MVP on `review/sjas-lang-profile-design`: builders,
+two proof-profile keys, finite coding predicates, tests, and worked examples,
+without claiming Willard’s external consistency metatheorem. Targets:
 
 - users can construct a finite SJAS system without hand-writing Group-3;
 - the generated system names a stable reflected axiom basis;
@@ -103,5 +104,6 @@ Implementation must start with failing tests covering:
 - `lein test-proflog-extended` is run before the final commit if proof search,
   equality, negation, or query behavior changed; otherwise the rationale for
   not running it is recorded.
-- A completion audit maps every ADR-0058, ADR-0059, and ADR-0060 obligation to
-  concrete evidence or to an explicitly documented follow-up limitation.
+- A completion audit maps ADR-0060 obligations (builders, profiles, bounded-quantifier
+  frontend lowering through `proflog.normalize`, tests, examples) to concrete
+  evidence or documented limits.

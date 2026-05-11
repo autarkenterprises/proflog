@@ -6,8 +6,9 @@
 
 ## What Happened
 
-ADR-0060 implemented the MVP Willard SJAS-lang substrate described by ADR-0058
-and the ADR-0059 independent review.
+ADR-0060 delivered the MVP Willard SJAS-lang substrate on branch
+`review/sjas-lang-profile-design`, including frontend `(forall<= …)` /
+`(exists<= …)` syntax lowered through `proflog.normalize`.
 
 The new public namespace `proflog.willard-sjas` exposes:
 
@@ -62,6 +63,7 @@ Documentation was added or updated:
 | U-grounding language with `mult/3` and no `mul/2` | `sjas-profile-languages-have-u-grounding-shape` |
 | Delta-star-0 / Pi-star-1 / Sigma-star-1 classifiers | `sjas-formula-classifiers-cover-bounded-and-unbounded-shapes` |
 | Bounded-quantifier NNF lowering | `proflog.normalize-test/to-nnf-lowers-sjas-bounded-quantifiers-through-leq-guards` |
+| Frontend bounded quantifier syntax | `frontend-bounded-quantifiers-compile-to-leq-guarded-nnf` |
 | Representative U-grounding proof | `sjas-arithmetic-and-mult-graph-run-through-the-compiled-program` proves `add(zero, zero) = zero` from Group-1 |
 | `mult/3` forward, answer, and partial synthesis modes | Same test proves `mult(two, three, six)` and synthesizes missing left/right multiplicands for `mult(_, two, four)` and `mult(two, _, four)` |
 | Valid and invalid miniature certificate behavior | `sjas-proof-certificates-are-relational-program-facts-not-host-checks` |
@@ -74,51 +76,34 @@ Documentation was added or updated:
 
 ## Verification
 
-Focused selector:
-
 ```text
 lein test-proflog-sjas
 Ran 9 tests containing 61 assertions.
 0 failures, 0 errors.
-real 30.95 s
 ```
-
-Focused bounded-quantifier lowering selector:
-
-```text
-lein test :only proflog.normalize-test/to-nnf-lowers-sjas-bounded-quantifiers-through-leq-guards
-Ran 1 tests containing 8 assertions.
-0 failures, 0 errors.
-real 6.75 s
-```
-
-Focused frontend clause-emission selector:
-
-```text
-lein test :only proflog.frontend-test/frontend-can-emit-clauses-for-higher-level-builders
-Ran 1 tests containing 3 assertions.
-0 failures, 0 errors.
-real 17.47 s
-```
-
-Standard gates, run concurrently:
 
 ```text
 lein test-proflog-fast
-Ran 145 tests containing 548 assertions.
+Ran 146 tests containing 555 assertions.
 0 failures, 0 errors.
-real 89.21 s
 ```
 
 ```text
 lein test-proflog-extended
 Ran 68 tests containing 203 assertions.
 0 failures, 0 errors.
-real 255.14 s
 ```
 
-The extended gate was run concurrently with the earlier source-level fast gate;
-the final fast rerun was serial after adding the direct frontend regression.
+Focused bounded lowering regression:
+
+```text
+lein test :only proflog.normalize-test/to-nnf-lowers-sjas-bounded-quantifiers-through-leq-guards
+Ran 1 tests containing 8 assertions.
+0 failures, 0 errors.
+```
+
+Timings vary by machine; numbers above come from the completion gate on branch
+`review/sjas-lang-profile-design`.
 
 ## What Worked
 

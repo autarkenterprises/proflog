@@ -554,7 +554,7 @@ language declaration. The source builder accepts `language`, `beta`,
 builders generate a finite axiom basis, stable formula codes, `axiom-member`
 facts, Group-3, and relation clauses for the MVP proof-coding predicates.
 Reflected user clauses are part of the self-referenced system; external clauses
-are ordinary Proflog code outside that `SelfCons` claim.
+are ordinary Proflog code outside that `SelfCons` claim. Bounded SJAS formulas may use frontend `(forall<= [x] bound φ)` and `(exists<= [x] bound φ)`, which normalize to `leq`-guarded ordinary quantifiers.
 
 ## 11. Worked Program Families
 

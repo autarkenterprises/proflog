@@ -8,9 +8,14 @@
    translates visible closed queries into kernel-facing formulas.
    `answer-query` binds visible answer variables and returns the query formula
    plus the answer-variable vector expected by `proflog.answers`. `run` is the
-   ergonomic frontend evaluator for open answer queries."
+   ergonomic frontend evaluator for open answer queries.
+
+   Bounded SJAS-style quantifiers `(forall<= [x] bound φ)` and `(exists<= [x] bound φ)`
+   compile to tagged bounded quantifier AST nodes that `proflog.normalize` lowers
+   to ordinary quantifiers guarded by the `leq` relation."
   (:require [proflog.ast :as ast]
             [proflog.answers :as answers]
+            [clojure.core.logic.nominal :as nominal]
             [proflog.language :as backend-language]))
 
 ;; -----------------------------------------------------------------------------
@@ -319,6 +324,46 @@
             (malformed! "Expected (exists [x] body)" {:formula formula}))
           (emit-quantifier `ast/exists-form (first args) (second args)
                            env helpers noms stack))
+
+        (= 'forall<= op)
+        (do
+          (when-not (= 3 (count args))
+            (malformed! "Expected (forall<= [x] bound body)" {:formula formula}))
+          (let [bindings (first args)
+                bound-term (second args)
+                bod (nth args 2)]
+            (when-not (and (vector? bindings)
+                           (= 1 (count bindings))
+                           (symbol? (first bindings)))
+              (malformed! "forall<= requires a binding vector with exactly one symbol"
+                          {:formula formula :bindings bindings}))
+            (let [source-sym (first bindings)
+                  generated (register-nom! noms (gensym (str (name source-sym) "__")))
+                  scoped-env (assoc env source-sym `(ast/var-term ~generated))
+                  body-code (emit-formula bod scoped-env helpers noms stack)
+                  bound-code (emit-term bound-term env helpers noms)]
+              `(list ~(list 'quote 'bounded-forall)
+                     (nominal/tie ~generated {:bound ~bound-code :body ~body-code})))))
+
+        (= 'exists<= op)
+        (do
+          (when-not (= 3 (count args))
+            (malformed! "Expected (exists<= [x] bound body)" {:formula formula}))
+          (let [bindings (first args)
+                bound-term (second args)
+                bod (nth args 2)]
+            (when-not (and (vector? bindings)
+                           (= 1 (count bindings))
+                           (symbol? (first bindings)))
+              (malformed! "exists<= requires a binding vector with exactly one symbol"
+                          {:formula formula :bindings bindings}))
+            (let [source-sym (first bindings)
+                  generated (register-nom! noms (gensym (str (name source-sym) "__")))
+                  scoped-env (assoc env source-sym `(ast/var-term ~generated))
+                  body-code (emit-formula bod scoped-env helpers noms stack)
+                  bound-code (emit-term bound-term env helpers noms)]
+              `(list ~(list 'quote 'bounded-exists)
+                     (nominal/tie ~generated {:bound ~bound-code :body ~body-code})))))
 
         (contains? helpers op)
         (emit-helper-call (get helpers op) formula env helpers noms stack)

@@ -210,3 +210,32 @@
         (is (= "Recursive frontend helper definitions are not supported"
                (some-> ex .getCause ex-message)))
         (is (= 'bad (some-> ex .getCause ex-data :helper)))))))
+
+(deftest frontend-bounded-quantifiers-compile-to-leq-guarded-nnf
+  (testing "forall<= / exists<= compile like SJAS bounded AST + normalize lowering"
+    (let [lt-lang (pf/language
+                    (constants zero two three)
+                    (relations (lt 2) (leq 2) (bounded-demo 1)))
+          bounded-prog (pf/proflog lt-lang
+                         (|- (bounded-demo x)
+                             (forall<= [y] two (lt y three))))
+          forall-body (-> bounded-prog :clauses (get 'bounded-demo) :body)
+          forall-tie (second forall-body)
+          inner (:body forall-tie)]
+      (is (= 'forall (ast/tag-of forall-body)))
+      (is (= 'or (ast/tag-of inner)))
+      (is (= 'neg (ast/tag-of (second inner))))
+      (let [conseq (nth inner 2)]
+        (is (= 'pos (ast/tag-of conseq)))
+        (is (= 'lt (second (second conseq))))))
+    (let [exist-lang (pf/language
+                       (constants zero two)
+                       (relations (leq 2) (bounded-ex 1)))
+          exist-prog (pf/proflog exist-lang
+                      (|- (bounded-ex x)
+                          (exists<= [z] two (= z two))))
+          body (-> exist-prog :clauses (get 'bounded-ex) :body)
+          tie (second body)
+          inner (:body tie)]
+      (is (= 'exists (ast/tag-of body)))
+      (is (= 'and (ast/tag-of inner))))))

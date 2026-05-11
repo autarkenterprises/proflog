@@ -1,5 +1,5 @@
 (ns proflog.kernel.willard-sjas-profile
-  "Proof-profile entrypoint for ADR-0060's MVP Willard SJAS language.
+  "Proof-profile entrypoint for the MVP Willard SJAS language built on this branch.
 
    The profile does not validate tableau certificates in Clojure. The generated
    SJAS program carries certificate predicates as ordinary Proflog relations.

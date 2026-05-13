@@ -395,7 +395,7 @@ lein probe-proflog-robinson-q
 The worked example in [worked-examples/robinson-q.md](worked-examples/robinson-q.md)
 includes Q conversion, Q3, and the corrected prime/evenness formulas.
 
-For the MVP Willard SJAS-lang builder and proof profiles, run:
+For the Willard SJAS-lang builder and proof profiles, run:
 
 ```text
 lein test-proflog-sjas
@@ -403,8 +403,8 @@ lein test-proflog-sjas
 
 The worked example in [worked-examples/willard-sjas.md](worked-examples/willard-sjas.md)
 shows generated Group-Zero through Group-3 axiom bases, reflected versus
-external clauses, formula-class checks, finite `mult/3` graph queries, answer
-synthesis, and miniature certificate predicates.
+external clauses, formula-class checks, binary U-grounding arithmetic,
+answer/partial-synthesis modes, and kernel-checked proof certificates.
 
 For the opt-in Turing-completeness demonstration, run:
 

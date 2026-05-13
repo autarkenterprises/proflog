@@ -33,6 +33,18 @@ complete contemporaneous transcript.
   doubling for larger numerals, non-growth arithmetic including subtraction,
   division, maximum, logarithm, root, and bit-count, and semantic-tableau proof
   predicates.
+- Completed ADR-0061 by replacing finite SJAS numerals and arithmetic fact
+  tables with binary object numerals, relation-backed U-grounding arithmetic,
+  answer-overlay theory hook support, and a `tableau-proof/3` checker that
+  decodes structural proof certificates and checks them through the Proflog
+  kernel relation. Updated the worked example, README pointer, user guide,
+  ADR, and [AAR-0061](docs/aar/AAR-0061-sjas-full-arithmetic-proof-checking.md).
+  Verification: `lein test-proflog-sjas` passed with `11` tests, `110`
+  assertions, `0` failures, `0` errors, `real 51.22 s`;
+  `lein test-proflog-fast` passed with `145` tests, `548` assertions, `0`
+  failures, `0` errors, `real 236.58 s`; `lein test-proflog-extended` passed
+  with `68` tests, `203` assertions, `0` failures, `0` errors,
+  `real 572.25 s`.
 
 ## 2026-05-10
 

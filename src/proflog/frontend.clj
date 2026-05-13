@@ -178,6 +178,15 @@
    - `(s zero)` emits an application term with one argument."
   [term env helpers noms]
   (cond
+    ;; Some mathematical profiles, including Willard's SJAS U-grounding, use
+    ;; constants whose printed object-language names are digits. Clojure reads
+    ;; `0` and `1` as numbers rather than symbols, so the frontend accepts
+    ;; non-negative integer literals and lowers them to same-spelled constant
+    ;; symbols. Profile-specific builders decide which such constants are
+    ;; actually declared.
+    (and (integer? term) (not (neg? term)))
+    `(ast/app-term '~(symbol (str term)))
+
     (symbol? term)
     (if-let [bound (get env term)]
       bound

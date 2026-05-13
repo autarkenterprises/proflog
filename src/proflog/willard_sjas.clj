@@ -1,17 +1,21 @@
 (ns proflog.willard-sjas
-  "MVP Willard-style SJAS language builder.
+  "Willard-style SJAS language builder.
 
-   This namespace is the source-to-kernel construction layer for ADR-0060. It
-   builds finite SJAS systems with stable formula codes, generated axiom-member
-   facts, relation-backed arithmetic examples, and miniature proof-certificate
-   predicates. Host Clojure is used here only to assemble that finite source
-   object; the compiled program still routes proof search through Proflog's
-   kernel and ordinary procedure-call relations."
+   This namespace is the source-to-kernel construction layer for the SJAS ADR
+   sequence. It builds finite reflected SJAS systems with stable formula codes
+   and generated axiom-member facts. Binary arithmetic and proof-certificate
+   checking are handled by the selected proof profile; host Clojure is used
+   here only to assemble the finite source object."
   (:require [clojure.core.logic :refer [lvar]]
             [clojure.core.logic.nominal :as nominal]
+            [proflog.answer-overlay :as answer-overlay]
+            [proflog.answers :as answers]
             [proflog.ast :as ast]
             [proflog.frontend :as frontend]
+            [proflog.gamma :as gamma]
+            [proflog.kernel.willard-sjas-profile :as willard-sjas-profile]
             [proflog.language :as language]
+            [proflog.normalize :as normalize]
             [proflog.query :as query])
   (:import [java.security MessageDigest]))
 
@@ -19,24 +23,55 @@
 ;; Public terms and language declarations
 ;; -----------------------------------------------------------------------------
 
-(def zero (ast/app-term 'zero))
-(def one (ast/app-term 'one))
-(def two (ast/app-term 'two))
-(def three (ast/app-term 'three))
-(def four (ast/app-term 'four))
-(def six (ast/app-term 'six))
+(def zero-symbol
+  "Object-language symbol for the SJAS numeral zero.
+
+   Clojure cannot read a bare digit as a symbol, so source code refers to this
+   through helper vars such as `zero`; the term itself is still `(app 0)`."
+  (symbol "0"))
+
+(def one-symbol
+  "Object-language symbol for the SJAS numeral one."
+  (symbol "1"))
+
+(def zero (ast/app-term zero-symbol))
+(def one (ast/app-term one-symbol))
+
+(defn add-term [left right] (ast/app-term 'add left right))
+(defn dbl-term [term] (ast/app-term 'dbl term))
+
+(defn numeral
+  "Return the canonical binary-composed SJAS term for a host natural number.
+
+   This helper belongs to the source-construction boundary. It does not add
+   host arithmetic to proof search; it only writes the object-language numeral
+   that the kernel profile later interprets relationally."
+  [value]
+  {:pre [(and (integer? value) (not (neg? value)))]}
+  (cond
+    (zero? value) zero
+    (= 1 value) one
+    (even? value) (dbl-term (numeral (quot value 2)))
+    :else (add-term (dbl-term (numeral (quot value 2))) one)))
+
+(def two (numeral 2))
+(def three (numeral 3))
+(def four (numeral 4))
+(def five (numeral 5))
+(def six (numeral 6))
 (def contradiction-code (ast/app-term 'contradiction-code))
 
 (def base-constants
-  "Finite constants used by the MVP examples and coding relations.
+  "Base constants used by the SJAS signature.
 
-   Willard's 2001 `IS(A)` presentation has a Group-Zero constant for every
-   natural number. The MVP keeps a small named numeral set so examples remain
-   readable and terminating."
-  ['zero 'one 'two 'three 'four 'six 'contradiction-code])
+   The only numeral constants are `0` and `1`. Larger helper numerals in this
+   namespace are composed with `dbl` and `add`, matching the binary
+   U-grounding shape used by the later Type-A SJAS presentations."
+  (vec (concat [zero-symbol one-symbol 'contradiction-code]
+               willard-sjas-profile/proof-code-constants)))
 
 (def u-grounding-functions
-  "U-grounding function symbols exposed by the MVP signature."
+  "U-grounding function symbols exposed by the SJAS signature."
   {'pred 1
    'sub 2
    'div 2
@@ -46,14 +81,12 @@
    'count 2
    'add 2
    'dbl 1
-   ;; Coding constructors for finite formula/proof data.
+   ;; Coding constructors for finite formula data and structural proof codes.
    'not-code 1
-   'mini-closed 1
-   'malformed 1
-   'branch 2})
+   'proof-cons 2})
 
 (def base-relations
-  "Relations required by the MVP SJAS language and generated program."
+  "Relations required by the SJAS language and generated program."
   {'leq 2
    'lt 2
    'mult 3
@@ -63,7 +96,6 @@
    'sigma-star-1-code 1
    'neg-pair 2
    'axiom-member 2
-   'closed-branch 1
    'tableau-proof 3})
 
 (def u-grounding-language
@@ -94,25 +126,16 @@
   [formula-code]
   (ast/app-term 'not-code formula-code))
 
-(defn mini-closed-certificate
-  "Miniature valid proof certificate for an axiom-coded closed branch."
-  [formula-code]
-  (ast/app-term 'mini-closed formula-code))
+(defn proof-certificate
+  "Encode a Proflog kernel proof term as an SJAS proof-code term."
+  [proof]
+  (willard-sjas-profile/proof-certificate-term proof))
 
-(defn malformed-certificate
-  "Miniature malformed proof certificate used by rejection tests."
-  [formula-code]
-  (ast/app-term 'malformed formula-code))
-
-(defn branch-code
-  "Object-language branch code with two formula-code entries."
-  [left right]
-  (ast/app-term 'branch left right))
-
-(defn add-term [left right] (ast/app-term 'add left right))
-(defn dbl-term [term] (ast/app-term 'dbl term))
+(defn pred-term [term] (ast/app-term 'pred term))
 (defn sub-term [left right] (ast/app-term 'sub left right))
 (defn div-term [left right] (ast/app-term 'div left right))
+(defn max-term [left right] (ast/app-term 'max left right))
+(defn log-term [term] (ast/app-term 'log term))
 (defn root-term [left right] (ast/app-term 'root left right))
 (defn count-term [left right] (ast/app-term 'count left right))
 
@@ -125,7 +148,6 @@
 (defn neg-pair [left right] (ast/pos-lit (ast/app-term 'neg-pair left right)))
 (defn axiom-member [system-code formula-code]
   (ast/pos-lit (ast/app-term 'axiom-member system-code formula-code)))
-(defn closed-branch [branch] (ast/pos-lit (ast/app-term 'closed-branch branch)))
 (defn tableau-proof [system-code theorem-code proof-code]
   (ast/pos-lit (ast/app-term 'tableau-proof system-code theorem-code proof-code)))
 
@@ -193,7 +215,7 @@
 (declare delta-star-0?)
 
 (defn delta-star-0?
-  "Return true for the MVP Delta-star-0 formula class.
+  "Return true for the implemented Delta-star-0 formula class.
 
    The classifier deliberately accepts bounded SJAS quantifiers and rejects
    ordinary unbounded quantifiers."
@@ -343,68 +365,15 @@
                         terms))]
     (ast/clause relation params body)))
 
-(defn- mult-facts
-  []
-  (for [[left right product] [[zero zero zero]
-                              [zero one zero]
-                              [zero two zero]
-                              [one zero zero]
-                              [one one one]
-                              [one two two]
-                              [two one two]
-                              [two two four]
-                              [two three six]
-                              [three two six]]]
-    (relation-fact 'mult [left right product])))
-
-(defn- order-facts
-  []
-  (concat
-    (for [[left right] [[zero zero] [zero one] [zero two] [zero three]
-                        [zero four] [zero six] [one one] [one two]
-                        [two two] [two three] [two four] [three three]
-                        [four four] [six six]]]
-      (relation-fact 'leq [left right]))
-    (for [[left right] [[zero one] [zero two] [zero three] [one two]
-                        [one three] [two three] [two four] [three six]]]
-      (relation-fact 'lt [left right]))))
-
 (defn- neg-pair-clauses
   []
   (let [x (nominal/nom (lvar 'neg-pair-x))
         y (nominal/nom (lvar 'neg-pair-y))]
     [(ast/clause 'neg-pair
                  [x y]
-                 (ast/or-form
-                   (ast/eq-lit (ast/var-term y) (not-code (ast/var-term x)))
-                   (ast/eq-lit (ast/var-term x) (not-code (ast/var-term y)))))]))
-
-(defn- certificate-clauses
-  []
-  (let [f (nominal/nom (lvar 'formula-code))
-        branch (nominal/nom (lvar 'branch-code))
-        system (nominal/nom (lvar 'system-code))
-        theorem (nominal/nom (lvar 'theorem-code))
-        proof (nominal/nom (lvar 'proof-code))]
-    [(ast/clause 'closed-branch
-                 [branch]
-                 (ast/exists-form
-                   f
-                   (ast/eq-lit
-                     (ast/var-term branch)
-                     (branch-code (ast/var-term f)
-                                  (not-code (ast/var-term f))))))
-     (ast/clause 'tableau-proof
-                 [system theorem proof]
-                 (ast/and-form
-                   (axiom-member (ast/var-term system)
-                                 (ast/var-term theorem))
-                   (ast/and-form
-                     (ast/eq-lit (ast/var-term proof)
-                                 (mini-closed-certificate (ast/var-term theorem)))
-                     (closed-branch
-                       (branch-code (ast/var-term theorem)
-                                    (not-code (ast/var-term theorem)))))))]))
+              (ast/or-form
+                (ast/eq-lit (ast/var-term y) (not-code (ast/var-term x)))
+                (ast/eq-lit (ast/var-term x) (not-code (ast/var-term y)))))]))
 
 (defn- clause->formula
   [{:keys [relation params body]}]
@@ -528,13 +497,33 @@
          (relation-fact 'axiom-member [system-code code]))
        axioms))
 
+(defn- generated-fact-atoms
+  "Ground coding facts that the SJAS profile may close directly.
+
+   These are reflected system metadata, not arithmetic truth tables. Infinite
+   U-grounding relations such as `mult`, `leq`, and `lt` are handled by the
+   arithmetic profile, while finite coding predicates remain facts generated
+   from the current SJAS system."
+  [system-code axioms]
+  (apply list
+         (concat
+           (map (fn [{:keys [code]}]
+                  (ast/app-term 'axiom-member system-code code))
+                axioms)
+           (mapcat (fn [{:keys [formula code]}]
+                     (cond-> [(ast/app-term 'wff code)]
+                       (pi-star-1? formula)
+                       (conj (ast/app-term 'pi-star-1-code code))
+                       (sigma-star-1? formula)
+                       (conj (ast/app-term 'sigma-star-1-code code))
+                       (delta-star-0? formula)
+                       (conj (ast/app-term 'delta-star-0-code code))))
+                   axioms))))
+
 (defn- generated-clauses
   [system-code axioms]
   (concat
-    (mult-facts)
-    (order-facts)
     (neg-pair-clauses)
-    (certificate-clauses)
     (axiom-member-clauses system-code axioms)
     (classification-clauses axioms)))
 
@@ -547,7 +536,7 @@
      :proof-profile profile}))
 
 (defn system
-  "Build a finite MVP SJAS system.
+  "Build a finite reflected SJAS system.
 
    Options:
    - `:profile`: `:willard-sjas-tableau0` or `:willard-sjas-level1`;
@@ -589,7 +578,23 @@
         clauses (concat (generated-clauses system-code axioms)
                         reflected-clauses
                         external-clauses)
-        program (language/compile-program lang clauses)
+        ;; U-grounding arithmetic is now interpreted by the SJAS profile.
+        ;; Keeping the reflected Group-1 formulas in `axiom-member` preserves
+        ;; their SJAS codes, but adding them as ordinary positive equalities in
+        ;; every theorem antecedent would let the free-constructor equality
+        ;; rule misread true arithmetic equations as constructor clashes.
+        theorem-axioms (remove #(= :group-one (:group %)) axioms)
+        axiom-formula (and* (map :formula theorem-axioms))
+        proof-targets (map (fn [{:keys [code formula]}]
+                             [system-code
+                              code
+                              (normalize/negate-formula
+                                (ast/implies-form axiom-formula formula))])
+                           axioms)
+        program (assoc (language/compile-program lang clauses)
+                       :sjas/system-code system-code
+                       :sjas/fact-atoms (generated-fact-atoms system-code axioms)
+                       :sjas/proof-targets (apply list proof-targets))
         group3 (first (filter #(= :group-three (:group %)) axioms))]
     {:profile profile
      :language lang
@@ -598,7 +603,7 @@
      :system-code system-code
      :axioms axioms
      :group-three group3
-     :axiom-formula (and* (map :formula axioms))
+     :axiom-formula axiom-formula
      :reflected-clauses (vec reflected-clauses)
      :external-clauses (vec external-clauses)}))
 
@@ -677,7 +682,7 @@
           sections))
 
 (defmacro system-source
-  "Build an MVP SJAS system from Clojure-readable prefix source.
+  "Build an SJAS system from Clojure-readable prefix source.
 
    Example:
    (system-source
@@ -729,17 +734,26 @@
      proof-limit
      fuel)))
 
+(defn query-answers
+  "Export answer bindings for an SJAS query under the SJAS theory profile."
+  ([system formula answer-vars]
+   (query-answers system formula answer-vars {}))
+  ([system formula answer-vars opts]
+   (binding [answer-overlay/*theory-profile-closeo*
+             willard-sjas-profile/willard-sjas-answer-theory-closeo
+             gamma/*closed-term-depth-cap* 0
+             gamma/*closed-term-count-cap* 0]
+     (answers/query-answers (:program system) formula answer-vars opts))))
+
 (defn bounded-contradiction-probe
   "Run a bounded Level-1 complement-proof probe and record wall-clock duration."
   [system {:keys [fuel proof-limit]
            :or {fuel 32
                 proof-limit 1}}]
   (let [started (System/nanoTime)
-        contradiction (ast/exists-form
-                        (nominal/nom (lvar 'p))
-                        (tableau-proof (:system-code system)
-                                       contradiction-code
-                                       (mini-closed-certificate contradiction-code)))
+        contradiction (tableau-proof (:system-code system)
+                                     contradiction-code
+                                     (proof-certificate '(refl-close)))
         proofs (query/query-succeeds (:program system) contradiction proof-limit fuel)
         duration-ms (long (/ (- (System/nanoTime) started) 1000000))]
     {:result (if (seq proofs) :found :not-found)

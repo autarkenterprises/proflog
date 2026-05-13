@@ -1,9 +1,9 @@
 # ADR-0061: SJAS Binary Arithmetic and Proof Checking
 
-- Status: accepted
+- Status: completed
 - Date: 2026-05-13
 - Branch: `adr-0061-sjas-full-arithmetic-proof-checking`
-- AAR: pending
+- AAR: [AAR-0061](../aar/AAR-0061-sjas-full-arithmetic-proof-checking.md)
 
 ## Context
 

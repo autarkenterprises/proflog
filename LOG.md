@@ -20,6 +20,32 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-13
+
+- Started [ADR-0061](docs/adr/ADR-0061-sjas-full-arithmetic-proof-checking.md)
+  on branch `adr-0061-sjas-full-arithmetic-proof-checking` after the
+  ADR-0060 MVP. The goal is to replace finite named SJAS numerals and
+  arithmetic fact tables with binary object numerals over constants `0` and
+  `1`, relation-backed U-grounding arithmetic, and a `tableau-proof/3`
+  certificate checker that validates Proflog kernel proof terms instead of the
+  `mini-closed` placeholder. The local Willard corpus supports this direction:
+  the later Type-A presentations use constants `0` and `1`, addition and
+  doubling for larger numerals, non-growth arithmetic including subtraction,
+  division, maximum, logarithm, root, and bit-count, and semantic-tableau proof
+  predicates.
+- Completed ADR-0061 by replacing finite SJAS numerals and arithmetic fact
+  tables with binary object numerals, relation-backed U-grounding arithmetic,
+  answer-overlay theory hook support, and a `tableau-proof/3` checker that
+  decodes structural proof certificates and checks them through the Proflog
+  kernel relation. Updated the worked example, README pointer, user guide,
+  ADR, and [AAR-0061](docs/aar/AAR-0061-sjas-full-arithmetic-proof-checking.md).
+  Verification: `lein test-proflog-sjas` passed with `11` tests, `110`
+  assertions, `0` failures, `0` errors, `real 51.22 s`;
+  `lein test-proflog-fast` passed with `145` tests, `548` assertions, `0`
+  failures, `0` errors, `real 236.58 s`; `lein test-proflog-extended` passed
+  with `68` tests, `203` assertions, `0` failures, `0` errors,
+  `real 572.25 s`.
+
 ## 2026-05-10
 
 - Started [ADR-0060](docs/adr/ADR-0060-willard-sjas-mvp.md) on branch

@@ -28,6 +28,21 @@
             [proflog.program :as program]
             [proflog.subst :as subst]))
 
+(def ^:dynamic *theory-profile-closeo*
+  "Optional answer-layer theory rule.
+
+   The ordinary proof kernel already exposes a language-selected theory hook.
+   Answer export mirrors the kernel but carries extra residual-answer state, so
+   it needs a parallel hook if a profile is to support reverse and partial
+   synthesis instead of only closed proof search."
+  nil)
+
+(defn- theory-profile-closeo
+  [& args]
+  (if-let [closeo *theory-profile-closeo*]
+    (apply closeo args)
+    fail))
+
 ;; Reading guide
 ;; -------------
 ;;
@@ -564,6 +579,27 @@
           ;; calls. Ordinary proof search should either descend or fail.
           defer-calls? (and existentials-as-vars? prog)]
       (conde
+      ;; Profile-specific theory closure comes first, just as it does in the
+      ;; ordinary kernel. A successful hook closes the current branch and may
+      ;; export bindings through `sigma-out`.
+      [(theory-profile-closeo fml
+                              unexpanded
+                              lits
+                              env
+                              proof-vars
+                              sigma
+                              sigma-out
+                              neqs
+                              neqs-out
+                              residuals
+                              residuals-out
+                              prog
+                              gamma-terms
+                              fuel
+                              call-depth
+                              existentials-as-vars?
+                              proof)]
+
       ;; α-rule: both conjuncts must close on the same branch, so the sibling
       ;; conjunct is pushed onto the branch work stack. Equality-triggered saved
       ;; literal closure handles the important order-insensitive case where a

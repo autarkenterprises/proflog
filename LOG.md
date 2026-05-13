@@ -20,6 +20,20 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-13
+
+- Started [ADR-0061](docs/adr/ADR-0061-sjas-full-arithmetic-proof-checking.md)
+  on branch `adr-0061-sjas-full-arithmetic-proof-checking` after the
+  ADR-0060 MVP. The goal is to replace finite named SJAS numerals and
+  arithmetic fact tables with binary object numerals over constants `0` and
+  `1`, relation-backed U-grounding arithmetic, and a `tableau-proof/3`
+  certificate checker that validates Proflog kernel proof terms instead of the
+  `mini-closed` placeholder. The local Willard corpus supports this direction:
+  the later Type-A presentations use constants `0` and `1`, addition and
+  doubling for larger numerals, non-growth arithmetic including subtraction,
+  division, maximum, logarithm, root, and bit-count, and semantic-tableau proof
+  predicates.
+
 ## 2026-05-10
 
 - Started [ADR-0060](docs/adr/ADR-0060-willard-sjas-mvp.md) on branch

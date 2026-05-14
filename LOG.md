@@ -22,6 +22,31 @@ complete contemporaneous transcript.
 
 ## 2026-05-14
 
+- Completed [ADR-0065](docs/adr/ADR-0065-sjas-selfcons-substitution-fixpoint.md)
+  on branch `adr-0065-sjas-selfcons-subst-fixpoint`. Level-1 SJAS Group-3 now
+  uses the generated `Gamma_1(g)` skeleton code as the `subst-prf/4`
+  substitution argument, exposes `:selfcons-skeleton-code`, and rejects
+  `system-code` in that position. The proof profile also accepts a formal
+  `sjas-axiom` certificate by checking generated `axiom-member/2` facts, and
+  proof-code decoding now supports a wide proof-symbol byte form. A generic
+  Level-1 Group-3 theorem proof was stopped after about `7m44s` without a
+  result; the promoted fixed-point certificate test instead uses the
+  object-level axiom-citation proof path. Verification so far:
+  `lein test-proflog-sjas-slow` passed with `1` test, `3` assertions, `real
+  82.81 s`; `lein test-proflog-sjas` passed with `20` tests, `162` assertions,
+  `real 406.83 s`; `lein test-proflog-fast` passed with `145` tests, `548`
+  assertions, `real 93.95 s`; and `lein test-proflog-extended` passed with
+  `68` tests, `203` assertions, `real 222.85 s`. See
+  [AAR-0065](docs/aar/AAR-0065-sjas-selfcons-substitution-fixpoint.md).
+- Started [ADR-0065](docs/adr/ADR-0065-sjas-selfcons-substitution-fixpoint.md)
+  on branch `adr-0065-sjas-selfcons-subst-fixpoint`. The completion audit after
+  ADR-0064 found that Level-1 Group-3 cited `subst-prf(system-code,
+  system-code, ...)`, but Willard Appendix A requires a fixed-point skeleton
+  `Gamma_1(g)` and final sentence `Gamma_1(n)` where `n` is the skeleton code.
+- Logged the testing policy for the ongoing SJAS fidelity work: slow tests are
+  acceptable when they capture substantive proof, correctness, or semantic
+  properties. They should be marked as slow and timed, but completeness of the
+  implementation takes priority over fast-running demonstrations.
 - Started [ADR-0064](docs/adr/ADR-0064-sjas-substitution-proof-predicate.md)
   on branch `adr-0064-sjas-subst-proof`. The user correctly objected that even
   a code-term `tableau-proof/3` does not by itself justify the Level-1

@@ -53,6 +53,7 @@
    :pelletier-passing (fn [m & _] (:pelletier-passing m))
    :pelletier-exploratory (fn [m & _] (:pelletier-exploratory m))
    :pelletier-comparison (fn [m & _] (:pelletier-comparison m))
+   :slow (fn [m & _] (:slow m))
    :constructor-recursive (fn [m & _] (:constructor-recursive m))}
   :aliases {"test-section"         ["run" "-m" "cljtap.run-section"]
             "test-all-timed"       ["run" "-m" "cljtap.run-section" "--all"]
@@ -126,6 +127,9 @@
                                                          "proflog.kernel.relational-equality-fragment-test"]
             "test-proflog-sjas" ["test"
                                  "proflog.willard-sjas-test"]
+            "test-proflog-sjas-slow" ["test"
+                                      ":slow"
+                                      "proflog.willard-sjas-test"]
             "test-proflog-legacy-subsumption" ["test"
                                                "proflog.legacy-subsumption-test"]
             "test-proflog-constructor-recursive" ["test"

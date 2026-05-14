@@ -57,6 +57,7 @@
 (def proof-symbol-tag 41)
 (def proof-list-tag 42)
 (def proof-empty-list-tag 43)
+(def proof-wide-symbol-tag 44)
 
 (def proof-symbols
   "Kernel proof atoms that may appear in encoded SJAS certificates."
@@ -127,7 +128,8 @@
     sjas-read-root
     sjas-read-sub
     sjas-read-var
-    sjas-read-zero])
+    sjas-read-zero
+    sjas-axiom])
 
 (def proof-symbol->index
   (into {} (map-indexed (fn [idx sym] [sym (inc idx)]) proof-symbols)))
@@ -443,12 +445,20 @@
       (throw (ex-info "Unsupported proof symbol in SJAS certificate"
                       {:symbol sym}))))
 
+(defn- proof-symbol-index-bytes
+  [idx]
+  (if (< idx byte-base)
+    [proof-symbol-tag (positive-byte :proof-symbol-index idx)]
+    [proof-wide-symbol-tag
+     (checked-byte :proof-symbol-index-high (quot idx byte-base))
+     (checked-byte :proof-symbol-index-low (mod idx byte-base))]))
+
 (defn proof-code-bytes
   "Encode a kernel proof datum as a byte string."
   [proof]
   (cond
     (symbol? proof)
-    [proof-symbol-tag (positive-byte :proof-symbol-index (proof-symbol-index proof))]
+    (proof-symbol-index-bytes (proof-symbol-index proof))
 
     (sequential? proof)
     (if (empty? proof)

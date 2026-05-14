@@ -8,8 +8,8 @@
    - `tableau-proof/3` checks a structural proof certificate by running the
      existing Proflog kernel with the decoded proof term already supplied;
    - `subst-prf/4` exposes the Level-1 substitution-proof vocabulary while
-     currently consulting the finite identity-substitution boundary generated
-     for the active `IS#_D(beta)` system.
+     currently consulting the finite substitution boundary generated for the
+     active `IS#_D(beta)` system.
 
    The profile therefore remains a tableau extension, not a host-side evaluator:
    arithmetic constraints and proof checking are both miniKanren goals
@@ -332,6 +332,14 @@
                 [idx sym])
               sjas-code/index->proof-symbol)))
 
+(def ^:private proof-symbol-wide-index-entries
+  (apply list
+         (map (fn [[idx sym]]
+                [(quot idx sjas-code/byte-base)
+                 (mod idx sjas-code/byte-base)
+                 sym])
+              sjas-code/index->proof-symbol)))
+
 (defn- byte-bitso
   [bits byte]
   (fresh [entry]
@@ -395,6 +403,12 @@
     (membero entry proof-symbol-index-entries)
     (== [idx sym] entry)))
 
+(defn- proof-symbol-wide-indexo
+  [high low sym]
+  (fresh [entry]
+    (membero entry proof-symbol-wide-index-entries)
+    (== [high low sym] entry)))
+
 (declare decode-proof-byteso)
 
 (defn- parse-proof-items
@@ -428,6 +442,12 @@
     [(fresh [idx after-symbol]
        (== (lcons sjas-code/proof-symbol-tag (lcons idx after-symbol)) bytes)
        (proof-symbol-indexo idx proof)
+       (== after-symbol rest))]
+    [(fresh [high low after-symbol]
+       (== (lcons sjas-code/proof-wide-symbol-tag
+                   (lcons high (lcons low after-symbol)))
+           bytes)
+       (proof-symbol-wide-indexo high low proof)
        (== after-symbol rest))]
     [(decode-proof-list-with-counto bytes rest proof)]))
 
@@ -477,6 +497,19 @@
                                                   prog))
                        '()))
     (== [system-code axiom-formula] entry)))
+
+(defn- sjas-axiom-membero
+  "Relate a reflected system code to one of its generated axiom formula codes.
+
+   The proof predicate uses this for formal axiom-citation certificates. This
+   is still an object-language check: it consumes the same generated
+   `axiom-member/2` facts that ordinary SJAS queries can inspect."
+  [prog system-code formula-code]
+  (fresh [fact]
+    (membero fact (or (:sjas/fact-atoms (or (some-> prog :sjas/registry deref)
+                                             prog))
+                      '()))
+    (== (list 'app 'axiom-member system-code formula-code) fact)))
 
 (defn- sjas-subst-prf-codeo
   [prog system-code substitution-code theorem-code substituted-code]
@@ -609,11 +642,14 @@
     (equality/walk-atomo atom sigma walked-atom)
     (== (list 'app 'tableau-proof system-code theorem-code proof-code) walked-atom)
     (decode-proof-codeo proof-code sigma sigma-proof proof-bytes decoded-proof proof-read-proof)
-    (sjas-system-axiom-formulao prog system-code axiom-formula)
-    (sjas-formula-codeo prog theorem-code theorem-formula)
-    (sjas-formula-negationo prog theorem-formula neg-theorem)
-    (== (list 'and axiom-formula neg-theorem) target)
-    (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
+    (conde
+      [(== 'sjas-axiom decoded-proof)
+       (sjas-axiom-membero prog system-code theorem-code)]
+      [(sjas-system-axiom-formulao prog system-code axiom-formula)
+       (sjas-formula-codeo prog theorem-code theorem-formula)
+       (sjas-formula-negationo prog theorem-formula neg-theorem)
+       (== (list 'and axiom-formula neg-theorem) target)
+       (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
     (== sigma-proof sigma-out)
     (== neqs neqs-out)
     (== (list 'profiled 'willard-sjas-proof-check proof-read-proof decoded-proof) proof)))
@@ -628,13 +664,16 @@
     (equality/walk-atomo atom sigma walked-atom)
     (== (list 'app 'subst-prf system-code substitution-code theorem-code proof-code)
         walked-atom)
-    (decode-proof-codeo proof-code sigma sigma-proof proof-bytes decoded-proof proof-read-proof)
     (sjas-subst-prf-codeo prog system-code substitution-code theorem-code substituted-code)
-    (sjas-system-axiom-formulao prog system-code axiom-formula)
-    (sjas-formula-codeo prog substituted-code theorem-formula)
-    (sjas-formula-negationo prog theorem-formula neg-theorem)
-    (== (list 'and axiom-formula neg-theorem) target)
-    (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
+    (decode-proof-codeo proof-code sigma sigma-proof proof-bytes decoded-proof proof-read-proof)
+    (conde
+      [(== 'sjas-axiom decoded-proof)
+       (sjas-axiom-membero prog system-code substituted-code)]
+      [(sjas-system-axiom-formulao prog system-code axiom-formula)
+       (sjas-formula-codeo prog substituted-code theorem-formula)
+       (sjas-formula-negationo prog theorem-formula neg-theorem)
+       (== (list 'and axiom-formula neg-theorem) target)
+       (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
     (== sigma-proof sigma-out)
     (== neqs neqs-out)
     (== (list 'profiled 'willard-sjas-subst-proof-check

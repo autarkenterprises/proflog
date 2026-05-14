@@ -406,7 +406,8 @@ shows generated Group-Zero through Group-3 axiom bases, reflected versus
 external clauses, formula-class checks, binary U-grounding arithmetic,
 answer/partial-synthesis modes, compact base-64 Godel-code terms,
 kernel-checked proof certificates, and the non-vacuous `SelfCons`
-demonstration for concrete contradiction/complement proof targets.
+demonstration for concrete contradiction/complement and Level-1 fixed-point
+substitution proof targets.
 
 For the opt-in Turing-completeness demonstration, run:
 

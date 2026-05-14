@@ -76,6 +76,30 @@
     bounded-exists (formula-relation-symbols (get-in (second formula) [:body :body]))
     []))
 
+(defn- formula-atoms
+  "Collect atomic application terms appearing in an SJAS formula."
+  [formula]
+  (case (ast/tag-of formula)
+    pos [(second formula)]
+    neg [(second formula)]
+    eq []
+    neq []
+    true []
+    false []
+    and (concat (formula-atoms (second formula))
+                (formula-atoms (nth formula 2)))
+    or (concat (formula-atoms (second formula))
+               (formula-atoms (nth formula 2)))
+    not (formula-atoms (second formula))
+    implies (concat (formula-atoms (second formula))
+                    (formula-atoms (nth formula 2)))
+    forall (formula-atoms (:body (second formula)))
+    once-forall (formula-atoms (:body (second formula)))
+    exists (formula-atoms (:body (second formula)))
+    bounded-forall (formula-atoms (get-in (second formula) [:body :body]))
+    bounded-exists (formula-atoms (get-in (second formula) [:body :body]))
+    []))
+
 (deftest sjas-profile-languages-have-binary-u-grounding-shape
   (testing "SJAS languages expose Willard-style binary U-grounding symbols"
     (doseq [[profile lang] [[:willard-sjas-tableau0 sjas/tableau0-profile-language]
@@ -539,12 +563,75 @@
             1
             80)))))
 
+(deftest sjas-tableau-proof-accepts-axiom-citation-certificates
+  (let [system (demo-system :willard-sjas-level1)
+        beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+        axiom-certificate (sjas/proof-certificate 'sjas-axiom)]
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            (sjas/tableau-proof (:system-code system)
+                                (:code beta-record)
+                                axiom-certificate)
+            1
+            96)))
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/tableau-proof (:system-code system)
+                                sjas/contradiction-code
+                                axiom-certificate)
+            1
+            96)))))
+
 (deftest sjas-level1-group-three-uses-substitution-proof-vocabulary
   (let [system (demo-system :willard-sjas-level1)
         relations (set (formula-relation-symbols (:formula (:group-three system))))]
     (is (contains? relations 'neg-pair))
     (is (contains? relations 'subst-prf))
     (is (not (contains? relations 'tableau-proof)))))
+
+(deftest sjas-level1-group-three-uses-selfcons-skeleton-code
+  (let [system (demo-system :willard-sjas-level1)
+        skeleton-code (:selfcons-skeleton-code system)
+        subst-atoms (filter #(= 'subst-prf (second %))
+                            (formula-atoms (:formula (:group-three system))))]
+    (is (sjas-code/code-term? skeleton-code))
+    (is (= 2 (count subst-atoms)))
+    (is (every? #(= (:system-code system) (nth % 2)) subst-atoms))
+    (is (every? #(= skeleton-code (nth % 3)) subst-atoms))
+    (is (not-any? #(= (:system-code system) (nth % 3)) subst-atoms))))
+
+(deftest ^:slow sjas-subst-prf-checks-selfcons-fixed-point-certificate
+  (let [system (demo-system :willard-sjas-level1)
+        group3-record (:group-three system)
+        valid (sjas/proof-certificate 'sjas-axiom)]
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            (sjas/tableau-proof (:system-code system)
+                                (:code group3-record)
+                                valid)
+            1
+            160)))
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-prf (:system-code system)
+                            (:selfcons-skeleton-code system)
+                            (:code group3-record)
+                            valid)
+            1
+            220)))
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-prf (:system-code system)
+                            (:system-code system)
+                            (:code group3-record)
+                            valid)
+            1
+            120)))))
 
 (deftest sjas-selfcons-demonstration-uses-substantive-proof-targets
   (testing "the generated self-consistency axiom is a theorem with a checked certificate"

@@ -177,6 +177,37 @@ Current ADR-0064 note:
   `real 96.78 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
   203 assertions`, `0 failures`, `0 errors`, `real 219.78 s`.
 
+Current ADR-0065 note:
+
+- The structural fixed-point red test showed that Level-1 Group-3 used
+  `system-code` rather than `selfcons-skeleton-code`; after implementation,
+  `sjas-level1-group-three-uses-selfcons-skeleton-code` passed.
+- A direct `sjas-axiom` certificate red test failed before implementation with
+  `Unsupported proof symbol in SJAS certificate {:symbol sjas-axiom}` and
+  `real 11.26 s`.
+- An attempted generic Level-1 Group-3 proof was stopped after about `7m44s`
+  without a result. The corrected route uses a formal axiom-citation proof
+  checked through generated `axiom-member/2` facts.
+- Focused post-implementation timings:
+  `sjas-tableau-proof-accepts-axiom-citation-certificates` passed with
+  `Ran 1 tests containing 2 assertions`, `0 failures`, `0 errors`,
+  `real 46.28 s`; `sjas-subst-prf-checks-identity-substitution-certificates`
+  passed with `Ran 1 tests containing 4 assertions`, `0 failures`, `0 errors`,
+  `real 87.70 s`; and
+  `sjas-subst-prf-checks-selfcons-fixed-point-certificate` passed with
+  `Ran 1 tests containing 3 assertions`, `0 failures`, `0 errors`,
+  `real 72.66 s`.
+- The explicit slow selector `lein test-proflog-sjas-slow` passed with
+  `Ran 1 tests containing 3 assertions`, `0 failures`, `0 errors`,
+  `real 82.81 s`.
+- The focused SJAS fixed-point gate `lein test-proflog-sjas` passed with
+  `Ran 20 tests containing 162 assertions`, `0 failures`, `0 errors`,
+  `real 406.83 s`.
+- The ADR-0065 regression gates passed with `lein test-proflog-fast`,
+  `Ran 145 tests containing 548 assertions`, `0 failures`, `0 errors`,
+  `real 93.95 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
+  203 assertions`, `0 failures`, `0 errors`, `real 222.85 s`.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

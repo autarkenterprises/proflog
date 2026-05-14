@@ -52,6 +52,30 @@
                 (:bindings record)))
         records))
 
+(defn- formula-relation-symbols
+  "Collect relation symbols appearing in atomic literals of an SJAS formula."
+  [formula]
+  (case (ast/tag-of formula)
+    pos [(second (second formula))]
+    neg [(second (second formula))]
+    eq []
+    neq []
+    true []
+    false []
+    and (concat (formula-relation-symbols (second formula))
+                (formula-relation-symbols (nth formula 2)))
+    or (concat (formula-relation-symbols (second formula))
+               (formula-relation-symbols (nth formula 2)))
+    not (formula-relation-symbols (second formula))
+    implies (concat (formula-relation-symbols (second formula))
+                    (formula-relation-symbols (nth formula 2)))
+    forall (formula-relation-symbols (:body (second formula)))
+    once-forall (formula-relation-symbols (:body (second formula)))
+    exists (formula-relation-symbols (:body (second formula)))
+    bounded-forall (formula-relation-symbols (get-in (second formula) [:body :body]))
+    bounded-exists (formula-relation-symbols (get-in (second formula) [:body :body]))
+    []))
+
 (deftest sjas-profile-languages-have-binary-u-grounding-shape
   (testing "SJAS languages expose Willard-style binary U-grounding symbols"
     (doseq [[profile lang] [[:willard-sjas-tableau0 sjas/tableau0-profile-language]
@@ -73,7 +97,8 @@
       (is (= 2 (get-in lang [:functions 'count])))
       (is (nil? (get-in lang [:functions 'mul]))
           "multiplication must be a graph relation, not a function symbol")
-      (is (= 3 (get-in lang [:relations 'mult]))))))
+      (is (= 3 (get-in lang [:relations 'mult])))
+      (is (= 4 (get-in lang [:relations 'subst-prf]))))))
 
 (deftest sjas-numerals-are-binary-composed-terms
   (testing "only 0 and 1 are object-language numeral constants"
@@ -474,6 +499,52 @@
             (sjas/tableau-proof (:system-code system) (:code beta-record) malformed)
             1
             80)))))
+
+(deftest sjas-subst-prf-checks-identity-substitution-certificates
+  (let [system (demo-system :willard-sjas-level1)
+        beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+        group3-record (:group-three system)
+        beta-proof (first-proof
+                     (sjas/query-succeeds system (:formula beta-record)
+                                          {:proof-limit 1
+                                           :fuel 96}))
+        valid (sjas/proof-certificate beta-proof)
+        malformed (sjas/proof-certificate '(refl-close))]
+    (is beta-proof)
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-prf (:system-code system)
+                            (:system-code system)
+                            (:code beta-record)
+                            valid)
+            1
+            160)))
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-prf (:system-code system)
+                            (:system-code system)
+                            (:code group3-record)
+                            valid)
+            1
+            80)))
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-prf (:system-code system)
+                            (:system-code system)
+                            (:code beta-record)
+                            malformed)
+            1
+            80)))))
+
+(deftest sjas-level1-group-three-uses-substitution-proof-vocabulary
+  (let [system (demo-system :willard-sjas-level1)
+        relations (set (formula-relation-symbols (:formula (:group-three system))))]
+    (is (contains? relations 'neg-pair))
+    (is (contains? relations 'subst-prf))
+    (is (not (contains? relations 'tableau-proof)))))
 
 (deftest sjas-selfcons-demonstration-uses-substantive-proof-targets
   (testing "the generated self-consistency axiom is a theorem with a checked certificate"

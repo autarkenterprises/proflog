@@ -6,7 +6,10 @@
    - U-grounding arithmetic is interpreted as relations over binary numerals
      whose object-language constants are `0` and `1`;
    - `tableau-proof/3` checks a structural proof certificate by running the
-     existing Proflog kernel with the decoded proof term already supplied.
+     existing Proflog kernel with the decoded proof term already supplied;
+   - `subst-prf/4` exposes the Level-1 substitution-proof vocabulary while
+     currently consulting the finite identity-substitution boundary generated
+     for the active `IS#_D(beta)` system.
 
    The profile therefore remains a tableau extension, not a host-side evaluator:
    arithmetic constraints and proof checking are both miniKanren goals
@@ -475,6 +478,14 @@
                        '()))
     (== [system-code axiom-formula] entry)))
 
+(defn- sjas-subst-prf-codeo
+  [prog system-code substitution-code theorem-code substituted-code]
+  (fresh [entry]
+    (membero entry (or (:sjas/subst-prf-entries (or (some-> prog :sjas/registry deref)
+                                                     prog))
+                       '()))
+    (== [system-code substitution-code theorem-code substituted-code] entry)))
+
 (defn- sjas-class-relationo
   "Recognize the finite formula-class predicates generated for one SJAS system.
 
@@ -607,6 +618,30 @@
     (== neqs neqs-out)
     (== (list 'profiled 'willard-sjas-proof-check proof-read-proof decoded-proof) proof)))
 
+(defn- sjas-subst-prf-closeo
+  [fml env sigma sigma-out neqs neqs-out prog fuel proof]
+  (fresh [lit atom walked-atom system-code substitution-code theorem-code proof-code
+          substituted-code decoded-proof proof-bytes axiom-formula theorem-formula
+          neg-theorem target sigma-proof proof-read-proof]
+    (subst/subst-formulao fml env lit)
+    (== (list 'neg atom) lit)
+    (equality/walk-atomo atom sigma walked-atom)
+    (== (list 'app 'subst-prf system-code substitution-code theorem-code proof-code)
+        walked-atom)
+    (decode-proof-codeo proof-code sigma sigma-proof proof-bytes decoded-proof proof-read-proof)
+    (sjas-subst-prf-codeo prog system-code substitution-code theorem-code substituted-code)
+    (sjas-system-axiom-formulao prog system-code axiom-formula)
+    (sjas-formula-codeo prog substituted-code theorem-formula)
+    (sjas-formula-negationo prog theorem-formula neg-theorem)
+    (== (list 'and axiom-formula neg-theorem) target)
+    (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
+    (== sigma-proof sigma-out)
+    (== neqs neqs-out)
+    (== (list 'profiled 'willard-sjas-subst-proof-check
+              proof-read-proof
+              decoded-proof)
+        proof)))
+
 (defn willard-sjas-theory-closeo
   "SJAS theory branch rule bound into the ordinary proof kernel."
   [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
@@ -618,7 +653,8 @@
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]
     [(sjas-syntax-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
     [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
-    [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]))
+    [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
+    [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]))
 
 (defn willard-sjas-answer-theory-closeo
   "SJAS theory branch rule for the answer overlay.
@@ -640,6 +676,8 @@
     [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]
     [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
+     (== residuals residuals-out)]
+    [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
      (== residuals residuals-out)]))
 
 ;; -----------------------------------------------------------------------------

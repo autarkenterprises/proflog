@@ -66,3 +66,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0061](AAR-0061-sjas-full-arithmetic-proof-checking.md) | [ADR-0061](../adr/ADR-0061-sjas-full-arithmetic-proof-checking.md) | completed |
 | [AAR-0062](AAR-0062-sjas-self-justification-demonstration.md) | [ADR-0062](../adr/ADR-0062-sjas-self-justification-demonstration.md) | completed |
 | [AAR-0063](AAR-0063-sjas-arithmetized-coding.md) | [ADR-0063](../adr/ADR-0063-sjas-arithmetized-coding.md) | completed |
+| [AAR-0064](AAR-0064-sjas-substitution-proof-predicate.md) | [ADR-0064](../adr/ADR-0064-sjas-substitution-proof-predicate.md) | completed |

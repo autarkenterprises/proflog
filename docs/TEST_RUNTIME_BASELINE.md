@@ -157,6 +157,26 @@ Current ADR-0063 note:
   `elapsed 2:07.41`, and `lein test-proflog-extended`, `Ran 68 tests containing
   203 assertions`, `0 failures`, `0 errors`, `elapsed 4:37.84`.
 
+Current ADR-0064 note:
+
+- The targeted red run for the SJAS substitution-proof predicate failed before
+  implementation because `sjas/subst-prf` was undefined.
+- After adding `subst-prf/4`, identity-substitution entries, and the profile
+  branch closer, the focused selectors passed:
+  `sjas-profile-languages-have-binary-u-grounding-shape` with `Ran 1 tests
+  containing 36 assertions`, `0 failures`, `0 errors`;
+  `sjas-level1-group-three-uses-substitution-proof-vocabulary` with `Ran 1 tests
+  containing 3 assertions`, `0 failures`, `0 errors`; and
+  `sjas-subst-prf-checks-identity-substitution-certificates` with `Ran 1 tests
+  containing 4 assertions`, `0 failures`, `0 errors`.
+- The focused SJAS substitution-proof gate `lein test-proflog-sjas` passed on
+  2026-05-14 with `Ran 17 tests containing 152 assertions`, `0 failures`,
+  `0 errors`, and `real 299.59 s`.
+- The ADR-0064 regression gates passed with `lein test-proflog-fast`,
+  `Ran 145 tests containing 548 assertions`, `0 failures`, `0 errors`,
+  `real 96.78 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
+  203 assertions`, `0 failures`, `0 errors`, `real 219.78 s`.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

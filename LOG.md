@@ -22,6 +22,26 @@ complete contemporaneous transcript.
 
 ## 2026-05-14
 
+- Started [ADR-0064](docs/adr/ADR-0064-sjas-substitution-proof-predicate.md)
+  on branch `adr-0064-sjas-subst-proof`. The user correctly objected that even
+  a code-term `tableau-proof/3` does not by itself justify the Level-1
+  self-justification claim if Group-3 uses raw proof predicates rather than the
+  substitution-aware vocabulary in Willard's `SelfCons_k(beta,d)`. The accepted
+  correction is to add `subst-prf/4`, route it through decoded kernel proof
+  checking, and make generated `SelfCons1` cite `subst-prf/4` instead of raw
+  `tableau-proof/3`. See
+  [SJAS Substitution-Proof Boundary](docs/log/2026-05-14-sjas-substitution-proof-boundary.md).
+- Completed [ADR-0064](docs/adr/ADR-0064-sjas-substitution-proof-predicate.md).
+  The SJAS language now declares `subst-prf/4`, Level-1 Group-3 cites
+  `subst-prf/4` rather than raw `tableau-proof/3`, and the profile checks
+  identity-substitution proof certificates by decoding proof-code terms and
+  reusing the kernel proof route. Red evidence was the missing public
+  `sjas/subst-prf` helper. Verification: `lein test-proflog-sjas` passed with
+  `17` tests, `152` assertions, `0` failures, `0` errors, `real 299.59 s`;
+  `lein test-proflog-fast` passed with `145` tests, `548` assertions, `0`
+  failures, `0` errors, `real 96.78 s`; `lein test-proflog-extended` passed
+  with `68` tests, `203` assertions, `0` failures, `0` errors, `real 219.78 s`.
+  See [AAR-0064](docs/aar/AAR-0064-sjas-substitution-proof-predicate.md).
 - Started [ADR-0063](docs/adr/ADR-0063-sjas-arithmetized-coding.md) on
   branch `adr-0063-sjas-arithmetized-coding`. The user correctly objected that
   ADR-0062 still cannot demonstrate full Willard self-justification if

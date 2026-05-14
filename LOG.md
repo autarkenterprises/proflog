@@ -40,6 +40,16 @@ complete contemporaneous transcript.
   `0` failures, `0` errors, `real 71.06 s`;
   `lein test-proflog-extended` passed with `68` tests, `203` assertions,
   `0` failures, `0` errors, `real 198.45 s`.
+- Logged the SJAS authoring distinction between directly adding formulas and
+  adding finite reflected clauses. A `beta` formula is a Group-2 proper axiom
+  of the reflected SJAS and changes the system code and Group-3 claim, but it
+  does not create an executable Proflog procedure clause. A `reflected`
+  `(|- head body)` clause is both executable procedure text and a finite
+  Group-2b axiom formula, universally closed as `body -> head`, so it can be
+  used by ordinary procedure-call evaluation and cited by the internal
+  `tableau-proof/3` axiom-membership path. An `external` clause is executable
+  procedure text only: it can participate in ordinary query evaluation but is
+  not an axiom of the reflected SJAS and does not change Group-3.
 
 ## 2026-05-13
 

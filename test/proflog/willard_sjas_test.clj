@@ -122,6 +122,7 @@
       (is (nil? (get-in lang [:functions 'mul]))
           "multiplication must be a graph relation, not a function symbol")
       (is (= 3 (get-in lang [:relations 'mult])))
+      (is (= 2 (get-in lang [:relations 'subst-code])))
       (is (= 4 (get-in lang [:relations 'subst-prf]))))))
 
 (deftest sjas-numerals-are-binary-composed-terms
@@ -539,7 +540,7 @@
           (query/query-succeeds
             (:program system)
             (sjas/subst-prf (:system-code system)
-                            (:system-code system)
+                            (:code beta-record)
                             (:code beta-record)
                             valid)
             1
@@ -548,7 +549,7 @@
           (query/query-succeeds
             (:program system)
             (sjas/subst-prf (:system-code system)
-                            (:system-code system)
+                            (:code beta-record)
                             (:code group3-record)
                             valid)
             1
@@ -558,6 +559,15 @@
             (:program system)
             (sjas/subst-prf (:system-code system)
                             (:system-code system)
+                            (:code beta-record)
+                            valid)
+            1
+            80)))
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-prf (:system-code system)
+                            (:code beta-record)
                             (:code beta-record)
                             malformed)
             1
@@ -583,6 +593,46 @@
                                 axiom-certificate)
             1
             96)))))
+
+(deftest sjas-subst-code-relates-generated-substitution-codes
+  (let [system (demo-system :willard-sjas-level1)
+        beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+        group3-record (:group-three system)]
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-code (:selfcons-skeleton-code system)
+                             (:code group3-record))
+            1
+            96)))
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-code (:code beta-record)
+                             (:code beta-record))
+            1
+            96)))
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-code (:system-code system)
+                             (:code group3-record))
+            1
+            96)))))
+
+(deftest sjas-subst-prf-uses-substitution-code-independently-of-theorem-code
+  (let [system (demo-system :willard-sjas-level1)
+        beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+        certificate (sjas/proof-certificate 'sjas-axiom)]
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-prf (:system-code system)
+                            (:selfcons-skeleton-code system)
+                            (:code beta-record)
+                            certificate)
+            1
+            220)))))
 
 (deftest sjas-level1-group-three-uses-substitution-proof-vocabulary
   (let [system (demo-system :willard-sjas-level1)

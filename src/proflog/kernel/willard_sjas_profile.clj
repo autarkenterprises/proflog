@@ -511,13 +511,18 @@
                       '()))
     (== (list 'app 'axiom-member system-code formula-code) fact)))
 
-(defn- sjas-subst-prf-codeo
-  [prog system-code substitution-code theorem-code substituted-code]
+(defn- sjas-active-systemo
+  [prog system-code]
+  (== system-code (:sjas/system-code (or (some-> prog :sjas/registry deref)
+                                         prog))))
+
+(defn- sjas-subst-codeo
+  [prog source-code substituted-code]
   (fresh [entry]
-    (membero entry (or (:sjas/subst-prf-entries (or (some-> prog :sjas/registry deref)
-                                                     prog))
+    (membero entry (or (:sjas/subst-code-entries (or (some-> prog :sjas/registry deref)
+                                                      prog))
                        '()))
-    (== [system-code substitution-code theorem-code substituted-code] entry)))
+    (== [source-code substituted-code] entry)))
 
 (defn- sjas-class-relationo
   "Recognize the finite formula-class predicates generated for one SJAS system.
@@ -632,6 +637,23 @@
     (== neqs neqs-out)
     (== (list 'profiled 'willard-sjas-code relation) proof)))
 
+(defn- sjas-subst-code-closeo
+  "Close finite generated `subst-code/2` facts.
+
+   ADR-0066 separates Willard's `Subst(g,h)` relation from `SubstPrf(g,t,p)`.
+   This branch rule exposes the finite generated substitution table at the
+   object-language predicate boundary."
+  [fml env sigma sigma-out neqs neqs-out prog proof]
+  (fresh [lit atom walked-atom source-code substituted-code]
+    (subst/subst-formulao fml env lit)
+    (== (list 'neg atom) lit)
+    (equality/walk-atomo atom sigma walked-atom)
+    (== (list 'app 'subst-code source-code substituted-code) walked-atom)
+    (sjas-subst-codeo prog source-code substituted-code)
+    (== sigma sigma-out)
+    (== neqs neqs-out)
+    (== '(profiled willard-sjas-subst-code) proof)))
+
 (defn- sjas-tableau-proof-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
   (fresh [lit atom walked-atom system-code theorem-code proof-code
@@ -658,21 +680,31 @@
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
   (fresh [lit atom walked-atom system-code substitution-code theorem-code proof-code
           substituted-code decoded-proof proof-bytes axiom-formula theorem-formula
-          neg-theorem target sigma-proof proof-read-proof]
+          substituted-formula neg-theorem target sigma-proof proof-read-proof]
     (subst/subst-formulao fml env lit)
     (== (list 'neg atom) lit)
     (equality/walk-atomo atom sigma walked-atom)
     (== (list 'app 'subst-prf system-code substitution-code theorem-code proof-code)
         walked-atom)
-    (sjas-subst-prf-codeo prog system-code substitution-code theorem-code substituted-code)
+    (sjas-active-systemo prog system-code)
+    (sjas-subst-codeo prog substitution-code substituted-code)
     (decode-proof-codeo proof-code sigma sigma-proof proof-bytes decoded-proof proof-read-proof)
     (conde
       [(== 'sjas-axiom decoded-proof)
-       (sjas-axiom-membero prog system-code substituted-code)]
+       (conde
+         [(sjas-axiom-membero prog system-code theorem-code)]
+         [(== theorem-code substituted-code)])]
       [(sjas-system-axiom-formulao prog system-code axiom-formula)
-       (sjas-formula-codeo prog substituted-code theorem-formula)
+       (sjas-formula-codeo prog theorem-code theorem-formula)
        (sjas-formula-negationo prog theorem-formula neg-theorem)
        (== (list 'and axiom-formula neg-theorem) target)
+       (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)]
+      [(sjas-system-axiom-formulao prog system-code axiom-formula)
+       (sjas-formula-codeo prog theorem-code theorem-formula)
+       (sjas-formula-codeo prog substituted-code substituted-formula)
+       (sjas-formula-negationo prog theorem-formula neg-theorem)
+       (== (list 'and (list 'and axiom-formula substituted-formula) neg-theorem)
+           target)
        (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
     (== sigma-proof sigma-out)
     (== neqs neqs-out)
@@ -691,6 +723,7 @@
     [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]
     [(sjas-syntax-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
+    [(sjas-subst-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
     [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
     [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
     [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]))
@@ -711,6 +744,8 @@
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)
      (== residuals residuals-out)]
     [(sjas-syntax-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)
+     (== residuals residuals-out)]
+    [(sjas-subst-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]
     [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]

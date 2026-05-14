@@ -105,6 +105,7 @@
    'neg-pair 2
    'axiom-member 2
    'tableau-proof 3
+   'subst-code 2
    'subst-prf 4})
 
 (def u-grounding-language
@@ -160,6 +161,8 @@
   (ast/pos-lit (ast/app-term 'axiom-member system-code formula-code)))
 (defn tableau-proof [system-code theorem-code proof-code]
   (ast/pos-lit (ast/app-term 'tableau-proof system-code theorem-code proof-code)))
+(defn subst-code [source-code substituted-code]
+  (ast/pos-lit (ast/app-term 'subst-code source-code substituted-code)))
 (defn subst-prf [system-code substitution-code theorem-code proof-code]
   (ast/pos-lit
     (ast/app-term 'subst-prf system-code substitution-code theorem-code proof-code)))
@@ -595,8 +598,8 @@
                       [complement-code code]]))
                  axioms)))
 
-(defn- subst-prf-entries
-  "Return the finite substitution boundary used by ADR-0065.
+(defn- subst-code-entries
+  "Return the finite substitution boundary used by ADR-0066.
 
    Full Willard substitution is a relation over arbitrary formula codes. The
    finite `IS#_D(beta)` substrate exposes the right public predicate while
@@ -604,14 +607,13 @@
    required fixed-point substitution from the SelfCons skeleton code to the
    final Group-3 sentence. Later ADRs can replace these entries with a general
    code-level `Subst` decoder."
-  [system-code formula-entries group3]
+  [formula-entries group3]
   (let [group3-code (:code group3)
-        identity-entries (keep (fn [[code _formula]]
-                                 (when (not= code group3-code)
-                                   [system-code system-code code code]))
-                               formula-entries)
+        identity-entries (map (fn [[code _formula]]
+                                [code code])
+                              formula-entries)
         fixed-point-entry (when-let [skeleton-code (:selfcons-skeleton-code group3)]
-                            [[system-code skeleton-code group3-code group3-code]])]
+                            [[skeleton-code group3-code]])]
     (apply list (concat identity-entries fixed-point-entry))))
 
 (defn system
@@ -687,9 +689,8 @@
                         :sjas/formula-negation-entries (formula-negation-entries formula-entries)
                         :sjas/formula-class-entries (formula-class-entries formula-entries)
                         :sjas/neg-pair-entries (neg-pair-entries coding-context axioms)
-                        :sjas/subst-prf-entries (subst-prf-entries system-code
-                                                                   formula-entries
-                                                                   group3)
+                        :sjas/subst-code-entries (subst-code-entries formula-entries
+                                                                     group3)
                         :sjas/system-entries (list [system-code proof-axiom-formula])})
         program (assoc (language/compile-program lang clauses)
                        :sjas/system-code nil

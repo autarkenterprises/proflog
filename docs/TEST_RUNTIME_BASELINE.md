@@ -208,6 +208,33 @@ Current ADR-0065 note:
   `real 93.95 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
   203 assertions`, `0 failures`, `0 errors`, `real 222.85 s`.
 
+Current ADR-0066 note:
+
+- The targeted red run for the finite SJAS substitution relation failed before
+  implementation because `sjas/subst-code` was undefined:
+  `lein test :only proflog.willard-sjas-test/sjas-subst-code-relates-generated-substitution-codes`,
+  `real 12.05 s`.
+- Focused post-implementation timings:
+  `sjas-subst-code-relates-generated-substitution-codes` passed with
+  `Ran 1 tests containing 3 assertions`, `0 failures`, `0 errors`,
+  `real 44.10 s`;
+  `sjas-subst-prf-uses-substitution-code-independently-of-theorem-code` passed
+  with `Ran 1 tests containing 1 assertions`, `0 failures`, `0 errors`,
+  `real 25.84 s`; and
+  `sjas-subst-prf-checks-identity-substitution-certificates` passed with
+  `Ran 1 tests containing 5 assertions`, `0 failures`, `0 errors`,
+  `real 188.78 s`.
+- The explicit slow selector `lein test-proflog-sjas-slow` passed with
+  `Ran 1 tests containing 3 assertions`, `0 failures`, `0 errors`,
+  `real 91.34 s`.
+- The focused SJAS substitution-relation gate `lein test-proflog-sjas` passed
+  with `Ran 22 tests containing 169 assertions`, `0 failures`, `0 errors`,
+  `real 561.14 s`.
+- The ADR-0066 regression gates passed with `lein test-proflog-fast`,
+  `Ran 145 tests containing 548 assertions`, `0 failures`, `0 errors`,
+  `real 97.61 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
+  203 assertions`, `0 failures`, `0 errors`, `real 225.08 s`.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

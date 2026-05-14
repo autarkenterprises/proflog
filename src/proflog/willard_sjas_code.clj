@@ -104,6 +104,7 @@
     willard-sjas-arithmetic
     willard-sjas-fact
     willard-sjas-proof-check
+    willard-sjas-subst-code
     willard-sjas-subst-proof-check
     sjas-bind-done
     sjas-bind-num

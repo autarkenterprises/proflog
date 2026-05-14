@@ -555,9 +555,11 @@ builders generate a finite reflected axiom basis, stable formula codes,
 `axiom-member` facts, and Group-3. The object numerals are `0` and `1`; larger
 numbers are composed with `dbl` and `add`. U-grounding arithmetic and
 `tableau-proof/3` are handled by the SJAS profile rather than by finite
-`mult/3` tables or miniature certificate predicates. Reflected user clauses are
-part of the self-referenced system; external clauses are ordinary Proflog code
-outside that `SelfCons` claim.
+`mult/3` tables or miniature certificate predicates. `contradiction-code` maps
+to the concrete theorem target for `false`, and complement codes
+`not-code(c)` receive theorem targets for Level-1 checks. Reflected user clauses
+are part of the self-referenced system; external clauses are ordinary Proflog
+code outside that `SelfCons` claim.
 
 ## 11. Worked Program Families
 

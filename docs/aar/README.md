@@ -64,3 +64,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0057](AAR-0057-relational-equality-fragment.md) | [ADR-0057](../adr/ADR-0057-relational-equality-fragment.md) | completed |
 | [AAR-0060](AAR-0060-willard-sjas-mvp.md) | [ADR-0060](../adr/ADR-0060-willard-sjas-mvp.md) | completed |
 | [AAR-0061](AAR-0061-sjas-full-arithmetic-proof-checking.md) | [ADR-0061](../adr/ADR-0061-sjas-full-arithmetic-proof-checking.md) | completed |
+| [AAR-0062](AAR-0062-sjas-self-justification-demonstration.md) | [ADR-0062](../adr/ADR-0062-sjas-self-justification-demonstration.md) | completed |

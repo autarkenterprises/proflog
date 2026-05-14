@@ -12,13 +12,14 @@
    arithmetic constraints and proof checking are both miniKanren goals
    interleaved at the branch rule boundary."
   (:refer-clojure :exclude [== < <=])
-  (:require [clojure.core.logic :refer [== conde fail fresh lcons membero run]]
+  (:require [clojure.core.logic :refer [== conde fail fresh lcons membero or* run]]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
             [proflog.kernel :as kernel]
             [proflog.kernel-support :as support]
             [proflog.relational-arithmetic :as arith]
-            [proflog.subst :as subst]))
+            [proflog.subst :as subst]
+            [proflog.willard-sjas-code :as sjas-code]))
 
 (def ^:private zero-symbol (symbol "0"))
 (def ^:private one-symbol (symbol "1"))
@@ -27,192 +28,13 @@
 (def ^:private one-bits (arith/build-num 1))
 (def ^:private two-bits (arith/build-num 2))
 
-;; -----------------------------------------------------------------------------
-;; Structural proof-code encoding
-;; -----------------------------------------------------------------------------
-
-(def ^:private proof-nil-symbol 'proof-nil)
-
-(def ^:private proof-symbols
-  "Proof atoms that can appear as leaves in encoded kernel proof terms.
-
-   The checker is structural for lists and for these proof atoms. Terms or
-   other non-symbol payloads can be added here as new kernel proof constructors
-   demand them; the certificate relation itself does not prove by looking up a
-   preapproved proof result."
-  '[conj
-    split
-    univ
-    once-univ
-    witness
-    eq-step
-    eq-triggered-call
-    eq-triggered-neg-call
-    neq-close
-    neq-rigid
-    neq-store
-    refl-close
-    savefml
-    false-close
-    close
-    pos-call
-    neg-call
-    neg-call-alt
-    neg-call-guarded-alt
-    skip-true
-    lem-close
-    skolemized
-    propositional
-    first-order
-    guarded-alt
-    guarded-neg-alt
-    guarded-neg-alt-saturated
-    guarded-seq-step
-    guarded-seq-last
-    guarded-call-seq-step
-    guarded-call-seq-defer
-    guarded-residual-seq-step
-    guarded-residual-seq-last
-    guarded-scope-exists
-    query-pos-call
-    query-neg-call
-    query-neg-call-guarded-alt
-    profiled
-    willard-sjas-tableau0
-    willard-sjas-level1
-    willard-sjas-arithmetic
-    willard-sjas-fact
-    willard-sjas-proof-check
-    sjas-bind-done
-    sjas-bind-num
-    sjas-equal
-    sjas-eq-progress
-    sjas-leq
-    sjas-lt
-    sjas-mult
-    sjas-num-add-one
-    sjas-num-dbl
-    sjas-num-one
-    sjas-num-zero
-    sjas-read-add
-    sjas-read-count
-    sjas-read-dbl
-    sjas-read-div
-    sjas-read-log
-    sjas-read-max
-    sjas-read-one
-    sjas-read-pred
-    sjas-read-root
-    sjas-read-sub
-    sjas-read-var
-    sjas-read-zero])
-
-(defn- proof-symbol-code-symbol
-  [sym]
-  (symbol (str "proofsym_" (name sym))))
-
-(def ^:private proof-symbol->code-symbol
-  (into {} (map (fn [sym]
-                  [sym (proof-symbol-code-symbol sym)])
-                proof-symbols)))
-
-(def proof-code-constants
-  "Object-language constants needed for structural proof certificates."
-  (vec (cons proof-nil-symbol (vals proof-symbol->code-symbol))))
-
-(def ^:private proof-symbol-code-entries
-  (apply list
-         (map (fn [[sym code-symbol]]
-                [(ast/app-term code-symbol) sym])
-              proof-symbol->code-symbol)))
-
-(defn- proof-symbol-codeo
-  [code sym]
-  (fresh [entry]
-    (membero entry proof-symbol-code-entries)
-    (== [code sym] entry)))
-
-(declare decode-proof-codeo)
-
-(defn- decode-proof-listo
-  [code proof]
-  (conde
-    [(== (ast/app-term proof-nil-symbol) code)
-     (== '() proof)]
-    [(fresh [head-code tail-code head tail]
-       (== (list 'app 'proof-cons head-code tail-code) code)
-       (decode-proof-codeo head-code head)
-       (decode-proof-listo tail-code tail)
-       (== (lcons head tail) proof))]))
-
-(defn- decode-proof-codeo
-  "Relate an object-language proof-code term to a kernel proof datum."
-  [code proof]
-  (conde
-    [(proof-symbol-codeo code proof)]
-    [(decode-proof-listo code proof)]))
-
-(declare ground-proof-codeo)
-
-(defn- ground-proof-code-listo
-  [terms]
-  (conde
-    [(== '() terms)]
-    [(fresh [head tail]
-       (== (lcons head tail) terms)
-       (ground-proof-codeo head)
-       (ground-proof-code-listo tail))]))
-
-(defn- ground-proof-codeo
-  "Recognize already-constructed proof-code terms.
-
-   Open object-language variables must not cause the certificate checker to
-   enumerate possible proof codes. They are meaningful in SJAS formulas, but a
-   concrete `tableau-proof/3` check requires a concrete certificate."
-  [term]
-  (fresh [head args]
-    (== (lcons 'app (lcons head args)) term)
-    (ground-proof-code-listo args)))
-
-(defn- strip-profile-wrapper
+(defn strip-profile-wrapper
   [proof]
   (if (and (seq? proof)
            (= 'profiled (first proof))
            (= 3 (count proof)))
     (nth proof 2)
     proof))
-
-(declare encode-proof-code)
-
-(defn- encode-proof-list
-  [items]
-  (if (empty? items)
-    (ast/app-term proof-nil-symbol)
-    (ast/app-term 'proof-cons
-                  (encode-proof-code (first items))
-                  (encode-proof-list (rest items)))))
-
-(defn- encode-proof-code
-  [value]
-  (cond
-    (symbol? value)
-    (if-let [code-symbol (get proof-symbol->code-symbol value)]
-      (ast/app-term code-symbol)
-      (throw (ex-info "Unsupported proof symbol in SJAS certificate"
-                      {:symbol value})))
-
-    (sequential? value)
-    (encode-proof-list value)
-
-    :else
-    (throw (ex-info "Unsupported proof payload in SJAS certificate"
-                    {:value value
-                     :class (some-> value class .getName)}))))
-
-(defn proof-certificate-term
-  "Encode a kernel proof term as an object-language SJAS certificate term."
-  [proof]
-  (encode-proof-code (strip-profile-wrapper proof)))
 
 ;; -----------------------------------------------------------------------------
 ;; Binary SJAS arithmetic
@@ -478,6 +300,195 @@
        (== (list 'sjas-lt left-proof right-proof bind-proof) proof))]))
 
 ;; -----------------------------------------------------------------------------
+;; Arithmetic code decoding
+;; -----------------------------------------------------------------------------
+
+(def ^:private byte-base-bits (arith/build-num sjas-code/byte-base))
+
+(def ^:private byte-bit-entries
+  (apply list
+         (map (fn [byte]
+                [(arith/build-num byte) byte])
+              (range sjas-code/byte-base))))
+
+(def ^:private code-byte-term-entries
+  (apply list
+         (map (fn [byte]
+                [(nth sjas-code/byte-terms byte) byte])
+              (range sjas-code/byte-base))))
+
+(def ^:private code-constructor-entries
+  (apply list
+         (map (fn [[constructor byte-count]]
+                [constructor byte-count])
+              sjas-code/code-functions)))
+
+(def ^:private proof-symbol-index-entries
+  (apply list
+         (map (fn [[idx sym]]
+                [idx sym])
+              sjas-code/index->proof-symbol)))
+
+(defn- byte-bitso
+  [bits byte]
+  (fresh [entry]
+    (membero entry byte-bit-entries)
+    (== [bits byte] entry)))
+
+(defn- bitso-byteso
+  "Relate a little-endian binary natural to its base-64 byte digits."
+  [bits bytes]
+  (conde
+    [(== '() bits)
+     (== '() bytes)]
+    [(fresh [quotient remainder byte tail]
+       (arith/divo bits byte-base-bits quotient remainder)
+	       (byte-bitso remainder byte)
+	       (== (lcons byte tail) bytes)
+	       (bitso-byteso quotient tail))]))
+
+(defn- code-byte-termo
+  [term byte]
+  (fresh [entry]
+    (membero entry code-byte-term-entries)
+    (== [term byte] entry)))
+
+(defn- code-constructoro
+  [constructor byte-count]
+  (fresh [entry]
+    (membero entry code-constructor-entries)
+    (== [constructor byte-count] entry)))
+
+(defn- code-argso
+  [args bytes]
+  (conde
+    [(== '() args)
+     (== '() bytes)]
+    [(fresh [arg rest byte byte-rest]
+       (== (lcons arg rest) args)
+       (code-byte-termo arg byte)
+       (== (lcons byte byte-rest) bytes)
+       (code-argso rest byte-rest))]))
+
+(defn- sjas-code-byteso
+  "Decode an object-language SJAS code term into base-64 bytes.
+
+   Codes are first-order terms of the shape `(code-N b0 ... bN-1)`, where each
+   byte is itself a small public binary numeral. This keeps Godel codes visible
+   to the object language without forcing proof search to walk a huge nested
+   binary numeral for every sentence and proof certificate."
+  [term bytes sigma sigma-out proof]
+  (fresh [walked constructor args byte-count]
+    (equality/walko term sigma walked)
+    (== (lcons 'app (lcons constructor args)) walked)
+    (code-constructoro constructor byte-count)
+    (code-argso args bytes)
+    (== sigma sigma-out)
+    (== '(sjas-code-bytes) proof)))
+
+(defn- proof-symbol-indexo
+  [idx sym]
+  (fresh [entry]
+    (membero entry proof-symbol-index-entries)
+    (== [idx sym] entry)))
+
+(declare decode-proof-byteso)
+
+(defn- parse-proof-items
+  [remaining bytes rest proof]
+  (if (zero? remaining)
+    (conde
+      [(== bytes rest)
+       (== '() proof)])
+    (fresh [head tail after-head]
+      (decode-proof-byteso bytes after-head head)
+      (parse-proof-items (dec remaining) after-head rest tail)
+      (== (lcons head tail) proof))))
+
+(defn- decode-proof-list-with-counto
+  [bytes rest proof]
+  (or*
+    (map (fn [count]
+           (fresh [after-count]
+             (== (lcons sjas-code/proof-list-tag
+                         (lcons (inc count) after-count))
+                 bytes)
+             (parse-proof-items count after-count rest proof)))
+         (range 1 63))))
+
+(defn- decode-proof-byteso
+  "Relate a base-64 proof-code byte stream to a Proflog kernel proof term."
+  [bytes rest proof]
+  (conde
+    [(== (lcons sjas-code/proof-empty-list-tag rest) bytes)
+     (== '() proof)]
+    [(fresh [idx after-symbol]
+       (== (lcons sjas-code/proof-symbol-tag (lcons idx after-symbol)) bytes)
+       (proof-symbol-indexo idx proof)
+       (== after-symbol rest))]
+    [(decode-proof-list-with-counto bytes rest proof)]))
+
+(defn- decode-proof-codeo
+  [code sigma sigma-out proof-bytes proof proof-read-proof]
+  (fresh [rest]
+    (sjas-code-byteso code proof-bytes sigma sigma-out proof-read-proof)
+    (decode-proof-byteso proof-bytes rest proof)
+    (== '() rest)))
+
+(defn- sjas-formula-codeo
+  [prog code formula]
+  (fresh [entry]
+    (membero entry (or (:sjas/formula-entries (or (some-> prog :sjas/registry deref)
+                                                   prog))
+                       '()))
+    (== [code formula] entry)))
+
+(defn- sjas-formula-negationo
+  [prog formula negated]
+  (fresh [entry]
+    (membero entry (or (:sjas/formula-negation-entries (or (some-> prog :sjas/registry deref)
+                                                            prog))
+                       '()))
+    (== [formula negated] entry)))
+
+(defn- sjas-formula-classo
+  [prog relation code]
+  (fresh [entry]
+    (membero entry (or (:sjas/formula-class-entries (or (some-> prog :sjas/registry deref)
+                                                         prog))
+                       '()))
+    (== [relation code] entry)))
+
+(defn- sjas-neg-pairo
+  [prog left right]
+  (fresh [entry]
+    (membero entry (or (:sjas/neg-pair-entries (or (some-> prog :sjas/registry deref)
+                                                    prog))
+                       '()))
+    (== [left right] entry)))
+
+(defn- sjas-system-axiom-formulao
+  [prog system-code axiom-formula]
+  (fresh [entry]
+    (membero entry (or (:sjas/system-entries (or (some-> prog :sjas/registry deref)
+                                                  prog))
+                       '()))
+    (== [system-code axiom-formula] entry)))
+
+(defn- sjas-class-relationo
+  "Recognize the finite formula-class predicates generated for one SJAS system.
+
+   This cheap relation guard keeps ordinary arithmetic predicates from touching
+   the generated coding registry. The registry can contain very large
+   arithmetized numerals, so predicate discrimination must happen before any
+   metadata enumeration."
+  [relation]
+  (conde
+    [(== 'delta-star-0-code relation)]
+    [(== 'pi-star-1-code relation)]
+    [(== 'sigma-star-1-code relation)]))
+
+;; -----------------------------------------------------------------------------
 ;; Branch closing rules
 ;; -----------------------------------------------------------------------------
 
@@ -504,11 +515,15 @@
 (defn- sjas-generated-fact-closeo
   "Close negated generated coding facts directly from reflected system metadata."
   [fml env sigma sigma-out neqs neqs-out prog proof]
-  (fresh [lit atom walked-atom fact]
+  (fresh [lit atom walked-atom relation args fact]
     (subst/subst-formulao fml env lit)
     (== (list 'neg atom) lit)
     (equality/walk-atomo atom sigma walked-atom)
-    (membero fact (or (:sjas/fact-atoms prog) '()))
+    (== (lcons 'app (lcons relation args)) walked-atom)
+    (== 'axiom-member relation)
+    (membero fact (or (:sjas/fact-atoms (or (some-> prog :sjas/registry deref)
+                                             prog))
+                      '()))
     (== walked-atom fact)
     (== sigma sigma-out)
     (== neqs neqs-out)
@@ -547,26 +562,50 @@
               (list 'sjas-eq-progress eq-proof subproof))
         proof)))
 
-(defn- sjas-proof-targeto
-  [prog system-code theorem-code target]
-  (fresh [entry]
-    (membero entry (or (:sjas/proof-targets prog) '()))
-    (== [system-code theorem-code target] entry)))
+(defn- sjas-syntax-code-closeo
+  "Close generated syntax-code predicates by decoding formula Godel-code terms.
+
+   These predicates are no longer emitted as generated facts. The finite entries
+   here are the system's decode relation: they connect an arithmetic code term
+   to the formula or class information obtained from that code."
+  [fml env sigma sigma-out neqs neqs-out prog proof]
+  (fresh [lit atom walked-atom relation args code left right formula]
+    (subst/subst-formulao fml env lit)
+    (== (list 'neg atom) lit)
+    (equality/walk-atomo atom sigma walked-atom)
+    (== (lcons 'app (lcons relation args)) walked-atom)
+    (conde
+      [(== 'wff relation)
+       (== (lcons code '()) args)
+       (sjas-formula-codeo prog code formula)]
+      [(== (lcons code '()) args)
+       (sjas-class-relationo relation)
+       (sjas-formula-classo prog relation code)]
+      [(== 'neg-pair relation)
+       (== (lcons left (lcons right '())) args)
+       (sjas-neg-pairo prog left right)])
+    (== sigma sigma-out)
+    (== neqs neqs-out)
+    (== (list 'profiled 'willard-sjas-code relation) proof)))
 
 (defn- sjas-tableau-proof-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
-  (fresh [lit atom walked-atom system-code theorem-code proof-code decoded-proof target]
+  (fresh [lit atom walked-atom system-code theorem-code proof-code
+          decoded-proof proof-bytes axiom-formula theorem-formula neg-theorem
+          target sigma-proof proof-read-proof]
     (subst/subst-formulao fml env lit)
     (== (list 'neg atom) lit)
     (equality/walk-atomo atom sigma walked-atom)
     (== (list 'app 'tableau-proof system-code theorem-code proof-code) walked-atom)
-    (ground-proof-codeo proof-code)
-    (decode-proof-codeo proof-code decoded-proof)
-    (sjas-proof-targeto prog system-code theorem-code target)
+    (decode-proof-codeo proof-code sigma sigma-proof proof-bytes decoded-proof proof-read-proof)
+    (sjas-system-axiom-formulao prog system-code axiom-formula)
+    (sjas-formula-codeo prog theorem-code theorem-formula)
+    (sjas-formula-negationo prog theorem-formula neg-theorem)
+    (== (list 'and axiom-formula neg-theorem) target)
     (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
-    (== sigma sigma-out)
+    (== sigma-proof sigma-out)
     (== neqs neqs-out)
-    (== (list 'profiled 'willard-sjas-proof-check decoded-proof) proof)))
+    (== (list 'profiled 'willard-sjas-proof-check proof-read-proof decoded-proof) proof)))
 
 (defn willard-sjas-theory-closeo
   "SJAS theory branch rule bound into the ordinary proof kernel."
@@ -575,9 +614,10 @@
   (conde
     [(sjas-eq-progresso fml unexpanded lits env proof-vars sigma sigma-out
                         neqs neqs-out prog gamma-terms fuel proof)]
-    [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
     [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]
+    [(sjas-syntax-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
+    [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
     [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]))
 
 (defn willard-sjas-answer-theory-closeo
@@ -591,11 +631,13 @@
    residuals residuals-out prog _gamma-terms fuel _call-depth _existentials-as-vars?
   proof]
   (conde
-    [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)
-     (== residuals residuals-out)]
     [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)
      (== residuals residuals-out)]
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)
+     (== residuals residuals-out)]
+    [(sjas-syntax-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)
+     (== residuals residuals-out)]
+    [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]
     [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
      (== residuals residuals-out)]))

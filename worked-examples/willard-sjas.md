@@ -1,11 +1,12 @@
-# Willard SJAS Binary Profile Example
+# Willard SJAS Base-64 Coding Profile Example
 
-This example documents ADR-0058 through ADR-0062 and the focused regression in
+This example documents ADR-0058 through ADR-0063 and the focused regression in
 `test/proflog/willard_sjas_test.clj`. It demonstrates the Willard-style SJAS
-builder, binary U-grounding arithmetic, reflected axiom codes, and
-kernel-checked proof certificates. ADR-0062 makes the self-consistency
-demonstration non-vacuous by giving `contradiction-code` and complement codes
-concrete theorem targets.
+builder, binary U-grounding arithmetic, reflected axiom Godel-code terms, and
+kernel-checked proof certificates. ADR-0062 made the self-consistency
+demonstration non-vacuous; ADR-0063 then removed the remaining host-side
+proof-target table by making `tableau-proof/3` consume compact base-64 code
+terms rather than opaque formula labels.
 
 Run the focused regression:
 
@@ -16,9 +17,9 @@ lein test-proflog-sjas
 Current result:
 
 ```text
-Ran 13 tests containing 125 assertions.
+Ran 15 tests containing 143 assertions.
 0 failures, 0 errors.
-real 33.95 s
+elapsed 4:47.84
 ```
 
 ## Hand-Written Intent
@@ -101,9 +102,12 @@ The lower-level builder also accepts backend formulas and clauses directly:
      :reflected-clauses [reflected-demo]}))
 ```
 
-The builder supplies stable formula-code constants, generated
+The builder supplies stable formula-code terms, generated
 `axiom-member(system, formula-code)` facts, Group-Zero through Group-3 records,
-and the compiled program with the selected SJAS proof profile.
+and the compiled program with the selected SJAS proof profile. A code is not a
+hash-like constant; it is a first-order term of the shape
+`(code-N b0 ... bN-1)`, where each `bi` is one base-64 byte written as a small
+binary SJAS numeral.
 
 ## Query-Triggered Evaluation
 
@@ -401,24 +405,24 @@ profile now treats U-grounding arithmetic as theory behavior. The theorem
 helper therefore does not place Group-1 arithmetic equalities into every
 ordinary branch as free-constructor equalities.
 
-The generated program also stores theorem targets for the reflected proof
-predicate:
+Generated code terms are visible at the object-language boundary:
 
 ```clojure
-(some (fn [[system-code theorem-code target]]
-        (when (and (= system-code (:system-code system))
-                   (= theorem-code sjas/contradiction-code))
-          target))
-      (get-in system [:program :sjas/proof-targets]))
-;; => the negated theorem query for proving false from this SJAS basis
+(require '[proflog.willard-sjas-code :as sjas-code])
+
+(sjas-code/code-term? (:system-code system))
+;; => true
+
+(sjas-code/code-term-bytes (:code (:group-three system)))
+;; => a base-64 byte vector for the generated Group-3 formula
 ```
 
-This matters because `SelfCons0` mentions `contradiction-code`. If that code had
-no target, every contradiction proof check would fail at metadata lookup. ADR-0062
-maps it to the theorem `false`, so a certificate for contradiction must close the
-generated axiom basis itself. The builder also creates targets for `not-code(c)`,
-so Level-1 complement checks do not fail merely because a complement code is
-unknown.
+The compiled program intentionally leaves `:sjas/proof-targets` nil. The proof
+profile instead decodes `system-code`, `theorem-code`, and `proof-code` through
+the generated code registry and the proof byte decoder. `SelfCons0` therefore
+mentions a real contradiction code, not a magic table key; if an inconsistent
+beta basis proves `false`, the resulting certificate can be checked against
+`contradiction-code`.
 
 ## Arithmetic Evaluation
 
@@ -498,9 +502,9 @@ overlay receives the same profile arithmetic hook:
 
 ## Certificate Predicate
 
-`tableau-proof/3` no longer accepts a miniature `mini-closed` placeholder. A
-certificate is a structural object-language encoding of a Proflog kernel proof
-term:
+`tableau-proof/3` no longer accepts a miniature `mini-closed` placeholder or a
+host theorem-target label. A certificate is a compact base-64 object-language
+encoding of a Proflog kernel proof term:
 
 ```clojure
 (let [beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
@@ -526,7 +530,7 @@ profile decodes the proof-code term and calls `kernel/prove-programo` with that
 decoded proof supplied as the proof term, so the checker reuses the existing
 pure relational tableau kernel instead of a host-side proof oracle.
 
-ADR-0062 adds two self-justification checks:
+ADR-0062/0063 add two self-justification checks over real code terms:
 
 ```clojure
 (let [group3-proof (first

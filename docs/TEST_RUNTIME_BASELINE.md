@@ -112,6 +112,17 @@ Current ADR-0060 note:
   gate was run concurrently with the earlier source-level fast gate; the final
   fast rerun was serial after adding the direct frontend regression.
 
+Current ADR-0061 follow-up note:
+
+- After adding reflected/external SJAS query-triggered examples and restoring
+  ordinary procedure-call lookup for SJAS-annotated compiled programs,
+  `lein test-proflog-sjas` passed on 2026-05-14 with `Ran 11 tests containing
+  112 assertions`, `0 failures`, `0 errors`, and `real 15.40 s`.
+- The same gate reran `lein test-proflog-fast` with `Ran 145 tests containing
+  548 assertions`, `0 failures`, `0 errors`, and `real 71.06 s`, plus
+  `lein test-proflog-extended` with `Ran 68 tests containing 203 assertions`,
+  `0 failures`, `0 errors`, and `real 198.45 s`.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

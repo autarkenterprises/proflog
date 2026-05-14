@@ -188,6 +188,20 @@
       (is (successful?
             (query/query-succeeds
               (:program system)
+              (ast/pos-lit (ast/app-term 'demo sjas/one))
+              1
+              96))
+          "reflected user clauses should remain executable procedure clauses")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (ast/pos-lit (ast/app-term 'external-demo sjas/zero))
+              1
+              96))
+          "external user clauses should be queryable outside the reflected basis")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
               (sjas/axiom-member (:system-code system)
                                   (:code (:group-three system)))
               1

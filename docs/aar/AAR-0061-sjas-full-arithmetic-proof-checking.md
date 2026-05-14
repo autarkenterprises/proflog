@@ -71,6 +71,42 @@ The focused suite now covers:
 - a source audit against `mini-closed`, `malformed`, finite `mult-facts`,
   finite `order-facts`, and host proof checker shortcuts.
 
+## Follow-up: Reflected and External Query Boundary
+
+On 2026-05-14, the SJAS worked example was expanded to distinguish system
+construction from query-triggered evaluation. That exposed a regression in the
+ordinary procedure-call path for SJAS systems: `sjas/system` attached profile
+metadata to the compiled program map, but `proflog.program` lookup expected the
+exact unannotated map shape. Generated SJAS fact closures still worked, while
+ordinary reflected and external user clauses were not queryable through the
+Procedure Call Rule.
+
+The fix keeps procedure-call lookup relational but admits the SJAS-annotated
+compiled-program shape. The focused test suite now asserts that reflected
+clauses remain executable procedure clauses and that external clauses are
+queryable outside the reflected basis.
+
+```text
+lein test-proflog-sjas
+Ran 11 tests containing 112 assertions.
+0 failures, 0 errors.
+real 15.40
+```
+
+```text
+lein test-proflog-fast
+Ran 145 tests containing 548 assertions.
+0 failures, 0 errors.
+real 71.06
+```
+
+```text
+lein test-proflog-extended
+Ran 68 tests containing 203 assertions.
+0 failures, 0 errors.
+real 198.45
+```
+
 ## Implementation Notes
 
 The generic gamma closed-term fallback was too expensive for the enlarged SJAS

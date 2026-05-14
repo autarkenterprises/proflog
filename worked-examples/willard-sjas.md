@@ -14,9 +14,9 @@ lein test-proflog-sjas
 Current result:
 
 ```text
-Ran 11 tests containing 110 assertions.
+Ran 11 tests containing 112 assertions.
 0 failures, 0 errors.
-real 51.22 s
+real 15.40 s
 ```
 
 ## Hand-Written Intent
@@ -79,6 +79,7 @@ The lower-level builder also accepts backend formulas and clauses directly:
 
 ```clojure
 (require '[proflog.ast :as ast]
+         '[proflog.frontend :as frontend]
          '[proflog.query :as query]
          '[proflog.willard-sjas :as sjas])
 
@@ -101,6 +102,149 @@ The lower-level builder also accepts backend formulas and clauses directly:
 The builder supplies stable formula-code constants, generated
 `axiom-member(system, formula-code)` facts, Group-Zero through Group-3 records,
 and the compiled program with the selected SJAS proof profile.
+
+## Query-Triggered Evaluation
+
+Constructing an SJAS system does not itself search for proofs. It builds a
+finite reflected theory plus an executable Proflog program. Evaluation begins
+only when the caller asks a query.
+
+A reflected-only program makes the user clause part of the SJAS basis:
+
+```clojure
+(def reflected-only
+  (sjas/system-source
+    {:profile :willard-sjas-tableau0}
+    (language
+      (relations (demo 1)))
+    (beta
+      (= 1 1))
+    (reflected
+      (|- (demo x)
+          (= x 1)))))
+
+(frequencies (map :group (:axioms reflected-only)))
+;; => {:group-zero 2,
+;;     :group-one 3,
+;;     :group-two 1,
+;;     :group-two-b 1,
+;;     :group-three 1}
+```
+
+The system value above is only compiled data. A direct executable query starts
+the ordinary Procedure Call Rule over the compiled program:
+
+```clojure
+(query/query-succeeds
+  (:program reflected-only)
+  (frontend/q (demo 1))
+  1
+  96)
+;; => one proof
+```
+
+The SJAS theorem helper starts a different query: it asks the kernel to prove
+the formula from the generated SJAS axiom basis. Because `demo` was reflected,
+the same source clause is also represented as a Group-2b axiom formula.
+
+```clojure
+(sjas/query-succeeds
+  reflected-only
+  (frontend/q (demo 1))
+  {:proof-limit 1
+   :fuel 96})
+;; => one proof
+```
+
+An external clause is still executable Proflog, but it is not part of the
+reflected SJAS axiom basis:
+
+```clojure
+(def with-external
+  (sjas/system-source
+    {:profile :willard-sjas-tableau0}
+    (language
+      (relations (demo 1)
+                 (external-demo 1)))
+    (beta
+      (= 1 1))
+    (reflected
+      (|- (demo x)
+          (= x 1)))
+    (external
+      (|- (external-demo x)
+          (= x 0)))))
+
+(= (:system-code reflected-only) (:system-code with-external))
+;; => true
+
+(= (:code (:group-three reflected-only))
+   (:code (:group-three with-external)))
+;; => true
+```
+
+The external clause does not change the system code or the generated Group-3
+self-consistency claim. It is still queryable as ordinary Proflog context:
+
+```clojure
+(query/query-succeeds
+  (:program with-external)
+  (frontend/q (external-demo 0))
+  1
+  96)
+;; => one proof
+```
+
+It may also be used by ordinary procedure-call reasoning during an SJAS-wrapped
+query, but it is not citeable by the internal `tableau-proof/3` predicate as an
+`axiom-member` of this SJAS:
+
+```clojure
+(sjas/query-succeeds
+  with-external
+  (frontend/q (external-demo 0))
+  {:proof-limit 1
+   :fuel 96})
+;; => one proof
+```
+
+## Group-2b Restrictions
+
+Users do not add arbitrary Group-2b formulas directly in the current frontend.
+They add `reflected` clauses, and the builder converts each clause
+
+```text
+head :- body
+```
+
+into the universally closed axiom formula:
+
+```text
+forall parameters. body -> head
+```
+
+Those reflected clauses are subject to the ordinary Proflog clause restrictions:
+
+- the reflected extension is finite at system-construction time;
+- clause heads are relation calls with variable-only parameters;
+- function, constant, and relation symbols must be declared in the SJAS
+  language or supplied by the SJAS base signature;
+- arities must match their declarations;
+- internal proof parameters such as `par` are not admissible in user source;
+- source-level `:=` helpers may be used only as non-recursive inline
+  abbreviations before a real `|-` clause is emitted.
+
+The implementation does not currently prove that a reflected Group-2b clause is
+true, conservative, or consistent before admitting it. It is a trusted finite
+extension of the reflected system. Adding a false or explosive reflected clause
+changes the theory, changes Group-3, and can make later queries succeed for the
+wrong reason.
+
+For Willard-aligned examples, reflected Group-2b clauses should therefore be
+small, explicit, and kept within the intended arithmetic/proof-coding fragment.
+Broader admissibility checks, such as rejecting nonconforming reflected
+extensions before Group-3 generation, are a future hardening step rather than a
+current guarantee.
 
 ## Generated Kernel Shape
 

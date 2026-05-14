@@ -20,6 +20,27 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-14
+
+- Clarified the Willard SJAS worked example around query-triggered evaluation:
+  constructing an SJAS system builds a reflected theory and executable program,
+  while proof search starts only through `query/query-succeeds`,
+  `sjas/query-succeeds`, `sjas/query-answers`, or related query entrypoints.
+  Added side-by-side examples for reflected-only programs and programs with
+  external clauses, plus the current Group-2b trust boundary. During validation,
+  found that SJAS profile metadata attached to compiled programs prevented the
+  ordinary Procedure Call Rule from seeing reflected/external user clauses.
+  Fixed `proflog.program` lookup to accept SJAS-annotated compiled-program
+  shapes while preserving the relational clause-list lookup contract. Red test:
+  `lein test-proflog-sjas` failed with two new assertions showing `demo(1)` and
+  `external-demo(0)` were not queryable. Verification after the fix:
+  `lein test-proflog-sjas` passed with `11` tests, `112` assertions,
+  `0` failures, `0` errors, `real 15.40 s`;
+  `lein test-proflog-fast` passed with `145` tests, `548` assertions,
+  `0` failures, `0` errors, `real 71.06 s`;
+  `lein test-proflog-extended` passed with `68` tests, `203` assertions,
+  `0` failures, `0` errors, `real 198.45 s`.
+
 ## 2026-05-13
 
 - Started [ADR-0061](docs/adr/ADR-0061-sjas-full-arithmetic-proof-checking.md)

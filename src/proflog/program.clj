@@ -15,6 +15,64 @@
   (:refer-clojure :exclude [==])
   (:require [clojure.core.logic :refer [== conde fresh lcons membero]]))
 
+(defn- compiled-program-viewo
+  "Expose the standard compiled-program views, allowing profile metadata.
+
+   `proflog.language/compile-program` returns the core map shape used by the
+   procedure-call rules. Profiles may attach finite metadata at the top level
+   of that map, but the ordinary Procedure Call Rule must still see the same
+   clause views. Keeping these accepted shapes explicit preserves the relational
+   lookup contract while allowing SJAS-style profile annotations."
+  [program language clauses clause-list alternative-clause-list guarded-clause-list]
+  (conde
+    [(fresh [system-code fact-atoms proof-targets]
+       (== {:language language
+            :clauses clauses
+            :clause-list clause-list
+            :alternative-clause-list alternative-clause-list
+            :guarded-clause-list guarded-clause-list
+            :sjas/system-code system-code
+            :sjas/fact-atoms fact-atoms
+            :sjas/proof-targets proof-targets}
+           program))]
+    [(== {:language language
+          :clauses clauses
+          :clause-list clause-list
+          :alternative-clause-list alternative-clause-list
+          :guarded-clause-list guarded-clause-list}
+         program)]))
+
+(defn- compiled-program-alternative-viewo
+  "Expose the standard alternative view, including legacy pre-guarded maps."
+  [program language clauses clause-list alternative-clause-list]
+  (conde
+    [(fresh [guarded-clause-list]
+       (compiled-program-viewo
+         program language clauses clause-list alternative-clause-list guarded-clause-list))]
+    [(== {:language language
+          :clauses clauses
+          :clause-list clause-list
+          :alternative-clause-list alternative-clause-list}
+         program)]))
+
+(defn- compiled-program-clause-viewo
+  "Expose the ordinary clause view, including legacy compiled-program maps."
+  [program language clauses clause-list]
+  (conde
+    [(fresh [alternative-clause-list guarded-clause-list]
+       (compiled-program-viewo
+         program language clauses clause-list alternative-clause-list guarded-clause-list))]
+    [(fresh [alternative-clause-list]
+       (== {:language language
+            :clauses clauses
+            :clause-list clause-list
+            :alternative-clause-list alternative-clause-list}
+           program))]
+    [(== {:language language
+          :clauses clauses
+          :clause-list clause-list}
+         program)]))
+
 (defn lookup-clause-with-alternativeso
   "Find the compiled clause for `relation` in `program`.
 
@@ -23,19 +81,8 @@
    specifically so this lookup can remain relational inside the kernel."
   [program relation params body negated-body alternatives negated-alternatives]
   (fresh [language clauses clause-list alternative-clause-list]
-    (conde
-      [(fresh [guarded-clause-list]
-         (== {:language language
-              :clauses clauses
-              :clause-list clause-list
-              :alternative-clause-list alternative-clause-list
-              :guarded-clause-list guarded-clause-list}
-             program))]
-      [(== {:language language
-            :clauses clauses
-            :clause-list clause-list
-            :alternative-clause-list alternative-clause-list}
-           program)])
+    (compiled-program-alternative-viewo
+      program language clauses clause-list alternative-clause-list)
     (membero {:relation relation
               :params params
               :body body
@@ -48,12 +95,8 @@
   "Find the compiled clause for `relation` and expose guarded alternative IR."
   [program relation params body negated-body alternatives negated-alternatives guarded-alternatives]
   (fresh [language clauses clause-list alternative-clause-list guarded-clause-list]
-    (== {:language language
-         :clauses clauses
-         :clause-list clause-list
-         :alternative-clause-list alternative-clause-list
-         :guarded-clause-list guarded-clause-list}
-        program)
+    (compiled-program-viewo
+      program language clauses clause-list alternative-clause-list guarded-clause-list)
     (membero {:relation relation
               :params params
               :body body
@@ -71,24 +114,7 @@
    remain relational inside the kernel."
   [program relation params body negated-body]
   (fresh [language clauses clause-list]
-    (conde
-      [(fresh [alternative-clause-list guarded-clause-list]
-         (== {:language language
-              :clauses clauses
-              :clause-list clause-list
-              :alternative-clause-list alternative-clause-list
-              :guarded-clause-list guarded-clause-list}
-             program))]
-      [(fresh [alternative-clause-list]
-         (== {:language language
-              :clauses clauses
-              :clause-list clause-list
-              :alternative-clause-list alternative-clause-list}
-             program))]
-      [(== {:language language
-            :clauses clauses
-            :clause-list clause-list}
-           program)])
+    (compiled-program-clause-viewo program language clauses clause-list)
     (membero {:relation relation
               :params params
               :body body

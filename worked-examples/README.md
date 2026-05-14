@@ -69,7 +69,7 @@ evaluator.
 | Kernel Finite Verifier Examples | profiled equality-fragment kernel path | quantified success and refutation |
 | Constructor-Recursive Profile Examples | guarded recursive profile over compiled IR | reverse and partial synthesis |
 | Robinson Q Proof Profile Example | ordinary Q assumptions and opt-in kernel-interleaved deduction-modulo rules | theorem proving, profiled equality conversion, unified Q3 predecessor-equality use, timing comparison |
-| Willard SJAS Binary Profile Example | binary U-grounding arithmetic with reflected clauses and profile dispatch | system building, formula classes, forward proof, answer/partial synthesis, certificate checks |
+| Willard SJAS Binary Profile Example | binary U-grounding arithmetic with reflected clauses and profile dispatch | system building, formula classes, forward proof, answer/partial synthesis, non-vacuous SelfCons targets, certificate checks |
 | Pelletier Problems | direct theorem formulas without program clauses | first-order proof closure |
 
 ## Conventions

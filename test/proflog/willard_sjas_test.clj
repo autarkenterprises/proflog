@@ -2,6 +2,7 @@
   (:require [clojure.test :refer [deftest is testing]]
             [proflog.answers :as answers]
             [proflog.ast :as ast]
+            [proflog.normalize :as normalize]
             [proflog.proof :as proof]
             [proflog.query :as query]
             [proflog.willard-sjas :as sjas]))
@@ -109,6 +110,18 @@
      :reflected-clauses [(reflected-demo-clause)]
      :external-clauses [(external-demo-clause)]}))
 
+(defn- proof-target-for
+  [system theorem-code]
+  (some (fn [[system-code code target]]
+          (when (and (= (:system-code system) system-code)
+                     (= theorem-code code))
+            target))
+        (get-in system [:program :sjas/proof-targets])))
+
+(defn- target-for-theorem
+  [system formula]
+  (normalize/negate-formula (sjas/theorem-query system formula)))
+
 (deftest sjas-system-builder-generates-groups-and-reflected-boundary
   (testing "users supply beta/program clauses; the builder supplies codes and Group-3"
     (let [system (demo-system :willard-sjas-tableau0)]
@@ -118,6 +131,14 @@
       (is (:system-code system))
       (is (= :group-three (-> system :group-three :group)))
       (is (some #(= (:code (:group-three system)) (:code %)) (:axioms system)))
+      (is (= (target-for-theorem system (ast/false-form))
+             (proof-target-for system sjas/contradiction-code))
+          "SelfCons must quantify over a contradiction code that has a concrete tableau-proof target")
+      (let [beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))]
+        (is (= (target-for-theorem system
+                                   (normalize/negate-formula (:formula beta-record)))
+               (proof-target-for system (sjas/not-code (:code beta-record))))
+            "Level-1 complement codes must also have concrete tableau-proof targets"))
       (is (successful?
             (query/query-succeeds
               (:program system)
@@ -377,6 +398,45 @@
             (sjas/tableau-proof (:system-code system) (:code beta-record) malformed)
             1
             80)))))
+
+(deftest sjas-selfcons-demonstration-uses-substantive-proof-targets
+  (testing "the generated self-consistency axiom is a theorem with a checked certificate"
+    (let [system (demo-system :willard-sjas-tableau0)
+          group3-proof (first-proof
+                         (sjas/query-succeeds system
+                                              (:formula (:group-three system))
+                                              {:proof-limit 1
+                                               :fuel 96}))
+          group3-certificate (when group3-proof
+                               (sjas/proof-certificate group3-proof))]
+      (is group3-proof)
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tableau-proof (:system-code system)
+                                  (:code (:group-three system))
+                                  group3-certificate)
+              1
+              160)))))
+  (testing "an explicitly inconsistent reflected basis can prove the real contradiction target"
+    (let [system (sjas/system {:profile :willard-sjas-tableau0
+                               :beta [(ast/false-form)]})
+          contradiction-proof (first-proof
+                                (sjas/query-succeeds system
+                                                     (ast/false-form)
+                                                     {:proof-limit 1
+                                                      :fuel 96}))
+          contradiction-certificate (when contradiction-proof
+                                      (sjas/proof-certificate contradiction-proof))]
+      (is contradiction-proof)
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tableau-proof (:system-code system)
+                                  sjas/contradiction-code
+                                  contradiction-certificate)
+              1
+              160))))))
 
 (deftest sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile
   (doseq [profile [:willard-sjas-tableau0 :willard-sjas-level1]]

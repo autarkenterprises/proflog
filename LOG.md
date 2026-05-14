@@ -22,6 +22,23 @@ complete contemporaneous transcript.
 
 ## 2026-05-14
 
+- Completed [ADR-0062](docs/adr/ADR-0062-sjas-self-justification-demonstration.md)
+  for the Willard SJAS self-justification demonstration. The issue was that
+  `SelfCons0` named `contradiction-code`, but the generated
+  `:sjas/proof-targets` table did not map that code to a theorem target, so
+  contradiction proof checks failed by lookup. The fix maps
+  `contradiction-code` to the theorem target for `false`, maps `not-code(c)` to
+  complement theorem targets, and extends proof-certificate encoding for nested
+  generic kernel profile tags such as `first-order`. Red evidence:
+  `lein test :only proflog.willard-sjas-test/sjas-system-builder-generates-groups-and-reflected-boundary`
+  failed in `real 11.36 s`. Verification: `lein test-proflog-sjas` passed with
+  `13` tests, `125` assertions, `0` failures, `0` errors, `real 33.95 s`;
+  `lein test-proflog-fast` passed with `145` tests, `548` assertions,
+  `0` failures, `0` errors, `real 100.47 s`; `lein test-proflog-extended`
+  passed with `68` tests, `203` assertions, `0` failures, `0` errors,
+  `real 227.65 s`. See
+  [AAR-0062](docs/aar/AAR-0062-sjas-self-justification-demonstration.md) and
+  [Willard SJAS Binary Profile Example](worked-examples/willard-sjas.md).
 - Clarified the Willard SJAS worked example around query-triggered evaluation:
   constructing an SJAS system builds a reflected theory and executable program,
   while proof search starts only through `query/query-succeeds`,

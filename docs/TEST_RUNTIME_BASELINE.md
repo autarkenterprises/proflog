@@ -126,6 +126,23 @@ Current ADR-0061 follow-up note:
   `lein test-proflog-sjas`, `Ran 12 tests containing 119 assertions`,
   `0 failures`, `0 errors`, and `real 34.17 s`.
 
+Current ADR-0062 note:
+
+- The initial non-vacuity red test failed because `SelfCons0` mentioned
+  `contradiction-code` but the generated program had no proof target for that
+  code. The targeted red run was
+  `lein test :only proflog.willard-sjas-test/sjas-system-builder-generates-groups-and-reflected-boundary`,
+  with `real 11.36 s`.
+- After mapping `contradiction-code` to the theorem target for `false`, adding
+  complement targets for `not-code(c)`, and extending proof-certificate encoding
+  for nested generic kernel profile tags, `lein test-proflog-sjas` passed with
+  `Ran 13 tests containing 125 assertions`, `0 failures`, `0 errors`, and
+  `real 33.95 s`.
+- The ADR-0062 regression gates passed with `lein test-proflog-fast`,
+  `Ran 145 tests containing 548 assertions`, `0 failures`, `0 errors`,
+  `real 100.47 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
+  203 assertions`, `0 failures`, `0 errors`, `real 227.65 s`.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

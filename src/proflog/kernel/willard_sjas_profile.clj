@@ -59,6 +59,11 @@
     neg-call
     neg-call-alt
     neg-call-guarded-alt
+    skip-true
+    lem-close
+    skolemized
+    propositional
+    first-order
     guarded-alt
     guarded-neg-alt
     guarded-neg-alt-saturated

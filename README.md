@@ -404,7 +404,9 @@ lein test-proflog-sjas
 The worked example in [worked-examples/willard-sjas.md](worked-examples/willard-sjas.md)
 shows generated Group-Zero through Group-3 axiom bases, reflected versus
 external clauses, formula-class checks, binary U-grounding arithmetic,
-answer/partial-synthesis modes, and kernel-checked proof certificates.
+answer/partial-synthesis modes, kernel-checked proof certificates, and the
+non-vacuous `SelfCons` demonstration for concrete contradiction/complement
+proof targets.
 
 For the opt-in Turing-completeness demonstration, run:
 

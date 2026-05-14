@@ -172,6 +172,8 @@ ADR-0052.
 Robinson Q theorem examples have graduated into completed ADR-0053.
 The relational equality-fragment experiment has graduated into completed
 ADR-0057.
+The non-vacuous Willard SJAS self-justification demonstration has graduated
+into completed ADR-0062.
 
 ## ADR-0007 Task List
 

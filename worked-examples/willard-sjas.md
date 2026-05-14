@@ -1,9 +1,11 @@
 # Willard SJAS Binary Profile Example
 
-This example documents ADR-0058 through ADR-0061 and the focused regression in
+This example documents ADR-0058 through ADR-0062 and the focused regression in
 `test/proflog/willard_sjas_test.clj`. It demonstrates the Willard-style SJAS
 builder, binary U-grounding arithmetic, reflected axiom codes, and
-kernel-checked proof certificates.
+kernel-checked proof certificates. ADR-0062 makes the self-consistency
+demonstration non-vacuous by giving `contradiction-code` and complement codes
+concrete theorem targets.
 
 Run the focused regression:
 
@@ -14,9 +16,9 @@ lein test-proflog-sjas
 Current result:
 
 ```text
-Ran 12 tests containing 119 assertions.
+Ran 13 tests containing 125 assertions.
 0 failures, 0 errors.
-real 34.17 s
+real 33.95 s
 ```
 
 ## Hand-Written Intent
@@ -399,6 +401,25 @@ profile now treats U-grounding arithmetic as theory behavior. The theorem
 helper therefore does not place Group-1 arithmetic equalities into every
 ordinary branch as free-constructor equalities.
 
+The generated program also stores theorem targets for the reflected proof
+predicate:
+
+```clojure
+(some (fn [[system-code theorem-code target]]
+        (when (and (= system-code (:system-code system))
+                   (= theorem-code sjas/contradiction-code))
+          target))
+      (get-in system [:program :sjas/proof-targets]))
+;; => the negated theorem query for proving false from this SJAS basis
+```
+
+This matters because `SelfCons0` mentions `contradiction-code`. If that code had
+no target, every contradiction proof check would fail at metadata lookup. ADR-0062
+maps it to the theorem `false`, so a certificate for contradiction must close the
+generated axiom basis itself. The builder also creates targets for `not-code(c)`,
+so Level-1 complement checks do not fail merely because a complement code is
+unknown.
+
 ## Arithmetic Evaluation
 
 Closed arithmetic equations route through the SJAS profile:
@@ -505,6 +526,62 @@ profile decodes the proof-code term and calls `kernel/prove-programo` with that
 decoded proof supplied as the proof term, so the checker reuses the existing
 pure relational tableau kernel instead of a host-side proof oracle.
 
+ADR-0062 adds two self-justification checks:
+
+```clojure
+(let [group3-proof (first
+                     (sjas/query-succeeds
+                       system
+                       (:formula (:group-three system))
+                       {:proof-limit 1
+                        :fuel 96}))
+      certificate (sjas/proof-certificate group3-proof)]
+  (query/query-succeeds
+    (:program system)
+    (sjas/tableau-proof (:system-code system)
+                        (:code (:group-three system))
+                        certificate)
+    1
+    160))
+;; => one proof
+```
+
+This proves the generated self-consistency sentence as a theorem of the generated
+SJAS and validates the resulting certificate against the Group-3 formula code.
+That proof is expected to be axiom-like: Group-3 is one of the proper axioms of
+the reflected system.
+
+The contradiction code is tested with an intentionally inconsistent control
+system:
+
+```clojure
+(def inconsistent-system
+  (sjas/system
+    {:profile :willard-sjas-tableau0
+     :beta [(ast/false-form)]}))
+
+(let [contradiction-proof (first
+                            (sjas/query-succeeds
+                              inconsistent-system
+                              (ast/false-form)
+                              {:proof-limit 1
+                               :fuel 96}))
+      certificate (sjas/proof-certificate contradiction-proof)]
+  (query/query-succeeds
+    (:program inconsistent-system)
+    (sjas/tableau-proof (:system-code inconsistent-system)
+                        sjas/contradiction-code
+                        certificate)
+    1
+    160))
+;; => one proof
+```
+
+The point of the control is not to recommend false beta axioms. It demonstrates
+that `contradiction-code` denotes a real proof target: when the reflected basis
+is explicitly inconsistent, the kernel can build and check an actual
+contradiction certificate.
+
 ## Bounded Contradiction Probe
 
 The focused suite keeps the Level-1 contradiction probe bounded and concrete.
@@ -527,6 +604,9 @@ external consistency-preservation metatheorem.
   historical Willard proof-list encoding.
 - Tab-1/proof-list theorem reuse is not implemented or claimed. The Level-1
   profile reflects plain semantic tableaux as the deduction method `D`.
+- The self-justification demonstration is non-vacuous at the proof-predicate
+  boundary, but it is still a finite `IS#_D(beta)`-style executable substrate,
+  not a mechanized proof of Willard's consistency-preservation theorem.
 - The arithmetic profile is relational, but some reverse modes are still
   operationally expensive. Slow open certificate synthesis is deliberately not
   in the focused suite.

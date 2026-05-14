@@ -527,6 +527,37 @@
     (axiom-member-clauses system-code axioms)
     (classification-clauses axioms)))
 
+(defn- theorem-target
+  "Return the closed tableau target for proving `formula` from `axiom-formula`.
+
+   The public theorem query is `axiom-formula -> formula`; the kernel closes the
+   NNF negation of that query. `tableau-proof/3` stores exactly that target so a
+   decoded certificate is checked against the same branch that a public SJAS
+   theorem query would use."
+  [axiom-formula formula]
+  (normalize/negate-formula
+    (ast/implies-form axiom-formula formula)))
+
+(defn- proof-target-records
+  "Generate concrete theorem targets for the reflected proof predicate.
+
+   `contradiction-code` is the code for the theorem `false`: a certificate for
+   it must close the axiom basis itself. Complement codes are generated for every
+   reflected formula code so Level-1 consistency checks cannot succeed or fail
+   merely because `not-code(c)` is unknown to the proof checker."
+  [system-code axiom-formula axioms]
+  (concat
+    [[system-code
+      contradiction-code
+      (theorem-target axiom-formula (ast/false-form))]]
+    (mapcat (fn [{:keys [code formula]}]
+              [[system-code code (theorem-target axiom-formula formula)]
+               [system-code
+                (not-code code)
+                (theorem-target axiom-formula
+                                (normalize/negate-formula formula))]])
+            axioms)))
+
 (defn- compile-language
   [profile extra-relations constants extra-functions]
   (language/language
@@ -585,12 +616,7 @@
         ;; rule misread true arithmetic equations as constructor clashes.
         theorem-axioms (remove #(= :group-one (:group %)) axioms)
         axiom-formula (and* (map :formula theorem-axioms))
-        proof-targets (map (fn [{:keys [code formula]}]
-                             [system-code
-                              code
-                              (normalize/negate-formula
-                                (ast/implies-form axiom-formula formula))])
-                           axioms)
+        proof-targets (proof-target-records system-code axiom-formula axioms)
         program (assoc (language/compile-program lang clauses)
                        :sjas/system-code system-code
                        :sjas/fact-atoms (generated-fact-atoms system-code axioms)

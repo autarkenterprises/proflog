@@ -62,6 +62,16 @@ complete contemporaneous transcript.
   return a result, so the promoted example stays bounded. Verification:
   `lein test-proflog-sjas` passed with `12` tests, `119` assertions,
   `0` failures, `0` errors, `real 34.17 s`.
+- Logged the reason `sjas/query-succeeds` exists while Robinson Q did not need
+  an analogous public helper. The SJAS helper is not a separate prover; it wraps
+  a user formula as `(:axiom-formula system) -> formula` and then calls ordinary
+  `query/query-succeeds` on the generated program. Q arithmetic can use the
+  ordinary query API because the `:robinson-q` language selects a fixed
+  deduction-modulo proof profile over fixed Q rules/axioms. SJAS systems are
+  generated per source declaration: `beta` and reflected clauses change the
+  system code, formula codes, Group-3, and axiom basis. The helper exists so
+  callers ask "prove from this generated SJAS basis" rather than accidentally
+  asking only "run this formula against this compiled program."
 
 ## 2026-05-13
 

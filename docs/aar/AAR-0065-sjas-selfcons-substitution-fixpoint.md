@@ -103,8 +103,9 @@ real 222.85 s
 
 ## Remaining Boundaries
 
-- This ADR still does not implement a general code-level `Subst` relation over
-  arbitrary formula-code variables.
+- ADR-0066 followed up by exposing the finite generated substitution boundary
+  as `subst-code/2`. A fully general code-level `Subst` evaluator over
+  arbitrary formula-code variables remains open.
 - The finite `IS#_D(beta)` substrate is now fixed-point shaped, but it is not a
   mechanized proof of Willard's external consistency-preservation theorem.
 - Open proof-code synthesis remains outside the focused regression suite. Slow

@@ -22,6 +22,22 @@ complete contemporaneous transcript.
 
 ## 2026-05-14
 
+- Completed [ADR-0066](docs/adr/ADR-0066-sjas-subst-relation.md) on branch
+  `adr-0066-sjas-subst-relation`. The finite SJAS substitution boundary is now
+  exposed as `subst-code/2`, with identity entries for generated closed
+  formulas and the Level-1 `selfcons-skeleton-code -> group-three-code` entry.
+  `subst-prf/4` now consults `subst-code/2` and proves the supplied theorem
+  code independently of the substituted code. Verification:
+  `lein test-proflog-sjas-slow` passed with `1` test, `3` assertions, `real
+  91.34 s`; `lein test-proflog-sjas` passed with `22` tests, `169` assertions,
+  `real 561.14 s`; `lein test-proflog-fast` passed with `145` tests, `548`
+  assertions, `real 97.61 s`; and `lein test-proflog-extended` passed with
+  `68` tests, `203` assertions, `real 225.08 s`. See
+  [AAR-0066](docs/aar/AAR-0066-sjas-subst-relation.md).
+- Started [ADR-0066](docs/adr/ADR-0066-sjas-subst-relation.md) on branch
+  `adr-0066-sjas-subst-relation`. ADR-0065 still tied substitution facts to a
+  theorem-code-specific `subst-prf/4` table, but Willard's Appendix A separates
+  `Subst(g,h)` from `SubstPrf(g,t,p)`.
 - Completed [ADR-0065](docs/adr/ADR-0065-sjas-selfcons-substitution-fixpoint.md)
   on branch `adr-0065-sjas-selfcons-subst-fixpoint`. Level-1 SJAS Group-3 now
   uses the generated `Gamma_1(g)` skeleton code as the `subst-prf/4`

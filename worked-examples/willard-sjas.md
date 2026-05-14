@@ -1,6 +1,6 @@
 # Willard SJAS Base-64 Coding and Substitution-Proof Profile Example
 
-This example documents ADR-0058 through ADR-0065 and the focused regression in
+This example documents ADR-0058 through ADR-0066 and the focused regression in
 `test/proflog/willard_sjas_test.clj`. It demonstrates the Willard-style SJAS
 builder, binary U-grounding arithmetic, reflected axiom Godel-code terms, and
 kernel-checked proof certificates. ADR-0062 made the self-consistency
@@ -10,7 +10,9 @@ terms rather than opaque formula labels. ADR-0064 adds the Level-1
 `subst-prf/4` predicate, so generated `SelfCons1` formulas now use the
 substitution-proof vocabulary rather than raw `tableau-proof/3`. ADR-0065
 corrects the fixed-point substitution argument: Level-1 Group-3 now cites the
-code of its own `Gamma_1(g)` skeleton, not the system code.
+code of its own `Gamma_1(g)` skeleton, not the system code. ADR-0066 exposes
+that finite substitution boundary as the `subst-code/2` object-language
+relation.
 
 Run the focused regression:
 
@@ -21,9 +23,9 @@ lein test-proflog-sjas
 Current result:
 
 ```text
-Ran 20 tests containing 162 assertions.
+Ran 22 tests containing 169 assertions.
 0 failures, 0 errors.
-real 406.83 s
+real 561.14 s
 ```
 
 The explicit slow fixed-point selector is also available:
@@ -31,7 +33,7 @@ The explicit slow fixed-point selector is also available:
 ```text
 lein test-proflog-sjas-slow
 ;; Ran 1 tests containing 3 assertions.
-;; real 82.81 s
+;; real 91.34 s
 ```
 
 ## Hand-Written Intent
@@ -628,11 +630,13 @@ subst-prf(system-code, substitution-code, theorem-code, proof-code)
 ```
 
 For the current finite `IS#_D(beta)` implementation, the generated substitution
-boundary records identity substitutions for ordinary closed formulas in the
-active system and one fixed-point entry for Level-1 Group-3:
+boundary is visible through `subst-code/2`. It records identity substitutions
+for ordinary closed formulas in the active system and one fixed-point entry for
+Level-1 Group-3:
 
 ```text
-system-code, selfcons-skeleton-code -> group-three-code
+subst-code(source-code, substituted-code)
+selfcons-skeleton-code -> group-three-code
 ```
 
 The public predicate is still important because it gives the Level-1 formula
@@ -655,7 +659,7 @@ The focused test exercises the path with a real certificate:
   (query/query-succeeds
     (:program level1-system)
     (sjas/subst-prf (:system-code level1-system)
-                    (:system-code level1-system)
+                    (:code beta-record)
                     (:code beta-record)
                     certificate)
     1
@@ -671,6 +675,34 @@ formula contains `neg-pair/2` and `subst-prf/4`, but no raw
 
 ADR-0065 adds the fixed-point check. The generated Level-1 system exposes the
 code of the skeleton `Gamma_1(g)`:
+
+```clojure
+(let [level1-system (demo-system :willard-sjas-level1)
+      group3-record (:group-three level1-system)]
+  (query/query-succeeds
+    (:program level1-system)
+    (sjas/subst-code (:selfcons-skeleton-code level1-system)
+                     (:code group3-record))
+    1
+    96))
+;; => one proof
+```
+
+The identity case is also a formula-code identity, not a system-code
+placeholder:
+
+```clojure
+(let [level1-system (demo-system :willard-sjas-level1)
+      beta-record (first (filter #(= :group-two (:group %))
+                                 (:axioms level1-system)))]
+  (query/query-succeeds
+    (:program level1-system)
+    (sjas/subst-code (:code beta-record)
+                     (:code beta-record))
+    1
+    96))
+;; => one proof
+```
 
 ```clojure
 (let [level1-system (demo-system :willard-sjas-level1)
@@ -691,6 +723,29 @@ The same query with `(:system-code level1-system)` in the substitution-code
 position returns `()`. The point of the check is that `SelfCons1` is not merely
 using a proof predicate with four arguments; it is using the fixed-point
 substitution shape required by Willard's `Gamma_1(n)` construction.
+
+ADR-0066 additionally checks that `subst-prf/4` uses the substitution code
+independently of the theorem code:
+
+```clojure
+(let [level1-system (demo-system :willard-sjas-level1)
+      beta-record (first (filter #(= :group-two (:group %))
+                                 (:axioms level1-system)))
+      certificate (sjas/proof-certificate 'sjas-axiom)]
+  (query/query-succeeds
+    (:program level1-system)
+    (sjas/subst-prf (:system-code level1-system)
+                    (:selfcons-skeleton-code level1-system)
+                    (:code beta-record)
+                    certificate)
+    1
+    220))
+;; => one proof
+```
+
+Here the substitution code maps to Group-3, while the theorem being proved is
+the beta axiom. This matches the separation between `Subst(g,h)` and
+`SubstPrf(g,t,p)`.
 
 ## Bounded Contradiction Probe
 
@@ -714,17 +769,17 @@ external consistency-preservation metatheorem.
   historical Willard proof-list encoding.
 - Tab-1/proof-list theorem reuse is not implemented or claimed. The Level-1
   profile reflects plain semantic tableaux as the deduction method `D`.
-- `subst-prf/4` currently uses a finite substitution boundary for one
+- `subst-code/2` currently uses a finite substitution boundary for one
   `IS#_D(beta)` system: identity entries for ordinary generated formulas plus
   the generated `SelfCons` skeleton-to-Group-3 fixed-point entry. A general
-  code-level `Subst` relation over arbitrary formula codes remains the next
+  code-level `Subst` evaluator over arbitrary formula codes remains the next
   fidelity gap.
 - The self-justification demonstration is non-vacuous at the proof-predicate
   boundary, but it is still a finite `IS#_D(beta)`-style executable substrate,
   not a mechanized proof of Willard's consistency-preservation theorem.
 - The arithmetic profile is relational, but some reverse modes are still
   operationally expensive. The fixed-point certificate test is marked `^:slow`
-  and currently takes about `82.81 s` in isolation; open certificate synthesis
+  and currently takes about `91.34 s` in isolation; open certificate synthesis
   remains outside the focused suite.
 - Passing bounded contradiction probes do not prove Willard's external
   consistency-preservation theorem.

@@ -143,6 +143,20 @@ Current ADR-0062 note:
   `real 100.47 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
   203 assertions`, `0 failures`, `0 errors`, `real 227.65 s`.
 
+Current ADR-0063 note:
+
+- The focused SJAS arithmetized-coding gate `lein test-proflog-sjas` passed on
+  2026-05-14 with `Ran 15 tests containing 143 assertions`, `0 failures`,
+  `0 errors`, and `elapsed 4:47.84` while run in parallel with the fast and
+  extended gates.
+- The same gate had earlier isolated semantic verification at `elapsed 3:34.90`;
+  the longer recorded gate above is the commit-reference timing because it ran
+  under the final concurrent regression load.
+- The ADR-0063 regression gates passed with `lein test-proflog-fast`,
+  `Ran 145 tests containing 548 assertions`, `0 failures`, `0 errors`,
+  `elapsed 2:07.41`, and `lein test-proflog-extended`, `Ran 68 tests containing
+  203 assertions`, `0 failures`, `0 errors`, `elapsed 4:37.84`.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

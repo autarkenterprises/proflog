@@ -1,11 +1,13 @@
 (ns proflog.willard-sjas-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.string :as str]
+            [clojure.test :refer [deftest is testing]]
             [proflog.answers :as answers]
             [proflog.ast :as ast]
             [proflog.normalize :as normalize]
             [proflog.proof :as proof]
             [proflog.query :as query]
-            [proflog.willard-sjas :as sjas]))
+            [proflog.willard-sjas :as sjas]
+            [proflog.willard-sjas-code :as sjas-code]))
 
 (defn- successful?
   [proofs]
@@ -18,6 +20,28 @@
 (defn- n
   [value]
   (sjas/numeral value))
+
+(defn- sjas-numeral-term?
+  "True when `term` is written in the public binary SJAS numeral vocabulary."
+  [term]
+  (and (= 'app (ast/tag-of term))
+       (let [head (second term)
+             args (nnext term)]
+         (cond
+           (= (symbol "0") head) (empty? args)
+           (= (symbol "1") head) (empty? args)
+           (= 'dbl head) (and (= 1 (count args))
+                              (sjas-numeral-term? (first args)))
+           (= 'add head) (and (= 2 (count args))
+                              (sjas-numeral-term? (first args))
+                              (sjas-numeral-term? (second args)))
+           :else false))))
+
+(defn- generated-code-symbol?
+  [sym]
+  (and (symbol? sym)
+       (or (str/starts-with? (name sym) "sjas_formula_")
+           (str/starts-with? (name sym) "sjas_system_"))))
 
 (defn- binding-for
   [records nom]
@@ -110,14 +134,6 @@
      :reflected-clauses [(reflected-demo-clause)]
      :external-clauses [(external-demo-clause)]}))
 
-(defn- proof-target-for
-  [system theorem-code]
-  (some (fn [[system-code code target]]
-          (when (and (= (:system-code system) system-code)
-                     (= theorem-code code))
-            target))
-        (get-in system [:program :sjas/proof-targets])))
-
 (defn- target-for-theorem
   [system formula]
   (normalize/negate-formula (sjas/theorem-query system formula)))
@@ -131,14 +147,23 @@
       (is (:system-code system))
       (is (= :group-three (-> system :group-three :group)))
       (is (some #(= (:code (:group-three system)) (:code %)) (:axioms system)))
-      (is (= (target-for-theorem system (ast/false-form))
-             (proof-target-for system sjas/contradiction-code))
-          "SelfCons must quantify over a contradiction code that has a concrete tableau-proof target")
       (let [beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))]
-        (is (= (target-for-theorem system
-                                   (normalize/negate-formula (:formula beta-record)))
-               (proof-target-for system (sjas/not-code (:code beta-record))))
-            "Level-1 complement codes must also have concrete tableau-proof targets"))
+        (is (successful?
+              (query/query-succeeds
+                (:program system)
+                (sjas/wff (:code beta-record))
+                1
+                96)))
+        (is (successful?
+              (query/query-succeeds
+                (:program system)
+                (sjas/neg-pair
+                  (:code beta-record)
+                  (sjas/formula-code system
+                                     (normalize/negate-formula (:formula beta-record))))
+                1
+                128))
+            "Level-1 complement relations must decode Godel-code terms"))
       (is (successful?
             (query/query-succeeds
               (:program system)
@@ -179,6 +204,55 @@
       (is (= (:system-code base) (:system-code external-changed)))
       (is (= (-> base :group-three :code)
              (-> external-changed :group-three :code))))))
+
+(deftest sjas-formal-codes-are-godel-byte-terms
+  (testing "formal SJAS codes are inspectable base-64 Godel terms, not hash labels"
+    (let [system (demo-system :willard-sjas-tableau0)]
+      (is (sjas-code/code-term? (:system-code system)))
+      (doseq [{:keys [code]} (:axioms system)]
+        (is (sjas-code/code-term? code)
+            (str "axiom code is not an SJAS Godel-code term: " (pr-str code))))
+      (is (empty? (filter generated-code-symbol?
+                          (get-in system [:language :constants])))
+          "hash-derived code labels must not be formal language constants")
+      (is (nil? (get-in system [:program :sjas/proof-targets]))
+          "tableau-proof must decode theorem/system code terms, not use host target labels"))))
+
+(deftest sjas-syntax-predicates-decode-formula-godel-codes
+  (testing "wff, class predicates, and neg-pair are derived from formula Godel codes"
+    (let [system (demo-system :willard-sjas-level1)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          complement-code (sjas/formula-code
+                            system
+                            (normalize/negate-formula (:formula beta-record)))
+          fact-atoms (get-in system [:program :sjas/fact-atoms])]
+      (is (sjas-code/code-term? complement-code))
+      (is (not= (sjas/not-code (:code beta-record)) complement-code)
+          "complements must be formula Godel-code terms, not not-code wrappers")
+      (is (not-any? (fn [atom]
+                      (contains? '#{wff delta-star-0-code
+                                    pi-star-1-code sigma-star-1-code}
+                                 (second atom)))
+                    fact-atoms)
+          "syntax predicates must not be generated whole-formula facts")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/wff (:code beta-record))
+              1
+              96)))
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/delta-star-0-code (:code beta-record))
+              1
+              96)))
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/neg-pair (:code beta-record) complement-code)
+              1
+              128))))))
 
 (deftest sjas-source-builder-accepts-prefix-program-sections
   (testing "source users do not need to hand-build backend AST clauses"
@@ -378,6 +452,8 @@
         valid (sjas/proof-certificate beta-proof)
         malformed (sjas/proof-certificate '(refl-close))]
     (is beta-proof)
+    (is (sjas-code/code-term? valid)
+        "proof certificates must be base-64 Godel-code terms")
     (is (successful?
           (query/query-succeeds
             (:program system)

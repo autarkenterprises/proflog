@@ -22,6 +22,39 @@ complete contemporaneous transcript.
 
 ## 2026-05-14
 
+- Started [ADR-0063](docs/adr/ADR-0063-sjas-arithmetized-coding.md) on
+  branch `adr-0063-sjas-arithmetized-coding`. The user correctly objected that
+  ADR-0062 still cannot demonstrate full Willard self-justification if
+  `tableau-proof/3` receives hash-derived formula labels and resolves theorem
+  targets from `:sjas/proof-targets`. The accepted direction is to promote
+	  formula, system, complement, and proof certificate codes to inspectable
+	  base-64 SJAS Godel-code terms and make `wff`, formula-class predicates,
+  `neg-pair`, and `tableau-proof/3` decode those codes at the proof-profile
+  boundary. See also
+  [SJAS Arithmetized Coding Research](docs/log/2026-05-14-sjas-arithmetized-coding-research.md).
+- Completed [ADR-0063](docs/adr/ADR-0063-sjas-arithmetized-coding.md). The
+  implementation replaces hash-derived formula labels and `:sjas/proof-targets`
+  with compact base-64 Godel-code terms `(code-N b0 ... bN-1)`, generated
+  formula/system decode relations, and proof-certificate byte decoding inside
+  `tableau-proof/3`. During implementation, large binary `dbl/add` Godel
+  numerals caused stack overflows, so codes now expose base-64 bytes directly
+  while keeping each byte as a small SJAS binary numeral. A second mismatch came
+  from Group-3 proof checking: theorem queries refute `(A -> T)` with the
+  operational double negation of `A`, not merely `to-nnf(A)`, so the proof
+  registry now stores the exact refutation-side axiom formula. Verification:
+  `lein test-proflog-sjas` passed with `15` tests, `143` assertions, `0`
+  failures, `0` errors, `elapsed 4:47.84`; `lein test-proflog-fast` passed with
+  `145` tests, `548` assertions, `0` failures, `0` errors, `elapsed 2:07.41`;
+  `lein test-proflog-extended` passed with `68` tests, `203` assertions, `0`
+  failures, `0` errors, `elapsed 4:37.84`. See
+  [AAR-0063](docs/aar/AAR-0063-sjas-arithmetized-coding.md) and
+  [Willard SJAS Base-64 Coding Profile Example](worked-examples/willard-sjas.md).
+- Logged the SJAS coding boundary exposed after ADR-0062. Hash-derived formula
+  symbols are acceptable as finite Proflog codebook labels, but they are not
+  Willard-style arithmetic Godel codes. Therefore the current SJAS profile is a
+  finite reflected proof-substrate demonstrator, not a full arithmetized
+  `IS#_D(beta)` implementation. See
+  [SJAS Godel-Coding Boundary](docs/log/2026-05-14-sjas-godel-coding-boundary.md).
 - Completed [ADR-0062](docs/adr/ADR-0062-sjas-self-justification-demonstration.md)
   for the Willard SJAS self-justification demonstration. The issue was that
   `SelfCons0` named `contradiction-code`, but the generated

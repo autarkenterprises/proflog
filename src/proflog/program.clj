@@ -25,7 +25,7 @@
    lookup contract while allowing SJAS-style profile annotations."
   [program language clauses clause-list alternative-clause-list guarded-clause-list]
   (conde
-    [(fresh [system-code fact-atoms proof-targets]
+    [(fresh [system-code fact-atoms proof-targets registry]
        (== {:language language
             :clauses clauses
             :clause-list clause-list
@@ -33,7 +33,8 @@
             :guarded-clause-list guarded-clause-list
             :sjas/system-code system-code
             :sjas/fact-atoms fact-atoms
-            :sjas/proof-targets proof-targets}
+            :sjas/proof-targets proof-targets
+            :sjas/registry registry}
            program))]
     [(== {:language language
           :clauses clauses

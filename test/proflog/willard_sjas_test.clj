@@ -207,6 +207,71 @@
               1
               64))))))
 
+(deftest sjas-composite-examples-distinguish-beta-axioms-from-reflected-procedures
+  (testing "a beta-only composite axiom can prove a theorem without defining an executable relation"
+    (let [system (sjas/system-source
+                   {:profile :willard-sjas-tableau0}
+                   (language
+                     (relations (composite 1)))
+                   (beta
+                     (forall [x]
+                       (implies
+                         (mult (dbl 1) (dbl 1) x)
+                         (composite x)))))
+          composite-four (ast/pos-lit (ast/app-term 'composite (n 4)))]
+      (is (= {:group-zero 2
+              :group-one 3
+              :group-two 1
+              :group-three 1}
+             (frequencies (map :group (:axioms system)))))
+      (is (successful?
+            (sjas/query-succeeds
+              system
+              composite-four
+              {:proof-limit 1
+               :fuel 64})))
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              composite-four
+              1
+              64))
+          "Group-2 formulas are axiom text, not Procedure Call Rule clauses")))
+  (testing "a reflected composite clause is executable and also becomes Group-2b"
+    (let [system (sjas/system-source
+                   {:profile :willard-sjas-tableau0}
+                   (language
+                     (relations (composite 1)))
+                   (reflected
+                     (|- (composite x)
+                         (mult (dbl 1) (dbl 1) x))))
+          composite-four (ast/pos-lit (ast/app-term 'composite (n 4)))]
+      (is (= {:group-zero 2
+              :group-one 3
+              :group-two-b 1
+              :group-three 1}
+             (frequencies (map :group (:axioms system)))))
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              composite-four
+              1
+              64)))
+      (is (successful?
+            (sjas/query-succeeds
+              system
+              composite-four
+              {:proof-limit 1
+               :fuel 64})))
+      (ast/nom x
+        (let [records (sjas/query-answers
+                        system
+                        (ast/pos-lit (ast/app-term 'composite (ast/var-term x)))
+                        [x]
+                        {:proof-limit 1
+                         :fuel 64})]
+          (is (= (n 4) (binding-for records x))))))))
+
 (deftest sjas-arithmetic-runs-through-binary-relations
   (let [system (demo-system :willard-sjas-tableau0)
         program (:program system)]

@@ -14,9 +14,9 @@ lein test-proflog-sjas
 Current result:
 
 ```text
-Ran 11 tests containing 112 assertions.
+Ran 12 tests containing 119 assertions.
 0 failures, 0 errors.
-real 15.40 s
+real 34.17 s
 ```
 
 ## Hand-Written Intent
@@ -245,6 +245,121 @@ small, explicit, and kept within the intended arithmetic/proof-coding fragment.
 Broader admissibility checks, such as rejecting nonconforming reflected
 extensions before Group-3 generation, are a future hardening step rather than a
 current guarantee.
+
+## Composite: Beta Axiom vs Reflected Procedure
+
+The `composite` examples below use a deliberately small witness definition:
+
+```text
+forall x. mult(2, 2, x) -> composite(x)
+```
+
+This proves that `4` is composite without turning the example into an open
+factorization benchmark. The mathematically broader definition
+`exists y z. y != 1 and z != 1 and mult(y,z,x)` is expressible, but the current
+profile does not close that general factor-synthesis proof within the focused
+test budget; an exploratory 120 s wrapper produced no result for that broader
+form.
+
+First, put the definition in Group 2 `beta`:
+
+```clojure
+(def beta-composite-system
+  (sjas/system-source
+    {:profile :willard-sjas-tableau0}
+    (language
+      (relations (composite 1)))
+    (beta
+      (forall [x]
+        (implies
+          (mult (dbl 1) (dbl 1) x)
+          (composite x))))))
+
+(frequencies (map :group (:axioms beta-composite-system)))
+;; => {:group-zero 2,
+;;     :group-one 3,
+;;     :group-two 1,
+;;     :group-three 1}
+```
+
+The theorem-level query succeeds because the Group 2 axiom can be used in the
+generated SJAS basis:
+
+```clojure
+(sjas/query-succeeds
+  beta-composite-system
+  (frontend/q (composite (dbl (dbl 1))))
+  {:proof-limit 1
+   :fuel 64})
+;; => one proof
+```
+
+The direct executable query does not succeed, because no `composite/1`
+procedure clause exists:
+
+```clojure
+(query/query-succeeds
+  (:program beta-composite-system)
+  (frontend/q (composite (dbl (dbl 1))))
+  1
+  64)
+;; => ()
+```
+
+Now put the same definition in `reflected`:
+
+```clojure
+(def reflected-composite-system
+  (sjas/system-source
+    {:profile :willard-sjas-tableau0}
+    (language
+      (relations (composite 1)))
+    (reflected
+      (|- (composite x)
+          (mult (dbl 1) (dbl 1) x)))))
+
+(frequencies (map :group (:axioms reflected-composite-system)))
+;; => {:group-zero 2,
+;;     :group-one 3,
+;;     :group-two-b 1,
+;;     :group-three 1}
+```
+
+The ordinary Procedure Call Rule can execute `composite/1`:
+
+```clojure
+(query/query-succeeds
+  (:program reflected-composite-system)
+  (frontend/q (composite (dbl (dbl 1))))
+  1
+  64)
+;; => one proof
+```
+
+Because the clause is reflected as Group-2b, the SJAS theorem helper can also
+prove the same claim from the reflected axiom basis:
+
+```clojure
+(sjas/query-succeeds
+  reflected-composite-system
+  (frontend/q (composite (dbl (dbl 1))))
+  {:proof-limit 1
+   :fuel 64})
+;; => one proof
+```
+
+The executable version can also synthesize the answer:
+
+```clojure
+(ast/nom x
+  (sjas/query-answers
+    reflected-composite-system
+    (ast/pos-lit (ast/app-term 'composite (ast/var-term x)))
+    [x]
+    {:proof-limit 1
+     :fuel 64}))
+;; first binding => x = (app dbl (app dbl (app 1)))
+```
 
 ## Generated Kernel Shape
 

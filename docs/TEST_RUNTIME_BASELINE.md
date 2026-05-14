@@ -122,6 +122,9 @@ Current ADR-0061 follow-up note:
   548 assertions`, `0 failures`, `0 errors`, and `real 71.06 s`, plus
   `lein test-proflog-extended` with `Ran 68 tests containing 203 assertions`,
   `0 failures`, `0 errors`, and `real 198.45 s`.
+- The focused SJAS composite beta-versus-reflected examples passed with
+  `lein test-proflog-sjas`, `Ran 12 tests containing 119 assertions`,
+  `0 failures`, `0 errors`, and `real 34.17 s`.
 
 Current ADR-0041 note:
 

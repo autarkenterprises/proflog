@@ -50,6 +50,18 @@ complete contemporaneous transcript.
   `tableau-proof/3` axiom-membership path. An `external` clause is executable
   procedure text only: it can participate in ordinary query evaluation but is
   not an axiom of the reflected SJAS and does not change Group-3.
+- Added worked and tested SJAS `composite/1` examples showing when a definition
+  belongs in `beta` rather than `reflected`. The beta example uses
+  `forall x. mult(2,2,x) -> composite(x)` as a Group-2 axiom: it proves
+  `composite(4)` through `sjas/query-succeeds`, but the direct Procedure Call
+  Rule query has no `composite/1` clause and returns no proof. The reflected
+  version uses the same definition as a clause, yielding a Group-2b axiom,
+  direct procedure-call success, theorem-level success, and answer synthesis
+  for `x = 4`. An exploratory 120 s wrapper for the broader
+  `exists y z. y != 1 and z != 1 and mult(y,z,x)` composite definition did not
+  return a result, so the promoted example stays bounded. Verification:
+  `lein test-proflog-sjas` passed with `12` tests, `119` assertions,
+  `0` failures, `0` errors, `real 34.17 s`.
 
 ## 2026-05-13
 

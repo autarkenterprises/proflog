@@ -107,6 +107,28 @@ Ran 68 tests containing 203 assertions.
 real 198.45
 ```
 
+## Follow-up: Composite as Axiom vs Procedure
+
+The worked example now includes paired `composite/1` systems to document when a
+definition belongs in Group 2 rather than Group-2b. The beta version adds
+`forall x. mult(2,2,x) -> composite(x)` as a Group-2 axiom. It proves
+`composite(4)` through `sjas/query-succeeds`, but direct Procedure Call Rule
+evaluation has no executable `composite/1` clause and returns no proof. The
+reflected version adds the same definition as a clause, so it is executable,
+reflected as Group-2b, theorem-usable, and answer-capable for `x = 4`.
+
+The broader existential factorization definition of `composite` is expressible,
+but an exploratory 120 s wrapper did not return a result for the general
+`exists y z. y != 1 and z != 1 and mult(y,z,x)` version. The promoted example
+therefore stays bounded and records the current operational boundary.
+
+```text
+lein test-proflog-sjas
+Ran 12 tests containing 119 assertions.
+0 failures, 0 errors.
+real 34.17
+```
+
 ## Implementation Notes
 
 The generic gamma closed-term fallback was too expensive for the enlarged SJAS

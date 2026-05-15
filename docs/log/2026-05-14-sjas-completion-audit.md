@@ -59,10 +59,16 @@ relations over object-language terms.
 ## Remaining Non-Goals
 
 - No Tab-1/proof-list theorem-reuse profile has been implemented.
-- Non-identity substitution is not a general arbitrary formula-code evaluator
-  beyond the generated Level-1 fixed-point entry for the active system.
 - Open proof-code synthesis remains operationally expensive and is not promoted
   as a default regression.
 
 These are documented as non-goals or later possible extensions, not blockers
 for the finite ordinary-tableau `IS#_D(beta)` demonstration requested here.
+
+## ADR-0069 Follow-Up
+
+ADR-0069 removes the non-identity substitution gap recorded in this audit.
+`subst-code/2` now decodes formula codes and computes diagonal substitution
+structurally, including the Level-1 fixed-point skeleton-to-Group-3 case. The
+remaining non-goals are Tab-1/proof-list theorem reuse and open proof-code
+synthesis.

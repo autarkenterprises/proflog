@@ -7,15 +7,14 @@
      whose object-language constants are `0` and `1`;
    - `tableau-proof/3` checks a structural proof certificate by running the
      existing Proflog kernel with the decoded proof term already supplied;
-   - `subst-prf/4` exposes the Level-1 substitution-proof vocabulary while
-     currently consulting the finite substitution boundary generated for the
-     active `IS#_D(beta)` system.
+   - `subst-prf/4` exposes the Level-1 substitution-proof vocabulary by
+     decoding formula codes and checking diagonal substitution structurally.
 
    The profile therefore remains a tableau extension, not a host-side evaluator:
    arithmetic constraints and proof checking are both miniKanren goals
    interleaved at the branch rule boundary."
   (:refer-clojure :exclude [== < <=])
-  (:require [clojure.core.logic :refer [== conde fail fresh lcons lvar membero or* run]]
+  (:require [clojure.core.logic :refer [!= == conde fail fresh lcons lvar membero or* run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -426,6 +425,9 @@
 (def ^:private positive-byte-entries
   (apply list (range 1 sjas-code/byte-base)))
 
+(def ^:private positive-byte-except-one-entries
+  (apply list (range 2 sjas-code/byte-base)))
+
 (def ^:private code-nom-entries
   "Canonical noms used when decoded formula-code variables become kernel ASTs.
 
@@ -441,6 +443,10 @@
 (defn- positive-byteo
   [byte]
   (membero byte positive-byte-entries))
+
+(defn- positive-byte-except-oneo
+  [byte]
+  (membero byte positive-byte-except-one-entries))
 
 (defn- sjas-nom-indexo
   [idx nom]
@@ -825,6 +831,291 @@
     [(== 'sigma-star-1-code relation)
      (sjas-sigma-star-1-formulao formula)]))
 
+(declare sjas-subst-term-var-oneo
+         sjas-subst-term-list-var-oneo
+         sjas-subst-formula-var-oneo)
+
+(defn- sjas-subst-term-list-var-oneo
+  "Substitute in each term of an internal formula-code term list.
+
+   Formula codes store function/relation arguments as ordinary proper lists in
+   the structural decoder. This helper keeps the recursive substitution rule
+   local to that internal syntax layer, before any conversion to kernel AST
+   noms occurs."
+  [terms replacement substituted-terms]
+  (conde
+    [(== '() terms)
+     (== '() substituted-terms)]
+    [(fresh [head tail substituted-head substituted-tail]
+       (== (lcons head tail) terms)
+       (== (lcons substituted-head substituted-tail) substituted-terms)
+       (sjas-subst-term-var-oneo head replacement substituted-head)
+       (sjas-subst-term-list-var-oneo tail replacement substituted-tail))]))
+
+(defn- sjas-subst-term-var-oneo
+  "Relate an internal term to its diagonal substitution result.
+
+   `Subst` for `IS#_D(beta)` replaces free variable index 1, the canonical
+   representation of the source-level variable `v0`, with the code term for the
+   source formula itself. Embedded `(code bytes)` terms are quoted syntax and
+   are therefore left opaque rather than recursively decoded."
+  [term replacement substituted]
+  (conde
+    [(== (list 'var 1) term)
+     (== replacement substituted)]
+    [(fresh [idx]
+       (== (list 'var idx) term)
+       (positive-byte-except-oneo idx)
+       (== term substituted))]
+    [(fresh [idx]
+       (== (list 'par idx) term)
+       (== term substituted))]
+    [(fresh [sym args substituted-args]
+       (== (list 'app sym args) term)
+       (== (list 'app sym substituted-args) substituted)
+       (sjas-subst-term-list-var-oneo args replacement substituted-args))]
+    [(fresh [bytes]
+       (== (list 'code bytes) term)
+       (== term substituted))]))
+
+(defn- sjas-subst-formula-var-oneo
+  "Relate a decoded formula-code tree to its diagonal substitution result.
+
+   The relation is deliberately syntactic. It preserves formula constructors,
+   substitutes through terms, respects quantifier shadowing for variable index
+   1, and substitutes inside bounded-quantifier bounds because those bounds are
+   outside the newly bound variable's body scope."
+  [formula replacement substituted]
+  (conde
+    [(== (list 'true) formula)
+     (== formula substituted)]
+    [(== (list 'false) formula)
+     (== formula substituted)]
+    [(fresh [term substituted-term]
+       (== (list 'pos term) formula)
+       (== (list 'pos substituted-term) substituted)
+       (sjas-subst-term-var-oneo term replacement substituted-term))]
+    [(fresh [term substituted-term]
+       (== (list 'neg term) formula)
+       (== (list 'neg substituted-term) substituted)
+       (sjas-subst-term-var-oneo term replacement substituted-term))]
+    [(fresh [left right substituted-left substituted-right]
+       (== (list 'eq left right) formula)
+       (== (list 'eq substituted-left substituted-right) substituted)
+       (sjas-subst-term-var-oneo left replacement substituted-left)
+       (sjas-subst-term-var-oneo right replacement substituted-right))]
+    [(fresh [left right substituted-left substituted-right]
+       (== (list 'neq left right) formula)
+       (== (list 'neq substituted-left substituted-right) substituted)
+       (sjas-subst-term-var-oneo left replacement substituted-left)
+       (sjas-subst-term-var-oneo right replacement substituted-right))]
+    [(fresh [left right substituted-left substituted-right]
+       (== (list 'and left right) formula)
+       (== (list 'and substituted-left substituted-right) substituted)
+       (sjas-subst-formula-var-oneo left replacement substituted-left)
+       (sjas-subst-formula-var-oneo right replacement substituted-right))]
+    [(fresh [left right substituted-left substituted-right]
+       (== (list 'or left right) formula)
+       (== (list 'or substituted-left substituted-right) substituted)
+       (sjas-subst-formula-var-oneo left replacement substituted-left)
+       (sjas-subst-formula-var-oneo right replacement substituted-right))]
+    [(fresh [body substituted-body]
+       (== (list 'not body) formula)
+       (== (list 'not substituted-body) substituted)
+       (sjas-subst-formula-var-oneo body replacement substituted-body))]
+    [(fresh [left right substituted-left substituted-right]
+       (== (list 'implies left right) formula)
+       (== (list 'implies substituted-left substituted-right) substituted)
+       (sjas-subst-formula-var-oneo left replacement substituted-left)
+       (sjas-subst-formula-var-oneo right replacement substituted-right))]
+    [(fresh [body]
+       (== (list 'forall 1 body) formula)
+       (== formula substituted))]
+    [(fresh [idx body substituted-body]
+       (== (list 'forall idx body) formula)
+       (positive-byte-except-oneo idx)
+       (== (list 'forall idx substituted-body) substituted)
+       (sjas-subst-formula-var-oneo body replacement substituted-body))]
+    [(fresh [body]
+       (== (list 'once-forall 1 body) formula)
+       (== formula substituted))]
+    [(fresh [idx body substituted-body]
+       (== (list 'once-forall idx body) formula)
+       (positive-byte-except-oneo idx)
+       (== (list 'once-forall idx substituted-body) substituted)
+       (sjas-subst-formula-var-oneo body replacement substituted-body))]
+    [(fresh [body]
+       (== (list 'exists 1 body) formula)
+       (== formula substituted))]
+    [(fresh [idx body substituted-body]
+       (== (list 'exists idx body) formula)
+       (positive-byte-except-oneo idx)
+       (== (list 'exists idx substituted-body) substituted)
+       (sjas-subst-formula-var-oneo body replacement substituted-body))]
+    [(fresh [bound body substituted-bound]
+       (== (list 'bounded-forall 1 bound body) formula)
+       (== (list 'bounded-forall 1 substituted-bound body) substituted)
+       (sjas-subst-term-var-oneo bound replacement substituted-bound))]
+    [(fresh [idx bound body substituted-bound substituted-body]
+       (== (list 'bounded-forall idx bound body) formula)
+       (positive-byte-except-oneo idx)
+       (== (list 'bounded-forall idx substituted-bound substituted-body) substituted)
+       (sjas-subst-term-var-oneo bound replacement substituted-bound)
+       (sjas-subst-formula-var-oneo body replacement substituted-body))]
+    [(fresh [bound body substituted-bound]
+       (== (list 'bounded-exists 1 bound body) formula)
+       (== (list 'bounded-exists 1 substituted-bound body) substituted)
+       (sjas-subst-term-var-oneo bound replacement substituted-bound))]
+    [(fresh [idx bound body substituted-bound substituted-body]
+       (== (list 'bounded-exists idx bound body) formula)
+       (positive-byte-except-oneo idx)
+       (== (list 'bounded-exists idx substituted-bound substituted-body) substituted)
+       (sjas-subst-term-var-oneo bound replacement substituted-bound)
+       (sjas-subst-formula-var-oneo body replacement substituted-body))]))
+
+(declare sjas-alpha-term-equivo
+         sjas-alpha-term-list-equivo
+         sjas-alpha-formula-equivo)
+
+(defn- alpha-unmapped-sourceo
+  "Succeed when `idx` is not a source-side bound variable in `env`.
+
+   Alpha-equivalence uses `env` as pairs of decoded binder indexes
+   `[source-index target-index]`. Free variables are compared literally, so this
+   guard prevents a bound source variable from also taking the literal-free
+   branch when its numeric index happens to equal the target index."
+  [idx env]
+  (conde
+    [(== '() env)]
+    [(fresh [head tail source target]
+       (== (lcons head tail) env)
+       (== [source target] head)
+       (!= idx source)
+       (alpha-unmapped-sourceo idx tail))]))
+
+(defn- alpha-bound-varo
+  [source target env]
+  (fresh [entry]
+    (membero entry env)
+    (== [source target] entry)))
+
+(defn- sjas-alpha-term-list-equivo
+  [left right env]
+  (conde
+    [(== '() left)
+     (== '() right)]
+    [(fresh [left-head left-tail right-head right-tail]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (sjas-alpha-term-equivo left-head right-head env)
+       (sjas-alpha-term-list-equivo left-tail right-tail env))]))
+
+(defn- sjas-alpha-term-equivo
+  "Compare decoded internal terms modulo formula-binder renaming.
+
+   Bound object variables may be renamed by quantifier traversal. Free
+   variables, parameters, function symbols, and embedded code bytes remain
+   literal; this keeps `Subst` from accepting a different free-variable answer
+   merely because it is alpha-equivalent under some unrelated binder."
+  [left right env]
+  (conde
+    [(fresh [left-idx right-idx]
+       (== (list 'var left-idx) left)
+       (== (list 'var right-idx) right)
+       (alpha-bound-varo left-idx right-idx env))]
+    [(fresh [idx]
+       (== (list 'var idx) left)
+       (== (list 'var idx) right)
+       (alpha-unmapped-sourceo idx env))]
+    [(fresh [idx]
+       (== (list 'par idx) left)
+       (== (list 'par idx) right))]
+    [(fresh [sym left-args right-args]
+       (== (list 'app sym left-args) left)
+       (== (list 'app sym right-args) right)
+       (sjas-alpha-term-list-equivo left-args right-args env))]
+    [(fresh [bytes]
+       (== (list 'code bytes) left)
+       (== (list 'code bytes) right))]))
+
+(defn- sjas-alpha-formula-equivo
+  "Compare decoded formula-code trees modulo bound-variable alpha-renaming."
+  [left right env]
+  (conde
+    [(== (list 'true) left)
+     (== (list 'true) right)]
+    [(== (list 'false) left)
+     (== (list 'false) right)]
+    [(fresh [left-term right-term]
+       (== (list 'pos left-term) left)
+       (== (list 'pos right-term) right)
+       (sjas-alpha-term-equivo left-term right-term env))]
+    [(fresh [left-term right-term]
+       (== (list 'neg left-term) left)
+       (== (list 'neg right-term) right)
+       (sjas-alpha-term-equivo left-term right-term env))]
+    [(fresh [left-a left-b right-a right-b]
+       (== (list 'eq left-a left-b) left)
+       (== (list 'eq right-a right-b) right)
+       (sjas-alpha-term-equivo left-a right-a env)
+       (sjas-alpha-term-equivo left-b right-b env))]
+    [(fresh [left-a left-b right-a right-b]
+       (== (list 'neq left-a left-b) left)
+       (== (list 'neq right-a right-b) right)
+       (sjas-alpha-term-equivo left-a right-a env)
+       (sjas-alpha-term-equivo left-b right-b env))]
+    [(fresh [left-a left-b right-a right-b]
+       (== (list 'and left-a left-b) left)
+       (== (list 'and right-a right-b) right)
+       (sjas-alpha-formula-equivo left-a right-a env)
+       (sjas-alpha-formula-equivo left-b right-b env))]
+    [(fresh [left-a left-b right-a right-b]
+       (== (list 'or left-a left-b) left)
+       (== (list 'or right-a right-b) right)
+       (sjas-alpha-formula-equivo left-a right-a env)
+       (sjas-alpha-formula-equivo left-b right-b env))]
+    [(fresh [left-body right-body]
+       (== (list 'not left-body) left)
+       (== (list 'not right-body) right)
+       (sjas-alpha-formula-equivo left-body right-body env))]
+    [(fresh [left-a left-b right-a right-b]
+       (== (list 'implies left-a left-b) left)
+       (== (list 'implies right-a right-b) right)
+       (sjas-alpha-formula-equivo left-a right-a env)
+       (sjas-alpha-formula-equivo left-b right-b env))]
+    [(fresh [left-idx right-idx left-body right-body]
+       (== (list 'forall left-idx left-body) left)
+       (== (list 'forall right-idx right-body) right)
+       (sjas-alpha-formula-equivo left-body
+                                  right-body
+                                  (lcons [left-idx right-idx] env)))]
+    [(fresh [left-idx right-idx left-body right-body]
+       (== (list 'once-forall left-idx left-body) left)
+       (== (list 'once-forall right-idx right-body) right)
+       (sjas-alpha-formula-equivo left-body
+                                  right-body
+                                  (lcons [left-idx right-idx] env)))]
+    [(fresh [left-idx right-idx left-body right-body]
+       (== (list 'exists left-idx left-body) left)
+       (== (list 'exists right-idx right-body) right)
+       (sjas-alpha-formula-equivo left-body
+                                  right-body
+                                  (lcons [left-idx right-idx] env)))]
+    [(fresh [left-idx right-idx left-bound right-bound left-body right-body]
+       (== (list 'bounded-forall left-idx left-bound left-body) left)
+       (== (list 'bounded-forall right-idx right-bound right-body) right)
+       (sjas-alpha-term-equivo left-bound right-bound env)
+       (sjas-alpha-formula-equivo left-body
+                                  right-body
+                                  (lcons [left-idx right-idx] env)))]
+    [(fresh [left-idx right-idx left-bound right-bound left-body right-body]
+       (== (list 'bounded-exists left-idx left-bound left-body) left)
+       (== (list 'bounded-exists right-idx right-bound right-body) right)
+       (sjas-alpha-term-equivo left-bound right-bound env)
+       (sjas-alpha-formula-equivo left-body
+                                  right-body
+                                  (lcons [left-idx right-idx] env)))]))
+
 (declare sjas-internal-term-asto sjas-internal-formula-asto)
 
 (defn- byte-list-counto
@@ -1083,23 +1374,40 @@
   (== system-code (:sjas/system-code (or (some-> prog :sjas/registry deref)
                                          prog))))
 
-(defn- sjas-subst-codeo
-  [prog source-code substituted-code]
-  (fresh [entry]
-    (membero entry (or (:sjas/subst-code-entries (or (some-> prog :sjas/registry deref)
-                                                      prog))
-                       '()))
-    (== [source-code substituted-code] entry)))
-
 (defn- sjas-subst-code-anyo
-  "Relate substitution codes through generated entries or structural identity."
+  "Relate formula codes by structural diagonal substitution.
+
+   The first code is decoded as a formula `F`; `F` is then used as a quoted code
+   term and substituted for free canonical variable `v0` inside `F`. The second
+   code must decode to a formula alpha-equivalent to the resulting formula. This
+   is the object-language `Subst` operation needed by Level-1 SJAS
+   self-reference; it is no longer a finite table of precomputed examples."
   [prog source-code substituted-code sigma sigma-out]
-  (conde
-    [(sjas-subst-codeo prog source-code substituted-code)
-     (== sigma sigma-out)]
-    [(fresh [formula]
-       (== source-code substituted-code)
-       (sjas-decode-formula-codeo prog source-code sigma sigma-out formula))]))
+  (fresh [source-bytes source-formula substituted-formula expected
+          source-read-proof sigma-after-source]
+    (sjas-code-byteso source-code source-bytes sigma sigma-after-source source-read-proof)
+    (decode-formula-byteso prog source-bytes '() source-formula)
+    (sjas-subst-formula-var-oneo source-formula
+                                 (list 'code source-bytes)
+                                 expected)
+    (sjas-decode-formula-codeo prog substituted-code
+                               sigma-after-source
+                               sigma-out
+                               substituted-formula)
+    (sjas-alpha-formula-equivo expected substituted-formula '())))
+
+(defn- sjas-subst-source-codeo
+  "Check that a substitution source code is a well-formed formula code.
+
+   `subst-prf/4` sometimes needs only the existence of a substituted formula,
+   not the public code for that formula. Generating a fresh public code term is
+   an expensive synthesis problem. Since structural substitution is total on
+   decoded formula syntax, proof checking uses this source-only relation unless
+   it must compare against a concrete theorem code."
+  [prog source-code sigma sigma-out]
+  (fresh [source-bytes source-formula source-read-proof]
+    (sjas-code-byteso source-code source-bytes sigma sigma-out source-read-proof)
+    (decode-formula-byteso prog source-bytes '() source-formula)))
 
 (defn- sjas-class-relationo
   "Recognize the finite formula-class predicates generated for one SJAS system.
@@ -1228,12 +1536,12 @@
     (== (list 'profiled 'willard-sjas-code relation) proof)))
 
 (defn- sjas-subst-code-closeo
-  "Close generated and structural `subst-code/2` facts.
+  "Close structural `subst-code/2` goals.
 
    ADR-0066 separates Willard's `Subst(g,h)` relation from `SubstPrf(g,t,p)`.
-   ADR-0067 keeps the generated Level-1 fixed-point entry but accepts identity
-   substitution for any structurally well-formed formula code in the active
-   coding context."
+   ADR-0069 computes the substitution itself by decoding formula-code bytes,
+   replacing the distinguished free variable, and comparing the decoded target
+   modulo bound-variable alpha-renaming."
   [fml env sigma sigma-out neqs neqs-out prog proof]
   (fresh [lit atom walked-atom source-code substituted-code]
     (subst/subst-formulao fml env lit)
@@ -1278,44 +1586,37 @@
 (defn- sjas-subst-prf-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
   (fresh [lit atom walked-atom system-code substitution-code theorem-code proof-code
-          substituted-code decoded-proof proof-bytes axiom-formula theorem-formula
-          substituted-formula neg-theorem target sigma-subst sigma-proof proof-read-proof]
+          decoded-proof proof-bytes axiom-formula theorem-formula neg-theorem
+          target sigma-valid sigma-proof proof-read-proof]
     (subst/subst-formulao fml env lit)
     (== (list 'neg atom) lit)
     (equality/walk-atomo atom sigma walked-atom)
     (== (list 'app 'subst-prf system-code substitution-code theorem-code proof-code)
         walked-atom)
     (sjas-active-systemo prog system-code)
-    (sjas-subst-code-anyo prog substitution-code substituted-code sigma sigma-subst)
-    (decode-proof-codeo proof-code sigma-subst sigma-proof proof-bytes decoded-proof proof-read-proof)
+    (decode-proof-codeo proof-code sigma sigma-proof proof-bytes decoded-proof proof-read-proof)
     (conde
       [(== 'sjas-axiom decoded-proof)
        (conde
-         [(sjas-axiom-membero prog system-code theorem-code)]
-         [(== theorem-code substituted-code)])
-       (== sigma-proof sigma-out)]
+         [(sjas-axiom-membero prog system-code theorem-code)
+          (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-out)]
+         [(sjas-subst-code-anyo prog substitution-code theorem-code sigma-proof sigma-out)])]
       [(sjas-system-axiom-formulao prog system-code axiom-formula)
+       (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-valid)
        (sjas-formula-codeo prog theorem-code theorem-formula)
        (sjas-formula-negationo prog theorem-formula neg-theorem)
        (== (list 'and axiom-formula neg-theorem) target)
        (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
-       (== sigma-proof sigma-out)]
+       (== sigma-valid sigma-out)]
       [(sjas-system-axiom-formulao prog system-code axiom-formula)
+       (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-valid)
        (sjas-structural-negated-theoremo prog
                                          theorem-code
-                                         sigma-proof
+                                         sigma-valid
                                          sigma-out
                                          neg-theorem)
        (== (list 'and axiom-formula neg-theorem) target)
-       (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)]
-      [(sjas-system-axiom-formulao prog system-code axiom-formula)
-       (sjas-formula-codeo prog theorem-code theorem-formula)
-       (sjas-formula-codeo prog substituted-code substituted-formula)
-       (sjas-formula-negationo prog theorem-formula neg-theorem)
-       (== (list 'and (list 'and axiom-formula substituted-formula) neg-theorem)
-           target)
-       (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
-       (== sigma-proof sigma-out)])
+       (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
     (== neqs neqs-out)
     (== (list 'profiled 'willard-sjas-subst-proof-check
               proof-read-proof

@@ -208,6 +208,14 @@
     system
     '(forall v0 (pos (app wff (var v0))))))
 
+(defn- proof-symbol-count
+  "Count proof-symbol leaves in an encoded kernel proof payload."
+  [proof]
+  (cond
+    (symbol? proof) 1
+    (sequential? proof) (reduce + 0 (map proof-symbol-count proof))
+    :else 0))
+
 (deftest sjas-system-builder-generates-groups-and-reflected-boundary
   (testing "users supply beta/program clauses; the builder supplies codes and Group-3"
     (let [system (demo-system :willard-sjas-tableau0)]
@@ -287,6 +295,43 @@
           "hash-derived code labels must not be formal language constants")
       (is (nil? (get-in system [:program :sjas/proof-targets]))
           "tableau-proof must decode theorem/system code terms, not use host target labels"))))
+
+(deftest sjas-byte-codes-preserve-sequence-length-and-trailing-zeroes
+  (testing "public code terms are byte strings, not lossy natural labels"
+    (let [bytes [1 0]
+          code (sjas-code/bytes->code-term bytes)
+          normalized-through-natural (sjas-code/code-term
+                                       (sjas-code/bytes->natural bytes))]
+      (is (= bytes (sjas-code/code-term-bytes code)))
+      (is (not= bytes (sjas-code/code-term-bytes normalized-through-natural))
+          "natural-number views are diagnostic; byte-sequence encoders must not use them when trailing zeroes matter"))))
+
+(deftest sjas-formula-codes-preserve-trailing-zero-embedded-code-payloads
+  (testing "an embedded code term at formula end remains structurally decodable"
+    (let [system (demo-system :willard-sjas-level1)
+          embedded (sjas-code/bytes->code-term [1 0])
+          formula (sjas/wff embedded)
+          formula-code (sjas/formula-code system formula)
+          formula-bytes (sjas-code/code-term-bytes formula-code)]
+      (is (= 0 (last formula-bytes))
+          "this regression must exercise a formula code whose final byte is zero")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/wff formula-code)
+              1
+              96))))))
+
+(deftest sjas-proof-codes-are-byte-strings-with-symbol-bit-lower-bound
+  (testing "proof certificates encode proof syntax rather than hashing it"
+    (let [proof '(conj (profiled willard-sjas-proof-check (sjas-code-bytes) sjas-axiom))
+          bytes (sjas-code/proof-code-bytes proof)
+          certificate (sjas-code/proof-code-term proof)
+          symbol-count (proof-symbol-count proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= bytes (sjas-code/code-term-bytes certificate)))
+      (is (<= (* 5 symbol-count) (* 6 (count bytes)))
+          "Willard's ordinary-tableau coding requirement needs at least five bits per encoded proof symbol"))))
 
 (deftest sjas-syntax-predicates-decode-formula-godel-codes
   (testing "wff, class predicates, and neg-pair are derived from formula Godel codes"

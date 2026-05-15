@@ -436,6 +436,12 @@ Generated code terms are visible at the object-language boundary:
 ;; => a base-64 byte vector for the generated Group-3 formula
 ```
 
+ADR-0070 tightened this boundary: formula, system, and proof encoders now build
+public `code-N` terms directly from byte strings. Natural-number views remain
+available for diagnostics, but they are not used to reconstruct canonical
+syntax/proof codes because base-64 natural conversion forgets trailing zero
+bytes. This matters when a formula ends with an embedded code payload.
+
 The compiled program intentionally leaves `:sjas/proof-targets` nil. The proof
 profile instead decodes `system-code`, `theorem-code`, and `proof-code` through
 the generated code registry and the proof byte decoder. `SelfCons0` therefore

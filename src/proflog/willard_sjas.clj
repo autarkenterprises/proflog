@@ -557,14 +557,14 @@
     (->> formulas
          (map (fn [formula]
                 (let [canonical (canonical-formula formula {})
-                      value (sjas-code/canonical-formula-code-value coding-context canonical)]
-                  [value (sjas-code/code-term value) formula])))
-         (reduce (fn [acc [value code formula]]
-                   (if (some #(= value (first %)) acc)
+                      bytes (sjas-code/canonical-formula-code-bytes coding-context canonical)]
+                  [bytes (sjas-code/bytes->code-term bytes) formula])))
+         (reduce (fn [acc [bytes code formula]]
+                   (if (some #(= bytes (first %)) acc)
                      acc
-                     (conj acc [value code formula])))
+                     (conj acc [bytes code formula])))
                  [])
-         (map (fn [[_value code formula]] [code formula]))
+         (map (fn [[_bytes code formula]] [code formula]))
          (apply list))))
 
 (defn- symbol-index-entries

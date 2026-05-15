@@ -72,3 +72,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0067](AAR-0067-sjas-structural-code-decoder.md) | [ADR-0067](../adr/ADR-0067-sjas-structural-code-decoder.md) | completed |
 | [AAR-0068](AAR-0068-sjas-structural-theorem-targets.md) | [ADR-0068](../adr/ADR-0068-sjas-structural-theorem-targets.md) | completed |
 | [AAR-0069](AAR-0069-sjas-general-subst-code.md) | [ADR-0069](../adr/ADR-0069-sjas-general-subst-code.md) | completed |
+| [AAR-0070](AAR-0070-sjas-byte-sequence-coding-audit.md) | [ADR-0070](../adr/ADR-0070-sjas-byte-sequence-coding-audit.md) | completed |

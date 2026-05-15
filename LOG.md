@@ -22,6 +22,29 @@ complete contemporaneous transcript.
 
 ## 2026-05-15
 
+- Started [ADR-0070](docs/adr/ADR-0070-sjas-byte-sequence-coding-audit.md) on
+  branch `adr-0070-sjas-tableau-proof-coding-audit`. The Willard corpus was
+  rechecked for the user's proof-coding question: Willard explicitly codes both
+  formulae and semantic-tableaux proofs through `Prf`, `SemPrf`, `ExPrf`, and
+  `SubstPrf`. The selected Proflog target remains finite ordinary-tableau
+  `IS#_D(beta)`, with Tab-1/Tab-k deferred. The immediate implementation audit
+  is to preserve public byte-string codes directly, rather than normalizing them
+  through a natural-number conversion that can drop trailing zero bytes. See
+  [SJAS Proof-Coding Citations](docs/log/2026-05-15-sjas-proof-coding-citations.md).
+- Completed [ADR-0070](docs/adr/ADR-0070-sjas-byte-sequence-coding-audit.md)
+  on branch `adr-0070-sjas-tableau-proof-coding-audit`. Canonical formula,
+  system, and proof code terms now preserve exact byte strings directly, so
+  embedded code payloads ending in byte `0` remain decodable by `wff/1`.
+  Formula-entry deduplication now keys by byte vector rather than lossy natural
+  value. Focused red-green evidence showed the trailing-zero formula-code
+  regression failing before the change and passing after it. Verification:
+  `lein test-proflog-sjas-slow` passed with `5` tests, `22` assertions,
+  `real 16m40.470s`; `lein test-proflog-sjas` passed with `29` tests, `195`
+  assertions, `real 32m32.713s`; `lein test-proflog-fast` passed with `145`
+  tests, `548` assertions, `real 2m37.518s`; and
+  `lein test-proflog-extended` passed with `68` tests, `203` assertions,
+  `real 5m33.947s`. See
+  [AAR-0070](docs/aar/AAR-0070-sjas-byte-sequence-coding-audit.md).
 - Completed [ADR-0069](docs/adr/ADR-0069-sjas-general-subst-code.md) on branch
   `adr-0069-sjas-general-subst-code`. `subst-code/2` now decodes formula-code
   bytes and computes diagonal substitution structurally, including non-generated

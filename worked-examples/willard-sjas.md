@@ -1,6 +1,6 @@
 # Willard SJAS Base-64 Coding and Substitution-Proof Profile Example
 
-This example documents ADR-0058 through ADR-0066 and the focused regression in
+This example documents ADR-0058 through ADR-0067 and the focused regression in
 `test/proflog/willard_sjas_test.clj`. It demonstrates the Willard-style SJAS
 builder, binary U-grounding arithmetic, reflected axiom Godel-code terms, and
 kernel-checked proof certificates. ADR-0062 made the self-consistency
@@ -12,7 +12,9 @@ substitution-proof vocabulary rather than raw `tableau-proof/3`. ADR-0065
 corrects the fixed-point substitution argument: Level-1 Group-3 now cites the
 code of its own `Gamma_1(g)` skeleton, not the system code. ADR-0066 exposes
 that finite substitution boundary as the `subst-code/2` object-language
-relation.
+relation. ADR-0067 adds a structural decoder so syntax, formula-class,
+negation-pair, and identity-substitution predicates can inspect well-formed
+formula codes that were not pre-enumerated as generated axioms.
 
 Run the focused regression:
 
@@ -23,9 +25,9 @@ lein test-proflog-sjas
 Current result:
 
 ```text
-Ran 22 tests containing 169 assertions.
+Ran 23 tests containing 174 assertions.
 0 failures, 0 errors.
-real 561.14 s
+real 767.20 s
 ```
 
 The explicit slow fixed-point selector is also available:
@@ -747,6 +749,59 @@ Here the substitution code maps to Group-3, while the theorem being proved is
 the beta axiom. This matches the separation between `Subst(g,h)` and
 `SubstPrf(g,t,p)`.
 
+## Structural Formula-Code Predicates
+
+ADR-0067 removes a registry-only behavior from the code predicates. A caller
+can now construct the Godel code for a closed formula that is valid in the
+active SJAS language but not one of the generated Group axioms, and the profile
+will parse the code bytes directly.
+
+The regression uses the formula:
+
+```text
+lt(1, 2)
+```
+
+In Clojure:
+
+```clojure
+(let [level1-system (demo-system :willard-sjas-level1)
+      formula (sjas/lt sjas/one sjas/two)
+      code (sjas/formula-code level1-system formula)
+      complement-code (sjas/formula-code
+                        level1-system
+                        (normalize/negate-formula formula))]
+  [(query/query-succeeds
+     (:program level1-system)
+     (sjas/wff code)
+     1
+     32)
+   (query/query-succeeds
+     (:program level1-system)
+     (sjas/delta-star-0-code code)
+     1
+     32)
+   (query/query-succeeds
+     (:program level1-system)
+     (sjas/neg-pair code complement-code)
+     1
+     48)
+   (query/query-succeeds
+     (:program level1-system)
+     (sjas/subst-code code code)
+     1
+     48)])
+;; => four non-empty proof result slices
+```
+
+This matters because `lt(1,2)` is not generated as a Group axiom. Before
+ADR-0067, all four queries failed because the code was absent from the finite
+formula registry. After ADR-0067, the profile decodes formula tags, term tags,
+symbol indexes, arities, and complements from the code bytes themselves.
+
+The test is marked `^:slow`; the focused isolated passing run took
+`real 98.85 s`.
+
 ## Bounded Contradiction Probe
 
 The focused suite keeps the Level-1 contradiction probe bounded and concrete.
@@ -769,17 +824,21 @@ external consistency-preservation metatheorem.
   historical Willard proof-list encoding.
 - Tab-1/proof-list theorem reuse is not implemented or claimed. The Level-1
   profile reflects plain semantic tableaux as the deduction method `D`.
-- `subst-code/2` currently uses a finite substitution boundary for one
-  `IS#_D(beta)` system: identity entries for ordinary generated formulas plus
-  the generated `SelfCons` skeleton-to-Group-3 fixed-point entry. A general
-  code-level `Subst` evaluator over arbitrary formula codes remains the next
-  fidelity gap.
+- `subst-code/2` now has a structural identity route for well-formed formula
+  codes, plus the generated `SelfCons` skeleton-to-Group-3 fixed-point entry.
+  Non-identity substitution is still finite for the current `IS#_D(beta)`
+  system.
+- `tableau-proof/3` still uses a theorem-code-to-kernel-formula bridge for
+  proof targets. Syntax predicates now parse arbitrary well-formed formula
+  codes, but proof checking arbitrary theorem codes remains the next fidelity
+  gap.
 - The self-justification demonstration is non-vacuous at the proof-predicate
   boundary, but it is still a finite `IS#_D(beta)`-style executable substrate,
   not a mechanized proof of Willard's consistency-preservation theorem.
-- The arithmetic profile is relational, but some reverse modes are still
-  operationally expensive. The fixed-point certificate test is marked `^:slow`
-  and currently takes about `91.34 s` in isolation; open certificate synthesis
-  remains outside the focused suite.
+- The arithmetic and code profiles are relational, but some reverse and
+  code-decoding modes are still operationally expensive. The slow selector now
+  includes the fixed-point certificate and structural decoder tests and passed
+  with `real 170.85 s`; open certificate synthesis remains outside the focused
+  suite.
 - Passing bounded contradiction probes do not prove Willard's external
   consistency-preservation theorem.

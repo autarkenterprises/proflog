@@ -22,6 +22,22 @@ complete contemporaneous transcript.
 
 ## 2026-05-14
 
+- Completed [ADR-0067](docs/adr/ADR-0067-sjas-structural-code-decoder.md) on
+  branch `adr-0067-sjas-code-decoder`. The SJAS profile now structurally parses
+  formula-code byte streams for `wff/1`, formula-class predicates,
+  `neg-pair/2`, and identity `subst-code/2`, so a valid non-generated formula
+  code such as `lt(1,2)` no longer has to appear in the finite generated axiom
+  registry. The new semantic test is marked `^:slow`. Verification:
+  `lein test-proflog-sjas-slow` passed with `2` tests, `8` assertions, `real
+  170.85 s`; `lein test-proflog-sjas` passed with `23` tests, `174`
+  assertions, `real 767.20 s`; `lein test-proflog-fast` passed with `145`
+  tests, `548` assertions, `real 129.36 s`; and
+  `lein test-proflog-extended` passed with `68` tests, `203` assertions,
+  `real 299.24 s`. The remaining SJAS proof boundary is that
+  `tableau-proof/3` still bridges theorem codes to kernel AST formulas for
+  arbitrary proof targets. See
+  [AAR-0067](docs/aar/AAR-0067-sjas-structural-code-decoder.md) and
+  [SJAS Structural Code Decoder](docs/log/2026-05-14-sjas-structural-code-decoder.md).
 - Completed [ADR-0066](docs/adr/ADR-0066-sjas-subst-relation.md) on branch
   `adr-0066-sjas-subst-relation`. The finite SJAS substitution boundary is now
   exposed as `subst-code/2`, with identity entries for generated closed

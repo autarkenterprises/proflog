@@ -69,3 +69,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0064](AAR-0064-sjas-substitution-proof-predicate.md) | [ADR-0064](../adr/ADR-0064-sjas-substitution-proof-predicate.md) | completed |
 | [AAR-0065](AAR-0065-sjas-selfcons-substitution-fixpoint.md) | [ADR-0065](../adr/ADR-0065-sjas-selfcons-substitution-fixpoint.md) | completed |
 | [AAR-0066](AAR-0066-sjas-subst-relation.md) | [ADR-0066](../adr/ADR-0066-sjas-subst-relation.md) | completed |
+| [AAR-0067](AAR-0067-sjas-structural-code-decoder.md) | [ADR-0067](../adr/ADR-0067-sjas-structural-code-decoder.md) | completed |

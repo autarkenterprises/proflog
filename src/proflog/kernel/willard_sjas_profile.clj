@@ -397,6 +397,415 @@
     (== sigma sigma-out)
     (== '(sjas-code-bytes) proof)))
 
+;; -----------------------------------------------------------------------------
+;; Formula-code byte decoding
+;; -----------------------------------------------------------------------------
+
+(def ^:private formula-true-tag 1)
+(def ^:private formula-false-tag 2)
+(def ^:private formula-pos-tag 3)
+(def ^:private formula-neg-tag 4)
+(def ^:private formula-eq-tag 5)
+(def ^:private formula-neq-tag 6)
+(def ^:private formula-and-tag 7)
+(def ^:private formula-or-tag 8)
+(def ^:private formula-not-tag 9)
+(def ^:private formula-implies-tag 10)
+(def ^:private formula-forall-tag 11)
+(def ^:private formula-once-forall-tag 12)
+(def ^:private formula-exists-tag 13)
+(def ^:private formula-bounded-forall-tag 14)
+(def ^:private formula-bounded-exists-tag 15)
+
+(def ^:private term-var-tag 21)
+(def ^:private term-par-tag 22)
+(def ^:private term-app-tag 23)
+(def ^:private term-code-tag 24)
+
+(def ^:private positive-byte-entries
+  (apply list (range 1 sjas-code/byte-base)))
+
+(defn- positive-byteo
+  [byte]
+  (membero byte positive-byte-entries))
+
+(defn- sjas-symbol-indexo
+  "Relate a formula-code symbol index to a declared object-language symbol."
+  [prog idx sym]
+  (fresh [entry]
+    (membero entry (or (:sjas/symbol-index-entries
+                         (or (some-> prog :sjas/registry deref) prog))
+                       '()))
+    (== [idx sym] entry)))
+
+(declare decode-formula-byteso decode-term-byteso)
+
+(defn- parse-term-list-byteso
+  [prog remaining bytes rest terms]
+  (if (zero? remaining)
+    (conde
+      [(== bytes rest)
+       (== '() terms)])
+    (fresh [head tail after-head]
+      (decode-term-byteso prog bytes after-head head)
+      (parse-term-list-byteso prog (dec remaining) after-head rest tail)
+      (== (lcons head tail) terms))))
+
+(defn- parse-code-payload-byteso
+  [remaining bytes rest payload]
+  (if (zero? remaining)
+    (conde
+      [(== bytes rest)
+       (== '() payload)])
+    (fresh [byte tail after-byte]
+      (== (lcons byte after-byte) bytes)
+      (parse-code-payload-byteso (dec remaining) after-byte rest tail)
+      (== (lcons byte tail) payload))))
+
+(defn- decode-embedded-code-bodyo
+  "Decode the payload of an embedded code term after its tag has matched."
+  [after-tag rest term]
+  (or*
+    (map (fn [byte-count]
+           (let [low (mod byte-count sjas-code/byte-base)
+                 high (quot byte-count sjas-code/byte-base)]
+             (fresh [payload-bytes payload]
+               (== (lcons low
+                           (lcons high payload-bytes))
+                   after-tag)
+               (parse-code-payload-byteso byte-count payload-bytes rest payload)
+               (== (list 'code payload) term))))
+         (range (inc sjas-code/max-code-bytes)))))
+
+(defn- decode-embedded-code-termo
+  "Decode a code term embedded inside a formula-code byte stream.
+
+   The length header uses two base-64 bytes. The expensive length enumeration
+   happens only after the term-code tag has matched, so ordinary numeral and
+   relation atoms fail this branch with one unification."
+  [bytes rest term]
+  (fresh [after-tag]
+    (== (lcons term-code-tag after-tag) bytes)
+    (decode-embedded-code-bodyo after-tag rest term)))
+
+(defn- decode-app-termo
+  [prog bytes rest term]
+  (fresh [symbol-index after-symbol sym]
+    (== (lcons term-app-tag
+                (lcons symbol-index after-symbol))
+        bytes)
+    (sjas-symbol-indexo prog symbol-index sym)
+    (or*
+      (map (fn [arity]
+             (fresh [arg-bytes args]
+               (== (lcons (inc arity) arg-bytes) after-symbol)
+               (parse-term-list-byteso prog arity arg-bytes rest args)
+               (== (list 'app sym args) term)))
+           (range 63)))))
+
+(defn- decode-term-byteso
+  "Parse one canonical SJAS term from a flat formula-code byte stream.
+
+   The decoded term is an internal syntax tree used by the SJAS code predicates,
+   not the public Proflog AST. Keeping this layer separate lets syntax
+   recognition avoid inventing host noms merely to decide that a code is a
+   well-formed formula."
+  [prog bytes rest term]
+  (conde
+    [(fresh [idx after-var]
+       (== (lcons term-var-tag (lcons idx after-var)) bytes)
+       (positive-byteo idx)
+       (== after-var rest)
+       (== (list 'var idx) term))]
+    [(fresh [idx after-par]
+       (== (lcons term-par-tag (lcons idx after-par)) bytes)
+       (positive-byteo idx)
+       (== after-par rest)
+       (== (list 'par idx) term))]
+    [(decode-app-termo prog bytes rest term)]
+    [(decode-embedded-code-termo bytes rest term)]))
+
+(defn- decode-formula-byteso
+  "Parse one canonical formula from a flat SJAS formula-code byte stream."
+  [prog bytes rest formula]
+  (conde
+    [(fresh [after]
+       (== (lcons formula-true-tag after) bytes)
+       (== after rest)
+       (== (list 'true) formula))]
+    [(fresh [after]
+       (== (lcons formula-false-tag after) bytes)
+       (== after rest)
+       (== (list 'false) formula))]
+    [(fresh [term after-tag]
+       (== (lcons formula-pos-tag after-tag) bytes)
+       (decode-term-byteso prog after-tag rest term)
+       (== (list 'pos term) formula))]
+    [(fresh [term after-tag]
+       (== (lcons formula-neg-tag after-tag) bytes)
+       (decode-term-byteso prog after-tag rest term)
+       (== (list 'neg term) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-eq-tag after-tag) bytes)
+       (decode-term-byteso prog after-tag after-left left)
+       (decode-term-byteso prog after-left rest right)
+       (== (list 'eq left right) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-neq-tag after-tag) bytes)
+       (decode-term-byteso prog after-tag after-left left)
+       (decode-term-byteso prog after-left rest right)
+       (== (list 'neq left right) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-and-tag after-tag) bytes)
+       (decode-formula-byteso prog after-tag after-left left)
+       (decode-formula-byteso prog after-left rest right)
+       (== (list 'and left right) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-or-tag after-tag) bytes)
+       (decode-formula-byteso prog after-tag after-left left)
+       (decode-formula-byteso prog after-left rest right)
+       (== (list 'or left right) formula))]
+    [(fresh [body after-tag]
+       (== (lcons formula-not-tag after-tag) bytes)
+       (decode-formula-byteso prog after-tag rest body)
+       (== (list 'not body) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-implies-tag after-tag) bytes)
+       (decode-formula-byteso prog after-tag after-left left)
+       (decode-formula-byteso prog after-left rest right)
+       (== (list 'implies left right) formula))]
+    [(fresh [idx body after-idx]
+       (== (lcons formula-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-formula-byteso prog after-idx rest body)
+       (== (list 'forall idx body) formula))]
+    [(fresh [idx body after-idx]
+       (== (lcons formula-once-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-formula-byteso prog after-idx rest body)
+       (== (list 'once-forall idx body) formula))]
+    [(fresh [idx body after-idx]
+       (== (lcons formula-exists-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-formula-byteso prog after-idx rest body)
+       (== (list 'exists idx body) formula))]
+    [(fresh [idx bound body after-idx after-bound]
+       (== (lcons formula-bounded-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-term-byteso prog after-idx after-bound bound)
+       (decode-formula-byteso prog after-bound rest body)
+       (== (list 'bounded-forall idx bound body) formula))]
+    [(fresh [idx bound body after-idx after-bound]
+       (== (lcons formula-bounded-exists-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-term-byteso prog after-idx after-bound bound)
+       (decode-formula-byteso prog after-bound rest body)
+       (== (list 'bounded-exists idx bound body) formula))]))
+
+(defn- sjas-decode-formula-codeo
+  [prog code sigma sigma-out formula]
+  (fresh [bytes rest read-proof]
+    (sjas-code-byteso code bytes sigma sigma-out read-proof)
+    (decode-formula-byteso prog bytes rest formula)
+    (== '() rest)))
+
+(declare sjas-delta-star-0-formulao
+         sjas-pi-star-1-formulao
+         sjas-sigma-star-1-formulao
+         sjas-formula-complemento
+         sjas-to-nnfo)
+
+(defn- leq-guard-formula
+  [idx bound polarity]
+  (list polarity
+        (list 'app 'leq
+              (list (list 'var idx) bound))))
+
+(defn- sjas-delta-star-0-formulao
+  [formula]
+  (conde
+    [(== (list 'true) formula)]
+    [(== (list 'false) formula)]
+    [(fresh [term] (== (list 'pos term) formula))]
+    [(fresh [term] (== (list 'neg term) formula))]
+    [(fresh [left right] (== (list 'eq left right) formula))]
+    [(fresh [left right] (== (list 'neq left right) formula))]
+    [(fresh [left right]
+       (== (list 'and left right) formula)
+       (sjas-delta-star-0-formulao left)
+       (sjas-delta-star-0-formulao right))]
+    [(fresh [left right]
+       (== (list 'or left right) formula)
+       (sjas-delta-star-0-formulao left)
+       (sjas-delta-star-0-formulao right))]
+    [(fresh [idx bound body]
+       (== (list 'bounded-forall idx bound body) formula)
+       (sjas-delta-star-0-formulao body))]
+    [(fresh [idx bound body]
+       (== (list 'bounded-exists idx bound body) formula)
+       (sjas-delta-star-0-formulao body))]))
+
+(defn- sjas-pi-star-1-formulao
+  [formula]
+  (fresh [idx body]
+    (== (list 'forall idx body) formula)
+    (conde
+      [(sjas-delta-star-0-formulao body)]
+      [(sjas-pi-star-1-formulao body)])))
+
+(defn- sjas-sigma-star-1-formulao
+  [formula]
+  (fresh [idx body]
+    (== (list 'exists idx body) formula)
+    (conde
+      [(sjas-delta-star-0-formulao body)]
+      [(sjas-sigma-star-1-formulao body)])))
+
+(defn- sjas-to-nnfo
+  [formula nnf]
+  (conde
+    [(== (list 'true) formula) (== formula nnf)]
+    [(== (list 'false) formula) (== formula nnf)]
+    [(fresh [term] (== (list 'pos term) formula) (== formula nnf))]
+    [(fresh [term] (== (list 'neg term) formula) (== formula nnf))]
+    [(fresh [left right] (== (list 'eq left right) formula) (== formula nnf))]
+    [(fresh [left right] (== (list 'neq left right) formula) (== formula nnf))]
+    [(fresh [left right left-nnf right-nnf]
+       (== (list 'and left right) formula)
+       (== (list 'and left-nnf right-nnf) nnf)
+       (sjas-to-nnfo left left-nnf)
+       (sjas-to-nnfo right right-nnf))]
+    [(fresh [left right left-nnf right-nnf]
+       (== (list 'or left right) formula)
+       (== (list 'or left-nnf right-nnf) nnf)
+       (sjas-to-nnfo left left-nnf)
+       (sjas-to-nnfo right right-nnf))]
+    [(fresh [body body-complement]
+       (== (list 'not body) formula)
+       (sjas-formula-complemento body body-complement)
+       (sjas-to-nnfo body-complement nnf))]
+    [(fresh [left right left-complement left-nnf right-nnf]
+       (== (list 'implies left right) formula)
+       (== (list 'or left-nnf right-nnf) nnf)
+       (sjas-formula-complemento left left-complement)
+       (sjas-to-nnfo left-complement left-nnf)
+       (sjas-to-nnfo right right-nnf))]
+    [(fresh [idx body body-nnf]
+       (== (list 'forall idx body) formula)
+       (== (list 'forall idx body-nnf) nnf)
+       (sjas-to-nnfo body body-nnf))]
+    [(fresh [idx body body-nnf]
+       (== (list 'once-forall idx body) formula)
+       (== (list 'once-forall idx body-nnf) nnf)
+       (sjas-to-nnfo body body-nnf))]
+    [(fresh [idx body body-nnf]
+       (== (list 'exists idx body) formula)
+       (== (list 'exists idx body-nnf) nnf)
+       (sjas-to-nnfo body body-nnf))]
+    [(fresh [idx bound body body-nnf]
+       (== (list 'bounded-forall idx bound body) formula)
+       (== (list 'forall idx
+                 (list 'or
+                       (leq-guard-formula idx bound 'neg)
+                       body-nnf))
+           nnf)
+       (sjas-to-nnfo body body-nnf))]
+    [(fresh [idx bound body body-nnf]
+       (== (list 'bounded-exists idx bound body) formula)
+       (== (list 'exists idx
+                 (list 'and
+                       (leq-guard-formula idx bound 'pos)
+                       body-nnf))
+           nnf)
+       (sjas-to-nnfo body body-nnf))]))
+
+(defn- sjas-formula-complemento
+  [formula complement]
+  (conde
+    [(== (list 'true) formula)
+     (== (list 'false) complement)]
+    [(== (list 'false) formula)
+     (== (list 'true) complement)]
+    [(fresh [term]
+       (== (list 'pos term) formula)
+       (== (list 'neg term) complement))]
+    [(fresh [term]
+       (== (list 'neg term) formula)
+       (== (list 'pos term) complement))]
+    [(fresh [left right]
+       (== (list 'eq left right) formula)
+       (== (list 'neq left right) complement))]
+    [(fresh [left right]
+       (== (list 'neq left right) formula)
+       (== (list 'eq left right) complement))]
+    [(fresh [left right left-complement right-complement]
+       (== (list 'and left right) formula)
+       (== (list 'or left-complement right-complement) complement)
+       (sjas-formula-complemento left left-complement)
+       (sjas-formula-complemento right right-complement))]
+    [(fresh [left right left-complement right-complement]
+       (== (list 'or left right) formula)
+       (== (list 'and left-complement right-complement) complement)
+       (sjas-formula-complemento left left-complement)
+       (sjas-formula-complemento right right-complement))]
+    [(fresh [body body-nnf]
+       (== (list 'not body) formula)
+       (sjas-to-nnfo body body-nnf)
+       (== body-nnf complement))]
+    [(fresh [left right left-nnf right-complement]
+       (== (list 'implies left right) formula)
+       (== (list 'and left-nnf right-complement) complement)
+       (sjas-to-nnfo left left-nnf)
+       (sjas-formula-complemento right right-complement))]
+    [(fresh [idx body body-complement]
+       (== (list 'forall idx body) formula)
+       (== (list 'exists idx body-complement) complement)
+       (sjas-formula-complemento body body-complement))]
+    [(fresh [idx body body-complement]
+       (== (list 'once-forall idx body) formula)
+       (== (list 'exists idx body-complement) complement)
+       (sjas-formula-complemento body body-complement))]
+    [(fresh [idx body body-complement]
+       (== (list 'exists idx body) formula)
+       (== (list 'once-forall idx body-complement) complement)
+       (sjas-formula-complemento body body-complement))]
+    [(fresh [idx bound body body-complement]
+       (== (list 'bounded-forall idx bound body) formula)
+       (== (list 'exists idx
+                 (list 'and
+                       (leq-guard-formula idx bound 'pos)
+                       body-complement))
+           complement)
+       (sjas-formula-complemento body body-complement))]
+    [(fresh [idx bound body body-complement]
+       (== (list 'bounded-exists idx bound body) formula)
+       (== (list 'once-forall idx
+                 (list 'or
+                       (leq-guard-formula idx bound 'neg)
+                       body-complement))
+           complement)
+       (sjas-formula-complemento body body-complement))]))
+
+(defn- sjas-structural-formula-classo
+  [relation formula]
+  (conde
+    [(== 'delta-star-0-code relation)
+     (sjas-delta-star-0-formulao formula)]
+    [(== 'pi-star-1-code relation)
+     (sjas-pi-star-1-formulao formula)]
+    [(== 'sigma-star-1-code relation)
+     (sjas-sigma-star-1-formulao formula)]))
+
 (defn- proof-symbol-indexo
   [idx sym]
   (fresh [entry]
@@ -614,11 +1023,13 @@
 (defn- sjas-syntax-code-closeo
   "Close generated syntax-code predicates by decoding formula Godel-code terms.
 
-   These predicates are no longer emitted as generated facts. The finite entries
-   here are the system's decode relation: they connect an arithmetic code term
-   to the formula or class information obtained from that code."
+   These predicates are no longer emitted as generated facts. Generated entries
+   remain as a theorem-code bridge for known system formulas, while the
+   structural decoder handles well-formed formula codes that were not generated
+   as Group axioms."
   [fml env sigma sigma-out neqs neqs-out prog proof]
-  (fresh [lit atom walked-atom relation args code left right formula]
+  (fresh [lit atom walked-atom relation args code left right formula
+          complement sigma-mid]
     (subst/subst-formulao fml env lit)
     (== (list 'neg atom) lit)
     (equality/walk-atomo atom sigma walked-atom)
@@ -626,31 +1037,46 @@
     (conde
       [(== 'wff relation)
        (== (lcons code '()) args)
-       (sjas-formula-codeo prog code formula)]
+       (conde
+         [(sjas-formula-codeo prog code formula)
+          (== sigma sigma-out)]
+         [(sjas-decode-formula-codeo prog code sigma sigma-out formula)])]
       [(== (lcons code '()) args)
        (sjas-class-relationo relation)
-       (sjas-formula-classo prog relation code)]
+       (conde
+         [(sjas-formula-classo prog relation code)
+          (== sigma sigma-out)]
+         [(sjas-decode-formula-codeo prog code sigma sigma-out formula)
+          (sjas-structural-formula-classo relation formula)])]
       [(== 'neg-pair relation)
        (== (lcons left (lcons right '())) args)
-       (sjas-neg-pairo prog left right)])
-    (== sigma sigma-out)
+       (conde
+         [(sjas-neg-pairo prog left right)
+          (== sigma sigma-out)]
+         [(sjas-decode-formula-codeo prog left sigma sigma-mid formula)
+          (sjas-decode-formula-codeo prog right sigma-mid sigma-out complement)
+          (sjas-formula-complemento formula complement)])])
     (== neqs neqs-out)
     (== (list 'profiled 'willard-sjas-code relation) proof)))
 
 (defn- sjas-subst-code-closeo
-  "Close finite generated `subst-code/2` facts.
+  "Close generated and structural `subst-code/2` facts.
 
    ADR-0066 separates Willard's `Subst(g,h)` relation from `SubstPrf(g,t,p)`.
-   This branch rule exposes the finite generated substitution table at the
-   object-language predicate boundary."
+   ADR-0067 keeps the generated Level-1 fixed-point entry but accepts identity
+   substitution for any structurally well-formed formula code in the active
+   coding context."
   [fml env sigma sigma-out neqs neqs-out prog proof]
-  (fresh [lit atom walked-atom source-code substituted-code]
+  (fresh [lit atom walked-atom source-code substituted-code formula]
     (subst/subst-formulao fml env lit)
     (== (list 'neg atom) lit)
     (equality/walk-atomo atom sigma walked-atom)
     (== (list 'app 'subst-code source-code substituted-code) walked-atom)
-    (sjas-subst-codeo prog source-code substituted-code)
-    (== sigma sigma-out)
+    (conde
+      [(sjas-subst-codeo prog source-code substituted-code)
+       (== sigma sigma-out)]
+      [(== source-code substituted-code)
+       (sjas-decode-formula-codeo prog source-code sigma sigma-out formula)])
     (== neqs neqs-out)
     (== '(profiled willard-sjas-subst-code) proof)))
 

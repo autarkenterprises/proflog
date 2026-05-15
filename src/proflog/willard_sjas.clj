@@ -567,6 +567,18 @@
          (map (fn [[_value code formula]] [code formula]))
          (apply list))))
 
+(defn- symbol-index-entries
+  "Expose the finite language-code symbol table to the SJAS proof profile.
+
+   Formula codes contain numeric indexes for function and relation symbols. The
+   profile may inspect those indexes relationally, but the finite symbol table is
+   fixed when the user source is translated into this SJAS system."
+  [coding-context]
+  (apply list
+         (map (fn [[sym idx]]
+                [idx sym])
+              (:symbol->index coding-context))))
+
 (defn- formula-negation-entries
   [formula-entries]
   (apply list
@@ -685,6 +697,7 @@
         group3 (first (filter #(= :group-three (:group %)) axioms))
         registry (atom {:sjas/system-code system-code
                         :sjas/fact-atoms (generated-fact-atoms system-code axioms)
+                        :sjas/symbol-index-entries (symbol-index-entries coding-context)
                         :sjas/formula-entries formula-entries
                         :sjas/formula-negation-entries (formula-negation-entries formula-entries)
                         :sjas/formula-class-entries (formula-class-entries formula-entries)

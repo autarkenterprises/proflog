@@ -235,6 +235,35 @@ Current ADR-0066 note:
   `real 97.61 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
   203 assertions`, `0 failures`, `0 errors`, `real 225.08 s`.
 
+Current ADR-0067 note:
+
+- The targeted structural code-decoder red run failed because the code for the
+  valid non-generated formula `lt(1,2)` was absent from the generated SJAS
+  formula registry:
+  `lein test :only proflog.willard-sjas-test/sjas-structural-code-predicates-accept-non-generated-formula-codes`,
+  `Ran 1 tests containing 5 assertions`, `4 failures`, `0 errors`,
+  `real 14.80 s`.
+- After implementing the structural formula-code byte decoder, the same focused
+  selector passed with `Ran 1 tests containing 5 assertions`, `0 failures`,
+  `0 errors`, `real 98.85 s`.
+- Nearby focused regression selectors passed:
+  `sjas-syntax-predicates-decode-formula-godel-codes` with `Ran 1 tests
+  containing 6 assertions`, `real 23.44 s`;
+  `sjas-subst-code-relates-generated-substitution-codes` with `Ran 1 tests
+  containing 3 assertions`, `real 55.64 s`; and
+  `sjas-subst-prf-uses-substitution-code-independently-of-theorem-code` with
+  `Ran 1 tests containing 1 assertions`, `real 33.44 s`.
+- The explicit slow selector `lein test-proflog-sjas-slow` passed with
+  `Ran 2 tests containing 8 assertions`, `0 failures`, `0 errors`,
+  `real 170.85 s`.
+- The focused SJAS structural-decoder gate `lein test-proflog-sjas` passed with
+  `Ran 23 tests containing 174 assertions`, `0 failures`, `0 errors`,
+  `real 767.20 s`.
+- The ADR-0067 regression gates passed with `lein test-proflog-fast`,
+  `Ran 145 tests containing 548 assertions`, `0 failures`, `0 errors`,
+  `real 129.36 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
+  203 assertions`, `0 failures`, `0 errors`, `real 299.24 s`.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

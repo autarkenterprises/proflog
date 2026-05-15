@@ -251,7 +251,12 @@
                 bytes))))
 
 (defn code-term
-  "Write a natural number as a compact public SJAS Godel-code term."
+  "Write a natural number as a compact public SJAS Godel-code term.
+
+   This is a natural-number view, so it uses the canonical base-64 expansion
+   without trailing zero bytes. Syntax and proof encoders that already have a
+   byte string should call `bytes->code-term` directly, preserving the byte
+   count carried by the public `code-N` constructor."
   [value]
   (bytes->code-term (natural->bytes value)))
 
@@ -399,13 +404,23 @@
     (throw (ex-info "Unsupported canonical formula for SJAS coding"
                     {:formula formula}))))
 
+(defn canonical-formula-code-bytes
+  "Return the exact byte string for a canonical formula code.
+
+   The byte string is the formal sequence object. It may legitimately end with
+   zero, for example when the final term is an embedded code payload. Do not
+   reconstruct public syntax codes by round-tripping this value through a
+   natural number, because base-64 naturals have no trailing-zero memory."
+  [ctx canonical-formula]
+  (vec (flatten (encode-canonical-formula-bytes ctx canonical-formula))))
+
 (defn canonical-formula-code-value
   [ctx canonical-formula]
-  (bytes->natural (flatten (encode-canonical-formula-bytes ctx canonical-formula))))
+  (bytes->natural (canonical-formula-code-bytes ctx canonical-formula)))
 
 (defn canonical-formula-code-term
   [ctx canonical-formula]
-  (code-term (canonical-formula-code-value ctx canonical-formula)))
+  (bytes->code-term (canonical-formula-code-bytes ctx canonical-formula)))
 
 (defn- profile-byte
   [profile]
@@ -422,10 +437,10 @@
          (one-byte-count :relation-arity arity)]
         (encode-canonical-formula-bytes ctx body)))
 
-(defn system-code-value
-  "Encode the finite reflected source used to identify an `IS#_D(beta)` basis."
+(defn system-code-bytes
+  "Encode the finite reflected source as its exact byte string."
   [ctx {:keys [profile beta reflected-clauses]}]
-  (bytes->natural
+  (vec
     (flatten
       (concat [system-tag
                (profile-byte profile)
@@ -434,9 +449,14 @@
               [(one-byte-count :reflected-count (count reflected-clauses))]
               (map #(encode-canonical-clause-bytes ctx %) reflected-clauses)))))
 
+(defn system-code-value
+  "Encode the finite reflected source used to identify an `IS#_D(beta)` basis."
+  [ctx canonical-source]
+  (bytes->natural (system-code-bytes ctx canonical-source)))
+
 (defn system-code-term
   [ctx canonical-source]
-  (code-term (system-code-value ctx canonical-source)))
+  (bytes->code-term (system-code-bytes ctx canonical-source)))
 
 (declare proof-code-bytes)
 
@@ -478,4 +498,4 @@
 
 (defn proof-code-term
   [proof]
-  (code-term (proof-code-value proof)))
+  (bytes->code-term (proof-code-bytes proof)))

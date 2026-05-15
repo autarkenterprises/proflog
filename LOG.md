@@ -20,6 +20,25 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-15
+
+- Completed [ADR-0069](docs/adr/ADR-0069-sjas-general-subst-code.md) on branch
+  `adr-0069-sjas-general-subst-code`. `subst-code/2` now decodes formula-code
+  bytes and computes diagonal substitution structurally, including non-generated
+  open formulas, quantifier shadowing, alpha-equivalent fixed-point targets,
+  and the Level-1 `selfcons-skeleton-code -> group-three-code` path without
+  generated substitution entries. `subst-prf/4` now uses source-code
+  well-formedness when only substitution existence is needed and proves the
+  supplied theorem code directly. Verification: `lein test-proflog-sjas-slow`
+  passed with `5` tests, `22` assertions, `real 915.85 s`;
+  `lein test-proflog-sjas` passed with `26` tests, `188` assertions,
+  `real 2057.15 s`; `lein test-proflog-fast` passed with `145` tests,
+  `548` assertions, `real 143.16 s`; and `lein test-proflog-extended` passed
+  with `68` tests, `203` assertions, `real 349.26 s`. See
+  [AAR-0069](docs/aar/AAR-0069-sjas-general-subst-code.md),
+  [SJAS General Subst Code](docs/log/2026-05-15-sjas-general-subst-code.md),
+  and [SJAS IS#_D(beta) Completion Audit](docs/log/2026-05-15-sjas-isdbeta-completion-audit.md).
+
 ## 2026-05-14
 
 - Audited the SJAS implementation after ADR-0068. The finite ordinary-tableau

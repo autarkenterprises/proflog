@@ -32,6 +32,7 @@ important remaining boundary was theorem proof checking: `tableau-proof/3`
 still needed a bridge from theorem code to a kernel AST formula.
 
 Follow-up: ADR-0068 later added structural theorem-target decoding for
-`tableau-proof/3` and `subst-prf/4`. The remaining boundary after ADR-0068 is
-proof-list/Tab-1 theorem reuse over code terms alone, not ordinary theorem-code
-target construction.
+`tableau-proof/3` and `subst-prf/4`; ADR-0069 then added structural diagonal
+formula-code substitution. The remaining boundary is proof-list/Tab-1 theorem
+reuse over code terms alone, not ordinary theorem-code target construction or
+formula-code `Subst`.

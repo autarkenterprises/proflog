@@ -107,6 +107,8 @@ real 287.48 s
 - The implementation still reuses Proflog's kernel AST proof checker after
   decoding theorem codes. It does not yet implement a separate proof-list or
   Tab-1 theorem-reuse checker over code terms alone.
-- Non-identity substitution remains generated for the current finite
-  `IS#_D(beta)` system, except for the Level-1 fixed-point entry.
 - The structural theorem tests are intentionally slow and marked `^:slow`.
+
+Follow-up: ADR-0069 closed the non-identity substitution boundary by replacing
+generated `subst-code` entries with structural diagonal formula-code
+substitution.

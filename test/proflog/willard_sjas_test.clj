@@ -188,6 +188,26 @@
   [system formula]
   (normalize/negate-formula (sjas/theorem-query system formula)))
 
+(defn- canonical-formula-code
+  [system canonical-formula]
+  (sjas-code/canonical-formula-code-term (:coding-context system)
+                                         canonical-formula))
+
+(defn- wff-var0-substitution-codes
+  [system]
+  (let [source-formula '(pos (app wff (var v0)))
+        source-code (canonical-formula-code system source-formula)
+        target-formula (list 'pos (list 'app 'wff source-code))
+        target-code (canonical-formula-code system target-formula)]
+    {:source-code source-code
+     :target-code target-code}))
+
+(defn- shadowed-var0-substitution-code
+  [system]
+  (canonical-formula-code
+    system
+    '(forall v0 (pos (app wff (var v0))))))
+
 (deftest sjas-system-builder-generates-groups-and-reflected-boundary
   (testing "users supply beta/program clauses; the builder supplies codes and Group-3"
     (let [system (demo-system :willard-sjas-tableau0)]
@@ -634,7 +654,6 @@
 (deftest sjas-subst-prf-checks-identity-substitution-certificates
   (let [system (demo-system :willard-sjas-level1)
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
-        group3-record (:group-three system)
         beta-proof (first-proof
                      (sjas/query-succeeds system (:formula beta-record)
                                           {:proof-limit 1
@@ -656,7 +675,7 @@
             (:program system)
             (sjas/subst-prf (:system-code system)
                             (:code beta-record)
-                            (:code group3-record)
+                            (:system-code system)
                             valid)
             1
             80)))
@@ -700,7 +719,7 @@
             1
             96)))))
 
-(deftest sjas-subst-code-relates-generated-substitution-codes
+(deftest sjas-subst-code-relates-structural-substitution-codes
   (let [system (demo-system :willard-sjas-level1)
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
         group3-record (:group-three system)]
@@ -725,6 +744,37 @@
                              (:code group3-record))
             1
             96)))))
+
+(deftest ^:slow sjas-subst-code-computes-general-formula-code-substitution
+  (let [system (demo-system :willard-sjas-level1)
+        {:keys [source-code target-code]} (wff-var0-substitution-codes system)
+        shadowed-code (shadowed-var0-substitution-code system)
+        registry @(get-in system [:program :sjas/registry])]
+    (is (nil? (:sjas/subst-code-entries registry))
+        "general Subst must not be implemented by generated substitution entries")
+    (is (sjas-code/code-term? source-code))
+    (is (sjas-code/code-term? target-code))
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-code source-code target-code)
+            1
+            240))
+        "Subst should replace free v0 with the source formula's own code term")
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-code source-code source-code)
+            1
+            160))
+        "open formulas containing free v0 must not pass through identity")
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-code shadowed-code shadowed-code)
+            1
+            160))
+        "a quantifier binding v0 shadows the substitution variable")))
 
 (deftest sjas-subst-prf-uses-substitution-code-independently-of-theorem-code
   (let [system (demo-system :willard-sjas-level1)

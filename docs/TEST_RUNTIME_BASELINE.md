@@ -294,6 +294,41 @@ Current ADR-0068 note:
   `real 129.32 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
   203 assertions`, `0 failures`, `0 errors`, `real 287.48 s`.
 
+Current ADR-0069 note:
+
+- The targeted general-substitution red run failed as intended:
+  `lein test :only proflog.willard-sjas-test/sjas-subst-code-computes-general-formula-code-substitution`,
+  `Ran 1 tests containing 6 assertions`, `3 failures`, `0 errors`,
+  `real 71.95 s`. The failures showed generated substitution entries were
+  still present, the non-identity `wff(v0)` substitution did not work, and the
+  open-formula identity fallback was unsound.
+- Focused post-implementation selectors passed:
+  `sjas-subst-code-computes-general-formula-code-substitution` with
+  `Ran 1 tests containing 6 assertions`, `0 failures`, `0 errors`,
+  `real 166.54 s`; `sjas-subst-code-relates-structural-substitution-codes`
+  with `Ran 1 tests containing 3 assertions`, `0 failures`, `0 errors`,
+  `real 222.93 s`; `sjas-subst-prf-uses-substitution-code-independently-of-theorem-code`
+  with `Ran 1 tests containing 1 assertions`, `0 failures`, `0 errors`,
+  `real 194.00 s`; `sjas-subst-prf-checks-identity-substitution-certificates`
+  with `Ran 1 tests containing 5 assertions`, `0 failures`, `0 errors`,
+  `real 335.45 s`; and
+  `sjas-subst-prf-checks-selfcons-fixed-point-certificate` with `Ran 1 tests
+  containing 3 assertions`, `0 failures`, `0 errors`, `real 434.16 s`.
+- Diagnostic split timing for the fixed-point certificate showed
+  `tableau-proof` at about `27.16 s`, valid skeleton `subst-prf` at about
+  `205.88 s`, and invalid system-code rejection at about `187.58 s`. This is
+  the expected cost of structural source-code decoding without generated
+  substitution entries.
+- The explicit slow selector `lein test-proflog-sjas-slow` passed with
+  `Ran 5 tests containing 22 assertions`, `0 failures`, `0 errors`,
+  `real 915.85 s`.
+- The full SJAS gate `lein test-proflog-sjas` passed with `Ran 26 tests
+  containing 188 assertions`, `0 failures`, `0 errors`, `real 2057.15 s`.
+- The ADR-0069 regression gates passed with `lein test-proflog-fast`,
+  `Ran 145 tests containing 548 assertions`, `0 failures`, `0 errors`,
+  `real 143.16 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
+  203 assertions`, `0 failures`, `0 errors`, `real 349.26 s`.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

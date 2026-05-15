@@ -610,24 +610,6 @@
                       [complement-code code]]))
                  axioms)))
 
-(defn- subst-code-entries
-  "Return the finite substitution boundary used by ADR-0066.
-
-   Full Willard substitution is a relation over arbitrary formula codes. The
-   finite `IS#_D(beta)` substrate exposes the right public predicate while
-   recording identity substitutions for ordinary generated formulas and the
-   required fixed-point substitution from the SelfCons skeleton code to the
-   final Group-3 sentence. Later ADRs can replace these entries with a general
-   code-level `Subst` decoder."
-  [formula-entries group3]
-  (let [group3-code (:code group3)
-        identity-entries (map (fn [[code _formula]]
-                                [code code])
-                              formula-entries)
-        fixed-point-entry (when-let [skeleton-code (:selfcons-skeleton-code group3)]
-                            [[skeleton-code group3-code]])]
-    (apply list (concat identity-entries fixed-point-entry))))
-
 (defn system
   "Build a finite reflected SJAS system.
 
@@ -702,8 +684,6 @@
                         :sjas/formula-negation-entries (formula-negation-entries formula-entries)
                         :sjas/formula-class-entries (formula-class-entries formula-entries)
                         :sjas/neg-pair-entries (neg-pair-entries coding-context axioms)
-                        :sjas/subst-code-entries (subst-code-entries formula-entries
-                                                                     group3)
                         :sjas/system-entries (list [system-code proof-axiom-formula])})
         program (assoc (language/compile-program lang clauses)
                        :sjas/system-code nil

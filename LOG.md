@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-05-14
 
+- Audited the SJAS implementation after ADR-0068. The finite ordinary-tableau
+  `IS#_D(beta)` substrate now has arithmetized formula/system/proof codes,
+  structural syntax predicates, Level-1 substitution-proof vocabulary,
+  fixed-point substitution, structural theorem-code proof targets, and passing
+  slow/fast/extended gates. Remaining documented non-goals are Tab-1/proof-list
+  theorem reuse, general non-identity substitution beyond the generated
+  fixed-point entry, and open proof-code synthesis. See
+  [SJAS Completion Audit](docs/log/2026-05-14-sjas-completion-audit.md).
 - Completed [ADR-0068](docs/adr/ADR-0068-sjas-structural-theorem-targets.md)
   on branch `adr-0068-sjas-theorem-code-targets`. `tableau-proof/3` and
   `subst-prf/4` can now check real certificates for non-generated theorem codes

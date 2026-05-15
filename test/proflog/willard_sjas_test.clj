@@ -304,6 +304,42 @@
               1
               128))))))
 
+(deftest ^:slow sjas-structural-code-predicates-accept-non-generated-formula-codes
+  (testing "formula-code predicates parse codes beyond the generated axiom registry"
+    (let [system (demo-system :willard-sjas-level1)
+          formula (sjas/lt sjas/one sjas/two)
+          code (sjas/formula-code system formula)
+          complement-code (sjas/formula-code system
+                                             (normalize/negate-formula formula))
+          registry @(get-in system [:program :sjas/registry])
+          generated-codes (set (map first (:sjas/formula-entries registry)))]
+      (is (not (contains? generated-codes code))
+          "the test formula must not be one of the finite generated axiom entries")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/wff code)
+              1
+              32)))
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/delta-star-0-code code)
+              1
+              32)))
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/neg-pair code complement-code)
+              1
+              48)))
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/subst-code code code)
+              1
+              48))))))
+
 (deftest sjas-source-builder-accepts-prefix-program-sections
   (testing "source users do not need to hand-build backend AST clauses"
     (let [system (sjas/system-source

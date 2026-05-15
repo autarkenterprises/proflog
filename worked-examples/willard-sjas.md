@@ -1,6 +1,6 @@
 # Willard SJAS Base-64 Coding and Substitution-Proof Profile Example
 
-This example documents ADR-0058 through ADR-0067 and the focused regression in
+This example documents ADR-0058 through ADR-0068 and the focused regression in
 `test/proflog/willard_sjas_test.clj`. It demonstrates the Willard-style SJAS
 builder, binary U-grounding arithmetic, reflected axiom Godel-code terms, and
 kernel-checked proof certificates. ADR-0062 made the self-consistency
@@ -14,7 +14,9 @@ code of its own `Gamma_1(g)` skeleton, not the system code. ADR-0066 exposes
 that finite substitution boundary as the `subst-code/2` object-language
 relation. ADR-0067 adds a structural decoder so syntax, formula-class,
 negation-pair, and identity-substitution predicates can inspect well-formed
-formula codes that were not pre-enumerated as generated axioms.
+formula codes that were not pre-enumerated as generated axioms. ADR-0068 lets
+`tableau-proof/3` and `subst-prf/4` build proof targets from decoded theorem
+codes as well.
 
 Run the focused regression:
 
@@ -25,9 +27,9 @@ lein test-proflog-sjas
 Current result:
 
 ```text
-Ran 23 tests containing 174 assertions.
+Ran 25 tests containing 182 assertions.
 0 failures, 0 errors.
-real 767.20 s
+real 1947.15 s
 ```
 
 The explicit slow fixed-point selector is also available:
@@ -802,6 +804,70 @@ symbol indexes, arities, and complements from the code bytes themselves.
 The test is marked `^:slow`; the focused isolated passing run took
 `real 98.85 s`.
 
+## Structural Theorem-Code Proof Targets
+
+ADR-0068 applies the structural code route to proof targets. The same
+non-generated arithmetic theorem can now be used as the theorem code for
+`tableau-proof/3`:
+
+```clojure
+(let [system (demo-system :willard-sjas-tableau0)
+      theorem (sjas/lt sjas/one sjas/two)
+      theorem-code (sjas/formula-code system theorem)
+      theorem-proof (first
+                      (sjas/query-succeeds
+                        system
+                        theorem
+                        {:proof-limit 1
+                         :fuel 96}))
+      certificate (sjas/proof-certificate theorem-proof)]
+  (query/query-succeeds
+    (:program system)
+    (sjas/tableau-proof (:system-code system)
+                        theorem-code
+                        certificate)
+    1
+    180))
+;; => one proof
+```
+
+The proof predicate no longer has to find `theorem-code` in the generated
+formula registry. It decodes the theorem code, computes the complement of
+`lt(1,2)`, converts that complement to a kernel formula, and asks the core
+kernel to validate the supplied certificate against the usual
+`axiom-basis AND not(theorem)` target.
+
+The negative control replaces the theorem code with `lt(2,1)` and returns `()`
+for the same certificate.
+
+The substitution-proof predicate uses the same structural theorem route for
+identity substitution:
+
+```clojure
+(let [system (demo-system :willard-sjas-level1)
+      theorem (sjas/lt sjas/one sjas/two)
+      theorem-code (sjas/formula-code system theorem)
+      theorem-proof (first
+                      (sjas/query-succeeds
+                        system
+                        theorem
+                        {:proof-limit 1
+                         :fuel 96}))
+      certificate (sjas/proof-certificate theorem-proof)]
+  (query/query-succeeds
+    (:program system)
+    (sjas/subst-prf (:system-code system)
+                    theorem-code
+                    theorem-code
+                    certificate)
+    1
+    220))
+;; => one proof
+```
+
+The focused passing runs took `real 111.13 s` for `tableau-proof/3` and
+`real 175.84 s` for `subst-prf/4`.
+
 ## Bounded Contradiction Probe
 
 The focused suite keeps the Level-1 contradiction probe bounded and concrete.
@@ -828,17 +894,18 @@ external consistency-preservation metatheorem.
   codes, plus the generated `SelfCons` skeleton-to-Group-3 fixed-point entry.
   Non-identity substitution is still finite for the current `IS#_D(beta)`
   system.
-- `tableau-proof/3` still uses a theorem-code-to-kernel-formula bridge for
-  proof targets. Syntax predicates now parse arbitrary well-formed formula
-  codes, but proof checking arbitrary theorem codes remains the next fidelity
-  gap.
+- Proof predicates now decode ordinary non-generated theorem codes into kernel
+  targets, but the checker still reuses Proflog's kernel AST proof engine after
+  decoding. There is not yet a separate proof-list/Tab-1 theorem-reuse checker
+  operating wholly on code terms.
 - The self-justification demonstration is non-vacuous at the proof-predicate
   boundary, but it is still a finite `IS#_D(beta)`-style executable substrate,
   not a mechanized proof of Willard's consistency-preservation theorem.
 - The arithmetic and code profiles are relational, but some reverse and
   code-decoding modes are still operationally expensive. The slow selector now
-  includes the fixed-point certificate and structural decoder tests and passed
-  with `real 170.85 s`; open certificate synthesis remains outside the focused
+  includes the fixed-point certificate, structural decoder, structural
+  `tableau-proof/3`, and structural `subst-prf/4` tests and passed with
+  `real 452.96 s`; open certificate synthesis remains outside the focused
   suite.
 - Passing bounded contradiction probes do not prove Willard's external
   consistency-preservation theorem.

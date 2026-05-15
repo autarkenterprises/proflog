@@ -27,8 +27,11 @@ After ADR-0067, the Willard profile parses formula-code bytes structurally:
 - identity substitution succeeds for any structurally well-formed formula code.
 
 The finite registry remains in use for generated facts that really are finite
-system membership, especially `axiom-member/2`. The important remaining
-boundary is theorem proof checking: `tableau-proof/3` still needs a bridge from
-theorem code to a kernel AST formula. That bridge should be removed by a later
-ADR, either by converting arbitrary decoded theorem codes into kernel formulas
-inside the proof profile or by implementing a fully code-level proof checker.
+system membership, especially `axiom-member/2`. At the time of ADR-0067, the
+important remaining boundary was theorem proof checking: `tableau-proof/3`
+still needed a bridge from theorem code to a kernel AST formula.
+
+Follow-up: ADR-0068 later added structural theorem-target decoding for
+`tableau-proof/3` and `subst-prf/4`. The remaining boundary after ADR-0068 is
+proof-list/Tab-1 theorem reuse over code terms alone, not ordinary theorem-code
+target construction.

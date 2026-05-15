@@ -561,6 +561,76 @@
             1
             80)))))
 
+(deftest ^:slow sjas-tableau-proof-checks-structural-non-generated-theorem-codes
+  (let [system (demo-system :willard-sjas-tableau0)
+        theorem (sjas/lt sjas/one sjas/two)
+        theorem-code (sjas/formula-code system theorem)
+        wrong-theorem-code (sjas/formula-code system
+                                              (sjas/lt sjas/two sjas/one))
+        theorem-proof (first-proof
+                        (sjas/query-succeeds system theorem
+                                             {:proof-limit 1
+                                              :fuel 96}))
+        certificate (when theorem-proof
+                      (sjas/proof-certificate theorem-proof))
+        registry @(get-in system [:program :sjas/registry])
+        generated-codes (set (map first (:sjas/formula-entries registry)))]
+    (is theorem-proof)
+    (is (not (contains? generated-codes theorem-code))
+        "the theorem code must not be supplied by the generated formula registry")
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            (sjas/tableau-proof (:system-code system)
+                                theorem-code
+                                certificate)
+            1
+            180)))
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/tableau-proof (:system-code system)
+                                wrong-theorem-code
+                                certificate)
+            1
+            120)))))
+
+(deftest ^:slow sjas-subst-prf-checks-structural-non-generated-theorem-codes
+  (let [system (demo-system :willard-sjas-level1)
+        theorem (sjas/lt sjas/one sjas/two)
+        theorem-code (sjas/formula-code system theorem)
+        wrong-theorem-code (sjas/formula-code system
+                                              (sjas/lt sjas/two sjas/one))
+        theorem-proof (first-proof
+                        (sjas/query-succeeds system theorem
+                                             {:proof-limit 1
+                                              :fuel 96}))
+        certificate (when theorem-proof
+                      (sjas/proof-certificate theorem-proof))
+        registry @(get-in system [:program :sjas/registry])
+        generated-codes (set (map first (:sjas/formula-entries registry)))]
+    (is theorem-proof)
+    (is (not (contains? generated-codes theorem-code))
+        "the theorem code must not be supplied by the generated formula registry")
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-prf (:system-code system)
+                            theorem-code
+                            theorem-code
+                            certificate)
+            1
+            220)))
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-prf (:system-code system)
+                            theorem-code
+                            wrong-theorem-code
+                            certificate)
+            1
+            160)))))
+
 (deftest sjas-subst-prf-checks-identity-substitution-certificates
   (let [system (demo-system :willard-sjas-level1)
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))

@@ -264,6 +264,36 @@ Current ADR-0067 note:
   `real 129.36 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
   203 assertions`, `0 failures`, `0 errors`, `real 299.24 s`.
 
+Current ADR-0068 note:
+
+- The targeted structural theorem-code red run for `tableau-proof/3` failed
+  because `code(lt(1,2))` was not in the generated formula registry:
+  `lein test :only proflog.willard-sjas-test/sjas-tableau-proof-checks-structural-non-generated-theorem-codes`,
+  `Ran 1 tests containing 4 assertions`, `1 failures`, `0 errors`,
+  `real 65.90 s`.
+- The analogous red run for `subst-prf/4` failed before the structural theorem
+  target route was added there:
+  `lein test :only proflog.willard-sjas-test/sjas-subst-prf-checks-structural-non-generated-theorem-codes`,
+  `Ran 1 tests containing 4 assertions`, `1 failures`, `0 errors`,
+  `real 19.75 s`.
+- Focused post-implementation selectors passed:
+  `sjas-tableau-proof-checks-structural-non-generated-theorem-codes` with
+  `Ran 1 tests containing 4 assertions`, `0 failures`, `0 errors`,
+  `real 111.13 s`; and
+  `sjas-subst-prf-checks-structural-non-generated-theorem-codes` with
+  `Ran 1 tests containing 4 assertions`, `0 failures`, `0 errors`,
+  `real 175.84 s`.
+- The explicit slow selector `lein test-proflog-sjas-slow` passed with
+  `Ran 4 tests containing 16 assertions`, `0 failures`, `0 errors`,
+  `real 452.96 s`.
+- The focused SJAS structural-theorem gate `lein test-proflog-sjas` passed with
+  `Ran 25 tests containing 182 assertions`, `0 failures`, `0 errors`,
+  `real 1947.15 s`.
+- The ADR-0068 regression gates passed with `lein test-proflog-fast`,
+  `Ran 145 tests containing 548 assertions`, `0 failures`, `0 errors`,
+  `real 129.32 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
+  203 assertions`, `0 failures`, `0 errors`, `real 287.48 s`.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

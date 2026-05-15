@@ -22,6 +22,21 @@ complete contemporaneous transcript.
 
 ## 2026-05-14
 
+- Completed [ADR-0068](docs/adr/ADR-0068-sjas-structural-theorem-targets.md)
+  on branch `adr-0068-sjas-theorem-code-targets`. `tableau-proof/3` and
+  `subst-prf/4` can now check real certificates for non-generated theorem codes
+  by structurally decoding the theorem formula, computing its NNF complement,
+  translating that decoded complement into the kernel AST, and running the core
+  proof checker. The promoted example is `lt(1,2)`, whose code is valid but not
+  generated as a Group axiom; both proof predicates reject the same certificate
+  for `lt(2,1)`. Verification: `lein test-proflog-sjas-slow` passed with `4`
+  tests, `16` assertions, `real 452.96 s`; `lein test-proflog-sjas` passed
+  with `25` tests, `182` assertions, `real 1947.15 s`;
+  `lein test-proflog-fast` passed with `145` tests, `548` assertions,
+  `real 129.32 s`; and `lein test-proflog-extended` passed with `68` tests,
+  `203` assertions, `real 287.48 s`. See
+  [AAR-0068](docs/aar/AAR-0068-sjas-structural-theorem-targets.md) and
+  [SJAS Structural Theorem-Code Targets](docs/log/2026-05-14-sjas-structural-theorem-targets.md).
 - Completed [ADR-0067](docs/adr/ADR-0067-sjas-structural-code-decoder.md) on
   branch `adr-0067-sjas-code-decoder`. The SJAS profile now structurally parses
   formula-code byte streams for `wff/1`, formula-class predicates,

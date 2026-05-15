@@ -126,3 +126,10 @@ real 299.24 s
 - The new semantic test is intentionally slow and marked `^:slow`; it is useful
   because it exercises object-language code predicates rather than a surface
   helper.
+
+## Follow-Up
+
+- ADR-0068 later added structural theorem-target routes for `tableau-proof/3`
+  and `subst-prf/4`, closing the generated-formula-registry dependency for
+  ordinary non-generated theorem codes. A fully code-level proof-list/Tab-1
+  checker remains outside ADR-0068.

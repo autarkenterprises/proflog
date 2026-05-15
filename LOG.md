@@ -45,6 +45,13 @@ complete contemporaneous transcript.
   `lein test-proflog-extended` passed with `68` tests, `203` assertions,
   `real 5m33.947s`. See
   [AAR-0070](docs/aar/AAR-0070-sjas-byte-sequence-coding-audit.md).
+- Logged the SJAS multiplication-tradeoff relevance criterion. The
+  programming-language demonstration must make the absence of a total
+  multiplication function matter not only in user-visible arithmetic, but also
+  in the arithmetized syntax/proof machinery; otherwise the implementation
+  demonstrates an executable reflection profile rather than the distinctive
+  Willard tradeoff. See
+  [SJAS Multiplication Tradeoff Relevance](docs/log/2026-05-15-sjas-multiplication-tradeoff-relevance.md).
 - Completed [ADR-0069](docs/adr/ADR-0069-sjas-general-subst-code.md) on branch
   `adr-0069-sjas-general-subst-code`. `subst-code/2` now decodes formula-code
   bytes and computes diagonal substitution structurally, including non-generated

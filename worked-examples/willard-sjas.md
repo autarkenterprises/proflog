@@ -1,6 +1,6 @@
 # Willard SJAS Base-64 Coding and Substitution-Proof Profile Example
 
-This example documents ADR-0058 through ADR-0069 and the focused regression in
+This example documents ADR-0058 through ADR-0071 and the focused regression in
 `test/proflog/willard_sjas_test.clj`. It demonstrates the Willard-style SJAS
 builder, binary U-grounding arithmetic, reflected axiom Godel-code terms, and
 kernel-checked proof certificates. ADR-0062 made the self-consistency
@@ -17,7 +17,10 @@ negation-pair, and identity-substitution predicates can inspect well-formed
 formula codes that were not pre-enumerated as generated axioms. ADR-0068 lets
 `tableau-proof/3` and `subst-prf/4` build proof targets from decoded theorem
 codes as well. ADR-0069 replaces the generated substitution table with
-structural diagonal substitution over decoded formula codes.
+structural diagonal substitution over decoded formula codes. ADR-0071 adds the
+stronger U-Grounding code format, in which public formula, system, and proof
+codes are binary numerals in the SJAS base language rather than generated
+`code-N` constructors.
 
 Run the focused regression:
 
@@ -28,17 +31,17 @@ lein test-proflog-sjas
 Current result:
 
 ```text
-Ran 25 tests containing 182 assertions.
+Ran 35 tests containing 221 assertions.
 0 failures, 0 errors.
-real 1947.15 s
+real 1717.35 s
 ```
 
 The explicit slow fixed-point selector is also available:
 
 ```text
 lein test-proflog-sjas-slow
-;; Ran 1 tests containing 3 assertions.
-;; real 91.34 s
+;; Ran 5 tests containing 22 assertions.
+;; real 722.20 s
 ```
 
 ## Hand-Written Intent
@@ -442,6 +445,112 @@ available for diagnostics, but they are not used to reconstruct canonical
 syntax/proof codes because base-64 natural conversion forgets trailing zero
 bytes. This matters when a formula ends with an embedded code payload.
 
+ADR-0071 adds a second public representation for the same byte strings:
+
+```clojure
+(def ug-system
+  (sjas/system
+    {:profile :willard-sjas-level1
+     :code-format :u-grounding
+     :relations {'demo 1}
+     :beta [beta]
+     :reflected-clauses [reflected-demo]}))
+
+(sjas-code/u-grounding-code-term? (:system-code ug-system))
+;; => true
+
+(sjas-code/code-term? (:system-code ug-system))
+;; => false
+
+(some sjas-code/code-symbol-byte-count
+      (keys (get-in ug-system [:language :functions])))
+;; => nil
+```
+
+Here the formal code is one ordinary U-Grounding binary numeral built from
+`0`, `1`, `dbl`, and `add`. The finite byte string is made injective by a final
+sentinel byte, so `[1]` and `[1 0]` remain distinct after they are interpreted
+as naturals:
+
+```clojure
+(let [code (sjas-code/bytes->u-grounding-code-term [1 0])]
+  (sjas-code/u-grounding-code-term-bytes code))
+;; => [1 0]
+```
+
+The syntax predicates consume those numeral codes directly:
+
+```clojure
+(let [formula (sjas/lt sjas/one sjas/two)
+      code (sjas/formula-code ug-system formula)
+      proof (first
+              (query/query-succeeds
+                (:program ug-system)
+                (sjas/wff code)
+                1
+                160))]
+(proof/contains-step? proof 'sjas-ug-code-bytes))
+;; => true
+```
+
+When a code reaches `wff/1` through a logic binding, the relation-backed
+fallback also records the radix-64 equation used to peel the byte stream:
+
+```clojure
+(ast/nom code-var
+  (let [formula (ast/eq-lit sjas/one sjas/one)
+        code (sjas/formula-code ug-system formula)
+        code-term (ast/var-term code-var)
+        proof (first
+                (query/query-succeeds
+                  (:program ug-system)
+                  (ast/exists-form
+                    code-var
+                    (ast/and-form
+                      (ast/eq-lit code-term code)
+                      (sjas/wff code-term)))
+                  1
+                  220))]
+    [(proof/contains-step? proof 'sjas-ug-code-byte-cons)
+     (proof/contains-step? proof 'sjas-ug-code-mul64-shift)]))
+;; => [true true]
+```
+
+The same representation is accepted by proof and substitution predicates:
+
+```clojure
+(let [beta-record (first (filter #(= :group-two (:group %))
+                                 (:axioms ug-system)))
+      certificate (sjas/proof-certificate
+                    'sjas-axiom
+                    {:code-format :u-grounding})]
+  (query/query-succeeds
+    (:program ug-system)
+    (sjas/tableau-proof (:system-code ug-system)
+                        (:code beta-record)
+                        certificate)
+    1
+    200))
+;; => one proof
+
+(query/query-succeeds
+  (:program ug-system)
+  (sjas/subst-code (:selfcons-skeleton-code ug-system)
+                   (:code (:group-three ug-system)))
+  1
+  240)
+;; => one proof
+```
+
+The implementation deliberately does not use `project` inside the relation.
+Already-ground public code terms are first destructured by root constructor to
+avoid core.logic stack overflows while focusing very large numerals; the
+resulting literal byte stream is then consumed by the structural formula/proof
+relations. Open synthesis of large public code numerals is still a documented
+operational boundary. The U-Grounding format is therefore the stronger semantic
+demonstration path, while the compact `code-N` format remains the default
+performance-oriented path.
+
 The compiled program intentionally leaves `:sjas/proof-targets` nil. The proof
 profile instead decodes `system-code`, `theorem-code`, and `proof-code` through
 the generated code registry and the proof byte decoder. `SelfCons0` therefore
@@ -609,17 +718,11 @@ system:
     {:profile :willard-sjas-tableau0
      :beta [(ast/false-form)]}))
 
-(let [contradiction-proof (first
-                            (sjas/query-succeeds
-                              inconsistent-system
-                              (ast/false-form)
-                              {:proof-limit 1
-                               :fuel 96}))
-      certificate (sjas/proof-certificate contradiction-proof)]
+(let [certificate (sjas/proof-certificate 'sjas-axiom)]
   (query/query-succeeds
     (:program inconsistent-system)
     (sjas/tableau-proof (:system-code inconsistent-system)
-                        sjas/contradiction-code
+                        (:contradiction-code inconsistent-system)
                         certificate)
     1
     160))
@@ -627,9 +730,9 @@ system:
 ```
 
 The point of the control is not to recommend false beta axioms. It demonstrates
-that `contradiction-code` denotes a real proof target: when the reflected basis
-is explicitly inconsistent, the kernel can build and check an actual
-contradiction certificate.
+that the system's `:contradiction-code` denotes a real proof target: when the
+reflected basis explicitly includes `false`, the profile can check an
+object-language axiom citation for that contradiction code.
 
 ## Substitution-Proof Predicate
 

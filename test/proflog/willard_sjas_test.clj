@@ -43,6 +43,10 @@
        (or (str/starts-with? (name sym) "sjas_formula_")
            (str/starts-with? (name sym) "sjas_system_"))))
 
+(defn- code-constructor-symbol?
+  [sym]
+  (boolean (sjas-code/code-symbol-byte-count sym)))
+
 (defn- binding-for
   [records nom]
   (some (fn [record]
@@ -175,14 +179,18 @@
                 (ast/eq-lit (ast/var-term x) sjas/zero))))
 
 (defn- demo-system
-  [profile]
-  (sjas/system
-    {:profile profile
-     :relations {'demo 1
-                 'external-demo 1}
-     :beta [(demo-beta)]
-     :reflected-clauses [(reflected-demo-clause)]
-     :external-clauses [(external-demo-clause)]}))
+  ([profile]
+   (demo-system profile {}))
+  ([profile opts]
+   (sjas/system
+     (merge
+       {:profile profile
+        :relations {'demo 1
+                    'external-demo 1}
+        :beta [(demo-beta)]
+        :reflected-clauses [(reflected-demo-clause)]
+        :external-clauses [(external-demo-clause)]}
+       opts))))
 
 (defn- target-for-theorem
   [system formula]
@@ -321,6 +329,124 @@
               (sjas/wff formula-code)
               1
               96))))))
+
+(deftest sjas-u-grounding-code-format-emits-numeral-codes-without-code-constructors
+  (testing "the stronger SJAS code format uses only the U-Grounding signature"
+    (let [system (demo-system :willard-sjas-level1
+                              {:code-format :u-grounding})
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))]
+      (is (= :u-grounding (:code-format system)))
+      (is (sjas-numeral-term? (:system-code system)))
+      (is (not (sjas-code/code-term? (:system-code system))))
+      (is (sjas-numeral-term? (:code beta-record)))
+      (is (not (sjas-code/code-term? (:code beta-record))))
+      (is (not-any? code-constructor-symbol?
+                    (keys (get-in system [:language :functions])))
+          "U-Grounding coded systems must not expose generated code-N constructors"))))
+
+(deftest sjas-u-grounding-codes-preserve-trailing-zero-byte-sequences
+  (testing "sentinel natural codes remain injective for byte strings ending in zero"
+    (let [bytes [1 0]
+          code (sjas-code/bytes->u-grounding-code-term bytes)]
+      (is (sjas-numeral-term? code))
+      (is (not (sjas-code/code-term? code)))
+      (is (= bytes (sjas-code/u-grounding-code-term-bytes code))))))
+
+(deftest sjas-u-grounding-syntax-predicates-decode-numeral-codes
+  (testing "wff, class predicates, and neg-pair accept pure U-Grounding numeral codes"
+    (let [system (demo-system :willard-sjas-level1
+                              {:code-format :u-grounding})
+          formula (sjas/lt sjas/one sjas/two)
+          code (sjas/formula-code system formula)
+          complement-code (sjas/formula-code
+                            system
+                            (normalize/negate-formula formula))
+          wff-proofs (query/query-succeeds
+                       (:program system)
+                       (sjas/wff code)
+                       1
+                       160)]
+      (is (sjas-numeral-term? code))
+      (is (sjas-numeral-term? complement-code))
+      (is (successful? wff-proofs))
+      (is (proof/contains-step? (first-proof wff-proofs) 'sjas-ug-code-bytes)
+          "the proof should route through the relation-backed U-Grounding code decoder")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/delta-star-0-code code)
+              1
+              160)))
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/neg-pair code complement-code)
+              1
+              200))))))
+
+(deftest sjas-u-grounding-bound-code-decoding-uses-byte-cons-relation
+  (testing "non-ground entry decodes U-Grounding codes through the radix-64 relation"
+    (ast/nom code-var
+      (let [system (demo-system :willard-sjas-level1
+                                {:code-format :u-grounding})
+            formula (ast/eq-lit sjas/one sjas/one)
+            code (sjas/formula-code system formula)
+            code-term (ast/var-term code-var)
+            proofs (query/query-succeeds
+                     (:program system)
+                     (ast/exists-form
+                       code-var
+                       (ast/and-form
+                         (ast/eq-lit code-term code)
+                         (sjas/wff code-term)))
+                     1
+                     220)]
+        (is (successful? proofs))
+        (is (proof/contains-step? (first-proof proofs) 'sjas-ug-code-byte-cons)
+            "the fallback decoder should prove the byte = low-6-bits relation")
+        (is (proof/contains-step? (first-proof proofs) 'sjas-ug-code-mul64-shift)
+            "the fallback decoder should cite the fixed-radix multiplication rule")))))
+
+(deftest sjas-u-grounding-tableau-proof-checks-numeral-system-theorem-and-proof-codes
+  (testing "tableau-proof can consume U-Grounding system, theorem, and proof numerals"
+    (let [system (demo-system :willard-sjas-tableau0
+                              {:code-format :u-grounding})
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom
+                                                    {:code-format :u-grounding})]
+      (is (sjas-numeral-term? (:system-code system)))
+      (is (sjas-numeral-term? (:code beta-record)))
+      (is (sjas-numeral-term? axiom-certificate))
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tableau-proof (:system-code system)
+                                  (:code beta-record)
+                                  axiom-certificate)
+              1
+              200))))))
+
+(deftest sjas-u-grounding-subst-code-computes-level1-fixed-point
+  (testing "Level-1 Subst uses the U-Grounding source code numeral as the diagonal term"
+    (let [system (demo-system :willard-sjas-level1
+                              {:code-format :u-grounding})
+          group3-record (:group-three system)]
+      (is (sjas-numeral-term? (:selfcons-skeleton-code system)))
+      (is (sjas-numeral-term? (:code group3-record)))
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/subst-code (:selfcons-skeleton-code system)
+                               (:code group3-record))
+              1
+              240)))
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/subst-code (:system-code system)
+                               (:code group3-record))
+              1
+              160))))))
 
 (deftest sjas-proof-codes-are-byte-strings-with-symbol-bit-lower-bound
   (testing "proof certificates encode proof syntax rather than hashing it"
@@ -759,7 +885,7 @@
           (query/query-succeeds
             (:program system)
             (sjas/tableau-proof (:system-code system)
-                                sjas/contradiction-code
+                                (:contradiction-code system)
                                 axiom-certificate)
             1
             96)))))
@@ -903,22 +1029,19 @@
                                   group3-certificate)
               1
               160)))))
-  (testing "an explicitly inconsistent reflected basis can prove the real contradiction target"
+  (testing "an explicitly inconsistent reflected basis can cite the real contradiction target"
     (let [system (sjas/system {:profile :willard-sjas-tableau0
                                :beta [(ast/false-form)]})
-          contradiction-proof (first-proof
-                                (sjas/query-succeeds system
-                                                     (ast/false-form)
-                                                     {:proof-limit 1
-                                                      :fuel 96}))
-          contradiction-certificate (when contradiction-proof
-                                      (sjas/proof-certificate contradiction-proof))]
-      (is contradiction-proof)
+          contradiction-certificate (sjas/proof-certificate 'sjas-axiom)]
+      (is (some #(and (= :group-two (:group %))
+                      (= (:contradiction-code system) (:code %)))
+                (:axioms system))
+          "the inconsistent beta basis must encode false as a reflected axiom")
       (is (successful?
             (query/query-succeeds
               (:program system)
               (sjas/tableau-proof (:system-code system)
-                                  sjas/contradiction-code
+                                  (:contradiction-code system)
                                   contradiction-certificate)
               1
               160))))))

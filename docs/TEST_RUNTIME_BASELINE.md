@@ -329,6 +329,50 @@ Current ADR-0069 note:
   `real 143.16 s`, and `lein test-proflog-extended`, `Ran 68 tests containing
   203 assertions`, `0 failures`, `0 errors`, `real 349.26 s`.
 
+Current ADR-0071 note:
+
+- The first U-Grounding code-format red run failed before the encoder existed:
+  `lein test :only proflog.willard-sjas-test/sjas-u-grounding-code-format-emits-numeral-codes-without-code-constructors`,
+  `No such var: sjas-code/bytes->u-grounding-code-term`, `real 12.02 s`.
+- A later proof-evidence audit red run showed the non-ground fallback was
+  extensionally succeeding without preserving the `byte + 64 * tail` evidence:
+  `sjas-u-grounding-bound-code-decoding-uses-byte-cons-relation` failed with
+  `Ran 1 tests containing 3 assertions`, `2 failures`, `0 errors`,
+  `real 22.97 s`.
+- Focused post-implementation selectors passed:
+  `sjas-u-grounding-code-format-emits-numeral-codes-without-code-constructors`
+  with `Ran 1 tests containing 6 assertions`, `0 failures`, `0 errors`,
+  `real 18.80 s`;
+  `sjas-u-grounding-codes-preserve-trailing-zero-byte-sequences` with
+  `Ran 1 tests containing 3 assertions`, `0 failures`, `0 errors`,
+  `real 18.88 s`;
+  `sjas-u-grounding-syntax-predicates-decode-numeral-codes` with
+  `Ran 1 tests containing 6 assertions`, `0 failures`, `0 errors`,
+  `real 177.65 s`;
+  `sjas-u-grounding-bound-code-decoding-uses-byte-cons-relation` with
+  `Ran 1 tests containing 3 assertions`, `0 failures`, `0 errors`,
+  `real 38.18 s`;
+  `sjas-u-grounding-tableau-proof-checks-numeral-system-theorem-and-proof-codes`
+  with `Ran 1 tests containing 4 assertions`, `0 failures`, `0 errors`,
+  `real 20.27 s`; and
+  `sjas-u-grounding-subst-code-computes-level1-fixed-point` with
+  `Ran 1 tests containing 4 assertions`, `0 failures`, `0 errors`,
+  `real 20.04 s`.
+- A full-gate regression exposed a stale compact-code contradiction target in
+  the inconsistent-basis self-consistency demonstration. After switching that
+  check to the system's `:contradiction-code`, the focused selector
+  `sjas-selfcons-demonstration-uses-substantive-proof-targets` passed with
+  `Ran 1 tests containing 4 assertions`, `0 failures`, `0 errors`,
+  `real 138.76 s`.
+- The final ADR-0071 gates passed with `lein test-proflog-sjas-slow`,
+  `Ran 5 tests containing 22 assertions`, `0 failures`, `0 errors`,
+  `real 722.20 s`; `lein test-proflog-sjas`, `Ran 35 tests containing
+  221 assertions`, `0 failures`, `0 errors`, `real 1717.35 s`;
+  `lein test-proflog-fast`, `Ran 145 tests containing 548 assertions`,
+  `0 failures`, `0 errors`, `real 120.25 s`; and
+  `lein test-proflog-extended`, `Ran 68 tests containing 203 assertions`,
+  `0 failures`, `0 errors`, `real 254.93 s`.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

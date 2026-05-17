@@ -20,8 +20,36 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-17
+
+- Completed [ADR-0071](docs/adr/ADR-0071-sjas-u-grounding-syntax-coding.md)
+  on branch `adr-0071-sjas-u-grounding-syntax-coding`. SJAS systems now have an
+  opt-in `:code-format :u-grounding` mode whose formula, system, and proof
+  codes are ordinary binary U-Grounding numerals over `0`, `1`, `dbl`, and
+  `add`, with no generated `code-N` constructors in that system language. The
+  decoder preserves trailing zero byte strings with a sentinel and, for
+  non-ground bound code entries, records the `byte + 64 * tail` byte-cons
+  relation and fixed-radix multiplication proof evidence. The attempted
+  `project` shortcut was removed; already-ground public codes use a
+  deterministic constructor-pop entry shortcut before entering the structural
+  formula/proof decoders, so open public code synthesis remains documented as
+  unsupported. Final verification: `lein test-proflog-sjas-slow` passed with
+  `5` tests, `22` assertions, `real 722.20 s`; `lein test-proflog-sjas` passed
+  with `35` tests, `221` assertions, `real 1717.35 s`; `lein test-proflog-fast`
+  passed with `145` tests, `548` assertions, `real 120.25 s`; and
+  `lein test-proflog-extended` passed with `68` tests, `203` assertions,
+  `real 254.93 s`. See
+  [AAR-0071](docs/aar/AAR-0071-sjas-u-grounding-syntax-coding.md).
+
 ## 2026-05-15
 
+- Started [ADR-0071](docs/adr/ADR-0071-sjas-u-grounding-syntax-coding.md) on
+  branch `adr-0071-sjas-u-grounding-syntax-coding`. The new goal is to add an
+  opt-in SJAS code format where formula, system, and proof codes are ordinary
+  U-Grounding binary numerals rather than generated `code-N` constructors. This
+  addresses the logged multiplication-tradeoff criterion by making the syntax
+  decoder reconstruct byte-sequence cons cells through relation-backed
+  multiplication in the SJAS proof profile.
 - Started [ADR-0070](docs/adr/ADR-0070-sjas-byte-sequence-coding-audit.md) on
   branch `adr-0070-sjas-tableau-proof-coding-audit`. The Willard corpus was
   rechecked for the user's proof-coding question: Willard explicitly codes both

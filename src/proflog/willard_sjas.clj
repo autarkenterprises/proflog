@@ -93,6 +93,21 @@
   (merge u-grounding-arithmetic-functions
          sjas-code/code-functions))
 
+(defn- functions-for-code-format
+  "Return the formal function signature for one public code representation.
+
+   The default compact representation needs generated `code-N` constructors.
+   ADR-0071's U-Grounding representation deliberately omits them: formal codes
+   are ordinary binary numerals built from the arithmetic functions already in
+   the base language."
+  [code-format]
+  (case code-format
+    :compact u-grounding-functions
+    :u-grounding u-grounding-arithmetic-functions
+    (throw (ex-info "Unsupported SJAS code format"
+                    {:code-format code-format
+                     :supported #{:compact :u-grounding}}))))
+
 (def base-relations
   "Relations required by the SJAS language and generated program."
   {'leq 2
@@ -137,9 +152,18 @@
   (ast/app-term 'not-code formula-code))
 
 (defn proof-certificate
-  "Encode a Proflog kernel proof term as an SJAS base-64 proof-code term."
-  [proof]
-  (sjas-code/proof-code-term (willard-sjas-profile/strip-profile-wrapper proof)))
+  "Encode a Proflog kernel proof term as an SJAS proof-code term.
+
+   The default `:compact` format preserves the ADR-0063 public shape. Passing
+   `{:code-format :u-grounding}` emits a single binary U-Grounding numeral term
+   whose sentinel-terminated base-64 expansion carries the same proof bytes."
+  ([proof]
+   (proof-certificate proof {:code-format :compact}))
+  ([proof {:keys [code-format]
+           :or {code-format :compact}}]
+   (sjas-code/proof-formal-code-term
+     (willard-sjas-profile/strip-profile-wrapper proof)
+     code-format)))
 
 (defn pred-term [term] (ast/app-term 'pred term))
 (defn sub-term [left right] (ast/app-term 'sub left right))
@@ -369,15 +393,22 @@
 
 (defn- formula-code-term
   ([coding-context formula]
-   (formula-code-term coding-context formula {}))
+   (formula-code-term coding-context formula {} :compact))
   ([coding-context formula env]
-   (sjas-code/canonical-formula-code-term coding-context
-                                          (canonical-formula formula env))))
+   (formula-code-term coding-context formula env :compact))
+  ([coding-context formula env code-format]
+   (sjas-code/canonical-formula-formal-code-term
+     coding-context
+     (canonical-formula formula env)
+     code-format)))
 
 (defn formula-code
   "Return the public SJAS Godel-code term for `formula` in `system`'s language."
   [system formula]
-  (formula-code-term (:coding-context system) formula))
+  (formula-code-term (:coding-context system)
+                     formula
+                     {}
+                     (:code-format system :compact)))
 
 ;; -----------------------------------------------------------------------------
 ;; Generated formulas and program clauses
@@ -422,7 +453,7 @@
    (ast/eq-lit (sub-term two one) one)])
 
 (defn- selfcons0-formula
-  [system-code]
+  [system-code contradiction-code]
   (let [p (nominal/nom (lvar 'p))]
     (ast/forall-form
       p
@@ -470,31 +501,36 @@
 
    Appendix A first forms a skeleton Gamma_1(g), then substitutes the numeral for
    the skeleton's own code into g. Proflog mirrors that shape with a free object
-   variable in the skeleton and a compact code term in the final sentence."
-  [coding-context system-code]
+   variable in the skeleton and either a compact code term or a U-Grounding
+   numeral code term in the final sentence."
+  [coding-context system-code code-format]
   (let [g (nominal/nom (lvar 'g))
         skeleton (selfcons1-formula system-code (ast/var-term g))
-        skeleton-code (formula-code-term coding-context skeleton {g 'v0})
+        skeleton-code (formula-code-term coding-context skeleton {g 'v0} code-format)
         formula (selfcons1-formula system-code skeleton-code)]
     {:group :group-three
      :formula formula
-     :code (formula-code-term coding-context formula)
+     :code (formula-code-term coding-context formula {} code-format)
      :selfcons-skeleton-formula skeleton
      :selfcons-skeleton-code skeleton-code}))
 
 (defn- group-three-record
-  [profile coding-context system-code]
+  [profile coding-context system-code contradiction-code code-format]
   (case profile
-    :willard-sjas-tableau0 (let [formula (selfcons0-formula system-code)]
+    :willard-sjas-tableau0 (let [formula (selfcons0-formula system-code
+                                                            contradiction-code)]
                              {:group :group-three
                               :formula formula
-                              :code (formula-code-term coding-context formula)})
-    :willard-sjas-level1 (selfcons1-record coding-context system-code)
+                              :code (formula-code-term coding-context
+                                                       formula
+                                                       {}
+                                                       code-format)})
+    :willard-sjas-level1 (selfcons1-record coding-context system-code code-format)
     (throw (ex-info "Unsupported Willard SJAS profile"
                     {:profile profile}))))
 
 (defn- axiom-records
-  [profile coding-context system-code beta reflected-clauses]
+  [profile coding-context system-code contradiction-code code-format beta reflected-clauses]
   (let [grouped (concat
                   (map vector (repeat :group-zero) (group-zero-formulas))
                   (map vector (repeat :group-one) (group-one-formulas))
@@ -504,9 +540,16 @@
         initial (map-indexed (fn [idx [group formula]]
                                {:group group
                                 :formula formula
-                                :code (formula-code-term coding-context formula)})
+                                :code (formula-code-term coding-context
+                                                         formula
+                                                         {}
+                                                         code-format)})
                              grouped)
-        group3 (group-three-record profile coding-context system-code)]
+        group3 (group-three-record profile
+                                   coding-context
+                                   system-code
+                                   contradiction-code
+                                   code-format)]
     (vec (concat initial [group3]))))
 
 (defn- classification-clauses
@@ -537,10 +580,11 @@
   [])
 
 (defn- compile-language
-  [profile extra-relations constants extra-functions]
+  [profile extra-relations constants extra-functions code-format]
   (language/language
     {:constants (vec (distinct (concat base-constants constants)))
-     :functions (merge u-grounding-functions extra-functions)
+     :functions (merge (functions-for-code-format code-format)
+                       extra-functions)
      :relations (merge base-relations extra-relations)
      :proof-profile profile}))
 
@@ -550,7 +594,7 @@
    The formal code is the compact base-64 term consumed by the SJAS profile; the
    table is a generated decoding aid for the finite source boundary. Syntax
    predicates such as `wff/1` are no longer emitted as object-language facts."
-  [coding-context axioms]
+  [coding-context code-format axioms]
   (let [formulas (concat (map :formula axioms)
                          (map (comp normalize/negate-formula :formula) axioms)
                          [(ast/false-form) (ast/true-form)])]
@@ -558,7 +602,7 @@
          (map (fn [formula]
                 (let [canonical (canonical-formula formula {})
                       bytes (sjas-code/canonical-formula-code-bytes coding-context canonical)]
-                  [bytes (sjas-code/bytes->code-term bytes) formula])))
+                  [bytes (sjas-code/bytes->formal-code-term code-format bytes) formula])))
          (reduce (fn [acc [bytes code formula]]
                    (if (some #(= bytes (first %)) acc)
                      acc
@@ -600,12 +644,14 @@
                  formula-entries)))
 
 (defn- neg-pair-entries
-  [coding-context axioms]
+  [coding-context code-format axioms]
   (apply list
          (mapcat (fn [{:keys [formula code]}]
                    (let [complement-code (formula-code-term
                                            coding-context
-                                           (normalize/negate-formula formula))]
+                                           (normalize/negate-formula formula)
+                                           {}
+                                           code-format)]
                      [[code complement-code]
                       [complement-code code]]))
                  axioms)))
@@ -615,6 +661,8 @@
 
    Options:
    - `:profile`: `:willard-sjas-tableau0` or `:willard-sjas-level1`;
+   - `:code-format`: `:compact` for `code-N` terms or `:u-grounding` for
+     ordinary binary numeral codes;
    - `:constants`: extra user constants;
    - `:functions`: extra user function declarations;
    - `:relations`: extra user relation declarations;
@@ -622,8 +670,9 @@
    - `:reflected-clauses`: user clauses included in the reflected basis;
    - `:external-clauses`: ordinary Proflog clauses outside the self-reference.
    "
-  [{:keys [profile constants functions relations beta reflected-clauses external-clauses]
+  [{:keys [profile code-format constants functions relations beta reflected-clauses external-clauses]
     :or {profile :willard-sjas-tableau0
+         code-format :compact
          constants []
          functions {}
          relations {}
@@ -647,16 +696,25 @@
                                                  reflected-clauses
                                                  external-clauses))
         canonical-source (canonical-system-source source)
-        system-code (sjas-code/system-code-term coding-context canonical-source)
+        system-code (sjas-code/system-formal-code-term coding-context
+                                                       canonical-source
+                                                       code-format)
+        contradiction-code (sjas-code/canonical-formula-formal-code-term
+                             coding-context
+                             (canonical-formula (ast/false-form) {})
+                             code-format)
         axioms (axiom-records profile
                               coding-context
                               system-code
+                              contradiction-code
+                              code-format
                               beta
                               reflected-clauses)
         lang (compile-language profile
                                (merge relations derived-relations)
                                constants
-                               functions)
+                               functions
+                               code-format)
         clauses (concat (generated-clauses system-code axioms)
                         reflected-clauses
                         external-clauses)
@@ -667,7 +725,7 @@
         ;; rule misread true arithmetic equations as constructor clashes.
         theorem-axioms (remove #(= :group-one (:group %)) axioms)
         axiom-formula (and* (map :formula theorem-axioms))
-        formula-entries (formula-entries coding-context axioms)
+        formula-entries (formula-entries coding-context code-format axioms)
         ;; The kernel proves a theorem query by closing the negation of
         ;; `(axiom-formula -> theorem)`. Because Proflog uses `once-forall` when
         ;; negating existentials operationally, the positive antecedent in that
@@ -678,12 +736,15 @@
                               (normalize/negate-formula axiom-formula))
         group3 (first (filter #(= :group-three (:group %)) axioms))
         registry (atom {:sjas/system-code system-code
+                        :sjas/code-format code-format
                         :sjas/fact-atoms (generated-fact-atoms system-code axioms)
                         :sjas/symbol-index-entries (symbol-index-entries coding-context)
                         :sjas/formula-entries formula-entries
                         :sjas/formula-negation-entries (formula-negation-entries formula-entries)
                         :sjas/formula-class-entries (formula-class-entries formula-entries)
-                        :sjas/neg-pair-entries (neg-pair-entries coding-context axioms)
+                        :sjas/neg-pair-entries (neg-pair-entries coding-context
+                                                                   code-format
+                                                                   axioms)
                         :sjas/system-entries (list [system-code proof-axiom-formula])})
         program (assoc (language/compile-program lang clauses)
                        :sjas/system-code nil
@@ -691,9 +752,11 @@
                        :sjas/proof-targets nil
                        :sjas/registry registry)]
     {:profile profile
+     :code-format code-format
      :language lang
      :program program
      :system-code system-code
+     :contradiction-code contradiction-code
      :selfcons-skeleton-code (:selfcons-skeleton-code group3)
      :selfcons-skeleton-formula (:selfcons-skeleton-formula group3)
      :coding-context coding-context
@@ -848,8 +911,11 @@
                 proof-limit 1}}]
   (let [started (System/nanoTime)
         contradiction (tableau-proof (:system-code system)
-                                     contradiction-code
-                                     (proof-certificate '(refl-close)))
+                                     (:contradiction-code system)
+                                     (proof-certificate
+                                       '(refl-close)
+                                       {:code-format (:code-format system
+                                                                   :compact)}))
         proofs (query/query-succeeds (:program system) contradiction proof-limit fuel)
         duration-ms (long (/ (- (System/nanoTime) started) 1000000))]
     {:result (if (seq proofs) :found :not-found)

@@ -15,6 +15,16 @@
   (:require [proflog.ast :as ast]))
 
 (def byte-base 64)
+(def u-grounding-sentinel-byte
+  "Terminating byte used when a byte string is represented as one natural.
+
+   Plain base-64 naturals cannot distinguish `[1]` from `[1 0]` after a
+   round-trip through `natural->bytes`, because high zero digits are omitted.
+   U-Grounding code terms therefore append this non-zero sentinel before the
+   sequence is interpreted as a natural. The proof profile removes the final
+   sentinel relationally when it decodes a formula, system, or proof code."
+  63)
+
 (def max-code-bytes
   "Largest byte-string code arity declared by the SJAS language.
 
@@ -48,7 +58,8 @@
   '{var 21
     par 22
     app 23
-    code 24})
+    code 24
+    num 25})
 
 (def ^:private system-tag 31)
 (def ^:private profile-tableau0-tag 32)
@@ -109,6 +120,12 @@
     sjas-bind-done
     sjas-bind-num
     sjas-code-bytes
+    sjas-ug-code-bytes
+    sjas-ug-code-byte-cons
+    sjas-ug-code-cons
+    sjas-ug-code-end
+    sjas-ug-code-mul64-shift
+    sjas-ug-code-mul64-zero
     sjas-equal
     sjas-eq-progress
     sjas-leq
@@ -184,6 +201,36 @@
         (recur (quot n byte-base)
                (conj out (int (mod n byte-base))))))))
 
+(defn bytes->u-grounding-code-value
+  "Encode a byte string as a sentinel-terminated base-64 natural.
+
+   This is the natural-number representation used by ADR-0071's pure
+   U-Grounding code format. The sentinel makes the mapping injective over byte
+   strings, including strings whose final payload byte is zero."
+  [bytes]
+  (bytes->natural (concat (vec bytes) [u-grounding-sentinel-byte])))
+
+(defn u-grounding-code-value->bytes
+  "Decode a sentinel-terminated U-Grounding code natural.
+
+   Returns nil when `value` is not a well-formed sentinel-terminated code."
+  [value]
+  (when (and (integer? value) (not (neg? value)))
+    (loop [remaining (vec (natural->bytes value))
+           out []]
+      (cond
+        (empty? remaining)
+        nil
+
+        (and (= 1 (count remaining))
+             (= u-grounding-sentinel-byte (first remaining)))
+        out
+
+        :else
+        (recur (subvec remaining 1)
+               (conj out (checked-byte :u-grounding-code-byte
+                                       (first remaining))))))))
+
 (defn code-symbol
   "Return the function symbol for a flat code term with `byte-count` digits."
   [byte-count]
@@ -250,6 +297,11 @@
                   (nth byte-terms (checked-byte :code-byte byte)))
                 bytes))))
 
+(defn bytes->u-grounding-code-term
+  "Write an exact byte string as one binary U-Grounding numeral term."
+  [bytes]
+  (binary-numeral-term (bytes->u-grounding-code-value bytes)))
+
 (defn code-term
   "Write a natural number as a compact public SJAS Godel-code term.
 
@@ -270,11 +322,11 @@
         (and (= one-symbol head) (empty? args)) 1
         (and (= 'dbl head) (= 1 (count args)))
         (when-let [arg (binary-numeral-value (first args))]
-          (* 2 arg))
+          (*' 2 arg))
         (and (= 'add head) (= 2 (count args)))
         (when-let [left (binary-numeral-value (first args))]
           (when-let [right (binary-numeral-value (second args))]
-            (+ left right)))
+            (+' left right)))
         :else nil))))
 
 (defn code-term-bytes
@@ -289,10 +341,31 @@
             (when (every? #(and (integer? %) (<= 0 %) (< % byte-base)) bytes)
               bytes)))))))
 
+(defn u-grounding-code-term-bytes
+  "Return the byte vector denoted by a U-Grounding numeral code, or nil."
+  [term]
+  (when-let [value (binary-numeral-value term)]
+    (u-grounding-code-value->bytes value)))
+
 (defn code-term?
   "Recognize the public compact SJAS code-term shape."
   [term]
   (boolean (code-term-bytes term)))
+
+(defn u-grounding-code-term?
+  "Recognize the sentinel-terminated U-Grounding code-term shape."
+  [term]
+  (boolean (u-grounding-code-term-bytes term)))
+
+(defn bytes->formal-code-term
+  "Encode `bytes` using one of the supported public SJAS code formats."
+  [code-format bytes]
+  (case code-format
+    :compact (bytes->code-term bytes)
+    :u-grounding (bytes->u-grounding-code-term bytes)
+    (throw (ex-info "Unsupported SJAS code format"
+                    {:code-format code-format
+                     :supported #{:compact :u-grounding}}))))
 
 (defn- encode-code-length
   [byte-count]
@@ -343,19 +416,24 @@
     (into [(tag-byte term-tags 'code)]
           (concat (encode-code-length (count code-bytes))
                   code-bytes))
-    (case (first term)
-      var [(tag-byte term-tags 'var)
-           (positive-byte :var-index (inc (Long/parseLong (subs (name (second term)) 1))))]
-      par [(tag-byte term-tags 'par)
-           (positive-byte :par-index (inc (Long/parseLong (subs (name (second term)) 1))))]
-      app (let [head (second term)
-                args (nnext term)]
-            (into [(tag-byte term-tags 'app)
-                   (positive-byte :symbol-index (symbol-index ctx head))
-                   (one-byte-count :term-arity (count args))]
-                  (mapcat #(encode-canonical-term-bytes ctx %) args)))
-      (throw (ex-info "Unsupported canonical term for SJAS coding"
-                      {:term term})))))
+    (if-some [numeric-value (binary-numeral-value term)]
+      (let [payload (vec (natural->bytes numeric-value))]
+        (into [(tag-byte term-tags 'num)]
+              (concat (encode-code-length (count payload))
+                      payload)))
+      (case (first term)
+        var [(tag-byte term-tags 'var)
+             (positive-byte :var-index (inc (Long/parseLong (subs (name (second term)) 1))))]
+        par [(tag-byte term-tags 'par)
+             (positive-byte :par-index (inc (Long/parseLong (subs (name (second term)) 1))))]
+        app (let [head (second term)
+                  args (nnext term)]
+              (into [(tag-byte term-tags 'app)
+                     (positive-byte :symbol-index (symbol-index ctx head))
+                     (one-byte-count :term-arity (count args))]
+                    (mapcat #(encode-canonical-term-bytes ctx %) args)))
+        (throw (ex-info "Unsupported canonical term for SJAS coding"
+                        {:term term}))))))
 
 (defn encode-canonical-formula-bytes
   "Encode a canonical formula produced by `proflog.willard-sjas`."
@@ -422,6 +500,11 @@
   [ctx canonical-formula]
   (bytes->code-term (canonical-formula-code-bytes ctx canonical-formula)))
 
+(defn canonical-formula-formal-code-term
+  [ctx canonical-formula code-format]
+  (bytes->formal-code-term code-format
+                           (canonical-formula-code-bytes ctx canonical-formula)))
+
 (defn- profile-byte
   [profile]
   (case profile
@@ -457,6 +540,11 @@
 (defn system-code-term
   [ctx canonical-source]
   (bytes->code-term (system-code-bytes ctx canonical-source)))
+
+(defn system-formal-code-term
+  [ctx canonical-source code-format]
+  (bytes->formal-code-term code-format
+                           (system-code-bytes ctx canonical-source)))
 
 (declare proof-code-bytes)
 
@@ -499,3 +587,8 @@
 (defn proof-code-term
   [proof]
   (bytes->code-term (proof-code-bytes proof)))
+
+(defn proof-formal-code-term
+  [proof code-format]
+  (bytes->formal-code-term code-format
+                           (proof-code-bytes proof)))

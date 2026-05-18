@@ -259,3 +259,84 @@ diagonal construction.
 Until that boundary is made precise, the regular-invariant proposal should be
 treated only as a candidate safety-certification substrate, not as an
 established self-justifying computational model.
+
+## Addendum: Evidence For The Caution
+
+The caution above is supported by several independent considerations.
+
+First, ordinary Turing-machine reachability already captures the halting
+problem: asking whether a halting state is reachable from an initial
+configuration is just the halting question in reachability form. This supports
+the objection that "no halting oracle" is not the right explanatory boundary.
+Diagonalization pressure arises from the system's ability to encode and reason
+about its own computational behavior, not only from the presence of a primitive
+oracle.
+
+Second, the general incompleteness background points to the same issue. The
+Stanford Encyclopedia of Philosophy's Godel article summarizes the threshold as
+"a certain amount of elementary arithmetic"; more precisely, Q suffices for the
+first theorem and something like PRA is used in the standard second-theorem
+proofs. The same source also notes that the details of the provability predicate
+and the presentation of axioms matter: Rosser-style predicates can alter what a
+formal "consistency" sentence does. This reinforces that the boundary is not
+captured by a single slogan such as "no halting oracle."
+
+Third, Willard's own discussion treats total multiplication as a trigger through
+its consequences, not as a disguised halting oracle. The 2011 self-justifying
+logics paper says the relevant invariant would collapse if a multiplication
+function symbol were added to U-Grounding, and says total multiplication is the
+trigger point causing the semantic-tableaux second-incompleteness effect to
+become active. The 2004 paper likewise frames the positive region as the narrow
+gap where multiplication is treated as a three-place relation rather than a
+total function.
+
+Together these observations support the user's caution: a Turing-machine-native
+analogue must identify the specific expressive closure principle that plays the
+role total multiplication plays for Willard. It is not enough to deny a primitive
+halting oracle.
+
+## Adjacent Question: Subrecursive Or Weaker-Than-SJAS Systems
+
+A follow-on research question is whether axiom systems even weaker than
+Willard-style SJAS can attain a self-justifying property. The motivating
+observation is that Willard's Turing versions can encode Turing-machine
+computation, while one might ask for a system whose implementation/evaluation
+does not require Turing completeness, for example one based on primitive
+recursive computation.
+
+This question needs a sharp distinction between implementation strength and
+object-theory strength.
+
+At the implementation level, a bounded proof checker or certificate checker can
+often be primitive recursive: given an explicit proof object and finite bounds,
+checking local syntactic/proof-step correctness is a total computation. This
+does not imply that complete proof search, theorem enumeration, or unbounded
+machine simulation is primitive recursive.
+
+At the object-theory level, however, "primitive recursive" is not automatically
+weaker in the relevant Willard sense. Primitive recursive arithmetic contains
+many total functions, including addition, multiplication, and exponentiation.
+That places PRA near the standard second-incompleteness threshold, not below
+Willard's Type-A boundary. In other words, a theory whose official function
+vocabulary includes all primitive recursive functions would likely reintroduce
+exactly the expressive strength Willard suppresses by refusing total
+multiplication.
+
+The plausible research target is therefore not "PRA as an SJAS." A more
+promising target would be a subrecursive or decidable native system with:
+
+1. explicit finite proof/certificate objects;
+2. a total checker for those objects;
+3. enough self-reference to name the system and its checker;
+4. a restricted self-safety or consistency statement;
+5. a carefully identified missing closure principle analogous to missing total
+   multiplication;
+6. an external soundness theorem showing the self-justifying assertion is not
+   vacuous.
+
+Candidate directions include bounded-consistency families, regular/automata
+certificate systems, Presburger-like additive systems with restricted coding,
+and typed or stratified calculi whose native quotation/evaluation principles
+are weaker than universal computation. The central open question is whether any
+such system can state a nontrivial global self-justifying claim, rather than
+only a family of bounded or certificate-relative claims.

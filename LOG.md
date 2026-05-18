@@ -32,7 +32,11 @@ complete contemporaneous transcript.
   Willard's total-multiplication boundary appears to matter through its
   consequences for coding and diagonalization rather than by acting as a
   primitive halting oracle. The caution is explicitly provisional and should be
-  revised if contrary evidence is found. See
+  revised if contrary evidence is found. A further addendum records evidence for
+  the caution and frames the adjacent question of whether subrecursive or
+  weaker-than-SJAS systems, such as primitive-recursive or automata-like
+  systems, can support a native self-justifying property without merely
+  reintroducing the expressive strength Willard suppresses. See
   [Native Self-Justifying Computational Systems](docs/log/2026-05-18-native-self-justifying-computational-systems.md).
 
 ## 2026-05-17

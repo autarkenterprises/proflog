@@ -313,14 +313,28 @@ checking local syntactic/proof-step correctness is a total computation. This
 does not imply that complete proof search, theorem enumeration, or unbounded
 machine simulation is primitive recursive.
 
-At the object-theory level, however, "primitive recursive" is not automatically
-weaker in the relevant Willard sense. Primitive recursive arithmetic contains
-many total functions, including addition, multiplication, and exponentiation.
-That places PRA near the standard second-incompleteness threshold, not below
-Willard's Type-A boundary. In other words, a theory whose official function
-vocabulary includes all primitive recursive functions would likely reintroduce
-exactly the expressive strength Willard suppresses by refusing total
-multiplication.
+At the object-theory level, however, "primitive recursive" must be handled
+carefully. Primitive recursive arithmetic is normally presented as a
+quantifier-free equational theory with induction over quantifier-free formulae
+or rules. It therefore does not natively state the first-order totality sentence
+`forall x forall y exists z. mult(x,y,z)`. Multiplication is total in a
+different sense: it is one of the primitive-recursive function symbols/terms,
+so closed and open terms using multiplication are well-formed and reducible
+inside the calculus.
+
+This weakens the earlier shorthand claim that PRA "contains total
+multiplication." It contains multiplication as a total function symbol of the
+term calculus, not as a native quantified totality axiom. That distinction is
+central to the present research question, because a quantifier-free or
+subrecursive native calculus may lack the resources needed to formulate the
+usual global consistency sentence in the first place.
+
+The remaining caution is that a theory whose official term-formers include all
+primitive recursive functions may still have enough coding strength, once placed
+inside a richer assertion language or reflection discipline, to reintroduce the
+expressive consequences Willard avoids by refusing total multiplication as an
+object-language function. That has to be checked in the native presentation
+rather than assumed from the phrase "primitive recursive."
 
 The plausible research target is therefore not "PRA as an SJAS." A more
 promising target would be a subrecursive or decidable native system with:

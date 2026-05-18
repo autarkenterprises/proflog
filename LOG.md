@@ -36,7 +36,10 @@ complete contemporaneous transcript.
   the caution and frames the adjacent question of whether subrecursive or
   weaker-than-SJAS systems, such as primitive-recursive or automata-like
   systems, can support a native self-justifying property without merely
-  reintroducing the expressive strength Willard suppresses. See
+  reintroducing the expressive strength Willard suppresses. A later correction
+  notes that primitive recursive arithmetic is quantifier-free in its usual
+  native presentation: multiplication is a total term-former, not a quantified
+  totality axiom. See
   [Native Self-Justifying Computational Systems](docs/log/2026-05-18-native-self-justifying-computational-systems.md).
 
 ## 2026-05-17

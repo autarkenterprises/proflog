@@ -33,7 +33,7 @@ Current result:
 ```text
 Ran 35 tests containing 221 assertions.
 0 failures, 0 errors.
-real 1717.35 s
+real 1687.83 s
 ```
 
 The explicit slow fixed-point selector is also available:
@@ -41,7 +41,7 @@ The explicit slow fixed-point selector is also available:
 ```text
 lein test-proflog-sjas-slow
 ;; Ran 5 tests containing 22 assertions.
-;; real 722.20 s
+;; real 746.91 s
 ```
 
 ## Hand-Written Intent

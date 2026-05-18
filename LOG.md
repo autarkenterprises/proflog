@@ -22,6 +22,18 @@ complete contemporaneous transcript.
 
 ## 2026-05-18
 
+- Prepared the LOPSTR+PPDP 2026 SJAS system-description draft in the sibling
+  `lopstr-ppdp26` paper repository after archiving the earlier miniKanren draft
+  artifacts. The paper is scoped as a system description of the finite
+  ordinary-tableau `IS#_D(beta)` profile, with the public Proflog system link,
+  U-Grounding syntax/proof-code support, and explicit limitations around
+  Tab-1/proof-list reuse and open public-code synthesis. Fresh focused evidence
+  for the paper-prep pass is recorded in
+  [TEST_RUNTIME_BASELINE](docs/TEST_RUNTIME_BASELINE.md): `lein
+  test-proflog-sjas-slow` passed in `real 746.91 s`, and `lein
+  test-proflog-sjas` passed in `real 1687.83 s`. The standard gates also
+  passed: `lein test-proflog-fast` in `real 83.45 s` and `lein
+  test-proflog-extended` in `real 195.65 s`.
 - Logged the research discussion that began with Turing-machine references in
   the SJAS literature and broadened into native self-justifying computational
   systems. The key correction is that alternative computational paradigms

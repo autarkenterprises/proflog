@@ -373,6 +373,19 @@ Current ADR-0071 note:
   `lein test-proflog-extended`, `Ran 68 tests containing 203 assertions`,
   `0 failures`, `0 errors`, `real 254.93 s`.
 
+Current LOPSTR+PPDP system-description verification note:
+
+- On 2026-05-18, while preparing the LOPSTR+PPDP 2026 SJAS system-description
+  draft, the focused SJAS gates were rerun against main. `lein
+  test-proflog-sjas-slow` passed with `Ran 5 tests containing 22 assertions`,
+  `0 failures`, `0 errors`, and `real 746.91 s`. `lein test-proflog-sjas`
+  passed with `Ran 35 tests containing 221 assertions`, `0 failures`,
+  `0 errors`, and `real 1687.83 s`. The paired standard gates also passed:
+  `lein test-proflog-fast` with `Ran 145 tests containing 548 assertions`,
+  `0 failures`, `0 errors`, and `real 83.45 s`; `lein test-proflog-extended`
+  with `Ran 68 tests containing 203 assertions`, `0 failures`, `0 errors`,
+  and `real 195.65 s`.
+
 Current ADR-0041 note:
 
 - The promoted constructor-recursive profile namespace passed on 2026-05-06 with

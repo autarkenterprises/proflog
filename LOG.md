@@ -20,6 +20,16 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-18
+
+- Logged the research discussion that began with Turing-machine references in
+  the SJAS literature and broadened into native self-justifying computational
+  systems. The key correction is that alternative computational paradigms
+  should not merely simulate first-order SJAS proof predicates; each needs its
+  own native notions of assertion, evidence, checking, self-reference, failure,
+  and restricted reflection. See
+  [Native Self-Justifying Computational Systems](docs/log/2026-05-18-native-self-justifying-computational-systems.md).
+
 ## 2026-05-17
 
 - Completed [ADR-0071](docs/adr/ADR-0071-sjas-u-grounding-syntax-coding.md)

@@ -354,3 +354,79 @@ and typed or stratified calculi whose native quotation/evaluation principles
 are weaker than universal computation. The central open question is whether any
 such system can state a nontrivial global self-justifying claim, rather than
 only a family of bounded or certificate-relative claims.
+
+## Addendum: PRA Consistency-Statement Caveat
+
+A provisional refinement was proposed for quantifier-free primitive recursive
+arithmetic.
+
+Pure quantifier-free PRA cannot state a closed first-order sentence of the form
+`Con(PRA)`, because it lacks native quantifiers such as `forall p` or
+`not exists p`. However, since proof checking is primitive recursive, one can
+define a primitive-recursive characteristic term or predicate-like function
+`bad-proof-PRA(p)` that returns whether `p` codes a proof of contradiction.
+
+The PRA-native consistency-shaped assertion would then be an open/free-variable
+equation:
+
+```text
+bad-proof-PRA(p) = 0
+```
+
+In a free-variable equational setting, proving such an equation with `p` free
+has a uniform character over arbitrary `p`, even though it is not a quantified
+sentence in the object language.
+
+This formulation is **provisional**. It may be wrong or too coarse in at least
+three ways:
+
+1. the chosen presentation of PRA matters, especially whether free-variable
+   equations are treated schematically, universally, or proof-theoretically in
+   another way;
+2. the primitive-recursive proof predicate may need to be represented as a term
+   returning a numeral rather than as a relation, changing the exact shape of
+   the "consistency" assertion;
+3. the standard second-incompleteness comparison must be made against the exact
+   formalization of derivability and consistency used by the selected
+   quantifier-free calculus.
+
+The tentative expectation is that PRA can verify each concrete non-bad proof
+code instance but cannot prove the uniform open equation corresponding to
+`no p is a proof of contradiction`, assuming the usual consistency hypotheses.
+This expectation should be checked against the proof theory of the exact PRA
+presentation before it is used as a design premise.
+
+## Addendum: Sub-Turing Simulation Route
+
+The search for systems weaker than Willard's SJAS can also begin from the
+implementation side rather than from a known logical theory.
+
+The question becomes whether there is a sub-Turing language or calculus that
+can:
+
+1. simulate or host an axiom-system-like deductive apparatus;
+2. express enough syntax coding to state its own consistency claim;
+3. express a proof checker/predicate/certificate validator for that apparatus;
+4. remain restricted enough to avoid the diagonalization mechanisms that defeat
+   stronger systems.
+
+This route is different from asking whether an existing theory such as PRA is
+already an SJAS. It asks whether one can design a weaker native substrate that
+has just enough structure to support self-reference and proof checking.
+
+The likely failure modes are clear:
+
+- if the substrate cannot express a global consistency claim, it yields only
+  bounded or instance-wise checking;
+- if adding the assertion/reflection layer makes it simulate full Turing
+  computation or enough arithmetic coding, the construction may reintroduce
+  the diagonalization obstacle;
+- if proof checking is external to the substrate, the result is an
+  implementation technique rather than a self-justifying system.
+
+The most promising candidates are therefore not arbitrary subrecursive
+languages, but calculi where the proof/certificate discipline is native:
+primitive-recursive/equational calculi with free-variable uniformity,
+finite-state or regular systems with explicit invariant certificates,
+Presburger-like additive systems with carefully limited coding, and stratified
+typed calculi where quotation and evaluation are controlled by types or levels.

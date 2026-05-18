@@ -39,7 +39,10 @@ complete contemporaneous transcript.
   reintroducing the expressive strength Willard suppresses. A later correction
   notes that primitive recursive arithmetic is quantifier-free in its usual
   native presentation: multiplication is a total term-former, not a quantified
-  totality axiom. See
+  totality axiom. Additional provisional addenda record the free-variable PRA
+  consistency-statement idea and the implementation-first route: search for
+  sub-Turing substrates that can host syntax, proof checking, and a restricted
+  self-consistency claim without reintroducing diagonalization. See
   [Native Self-Justifying Computational Systems](docs/log/2026-05-18-native-self-justifying-computational-systems.md).
 
 ## 2026-05-17

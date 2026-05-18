@@ -42,7 +42,11 @@ complete contemporaneous transcript.
   totality axiom. Additional provisional addenda record the free-variable PRA
   consistency-statement idea and the implementation-first route: search for
   sub-Turing substrates that can host syntax, proof checking, and a restricted
-  self-consistency claim without reintroducing diagonalization. See
+  self-consistency claim without reintroducing diagonalization. A speculative
+  final addendum frames the general problem through Lawvere/Yanofsky
+  diagonalization: useful systems may evade diagonal paradoxes by failing a
+  specific fixed-point-theorem hypothesis while retaining restricted
+  self-reference. See
   [Native Self-Justifying Computational Systems](docs/log/2026-05-18-native-self-justifying-computational-systems.md).
 
 ## 2026-05-17

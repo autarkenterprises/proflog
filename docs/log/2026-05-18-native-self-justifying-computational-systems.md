@@ -430,3 +430,68 @@ primitive-recursive/equational calculi with free-variable uniformity,
 finite-state or regular systems with explicit invariant certificates,
 Presburger-like additive systems with carefully limited coding, and stratified
 typed calculi where quotation and evaluation are controlled by types or levels.
+
+## Addendum: Speculative Lawvere/Yanofsky Framing
+
+Speculative note.
+
+The more general abstraction for diagonalization may be Lawvere's fixed-point
+theorem, in the style emphasized by Noson Yanofsky's analysis of
+self-referential paradoxes. In this framing, diagonal paradoxes arise when a
+system has enough expressive structure to define both:
+
+1. a sufficiently universal evaluator/classifier, often categoricalized as a
+   weakly point-surjective map into an exponential object; and
+2. a global criterion or endomap with no fixed point, such as Boolean negation
+   or a truth/falsehood switch.
+
+Then the fixed-point theorem forces the existence of a term or sentence that is
+pathological with respect to that criterion: inconsistent, undecidable,
+ungrounded, non-normalizing, or otherwise paradoxical.
+
+This suggests a speculative characterization of Willard-style SJAS:
+
+```text
+SJAS retains enough self-reference to formulate a restricted global
+consistency claim, but lacks some part of the universal self-classification
+structure needed for the pathological Lawvere fixed point.
+```
+
+This should not be read as saying SJAS has no fixed points. It has
+fixed-point-shaped self-reference through its Group-3 construction and
+substitution machinery. The conjectural claim is subtler: SJAS may avoid the
+fully universal evaluator/classifier plus fixed-point-free operation package
+needed for the destructive diagonal argument.
+
+Brown-Palsberg-style typed self-interpretation appears analogous in a different
+setting. It permits controlled self-representation or self-interpretation while
+the type discipline blocks the untyped self-application/diagonal gadget that
+would collapse normalization.
+
+The research question is whether there is a general "dual" theorem to Lawvere:
+a principle explaining how to break fixed points while preserving useful
+self-reference. The likely answer is that the contrapositive of Lawvere is
+general but nonconstructive:
+
+```text
+If the codomain has a fixed-point-free operation, then a sufficiently
+universal self-classifier cannot exist.
+```
+
+That only says some hypothesis must fail. It does not classify the useful ways
+to fail it. The constructive side may therefore be a family of specific
+evasions rather than one theorem:
+
+- no universal evaluator/classifier;
+- no unrestricted self-application;
+- no global truth/provability predicate;
+- no fixed-point-free negation-like operation at the relevant level;
+- stratified or typed quotation;
+- guarded or delayed self-reference;
+- bounded or certificate-relative criteria;
+- partial rather than total evaluation.
+
+The useful research program is to model each candidate self-justifying system
+categorically or structurally and identify exactly which Lawvere hypothesis is
+absent, then show that the remaining structure is still strong enough to state
+the desired consistency or safety claim.

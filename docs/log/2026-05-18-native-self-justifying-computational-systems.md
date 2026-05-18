@@ -209,3 +209,46 @@ This reframing should guide any future ADR in this area. Such an ADR should not
 begin by translating SJAS formulae into another substrate. It should begin by
 choosing a computational model and defining what self-justification means in
 that model's own native terms.
+
+## Addendum: Suspect TM-Regular-Invariant Mechanism
+
+Later in the discussion, a concrete candidate mechanism was proposed for a
+Turing-machine-native analogue: represent configurations as words, transitions
+as finite transducers, and safety certificates as regular invariants checked by
+automata operations.
+
+In outline, such a checker would validate:
+
+```text
+Init subset I
+Post_delta(I) subset I
+I intersect Bad = empty
+```
+
+This would give a machine-native safety-certificate discipline: a system carries
+its own transition description plus an explicit invariant certificate, and a
+native checker validates the certificate by local automata/transducer
+operations.
+
+This mechanism is **suspect and insufficiently justified** as an analogue of
+Willard-style self-justification.
+
+The problem is not solved by saying that the machine lacks a halting oracle. A
+halting oracle is not necessary to recreate the diagonalization pressure behind
+reachability or self-reference antinomies. The analogy with Willard's SJAS is
+also too coarse: giving an SJAS total multiplication is not the same as giving
+it a halting oracle as a primitive. The issue is that the consequences of total
+multiplication, when combined with coding and proof machinery, supply enough
+expressive strength for the relevant diagonalization/incompleteness obstacles.
+
+Therefore, any credible Turing-machine-native mechanism must identify the exact
+restricted expressive resource that corresponds to U-Grounding's missing total
+multiplication. It is not enough to say "no halting oracle" or "no full
+evaluator." The research problem is to characterize which native closure,
+reachability, trace, invariant, or self-inspection principles are strong enough
+to certify nontrivial self-safety while still weak enough to avoid the analogous
+diagonal construction.
+
+Until that boundary is made precise, the regular-invariant proposal should be
+treated only as a candidate safety-certification substrate, not as an
+established self-justifying computational model.

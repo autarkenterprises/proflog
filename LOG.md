@@ -27,7 +27,11 @@ complete contemporaneous transcript.
   systems. The key correction is that alternative computational paradigms
   should not merely simulate first-order SJAS proof predicates; each needs its
   own native notions of assertion, evidence, checking, self-reference, failure,
-  and restricted reflection. See
+  and restricted reflection. A later addendum marks the regular-invariant
+  Turing-machine mechanism as suspect: "no halting oracle" is too coarse, since
+  Willard's total-multiplication boundary matters through its consequences for
+  coding and diagonalization rather than by acting as a primitive halting oracle.
+  See
   [Native Self-Justifying Computational Systems](docs/log/2026-05-18-native-self-justifying-computational-systems.md).
 
 ## 2026-05-17

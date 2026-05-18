@@ -233,13 +233,20 @@ operations.
 This mechanism is **suspect and insufficiently justified** as an analogue of
 Willard-style self-justification.
 
-The problem is not solved by saying that the machine lacks a halting oracle. A
-halting oracle is not necessary to recreate the diagonalization pressure behind
-reachability or self-reference antinomies. The analogy with Willard's SJAS is
-also too coarse: giving an SJAS total multiplication is not the same as giving
-it a halting oracle as a primitive. The issue is that the consequences of total
+The working objection is that the problem is not solved by saying that the
+machine lacks a halting oracle. A halting oracle may not be necessary to
+recreate the diagonalization pressure behind reachability or self-reference
+antinomies. The analogy with Willard's SJAS is also too coarse: giving an SJAS
+total multiplication is not the same as giving it a halting oracle as a
+primitive. The issue appears to be that the consequences of total
 multiplication, when combined with coding and proof machinery, supply enough
 expressive strength for the relevant diagonalization/incompleteness obstacles.
+
+This is a caution to test, not a settled theorem. If the literature or a direct
+construction shows that the regular-invariant mechanism avoids the relevant
+diagonalization for principled reasons, or that "no halting oracle" is in fact a
+valid native restriction in the relevant formal setting, that evidence should
+override this objection and be logged explicitly.
 
 Therefore, any credible Turing-machine-native mechanism must identify the exact
 restricted expressive resource that corresponds to U-Grounding's missing total

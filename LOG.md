@@ -29,9 +29,10 @@ complete contemporaneous transcript.
   own native notions of assertion, evidence, checking, self-reference, failure,
   and restricted reflection. A later addendum marks the regular-invariant
   Turing-machine mechanism as suspect: "no halting oracle" is too coarse, since
-  Willard's total-multiplication boundary matters through its consequences for
-  coding and diagonalization rather than by acting as a primitive halting oracle.
-  See
+  Willard's total-multiplication boundary appears to matter through its
+  consequences for coding and diagonalization rather than by acting as a
+  primitive halting oracle. The caution is explicitly provisional and should be
+  revised if contrary evidence is found. See
   [Native Self-Justifying Computational Systems](docs/log/2026-05-18-native-self-justifying-computational-systems.md).
 
 ## 2026-05-17

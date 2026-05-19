@@ -20,6 +20,17 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-19
+
+- Logged the SJAS `Pi*1` beta clarification: Willard's finite `IS#_D(beta)`
+  condition should be read as requiring the installed Group-2 beta axioms to be
+  checked `Pi*1` encodings, even if user-facing source uses a more convenient
+  notation that is lowered into that fragment. The same note records that
+  universal quantification over `Mult` relation arguments does not assert
+  multiplication totality; the dangerous form is the existential totality
+  principle `forall x y. exists z. Mult(x,y,z)`. See
+  [SJAS Pi-Star-1 Beta and Relational Multiplication Clarification](docs/log/2026-05-19-sjas-pi-star-beta-mult-clarification.md).
+
 ## 2026-05-18
 
 - Prepared the LOPSTR+PPDP 2026 SJAS system-description draft in the sibling

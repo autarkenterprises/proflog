@@ -31,7 +31,9 @@ complete contemporaneous transcript.
   existing Willard/Proflog `SelfCons_k(beta,d)` proof predicate; the best
   candidate for a new decidable SJAS variant is integer/natural difference
   logic with unary predicates and an automata/S1S-style proof apparatus whose
-  certificates are regular/local. See
+  certificates are regular/local. The note was extended with a parameter matrix
+  distinguishing pure arithmetic from arithmetic plus arbitrary predicates, and
+  satisfiability decidability from internal proof-predicate definability. See
   [SJAS Decidable Difference-Logic Fragment Survey](docs/log/2026-05-19-sjas-decidable-difference-logic-survey.md).
 - Logged the SJAS `Pi*1` beta clarification: Willard's finite `IS#_D(beta)`
   condition should be read as requiring the installed Group-2 beta axioms to be

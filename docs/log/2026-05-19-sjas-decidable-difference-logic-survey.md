@@ -55,6 +55,39 @@ decidability proof technique for the decidable real-order/mixed fragment. This
 matters because full linear arithmetic is not a harmless extension of
 difference/order fragments once unary predicates and quantifiers are present.
 
+## Expanded Parameter Matrix
+
+The following matrix separates the major axes rather than only naming the
+paper's four fragments.
+
+| Domain | Arithmetic atoms | Predicate vocabulary | Quantification | Status | SJAS assessment |
+| --- | --- | --- | --- | --- | --- |
+| `N` / `Z` | pure equality/order/successor or difference constraints `x-y < c` | none beyond interpreted arithmetic | first-order | decidable, as a Presburger/difference fragment | Too weak by itself for ordinary arithmetized proof checking unless proof syntax is forced into a regular/unary coding. |
+| `N` / `Z` | difference constraints | uninterpreted unary predicates | first-order | decidable; reducible to S1S/MSO over one successor according to the prompt paper | Most plausible decidable substrate, but only for an automata-local proof apparatus. |
+| `N` / `Z` | full Presburger linear arithmetic | no arbitrary uninterpreted predicates | first-order | decidable | Stronger additive substrate, but ordinary proof checking over binary Godel codes is not Presburger-definable in general; adding arbitrary unary predicates loses decidability. |
+| `N` / `Z` | full Presburger linear arithmetic | one or more arbitrary unary predicates | first-order | undecidable, per the prompt paper's cited results | Reject for a globally decidable SJAS profile. |
+| `N` / `Z` | multiplication as total function or total graph axiom | interpreted arithmetic | first-order | Peano-style arithmetic undecidable; total multiplication is also exactly the Willard danger point | Reject for Willard-style self-justifying profile. |
+| `R` | pure order | unary predicates | first-order | paper treats `uf1.ro` as decidable via monadic order results | Dense order gives little natural support for finite syntax/proof codes. |
+| `R` plus integer predicate | order plus `x in Z` | unary predicates | first-order | included in decidable `uf1.idl.iro` envelope | Useful only when discrete proof coding is restricted to integer-guarded variables. |
+| mixed `R`/integer-guarded variables | real/integer order plus integer-only difference constraints | unary predicates | first-order | decidable `uf1.idl.iro` | Best candidate from the paper if real order is needed; less direct for SJAS than pure integer difference logic. |
+| `R` | real difference constraints `x-y < c` | unary predicates | first-order | undecidable `uf1.rdl`, even with one unary predicate | Reject; this is the paper's main surprise. |
+| `Q` | real/rational difference constraints | unary predicates | first-order | paper states the undecidability proof adapts to `Q` | Reject for the same reason as `RDL`. |
+| `R` | full linear real arithmetic | no arbitrary predicates | first-order | decidable as linear real arithmetic / ordered divisible abelian groups | Decidable pure theory, but arbitrary predicate additions subsume undecidable `uf1.rdl`. |
+| `R` | real closed field operations | no arbitrary predicates | first-order | decidable by quantifier elimination | Has total multiplication and does not match Willard's restricted arithmetic tradeoff. |
+| any infinite domain | weak arithmetic or none | binary or higher-arity uninterpreted predicates | unrestricted first-order | reported by the prompt paper as directly undecidable | Reject unless arity or quantification is specially stratified. |
+| any domain | quantifier-free difference or linear arithmetic | any fixed finite set of ground atoms/predicates under SMT restrictions | quantifier-free | decidable by SMT-style procedures in many cases | Cannot state the universal self-consistency sentence; useful only as a ground checking subroutine. |
+
+Two distinctions matter for this matrix:
+
+1. **Pure arithmetic versus arithmetic plus arbitrary predicates.** Presburger
+   arithmetic and linear real arithmetic are decidable as pure theories, but the
+   prompt paper emphasizes that adding arbitrary unary predicates can destroy
+   decidability. A decidable SJAS profile cannot freely add user predicate
+   symbols and keep the same theorem.
+2. **Satisfiability decidability versus proof-predicate definability.** A logic
+   can have decidable satisfiability while still lacking the ability to define
+   the proof relation needed by `SelfCons_k(beta,d)`. SJAS needs the latter.
+
 ## Relation To Willard's Requirements
 
 A candidate SJAS substrate is not merely a decidable satisfiability problem. It
@@ -87,6 +120,11 @@ In particular:
   arbitrary unary predicate already crosses into undecidability;
 - unrestricted higher-arity uninterpreted predicates are unavailable if global
   decidability is required.
+
+This means that "decidable first-order language" is not by itself the right
+goal. The stronger requirement is a decidable language whose syntax, finite
+axiom membership, substitution, negation pairing, and proof-certificate checks
+are also definable without leaving the fragment.
 
 ## Multiplication Parameter
 
@@ -148,6 +186,15 @@ U-Grounding tableau proof predicate. Its central open question is whether enough
 logical syntax and substitution can be made regular/local without smuggling in
 stronger arithmetic through auxiliary predicates.
 
+The key design challenge is tuple coding. The paper's decidable fragments allow
+unary predicate atoms `P(x)` plus arithmetic relations between variables. A
+Willard-style proof predicate, however, is naturally a relation like
+`Proof(system-code,theorem-code,proof-code)`. To stay monadic, a decidable
+variant must avoid introducing `Proof/3` as an arbitrary higher-arity predicate.
+It must instead represent proof objects as word/position structures whose
+well-formedness and local rule checks are expressible by unary tags and
+successor/difference constraints.
+
 ### Automata On Linear Orderings For `uf1.ro` Or `uf1.idl.iro`
 
 The paper reduces the decidable mixed fragment to order with unary predicates
@@ -171,6 +218,15 @@ This is attractive only if the decision procedure emits checkable certificates
 whose correctness relation is definable inside the same weak object language.
 If certificate checking is performed by the host or by an uninterpreted
 predicate, the system no longer demonstrates internalized self-justification.
+
+### Quantifier-Free SMT Apparatus
+
+Quantifier-free difference logic and quantifier-free linear arithmetic are
+practically decidable and useful as proof-search subroutines. They cannot serve
+as the whole SJAS object language because `SelfCons` is universal and talks
+about all relevant proof/certificate codes. They may still be useful as leaves
+inside a larger decidable proof system, where arithmetic side conditions are
+checked by a quantifier-free certificate rule.
 
 ## Current Answer
 
@@ -207,6 +263,31 @@ Willard U-Grounding Pi*1 language
 ```
 
 with decidability of the global satisfiability problem not claimed.
+
+## Completion Criteria For A Future Decidable-SJAS ADR
+
+A future ADR should not be considered successful merely because its user
+formula fragment has a decidable satisfiability problem. It must show all of the
+following:
+
+1. **Language restriction.** The frontend rejects higher-arity arbitrary
+   predicates, unrestricted real difference constraints, full Presburger plus
+   arbitrary unary predicates, and total multiplication.
+2. **Code representation.** Formula and proof objects are represented in a form
+   native to the decidable fragment, likely unary/word-position coding rather
+   than binary Godel numerals.
+3. **Object-language syntax checks.** `wff`, formula class, and negation-pair
+   checks are definable in the fragment.
+4. **Substitution discipline.** Either diagonal substitution is definable in the
+   fragment, or the self-consistency sentence is redesigned around a native
+   fixed-point/certificate mechanism that does not require general substitution.
+5. **Proof predicate.** The selected `D` has certificates whose validity is
+   expressible inside the same fragment, not hidden in the host and not modeled
+   by an uninterpreted higher-arity predicate.
+6. **Consistency theorem.** The resulting self-consistency axiom must come with
+   a metatheoretic argument analogous in role to Willard's semantic-tableau or
+   Tab-1 consistency-preservation theorem. Decidability alone does not prove
+   self-justification.
 
 ## Immediate Design Consequences For Proflog
 

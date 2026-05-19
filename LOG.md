@@ -22,6 +22,17 @@ complete contemporaneous transcript.
 
 ## 2026-05-19
 
+- Started the decidable-fragment SJAS survey prompted by Boigelot-Fontaine-
+  Vergain's `Decidability of Difference Logic over the Reals with
+  Uninterpreted Unary Predicates`. The first pass maps quantified difference
+  logic, linear arithmetic, unary versus higher-arity predicates, real/integer/
+  natural domains, and quantification into an SJAS suitability matrix. Current
+  conclusion: no reviewed decidable first-order fragment is ready to host the
+  existing Willard/Proflog `SelfCons_k(beta,d)` proof predicate; the best
+  candidate for a new decidable SJAS variant is integer/natural difference
+  logic with unary predicates and an automata/S1S-style proof apparatus whose
+  certificates are regular/local. See
+  [SJAS Decidable Difference-Logic Fragment Survey](docs/log/2026-05-19-sjas-decidable-difference-logic-survey.md).
 - Logged the SJAS `Pi*1` beta clarification: Willard's finite `IS#_D(beta)`
   condition should be read as requiring the installed Group-2 beta axioms to be
   checked `Pi*1` encodings, even if user-facing source uses a more convenient

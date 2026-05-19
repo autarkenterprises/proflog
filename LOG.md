@@ -38,7 +38,8 @@ complete contemporaneous transcript.
   paper, adjacent BSR/difference-constraint linear-arithmetic fragments, and the
   current conclusion that no off-the-shelf decidable FOL fragment has yet been
   identified that both internalizes Willard-style `SelfCons_k(beta,d)` and
-  preserves global decidability. See
+  preserves global decidability. A final survey pass added explicit parameter
+  coverage, a deductive-apparatus verdict matrix, and a completion audit. See
   [SJAS Decidable Difference-Logic Fragment Survey](docs/log/2026-05-19-sjas-decidable-difference-logic-survey.md).
 - Logged the SJAS `Pi*1` beta clarification: Willard's finite `IS#_D(beta)`
   condition should be read as requiring the installed Group-2 beta axioms to be

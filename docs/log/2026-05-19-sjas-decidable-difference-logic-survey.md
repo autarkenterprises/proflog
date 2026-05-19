@@ -23,12 +23,17 @@ Related SJAS sources already used by the project:
 Adjacent linear-arithmetic fragment sources checked for this pass:
 
 - Marco Voigt, "The Bernays-Schönfinkel-Ramsey Fragment with Bounded
-  Difference Constraints over the Reals is Decidable", arXiv:1706.08504, 2017.
+  Difference Constraints over the Reals is Decidable", arXiv:1706.08504, 2017,
+  <https://arxiv.org/abs/1706.08504>.
 - Matthias Horbach, Marco Voigt, and Christoph Weidenbach, "On the Combination
   of the Bernays-Schönfinkel-Ramsey Fragment with Simple Linear Integer
-  Arithmetic", arXiv:1705.08792, 2017.
+  Arithmetic", arXiv:1705.08792, 2017,
+  <https://arxiv.org/abs/1705.08792>.
 - Marco Voigt and Christoph Weidenbach, "Bernays-Schoenfinkel-Ramsey with
-  Simple Bounds is NEXPTIME-complete", arXiv:1501.07209, 2015/2020.
+  Simple Bounds is NEXPTIME-complete", arXiv:1501.07209, 2015/2020,
+  <https://arxiv.org/abs/1501.07209>.
+- SMT-LIB 2.7 logic catalogue, especially `LIA`, `LRA`, `QF_IDL`, `QF_RDL`,
+  and `QF_UFIDL`, <https://smt-lib.org/logics-all.shtml>.
 
 ## Decidability Facts From Boigelot-Fontaine-Vergain
 
@@ -120,6 +125,23 @@ are not absolutely impossible in every decidable setting. They are possible only
 under severe prefix and arithmetic restrictions, and those restrictions are not
 obviously compatible with an unbounded SJAS proof predicate.
 
+### SMT-LIB Quantified And Quantifier-Free Baselines
+
+- SMT-LIB `LIA` and `LRA` name closed quantified linear integer and real
+  arithmetic formulas, respectively. They are useful baselines for pure
+  arithmetic, but the catalogue also makes clear that multiplication/division
+  are excluded except for multiplication by concrete coefficients.
+- SMT-LIB `QF_IDL` and `QF_RDL` cover quantifier-free integer and rational/real
+  difference logic. Their practical decision procedures can help check ground
+  side conditions, but quantifier-free logics cannot state the universal
+  self-consistency sentence.
+- SMT-LIB `QF_UFIDL` allows quantifier-free integer difference arithmetic with
+  uninterpreted symbols under restrictions that make it convertible to `QF_IDL`
+  when no higher-arity free functions are present. This is a useful SMT surface,
+  but still cannot serve as the whole SJAS language because it is
+  quantifier-free and its proof checking would be external unless explicitly
+  internalized.
+
 ## Expanded Parameter Matrix
 
 The following matrix separates the major axes rather than only naming the
@@ -155,6 +177,26 @@ Two distinctions matter for this matrix:
 2. **Satisfiability decidability versus proof-predicate definability.** A logic
    can have decidable satisfiability while still lacking the ability to define
    the proof relation needed by `SelfCons_k(beta,d)`. SJAS needs the latter.
+
+## Parameter Coverage Audit
+
+The goal asked for combinations of the parameter values discussed in and around
+the prompt paper. The relevant coverage is:
+
+| Axis | Values considered | Decisive observation |
+| --- | --- | --- |
+| Domain | naturals, integers, rationals, reals, mixed real/integer guards | integer/natural difference logic remains the plausible decidable discrete route; real difference logic with unary predicates is undecidable; the prompt paper says the real-difference undecidability adapts to `Q`; mixed real/integer order plus integer-guarded difference remains decidable. |
+| Arithmetic strength | equality/order, successor-like difference constraints, full linear arithmetic, Presburger arithmetic, real closed field operations, total multiplication | pure linear arithmetic and real closed fields are decidable as pure theories, but arbitrary predicates or total multiplication either lose decidability or violate Willard's U-Grounding tradeoff. |
+| Predicate interpretation | no arbitrary predicates, interpreted integer-membership predicate, uninterpreted unary predicates, higher-arity uninterpreted predicates | unary predicates are the maximum unrestricted predicate vocabulary supported by the prompt decidability frontier; binary/higher-arity predicates require special restrictions such as BSR and cannot be freely combined with unbounded proof coding. |
+| Predicate arity | unary versus binary/higher-arity | monadicity is the key to the decidable prompt fragments; a direct `Proof(system,theorem,proof)` relation is therefore not admissible as an arbitrary object-language predicate. |
+| Quantification | quantifier-free, unrestricted first-order, BSR `exists* forall*` | quantifier-free SMT fragments are useful sidecar checkers but cannot state `SelfCons`; unrestricted FO is available only in the monadic/difference frontier; BSR admits higher arity but not the unbounded self-reference shape. |
+| Code representation | numeric Godel codes, tuple predicates, unary word-position encodings | existing Willard/Proflog proof coding wants numeric and tuple relations; a decidable variant must likely move to word-position/automata-local encodings. |
+| Deductive apparatus | semantic tableaux, `Tab-1`, automata/S1S, automata on linear orderings, quantifier elimination, finite ground instantiation, quantifier-free SMT | only semantic tableaux/`Tab-1` are backed by Willard's current consistency theorem; only automata-style apparatuses align naturally with the decidable monadic/difference fragments. |
+
+This is not a complete product lattice of every mathematically possible
+first-order fragment. It covers the combinations made relevant by the prompt
+paper, the adjacent BSR/linear-arithmetic frontier, and the extra SJAS
+requirement that proof checking itself be internalized.
 
 ## Relation To Willard's Requirements
 
@@ -329,6 +371,19 @@ BSR-style fragments may be useful for a bounded "finite certificate sanity"
 profile, but that would be a bounded verification tool rather than an SJAS in
 Willard's sense.
 
+## Deductive Apparatus Verdict Matrix
+
+| Apparatus `D` | Natural fragment | Decidability status | SJAS verdict |
+| --- | --- | --- | --- |
+| Semantic tableaux | Willard U-Grounding `Pi*1` beta basis | Willard consistency-preservation theorem applies for the stated `IS#_D(beta)` setting, but global satisfiability is not claimed decidable | Current Proflog/Willard route; faithful to the literature, not a decidable-fragment route. |
+| `Tab-1` | Willard U-Grounding `Pi*1` beta basis with controlled theorem reuse | Same Willard theorem family; stronger `Tab-2`/Hilbert-style methods are warned against | Valid future extension target if proof-list reuse is mechanized carefully. |
+| S1S/Büchi-style automata | natural/integer order or difference logic with unary predicates | Decidable by automata methods | Best candidate for a new decidable SJAS-like system, but only if proof certificates are redesigned as regular/local word structures. |
+| Automata on linear orderings | `uf1.ro` and the prompt paper's `uf1.idl.iro` reduction target | Decidable in principle; prompt paper notes no practical `uf1.ro` procedure yet | Possible dense/discrete experiment; less direct than pure integer/natural S1S for proof syntax. |
+| Quantifier elimination | pure Presburger, pure LRA, pure RCF | Decidable pure theories | Useful for arithmetic side conditions; not enough once arbitrary proof predicates or unary program predicates are added. |
+| Finite ground instantiation | BSR plus simple bounds/simple LIA/bounded real difference constraints | Decidable under strict prefix and arithmetic restrictions | Useful bounded verification profile; does not express unbounded self-consistency over proof codes. |
+| Quantifier-free SMT certificates | `QF_IDL`, `QF_RDL`, `QF_LIA`, `QF_UFIDL`-style surfaces | Practically decidable fragments | Sidecar checker only unless certificate checking is itself encoded in the SJAS object language. |
+| Host-side proof predicate or uninterpreted `Proof/3` | any fragment where proof checking is delegated | May preserve external decidability only by hiding the hard part | Not acceptable for self-justification; it assumes the core property instead of internalizing it. |
+
 ## Current Answer
 
 No reviewed decidable first-order fragment is currently ready to serve as a
@@ -416,3 +471,58 @@ following:
 5. Higher-arity uninterpreted predicates and unrestricted real difference
    constraints should be excluded from any decidable-profile language
    declaration.
+
+## Completion Audit For This Survey Goal
+
+Objective requirement: draw from the mentions in arXiv:2305.15059.
+
+- Evidence: the source inventory records the paper's named fragments
+  `uf1.ro`, `uf1.iro`, `uf1.idl.iro`, and `uf1.rdl`; its unary-predicate
+  restriction; Theorem 1 decidability; Theorem 2 real-difference
+  undecidability; the `Q` adaptation note; the exclusion of non-difference
+  atoms such as `x+y < 0`; and the automata-on-linear-orderings direction.
+- Status: satisfied.
+
+Objective requirement: review quantified difference logic.
+
+- Evidence: the matrix distinguishes quantifier-free SMT difference logic from
+  quantified integer/natural difference logic with unary predicates and the
+  prompt paper's mixed real/integer guarded difference fragment.
+- Status: satisfied for the fragments relevant to the prompt paper and SJAS
+  design.
+
+Objective requirement: review linear arithmetic.
+
+- Evidence: the note covers pure Presburger/LIA, pure LRA, real closed fields,
+  full Presburger plus unary predicates, BSR with simple LIA, BSR with simple
+  bounds, and quantifier-free SMT linear fragments.
+- Status: satisfied for the decidability frontier needed by this goal.
+
+Objective requirement: review combinations of interpreted/uninterpreted
+predicates, unary/higher arity, real/integer/natural/rational domains, and
+quantified/unquantified forms.
+
+- Evidence: the expanded parameter matrix and parameter coverage audit cover
+  those axes explicitly, including the decisive higher-arity exception for BSR
+  restrictions.
+- Status: satisfied at the level needed for an SJAS architectural decision.
+
+Objective requirement: determine whether a decidable first-order system can
+serve as the language and axiom basis for an SJAS.
+
+- Evidence: the current answer gives a negative result for off-the-shelf
+  systems: no reviewed decidable FOL fragment both internalizes the existing
+  Willard/Proflog `SelfCons_k(beta,d)` proof predicate and preserves global
+  decidability. It also identifies the only plausible new direction:
+  integer/natural difference logic with unary predicates plus an
+  automata/S1S-style proof apparatus using regular/local certificates.
+- Status: satisfied, with the caveat that the automata-local SJAS is a future
+  research candidate, not an established Willard-equivalent system.
+
+Objective requirement: identify compatible deductive apparatuses.
+
+- Evidence: the deductive apparatus sections and verdict matrix cover
+  semantic tableaux, `Tab-1`, S1S/Büchi automata, automata on linear orderings,
+  quantifier elimination, finite ground instantiation, quantifier-free SMT, and
+  the rejected host-side/uninterpreted proof-predicate route.
+- Status: satisfied.

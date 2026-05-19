@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-05-19
 
+- Logged a second decidable-SJAS research pass focused on whether a decidable
+  language could equal, or preserve the introspection-relevant fragment of,
+  Willard's U-Grounding language. The note records a screening lemma: full
+  unrestricted first-order equivalence to standard U-Grounding should be
+  undecidable because U-Grounding has total addition and a `Delta*0`
+  definition of multiplication's graph. The strongest candidates are therefore
+  weaker readings: single-base Buchi/automatic arithmetic, WS1S proof
+  intervals, WS2S/tree-automata proof trees, and controlled MSO+BAPA/Parikh
+  counting. See
+  [Decidable SJAS Candidates Around U-Grounding Expressivity](docs/log/2026-05-19-decidable-sjas-u-grounding-candidates.md).
 - Started the decidable-fragment SJAS survey prompted by Boigelot-Fontaine-
   Vergain's `Decidability of Difference Logic over the Reals with
   Uninterpreted Unary Predicates`. The first pass maps quantified difference

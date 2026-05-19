@@ -33,7 +33,12 @@ complete contemporaneous transcript.
   logic with unary predicates and an automata/S1S-style proof apparatus whose
   certificates are regular/local. The note was extended with a parameter matrix
   distinguishing pure arithmetic from arithmetic plus arbitrary predicates, and
-  satisfiability decidability from internal proof-predicate definability. See
+  satisfiability decidability from internal proof-predicate definability. It was
+  then extended with a source-backed theorem inventory covering the prompt
+  paper, adjacent BSR/difference-constraint linear-arithmetic fragments, and the
+  current conclusion that no off-the-shelf decidable FOL fragment has yet been
+  identified that both internalizes Willard-style `SelfCons_k(beta,d)` and
+  preserves global decidability. See
   [SJAS Decidable Difference-Logic Fragment Survey](docs/log/2026-05-19-sjas-decidable-difference-logic-survey.md).
 - Logged the SJAS `Pi*1` beta clarification: Willard's finite `IS#_D(beta)`
   condition should be read as requiring the installed Group-2 beta axioms to be
@@ -41,7 +46,10 @@ complete contemporaneous transcript.
   notation that is lowered into that fragment. The same note records that
   universal quantification over `Mult` relation arguments does not assert
   multiplication totality; the dangerous form is the existential totality
-  principle `forall x y. exists z. Mult(x,y,z)`. See
+  principle `forall x y. exists z. Mult(x,y,z)`. It was extended with an
+  explicit exchange summary covering the source location for `IS#_D(beta)`,
+  the "has a `Pi*1` encoding" reading, `Pi1` versus `Pi*1`, and the conditional
+  universal reading of relational multiplication. See
   [SJAS Pi-Star-1 Beta and Relational Multiplication Clarification](docs/log/2026-05-19-sjas-pi-star-beta-mult-clarification.md).
 
 ## 2026-05-18

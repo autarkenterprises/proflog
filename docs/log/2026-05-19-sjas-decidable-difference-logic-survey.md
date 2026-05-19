@@ -20,6 +20,16 @@ Related SJAS sources already used by the project:
 - Dan E. Willard, "On the Significance of Self-Justifying Axiom Systems from
   the Perspective of Analytic Tableaux", arXiv:1307.0150, 2013/2014.
 
+Adjacent linear-arithmetic fragment sources checked for this pass:
+
+- Marco Voigt, "The Bernays-Schönfinkel-Ramsey Fragment with Bounded
+  Difference Constraints over the Reals is Decidable", arXiv:1706.08504, 2017.
+- Matthias Horbach, Marco Voigt, and Christoph Weidenbach, "On the Combination
+  of the Bernays-Schönfinkel-Ramsey Fragment with Simple Linear Integer
+  Arithmetic", arXiv:1705.08792, 2017.
+- Marco Voigt and Christoph Weidenbach, "Bernays-Schoenfinkel-Ramsey with
+  Simple Bounds is NEXPTIME-complete", arXiv:1501.07209, 2015/2020.
+
 ## Decidability Facts From Boigelot-Fontaine-Vergain
 
 The paper studies first-order fragments that combine individual quantification,
@@ -55,6 +65,61 @@ decidability proof technique for the decidable real-order/mixed fragment. This
 matters because full linear arithmetic is not a harmless extension of
 difference/order fragments once unary predicates and quantifiers are present.
 
+## Source-Backed Theorem Inventory
+
+This inventory records the evidence used for the parameter matrix.
+
+### Prompt Paper
+
+- The language contains arithmetic symbols for real arithmetic, a monadic
+  interpreted predicate `x in Z`, and arbitrary uninterpreted predicate symbols,
+  but the paper restricts those arbitrary predicates to unary. It states that
+  adding binary uninterpreted predicates with unrestricted first-order
+  quantification directly yields undecidability.
+- Arithmetic atoms in the studied fragments are order constraints `x < y` or
+  difference constraints `x-y < c`, with relation variants and integer
+  constants. Non-difference linear atoms such as `x+y < 0` are explicitly outside
+  the decidability proof technique.
+- `uf1.ro` has unary uninterpreted predicates plus real order only; the paper
+  treats it as decidable via the universal fragment of monadic second-order
+  real order.
+- `uf1.iro` adds the interpreted integer-membership predicate.
+- `uf1.idl.iro` permits order over real/integer variables and difference
+  constraints only when the variables are integer-guarded. Theorem 1 proves
+  `uf1.idl.iro` and `uf1.iro` decidable.
+- `uf1.rdl` permits unrestricted real difference constraints with unary
+  predicates. The paper proves its satisfiability problem undecidable, even with
+  a single unary predicate; the conclusion says the proof adapts to `Q`.
+- The paper cites prior results that Presburger arithmetic with a single
+  monadic predicate is undecidable, including Downey and Halpern.
+- The paper's long-term decision-procedure direction is automata on linear
+  orderings for the decidable fragment, not a conventional tableau proof
+  calculus.
+
+### Adjacent Linear-Arithmetic Fragments
+
+- Full first-order predicate logic plus linear real arithmetic and
+  uninterpreted predicates is undecidable even when uninterpreted predicates are
+  unary; Voigt's bounded-difference paper states this in its abstract.
+- BSR plus bounded real difference constraints becomes decidable when
+  universally quantified variables range over bounded intervals. This is a
+  useful restricted higher-arity-predicate result, but the bound restriction is
+  incompatible with an unbounded proof-code self-consistency predicate unless
+  the SJAS claim is also bounded.
+- General first-order predicate logic plus linear integer arithmetic is
+  undecidable. Horbach-Voigt-Weidenbach recover decidability for the
+  Bernays-Schönfinkel-Ramsey prefix `exists* forall*` with a restricted simple
+  linear integer arithmetic fragment through finite ground instantiation.
+- Voigt-Weidenbach's simple-bounds result is NEXPTIME-complete and nearly
+  tight: adding richer arithmetic constraints such as difference inequations,
+  simple additive inequations, quotient inequations, or multiplicative
+  inequations breaks decidability for that BSR setting.
+
+These adjacent fragments matter because they show that higher-arity predicates
+are not absolutely impossible in every decidable setting. They are possible only
+under severe prefix and arithmetic restrictions, and those restrictions are not
+obviously compatible with an unbounded SJAS proof predicate.
+
 ## Expanded Parameter Matrix
 
 The following matrix separates the major axes rather than only naming the
@@ -75,6 +140,9 @@ paper's four fragments.
 | `R` | full linear real arithmetic | no arbitrary predicates | first-order | decidable as linear real arithmetic / ordered divisible abelian groups | Decidable pure theory, but arbitrary predicate additions subsume undecidable `uf1.rdl`. |
 | `R` | real closed field operations | no arbitrary predicates | first-order | decidable by quantifier elimination | Has total multiplication and does not match Willard's restricted arithmetic tradeoff. |
 | any infinite domain | weak arithmetic or none | binary or higher-arity uninterpreted predicates | unrestricted first-order | reported by the prompt paper as directly undecidable | Reject unless arity or quantification is specially stratified. |
+| any domain | no arithmetic, arbitrary-arity predicates, no functions, BSR `exists* forall*` prefix | restricted first-order | decidable by finite grounding | Useful for finite/bounded verification, but lacks native arithmetic coding for syntax/proofs. |
+| `R` | bounded real difference constraints | arbitrary predicates under BSR restrictions | restricted first-order | decidable when universal variables are range-bounded | Possible bounded-checking substrate; not enough for unbounded `SelfCons`. |
+| `Z` | simple linear integer arithmetic | arbitrary predicates under BSR restrictions | restricted first-order | decidable by finite ground instantiation | Possible array/property-checking substrate; richer arithmetic variants become undecidable. |
 | any domain | quantifier-free difference or linear arithmetic | any fixed finite set of ground atoms/predicates under SMT restrictions | quantifier-free | decidable by SMT-style procedures in many cases | Cannot state the universal self-consistency sentence; useful only as a ground checking subroutine. |
 
 Two distinctions matter for this matrix:
@@ -195,6 +263,19 @@ It must instead represent proof objects as word/position structures whose
 well-formedness and local rule checks are expressible by unary tags and
 successor/difference constraints.
 
+The most coherent object-language shape for this route is therefore not
+`Proof(s,t,p)` over numeric Godel codes. It is closer to:
+
+```text
+forall start end.
+  not ProofInterval(start,end)
+```
+
+where `ProofInterval` abbreviates a finite collection of first-order formulas
+over word positions, unary tag predicates, and bounded successor/difference
+constraints. This preserves monadicity by making proof data part of the
+structure of an interval rather than a tuple relation over numeric codes.
+
 ### Automata On Linear Orderings For `uf1.ro` Or `uf1.idl.iro`
 
 The paper reduces the decidable mixed fragment to order with unary predicates
@@ -227,6 +308,26 @@ as the whole SJAS object language because `SelfCons` is universal and talks
 about all relevant proof/certificate codes. They may still be useful as leaves
 inside a larger decidable proof system, where arithmetic side conditions are
 checked by a quantifier-free certificate rule.
+
+### BSR With Simple Bounds Or Bounded Difference Constraints
+
+The BSR family permits higher-arity uninterpreted predicates under a restricted
+quantifier prefix and, in the cited arithmetic extensions, under simple or
+bounded arithmetic constraints. This gives a decidable first-order setting with
+more relational vocabulary than `uf1`.
+
+It is still a poor direct SJAS fit:
+
+- the `SelfCons` sentence is naturally universal over unbounded formula/proof
+  codes, not over a bounded instantiation set;
+- finite ground instantiation is a decision method for a fixed formula, not an
+  internal proof predicate over arbitrary proof objects;
+- adding the richer arithmetic needed for unbounded code manipulation is exactly
+  what the cited BSR arithmetic results identify as breaking decidability.
+
+BSR-style fragments may be useful for a bounded "finite certificate sanity"
+profile, but that would be a bounded verification tool rather than an SJAS in
+Willard's sense.
 
 ## Current Answer
 
@@ -263,6 +364,18 @@ Willard U-Grounding Pi*1 language
 ```
 
 with decidability of the global satisfiability problem not claimed.
+
+There is therefore no currently identified off-the-shelf decidable first-order
+logic that both:
+
+1. admits enough arithmetic/coding to internalize Willard's existing
+   `SelfCons_k(beta,d)` proof predicate; and
+2. preserves decidability under the needed predicates, quantification, and
+   proof-code operations.
+
+The positive result is weaker and conditional: a decidable SJAS-like system may
+be possible if the proof apparatus is redesigned around monadic/regular data
+rather than imported from semantic tableaux over binary Godel codes.
 
 ## Completion Criteria For A Future Decidable-SJAS ADR
 

@@ -25,6 +25,13 @@ defining steps. Willard explicitly uses this difference as the motivating
 example for why Type-A systems can evade the semantic-tableaux second
 incompleteness effect while Type-M systems cannot.
 
+In the paper's own setup, the equations are represented by sentence sequences
+`phi_0, phi_1, ... phi_n` and `psi_0, psi_1, ... psi_n`; those sequences imply,
+or prove in the informal explanatory sense, the existence/value of `x_n` and
+`y_n`. The multiplicative primitive therefore provides a short derivation of a
+number whose binary code is exponentially larger than the derivation, while
+the additive primitive does not.
+
 Local reference:
 
 - `target/sjas-pdf-text/willard2011_self_justifying_logics_arxiv_1108.6330.txt`,
@@ -186,3 +193,43 @@ question for its chosen proof apparatus:
 Without such an invariant, replacing numbers by words or trees may only move
 the diagonalization mechanism into a different coding discipline.
 
+## Completion Audit
+
+Objective requirement: find Willard's reference for the additive versus
+multiplicative expressivity gap.
+
+- Evidence: the "Growth Illustration Reference" section identifies the 2011
+  Example 3.7 passage comparing `x_i = x_{i-1}+x_{i-1}` with
+  `y_i = y_{i-1}*y_{i-1}`, including the line range 560-607 in the local text.
+  It also records the 2013/2014 repetition at lines 684-696 and the
+  floating-point/rounding follow-up at lines 724-730.
+- Status: satisfied.
+
+Objective requirement: track down the exact moment in the literature where the
+semantic-tableaux diagonalization proof fails.
+
+- Evidence: the "Exact Negative-Proof Step" section identifies Lemma 4.7 in
+  the 2002 JSL paper as the critical lemma. It records the squaring-chain proof
+  at lines 781-817, Lemma 4.8's reuse of the `x_0` and `x_1` fragments at
+  lines 859-997 and 1086-1128, and the final collapse statement at
+  lines 1678-1683.
+- Status: satisfied.
+
+Objective requirement: identify the mechanism, not only the effect.
+
+- Evidence: the mechanism summary explains that total multiplication supplies
+  proof-certificate compression through a short squaring chain; without total
+  multiplication, that lemma is unavailable. The positive Type-A section then
+  identifies Fact D.3's U-height/Normed/Good invariant as the corresponding
+  obstruction: sufficiently small U-Grounding deduction trees retain an
+  unclosed branch.
+- Status: satisfied.
+
+Objective requirement: connect the finding to future word/tree object-language
+  candidates.
+
+- Evidence: the final section states the analogous criterion for word/tree
+  systems: either compact proof certificates reintroduce diagonalization, or
+  the object language needs a Fact-D.3-like invariant blocking closed
+  certificates.
+- Status: satisfied.

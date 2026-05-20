@@ -20,6 +20,14 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-20
+
+- Logged a verbatim research note on the relationship between Willard's
+  U-Grounding expressivity, proof-object coding, deductive apparatus choice,
+  and the proposed "arithmetic efficiency" explanation of why diagonalization
+  can fail in Type-A/tableau SJAS settings. See
+  [SJAS Diagonalization Efficiency Question](docs/log/2026-05-20-sjas-diagonalization-efficiency-question.md).
+
 ## 2026-05-19
 
 - Logged a second decidable-SJAS research pass focused on whether a decidable

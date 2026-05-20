@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-05-20
 
+- Evaluated Willard's diagonalization-preclusion argument for correctness. The
+  durable conclusion is conditional: the argument is coherent for the specific
+  Type-A U-Grounding/semantic-tableaux/conventional-proof-encoding profile, but
+  it should not be overstated as a general impossibility of diagonalization.
+  The strongest counterarguments are scope counterarguments around proof-object
+  compression, cut-like reuse, hidden numeral compression, non-multiplicative
+  fast-growth primitives, and unsafe finite beta extensions. See
+  [SJAS Diagonalization Preclusion Evaluation](docs/log/2026-05-20-sjas-diagonalization-preclusion-evaluation.md).
 - Traced Willard's exact additive-versus-multiplicative diagonalization
   mechanism. The growth illustration is in the 2011 paper's comparison of
   `x_i = x_{i-1}+x_{i-1}` with `y_i = y_{i-1}*y_{i-1}`. The exact collapse point

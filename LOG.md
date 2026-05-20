@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-05-20
 
+- Traced Willard's exact additive-versus-multiplicative diagonalization
+  mechanism. The growth illustration is in the 2011 paper's comparison of
+  `x_i = x_{i-1}+x_{i-1}` with `y_i = y_{i-1}*y_{i-1}`. The exact collapse point
+  in the semantic-tableaux second-incompleteness proof is Lemma 4.7 in the 2002
+  JSL paper: total multiplication builds the short squaring-chain fragments
+  reused by Lemma 4.8; when multiplication is only a relation, Lemma 4.7 fails
+  and the proof collapses. The positive Type-A mechanism is Fact D.3 in the
+  2011 paper, where small U-Grounding deduction trees must have an unclosed
+  branch unless total multiplication is added. See
+  [SJAS Diagonalization Mechanism Trace](docs/log/2026-05-20-sjas-diagonalization-mechanism-trace.md).
 - Logged a verbatim research note on the relationship between Willard's
   U-Grounding expressivity, proof-object coding, deductive apparatus choice,
   and the proposed "arithmetic efficiency" explanation of why diagonalization

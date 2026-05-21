@@ -917,6 +917,26 @@
             1
             96)))))
 
+(deftest sjas-tableau-proof-cites-fixed-axiom-groups-from-system-code
+  (let [system (demo-system :willard-sjas-tableau0)
+        axiom-certificate (sjas/proof-certificate 'sjas-axiom)]
+    (doseq [[group expected-step] [[:group-zero 'sjas-system-group-zero-axiom]
+                                  [:group-one 'sjas-system-group-one-axiom]]]
+      (let [record (first (filter #(= group (:group %)) (:axioms system)))
+            citation-proofs (query/query-succeeds
+                              (:program system)
+                              (sjas/tableau-proof (:system-code system)
+                                                  (:code record)
+                                                  axiom-certificate)
+                              1
+                              96)
+            proof (first-proof citation-proofs)]
+        (is (successful? citation-proofs))
+        (is (proof/contains-step? proof expected-step)
+            (str group " citations must be recovered from the fixed SJAS axiom profile"))
+        (is (not (proof/contains-step? proof 'sjas-generated-axiom-member))
+            (str group " citations should not fall back to generated axiom-member facts"))))))
+
 (deftest sjas-subst-code-relates-structural-substitution-codes
   (let [system (demo-system :willard-sjas-level1)
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))

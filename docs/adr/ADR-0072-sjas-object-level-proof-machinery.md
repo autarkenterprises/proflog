@@ -25,11 +25,12 @@ boundaries:
 
 - the active system's axiom formula is selected by a generated
   `:sjas/system-entries` registry entry rather than decoded from `system-code`;
-- formal axiom citation for Group-0, Group-1, and Group-3 still uses generated
-  `axiom-member/2` facts rather than a full code-level axiom-membership
-  predicate over the decoded system. Group-2 beta citations and reflected
-  Group-2b citations now read the corresponding encoded sections from
-  `system-code`, but both paths still enter through the ground byte extractor;
+- formal axiom citation for Group-3 still uses generated `axiom-member/2` facts
+  rather than a full code-level axiom-membership predicate over the decoded
+  system. Group-0 and Group-1 citations now validate the encoded system header
+  and decode the theorem formula; Group-2 beta citations and reflected Group-2b
+  citations read the corresponding encoded sections from `system-code`. All of
+  those paths still enter through the ground byte extractor;
 - already-ground U-Grounding code terms use a deterministic Clojure entry
   shortcut before structural relation checking, which is acceptable only as an
   operational staging boundary if it does not become the semantic proof rule;
@@ -84,16 +85,27 @@ clause section of `system-code`. Reflected clause records encode relation index,
 arity, and body formula bytes. The profile reconstructs the axiom formula
 `forall x1 ... forall xn. body -> R(x1, ..., xn)` and compares it against the
 theorem code modulo alpha-equivalence. This removes the generated
-`axiom-member/2` dependency for user-supplied reflected clauses, but still keeps
-the same ground-byte extraction boundary as the beta path and still leaves
-Group-0, Group-1, and Group-3 on generated fallback metadata.
+`axiom-member/2` dependency for user-supplied reflected clauses. At that stage
+it still kept the same ground-byte extraction boundary as the beta path and
+still left Group-0, Group-1, and Group-3 on generated fallback metadata.
+
+The fifth stage makes fixed Group-0 and Group-1 axiom citation consume the
+system-code header and decoded theorem formula instead of generated membership
+facts. These axiom groups are fixed by the SJAS profile, so the system side only
+needs to prove that the supplied code is an encoded SJAS system with a supported
+profile tag. The theorem side decodes the formula code and compares it with the
+fixed decoded axiom shapes. Compact formula codes canonicalize object numerals
+as `num` payloads, so the first two Group-1 equations are recognized as their
+canonical numeric code forms rather than as literal `add` and `dbl` syntax. This
+removes generated fallback for Group-0 and Group-1, but still leaves Group-3,
+ground-byte extraction, and code-level proof-tree checking open.
 
 Later stages must internalize, in order:
 
-1. `system-code` decoding sufficient to reconstruct Group-0, Group-1, and
-   Group-3 axiom membership without generated host facts;
+1. `system-code` decoding sufficient to reconstruct Group-3 axiom membership
+   without generated host facts;
 2. object-level `axiom-member/2` over decoded system code for every axiom group
-   rather than only beta and reflected Group-2b axioms;
+   rather than only Group-0, Group-1, Group-2, and reflected Group-2b axioms;
 3. code-level checking of tableau proof trees against decoded formulas and
    axiom membership, instead of validating a decoded Proflog kernel proof term
    by calling `kernel/prove-programo`;
@@ -128,6 +140,8 @@ Tests must be red before implementation and then pass:
   step, not only generated axiom-member metadata;
 - reflected Group-2b axiom citation proof evidence includes a system-code
   reflected-clause membership step, not only generated axiom-member metadata;
+- fixed Group-0 and Group-1 axiom citation proof evidence includes a decoded
+  system/profile membership step, not generated axiom-member metadata;
 - malformed certificates and wrong theorem codes remain rejected;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.

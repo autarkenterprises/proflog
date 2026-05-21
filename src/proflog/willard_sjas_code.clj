@@ -152,6 +152,10 @@
     sjas-system-beta-axiom
     sjas-system-code-bytes
     sjas-system-reflected-axiom
+    sjas-system-group-zero-axiom
+    sjas-system-group-one-axiom
+    sjas-system-code-header
+    sjas-system-fixed-axiom
     sjas-code-bytes
     sjas-ug-code-bytes
     sjas-ug-code-byte-cons

@@ -719,6 +719,21 @@
 (def ^:private system-profile-level1-tag 33)
 (def ^:private system-reflected-clause-tag 34)
 
+(def ^:private internal-zero-num (list 'num '()))
+(def ^:private internal-one-num (list 'num (list 1)))
+(def ^:private internal-two-num (list 'num (list 2)))
+
+(def ^:private group-zero-internal-formulas
+  [(list 'neq internal-one-num internal-zero-num)
+   (list 'neq internal-two-num internal-zero-num)])
+
+(def ^:private group-one-internal-formulas
+  [(list 'eq internal-zero-num internal-zero-num)
+   (list 'eq internal-two-num internal-two-num)
+   (list 'eq
+         (list 'app 'sub (list internal-two-num internal-one-num))
+         internal-one-num)])
+
 (def ^:private positive-byte-entries
   (apply list (range 1 sjas-code/byte-base)))
 
@@ -1720,6 +1735,65 @@
       (== (list 'sjas-system-code-bytes ground-read-proof) proof))
     fail))
 
+(defn- sjas-system-code-headero
+  "Recognize the common header of an encoded finite SJAS system.
+
+   The fixed Group-0 and Group-1 axioms are available for every SJAS profile, so
+   citation checking only needs to know that the supplied system code has the
+   system tag and one of the known profile tags. The beta and reflected tails
+   are deliberately left opaque here; later axiom-group relations inspect them
+   when those groups are relevant."
+  [system-bytes proof]
+  (fresh [profile-tag rest]
+    (== (lcons system-code-tag (lcons profile-tag rest)) system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (== '(sjas-system-code-header) proof)))
+
+(defn- fixed-axiom-formulao
+  "Compare a decoded theorem formula with one fixed SJAS axiom group."
+  [formulas proof-step formula proof]
+  (or*
+    (map (fn [expected]
+           (fresh []
+             (sjas-alpha-formula-equivo expected formula '())
+             (== (list proof-step) proof)))
+         formulas)))
+
+(defn- sjas-fixed-axiom-formulao
+  "Recognize fixed Group-0 and Group-1 axiom formulas after formula decoding.
+
+   Formula codes canonicalize object numerals into compact `num` payloads, so
+   the first two Group-1 equations decode as numeric identities rather than as
+   literal `add`/`dbl` application terms. This relation matches the actual code
+   representation that generated axiom records use."
+  [formula proof]
+  (conde
+    [(fixed-axiom-formulao group-zero-internal-formulas
+                           'sjas-system-group-zero-axiom
+                           formula
+                           proof)]
+    [(fixed-axiom-formulao group-one-internal-formulas
+                           'sjas-system-group-one-axiom
+                           formula
+                           proof)]))
+
+(defn- sjas-fixed-axiom-membero
+  "Cite fixed SJAS axioms from the decoded system profile, not host facts."
+  [prog system-code formula-code proof]
+  (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
+          header-proof formula fixed-proof]
+    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
+    (sjas-ground-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-system-code-headero system-bytes header-proof)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (sjas-fixed-axiom-formulao formula fixed-proof)
+    (== (list 'sjas-system-fixed-axiom
+              system-read-proof
+              formula-read-proof
+              header-proof
+              fixed-proof)
+        proof)))
+
 (defn- byte-prefixo
   [prefix bytes rest]
   (conde
@@ -1953,6 +2027,7 @@
   (conda
     [(sjas-beta-axiom-membero prog system-code formula-code proof)]
     [(sjas-reflected-axiom-membero prog system-code formula-code proof)]
+    [(sjas-fixed-axiom-membero prog system-code formula-code proof)]
     [(sjas-generated-axiom-membero prog system-code formula-code)
      (== '(sjas-generated-axiom-member) proof)]))
 

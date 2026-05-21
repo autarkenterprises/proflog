@@ -107,6 +107,22 @@ complete contemporaneous transcript.
   `ground-formal-code-term` to expose already-ground byte strings. Verification:
   `lein test-proflog-sjas` passed 35 tests / 227 assertions in approximately
   44 minutes.
+- Continued ADR-0072 by moving fixed Group-0 and Group-1 axiom citation off the
+  generated `axiom-member/2` fallback. The red test required `sjas-axiom`
+  certificates for representative Group-0 and Group-1 records to contain
+  `sjas-system-group-zero-axiom` or `sjas-system-group-one-axiom`, and to omit
+  `sjas-generated-axiom-member`; before the change both closed through the
+  generated fallback. The green implementation validates the encoded system
+  header, decodes the theorem formula code, and matches fixed axiom formulas in
+  the compact decoded representation. This is progress but not completion:
+  Group-3 membership still falls back to generated facts, the fixed path still
+  uses `ground-formal-code-term`, and proof predicates still validate decoded
+  proof terms by invoking the kernel. Verification: focused fixed-axiom,
+  beta-axiom, reflected-clause, and substantive self-consistency tests passed;
+  `lein test-proflog-fast` passed 145 tests / 548 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions; and
+  `lein test-proflog-sjas` passed 36 tests / 233 assertions in approximately
+  41 minutes.
 
 ## 2026-05-20
 

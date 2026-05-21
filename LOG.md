@@ -36,6 +36,16 @@ complete contemporaneous transcript.
   `tableau-proof/3`. The pure relational fix was to make structural code-to-AST
   translation construct variable and quantifier nodes with concrete shared
   code-nom constants instead of calling nominal constructors on logic variables.
+- ADR-0072 first-slice verification before commit `b8615cf`: focused
+  theorem-code proof checks passed (`sjas-tableau-proof-checks-kernel-certificates`,
+  `sjas-subst-prf-checks-identity-substitution-certificates`,
+  `sjas-tableau-proof-checks-structural-non-generated-theorem-codes`,
+  `sjas-subst-prf-checks-structural-non-generated-theorem-codes`, plus the
+  self-consistency certificate regression). `lein test-proflog-fast` passed
+  145 tests / 548 assertions; `lein test-proflog-extended` passed 68 tests /
+  203 assertions; `lein test-proflog-sjas` passed 35 tests / 223 assertions.
+  The full SJAS namespace run was approximately 29 minutes after removing the
+  theorem-target registry shortcut.
 
 ## 2026-05-20
 

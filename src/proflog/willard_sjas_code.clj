@@ -16,9 +16,32 @@
    See docs/log/2026-05-20-willard-tableau-proof-encoding.md for the
    Willard source trail and the boundary between the conventional encoding
    requirement and Proflog's selected proof-term byte layout."
-  (:require [proflog.ast :as ast]))
+  (:require [clojure.core.logic :refer [lvar]]
+            [clojure.core.logic.nominal :as nominal]
+            [proflog.ast :as ast]))
 
 (def byte-base 64)
+
+(def code-nom-entries
+  "Canonical host noms used when formula-code variable indexes become AST noms.
+
+   Core.logic nominal values are identity-bearing. Source-side theorem queries
+   and kernel-side structural code decoding must therefore share these exact
+   nom objects; recreating a nom with the same printed name is not enough for a
+   decoded proof certificate to match the proof target it was generated from."
+  (apply list
+         (map (fn [idx]
+                [idx (nominal/nom (lvar (symbol (str "sjas-v" (dec idx)))))])
+              (range 1 byte-base))))
+
+(def ^:private code-nom-by-index
+  (into {} code-nom-entries))
+
+(defn code-nom
+  "Return the shared host nom for one-based formula-code variable index `idx`."
+  [idx]
+  (get code-nom-by-index idx))
+
 (def u-grounding-sentinel-byte
   "Terminating byte used when a byte string is represented as one natural.
 
@@ -118,6 +141,8 @@
     willard-sjas-level1
     willard-sjas-arithmetic
     willard-sjas-fact
+    willard-sjas-axiom-member
+    willard-sjas-theorem-code
     willard-sjas-proof-check
     willard-sjas-subst-code
     willard-sjas-subst-proof-check

@@ -727,16 +727,20 @@
                                           {:proof-limit 1
                                            :fuel 96}))
         valid (sjas/proof-certificate beta-proof)
+        valid-proofs (query/query-succeeds
+                       (:program system)
+                       (sjas/tableau-proof (:system-code system)
+                                           (:code beta-record)
+                                           valid)
+                       1
+                       160)
         malformed (sjas/proof-certificate '(refl-close))]
     (is beta-proof)
     (is (sjas-code/code-term? valid)
         "proof certificates must be base-64 Godel-code terms")
-    (is (successful?
-          (query/query-succeeds
-            (:program system)
-            (sjas/tableau-proof (:system-code system) (:code beta-record) valid)
-            1
-            160)))
+    (is (successful? valid-proofs))
+    (is (proof/contains-step? (first-proof valid-proofs) 'willard-sjas-theorem-code)
+        "tableau-proof must decode generated theorem codes structurally during predicate application")
     (is (empty?
           (query/query-succeeds
             (:program system)
@@ -830,17 +834,19 @@
                                           {:proof-limit 1
                                            :fuel 96}))
         valid (sjas/proof-certificate beta-proof)
+        valid-proofs (query/query-succeeds
+                       (:program system)
+                       (sjas/subst-prf (:system-code system)
+                                       (:code beta-record)
+                                       (:code beta-record)
+                                       valid)
+                       1
+                       160)
         malformed (sjas/proof-certificate '(refl-close))]
     (is beta-proof)
-    (is (successful?
-          (query/query-succeeds
-            (:program system)
-            (sjas/subst-prf (:system-code system)
-                            (:code beta-record)
-                            (:code beta-record)
-                            valid)
-            1
-            160)))
+    (is (successful? valid-proofs))
+    (is (proof/contains-step? (first-proof valid-proofs) 'willard-sjas-theorem-code)
+        "subst-prf must decode generated theorem codes structurally during predicate application")
     (is (empty?
           (query/query-succeeds
             (:program system)

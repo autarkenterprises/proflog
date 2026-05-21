@@ -14,7 +14,7 @@
    arithmetic constraints and proof checking are both miniKanren goals
    interleaved at the branch rule boundary."
   (:refer-clojure :exclude [== < <=])
-  (:require [clojure.core.logic :refer [!= == conde fail fresh lcons lvar membero or* run]]
+  (:require [clojure.core.logic :refer [!= == conde fail fresh lcons membero or* run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -722,16 +722,8 @@
   (apply list (range 2 sjas-code/byte-base)))
 
 (def ^:private code-nom-entries
-  "Canonical noms used when decoded formula-code variables become kernel ASTs.
-
-   Formula codes store binder and variable positions as bytes. When such a code
-   is turned back into a Proflog formula for proof checking, the exact host nom
-   identity is immaterial; what matters is that each byte index maps
-   consistently to one object-language binder."
-  (apply list
-         (map (fn [idx]
-                [idx (nominal/nom (lvar (symbol (str "sjas-v" (dec idx)))))])
-              (range 1 sjas-code/byte-base))))
+  "Shared code-level noms used when decoded formula-code variables become ASTs."
+  sjas-code/code-nom-entries)
 
 (defn- positive-byteo
   [byte]
@@ -740,12 +732,6 @@
 (defn- positive-byte-except-oneo
   [byte]
   (membero byte positive-byte-except-one-entries))
-
-(defn- sjas-nom-indexo
-  [idx nom]
-  (fresh [entry]
-    (membero entry code-nom-entries)
-    (== [idx nom] entry)))
 
 (defn- sjas-symbol-indexo
   "Relate a formula-code symbol index to a declared object-language symbol."
@@ -1506,18 +1492,51 @@
        (sjas-internal-term-asto head head-ast)
        (sjas-internal-term-list-asto tail tail-ast))]))
 
+(defn- sjas-internal-nom-termo
+  "Translate an internal variable/parameter index to an AST term.
+
+   `nominal/tie` and AST constructors must receive concrete nominal values,
+   not logic variables that will only later be constrained by another goal.
+   Enumerating the fixed code-nom table builds each branch with an actual nom
+   constant while remaining a relation over the byte index."
+  [internal-tag ast-tag term ast-term]
+  (or*
+    (map (fn [[idx nom]]
+           (fresh []
+             (== (list internal-tag idx) term)
+             (== (list ast-tag nom) ast-term)))
+         code-nom-entries)))
+
+(defn- sjas-internal-quantifier-asto
+  [internal-tag ast-tag formula ast-formula]
+  (or*
+    (map (fn [[idx nom]]
+           (fresh [body body-ast]
+             (== (list internal-tag idx body) formula)
+             (== (list ast-tag (nominal/tie nom body-ast)) ast-formula)
+             (sjas-internal-formula-asto body body-ast)))
+         code-nom-entries)))
+
+(defn- sjas-internal-bounded-quantifier-asto
+  [internal-tag ast-tag formula ast-formula]
+  (or*
+    (map (fn [[idx nom]]
+           (fresh [bound body bound-ast body-ast]
+             (== (list internal-tag idx bound body) formula)
+             (== (list ast-tag
+                       (nominal/tie nom {:bound bound-ast
+                                         :body body-ast}))
+                 ast-formula)
+             (sjas-internal-term-asto bound bound-ast)
+             (sjas-internal-formula-asto body body-ast)))
+         code-nom-entries)))
+
 (defn- sjas-internal-term-asto
   "Translate the structural decoder's internal term tree into a kernel AST term."
   [term ast-term]
   (conde
-    [(fresh [idx nom]
-       (== (list 'var idx) term)
-       (sjas-nom-indexo idx nom)
-       (== (list 'var nom) ast-term))]
-    [(fresh [idx nom]
-       (== (list 'par idx) term)
-       (sjas-nom-indexo idx nom)
-       (== (list 'par nom) ast-term))]
+    [(sjas-internal-nom-termo 'var 'var term ast-term)]
+    [(sjas-internal-nom-termo 'par 'par term ast-term)]
     [(fresh [sym args ast-args]
        (== (list 'app sym args) term)
        (== (lcons 'app (lcons sym ast-args)) ast-term)
@@ -1575,46 +1594,30 @@
        (== (list 'implies left-ast right-ast) ast-formula)
        (sjas-internal-formula-asto left left-ast)
        (sjas-internal-formula-asto right right-ast))]
-    [(fresh [idx nom body body-ast]
-       (== (list 'forall idx body) formula)
-       (sjas-nom-indexo idx nom)
-       (== (list 'forall (nominal/tie nom body-ast)) ast-formula)
-       (sjas-internal-formula-asto body body-ast))]
-    [(fresh [idx nom body body-ast]
-       (== (list 'once-forall idx body) formula)
-       (sjas-nom-indexo idx nom)
-       (== (list 'once-forall (nominal/tie nom body-ast)) ast-formula)
-       (sjas-internal-formula-asto body body-ast))]
-    [(fresh [idx nom body body-ast]
-       (== (list 'exists idx body) formula)
-       (sjas-nom-indexo idx nom)
-       (== (list 'exists (nominal/tie nom body-ast)) ast-formula)
-       (sjas-internal-formula-asto body body-ast))]
-    [(fresh [idx nom bound body bound-ast body-ast]
-       (== (list 'bounded-forall idx bound body) formula)
-       (sjas-nom-indexo idx nom)
-       (== (list 'bounded-forall
-                 (nominal/tie nom {:bound bound-ast
-                                   :body body-ast}))
-           ast-formula)
-       (sjas-internal-term-asto bound bound-ast)
-       (sjas-internal-formula-asto body body-ast))]
-    [(fresh [idx nom bound body bound-ast body-ast]
-       (== (list 'bounded-exists idx bound body) formula)
-       (sjas-nom-indexo idx nom)
-       (== (list 'bounded-exists
-                 (nominal/tie nom {:bound bound-ast
-                                   :body body-ast}))
-           ast-formula)
-       (sjas-internal-term-asto bound bound-ast)
-       (sjas-internal-formula-asto body body-ast))]))
+    [(sjas-internal-quantifier-asto 'forall 'forall formula ast-formula)]
+    [(sjas-internal-quantifier-asto 'once-forall 'once-forall formula ast-formula)]
+    [(sjas-internal-quantifier-asto 'exists 'exists formula ast-formula)]
+    [(sjas-internal-bounded-quantifier-asto 'bounded-forall
+                                            'bounded-forall
+                                            formula
+                                            ast-formula)]
+    [(sjas-internal-bounded-quantifier-asto 'bounded-exists
+                                            'bounded-exists
+                                            formula
+                                            ast-formula)]))
 
-(defn- sjas-structural-negated-theoremo
-  [prog theorem-code sigma sigma-out neg-theorem]
-  (fresh [formula complement]
-    (sjas-decode-formula-codeo prog theorem-code sigma sigma-out formula)
+(defn- sjas-structural-negated-theorem-proofo
+  "Decode a theorem code and build the negated target formula for proof checking.
+
+   This relation is deliberately used even for generated axiom codes. The proof
+   predicate must not recover theorem targets from a host-side finite registry
+   merely because a code was generated by the current system builder."
+  [prog theorem-code sigma sigma-out neg-theorem theorem-read-proof]
+  (fresh [formula complement read-proof]
+    (sjas-decode-formula-code-proofo prog theorem-code sigma sigma-out formula read-proof)
     (sjas-formula-complemento formula complement)
-    (sjas-internal-formula-asto complement neg-theorem)))
+    (sjas-internal-formula-asto complement neg-theorem)
+    (== (list 'willard-sjas-theorem-code read-proof) theorem-read-proof)))
 
 (defn- proof-symbol-indexo
   [idx sym]
@@ -2142,8 +2145,8 @@
   (let [ground-args (ground-negated-app-args fml 'tableau-proof 3)]
     (if ground-args
       (let [[system-code theorem-code proof-code] ground-args]
-        (fresh [decoded-proof proof-bytes axiom-formula theorem-formula neg-theorem
-                target sigma-proof proof-kind proof-read-proof]
+        (fresh [decoded-proof proof-bytes axiom-formula neg-theorem
+                target sigma-proof proof-kind proof-read-proof theorem-read-proof]
           (== '() env)
           (== '() sigma)
           (decode-proof-code-kindo proof-code '() sigma-proof proof-bytes decoded-proof proof-kind)
@@ -2151,26 +2154,27 @@
           (conde
             [(== 'sjas-axiom decoded-proof)
              (sjas-axiom-membero prog system-code theorem-code)
+             (== '(willard-sjas-axiom-member) theorem-read-proof)
              (== sigma-proof sigma-out)]
             [(sjas-system-axiom-formulao prog system-code axiom-formula)
-             (sjas-formula-codeo prog theorem-code theorem-formula)
-             (sjas-formula-negationo prog theorem-formula neg-theorem)
-             (== (list 'and axiom-formula neg-theorem) target)
-             (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
-             (== sigma-proof sigma-out)]
-            [(sjas-system-axiom-formulao prog system-code axiom-formula)
-             (sjas-structural-negated-theoremo prog
-                                               theorem-code
-                                               sigma-proof
-                                               sigma-out
-                                               neg-theorem)
+             (sjas-structural-negated-theorem-proofo prog
+                                                      theorem-code
+                                                      sigma-proof
+                                                      sigma-out
+                                                      neg-theorem
+                                                      theorem-read-proof)
              (== (list 'and axiom-formula neg-theorem) target)
              (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
           (== neqs neqs-out)
-          (== (list 'profiled 'willard-sjas-proof-check proof-read-proof decoded-proof) proof)))
+          (== (list 'profiled
+                    'willard-sjas-proof-check
+                    proof-read-proof
+                    theorem-read-proof
+                    decoded-proof)
+              proof)))
       (fresh [lit atom walked-atom system-code theorem-code proof-code
-              decoded-proof proof-bytes axiom-formula theorem-formula neg-theorem
-              target sigma-proof proof-kind proof-read-proof]
+              decoded-proof proof-bytes axiom-formula neg-theorem
+              target sigma-proof proof-kind proof-read-proof theorem-read-proof]
         (subst/subst-formulao fml env lit)
         (== (list 'neg atom) lit)
         (equality/walk-atomo atom sigma walked-atom)
@@ -2180,29 +2184,30 @@
         (conde
           [(== 'sjas-axiom decoded-proof)
            (sjas-axiom-membero prog system-code theorem-code)
+           (== '(willard-sjas-axiom-member) theorem-read-proof)
            (== sigma-proof sigma-out)]
           [(sjas-system-axiom-formulao prog system-code axiom-formula)
-           (sjas-formula-codeo prog theorem-code theorem-formula)
-           (sjas-formula-negationo prog theorem-formula neg-theorem)
-           (== (list 'and axiom-formula neg-theorem) target)
-           (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
-           (== sigma-proof sigma-out)]
-          [(sjas-system-axiom-formulao prog system-code axiom-formula)
-           (sjas-structural-negated-theoremo prog
-                                             theorem-code
-                                             sigma-proof
-                                             sigma-out
-                                             neg-theorem)
+           (sjas-structural-negated-theorem-proofo prog
+                                                    theorem-code
+                                                    sigma-proof
+                                                    sigma-out
+                                                    neg-theorem
+                                                    theorem-read-proof)
            (== (list 'and axiom-formula neg-theorem) target)
            (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
         (== neqs neqs-out)
-        (== (list 'profiled 'willard-sjas-proof-check proof-read-proof decoded-proof) proof)))))
+        (== (list 'profiled
+                  'willard-sjas-proof-check
+                  proof-read-proof
+                  theorem-read-proof
+                  decoded-proof)
+            proof)))))
 
 (defn- sjas-subst-prf-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
   (fresh [lit atom walked-atom system-code substitution-code theorem-code proof-code
-          decoded-proof proof-bytes axiom-formula theorem-formula neg-theorem
-          target sigma-valid sigma-proof proof-kind proof-read-proof]
+          decoded-proof proof-bytes axiom-formula neg-theorem
+          target sigma-valid sigma-proof proof-kind proof-read-proof theorem-read-proof]
     (subst/subst-formulao fml env lit)
     (== (list 'neg atom) lit)
     (equality/walk-atomo atom sigma walked-atom)
@@ -2215,27 +2220,24 @@
       [(== 'sjas-axiom decoded-proof)
        (conde
          [(sjas-axiom-membero prog system-code theorem-code)
-          (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-out)]
-         [(sjas-subst-code-anyo prog substitution-code theorem-code sigma-proof sigma-out)])]
+          (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-out)
+          (== '(willard-sjas-axiom-member) theorem-read-proof)]
+         [(sjas-subst-code-anyo prog substitution-code theorem-code sigma-proof sigma-out)
+          (== '(willard-sjas-subst-code) theorem-read-proof)])]
       [(sjas-system-axiom-formulao prog system-code axiom-formula)
        (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-valid)
-       (sjas-formula-codeo prog theorem-code theorem-formula)
-       (sjas-formula-negationo prog theorem-formula neg-theorem)
-       (== (list 'and axiom-formula neg-theorem) target)
-       (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
-       (== sigma-valid sigma-out)]
-      [(sjas-system-axiom-formulao prog system-code axiom-formula)
-       (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-valid)
-       (sjas-structural-negated-theoremo prog
-                                         theorem-code
-                                         sigma-valid
-                                         sigma-out
-                                         neg-theorem)
+       (sjas-structural-negated-theorem-proofo prog
+                                                theorem-code
+                                                sigma-valid
+                                                sigma-out
+                                                neg-theorem
+                                                theorem-read-proof)
        (== (list 'and axiom-formula neg-theorem) target)
        (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
     (== neqs neqs-out)
     (== (list 'profiled 'willard-sjas-subst-proof-check
               proof-read-proof
+              theorem-read-proof
               decoded-proof)
         proof)))
 

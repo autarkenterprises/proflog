@@ -20,6 +20,23 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-21
+
+- Started [ADR-0072](docs/adr/ADR-0072-sjas-object-level-proof-machinery.md)
+  on branch `adr-0072-sjas-object-proof-machinery`. The active goal is to
+  internalize SJAS proof machinery so that arithmetic coding and decoding
+  needed while applying predicates such as `tableau-proof/3` and `subst-prf/4`
+  happens at the kernel/object-code level. The first implementation slice
+  targets theorem-code decoding inside proof predicates; later slices must
+  remove generated system/axiom registries and eventually replace decoded
+  Proflog proof-term validation with code-level tableau proof-tree checking.
+- During the first ADR-0072 slice, rejected a ground host-side theorem-code
+  decoder as insufficient: it decoded actual bytes rather than using the
+  formula registry, but still materialized proof targets in Clojure during
+  `tableau-proof/3`. The pure relational fix was to make structural code-to-AST
+  translation construct variable and quantifier nodes with concrete shared
+  code-nom constants instead of calling nominal constructors on logic variables.
+
 ## 2026-05-20
 
 - Logged Willard's semantic-tableaux proof-encoding requirements and linked

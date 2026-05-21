@@ -46,6 +46,27 @@ complete contemporaneous transcript.
   203 assertions; `lein test-proflog-sjas` passed 35 tests / 223 assertions.
   The full SJAS namespace run was approximately 29 minutes after removing the
   theorem-target registry shortcut.
+- Continued ADR-0072 by removing generated formula syntax registries from
+  SJAS predicate application. The red test first asserted that the active SJAS
+  registry no longer carries `:sjas/formula-entries`,
+  `:sjas/formula-negation-entries`, `:sjas/formula-class-entries`, or
+  `:sjas/neg-pair-entries`; it failed while those tables were still generated.
+  The green implementation makes `wff/1`, formula-class predicates, and
+  `neg-pair/2` use structural formula-code decoding rather than finite formula
+  lookup tables. Focused verification: `sjas-syntax-predicates-decode-formula-godel-codes`
+  passed 1 test / 7 assertions, and
+  `sjas-structural-code-predicates-accept-non-generated-formula-codes` passed
+  1 test / 5 assertions. Isolated fresh-JVM timings for the smallest
+  `true/false` code path were approximately 10.2s for `wff/1`, 10.5s for
+  `delta-star-0-code/1`, and 29.4s for `neg-pair/2`. This removes the generated
+  formula registry but does not yet eliminate `ground-formal-code-term`; that
+  deterministic byte extractor is host-side computation and remains an
+  ADR-0072 boundary to remove or strictly isolate from the semantic
+  proof-predicate path. Regression verification after the change:
+  `lein test-proflog-fast` passed 145 tests / 548 assertions,
+  `lein test-proflog-extended` passed 68 tests / 203 assertions, and
+  `lein test-proflog-sjas` passed 35 tests / 224 assertions in approximately
+  30.5 minutes.
 
 ## 2026-05-20
 

@@ -1695,38 +1695,6 @@
     [(== :compact kind)
      (== '(sjas-code-bytes) proof)]))
 
-(defn- sjas-formula-codeo
-  [prog code formula]
-  (fresh [entry]
-    (membero entry (or (:sjas/formula-entries (or (some-> prog :sjas/registry deref)
-                                                   prog))
-                       '()))
-    (== [code formula] entry)))
-
-(defn- sjas-formula-negationo
-  [prog formula negated]
-  (fresh [entry]
-    (membero entry (or (:sjas/formula-negation-entries (or (some-> prog :sjas/registry deref)
-                                                            prog))
-                       '()))
-    (== [formula negated] entry)))
-
-(defn- sjas-formula-classo
-  [prog relation code]
-  (fresh [entry]
-    (membero entry (or (:sjas/formula-class-entries (or (some-> prog :sjas/registry deref)
-                                                         prog))
-                       '()))
-    (== [relation code] entry)))
-
-(defn- sjas-neg-pairo
-  [prog left right]
-  (fresh [entry]
-    (membero entry (or (:sjas/neg-pair-entries (or (some-> prog :sjas/registry deref)
-                                                    prog))
-                       '()))
-    (== [left right] entry)))
-
 (defn- sjas-system-axiom-formulao
   [prog system-code axiom-formula]
   (fresh [entry]
@@ -2002,45 +1970,30 @@
         proof)))
 
 (defn- sjas-wff-code-closeo
-  [prog code sigma sigma-out structural-first? formula branch-proof]
-  (if structural-first?
-    (sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof)
-    (conde
-      [(sjas-formula-codeo prog code formula)
-       (== sigma sigma-out)
-       (== '(sjas-code-bytes) branch-proof)]
-      [(sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof)])))
+  "Close `wff(code)` by reading the object-level formula code.
+
+   Earlier SJAS stages generated a finite host lookup table for formulas known
+   when the system was compiled. ADR-0072 removes that shortcut: the predicate
+   succeeds only by decoding the supplied code term through the relational byte
+   reader and formula grammar used for non-generated formulas."
+  [prog code sigma sigma-out _structural-first? formula branch-proof]
+  (sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof))
 
 (defn- sjas-class-code-closeo
-  [prog relation code sigma sigma-out structural-first? formula branch-proof]
-  (if structural-first?
-    (fresh []
-      (sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof)
-      (sjas-structural-formula-classo relation formula))
-    (conde
-      [(sjas-formula-classo prog relation code)
-       (== sigma sigma-out)
-       (== '(sjas-code-bytes) branch-proof)]
-      [(sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof)
-       (sjas-structural-formula-classo relation formula)])))
+  "Close a formula-class predicate by decoding and classifying the formula AST."
+  [prog relation code sigma sigma-out _structural-first? formula branch-proof]
+  (fresh []
+    (sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof)
+    (sjas-structural-formula-classo relation formula)))
 
 (defn- sjas-neg-pair-code-closeo
-  [prog left right sigma sigma-out structural-first? formula complement branch-proof]
-  (if structural-first?
-    (fresh [sigma-mid left-proof right-proof]
-      (sjas-decode-formula-code-proofo prog left sigma sigma-mid formula left-proof)
-      (sjas-decode-formula-code-proofo prog right sigma-mid sigma-out complement right-proof)
-      (sjas-formula-complemento formula complement)
-      (== (list 'sjas-neg-pair-structural left-proof right-proof) branch-proof))
-    (conde
-      [(sjas-neg-pairo prog left right)
-       (== sigma sigma-out)
-       (== '(sjas-code-bytes) branch-proof)]
-      [(fresh [sigma-mid left-proof right-proof]
-         (sjas-decode-formula-code-proofo prog left sigma sigma-mid formula left-proof)
-         (sjas-decode-formula-code-proofo prog right sigma-mid sigma-out complement right-proof)
-         (sjas-formula-complemento formula complement)
-         (== (list 'sjas-neg-pair-structural left-proof right-proof) branch-proof))])))
+  "Close `neg-pair(left,right)` by decoding both codes and complementing ASTs."
+  [prog left right sigma sigma-out _structural-first? formula complement branch-proof]
+  (fresh [sigma-mid left-proof right-proof]
+    (sjas-decode-formula-code-proofo prog left sigma sigma-mid formula left-proof)
+    (sjas-decode-formula-code-proofo prog right sigma-mid sigma-out complement right-proof)
+    (sjas-formula-complemento formula complement)
+    (== (list 'sjas-neg-pair-structural left-proof right-proof) branch-proof)))
 
 (defn- sjas-syntax-code-brancho
   [prog relation args sigma sigma-out structural-first? branch-proof]
@@ -2059,11 +2012,13 @@
 (defn- sjas-syntax-code-closeo
   "Close generated syntax-code predicates by decoding formula Godel-code terms.
 
-   These predicates are no longer emitted as generated facts. Generated entries
-   remain as a theorem-code bridge for known system formulas, while the
-   structural decoder handles well-formed formula codes that were not generated
-   as Group axioms. When a U-Grounding code arrives through a logic binding, the
-   branch proof preserves the byte-cons evidence from the relational decoder."
+   These predicates are no longer emitted as generated facts and no longer use
+   host-generated formula lookup tables. The branch closes by reading the
+   formula-code term into the kernel's internal formula syntax and then applying
+   the structural recognizer for well-formedness, class membership, or
+   complement pairs. When a U-Grounding code arrives through a logic binding,
+   the branch proof preserves the byte-cons evidence from the relational
+   decoder."
   [fml env sigma sigma-out neqs neqs-out prog proof]
   (let [structural-first? (= :u-grounding (sjas-code-format prog))
         ground-relation (ground-negated-relation fml)]

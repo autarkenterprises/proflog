@@ -462,14 +462,21 @@
 (deftest sjas-syntax-predicates-decode-formula-godel-codes
   (testing "wff, class predicates, and neg-pair are derived from formula Godel codes"
     (let [system (demo-system :willard-sjas-level1)
-          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
-          complement-code (sjas/formula-code
-                            system
-                            (normalize/negate-formula (:formula beta-record)))
+          formula (ast/true-form)
+          code (sjas/formula-code system formula)
+          complement-code (sjas/formula-code system
+                                             (normalize/negate-formula formula))
+          registry @(get-in system [:program :sjas/registry])
           fact-atoms (get-in system [:program :sjas/fact-atoms])]
       (is (sjas-code/code-term? complement-code))
-      (is (not= (sjas/not-code (:code beta-record)) complement-code)
+      (is (not= (sjas/not-code code) complement-code)
           "complements must be formula Godel-code terms, not not-code wrappers")
+      (is (not-any? #(contains? registry %)
+                    [:sjas/formula-entries
+                     :sjas/formula-negation-entries
+                     :sjas/formula-class-entries
+                     :sjas/neg-pair-entries])
+          "syntax predicates must not depend on generated formula lookup registries")
       (is (not-any? (fn [atom]
                       (contains? '#{wff delta-star-0-code
                                     pi-star-1-code sigma-star-1-code}
@@ -479,21 +486,21 @@
       (is (successful?
             (query/query-succeeds
               (:program system)
-              (sjas/wff (:code beta-record))
+              (sjas/wff code)
               1
-              96)))
+              32)))
       (is (successful?
             (query/query-succeeds
               (:program system)
-              (sjas/delta-star-0-code (:code beta-record))
+              (sjas/delta-star-0-code code)
               1
-              96)))
+              32)))
       (is (successful?
             (query/query-succeeds
               (:program system)
-              (sjas/neg-pair (:code beta-record) complement-code)
+              (sjas/neg-pair code complement-code)
               1
-              128))))))
+              48))))))
 
 (deftest ^:slow sjas-structural-code-predicates-accept-non-generated-formula-codes
   (testing "formula-code predicates parse codes beyond the generated axiom registry"
@@ -502,10 +509,9 @@
           code (sjas/formula-code system formula)
           complement-code (sjas/formula-code system
                                              (normalize/negate-formula formula))
-          registry @(get-in system [:program :sjas/registry])
-          generated-codes (set (map first (:sjas/formula-entries registry)))]
+          generated-codes (set (map :code (:axioms system)))]
       (is (not (contains? generated-codes code))
-          "the test formula must not be one of the finite generated axiom entries")
+          "the test formula must not be one of the generated axiom codes")
       (is (successful?
             (query/query-succeeds
               (:program system)
@@ -768,11 +774,10 @@
                                               :fuel 96}))
         certificate (when theorem-proof
                       (sjas/proof-certificate theorem-proof))
-        registry @(get-in system [:program :sjas/registry])
-        generated-codes (set (map first (:sjas/formula-entries registry)))]
+        generated-codes (set (map :code (:axioms system)))]
     (is theorem-proof)
     (is (not (contains? generated-codes theorem-code))
-        "the theorem code must not be supplied by the generated formula registry")
+        "the theorem code must not be one of the generated axiom codes")
     (is (successful?
           (query/query-succeeds
             (:program system)
@@ -802,11 +807,10 @@
                                               :fuel 96}))
         certificate (when theorem-proof
                       (sjas/proof-certificate theorem-proof))
-        registry @(get-in system [:program :sjas/registry])
-        generated-codes (set (map first (:sjas/formula-entries registry)))]
+        generated-codes (set (map :code (:axioms system)))]
     (is theorem-proof)
     (is (not (contains? generated-codes theorem-code))
-        "the theorem code must not be supplied by the generated formula registry")
+        "the theorem code must not be one of the generated axiom codes")
     (is (successful?
           (query/query-succeeds
             (:program system)

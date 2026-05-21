@@ -23,9 +23,6 @@ lookups or host-only theorem-target reconstruction during its own evaluation.
 The current implementation still has several object-level proof machinery
 boundaries:
 
-- generated theorem codes can use finite registry entries in
-  `sjas-formula-codeo` and `sjas-formula-negationo` before falling back to
-  structural theorem-code decoding;
 - the active system's axiom formula is selected by a generated
   `:sjas/system-entries` registry entry rather than decoded from `system-code`;
 - formal axiom citation still uses generated `axiom-member/2` facts rather than
@@ -57,6 +54,18 @@ nom constants. Calling `nominal/tie` on a logic variable standing for a nom is
 not sufficient: the resulting formula may print correctly after reification but
 will not behave as the ground formula that proof certificates were generated
 against.
+
+The second stage removes the finite formula syntax registries. `wff/1`,
+`delta-star-0-code/1`, `pi-star-1-code/1`, `sigma-star-1-code/1`, and
+`neg-pair/2` no longer consult generated `:sjas/formula-*` or
+`:sjas/neg-pair-entries` tables. They decode the supplied formula code into the
+kernel's internal formula syntax, then apply the structural recognizer or
+formula-complement relation. This is a narrower improvement than complete
+object-level proof machinery: already-ground compact and U-Grounding code terms
+can still enter through `ground-formal-code-term`, which extracts bytes in
+Clojure before the relational formula grammar consumes those bytes. That
+shortcut is host-side computation and remains a temporary operational boundary,
+not a semantic account of reflection inside the SJAS object language.
 
 Later stages must internalize, in order:
 
@@ -92,6 +101,8 @@ Tests must be red before implementation and then pass:
 - `subst-prf/4` over a generated theorem code returns proof evidence that
   includes structural theorem-code decoding;
 - existing structural non-generated theorem-code tests continue to pass;
+- formula syntax predicates succeed without generated formula/class/neg-pair
+  registries;
 - malformed certificates and wrong theorem codes remain rejected;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.

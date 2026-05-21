@@ -627,12 +627,13 @@
        axioms))
 
 (defn- generated-fact-atoms
-  "Ground coding facts that the SJAS profile may close directly.
+  "Ground axiom-membership facts that the SJAS profile may close directly.
 
    These are reflected system metadata, not arithmetic truth tables. Infinite
    U-grounding relations such as `mult`, `leq`, and `lt` are handled by the
-   arithmetic profile, while finite coding predicates remain facts generated
-   from the current SJAS system."
+   arithmetic profile. Formula-syntax predicates are also excluded from this
+   table: `wff`, class recognition, and `neg-pair` must decode the formula code
+   structurally when the corresponding SJAS predicate is invoked."
   [system-code axioms]
   (apply list
          (map (fn [{:keys [code]}]
@@ -652,29 +653,6 @@
      :relations (merge base-relations extra-relations)
      :proof-profile profile}))
 
-(defn- formula-entries
-  "Return the finite decode relation for formulas used by this SJAS system.
-
-   The formal code is the compact base-64 term consumed by the SJAS profile; the
-   table is a generated decoding aid for the finite source boundary. Syntax
-   predicates such as `wff/1` are no longer emitted as object-language facts."
-  [coding-context code-format axioms]
-  (let [formulas (concat (map :formula axioms)
-                         (map (comp normalize/negate-formula :formula) axioms)
-                         [(ast/false-form) (ast/true-form)])]
-    (->> formulas
-         (map (fn [formula]
-                (let [canonical (canonical-formula formula {})
-                      bytes (sjas-code/canonical-formula-code-bytes coding-context canonical)]
-                  [bytes (sjas-code/bytes->formal-code-term code-format bytes) formula])))
-         (reduce (fn [acc [bytes code formula]]
-                   (if (some #(= bytes (first %)) acc)
-                     acc
-                     (conj acc [bytes code formula])))
-                 [])
-         (map (fn [[_bytes code formula]] [code formula]))
-         (apply list))))
-
 (defn- symbol-index-entries
   "Expose the finite language-code symbol table to the SJAS proof profile.
 
@@ -686,39 +664,6 @@
          (map (fn [[sym idx]]
                 [idx sym])
               (:symbol->index coding-context))))
-
-(defn- formula-negation-entries
-  [formula-entries]
-  (apply list
-         (map (fn [[_code formula]]
-                [formula (normalize/negate-formula formula)])
-              formula-entries)))
-
-(defn- formula-class-entries
-  [formula-entries]
-  (apply list
-         (mapcat (fn [[code formula]]
-                   (cond-> []
-                     (delta-star-0? formula)
-                     (conj ['delta-star-0-code code])
-                     (pi-star-1? formula)
-                     (conj ['pi-star-1-code code])
-                     (sigma-star-1? formula)
-                     (conj ['sigma-star-1-code code])))
-                 formula-entries)))
-
-(defn- neg-pair-entries
-  [coding-context code-format axioms]
-  (apply list
-         (mapcat (fn [{:keys [formula code]}]
-                   (let [complement-code (formula-code-term
-                                           coding-context
-                                           (normalize/negate-formula formula)
-                                           {}
-                                           code-format)]
-                     [[code complement-code]
-                      [complement-code code]]))
-                 axioms)))
 
 (defn system
   "Build a finite reflected SJAS system.
@@ -789,7 +734,6 @@
         ;; rule misread true arithmetic equations as constructor clashes.
         theorem-axioms (remove #(= :group-one (:group %)) axioms)
         axiom-formula (and* (map :formula theorem-axioms))
-        formula-entries (formula-entries coding-context code-format axioms)
         ;; The kernel proves a theorem query by closing the negation of
         ;; `(axiom-formula -> theorem)`. Because Proflog uses `once-forall` when
         ;; negating existentials operationally, the positive antecedent in that
@@ -803,12 +747,6 @@
                         :sjas/code-format code-format
                         :sjas/fact-atoms (generated-fact-atoms system-code axioms)
                         :sjas/symbol-index-entries (symbol-index-entries coding-context)
-                        :sjas/formula-entries formula-entries
-                        :sjas/formula-negation-entries (formula-negation-entries formula-entries)
-                        :sjas/formula-class-entries (formula-class-entries formula-entries)
-                        :sjas/neg-pair-entries (neg-pair-entries coding-context
-                                                                   code-format
-                                                                   axioms)
                         :sjas/system-entries (list [system-code proof-axiom-formula])})
         program (assoc (language/compile-program lang clauses)
                        :sjas/system-code nil

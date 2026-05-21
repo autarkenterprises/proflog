@@ -882,15 +882,18 @@
 (deftest sjas-tableau-proof-accepts-axiom-citation-certificates
   (let [system (demo-system :willard-sjas-level1)
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
-        axiom-certificate (sjas/proof-certificate 'sjas-axiom)]
-    (is (successful?
-          (query/query-succeeds
-            (:program system)
-            (sjas/tableau-proof (:system-code system)
-                                (:code beta-record)
-                                axiom-certificate)
-            1
-            96)))
+        axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+        beta-citation-proofs (query/query-succeeds
+                               (:program system)
+                               (sjas/tableau-proof (:system-code system)
+                                                   (:code beta-record)
+                                                   axiom-certificate)
+                               1
+                               96)]
+    (is (successful? beta-citation-proofs))
+    (is (proof/contains-step? (first-proof beta-citation-proofs)
+                              'sjas-system-beta-axiom)
+        "beta axiom citations must be recovered from encoded system-code beta formulas")
     (is (empty?
           (query/query-succeeds
             (:program system)

@@ -25,8 +25,11 @@ boundaries:
 
 - the active system's axiom formula is selected by a generated
   `:sjas/system-entries` registry entry rather than decoded from `system-code`;
-- formal axiom citation still uses generated `axiom-member/2` facts rather than
-  a full code-level axiom-membership predicate over the decoded system;
+- formal axiom citation for Group-0, Group-1, Group-2b reflected clauses, and
+  Group-3 still uses generated `axiom-member/2` facts rather than a full
+  code-level axiom-membership predicate over the decoded system. Group-2 beta
+  citations now read the beta formula bytes from `system-code`, but that still
+  enters through the ground byte extractor;
 - already-ground U-Grounding code terms use a deterministic Clojure entry
   shortcut before structural relation checking, which is acceptable only as an
   operational staging boundary if it does not become the semantic proof rule;
@@ -67,12 +70,22 @@ Clojure before the relational formula grammar consumes those bytes. That
 shortcut is host-side computation and remains a temporary operational boundary,
 not a semantic account of reflection inside the SJAS object language.
 
+The third stage makes beta axiom citation consume the beta section of
+`system-code`. A proof certificate whose decoded proof is `sjas-axiom` now first
+checks whether the theorem code's byte string is one of the encoded Group-2 beta
+formulas. Only non-beta axiom citations fall back to generated axiom-member
+metadata. This is deliberately partial: it internalizes the user-supplied beta
+membership boundary enough for beta citation composition, but it does not yet
+derive the full Group-0/1/2b/3 axiom basis from system-code and it still relies
+on `ground-formal-code-term` to expose already-ground byte strings.
+
 Later stages must internalize, in order:
 
-1. `system-code` decoding sufficient to reconstruct the finite reflected beta
-   and reflected-clause basis needed by the proof predicate;
-2. object-level `axiom-member/2` over decoded system code rather than generated
+1. `system-code` decoding sufficient to reconstruct Group-0, Group-1,
+   reflected-clause Group-2b, and Group-3 axiom membership without generated
    host facts;
+2. object-level `axiom-member/2` over decoded system code for every axiom group
+   rather than only beta axioms;
 3. code-level checking of tableau proof trees against decoded formulas and
    axiom membership, instead of validating a decoded Proflog kernel proof term
    by calling `kernel/prove-programo`;
@@ -103,6 +116,8 @@ Tests must be red before implementation and then pass:
 - existing structural non-generated theorem-code tests continue to pass;
 - formula syntax predicates succeed without generated formula/class/neg-pair
   registries;
+- beta axiom citation proof evidence includes a system-code beta membership
+  step, not only generated axiom-member metadata;
 - malformed certificates and wrong theorem codes remain rejected;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.

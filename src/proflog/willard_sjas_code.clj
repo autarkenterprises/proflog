@@ -148,6 +148,9 @@
     willard-sjas-subst-proof-check
     sjas-bind-done
     sjas-bind-num
+    sjas-generated-axiom-member
+    sjas-system-beta-axiom
+    sjas-system-code-bytes
     sjas-code-bytes
     sjas-ug-code-bytes
     sjas-ug-code-byte-cons

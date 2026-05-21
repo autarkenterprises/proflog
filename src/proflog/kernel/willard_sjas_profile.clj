@@ -14,7 +14,7 @@
    arithmetic constraints and proof checking are both miniKanren goals
    interleaved at the branch rule boundary."
   (:refer-clojure :exclude [== < <=])
-  (:require [clojure.core.logic :refer [!= == conde fail fresh lcons membero or* run]]
+  (:require [clojure.core.logic :refer [!= == conda conde fail fresh lcons membero or* run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -714,6 +714,9 @@
 (def ^:private term-app-tag 23)
 (def ^:private term-code-tag 24)
 (def ^:private term-natural-tag 25)
+(def ^:private system-code-tag 31)
+(def ^:private system-profile-tableau0-tag 32)
+(def ^:private system-profile-level1-tag 33)
 
 (def ^:private positive-byte-entries
   (apply list (range 1 sjas-code/byte-base)))
@@ -1695,6 +1698,84 @@
     [(== :compact kind)
      (== '(sjas-code-bytes) proof)]))
 
+(defn- sjas-system-profile-tago
+  [profile-tag]
+  (conde
+    [(== system-profile-tableau0-tag profile-tag)]
+    [(== system-profile-level1-tag profile-tag)]))
+
+(defn- sjas-ground-code-byteso
+  "Expose the already-ground byte string for a public code term.
+
+   This remains a host-side operational boundary and is not the final ADR-0072
+   object-level reader. The value of this helper in this slice is narrower: it
+   lets axiom membership stop consulting generated `axiom-member/2` facts for
+   user beta axioms and instead consume the beta formula bytes encoded in the
+   system code."
+  [code bytes proof]
+  (if-let [[ground-bytes _kind ground-read-proof] (ground-formal-code-term code)]
+    (fresh []
+      (== (byte-list-literal ground-bytes) bytes)
+      (== (list 'sjas-system-code-bytes ground-read-proof) proof))
+    fail))
+
+(defn- byte-prefixo
+  [prefix bytes rest]
+  (conde
+    [(== '() prefix)
+     (== bytes rest)]
+    [(fresh [head prefix-tail bytes-tail]
+       (== (lcons head prefix-tail) prefix)
+       (== (lcons head bytes-tail) bytes)
+       (byte-prefixo prefix-tail bytes-tail rest))]))
+
+(defn- sjas-beta-member-in-formula-byteso
+  [prog remaining bytes formula-bytes proof]
+  (if (zero? remaining)
+    fail
+    (fresh [current after-current after-prefix]
+      (decode-formula-byteso prog bytes after-current current)
+      (conde
+        [(byte-prefixo formula-bytes bytes after-prefix)
+         (== after-prefix after-current)
+         (== '(sjas-system-beta-axiom) proof)]
+        [(sjas-beta-member-in-formula-byteso prog
+                                             (dec remaining)
+                                             after-current
+                                             formula-bytes
+                                             proof)]))))
+
+(defn- sjas-system-beta-formula-byteso
+  [prog system-bytes formula-bytes proof]
+  (fresh [profile-tag beta-count beta-bytes]
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (sjas-beta-member-in-formula-byteso prog
+                                                   beta-total
+                                                   beta-bytes
+                                                   formula-bytes
+                                                   proof)))
+           (range sjas-code/byte-base)))))
+
+(defn- sjas-beta-axiom-membero
+  [prog system-code formula-code proof]
+  (fresh [system-bytes formula-bytes system-read-proof formula-read-proof beta-proof]
+    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
+    (sjas-ground-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-system-beta-formula-byteso prog system-bytes formula-bytes beta-proof)
+    (== (list 'sjas-system-beta-axiom
+              system-read-proof
+              formula-read-proof
+              beta-proof)
+        proof)))
+
 (defn- sjas-system-axiom-formulao
   [prog system-code axiom-formula]
   (fresh [entry]
@@ -1703,7 +1784,7 @@
                        '()))
     (== [system-code axiom-formula] entry)))
 
-(defn- sjas-axiom-membero
+(defn- sjas-generated-axiom-membero
   "Relate a reflected system code to one of its generated axiom formula codes.
 
    The proof predicate uses this for formal axiom-citation certificates. This
@@ -1715,6 +1796,13 @@
                                              prog))
                       '()))
     (== (list 'app 'axiom-member system-code formula-code) fact)))
+
+(defn- sjas-axiom-membero
+  [prog system-code formula-code proof]
+  (conda
+    [(sjas-beta-axiom-membero prog system-code formula-code proof)]
+    [(sjas-generated-axiom-membero prog system-code formula-code)
+     (== '(sjas-generated-axiom-member) proof)]))
 
 (defn- sjas-active-systemo
   [prog system-code]
@@ -2107,9 +2195,10 @@
           (decode-proof-code-kindo proof-code '() sigma-proof proof-bytes decoded-proof proof-kind)
           (code-read-marker-o proof-kind proof-read-proof)
           (conde
-            [(== 'sjas-axiom decoded-proof)
-             (sjas-axiom-membero prog system-code theorem-code)
-             (== '(willard-sjas-axiom-member) theorem-read-proof)
+            [(fresh [axiom-proof]
+               (== 'sjas-axiom decoded-proof)
+               (sjas-axiom-membero prog system-code theorem-code axiom-proof)
+               (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof))
              (== sigma-proof sigma-out)]
             [(sjas-system-axiom-formulao prog system-code axiom-formula)
              (sjas-structural-negated-theorem-proofo prog
@@ -2137,9 +2226,10 @@
         (decode-proof-code-kindo proof-code sigma sigma-proof proof-bytes decoded-proof proof-kind)
         (code-read-marker-o proof-kind proof-read-proof)
         (conde
-          [(== 'sjas-axiom decoded-proof)
-           (sjas-axiom-membero prog system-code theorem-code)
-           (== '(willard-sjas-axiom-member) theorem-read-proof)
+          [(fresh [axiom-proof]
+             (== 'sjas-axiom decoded-proof)
+             (sjas-axiom-membero prog system-code theorem-code axiom-proof)
+             (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof))
            (== sigma-proof sigma-out)]
           [(sjas-system-axiom-formulao prog system-code axiom-formula)
            (sjas-structural-negated-theorem-proofo prog
@@ -2174,9 +2264,10 @@
     (conde
       [(== 'sjas-axiom decoded-proof)
        (conde
-         [(sjas-axiom-membero prog system-code theorem-code)
-          (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-out)
-          (== '(willard-sjas-axiom-member) theorem-read-proof)]
+         [(fresh [axiom-proof]
+            (sjas-axiom-membero prog system-code theorem-code axiom-proof)
+            (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-out)
+            (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof))]
          [(sjas-subst-code-anyo prog substitution-code theorem-code sigma-proof sigma-out)
           (== '(willard-sjas-subst-code) theorem-read-proof)])]
       [(sjas-system-axiom-formulao prog system-code axiom-formula)

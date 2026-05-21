@@ -78,6 +78,22 @@ complete contemporaneous transcript.
   code change was not retained; compact and U-Grounding ground byte extraction
   remain an explicit ADR-0072 boundary pending a better object-level code
   reader.
+- Continued ADR-0072 by moving Group-2 beta axiom citation off generated
+  `axiom-member/2` metadata. The red test required
+  `sjas-tableau-proof-accepts-axiom-citation-certificates` to include
+  `sjas-system-beta-axiom` evidence; before the change it returned only
+  `(willard-sjas-axiom-member (sjas-generated-axiom-member))`. The green
+  implementation decodes the beta formula byte section of `system-code` and
+  compares it to the theorem-code bytes before falling back to generated
+  metadata for non-beta axiom groups. This is progress but not completion:
+  Group-0, Group-1, reflected Group-2b, and Group-3 membership still fall back
+  to generated facts, and the beta path still uses `ground-formal-code-term` to
+  expose already-ground byte strings. Verification: focused axiom-citation,
+  kernel-certificate, substitution-certificate, and substantive self-consistency
+  tests passed; `lein test-proflog-fast` passed 145 tests / 548 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions; and
+  `lein test-proflog-sjas` passed 35 tests / 225 assertions in approximately
+  37 minutes.
 
 ## 2026-05-20
 

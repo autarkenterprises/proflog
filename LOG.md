@@ -67,6 +67,17 @@ complete contemporaneous transcript.
   `lein test-proflog-extended` passed 68 tests / 203 assertions, and
   `lein test-proflog-sjas` passed 35 tests / 224 assertions in approximately
   30.5 minutes.
+- Attempted the next ADR-0072 slice: removing compact `code-N` terms from the
+  deterministic formula/substitution-code byte extractor. A red test required
+  `wff/1` proof evidence to include `sjas-code-arg`, distinguishing relational
+  byte-argument parsing from host byte-vector extraction. The focused syntax,
+  tableau-proof, substitution-proof, general substitution, and fixed-point
+  certificate probes could be made green, but the substantive self-consistency
+  demonstration did not complete after roughly 30 minutes in isolation, and the
+  full SJAS namespace was stopped twice at roughly 56-58 minutes. The attempted
+  code change was not retained; compact and U-Grounding ground byte extraction
+  remain an explicit ADR-0072 boundary pending a better object-level code
+  reader.
 
 ## 2026-05-20
 

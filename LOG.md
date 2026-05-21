@@ -31,6 +31,16 @@ complete contemporaneous transcript.
   byte-for-byte reproduction of every historical Willard proof-list notation.
   See
   [Willard Tableau Proof Encoding](docs/log/2026-05-20-willard-tableau-proof-encoding.md).
+- Logged a literature survey and conceptual clarification on Hilbert–Bernays
+  derivability conditions, Kleene (1943), and the relationship between HB
+  conditions and Lawvere-style fixed points. The SJAS corpus cites Hilbert &
+  Bernays (1939) substantively in several papers (especially 2001 and 2011) but
+  never cites Kleene (1943); only Kleene (1938) on ordinal notation /
+  fixed-point self-reference appears. HB conditions are not themselves a Lawvere
+  fixed point — they are axioms on a provability predicate used together with a
+  separate diagonal/fixed-point construction in Löb and Second Incompleteness
+  proofs. See
+  [SJAS HB/Kleene Literature and Lawvere Framing](docs/log/2026-05-20-sjas-hb-kleene-literature-and-lawvere-framing.md).
 - Evaluated Willard's diagonalization-preclusion argument for correctness. The
   durable conclusion is conditional: the argument is coherent for the specific
   Type-A U-Grounding/semantic-tableaux/conventional-proof-encoding profile, but

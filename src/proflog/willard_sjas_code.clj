@@ -151,6 +151,7 @@
     sjas-generated-axiom-member
     sjas-system-beta-axiom
     sjas-system-code-bytes
+    sjas-system-reflected-axiom
     sjas-code-bytes
     sjas-ug-code-bytes
     sjas-ug-code-byte-cons

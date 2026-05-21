@@ -717,6 +717,7 @@
 (def ^:private system-code-tag 31)
 (def ^:private system-profile-tableau0-tag 32)
 (def ^:private system-profile-level1-tag 33)
+(def ^:private system-reflected-clause-tag 34)
 
 (def ^:private positive-byte-entries
   (apply list (range 1 sjas-code/byte-base)))
@@ -1776,6 +1777,156 @@
               beta-proof)
         proof)))
 
+(defn- skip-formula-byteso
+  "Advance over `remaining` encoded formulas in a system-code byte tail.
+
+   System codes store the finite Group-2 beta block first, followed by the
+   reflected Group-2b clause block. Reflected-clause lookup therefore has to
+   consume the beta formulas structurally before it can inspect the reflected
+   section. The decoded formulas are intentionally discarded here; this relation
+   only proves that the bytes form well-encoded formulas and exposes the later
+   tail."
+  [prog remaining bytes rest]
+  (if (zero? remaining)
+    (== bytes rest)
+    (fresh [formula after-formula]
+      (decode-formula-byteso prog bytes after-formula formula)
+      (skip-formula-byteso prog (dec remaining) after-formula rest))))
+
+(defn- reflected-head-argso
+  "Build the canonical head argument list for an encoded reflected clause.
+
+   A reflected clause record stores only relation name, arity, and body. Its
+   axiom formula is reconstructed as `forall x1 ... forall xn. body -> R(x1,
+   ..., xn)`, using the same one-based variable indexes that the formula-code
+   encoder writes into object codes."
+  [idx arity args]
+  (if (> idx arity)
+    (== '() args)
+    (fresh [tail]
+      (== (lcons (list 'var idx) tail) args)
+      (reflected-head-argso (inc idx) arity tail))))
+
+(defn- reflected-forall-wrapo
+  "Wrap a reconstructed reflected-clause implication in its universal binders."
+  [idx arity body formula]
+  (if (> idx arity)
+    (== body formula)
+    (fresh [inner]
+      (== (list 'forall idx inner) formula)
+      (reflected-forall-wrapo (inc idx) arity body inner))))
+
+(defn- reflected-clause-formulao
+  "Relate an encoded reflected clause's relation/arity/body to its axiom text."
+  [arity relation body formula]
+  (fresh [args head implication]
+    (reflected-head-argso 1 arity args)
+    (== (list 'pos (list 'app relation args)) head)
+    (== (list 'implies body head) implication)
+    (reflected-forall-wrapo 1 arity implication formula)))
+
+(defn- decode-reflected-clause-formulao
+  "Decode one reflected-clause record from the reflected section of system-code.
+
+   The record layout is `[34 relation-index arity+1 body-formula-bytes...]`.
+   Relation indexes are resolved through the finite source-time symbol table;
+   this table is part of the compiled language interface, while the formula
+   bytes and clause shape are checked by kernel relations during predicate
+   application."
+  [prog bytes rest formula]
+  (fresh [relation-index arity-byte body-bytes relation body]
+    (== (lcons system-reflected-clause-tag
+                (lcons relation-index
+                       (lcons arity-byte body-bytes)))
+        bytes)
+    (sjas-symbol-indexo prog relation-index relation)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (decode-formula-byteso prog body-bytes rest body)
+               (reflected-clause-formulao arity relation body formula)))
+           (range sjas-code/byte-base)))))
+
+(defn- reflected-member-in-clauseso
+  "Search the encoded reflected-clause section for a formula-equivalent axiom."
+  [prog remaining bytes formula proof]
+  (if (zero? remaining)
+    fail
+    (fresh [current after-current]
+      (decode-reflected-clause-formulao prog bytes after-current current)
+      (conde
+        [(sjas-alpha-formula-equivo current formula '())
+         (== '(sjas-system-reflected-axiom) proof)]
+        [(reflected-member-in-clauseso prog
+                                       (dec remaining)
+                                       after-current
+                                       formula
+                                       proof)]))))
+
+(defn- sjas-system-reflected-formulao
+  "Relate a system-code byte string to one of its reflected Group-2b axioms.
+
+   This is the Group-2b analogue of beta membership: it reads the reflected
+   block from the encoded finite system source instead of asking whether a
+   generated `axiom-member/2` host fact exists. The surrounding code still uses
+   `sjas-ground-code-byteso` to expose already-ground byte strings, so this is a
+   partial internalization step rather than the final ADR-0072 end state."
+  [prog system-bytes formula proof]
+  (fresh [profile-tag beta-count beta-bytes after-betas reflected-count reflected-bytes]
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (skip-formula-byteso prog beta-total beta-bytes after-betas)
+               (== (lcons reflected-count reflected-bytes) after-betas)
+               (or*
+                 (map (fn [reflected-total]
+                        (fresh []
+                          (== (inc reflected-total) reflected-count)
+                          (reflected-member-in-clauseso prog
+                                                        reflected-total
+                                                        reflected-bytes
+                                                        formula
+                                                        proof)))
+                      (range sjas-code/byte-base)))))
+           (range sjas-code/byte-base)))))
+
+(defn- reflected-axiom-formula-starto
+  "Cheaply reject byte strings that cannot encode a reflected clause axiom.
+
+   A reflected clause with parameters is wrapped in one or more `forall`
+   formulas; a nullary reflected clause starts with the implication from body
+   to head. This guard prevents negative proof-predicate tests from trying to
+   parse non-formula codes, such as a whole `system-code`, as reflected axiom
+   formulas."
+  [formula-bytes]
+  (fresh [tag rest]
+    (== (lcons tag rest) formula-bytes)
+    (conde
+      [(== formula-forall-tag tag)]
+      [(== formula-implies-tag tag)])))
+
+(defn- sjas-reflected-axiom-membero
+  [prog system-code formula-code proof]
+  (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
+          decoded-formula reflected-proof]
+    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
+    (sjas-ground-code-byteso formula-code formula-bytes formula-read-proof)
+    (reflected-axiom-formula-starto formula-bytes)
+    (decode-formula-byteso prog formula-bytes '() decoded-formula)
+    (sjas-system-reflected-formulao prog system-bytes decoded-formula reflected-proof)
+    (== (list 'sjas-system-reflected-axiom
+              system-read-proof
+              formula-read-proof
+              reflected-proof)
+        proof)))
+
 (defn- sjas-system-axiom-formulao
   [prog system-code axiom-formula]
   (fresh [entry]
@@ -1801,6 +1952,7 @@
   [prog system-code formula-code proof]
   (conda
     [(sjas-beta-axiom-membero prog system-code formula-code proof)]
+    [(sjas-reflected-axiom-membero prog system-code formula-code proof)]
     [(sjas-generated-axiom-membero prog system-code formula-code)
      (== '(sjas-generated-axiom-member) proof)]))
 

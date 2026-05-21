@@ -94,6 +94,19 @@ complete contemporaneous transcript.
   `lein test-proflog-extended` passed 68 tests / 203 assertions; and
   `lein test-proflog-sjas` passed 35 tests / 225 assertions in approximately
   37 minutes.
+- Continued ADR-0072 by moving reflected Group-2b axiom citation off generated
+  `axiom-member/2` metadata. The red test used a `composite/1` reflected clause
+  and required the `tableau-proof(system-code, reflected-clause-code,
+  sjas-axiom-code)` proof to contain `sjas-system-reflected-axiom` evidence;
+  before the change it closed through the generated axiom-member fallback. The
+  green implementation reads the reflected-clause section of `system-code`,
+  reconstructs `forall x1 ... forall xn. body -> R(x1, ..., xn)`, and compares
+  that formula against the theorem code modulo alpha-equivalence. This is
+  progress but not completion: Group-0, Group-1, and Group-3 membership still
+  fall back to generated facts, and the reflected path still uses
+  `ground-formal-code-term` to expose already-ground byte strings. Verification:
+  `lein test-proflog-sjas` passed 35 tests / 227 assertions in approximately
+  44 minutes.
 
 ## 2026-05-20
 

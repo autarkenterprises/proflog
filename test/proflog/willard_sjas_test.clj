@@ -623,12 +623,26 @@
                    (reflected
                      (|- (composite x)
                          (mult (dbl 1) (dbl 1) x))))
-          composite-four (ast/pos-lit (ast/app-term 'composite (n 4)))]
+          composite-four (ast/pos-lit (ast/app-term 'composite (n 4)))
+          group2b-record (first (filter #(= :group-two-b (:group %))
+                                        (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          reflected-citation-proofs (query/query-succeeds
+                                      (:program system)
+                                      (sjas/tableau-proof (:system-code system)
+                                                          (:code group2b-record)
+                                                          axiom-certificate)
+                                      1
+                                      120)]
       (is (= {:group-zero 2
               :group-one 3
               :group-two-b 1
               :group-three 1}
              (frequencies (map :group (:axioms system)))))
+      (is (successful? reflected-citation-proofs))
+      (is (proof/contains-step? (first-proof reflected-citation-proofs)
+                                'sjas-system-reflected-axiom)
+          "reflected clause axiom citations must be recovered from encoded system-code clauses")
       (is (successful?
             (query/query-succeeds
               (:program system)

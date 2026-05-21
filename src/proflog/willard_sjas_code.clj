@@ -11,7 +11,11 @@
 
    The functions here are source-boundary encoders. They do not decide theorem
    validity; the proof profile consumes the resulting code terms during tableau
-   search."
+   search.
+
+   See docs/log/2026-05-20-willard-tableau-proof-encoding.md for the
+   Willard source trail and the boundary between the conventional encoding
+   requirement and Proflog's selected proof-term byte layout."
   (:require [proflog.ast :as ast]))
 
 (def byte-base 64)
@@ -563,7 +567,13 @@
      (checked-byte :proof-symbol-index-low (mod idx byte-base))]))
 
 (defn proof-code-bytes
-  "Encode a kernel proof datum as a byte string."
+  "Encode a kernel proof datum as a base-64 byte string.
+
+   This is Proflog's selected proof-code layout for the ordinary-tableau SJAS
+   profile. Willard requires a natural semantic-tableaux proof encoding whose
+   size satisfies the Conventional Tableaux Encoding Requirement; he does not
+   require this exact byte layout. See
+   docs/log/2026-05-20-willard-tableau-proof-encoding.md."
   [proof]
   (cond
     (symbol? proof)

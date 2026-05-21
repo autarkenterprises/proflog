@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-05-20
 
+- Logged Willard's semantic-tableaux proof-encoding requirements and linked
+  them to Proflog's current proof-code encoder. Willard does not prescribe one
+  unique byte layout; the binding constraint is the Conventional Tableaux
+  Encoding Requirement, while the 2001 paper supplies a concrete base-64
+  byte-string/tree example. Proflog's `proof-code-bytes` is therefore recorded
+  as the selected ordinary-tableau kernel proof-term byte layout, not as a
+  byte-for-byte reproduction of every historical Willard proof-list notation.
+  See
+  [Willard Tableau Proof Encoding](docs/log/2026-05-20-willard-tableau-proof-encoding.md).
 - Evaluated Willard's diagonalization-preclusion argument for correctness. The
   durable conclusion is conditional: the argument is coherent for the specific
   Type-A U-Grounding/semantic-tableaux/conventional-proof-encoding profile, but

@@ -25,13 +25,13 @@ boundaries:
 
 - the active system's axiom formula is selected by a generated
   `:sjas/system-entries` registry entry rather than decoded from `system-code`;
-- formal axiom citation for Level-1 Group-3 still uses generated
-  `axiom-member/2` facts rather than a full code-level axiom-membership
-  predicate over the decoded system. Group-0, Group-1, and Tableau-0 Group-3
-  citations now validate the encoded system header and decode the theorem
+- formal axiom citation for standard SJAS axiom groups no longer needs generated
+  `axiom-member/2` facts: Group-0, Group-1, Tableau-0 Group-3, and Level-1
+  Group-3 citations validate the encoded system header and decode the theorem
   formula; Group-2 beta citations and reflected Group-2b citations read the
   corresponding encoded sections from `system-code`. All of those paths still
-  enter through the ground byte extractor;
+  enter through the ground byte extractor, and the generated fallback remains in
+  the profile pending cleanup and negative coverage;
 - already-ground U-Grounding code terms use a deterministic Clojure entry
   shortcut before structural relation checking, which is acceptable only as an
   operational staging boundary if it does not become the semantic proof rule;
@@ -111,13 +111,21 @@ removes generated fallback for Tableau-0 self-consistency citations, but Level-1
 Group-3 still requires an object-level reconstruction of the fixed-point
 substitution skeleton before its generated fallback can be removed.
 
+The seventh stage makes Level-1 Group-3 citation validate its fixed-point
+skeleton from encoded code terms. The decoded final Group-3 formula must have the
+Level-1 self-consistency shape. The embedded substitution-code argument is then
+read as compact `(code bytes)` or U-Grounding sentinel `num` bytes, decoded as a
+formula, and checked against the expected skeleton formula over the same
+system-code term and a free `v0` placeholder. This removes generated fallback
+for the remaining standard axiom group, while leaving the ground byte extractor,
+the generated fallback branch itself, and proof-tree checking for later stages.
+
 Later stages must internalize, in order:
 
-1. `system-code` decoding sufficient to reconstruct Level-1 Group-3 axiom
-   membership without generated host facts;
-2. object-level `axiom-member/2` over decoded system code for every axiom group
-   rather than only Group-0, Group-1, Group-2, reflected Group-2b, and
-   Tableau-0 Group-3 axioms;
+1. negative coverage and cleanup showing standard axiom citations do not use the
+   generated `axiom-member/2` fallback;
+2. object-level `axiom-member/2` over decoded system code with no generated
+   host fallback;
 3. code-level checking of tableau proof trees against decoded formulas and
    axiom membership, instead of validating a decoded Proflog kernel proof term
    by calling `kernel/prove-programo`;
@@ -156,6 +164,8 @@ Tests must be red before implementation and then pass:
   system/profile membership step, not generated axiom-member metadata;
 - Tableau-0 Group-3 axiom citation proof evidence includes a decoded
   system/profile membership step, not generated axiom-member metadata;
+- Level-1 Group-3 axiom citation proof evidence includes a decoded skeleton
+  membership step, not generated axiom-member metadata;
 - malformed certificates and wrong theorem codes remain rejected;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.

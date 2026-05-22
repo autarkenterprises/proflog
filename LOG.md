@@ -139,6 +139,24 @@ complete contemporaneous transcript.
   145 tests / 548 assertions; `lein test-proflog-extended` passed 68 tests /
   203 assertions; and `lein test-proflog-sjas` passed 37 tests / 236 assertions
   in approximately 50 minutes.
+- Continued ADR-0072 by moving Level-1 Group-3 axiom citation off generated
+  `axiom-member/2` metadata. The red test required a `sjas-axiom` certificate
+  for the Level-1 self-consistency axiom to contain
+  `sjas-system-level1-group-three-axiom` and omit
+  `sjas-generated-axiom-member`; before the change it used the generated
+  fallback. The green implementation validates the Level-1 system-code header,
+  decodes the final Group-3 formula, extracts and decodes the embedded
+  substitution-code term, and checks that the embedded code denotes the expected
+  fixed-point skeleton over the same system-code term. This is progress but not
+  completion: standard axiom citations no longer require generated facts, but
+  the generated fallback branch remains, all current axiom-group decoders still
+  use `ground-formal-code-term`, and proof predicates still validate decoded
+  proof terms by invoking the kernel. Verification: focused Level-1 Group-3,
+  Tableau-0 Group-3, fixed-axiom, beta-axiom, reflected-clause, and substantive
+  self-consistency tests passed; `lein test-proflog-fast` passed 145 tests /
+  548 assertions; `lein test-proflog-extended` passed 68 tests / 203 assertions;
+  and `lein test-proflog-sjas` passed 38 tests / 239 assertions in
+  approximately 49 minutes.
 
 ## 2026-05-20
 

@@ -1856,6 +1856,118 @@
               group-three-proof)
         proof)))
 
+(defn- sjas-level1-system-code-headero
+  "Recognize the header of a Level-1 SJAS system code."
+  [system-bytes proof]
+  (fresh [rest]
+    (== (lcons system-code-tag
+                (lcons system-profile-level1-tag rest))
+        system-bytes)
+    (== '(sjas-system-level1-profile) proof)))
+
+(defn- system-code-internal-termo
+  "Relate a system-code byte string to its embedded formula-code term shape."
+  [system-bytes term]
+  (conde
+    [(== (list 'code system-bytes) term)]
+    [(fresh [encoded-system]
+       (append-sentinel-byteo system-bytes encoded-system)
+       (== (list 'num encoded-system) term))]))
+
+(defn- internal-code-term-byteso
+  "Expose the formula-code bytes denoted by a decoded internal code term.
+
+   This is used inside the Level-1 Group-3 check. The final self-consistency
+   formula contains the code of its own skeleton. Rather than consulting the
+   source builder's stored skeleton code, the profile reads that embedded code
+   term and decodes the referenced formula bytes during predicate application."
+  [term bytes]
+  (conde
+    [(== (list 'code bytes) term)]
+    [(fresh [encoded]
+       (== (list 'num encoded) term)
+       (append-sentinel-byteo bytes encoded))]))
+
+(defn- level1-selfcons-internal-formula
+  "Build the decoded internal form of Willard's Level-1 self-consistency axiom.
+
+   `x`, `y`, `p`, and `q` are formula-code binder indexes. The final Group-3
+   axiom uses indexes 1-4. The skeleton code is generated with free `v0` already
+   present, so its binders start at indexes 2-5 and its substitution argument is
+   `(var 1)`."
+  [system-term substitution-term x y p q]
+  (let [x-term (list 'var x)
+        y-term (list 'var y)
+        p-term (list 'var p)
+        q-term (list 'var q)
+        neg-pair (list 'neg
+                       (list 'app 'neg-pair (list x-term y-term)))
+        left-subst (list 'neg
+                         (list 'app
+                               'subst-prf
+                               (list system-term
+                                     substitution-term
+                                     x-term
+                                     p-term)))
+        right-subst (list 'neg
+                          (list 'app
+                                'subst-prf
+                                (list system-term
+                                      substitution-term
+                                      y-term
+                                      q-term)))]
+    (list 'forall
+          x
+          (list 'forall
+                y
+                (list 'forall
+                      p
+                      (list 'forall
+                            q
+                            (list 'or
+                                  neg-pair
+                                  (list 'or left-subst right-subst))))))))
+
+(defn- level1-group-three-formulao
+  "Validate the Level-1 fixed-point axiom and its embedded skeleton code."
+  [prog system-bytes formula proof]
+  (fresh [system-term substitution-term skeleton-bytes skeleton-formula]
+    (system-code-internal-termo system-bytes system-term)
+    (== (level1-selfcons-internal-formula system-term
+                                          substitution-term
+                                          1
+                                          2
+                                          3
+                                          4)
+        formula)
+    (internal-code-term-byteso substitution-term skeleton-bytes)
+    (decode-formula-byteso prog skeleton-bytes '() skeleton-formula)
+    (== (level1-selfcons-internal-formula system-term
+                                          (list 'var 1)
+                                          2
+                                          3
+                                          4
+                                          5)
+        skeleton-formula)
+    (== '(sjas-system-level1-group-three-axiom) proof)))
+
+(defn- sjas-level1-group-three-axiom-membero
+  "Cite the Level-1 Group-3 axiom by checking its fixed-point skeleton."
+  [prog system-code formula-code proof]
+  (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
+          header-proof formula group-three-proof]
+    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
+    (sjas-ground-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-level1-system-code-headero system-bytes header-proof)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (level1-group-three-formulao prog system-bytes formula group-three-proof)
+    (== (list 'sjas-system-group-three-axiom
+              system-read-proof
+              formula-read-proof
+              header-proof
+              group-three-proof)
+        proof)))
+
 (defn- byte-prefixo
   [prefix bytes rest]
   (conde
@@ -2091,6 +2203,7 @@
     [(sjas-reflected-axiom-membero prog system-code formula-code proof)]
     [(sjas-fixed-axiom-membero prog system-code formula-code proof)]
     [(sjas-tableau0-group-three-axiom-membero prog system-code formula-code proof)]
+    [(sjas-level1-group-three-axiom-membero prog system-code formula-code proof)]
     [(sjas-generated-axiom-membero prog system-code formula-code)
      (== '(sjas-generated-axiom-member) proof)]))
 

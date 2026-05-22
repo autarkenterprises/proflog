@@ -214,6 +214,25 @@ complete contemporaneous transcript.
   assertions; `lein test-proflog-extended` passed 68 tests / 203 assertions;
   and a clean `lein test-proflog-sjas` passed 41 tests / 243 assertions in
   about 35 minutes.
+- Continued ADR-0072 by isolating the U-Grounding axiom-citation byte decoder
+  from the deterministic host shortcut. The red test required a ground
+  U-Grounding `tableau-proof/3` citation to include `sjas-ug-code-byte-cons`
+  evidence for system/theorem code decoding; before the change it succeeded
+  with only `sjas-system-code-bytes (sjas-ug-code-bytes)`. A blunt removal of
+  the shortcut timed out after materializing the complete bit list for a large
+  system numeral, so the green implementation uses a bounded kernel relation
+  that peels six canonical `0`/`1`/`dbl`/`add(_,1)` bits per byte and records a
+  summarized fixed-radix byte-cons proof. Compact `code-N` constructor decoding
+  remains on the legacy shortcut path for now, and other
+  `ground-formal-code-term` uses remain in formula/substitution decoding.
+  Verification: the red U-Grounding proof-predicate test passed after the
+  object decoder in about 45 seconds; U-Grounding syntax, bound-code, and
+  subst-code focused tests passed; compact axiom-citation and ordinary
+  `axiom-member/2` regressions passed after restoring the compact-only shortcut;
+  `lein test-proflog-fast` passed 145 tests / 548 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions; and a clean
+  `lein test-proflog-sjas` passed 41 tests / 246 assertions in about 33
+  minutes.
 
 ## 2026-05-20
 

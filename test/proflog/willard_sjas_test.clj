@@ -371,6 +371,10 @@
       (is (successful? wff-proofs))
       (is (proof/contains-step? (first-proof wff-proofs) 'sjas-ug-code-bytes)
           "the proof should route through the relation-backed U-Grounding code decoder")
+      (is (proof/contains-step? (first-proof wff-proofs) 'sjas-ug-code-byte-cons)
+          "ground U-Grounding code decoding must prove byte-cons equations inside the object relation")
+      (is (proof/contains-step? (first-proof wff-proofs) 'sjas-ug-code-mul64-shift)
+          "ground U-Grounding code decoding must cite the fixed-radix multiplication relation")
       (is (successful?
             (query/query-succeeds
               (:program system)
@@ -417,14 +421,16 @@
       (is (sjas-numeral-term? (:system-code system)))
       (is (sjas-numeral-term? (:code beta-record)))
       (is (sjas-numeral-term? axiom-certificate))
-      (is (successful?
-            (query/query-succeeds
-              (:program system)
-              (sjas/tableau-proof (:system-code system)
-                                  (:code beta-record)
-                                  axiom-certificate)
-              1
-              200))))))
+      (let [proofs (query/query-succeeds
+                     (:program system)
+                     (sjas/tableau-proof (:system-code system)
+                                         (:code beta-record)
+                                         axiom-certificate)
+                     1
+                     200)]
+        (is (successful? proofs))
+        (is (proof/contains-step? (first-proof proofs) 'sjas-ug-code-byte-cons)
+            "U-Grounding proof predicates must not decode ground system or theorem codes with a host shortcut")))))
 
 (deftest sjas-u-grounding-subst-code-computes-level1-fixed-point
   (testing "Level-1 Subst uses the U-Grounding source code numeral as the diagonal term"

@@ -520,6 +520,100 @@
          (== (lcons byte tail-bytes) bytes)
          (== (list 'sjas-ug-code-cons cons-proof tail-proof) proof))])))
 
+(defn- canonical-bit-termo
+  "Peel one low bit from a canonical public U-Grounding numeral term."
+  [term bit tail sigma sigma-out proof]
+  (fresh [walked]
+    (equality/walko term sigma walked)
+    (conde
+      [(== zero-term walked)
+       (== 0 bit)
+       (== zero-term tail)
+       (== sigma sigma-out)
+       (== '(sjas-ug-code-bit-zero) proof)]
+      [(== one-term walked)
+       (== 1 bit)
+       (== zero-term tail)
+       (== sigma sigma-out)
+       (== '(sjas-ug-code-bit-one) proof)]
+      [(fresh [arg]
+         (== (list 'app 'dbl arg) walked)
+         (== 0 bit)
+         (== arg tail)
+         (== sigma sigma-out)
+         (== '(sjas-ug-code-bit-dbl) proof))]
+      [(fresh [arg doubled]
+         (== (list 'app 'add doubled one-term) walked)
+         (== (list 'app 'dbl arg) doubled)
+         (== 1 bit)
+         (== arg tail)
+         (== sigma sigma-out)
+         (== '(sjas-ug-code-bit-add-one) proof))])))
+
+(defn- canonical-byte-cons-proofo
+  "Record the fixed-radix byte equation proven by six canonical bit peels."
+  [tail proof]
+  (conde
+    [(== zero-term tail)
+     (== (list 'sjas-ug-code-byte-cons
+               '(sjas-ug-code-mul64-zero)
+               '(sjas-ug-code-canonical-byte))
+         proof)]
+    [(!= zero-term tail)
+     (== (list 'sjas-ug-code-byte-cons
+               '(sjas-ug-code-mul64-shift)
+               '(sjas-ug-code-canonical-byte))
+         proof)]))
+
+(defn- canonical-byte-termo
+  "Peel one base-64 byte from a canonical U-Grounding numeral term.
+
+   This is the bounded object-level decoder used for already-ground public
+   system and theorem codes. It decomposes the numeral through its public
+   `0`/`1`/`dbl`/`add(_,1)` constructors instead of computing bytes in host
+   Clojure."
+  [term byte tail sigma sigma-out proof]
+  (fresh [b0 b1 b2 b3 b4 b5
+          t1 t2 t3 t4 t5 t6
+          s1 s2 s3 s4 s5
+          p0 p1 p2 p3 p4 p5 cons-proof]
+    (canonical-bit-termo term b0 t1 sigma s1 p0)
+    (canonical-bit-termo t1 b1 t2 s1 s2 p1)
+    (canonical-bit-termo t2 b2 t3 s2 s3 p2)
+    (canonical-bit-termo t3 b3 t4 s3 s4 p3)
+    (canonical-bit-termo t4 b4 t5 s4 s5 p4)
+    (canonical-bit-termo t5 b5 t6 s5 sigma-out p5)
+    (byte-six-bitso (list b0 b1 b2 b3 b4 b5) byte)
+    (== t6 tail)
+    (canonical-byte-cons-proofo tail cons-proof)
+    (== (list 'sjas-ug-code-canonical-byte
+              byte
+              cons-proof)
+        proof)))
+
+(defn- sjas-ug-code-bytes-termo
+  [remaining term bytes sigma sigma-out proof]
+  (if (neg? remaining)
+    fail
+    (fresh [byte tail byte-proof sigma-after]
+      (canonical-byte-termo term byte tail sigma sigma-after byte-proof)
+      (conde
+        [(== sjas-code/u-grounding-sentinel-byte byte)
+         (== zero-term tail)
+         (== '() bytes)
+         (== sigma-after sigma-out)
+         (== (list 'sjas-ug-code-end byte-proof) proof)]
+        [(fresh [tail-bytes tail-proof]
+           (!= sjas-code/u-grounding-sentinel-byte byte)
+           (sjas-ug-code-bytes-termo (dec remaining)
+                                     tail
+                                     tail-bytes
+                                     sigma-after
+                                     sigma-out
+                                     tail-proof)
+           (== (lcons byte tail-bytes) bytes)
+           (== (list 'sjas-ug-code-cons byte-proof) proof))]))))
+
 (defn- ground-pop-bit
   "Return `[bit tail-term]` for one ground canonical U-Grounding numeral step.
 
@@ -658,23 +752,20 @@
 (defn- sjas-ug-code-byteso
   "Decode an object-language U-Grounding numeral code into base-64 bytes.
 
-   Ground public codes use a deterministic constructor-pop shortcut to avoid
-   overflowing core.logic on very large numeral towers. Bound or otherwise
-   relational entries read the canonical numeral to bits and then strip the
-   sentinel through `sjas-ug-code-bytes-bitso`, which reconstructs each byte
-   with the relation-backed `byte + 64 * tail` equation."
+   The decoder peels six canonical constructor bits per byte, proving the fixed
+   radix byte equation at each step. This deliberately avoids the earlier
+   deterministic host shortcut during predicate application without forcing
+   proof search to materialize and re-walk the complete bit list for large
+   system codes."
   [term bytes sigma sigma-out proof]
-  (if-let [ground-bytes (ground-u-grounding-code-term-bytes term)]
-    (fresh []
-      (== '() sigma)
-      (== '() sigma-out)
-      (== (apply list ground-bytes) bytes)
-      (== '(sjas-ug-code-bytes) proof))
-    (conde
-      [(fresh [bits read-proof decode-proof]
-         (sjas-canonical-num-termo term bits sigma sigma-out read-proof)
-         (sjas-ug-code-bytes-bitso bits bytes decode-proof)
-         (== (list 'sjas-ug-code-bytes read-proof decode-proof) proof))])))
+  (fresh [decode-proof]
+    (sjas-ug-code-bytes-termo sjas-code/max-code-bytes
+                              term
+                              bytes
+                              sigma
+                              sigma-out
+                              decode-proof)
+    (== (list 'sjas-ug-code-bytes decode-proof) proof)))
 
 (defn- sjas-formal-code-byteso
   "Decode either supported public SJAS code representation.
@@ -684,10 +775,10 @@
    be quoted during diagonal substitution inspect this value."
   [term bytes sigma sigma-out kind proof]
   (conde
-    [(== :u-grounding kind)
-     (sjas-ug-code-byteso term bytes sigma sigma-out proof)]
     [(== :compact kind)
-     (sjas-code-byteso term bytes sigma sigma-out proof)]))
+     (sjas-code-byteso term bytes sigma sigma-out proof)]
+    [(== :u-grounding kind)
+     (sjas-ug-code-byteso term bytes sigma sigma-out proof)]))
 
 ;; -----------------------------------------------------------------------------
 ;; Formula-code byte decoding
@@ -1723,17 +1814,22 @@
 (defn- sjas-ground-code-byteso
   "Expose the byte string for a public code term used in axiom citation.
 
-   The first path is the temporary ADR-0072 host shortcut for already-ground
-   public codes. The second path is the structural code relation, used when a
-   proof predicate reaches axiom membership with a code term bound by core.logic
-   rather than available as an immediate host value. Both paths still expose the
-   same byte string to the axiom-group relations; the host shortcut remains a
-   boundary to remove later."
+   Axiom citation is part of proof-predicate application, so U-Grounding
+   arithmetic code bytes must be exposed by the kernel relation even when the
+   term is already ground as a host value. Compact `code-N` constructor terms
+   are retained as an operational shortcut for the legacy code format; they are
+   not the arithmetic U-Grounding representation whose reflection boundary this
+   ADR is internalizing."
   [code bytes proof]
-  (if-let [[ground-bytes _kind ground-read-proof] (ground-formal-code-term code)]
-    (fresh []
-      (== (byte-list-literal ground-bytes) bytes)
-      (== (list 'sjas-system-code-bytes ground-read-proof) proof))
+  (if-let [[ground-bytes kind ground-read-proof] (ground-formal-code-term code)]
+    (if (= :compact kind)
+      (fresh []
+        (== (byte-list-literal ground-bytes) bytes)
+        (== (list 'sjas-system-code-bytes ground-read-proof) proof))
+      (fresh [read-proof sigma-out]
+        (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
+        (== '() sigma-out)
+        (== (list 'sjas-system-code-bytes read-proof) proof)))
     (fresh [kind read-proof sigma-out]
       (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
       (== '() sigma-out)

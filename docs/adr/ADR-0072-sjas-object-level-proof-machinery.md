@@ -162,10 +162,23 @@ the generic kernel proof branch. This preserves the object-language meaning of
 the certificate tag and avoids spending proof search on impossible host-shaped
 kernel witnesses after an invalid axiom citation.
 
+The twelfth stage isolates the U-Grounding arithmetic decoder used by axiom
+citation. A red U-Grounding `tableau-proof/3` regression required the proof
+evidence for ground system and theorem numerals to include the byte-cons
+relation rather than the deterministic host byte shortcut. The first direct
+removal attempt was semantically right but impractical because it materialized
+and re-walked the complete bit list for large system numerals. The green
+implementation uses a bounded kernel relation that peels six canonical
+`0`/`1`/`dbl`/`add(_,1)` constructor bits per byte, records the fixed-radix
+byte-cons step, and leaves the compact `code-N` constructor shortcut isolated to
+the legacy compact representation. This is still not completion:
+`ground-formal-code-term` remains in formula-code and substitution-code paths,
+and compact codes are not the pure U-Grounding arithmetic representation.
+
 Later stages must internalize, in order:
 
-1. removal or strict isolation of the host ground-code shortcut from
-   proof-predicate semantics;
+1. removal or strict isolation of the remaining host ground-code shortcuts from
+   formula-code, substitution-code, and compact proof-predicate semantics;
 2. code-level checking of tableau proof trees against decoded formulas and
    axiom membership, instead of validating a decoded Proflog kernel proof term
    by calling `kernel/prove-programo`;
@@ -208,6 +221,9 @@ Tests must be red before implementation and then pass:
   proof-certificate checking;
 - injected generated `axiom-member/2` facts are ignored by ordinary
   `axiom-member/2` query evaluation;
+- ground U-Grounding proof-predicate axiom citations expose object-level
+  byte-cons evidence for system/theorem code decoding, not only deterministic
+  host byte extraction;
 - malformed certificates and wrong theorem codes remain rejected;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.

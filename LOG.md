@@ -157,6 +157,25 @@ complete contemporaneous transcript.
   548 assertions; `lein test-proflog-extended` passed 68 tests / 203 assertions;
   and `lein test-proflog-sjas` passed 38 tests / 239 assertions in
   approximately 49 minutes.
+- Continued ADR-0072 by removing the generated `axiom-member/2` fallback from
+  `sjas-axiom` proof-certificate checking. The red test injected a bogus
+  generated membership fact for the contradiction code and showed that
+  `tableau-proof(system-code, false-code, sjas-axiom-code)` incorrectly trusted
+  it. Removing the fallback exposed a legitimate relational `subst-prf` path
+  where code terms are bound by core.logic rather than immediately visible to
+  host ground extraction; the fix walks code terms through equality sigma before
+  structural axiom membership, preserves sigma in ground substitution-source
+  checks, and lets the staged byte reader fall back to the structural code
+  relation when host extraction fails. This is progress but not completion:
+  ordinary `axiom-member/2` queries still close from generated facts,
+  `ground-formal-code-term` remains as the fast path for already-ground codes,
+  and proof predicates still validate decoded proof terms by invoking the
+  kernel. Verification: the injected-fact test, all focused axiom-citation
+  tests, substantive self-consistency, and the subst-prf independence regression
+  passed; `lein test-proflog-fast` passed 145 tests / 548 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions; and
+  `lein test-proflog-sjas` passed 39 tests / 240 assertions in approximately
+  56 minutes.
 
 ## 2026-05-20
 

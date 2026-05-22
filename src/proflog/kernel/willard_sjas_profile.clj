@@ -1721,19 +1721,23 @@
     [(== system-profile-level1-tag profile-tag)]))
 
 (defn- sjas-ground-code-byteso
-  "Expose the already-ground byte string for a public code term.
+  "Expose the byte string for a public code term used in axiom citation.
 
-   This remains a host-side operational boundary and is not the final ADR-0072
-   object-level reader. The value of this helper in this slice is narrower: it
-   lets axiom membership stop consulting generated `axiom-member/2` facts for
-   user beta axioms and instead consume the beta formula bytes encoded in the
-   system code."
+   The first path is the temporary ADR-0072 host shortcut for already-ground
+   public codes. The second path is the structural code relation, used when a
+   proof predicate reaches axiom membership with a code term bound by core.logic
+   rather than available as an immediate host value. Both paths still expose the
+   same byte string to the axiom-group relations; the host shortcut remains a
+   boundary to remove later."
   [code bytes proof]
   (if-let [[ground-bytes _kind ground-read-proof] (ground-formal-code-term code)]
     (fresh []
       (== (byte-list-literal ground-bytes) bytes)
       (== (list 'sjas-system-code-bytes ground-read-proof) proof))
-    fail))
+    (fresh [kind read-proof sigma-out]
+      (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
+      (== '() sigma-out)
+      (== (list 'sjas-system-code-bytes read-proof) proof))))
 
 (defn- sjas-system-code-headero
   "Recognize the common header of an encoded finite SJAS system.
@@ -2183,19 +2187,6 @@
                        '()))
     (== [system-code axiom-formula] entry)))
 
-(defn- sjas-generated-axiom-membero
-  "Relate a reflected system code to one of its generated axiom formula codes.
-
-   The proof predicate uses this for formal axiom-citation certificates. This
-   is still an object-language check: it consumes the same generated
-   `axiom-member/2` facts that ordinary SJAS queries can inspect."
-  [prog system-code formula-code]
-  (fresh [fact]
-    (membero fact (or (:sjas/fact-atoms (or (some-> prog :sjas/registry deref)
-                                             prog))
-                      '()))
-    (== (list 'app 'axiom-member system-code formula-code) fact)))
-
 (defn- sjas-axiom-membero
   [prog system-code formula-code proof]
   (conda
@@ -2203,9 +2194,21 @@
     [(sjas-reflected-axiom-membero prog system-code formula-code proof)]
     [(sjas-fixed-axiom-membero prog system-code formula-code proof)]
     [(sjas-tableau0-group-three-axiom-membero prog system-code formula-code proof)]
-    [(sjas-level1-group-three-axiom-membero prog system-code formula-code proof)]
-    [(sjas-generated-axiom-membero prog system-code formula-code)
-     (== '(sjas-generated-axiom-member) proof)]))
+    [(sjas-level1-group-three-axiom-membero prog system-code formula-code proof)]))
+
+(defn- sjas-walked-axiom-membero
+  "Check axiom membership after normalizing code terms through equality sigma.
+
+   Relational `tableau-proof` and `subst-prf` calls may reach this point with
+   `system-code` and `formula-code` bound in `sigma` rather than as immediately
+   ground host values. The structural axiom decoders still consume code terms;
+   this helper only performs the same equality walk that ordinary predicate
+   dispatch uses before handing those terms to the decoders."
+  [prog system-code formula-code sigma proof]
+  (fresh [walked-system-code walked-formula-code]
+    (equality/walk*o system-code sigma walked-system-code)
+    (equality/walk*o formula-code sigma walked-formula-code)
+    (sjas-axiom-membero prog walked-system-code walked-formula-code proof)))
 
 (defn- sjas-active-systemo
   [prog system-code]
@@ -2289,8 +2292,7 @@
   (if-let [[source-bytes _source-kind _source-read-proof]
            (ground-formal-code-term source-code)]
     (fresh [source-formula]
-      (== '() sigma)
-      (== '() sigma-out)
+      (== sigma sigma-out)
       (decode-formula-byteso prog
                              (byte-list-literal source-bytes)
                              '()
@@ -2631,7 +2633,11 @@
         (conde
           [(fresh [axiom-proof]
              (== 'sjas-axiom decoded-proof)
-             (sjas-axiom-membero prog system-code theorem-code axiom-proof)
+             (sjas-walked-axiom-membero prog
+                                         system-code
+                                         theorem-code
+                                         sigma-proof
+                                         axiom-proof)
              (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof))
            (== sigma-proof sigma-out)]
           [(sjas-system-axiom-formulao prog system-code axiom-formula)
@@ -2668,7 +2674,11 @@
       [(== 'sjas-axiom decoded-proof)
        (conde
          [(fresh [axiom-proof]
-            (sjas-axiom-membero prog system-code theorem-code axiom-proof)
+            (sjas-walked-axiom-membero prog
+                                        system-code
+                                        theorem-code
+                                        sigma-proof
+                                        axiom-proof)
             (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-out)
             (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof))]
          [(sjas-subst-code-anyo prog substitution-code theorem-code sigma-proof sigma-out)

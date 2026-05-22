@@ -971,6 +971,23 @@
     (is (not (proof/contains-step? proof 'sjas-generated-axiom-member))
         "Level-1 Group-3 citations should not fall back to generated axiom-member facts")))
 
+(deftest sjas-tableau-proof-ignores-injected-generated-axiom-member-facts
+  (let [system (demo-system :willard-sjas-tableau0)
+        registry (get-in system [:program :sjas/registry])
+        bogus-code (:contradiction-code system)
+        bogus-fact (ast/app-term 'axiom-member (:system-code system) bogus-code)
+        axiom-certificate (sjas/proof-certificate 'sjas-axiom)]
+    (swap! registry update :sjas/fact-atoms conj bogus-fact)
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/tableau-proof (:system-code system)
+                                bogus-code
+                                axiom-certificate)
+            1
+            160))
+        "tableau-proof must not trust generated axiom-member facts during sjas-axiom citation")))
+
 (deftest sjas-subst-code-relates-structural-substitution-codes
   (let [system (demo-system :willard-sjas-level1)
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))

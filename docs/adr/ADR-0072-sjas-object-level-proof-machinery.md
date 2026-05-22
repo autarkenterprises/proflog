@@ -132,18 +132,30 @@ host ground extraction fails, and relational axiom-citation paths walk code term
 through equality sigma before decoding. This preserves legitimate
 proof-certificate composition without trusting generated axiom facts. It is
 still not the final object-level reader: the host ground shortcut remains, and
-ordinary `axiom-member/2` queries still close from generated facts.
+ordinary `axiom-member/2` queries still closed from generated facts at this
+stage.
+
+The ninth stage removes the generated `axiom-member/2` fact path from ordinary
+SJAS predicate evaluation. `axiom-member(system-code, formula-code)` queries now
+route through the same decoded system-code membership relation used by
+`sjas-axiom` proof certificates. A regression test injects a bogus generated
+membership fact for the contradiction code and verifies that an ordinary
+`axiom-member/2` query still fails. Ground `axiom-member/2` queries also enter
+the SJAS direct-profile route so the implementation does not spend minutes
+walking large public code terms before reaching the structural decoder. This is
+progress, not completion: generated `axiom-member/2` clauses and registry fact
+metadata still exist as builder artifacts, and the structural membership
+relation still uses the staged ground-byte extractor for already-ground public
+codes.
 
 Later stages must internalize, in order:
 
-1. object-level `axiom-member/2` query evaluation over decoded system code with
-   no generated host fallback;
-2. removal or strict isolation of the host ground-code shortcut from
+1. removal or strict isolation of the host ground-code shortcut from
    proof-predicate semantics;
-3. code-level checking of tableau proof trees against decoded formulas and
+2. code-level checking of tableau proof trees against decoded formulas and
    axiom membership, instead of validating a decoded Proflog kernel proof term
    by calling `kernel/prove-programo`;
-4. optional future validation that beta axioms are true and in the required
+3. optional future validation that beta axioms are true and in the required
    Willard formula classes.
 
 ## Consequences
@@ -180,6 +192,8 @@ Tests must be red before implementation and then pass:
   membership step, not generated axiom-member metadata;
 - injected generated `axiom-member/2` facts are ignored by `sjas-axiom`
   proof-certificate checking;
+- injected generated `axiom-member/2` facts are ignored by ordinary
+  `axiom-member/2` query evaluation;
 - malformed certificates and wrong theorem codes remain rejected;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.

@@ -988,6 +988,20 @@
             160))
         "tableau-proof must not trust generated axiom-member facts during sjas-axiom citation")))
 
+(deftest sjas-axiom-member-query-ignores-injected-generated-facts
+  (let [system (demo-system :willard-sjas-tableau0)
+        registry (get-in system [:program :sjas/registry])
+        bogus-code (:contradiction-code system)
+        bogus-fact (ast/app-term 'axiom-member (:system-code system) bogus-code)]
+    (swap! registry update :sjas/fact-atoms conj bogus-fact)
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/axiom-member (:system-code system) bogus-code)
+            1
+            160))
+        "axiom-member/2 queries must be checked from decoded system code, not generated facts")))
+
 (deftest sjas-subst-code-relates-structural-substitution-codes
   (let [system (demo-system :willard-sjas-level1)
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))

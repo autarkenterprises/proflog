@@ -176,6 +176,26 @@ complete contemporaneous transcript.
   `lein test-proflog-extended` passed 68 tests / 203 assertions; and
   `lein test-proflog-sjas` passed 39 tests / 240 assertions in approximately
   56 minutes.
+- Continued ADR-0072 by removing the generated `axiom-member/2` fact path from
+  ordinary SJAS predicate evaluation. The red test injected a bogus generated
+  membership fact for the contradiction code and required
+  `axiom-member(system-code, false-code)` to keep failing. The green
+  implementation routes ordinary `axiom-member/2` closure through the same
+  decoded system-code membership relation used by `sjas-axiom` proof
+  certificates, and adds `axiom-member/2` to the direct SJAS profile route so
+  ground code queries avoid generic agenda walking before structural decoding.
+  This is progress but not completion: builder-generated `axiom-member/2`
+  clauses and registry fact metadata still exist as artifacts, current
+  membership decoders still use `ground-formal-code-term` for already-ground
+  public codes, and proof predicates still validate decoded proof terms by
+  invoking the kernel. Verification so far: the injected ordinary-query test
+  passed in 19 seconds; focused positive builder, composite beta/reflected,
+  cross-profile generated-axiom, axiom-citation, fixed-axiom, Tableau-0
+  Group-3, Level-1 Group-3, and injected proof-certificate tests passed;
+  `lein test-proflog-fast` passed 145 tests / 548 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions; and
+  `lein test-proflog-sjas` passed 40 tests / 241 assertions in approximately
+  63 minutes.
 
 ## 2026-05-20
 

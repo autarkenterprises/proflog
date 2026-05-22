@@ -2365,14 +2365,15 @@
 
    Keep this set narrow. Syntax predicates over moderate formula codes already
    work through the ordinary kernel path, while large `subst-code` and
-   `tableau-proof` atoms need direct focus to avoid occurs-checking their code
-   numerals during agenda selection."
+   `axiom-member`/`tableau-proof` atoms need direct focus to avoid
+   occurs-checking their code numerals during agenda selection."
   '#{wff
      delta-star-0-code
      pi-star-1-code
      sigma-star-1-code
      neg-pair
      subst-code
+     axiom-member
      tableau-proof})
 
 (defn- direct-negated-profile-relation
@@ -2412,22 +2413,38 @@
     (== neqs neqs-out)
     (== (list 'profiled 'willard-sjas-arithmetic relation-proof) proof)))
 
-(defn- sjas-generated-fact-closeo
-  "Close negated generated coding facts directly from reflected system metadata."
+(defn- sjas-axiom-member-walked-closeo
+  "General axiom-member close path for branch-local environments and sigmas."
   [fml env sigma sigma-out neqs neqs-out prog proof]
-  (fresh [lit atom walked-atom relation args fact]
+  (fresh [lit atom walked-atom relation args system-code formula-code axiom-proof]
     (subst/subst-formulao fml env lit)
     (== (list 'neg atom) lit)
     (equality/walk-atomo atom sigma walked-atom)
     (== (lcons 'app (lcons relation args)) walked-atom)
     (== 'axiom-member relation)
-    (membero fact (or (:sjas/fact-atoms (or (some-> prog :sjas/registry deref)
-                                             prog))
-                      '()))
-    (== walked-atom fact)
+    (== (lcons system-code (lcons formula-code '())) args)
+    (sjas-walked-axiom-membero prog system-code formula-code sigma axiom-proof)
     (== sigma sigma-out)
     (== neqs neqs-out)
-    (== (list 'profiled 'willard-sjas-fact fact) proof)))
+    (== (list 'profiled 'willard-sjas-axiom-member axiom-proof) proof)))
+
+(defn- sjas-axiom-member-closeo
+  "Close `axiom-member(system, formula)` from decoded system-code membership.
+
+   Earlier ADR-006x stages closed this predicate by consulting generated
+   `axiom-member/2` facts. ADR-0072 requires the predicate path itself to use
+   the same structural axiom membership used by `sjas-axiom` proof certificates,
+   so injected or stale generated facts cannot become semantic evidence."
+  [fml env sigma sigma-out neqs neqs-out prog proof]
+  (if-let [[system-code formula-code] (and (= '() env)
+                                           (= '() sigma)
+                                           (ground-negated-app-args fml 'axiom-member 2))]
+    (fresh [axiom-proof]
+      (sjas-axiom-membero prog system-code formula-code axiom-proof)
+      (== '() sigma-out)
+      (== neqs neqs-out)
+      (== (list 'profiled 'willard-sjas-axiom-member axiom-proof) proof))
+    (sjas-axiom-member-walked-closeo fml env sigma sigma-out neqs neqs-out prog proof)))
 
 (defn- sjas-eq-progresso
   "Consume a true arithmetic equality and continue with the pending branch.
@@ -2711,7 +2728,7 @@
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]
     [(sjas-syntax-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
     [(sjas-subst-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
-    [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
+    [(sjas-axiom-member-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
     [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
     [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]))
 
@@ -2734,7 +2751,7 @@
      (== residuals residuals-out)]
     [(sjas-subst-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]
-    [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)
+    [(sjas-axiom-member-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]
     [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
      (== residuals residuals-out)]
@@ -2773,7 +2790,7 @@
         (sjas-syntax-code-closeo fml '() '() sigma-out '() neqs-out prog proof)
 
         axiom-member
-        (sjas-generated-fact-closeo fml '() '() sigma-out '() neqs-out prog proof)
+        (sjas-axiom-member-closeo fml '() '() sigma-out '() neqs-out prog proof)
 
         tableau-proof
         (sjas-tableau-proof-closeo fml '() '() sigma-out '() neqs-out prog fuel proof)

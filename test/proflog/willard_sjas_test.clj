@@ -937,6 +937,23 @@
         (is (not (proof/contains-step? proof 'sjas-generated-axiom-member))
             (str group " citations should not fall back to generated axiom-member facts"))))))
 
+(deftest sjas-tableau-proof-cites-tableau0-group-three-from-system-code
+  (let [system (demo-system :willard-sjas-tableau0)
+        axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+        citation-proofs (query/query-succeeds
+                          (:program system)
+                          (sjas/tableau-proof (:system-code system)
+                                              (:code (:group-three system))
+                                              axiom-certificate)
+                          1
+                          160)
+        proof (first-proof citation-proofs)]
+    (is (successful? citation-proofs))
+    (is (proof/contains-step? proof 'sjas-system-group-three-axiom)
+        "Tableau-0 Group-3 citations must be reconstructed from system-code")
+    (is (not (proof/contains-step? proof 'sjas-generated-axiom-member))
+        "Tableau-0 Group-3 citations should not fall back to generated axiom-member facts")))
+
 (deftest sjas-subst-code-relates-structural-substitution-codes
   (let [system (demo-system :willard-sjas-level1)
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))

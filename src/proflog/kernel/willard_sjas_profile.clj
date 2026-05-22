@@ -1794,6 +1794,68 @@
               fixed-proof)
         proof)))
 
+(defn- sjas-tableau0-system-code-headero
+  "Recognize the header of a Tableau-0 SJAS system code."
+  [system-bytes proof]
+  (fresh [rest]
+    (== (lcons system-code-tag
+                (lcons system-profile-tableau0-tag rest))
+        system-bytes)
+    (== '(sjas-system-tableau0-profile) proof)))
+
+(defn- tableau0-group-three-code-termso
+  "Build the embedded system/contradiction code terms used by Group-3.
+
+   Compact public codes embed as `(code bytes)`. U-Grounding public codes embed
+   as numerals whose payload is the byte string followed by the code sentinel.
+   Both representations denote the same object-level code bytes; this relation
+   accepts whichever representation the compiled system selected."
+  [system-bytes system-term contradiction-term]
+  (conde
+    [(== (list 'code system-bytes) system-term)
+     (== (list 'code (list formula-false-tag)) contradiction-term)]
+    [(fresh [encoded-system]
+       (append-sentinel-byteo system-bytes encoded-system)
+       (== (list 'num encoded-system) system-term)
+       (== (list 'num
+                 (list formula-false-tag sjas-code/u-grounding-sentinel-byte))
+           contradiction-term))]))
+
+(defn- tableau0-group-three-formulao
+  "Reconstruct the Tableau-0 self-consistency axiom from a system-code byte list."
+  [system-bytes formula proof]
+  (fresh [system-term contradiction-term]
+    (tableau0-group-three-code-termso system-bytes
+                                      system-term
+                                      contradiction-term)
+    (== (list 'forall
+              1
+              (list 'neg
+                    (list 'app
+                          'tableau-proof
+                          (list system-term
+                                contradiction-term
+                                (list 'var 1)))))
+        formula)
+    (== '(sjas-system-tableau0-group-three-axiom) proof)))
+
+(defn- sjas-tableau0-group-three-axiom-membero
+  "Cite the Tableau-0 Group-3 axiom from system-code, not generated facts."
+  [prog system-code formula-code proof]
+  (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
+          header-proof formula group-three-proof]
+    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
+    (sjas-ground-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-tableau0-system-code-headero system-bytes header-proof)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (tableau0-group-three-formulao system-bytes formula group-three-proof)
+    (== (list 'sjas-system-group-three-axiom
+              system-read-proof
+              formula-read-proof
+              header-proof
+              group-three-proof)
+        proof)))
+
 (defn- byte-prefixo
   [prefix bytes rest]
   (conde
@@ -2028,6 +2090,7 @@
     [(sjas-beta-axiom-membero prog system-code formula-code proof)]
     [(sjas-reflected-axiom-membero prog system-code formula-code proof)]
     [(sjas-fixed-axiom-membero prog system-code formula-code proof)]
+    [(sjas-tableau0-group-three-axiom-membero prog system-code formula-code proof)]
     [(sjas-generated-axiom-membero prog system-code formula-code)
      (== '(sjas-generated-axiom-member) proof)]))
 

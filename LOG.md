@@ -123,6 +123,22 @@ complete contemporaneous transcript.
   `lein test-proflog-extended` passed 68 tests / 203 assertions; and
   `lein test-proflog-sjas` passed 36 tests / 233 assertions in approximately
   41 minutes.
+- Continued ADR-0072 by moving Tableau-0 Group-3 axiom citation off generated
+  `axiom-member/2` metadata. The red test required a `sjas-axiom` certificate
+  for the Tableau-0 self-consistency axiom to contain
+  `sjas-system-group-three-axiom` and omit `sjas-generated-axiom-member`; before
+  the change it used the generated fallback. The green implementation validates
+  the Tableau-0 system-code header, decodes the theorem formula, and reconstructs
+  `forall p. not tableau-proof(system-code, false-code, p)` using either compact
+  embedded code terms or U-Grounding sentinel numerals. This is progress but not
+  completion: Level-1 Group-3 still falls back to generated facts, all current
+  axiom-group decoders still use `ground-formal-code-term`, and proof predicates
+  still validate decoded proof terms by invoking the kernel. Verification:
+  focused Tableau-0 Group-3, fixed-axiom, beta-axiom, reflected-clause, and
+  substantive self-consistency tests passed; `lein test-proflog-fast` passed
+  145 tests / 548 assertions; `lein test-proflog-extended` passed 68 tests /
+  203 assertions; and `lein test-proflog-sjas` passed 37 tests / 236 assertions
+  in approximately 50 minutes.
 
 ## 2026-05-20
 

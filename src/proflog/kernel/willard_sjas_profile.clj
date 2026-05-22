@@ -2622,7 +2622,8 @@
                (sjas-axiom-membero prog system-code theorem-code axiom-proof)
                (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof))
              (== sigma-proof sigma-out)]
-            [(sjas-system-axiom-formulao prog system-code axiom-formula)
+            [(!= 'sjas-axiom decoded-proof)
+             (sjas-system-axiom-formulao prog system-code axiom-formula)
              (sjas-structural-negated-theorem-proofo prog
                                                       theorem-code
                                                       sigma-proof
@@ -2657,7 +2658,8 @@
                                          axiom-proof)
              (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof))
            (== sigma-proof sigma-out)]
-          [(sjas-system-axiom-formulao prog system-code axiom-formula)
+          [(!= 'sjas-axiom decoded-proof)
+           (sjas-system-axiom-formulao prog system-code axiom-formula)
            (sjas-structural-negated-theorem-proofo prog
                                                     theorem-code
                                                     sigma-proof
@@ -2698,9 +2700,10 @@
                                         axiom-proof)
             (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-out)
             (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof))]
-         [(sjas-subst-code-anyo prog substitution-code theorem-code sigma-proof sigma-out)
-          (== '(willard-sjas-subst-code) theorem-read-proof)])]
-      [(sjas-system-axiom-formulao prog system-code axiom-formula)
+          [(sjas-subst-code-anyo prog substitution-code theorem-code sigma-proof sigma-out)
+           (== '(willard-sjas-subst-code) theorem-read-proof)])]
+      [(!= 'sjas-axiom decoded-proof)
+       (sjas-system-axiom-formulao prog system-code axiom-formula)
        (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-valid)
        (sjas-structural-negated-theorem-proofo prog
                                                 theorem-code

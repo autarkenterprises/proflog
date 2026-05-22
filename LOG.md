@@ -196,6 +196,24 @@ complete contemporaneous transcript.
   `lein test-proflog-extended` passed 68 tests / 203 assertions; and
   `lein test-proflog-sjas` passed 40 tests / 241 assertions in approximately
   63 minutes.
+- Continued ADR-0072 by removing the stale generated `axiom-member/2` builder
+  metadata. The red test required the SJAS registry to omit `:sjas/fact-atoms`
+  and the compiled program to omit generated `axiom-member` clauses; it failed
+  while the registry still stored the finite generated fact table. The green
+  implementation removes the old fact-table builder and leaves
+  `axiom-member/2` membership solely to decoded system-code membership in the
+  proof profile. Also tightened `sjas-axiom` proof-certificate dispatch so a
+  failed axiom citation cannot fall through into generic kernel proof search.
+  An inherited full-SJAS process from the interrupted session was stopped after
+  more than two hours; its stack was in a slow `subst-prf` path that later
+  passed as a focused test. Verification: the artifact-removal test passed; the
+  injected ordinary-query and proof-certificate regressions passed after
+  manually injecting stale registry facts; the axiom-citation no-fallthrough
+  regression passed; `sjas-subst-prf-uses-substitution-code-independently-of-theorem-code`
+  passed in about 150 seconds; `lein test-proflog-fast` passed 145 tests / 548
+  assertions; `lein test-proflog-extended` passed 68 tests / 203 assertions;
+  and a clean `lein test-proflog-sjas` passed 41 tests / 243 assertions in
+  about 35 minutes.
 
 ## 2026-05-20
 

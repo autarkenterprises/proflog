@@ -3,9 +3,9 @@
 
    This namespace is the source-to-kernel construction layer for the SJAS ADR
    sequence. It builds finite reflected SJAS systems with stable formula codes
-   and generated axiom-member facts. Binary arithmetic and proof-certificate
-   checking are handled by the selected proof profile; host Clojure is used
-   here only to assemble the finite source object."
+   and encoded system sources. Binary arithmetic, axiom membership, and
+   proof-certificate checking are handled by the selected proof profile; host
+   Clojure is used here only to assemble the finite source object."
   (:require [clojure.core.logic :refer [lvar]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.answer-overlay :as answer-overlay]
@@ -485,16 +485,6 @@
     1 (first formulae)
     (reduce ast/and-form formulae)))
 
-(defn- relation-fact
-  [relation terms]
-  (let [params (vec (repeatedly (count terms)
-                                #(nominal/nom (lvar (gensym "fact")))))
-        body (and* (map (fn [param term]
-                          (ast/eq-lit (ast/var-term param) term))
-                        params
-                        terms))]
-    (ast/clause relation params body)))
-
 (defn- clause->formula
   [{:keys [relation params body]}]
   (let [head (ast/pos-lit
@@ -616,34 +606,6 @@
                                    code-format)]
     (vec (concat initial [group3]))))
 
-(defn- classification-clauses
-  [_axioms]
-  [])
-
-(defn- axiom-member-clauses
-  [system-code axioms]
-  (map (fn [{:keys [code]}]
-         (relation-fact 'axiom-member [system-code code]))
-       axioms))
-
-(defn- generated-fact-atoms
-  "Ground axiom-membership facts that the SJAS profile may close directly.
-
-   These are reflected system metadata, not arithmetic truth tables. Infinite
-   U-grounding relations such as `mult`, `leq`, and `lt` are handled by the
-   arithmetic profile. Formula-syntax predicates are also excluded from this
-   table: `wff`, class recognition, and `neg-pair` must decode the formula code
-   structurally when the corresponding SJAS predicate is invoked."
-  [system-code axioms]
-  (apply list
-         (map (fn [{:keys [code]}]
-                (ast/app-term 'axiom-member system-code code))
-              axioms)))
-
-(defn- generated-clauses
-  [_system-code _axioms]
-  [])
-
 (defn- compile-language
   [profile extra-relations constants extra-functions code-format]
   (language/language
@@ -724,8 +686,7 @@
                                constants
                                functions
                                code-format)
-        clauses (concat (generated-clauses system-code axioms)
-                        reflected-clauses
+        clauses (concat reflected-clauses
                         external-clauses)
         ;; U-grounding arithmetic is now interpreted by the SJAS profile.
         ;; Keeping the reflected Group-1 formulas in `axiom-member` preserves
@@ -745,7 +706,6 @@
         group3 (first (filter #(= :group-three (:group %)) axioms))
         registry (atom {:sjas/system-code system-code
                         :sjas/code-format code-format
-                        :sjas/fact-atoms (generated-fact-atoms system-code axioms)
                         :sjas/symbol-index-entries (symbol-index-entries coding-context)
                         :sjas/system-entries (list [system-code proof-axiom-formula])})
         program (assoc (language/compile-program lang clauses)

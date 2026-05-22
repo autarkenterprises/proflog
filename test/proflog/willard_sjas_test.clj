@@ -502,6 +502,14 @@
               1
               48))))))
 
+(deftest sjas-system-does-not-generate-axiom-member-fact-registry
+  (let [system (demo-system :willard-sjas-tableau0)
+        registry @(get-in system [:program :sjas/registry])]
+    (is (not (contains? registry :sjas/fact-atoms))
+        "axiom-member/2 predicate evaluation must not depend on generated host fact metadata")
+    (is (not (contains? (:clauses (:program system)) 'axiom-member))
+        "the generated SJAS basis must not add axiom-member/2 facts as ordinary clauses")))
+
 (deftest ^:slow sjas-structural-code-predicates-accept-non-generated-formula-codes
   (testing "formula-code predicates parse codes beyond the generated axiom registry"
     (let [system (demo-system :willard-sjas-level1)

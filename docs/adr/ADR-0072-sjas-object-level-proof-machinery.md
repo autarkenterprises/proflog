@@ -143,10 +143,24 @@ membership fact for the contradiction code and verifies that an ordinary
 `axiom-member/2` query still fails. Ground `axiom-member/2` queries also enter
 the SJAS direct-profile route so the implementation does not spend minutes
 walking large public code terms before reaching the structural decoder. This is
-progress, not completion: generated `axiom-member/2` clauses and registry fact
-metadata still exist as builder artifacts, and the structural membership
-relation still uses the staged ground-byte extractor for already-ground public
-codes.
+progress, not completion: generated `axiom-member/2` registry fact metadata
+still exists as a builder artifact, and the structural membership relation still
+uses the staged ground-byte extractor for already-ground public codes.
+
+The tenth stage removes the stale generated `axiom-member/2` builder metadata.
+The builder already emitted no generated axiom-member clauses, but it still
+stored a finite `:sjas/fact-atoms` table in the registry from earlier proof
+profiles. A red test now requires the registry to omit that table and verifies
+that compiled programs do not contain an `axiom-member` procedure clause. The
+injected-fact regressions still mutate the registry to prove that a stale or
+manually introduced fact remains semantically ignored.
+
+The eleventh stage tightens proof-certificate dispatch. A decoded `sjas-axiom`
+certificate is now valid only through the axiom-citation branch; if structural
+system-code membership fails, the query fails rather than falling through into
+the generic kernel proof branch. This preserves the object-language meaning of
+the certificate tag and avoids spending proof search on impossible host-shaped
+kernel witnesses after an invalid axiom citation.
 
 Later stages must internalize, in order:
 

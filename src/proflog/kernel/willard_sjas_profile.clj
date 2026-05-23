@@ -1943,7 +1943,7 @@
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
           header-proof formula fixed-proof]
     (sjas-ground-code-byteso system-code system-bytes system-read-proof)
-    (sjas-ground-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-object-code-byteso formula-code formula-bytes formula-read-proof)
     (sjas-system-code-headero system-bytes header-proof)
     (decode-formula-byteso prog formula-bytes '() formula)
     (sjas-fixed-axiom-formulao formula fixed-proof)

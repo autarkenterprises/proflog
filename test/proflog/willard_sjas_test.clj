@@ -991,6 +991,8 @@
         (is (successful? citation-proofs))
         (is (proof/contains-step? proof expected-step)
             (str group " citations must be recovered from the fixed SJAS axiom profile"))
+        (is (proof/contains-step? proof 'sjas-code-arg)
+            (str group " citations must expose formula-code constructor byte reads"))
         (is (not (proof/contains-step? proof 'sjas-generated-axiom-member))
             (str group " citations should not fall back to generated axiom-member facts"))))))
 

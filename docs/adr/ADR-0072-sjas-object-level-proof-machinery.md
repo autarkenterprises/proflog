@@ -218,6 +218,13 @@ citations therefore expose compact constructor-byte evidence for the formula
 code while leaving compact system-code staging as an explicit remaining
 boundary.
 
+The sixteenth stage applies the same formula-code-side internalization to fixed
+Group-0 and Group-1 axiom citations. The system-code argument remains staged for
+the same size reason as beta citation, but the cited fixed axiom formula code is
+read through the public code-byte relation. The fixed-axiom citation proof now
+contains `sjas-code-arg` evidence for Group-0 and Group-1 theorem-code bytes
+without reintroducing generated axiom facts.
+
 Later stages must internalize, in order:
 
 1. removal or strict isolation of the remaining host ground-code shortcuts from
@@ -278,6 +285,9 @@ Tests must be red before implementation and then pass:
   marker;
 - beta `sjas-axiom` citations expose `sjas-code-arg` evidence for compact
   theorem-code decoding while compact system-code staging remains documented;
+- fixed Group-0 and Group-1 `sjas-axiom` citations expose `sjas-code-arg`
+  evidence for compact theorem-code decoding while compact system-code staging
+  remains documented;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.
 

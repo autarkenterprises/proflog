@@ -73,6 +73,17 @@ complete contemporaneous transcript.
   test-proflog-fast` passed 145 tests / 548 assertions; `lein
   test-proflog-extended` passed 68 tests / 203 assertions; and `lein
   test-proflog-sjas` passed 44 tests / 254 assertions.
+- Continued ADR-0072 by exposing compact fixed-axiom theorem-code bytes through
+  the object code-byte relation. The red test required Group-0 and Group-1
+  `sjas-axiom` citation proofs to contain `sjas-code-arg`; before the change
+  both formula-code reads used the staged `(sjas-code-bytes)` marker. The green
+  implementation keeps compact `system-code` staged but routes the cited fixed
+  axiom formula code through `sjas-object-code-byteso`. Focused verification:
+  `sjas-tableau-proof-cites-fixed-axiom-groups-from-system-code` passed 1 test /
+  8 assertions under the 600 second bound. Full verification: `lein
+  test-proflog-fast` passed 145 tests / 548 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions; and `lein
+  test-proflog-sjas` passed 44 tests / 256 assertions.
 
 ## 2026-05-21
 

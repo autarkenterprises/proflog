@@ -84,6 +84,18 @@ complete contemporaneous transcript.
   test-proflog-fast` passed 145 tests / 548 assertions; `lein
   test-proflog-extended` passed 68 tests / 203 assertions; and `lein
   test-proflog-sjas` passed 44 tests / 256 assertions.
+- Probed three additional ADR-0072 internalization moves and did not retain
+  their code. Reading reflected axiom theorem-code bytes through the object
+  compact-code relation exceeded the focused reflected citation bound. Replacing
+  the compact byte-term lookup with constructor-bit peeling made focused syntax
+  and citation tests green, but the full SJAS suite stalled in the structural
+  non-generated theorem-code negative check. Returning even a bounded
+  proof-code byte-read summary made focused proof checks green, but the full
+  SJAS suite stalled in the compact kernel-certificate proof check. These
+  remain real ADR-0072 boundaries: reflected formula-code reads, compact byte
+  argument arithmetic, and proof-code read evidence need a different
+  proof-search strategy rather than simply returning larger relational proof
+  trees.
 
 ## 2026-05-21
 

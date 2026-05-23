@@ -225,6 +225,17 @@ read through the public code-byte relation. The fixed-axiom citation proof now
 contains `sjas-code-arg` evidence for Group-0 and Group-1 theorem-code bytes
 without reintroducing generated axiom facts.
 
+The seventeenth stage removes stale side-table placeholders from compiled SJAS
+program maps. Earlier stages removed the actual generated fact, formula, and
+proof-target registries from predicate semantics, but the builder still attached
+nil or empty top-level `:sjas/system-code`, `:sjas/fact-atoms`, and
+`:sjas/proof-targets` keys for compatibility with an older program-view shape.
+Compiled SJAS programs now carry only `:sjas/registry`, whose remaining payload
+is source-preprocessing metadata such as the active `system-code`, code format,
+and symbol-index entries. The generic procedure-call lookup relation accepts
+that registry-only profile shape and still exposes the ordinary compiled clause
+views.
+
 Later stages must internalize, in order:
 
 1. removal or strict isolation of the remaining host ground-code shortcuts from
@@ -288,6 +299,9 @@ Tests must be red before implementation and then pass:
 - fixed Group-0 and Group-1 `sjas-axiom` citations expose `sjas-code-arg`
   evidence for compact theorem-code decoding while compact system-code staging
   remains documented;
+- compiled SJAS programs expose only the source-preprocessing registry metadata
+  needed by the active profile, and generic procedure-call lookup still works
+  for the registry-only compiled-program shape;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.
 

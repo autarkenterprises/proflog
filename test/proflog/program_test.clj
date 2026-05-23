@@ -72,6 +72,30 @@
       (is (= (ast/neq-lit (ast/var-term bound-param) (ast/app-term 'zero))
              neg-body)))))
 
+(deftest call-clauseo-accepts-registry-only-profile-metadata
+  (testing "procedure lookup keeps working when profile metadata lives only in a registry"
+    (let [program (assoc (simple-program)
+                         :sjas/registry (atom {:sjas/system-code 'dummy-system}))
+          actual (ast/app-term 'succ (ast/app-term 'zero))
+          results (run 1 [env body neg-body]
+                    (program/call-clauseo
+                      program
+                      (ast/app-term 'p actual)
+                      env
+                      body
+                      neg-body))]
+      (is (not-any? #(contains? program %)
+                    [:sjas/system-code :sjas/fact-atoms :sjas/proof-targets])
+          "profile-bearing programs must not require stale SJAS side-table keys")
+      (is (= 1 (count results)))
+      (when-let [[env body neg-body] (first results)]
+        (let [bound-param (ffirst env)]
+          (is (= actual (second (first env))))
+          (is (= (ast/eq-lit (ast/var-term bound-param) (ast/app-term 'zero))
+                 body))
+          (is (= (ast/neq-lit (ast/var-term bound-param) (ast/app-term 'zero))
+                 neg-body)))))))
+
 (deftest call-clause-with-alternativeso-exposes-compiled-guard-views
   (testing "procedure lookup can return top-level alternatives without changing the ordinary body"
     (ast/nom x

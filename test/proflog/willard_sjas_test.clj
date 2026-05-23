@@ -301,8 +301,9 @@
       (is (empty? (filter generated-code-symbol?
                           (get-in system [:language :constants])))
           "hash-derived code labels must not be formal language constants")
-      (is (nil? (get-in system [:program :sjas/proof-targets]))
-          "tableau-proof must decode theorem/system code terms, not use host target labels"))))
+      (is (not-any? #(contains? (:program system) %)
+                    [:sjas/system-code :sjas/fact-atoms :sjas/proof-targets])
+          "compiled SJAS programs must not carry stale host-side proof or fact tables"))))
 
 (deftest sjas-byte-codes-preserve-sequence-length-and-trailing-zeroes
   (testing "public code terms are byte strings, not lossy natural labels"

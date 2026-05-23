@@ -96,6 +96,19 @@ complete contemporaneous transcript.
   argument arithmetic, and proof-code read evidence need a different
   proof-search strategy rather than simply returning larger relational proof
   trees.
+- Continued ADR-0072 by removing stale side-table placeholders from compiled
+  SJAS program maps. The red tests required generated SJAS programs to omit
+  top-level `:sjas/system-code`, `:sjas/fact-atoms`, and `:sjas/proof-targets`
+  keys, and required the generic procedure-call relation to keep resolving
+  clauses for a registry-only profile-bearing compiled program. The green
+  implementation leaves live source-preprocessing metadata under
+  `:sjas/registry` and removes the old nil/empty top-level compatibility slots
+  from both the SJAS builder and the program-view relation. Focused
+  verification: `call-clauseo-accepts-registry-only-profile-metadata` passed 1
+  test / 5 assertions, and `sjas-formal-codes-are-godel-byte-terms` passed 1
+  test / 11 assertions. Full verification: `lein test-proflog-fast` passed 146
+  tests / 553 assertions; `lein test-proflog-extended` passed 68 tests / 203
+  assertions; and `lein test-proflog-sjas` passed 44 tests / 256 assertions.
 
 ## 2026-05-21
 

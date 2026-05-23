@@ -704,9 +704,6 @@
                         :sjas/code-format code-format
                         :sjas/symbol-index-entries (symbol-index-entries coding-context)})
         program (assoc (language/compile-program lang clauses)
-                       :sjas/system-code nil
-                       :sjas/fact-atoms '()
-                       :sjas/proof-targets nil
                        :sjas/registry registry)]
     {:profile profile
      :code-format code-format

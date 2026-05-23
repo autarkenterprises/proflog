@@ -194,10 +194,24 @@ proof-tree-guided. The default malformed-code negatives now reject active
 system-code terms before antecedent reconstruction; full rejection of arbitrary
 bad decoded kernel proof terms remains part of the proof-tree checker stage.
 
+The fourteenth stage makes compact formula-code syntax predicates expose their
+constructor-byte scan in proof evidence. The previous compact reader was not a
+generated formula registry, but it still hid host-side byte extraction behind a
+bare `sjas-code-bytes` marker. `wff/1`, the formula-class predicates, and
+`neg-pair/2` now use the structural compact-code relation directly, so compact
+predicate proofs include nested `sjas-code-arg` evidence for each code byte.
+This is deliberately scoped: compact theorem-code decoding inside generic
+non-`sjas-axiom` proof-certificate checks still uses the deterministic staged
+reader so the substantive self-consistency demonstration remains tractable, and
+substitution target decoding still has its ground-code staging boundary. Those
+remaining staged readers are host-side computation and must not be mistaken for
+completed SJAS reflection.
+
 Later stages must internalize, in order:
 
 1. removal or strict isolation of the remaining host ground-code shortcuts from
-   formula-code, substitution-code, and compact proof-predicate semantics;
+   compact theorem-code, substitution-code, and proof-certificate checking
+   semantics;
 2. code-level checking of tableau proof trees against decoded formulas and
    axiom membership, instead of validating a decoded Proflog kernel proof term
    by calling `kernel/prove-programo`;
@@ -248,6 +262,9 @@ Tests must be red before implementation and then pass:
   from `system-code`;
 - ill-typed theorem/source code arguments remain rejected before expensive
   proof-target reconstruction;
+- compact formula-code syntax predicate proofs include `sjas-code-arg` evidence
+  for constructor-byte decoding instead of a bare staged `sjas-code-bytes`
+  marker;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.
 

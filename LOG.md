@@ -44,6 +44,22 @@ complete contemporaneous transcript.
   timing probe passed under 600 second bounds; `lein test-proflog-fast` passed
   145 tests / 548 assertions; `lein test-proflog-extended` passed 68 tests /
   203 assertions; and `lein test-proflog-sjas` passed 44 tests / 251 assertions.
+- Continued ADR-0072 by making compact formula-code syntax predicates expose
+  constructor-byte proof evidence. The red test required successful `wff/1`
+  proofs over compact codes to contain `sjas-code-arg` rather than only the
+  bare staged `sjas-code-bytes` marker. The green implementation threads proof
+  evidence through the compact code-argument relation and removes the
+  `ground-formal-code-term` shortcut from the syntax predicate decoder. The
+  earlier failed attempt showed that applying the same compact relational reader
+  to generic non-`sjas-axiom` proof-certificate theorem targets makes the
+  substantive self-consistency demonstration impractical, so that path now has
+  an explicit compact-only staged decoder and substitution target decoding keeps
+  its existing ground-code staging. Verification: focused syntax, structural
+  non-generated syntax, U-Grounding byte-reader, substitution, and substantive
+  self-consistency regressions passed under 600 second bounds; `lein
+  test-proflog-fast` passed 145 tests / 548 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions; and `lein
+  test-proflog-sjas` passed 44 tests / 253 assertions.
 
 ## 2026-05-21
 

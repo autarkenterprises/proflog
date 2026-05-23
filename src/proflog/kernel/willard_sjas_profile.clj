@@ -723,15 +723,17 @@
     (== [constructor byte-count] entry)))
 
 (defn- code-argso
-  [args bytes]
+  [args bytes proof]
   (conde
     [(== '() args)
-     (== '() bytes)]
-    [(fresh [arg rest byte byte-rest]
+     (== '() bytes)
+     (== '(sjas-code-args-end) proof)]
+    [(fresh [arg rest byte byte-rest rest-proof]
        (== (lcons arg rest) args)
        (code-byte-termo arg byte)
        (== (lcons byte byte-rest) bytes)
-       (code-argso rest byte-rest))]))
+       (code-argso rest byte-rest rest-proof)
+       (== (list 'sjas-code-arg byte rest-proof) proof))]))
 
 (defn- sjas-code-byteso
   "Decode an object-language SJAS code term into base-64 bytes.
@@ -741,13 +743,13 @@
    to the object language without forcing proof search to walk a huge nested
    binary numeral for every sentence and proof certificate."
   [term bytes sigma sigma-out proof]
-  (fresh [walked constructor args byte-count]
+  (fresh [walked constructor args byte-count args-proof]
     (equality/walko term sigma walked)
     (== (lcons 'app (lcons constructor args)) walked)
     (code-constructoro constructor byte-count)
-    (code-argso args bytes)
+    (code-argso args bytes args-proof)
     (== sigma sigma-out)
-    (== '(sjas-code-bytes) proof)))
+    (== (list 'sjas-code-bytes args-proof) proof)))
 
 (defn- sjas-ug-code-byteso
   "Decode an object-language U-Grounding numeral code into base-64 bytes.
@@ -1084,22 +1086,56 @@
 
 (defn- sjas-decode-formula-code-proofo
   [prog code sigma sigma-out formula read-proof]
-  (if-let [[bytes _kind ground-read-proof] (ground-formal-code-term code)]
-    (fresh [rest]
-      (== '() sigma)
-      (== '() sigma-out)
-      (== ground-read-proof read-proof)
-      (decode-formula-byteso prog (byte-list-literal bytes) rest formula)
-      (== '() rest))
-    (fresh [bytes rest kind]
-      (sjas-formal-code-byteso code bytes sigma sigma-out kind read-proof)
-      (decode-formula-byteso prog bytes rest formula)
-      (== '() rest))))
+  (fresh [bytes rest kind]
+    (sjas-formal-code-byteso code bytes sigma sigma-out kind read-proof)
+    (decode-formula-byteso prog bytes rest formula)
+    (== '() rest)))
+
+(defn- sjas-decode-compact-formula-code-staged-proofo
+  "Decode a formula code while preserving the legacy compact proof fast path.
+
+   Syntax-code predicates use `sjas-decode-formula-code-proofo` directly so
+   their proof evidence shows object-level compact-code byte arguments. Generic
+   proof-predicate theorem targets still need this compact-only staging path:
+   otherwise the substantive self-consistency certificate spends tens of
+   minutes re-walking compact constructor arguments before proof checking can
+   reach the decoded kernel certificate. U-Grounding numerals continue through
+   the object byte relation here because their axiom-citation path is the ADR's
+   arithmetic-code boundary."
+  [prog code sigma sigma-out formula read-proof]
+  (if-let [[bytes kind ground-read-proof] (ground-formal-code-term code)]
+    (if (= :compact kind)
+      (fresh [rest]
+        (== '() sigma)
+        (== '() sigma-out)
+        (== ground-read-proof read-proof)
+        (decode-formula-byteso prog (byte-list-literal bytes) rest formula)
+        (== '() rest))
+      (sjas-decode-formula-code-proofo prog code sigma sigma-out formula read-proof))
+    (sjas-decode-formula-code-proofo prog code sigma sigma-out formula read-proof)))
 
 (defn- sjas-decode-formula-codeo
   [prog code sigma sigma-out formula]
   (fresh [read-proof]
     (sjas-decode-formula-code-proofo prog code sigma sigma-out formula read-proof)))
+
+(defn- sjas-decode-substitution-target-codeo
+  "Decode the target formula code used by structural substitution.
+
+   General formula-code predicates now read compact public code terms through
+   `sjas-formal-code-byteso`, which leaves constructor bytes visible in the
+   object-level proof. Substitution still has a separate ground-source staging
+   path so large U-Grounding fixed-point checks do not force core.logic to walk
+   the entire substituted theorem numeral before the substitution relation
+   itself is internalized."
+  [prog code sigma sigma-out formula]
+  (if-let [[bytes _kind _read-proof] (ground-formal-code-term code)]
+    (fresh [rest]
+      (== '() sigma)
+      (== '() sigma-out)
+      (decode-formula-byteso prog (byte-list-literal bytes) rest formula)
+      (== '() rest))
+    (sjas-decode-formula-codeo prog code sigma sigma-out formula)))
 
 (declare sjas-delta-star-0-formulao
          sjas-pi-star-1-formulao
@@ -1594,10 +1630,10 @@
   [bytes term]
   (or*
     (map (fn [byte-count]
-           (fresh [constructor args]
+           (fresh [constructor args args-proof]
              (byte-list-counto byte-count bytes)
              (code-constructoro constructor byte-count)
-             (code-argso args bytes)
+             (code-argso args bytes args-proof)
              (== (lcons 'app (lcons constructor args)) term)))
          (range (inc sjas-code/max-code-bytes)))))
 
@@ -1731,10 +1767,12 @@
 
    This relation is deliberately used even for generated axiom codes. The proof
    predicate must not recover theorem targets from a host-side finite registry
-   merely because a code was generated by the current system builder."
+   merely because a code was generated by the current system builder. Compact
+   public code terms still use a staged byte projection here as an operational
+   boundary so non-axiom proof-certificate checks remain tractable."
   [prog theorem-code sigma sigma-out neg-theorem theorem-read-proof]
   (fresh [formula complement read-proof]
-    (sjas-decode-formula-code-proofo prog theorem-code sigma sigma-out formula read-proof)
+    (sjas-decode-compact-formula-code-staged-proofo prog theorem-code sigma sigma-out formula read-proof)
     (sjas-formula-complemento formula complement)
     (sjas-internal-formula-asto complement neg-theorem)
     (== (list 'willard-sjas-theorem-code read-proof) theorem-read-proof)))
@@ -2679,10 +2717,10 @@
         (sjas-subst-formula-var-oneo source-formula
                                      replacement
                                      expected)
-        (sjas-decode-formula-codeo prog substituted-code
-                                   '()
-                                   sigma-out
-                                   substituted-formula)
+        (sjas-decode-substitution-target-codeo prog substituted-code
+                                               '()
+                                               sigma-out
+                                               substituted-formula)
         (sjas-alpha-formula-equivo expected substituted-formula '())))
     (fresh [source-bytes source-formula substituted-formula expected replacement
             source-kind source-read-proof sigma-after-source]

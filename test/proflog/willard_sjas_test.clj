@@ -473,7 +473,12 @@
           complement-code (sjas/formula-code system
                                              (normalize/negate-formula formula))
           registry @(get-in system [:program :sjas/registry])
-          fact-atoms (get-in system [:program :sjas/fact-atoms])]
+          fact-atoms (get-in system [:program :sjas/fact-atoms])
+          wff-proofs (query/query-succeeds
+                       (:program system)
+                       (sjas/wff code)
+                       1
+                       32)]
       (is (sjas-code/code-term? complement-code))
       (is (not= (sjas/not-code code) complement-code)
           "complements must be formula Godel-code terms, not not-code wrappers")
@@ -489,12 +494,9 @@
                                  (second atom)))
                     fact-atoms)
           "syntax predicates must not be generated whole-formula facts")
-      (is (successful?
-            (query/query-succeeds
-              (:program system)
-              (sjas/wff code)
-              1
-              32)))
+      (is (successful? wff-proofs))
+      (is (proof/contains-step? (first-proof wff-proofs) 'sjas-code-arg)
+          "compact formula-code predicates must read code constructor bytes through the object relation")
       (is (successful?
             (query/query-succeeds
               (:program system)
@@ -529,15 +531,17 @@
           code (sjas/formula-code system formula)
           complement-code (sjas/formula-code system
                                              (normalize/negate-formula formula))
-          generated-codes (set (map :code (:axioms system)))]
+          generated-codes (set (map :code (:axioms system)))
+          wff-proofs (query/query-succeeds
+                       (:program system)
+                       (sjas/wff code)
+                       1
+                       32)]
       (is (not (contains? generated-codes code))
           "the test formula must not be one of the generated axiom codes")
-      (is (successful?
-            (query/query-succeeds
-              (:program system)
-              (sjas/wff code)
-              1
-              32)))
+      (is (successful? wff-proofs))
+      (is (proof/contains-step? (first-proof wff-proofs) 'sjas-code-arg)
+          "compact formula-code predicates must read code constructor bytes through the object relation")
       (is (successful?
             (query/query-succeeds
               (:program system)

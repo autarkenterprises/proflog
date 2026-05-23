@@ -207,11 +207,22 @@ substitution target decoding still has its ground-code staging boundary. Those
 remaining staged readers are host-side computation and must not be mistaken for
 completed SJAS reflection.
 
+The fifteenth stage removes one compact axiom-citation shortcut without forcing
+large compact system codes through the same relation. A red beta-citation test
+required `sjas-code-arg` evidence inside the `sjas-axiom` proof branch. Reading
+both `system-code` and theorem formula code relationally exceeded the focused
+test bound because compact system codes are large. The green implementation
+keeps compact `system-code` byte exposure staged, but reads the smaller beta
+theorem-code argument through the public object code-byte relation. Beta axiom
+citations therefore expose compact constructor-byte evidence for the formula
+code while leaving compact system-code staging as an explicit remaining
+boundary.
+
 Later stages must internalize, in order:
 
 1. removal or strict isolation of the remaining host ground-code shortcuts from
-   compact theorem-code, substitution-code, and proof-certificate checking
-   semantics;
+   compact system-code, compact theorem-code, substitution-code, and
+   proof-certificate checking semantics;
 2. code-level checking of tableau proof trees against decoded formulas and
    axiom membership, instead of validating a decoded Proflog kernel proof term
    by calling `kernel/prove-programo`;
@@ -265,6 +276,8 @@ Tests must be red before implementation and then pass:
 - compact formula-code syntax predicate proofs include `sjas-code-arg` evidence
   for constructor-byte decoding instead of a bare staged `sjas-code-bytes`
   marker;
+- beta `sjas-axiom` citations expose `sjas-code-arg` evidence for compact
+  theorem-code decoding while compact system-code staging remains documented;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.
 

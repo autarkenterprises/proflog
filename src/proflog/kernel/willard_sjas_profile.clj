@@ -1865,9 +1865,9 @@
    Axiom citation is part of proof-predicate application, so U-Grounding
    arithmetic code bytes must be exposed by the kernel relation even when the
    term is already ground as a host value. Compact `code-N` constructor terms
-   are retained as an operational shortcut for the legacy code format; they are
-   not the arithmetic U-Grounding representation whose reflection boundary this
-   ADR is internalizing."
+   are retained as an operational shortcut for large system-code arguments; the
+   smaller formula-code citation paths can opt into `sjas-object-code-byteso`
+   when their proof evidence needs constructor-byte reads."
   [code bytes proof]
   (if-let [[ground-bytes kind ground-read-proof] (ground-formal-code-term code)]
     (if (= :compact kind)
@@ -1882,6 +1882,18 @@
       (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
       (== '() sigma-out)
       (== (list 'sjas-system-code-bytes read-proof) proof))))
+
+(defn- sjas-object-code-byteso
+  "Expose public code bytes through the object code-byte relation.
+
+   This is used where the public formula code is small enough that proof
+   evidence can show the compact constructor-byte scan without forcing a large
+   compact `system-code` term through the same relation."
+  [code bytes proof]
+  (fresh [kind read-proof sigma-out]
+    (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
+    (== '() sigma-out)
+    (== (list 'sjas-system-code-bytes read-proof) proof)))
 
 (defn- sjas-system-code-headero
   "Recognize the common header of an encoded finite SJAS system.
@@ -2165,7 +2177,7 @@
   [prog system-code formula-code proof]
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof beta-proof]
     (sjas-ground-code-byteso system-code system-bytes system-read-proof)
-    (sjas-ground-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-object-code-byteso formula-code formula-bytes formula-read-proof)
     (sjas-system-beta-formula-byteso prog system-bytes formula-bytes beta-proof)
     (== (list 'sjas-system-beta-axiom
               system-read-proof

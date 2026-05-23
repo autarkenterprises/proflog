@@ -962,6 +962,9 @@
     (is (proof/contains-step? (first-proof beta-citation-proofs)
                               'sjas-system-beta-axiom)
         "beta axiom citations must be recovered from encoded system-code beta formulas")
+    (is (proof/contains-step? (first-proof beta-citation-proofs)
+                              'sjas-code-arg)
+        "compact axiom citations must expose code constructor byte reads")
     (is (empty?
           (query/query-succeeds
             (:program system)

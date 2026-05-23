@@ -60,6 +60,19 @@ complete contemporaneous transcript.
   test-proflog-fast` passed 145 tests / 548 assertions; `lein
   test-proflog-extended` passed 68 tests / 203 assertions; and `lein
   test-proflog-sjas` passed 44 tests / 253 assertions.
+- Continued ADR-0072 by exposing compact beta axiom theorem-code bytes through
+  the object code-byte relation. The red test required the beta
+  `sjas-axiom` proof branch to include `sjas-code-arg`; before the change it
+  returned only `(sjas-system-code-bytes (sjas-code-bytes))` for both system and
+  formula code reads. Reading both compact `system-code` and theorem code
+  relationally exceeded the 600 second focused bound, so the green
+  implementation keeps compact `system-code` staged and routes the smaller beta
+  theorem-code argument through `sjas-object-code-byteso`. Focused verification:
+  `sjas-tableau-proof-accepts-axiom-citation-certificates` passed 1 test /
+  4 assertions under the 600 second bound. Full verification: `lein
+  test-proflog-fast` passed 145 tests / 548 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions; and `lein
+  test-proflog-sjas` passed 44 tests / 254 assertions.
 
 ## 2026-05-21
 

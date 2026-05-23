@@ -20,6 +20,31 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-23
+
+- Continued [ADR-0072](docs/adr/ADR-0072-sjas-object-level-proof-machinery.md)
+  by removing the generated proof-antecedent registry. The red tests required
+  the SJAS registry to omit `:sjas/system-entries` and required
+  `tableau-proof/3` and `subst-prf/4` non-`sjas-axiom` certificates to keep
+  working after that key was removed manually. The green implementation makes
+  theorem-query antecedents use canonical code-nom binders at source
+  compilation, decodes `system-code` during proof-predicate application, maps
+  the decoded theorem axioms to the double-negated antecedent shape used by the
+  kernel refutation, and left-conjoins the reconstructed list in builder order.
+  The direct proof-predicate paths now reject active `system-code` terms as
+  ill-typed theorem/source formula codes before expensive certificate decoding
+  or antecedent reconstruction. Deferred boundary: arbitrary bad decoded kernel
+  proof terms and Level-1 beta-style proof-mismatch checks still need the
+  planned proof-code tree checker instead of `kernel/prove-programo`.
+  The bounded contradiction timing probe now uses an `sjas-axiom` contradiction
+  citation so it records the same not-found timing shape without entering that
+  deferred generic proof-term checker path. Verification: focused no-registry
+  tableau/subst regressions, generated theorem-code proof checks, structural
+  non-generated theorem-code checks, the source audit, and the contradiction
+  timing probe passed under 600 second bounds; `lein test-proflog-fast` passed
+  145 tests / 548 assertions; `lein test-proflog-extended` passed 68 tests /
+  203 assertions; and `lein test-proflog-sjas` passed 44 tests / 251 assertions.
+
 ## 2026-05-21
 
 - Started [ADR-0072](docs/adr/ADR-0072-sjas-object-level-proof-machinery.md)

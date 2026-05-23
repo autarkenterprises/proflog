@@ -23,8 +23,10 @@ lookups or host-only theorem-target reconstruction during its own evaluation.
 The current implementation still has several object-level proof machinery
 boundaries:
 
-- the active system's axiom formula is selected by a generated
-  `:sjas/system-entries` registry entry rather than decoded from `system-code`;
+- the active system's proof antecedent is now reconstructed from `system-code`
+  rather than selected from generated `:sjas/system-entries` metadata, but the
+  reconstruction still feeds a decoded Proflog proof term to the generic kernel
+  checker instead of checking proof-code trees directly;
 - formal axiom citation for standard SJAS axiom groups no longer needs generated
   `axiom-member/2` facts: Group-0, Group-1, Tableau-0 Group-3, and Level-1
   Group-3 citations validate the encoded system header and decode the theorem
@@ -175,6 +177,23 @@ the legacy compact representation. This is still not completion:
 `ground-formal-code-term` remains in formula-code and substitution-code paths,
 and compact codes are not the pure U-Grounding arithmetic representation.
 
+The thirteenth stage removes the generated proof-antecedent registry. The
+builder no longer stores `:sjas/system-entries`; theorem queries use canonical
+code-nom binders at the source-compilation boundary so that proof predicates
+can later reconstruct the same antecedent from encoded formula bytes.
+`tableau-proof/3` and `subst-prf/4` decode the active `system-code`, rebuild the
+Group-0, Group-2 beta, reflected Group-2b, and Group-3 theorem axiom sequence,
+map each decoded internal formula to the double-negated antecedent shape used
+by the kernel refutation, and left-conjoin that list in builder order. The
+focused regressions explicitly remove any `:sjas/system-entries` key before
+checking non-`sjas-axiom` certificates. This is progress, not completion:
+Level-1 proof antecedent reconstruction still contains the fixed-point
+skeleton check, so beta-style proof mismatch checks against the full Level-1
+target are treated as slow/deferred until proof-code validation becomes
+proof-tree-guided. The default malformed-code negatives now reject active
+system-code terms before antecedent reconstruction; full rejection of arbitrary
+bad decoded kernel proof terms remains part of the proof-tree checker stage.
+
 Later stages must internalize, in order:
 
 1. removal or strict isolation of the remaining host ground-code shortcuts from
@@ -224,7 +243,11 @@ Tests must be red before implementation and then pass:
 - ground U-Grounding proof-predicate axiom citations expose object-level
   byte-cons evidence for system/theorem code decoding, not only deterministic
   host byte extraction;
-- malformed certificates and wrong theorem codes remain rejected;
+- generated proof-antecedent registries are absent, and non-`sjas-axiom`
+  `tableau-proof/3` and `subst-prf/4` checks reconstruct the finite antecedent
+  from `system-code`;
+- ill-typed theorem/source code arguments remain rejected before expensive
+  proof-target reconstruction;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.
 

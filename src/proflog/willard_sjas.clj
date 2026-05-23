@@ -15,7 +15,6 @@
             [proflog.gamma :as gamma]
             [proflog.kernel.willard-sjas-profile :as willard-sjas-profile]
             [proflog.language :as language]
-            [proflog.normalize :as normalize]
             [proflog.query :as query]
             [proflog.willard-sjas-code :as sjas-code]))
 
@@ -694,20 +693,16 @@
         ;; every theorem antecedent would let the free-constructor equality
         ;; rule misread true arithmetic equations as constructor clashes.
         theorem-axioms (remove #(= :group-one (:group %)) axioms)
-        axiom-formula (and* (map :formula theorem-axioms))
-        ;; The kernel proves a theorem query by closing the negation of
-        ;; `(axiom-formula -> theorem)`. Because Proflog uses `once-forall` when
-        ;; negating existentials operationally, the positive antecedent in that
-        ;; refutation is the double negation of the axiom basis, not merely
-        ;; `to-nnf`. `tableau-proof/3` must reconstruct the same branch target
-        ;; that produced the external certificate.
-        proof-axiom-formula (normalize/negate-formula
-                              (normalize/negate-formula axiom-formula))
+        ;; Formula codes remember canonical binder indexes rather than arbitrary
+        ;; source nom identities. The proof predicate must later reconstruct the
+        ;; same axiom antecedent from `system-code`, so theorem queries use that
+        ;; canonical binder convention at the source-compilation boundary.
+        axiom-formula (and* (map (comp code-canonical-formula :formula)
+                                 theorem-axioms))
         group3 (first (filter #(= :group-three (:group %)) axioms))
         registry (atom {:sjas/system-code system-code
                         :sjas/code-format code-format
-                        :sjas/symbol-index-entries (symbol-index-entries coding-context)
-                        :sjas/system-entries (list [system-code proof-axiom-formula])})
+                        :sjas/symbol-index-entries (symbol-index-entries coding-context)})
         program (assoc (language/compile-program lang clauses)
                        :sjas/system-code nil
                        :sjas/fact-atoms '()
@@ -875,7 +870,7 @@
         contradiction (tableau-proof (:system-code system)
                                      (:contradiction-code system)
                                      (proof-certificate
-                                       '(refl-close)
+                                       'sjas-axiom
                                        {:code-format (:code-format system
                                                                    :compact)}))
         proofs (query/query-succeeds (:program system) contradiction proof-limit fuel)

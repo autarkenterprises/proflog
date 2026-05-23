@@ -516,6 +516,12 @@
     (is (not (contains? (:clauses (:program system)) 'axiom-member))
         "the generated SJAS basis must not add axiom-member/2 facts as ordinary clauses")))
 
+(deftest sjas-system-does-not-generate-proof-antecedent-registry
+  (let [system (demo-system :willard-sjas-tableau0)
+        registry @(get-in system [:program :sjas/registry])]
+    (is (not (contains? registry :sjas/system-entries))
+        "proof predicates must reconstruct the finite axiom basis from system-code, not generated host antecedents")))
+
 (deftest ^:slow sjas-structural-code-predicates-accept-non-generated-formula-codes
   (testing "formula-code predicates parse codes beyond the generated axiom registry"
     (let [system (demo-system :willard-sjas-level1)
@@ -767,8 +773,7 @@
                                            (:code beta-record)
                                            valid)
                        1
-                       160)
-        malformed (sjas/proof-certificate '(refl-close))]
+                       160)]
     (is beta-proof)
     (is (sjas-code/code-term? valid)
         "proof certificates must be base-64 Godel-code terms")
@@ -779,16 +784,33 @@
           (query/query-succeeds
             (:program system)
             (sjas/tableau-proof (:system-code system)
-                                (:code (:group-three system))
+                                (:system-code system)
                                 valid)
             1
-            80)))
-    (is (empty?
+            80)))))
+
+(deftest sjas-tableau-proof-reconstructs-axiom-basis-without-system-registry
+  (let [system (demo-system :willard-sjas-tableau0)
+        registry (get-in system [:program :sjas/registry])
+        beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+        beta-proof (first-proof
+                     (sjas/query-succeeds system (:formula beta-record)
+                                          {:proof-limit 1
+                                           :fuel 96}))
+        certificate (sjas/proof-certificate beta-proof)]
+    (is beta-proof)
+    (swap! registry dissoc :sjas/system-entries)
+    (is (not (contains? @registry :sjas/system-entries))
+        "the regression must remove the generated host-side proof antecedent")
+    (is (successful?
           (query/query-succeeds
             (:program system)
-            (sjas/tableau-proof (:system-code system) (:code beta-record) malformed)
+            (sjas/tableau-proof (:system-code system)
+                                (:code beta-record)
+                                certificate)
             1
-            80)))))
+            200))
+        "tableau-proof must reconstruct the axiom basis from system-code during predicate application")))
 
 (deftest ^:slow sjas-tableau-proof-checks-structural-non-generated-theorem-codes
   (let [system (demo-system :willard-sjas-tableau0)
@@ -824,7 +846,7 @@
             120)))))
 
 (deftest ^:slow sjas-subst-prf-checks-structural-non-generated-theorem-codes
-  (let [system (demo-system :willard-sjas-level1)
+  (let [system (demo-system :willard-sjas-tableau0)
         theorem (sjas/lt sjas/one sjas/two)
         theorem-code (sjas/formula-code system theorem)
         wrong-theorem-code (sjas/formula-code system
@@ -859,7 +881,7 @@
             160)))))
 
 (deftest sjas-subst-prf-checks-identity-substitution-certificates
-  (let [system (demo-system :willard-sjas-level1)
+  (let [system (demo-system :willard-sjas-tableau0)
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
         beta-proof (first-proof
                      (sjas/query-succeeds system (:formula beta-record)
@@ -873,8 +895,7 @@
                                        (:code beta-record)
                                        valid)
                        1
-                       160)
-        malformed (sjas/proof-certificate '(refl-close))]
+                       160)]
     (is beta-proof)
     (is (successful? valid-proofs))
     (is (proof/contains-step? (first-proof valid-proofs) 'willard-sjas-theorem-code)
@@ -896,16 +917,31 @@
                             (:code beta-record)
                             valid)
             1
-            80)))
-    (is (empty?
+            80)))))
+
+(deftest sjas-subst-prf-reconstructs-axiom-basis-without-system-registry
+  (let [system (demo-system :willard-sjas-tableau0)
+        registry (get-in system [:program :sjas/registry])
+        beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+        beta-proof (first-proof
+                     (sjas/query-succeeds system (:formula beta-record)
+                                          {:proof-limit 1
+                                           :fuel 96}))
+        certificate (sjas/proof-certificate beta-proof)]
+    (is beta-proof)
+    (swap! registry dissoc :sjas/system-entries)
+    (is (not (contains? @registry :sjas/system-entries))
+        "the regression must remove the generated host-side proof antecedent")
+    (is (successful?
           (query/query-succeeds
             (:program system)
             (sjas/subst-prf (:system-code system)
                             (:code beta-record)
                             (:code beta-record)
-                            malformed)
+                            certificate)
             1
-            80)))))
+            220))
+        "subst-prf must reconstruct the axiom basis from system-code during predicate application")))
 
 (deftest sjas-tableau-proof-accepts-axiom-citation-certificates
   (let [system (demo-system :willard-sjas-level1)

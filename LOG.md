@@ -124,6 +124,16 @@ complete contemporaneous transcript.
   test-proflog-fast` passed 146 tests / 553 assertions; `lein
   test-proflog-extended` passed 68 tests / 203 assertions; and `lein
   test-proflog-sjas` passed 45 tests / 258 assertions.
+- Probed the next possible ADR-0072 byte-reader slice for `subst-code/2` source
+  formula codes and did not retain it. The red test required the
+  `subst-code(selfcons-skeleton-code, group3-code)` proof to expose
+  `sjas-code-arg` evidence instead of the bare `(profiled
+  willard-sjas-subst-code)` marker. Removing the source-side
+  `ground-formal-code-term` branch and threading the object byte-read proof made
+  the focused Level-1 substitution regression run for roughly eight minutes
+  without completing, so the code and test changes were backed out. This remains
+  a real boundary, but it needs a bounded source-code reader or a proof shape
+  that avoids re-walking the compact skeleton before it can be made green.
 
 ## 2026-05-21
 

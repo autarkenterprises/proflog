@@ -109,6 +109,21 @@ complete contemporaneous transcript.
   test / 11 assertions. Full verification: `lein test-proflog-fast` passed 146
   tests / 553 assertions; `lein test-proflog-extended` passed 68 tests / 203
   assertions; and `lein test-proflog-sjas` passed 44 tests / 256 assertions.
+- Continued ADR-0072 by removing the matching top-level source-metadata
+  fallbacks from the SJAS kernel profile. The red test manually dropped
+  `:sjas/registry`, reintroduced `:sjas/system-code`, `:sjas/code-format`, and
+  `:sjas/symbol-index-entries` on the compiled program map, and showed that a
+  Group-0 `sjas-axiom` citation still succeeded. The green implementation makes
+  active-system, code-format, and symbol-index lookup ignore stale top-level
+  program keys, leaving the source-preprocessing registry as the only accepted
+  host metadata path. Focused verification: the new registry-requirement
+  regression passed 1 test / 2 assertions; fixed-axiom citation passed 1 test /
+  8 assertions; beta citation passed 1 test / 4 assertions; the
+  beta/reflected composite check passed 1 test / 9 assertions; and syntax-code
+  decoding passed 1 test / 8 assertions. Full verification: `lein
+  test-proflog-fast` passed 146 tests / 553 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions; and `lein
+  test-proflog-sjas` passed 45 tests / 258 assertions.
 
 ## 2026-05-21
 

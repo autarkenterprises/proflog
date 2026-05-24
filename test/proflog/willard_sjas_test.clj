@@ -525,6 +525,28 @@
     (is (not (contains? registry :sjas/system-entries))
         "proof predicates must reconstruct the finite axiom basis from system-code, not generated host antecedents")))
 
+(deftest sjas-proof-predicates-require-source-preprocessing-registry
+  (let [system (demo-system :willard-sjas-tableau0)
+        registry @(get-in system [:program :sjas/registry])
+        fixed-record (first (filter #(= :group-zero (:group %)) (:axioms system)))
+        axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+        top-level-metadata-program (-> (:program system)
+                                       (dissoc :sjas/registry)
+                                       (assoc :sjas/system-code (:system-code system)
+                                              :sjas/code-format (:code-format system)
+                                              :sjas/symbol-index-entries (:sjas/symbol-index-entries registry)))]
+    (is (not (contains? top-level-metadata-program :sjas/registry))
+        "the regression must remove the source-preprocessing registry")
+    (is (empty?
+          (query/query-succeeds
+            top-level-metadata-program
+            (sjas/tableau-proof (:system-code system)
+                                (:code fixed-record)
+                                axiom-certificate)
+            1
+            96))
+        "proof predicates must not accept stale top-level source metadata as a registry substitute")))
+
 (deftest ^:slow sjas-structural-code-predicates-accept-non-generated-formula-codes
   (testing "formula-code predicates parse codes beyond the generated axiom registry"
     (let [system (demo-system :willard-sjas-level1)

@@ -846,11 +846,14 @@
   (membero byte positive-byte-except-one-entries))
 
 (defn- sjas-symbol-indexo
-  "Relate a formula-code symbol index to a declared object-language symbol."
+  "Relate a formula-code symbol index to a declared object-language symbol.
+
+   Symbol-index entries are source-preprocessing metadata and must be reached
+   through the active SJAS registry, not through stale top-level program keys."
   [prog idx sym]
   (fresh [entry]
     (membero entry (or (:sjas/symbol-index-entries
-                         (or (some-> prog :sjas/registry deref) prog))
+                         (some-> prog :sjas/registry deref))
                        '()))
     (== [idx sym] entry)))
 
@@ -2690,9 +2693,9 @@
     (sjas-axiom-membero prog walked-system-code walked-formula-code proof)))
 
 (defn- sjas-active-systemo
+  "Require proof predicates to use the active source-preprocessing registry."
   [prog system-code]
-  (== system-code (:sjas/system-code (or (some-> prog :sjas/registry deref)
-                                         prog))))
+  (== system-code (:sjas/system-code (some-> prog :sjas/registry deref))))
 
 (defn- sjas-code-format
   "Return the public code representation selected by the active SJAS system.
@@ -2701,10 +2704,10 @@
    choose a search order. U-Grounding code terms are deep binary numerals, so
    trying generated-code table lookup first can force core.logic to compare
    large numeral towers against every registry entry before the structural
-   decoder has a chance to run."
+   decoder has a chance to run. Missing registry metadata falls back to compact
+   search order, but stale top-level program keys are deliberately ignored."
   [prog]
-  (or (:sjas/code-format (or (some-> prog :sjas/registry deref)
-                             prog))
+  (or (:sjas/code-format (some-> prog :sjas/registry deref))
       :compact))
 
 (defn- sjas-subst-code-anyo

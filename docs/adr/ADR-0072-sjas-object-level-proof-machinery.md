@@ -236,6 +236,16 @@ and symbol-index entries. The generic procedure-call lookup relation accepts
 that registry-only profile shape and still exposes the ordinary compiled clause
 views.
 
+The eighteenth stage removes the matching top-level metadata fallback from the
+SJAS kernel profile. `sjas-active-systemo`, code-format selection, and
+formula-code symbol-index lookup no longer read `:sjas/system-code`,
+`:sjas/code-format`, or `:sjas/symbol-index-entries` directly from the compiled
+program map. A manually edited program that drops `:sjas/registry` and
+reintroduces those top-level keys is rejected by proof-predicate application.
+This does not eliminate source preprocessing itself; it narrows the accepted
+host metadata path to one explicit registry that can be audited separately from
+object-level proof and coding relations.
+
 Later stages must internalize, in order:
 
 1. removal or strict isolation of the remaining host ground-code shortcuts from
@@ -302,6 +312,8 @@ Tests must be red before implementation and then pass:
 - compiled SJAS programs expose only the source-preprocessing registry metadata
   needed by the active profile, and generic procedure-call lookup still works
   for the registry-only compiled-program shape;
+- proof predicates reject manually reintroduced top-level SJAS source metadata
+  when the source-preprocessing registry is absent;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.
 

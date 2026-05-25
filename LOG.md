@@ -20,6 +20,18 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-25
+
+- Logged the refined ADR-0072 internalization/correspondence program after the
+  discussion of whether `kernel/prove-programo` necessarily violates the SJAS
+  self-justification invariant. The note records the exchange verbatim,
+  summarizes the distinction between direct arithmeticization and theorem-backed
+  correspondence, and preserves a future goal prompt for the three coordinated
+  tracks: arithmeticization, relevance analysis for tableau intensional
+  features, and correspondence between the SJAS-specified deductive apparatus
+  and the Proflog kernel. See
+  [SJAS Internalization and Proflog Correspondence Program](docs/log/2026-05-25-sjas-internalization-correspondence-program.md).
+
 ## 2026-05-23
 
 - Continued [ADR-0072](docs/adr/ADR-0072-sjas-object-level-proof-machinery.md)

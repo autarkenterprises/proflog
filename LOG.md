@@ -31,6 +31,18 @@ complete contemporaneous transcript.
   features, and correspondence between the SJAS-specified deductive apparatus
   and the Proflog kernel. See
   [SJAS Internalization and Proflog Correspondence Program](docs/log/2026-05-25-sjas-internalization-correspondence-program.md).
+- Started [ADR-0073](docs/adr/ADR-0073-sjas-internalization-correspondence-program.md)
+  on branch `adr-0073-sjas-correspondence-program` to coordinate the refined
+  three-track program. Track 1 continues direct arithmeticization of SJAS proof
+  machinery; Track 2a classifies the tableau intensional measures relevant to
+  self-justification; Track 2b requires both a proper correspondence proof and
+  operational tests. The initial Track 2a matrix classifies tableau tree
+  structure, rule-induced branching, branch closure, inspectable code encoding,
+  and proof-size discipline as relevant; rule scheduling and runtime mechanics
+  as probably irrelevant subject to proof; and equality, procedure-call/profile
+  rules, quantifier policy, and Proflog proof-certificate layout as unresolved.
+  See
+  [SJAS Tableau Relevance Matrix](docs/log/2026-05-25-sjas-tableau-relevance-matrix.md).
 
 ## 2026-05-23
 

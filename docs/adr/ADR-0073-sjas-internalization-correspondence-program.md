@@ -1,0 +1,124 @@
+# ADR-0073: SJAS Internalization Correspondence Program
+
+- Status: in progress
+- Date: 2026-05-25
+- Branch: `adr-0073-sjas-correspondence-program`
+- AAR: pending
+
+## Context
+
+ADR-0072 moved the SJAS implementation away from generated formula, axiom, and
+proof-target registries. It did not finish the stronger proof-machinery goal:
+generic `tableau-proof/3` and `subst-prf/4` still decode proof certificates to
+Proflog kernel proof terms and ask the implementation kernel to validate those
+terms.
+
+The refined concern is not simply that the call is host-side. The concern is
+whether the call collapses distinctions that SJAS self-reference needs to
+preserve. Willard's Type-A/tableau systems rely on a formalized proof predicate
+for a concrete deduction apparatus. If the Proflog kernel accepts exactly the
+same relevant proof objects as the SJAS-arithmetized semantic-tableau predicate,
+and preserves every relevant proof-tree and size invariant, the kernel path can
+be a justified implementation bridge. If it preserves only theorem-level
+extension, it is not enough: theorem equivalence can erase the intensional
+features that make tableau SJAS differ from Hilbert-style or list-style
+systems.
+
+The development note
+[SJAS Internalization and Proflog Correspondence Program](../log/2026-05-25-sjas-internalization-correspondence-program.md)
+records the exchange that split the prior "full internalization" goal into
+three coordinated tracks.
+
+## Decision
+
+Continue the ADR-0072 arithmeticization work, but treat it as one track of a
+larger program rather than the only possible route to a justified SJAS claim.
+
+Track 1 is direct arithmeticization. The implementation will continue replacing
+host-side staged readers, source registries, decoded proof-term validation, and
+other predicate-application shortcuts with object-language relations over
+encoded formulas, systems, substitutions, proof trees, axiom membership, and
+branch closure. This remains the strongest implementation endpoint.
+
+Track 2a is relevance analysis. Before a Proflog correspondence can justify any
+remaining bridge, the project must determine which intensional aspects of the
+semantic-tableau apparatus are necessary for SJAS self-justification. The
+working hypothesis is that the tableau-induced tree structure, rule-induced
+branching, closure discipline, proof-object inspectability, and lower-bound
+proof-size discipline are relevant. Rule search scheduling, implementation
+caching, and host data representation are expected to be irrelevant only when a
+proof shows that they do not alter the accepted proof objects or the relevant
+size/tree measures. Ambiguous extensions, including equality and
+procedure-call/profile rules, remain unresolved until classified.
+
+Track 2b is Proflog correspondence. This track depends on Track 2a. The project
+must prove and test a bidirectional correspondence of the following shape:
+
+```text
+ProflogAccepts(P, S, F)
+iff
+SJAS_TableauProof(code(P), code(S), code(F))
+```
+
+The proof must preserve every intensional measure classified as relevant by
+Track 2a, and must prove irrelevance for every implementation detail that is
+ignored. Operational tests are required in addition to the proof; they do not
+substitute for it.
+
+## Consequences
+
+- ADR-0072 remains useful and active: each removed host shortcut reduces the
+  proof burden of any eventual correspondence theorem.
+- A kernel call is not accepted merely because Proflog is sound for the same
+  formulas. It is accepted only if the relevant proof-object correspondence is
+  established.
+- A theorem-level "Proflog proves exactly what SJAS proves" result is
+  insufficient if it loses proof-tree, closure, encoding, or proof-size facts
+  relevant to SJAS self-reference.
+- Some implementation work should wait for the relevance matrix. Code that
+  would preserve irrelevant details only for their own sake is not required,
+  while code that hides relevant structure must be replaced or justified by a
+  bridge theorem.
+- The correspondence work may identify Proflog implementation details that need
+  explicit proof-term instrumentation or tests even when no user-visible theorem
+  result changes.
+
+## Test Obligations
+
+Tests must be red before implementation and then pass for any code slice.
+Documentation-only slices must still pass `git diff --check` before commit.
+
+- Track 1 tests must expose the specific host shortcut being removed and show
+  that the relevant predicate still succeeds or fails through object-level
+  relations after the shortcut is gone.
+- Track 2a must maintain a relevance matrix that names each intensional aspect,
+  classifies it as relevant, irrelevant, or unresolved, cites the project or
+  Willard source for that classification when available, and records the proof
+  obligation created by the classification.
+- Track 2b must include both a written proof artifact and operational tests.
+  The tests must exercise representative proof objects in both directions of
+  the correspondence and must include negative cases for features classified as
+  relevant.
+- For semantic implementation commits, `lein test-proflog-fast`, `lein
+  test-proflog-extended`, and `lein test-proflog-sjas` must pass before merge.
+  The extended suite remains especially important for proof search, equality,
+  negation, and query behavior.
+
+## Exit Criteria
+
+- The remaining ADR-0072 host paths are audited and either internalized or
+  justified by the Track 2b correspondence proof.
+- The Track 2a relevance matrix is complete enough to classify every proof
+  object, rule, encoding, closure, search, and size feature relied on by the
+  current Proflog SJAS implementation.
+- A written correspondence proof is supplied for the Proflog kernel and the
+  SJAS-specified semantic-tableau predicate, preserving all relevant measures
+  and proving irrelevance for ignored implementation details.
+- Operational tests demonstrate the correspondence over the implemented proof
+  machinery, including representative positive and negative cases.
+- The implementation passes `lein test-proflog-fast`,
+  `lein test-proflog-extended`, and `lein test-proflog-sjas`; any deliberately
+  deferred slow probes are recorded under `docs/log/` with rationale.
+- The AAR records which route justified each remaining bridge: direct
+  arithmeticization, proved-and-tested correspondence, or explicitly deferred
+  future work approved by the user.

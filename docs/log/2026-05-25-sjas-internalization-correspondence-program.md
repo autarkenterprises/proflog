@@ -331,9 +331,11 @@ The resulting research/implementation program has three coupled tracks:
 
 3. **Correspondence.** Only after the relevant features are classified, prove
    that Proflog kernel acceptance corresponds to the SJAS-specified deduction
-   predicate over those features. The proof must preserve relevant proof-tree
-   and proof-size properties and must prove the irrelevance of ignored
-   implementation details.
+   predicate over those features, and test the implementation against that
+   correspondence. The proof must preserve relevant proof-tree and proof-size
+   properties and must prove the irrelevance of ignored implementation details;
+   the tests must provide operational evidence that the code executes according
+   to the proved correspondence.
 
 The correspondence track depends on the relevance track. A theorem-level
 equivalence is not enough if it loses proof-object structure, proof size, branch
@@ -397,7 +399,7 @@ Track 2a: Relevance Analysis
   assumption, argument, and residual uncertainty.
 
 Track 2b: Proflog Correspondence
-- Only after Track 2a identifies the relevant aspects, prove or test a
+- Only after Track 2a identifies the relevant aspects, prove and test a
   correspondence between the SJAS-specified semantic-tableau proof predicate and
   Proflog kernel acceptance.
 - Target statement:
@@ -406,6 +408,9 @@ Track 2b: Proflog Correspondence
     SJAS_TableauProof(code(P), code(S), code(F))
   with preservation of every Track-2a-relevant measure and proof of
   irrelevance for ignored implementation details.
+- Supply a proper proof of the correspondence, and also supply operational
+  tests/evidence that the implemented code executes according to the proved
+  correspondence.
 - Do not treat theorem-level equivalence alone as sufficient if proof-object
   structure, proof size, tree shape, equality/substitution behavior, or encoding
   discipline is relevant.

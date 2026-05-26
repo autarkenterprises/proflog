@@ -22,6 +22,18 @@ complete contemporaneous transcript.
 
 ## 2026-05-26
 
+- Attempted an informal proof, grounded in Willard's SJAS/analytic-tableaux
+  papers and Fitting's Proflog/tableaux-for-logic-programming paper, of whether
+  the current Proflog kernel can serve as an SJAS proof-predicate shortcut. The
+  proof attempt gives a restricted positive result for ordinary tableau-shaped
+  kernel derivations, and a full-domain negative result for the current SJAS
+  shortcut: `kernel/prove-programo` is operationally defensible and probably
+  sound over a bounded fragment, but it does not yet preserve all requisite
+  SJAS invariants because skeletal certificates lack a proved formula-bearing
+  expansion and proof-size lower bound, and because procedure-call, generic
+  equality, guarded/profile, unencodable-tag, and quantifier-witness obligations
+  remain open. See
+  [Proflog Kernel as an SJAS Proof-Predicate Shortcut: Proof Attempt](docs/log/2026-05-26-proflog-kernel-sjas-shortcut-proof-attempt.md).
 - Logged explicit completion criteria for ADR-0073 Track 2b. A correspondence
   proof is complete only after fixing the covered domain, formalizing compatible
   Proflog and SJAS tableau semantics, defining the proof-object translation,

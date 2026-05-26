@@ -65,6 +65,16 @@ complete contemporaneous transcript.
   encoded and classified, represented by existing certificate constructors, or
   excluded by a stated fragment boundary. See
   [SJAS Equality Constructor Reachability](docs/log/2026-05-26-sjas-equality-reachability.md).
+- Inventoried current proof-producing tags against the SJAS certificate
+  alphabet. The gap is broader than `free-close`: equality internals,
+  guarded-call helper tags, compact/U-Grounding code-reader evidence such as
+  `sjas-code-arg`, and profile-header proof tags can be emitted by kernel or
+  SJAS profile code without being listed in `proof-symbols`. The executable
+  correspondence audit now reports `:unencodable-symbols` separately from
+  `:unclassified-symbols`; the red test first showed that
+  `(sjas-code-arg 1 sjas-code-args-end)` and `(free-close)` had no explicit
+  unencodable report. See
+  [SJAS Proof-Tag Inventory](docs/log/2026-05-26-sjas-proof-tag-inventory.md).
 
 ## 2026-05-25
 

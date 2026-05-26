@@ -6,7 +6,8 @@
    symbol against the current Track 2a relevance matrix, and make tests fail
    when a new encoded constructor appears without an explicit correspondence
    obligation."
-  (:require [proflog.proof :as proof]))
+  (:require [proflog.proof :as proof]
+            [proflog.willard-sjas-code :as sjas-code]))
 
 (def ^:private relevant-tableau-symbols
   "Proof constructors whose tree/closure structure is part of the current
@@ -247,14 +248,17 @@
 
    The audit is intentionally syntactic. It walks the ordinary Proflog proof
    tree, keeps only symbols, and partitions them by the current classification
-   map. Unknown symbols are reported so callers can distinguish ordinary formula
-   payload symbols from genuinely unclassified proof constructors."
+   map. Unknown and unencodable symbols are reported separately so callers can
+   distinguish ordinary formula payload symbols, classified encoded
+   constructors, and proof evidence that the current SJAS certificate alphabet
+   cannot represent."
   [proof-term]
   (let [steps (set (proof/collect-steps proof-term))
         profile-forms (into #{}
                             (filter profile-form?)
                             (tree-seq coll? seq proof-term))
         known? #(contains? proof-symbol-classifications %)
+        encodable? (set sjas-code/proof-symbols)
         by-status (fn [status]
                     (into #{}
                           (filter #(= status (:status (classify-proof-symbol %))))
@@ -270,4 +274,5 @@
      :relevant-profile-forms (profile-by-status :relevant)
      :probably-irrelevant-profile-forms (profile-by-status :probably-irrelevant)
      :probably-excluded-profile-forms (profile-by-status :probably-excluded)
+     :unencodable-symbols (into #{} (remove encodable?) steps)
      :unclassified-symbols (into #{} (remove known?) steps)}))

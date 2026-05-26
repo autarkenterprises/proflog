@@ -38,6 +38,17 @@
       (is (= #{}
              (:unclassified-symbols audit))))))
 
+(deftest proof-term-audit-reports-symbols-outside-certificate-alphabet
+  (testing "proof terms can contain kernel/profile evidence that the SJAS proof-code encoder cannot currently encode"
+    (let [audit (correspondence/audit-proof-term
+                  '(conj
+                     (sjas-code-arg 1 sjas-code-args-end)
+                     (free-close)))]
+      (is (= #{'sjas-code-arg 'sjas-code-args-end 'free-close}
+             (:unencodable-symbols audit)))
+      (is (= (:unencodable-symbols audit)
+             (:unclassified-symbols audit))))))
+
 (deftest profile-wrapper-audit-is-path-sensitive
   (testing "profiled wrappers have different relevance depending on their payload role"
     (is (= :probably-irrelevant

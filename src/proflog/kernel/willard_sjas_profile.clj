@@ -2697,6 +2697,25 @@
   [prog system-code]
   (== system-code (:sjas/system-code (some-> prog :sjas/registry deref))))
 
+(defn- sjas-reflected-proof-program
+  "Return the clause program visible to SJAS proof-predicate validation.
+
+   The active runtime program may include `external` clauses supplied by the
+   host application. Those clauses are intentionally outside the encoded SJAS
+   system, so a decoded `tableau-proof/3` or `subst-prf/4` certificate must not
+   use them when it asks the ordinary kernel to check a proof tree. The builder
+   records a reflected-only compiled program in the registry; this helper
+   reattaches the same registry for code decoding and keeps `:clauses` hidden so
+   the generic sidecar shortcuts remain disabled inside SJAS proof search."
+  [prog]
+  (let [registry (:sjas/registry prog)
+        reflected-program (:sjas/reflected-program (some-> registry deref))]
+    (if reflected-program
+      (assoc reflected-program
+             :sjas/registry registry
+             :clauses nil)
+      prog)))
+
 (defn- sjas-code-format
   "Return the public code representation selected by the active SJAS system.
 
@@ -3120,7 +3139,11 @@
                                                       theorem-read-proof)
              (sjas-system-axiom-formulao prog system-code axiom-formula)
              (== (list 'and axiom-formula neg-theorem) target)
-             (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
+             (kernel/prove-programo target '() '() '()
+                                    (sjas-reflected-proof-program prog)
+                                    '()
+                                    fuel
+                                    decoded-proof)])
           (== neqs neqs-out)
           (== (list 'profiled
                     'willard-sjas-proof-check
@@ -3156,7 +3179,11 @@
                                                     neg-theorem
                                                     theorem-read-proof)
            (== (list 'and axiom-formula neg-theorem) target)
-           (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
+           (kernel/prove-programo target '() '() '()
+                                  (sjas-reflected-proof-program prog)
+                                  '()
+                                  fuel
+                                  decoded-proof)])
         (== neqs neqs-out)
         (== (list 'profiled
                   'willard-sjas-proof-check
@@ -3220,7 +3247,11 @@
                                           sigma-out)))
              (sjas-system-axiom-formulao prog system-code axiom-formula)
              (== (list 'and axiom-formula neg-theorem) target)
-             (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
+             (kernel/prove-programo target '() '() '()
+                                    (sjas-reflected-proof-program prog)
+                                    '()
+                                    fuel
+                                    decoded-proof)])
           (== neqs neqs-out)
           (== (list 'profiled 'willard-sjas-subst-proof-check
                     proof-read-proof
@@ -3261,7 +3292,11 @@
                                                     neg-theorem
                                                     theorem-read-proof)
            (== (list 'and axiom-formula neg-theorem) target)
-           (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
+           (kernel/prove-programo target '() '() '()
+                                  (sjas-reflected-proof-program prog)
+                                  '()
+                                  fuel
+                                  decoded-proof)])
         (== neqs neqs-out)
         (== (list 'profiled 'willard-sjas-subst-proof-check
                   proof-read-proof

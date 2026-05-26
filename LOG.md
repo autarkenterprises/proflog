@@ -22,6 +22,17 @@ complete contemporaneous transcript.
 
 ## 2026-05-26
 
+- Completed executable regressions for the SJAS external-clause separation and
+  self-consistency negating witness. `tableau-proof/3` and `subst-prf/4` now
+  validate non-`sjas-axiom` decoded certificates against a reflected-only
+  compiled program, so runtime-only `external` clauses remain queryable by the
+  host but cannot count as SJAS proof-predicate evidence. Added a Tableau-0
+  self-consistency witness showing that the generated SJAS system rejects
+  `tableau-proof(S,false-code,P0)` while ordinary Proflog accepts the same atom
+  if `tableau-proof/3` is supplied as an external runtime procedure. Added a
+  Level-1 complement-certificate rejection probe for
+  `subst-prf(S,skeleton-code,code(not Group3),sjas-axiom)`. See
+  [SJAS Self-Consistency Negating Witness Regressions](docs/log/2026-05-26-sjas-selfcons-negating-witness-regressions.md).
 - Recorded a concrete SJAS/Proflog separation witness. The formula
   `external-demo(0)` is definable in an SJAS language that declares
   `external-demo/1`, but the corresponding `system-code` contains no beta axiom

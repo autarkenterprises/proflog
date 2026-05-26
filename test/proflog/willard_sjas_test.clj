@@ -3,6 +3,8 @@
             [clojure.test :refer [deftest is testing]]
             [proflog.answers :as answers]
             [proflog.ast :as ast]
+            [proflog.gamma :as gamma]
+            [proflog.language :as language]
             [proflog.normalize :as normalize]
             [proflog.proof :as proof]
             [proflog.query :as query]
@@ -839,6 +841,45 @@
             200))
         "tableau-proof must reconstruct the axiom basis from system-code during predicate application")))
 
+(deftest sjas-proof-predicates-ignore-external-runtime-clauses
+  (let [system (demo-system :willard-sjas-tableau0)
+        formula (ast/pos-lit (ast/app-term 'external-demo sjas/zero))
+        theorem-code (sjas/formula-code system formula)
+        certificate (sjas/proof-certificate
+                      '(conj
+                         (neg-call
+                           (profiled willard-sjas-arithmetic
+                             (sjas-equal
+                               (sjas-read-zero)
+                               (sjas-read-zero)
+                               (sjas-bind-done))))))]
+    (is (successful?
+          (query/query-succeeds
+            (:program system)
+            formula
+            1
+            96))
+        "external clauses remain executable for ordinary host-side Proflog queries")
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/tableau-proof (:system-code system)
+                                theorem-code
+                                certificate)
+            1
+            200))
+        "tableau-proof must validate certificates against the reflected SJAS system, not external runtime clauses")
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-prf (:system-code system)
+                            theorem-code
+                            theorem-code
+                            certificate)
+            1
+            200))
+        "subst-prf must validate certificates against the reflected SJAS system, not external runtime clauses")))
+
 (deftest ^:slow sjas-tableau-proof-checks-structural-non-generated-theorem-codes
   (let [system (demo-system :willard-sjas-tableau0)
         theorem (sjas/lt sjas/one sjas/two)
@@ -1204,6 +1245,23 @@
             1
             120)))))
 
+(deftest ^:slow sjas-subst-prf-rejects-selfcons-complement-axiom-certificate
+  (let [system (sjas/system {:profile :willard-sjas-level1})
+        group3 (:formula (:group-three system))
+        complement-code (sjas/formula-code system
+                                           (normalize/negate-formula group3))
+        axiom-certificate (sjas/proof-certificate 'sjas-axiom)]
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            (sjas/subst-prf (:system-code system)
+                            (:selfcons-skeleton-code system)
+                            complement-code
+                            axiom-certificate)
+            1
+            220))
+        "the Level-1 proof predicate must not treat the complement of its fixed-point SelfCons axiom as an axiom instance")))
+
 (deftest sjas-selfcons-demonstration-uses-substantive-proof-targets
   (testing "the generated self-consistency axiom is a theorem with a checked certificate"
     (let [system (demo-system :willard-sjas-tableau0)
@@ -1268,6 +1326,29 @@
     (is (= 4 (:fuel result)))
     (is (integer? (:duration-ms result)))
     (is (not (neg? (:duration-ms result))))))
+
+(deftest ^:slow sjas-tableau0-selfcons-negating-witness-separates-external-proflog
+  (let [system (sjas/system {:profile :willard-sjas-tableau0})
+        witness (sjas/tableau-proof (:system-code system)
+                                    (:contradiction-code system)
+                                    (sjas/proof-certificate 'sjas-axiom))
+        external-program (ast/nom s f p
+                           (language/compile-program
+                             (dissoc (:language system) :proof-profile)
+                             [(ast/clause 'tableau-proof [s f p]
+                                          (ast/true-form))]))
+        external-proofs (binding [gamma/*closed-term-depth-cap* 0
+                                  gamma/*closed-term-count-cap* 0]
+                          (query/query-succeeds external-program witness 1 80))]
+    (is (empty?
+          (query/query-succeeds
+            (:program system)
+            witness
+            1
+            160))
+        "the generated SJAS system must reject the witness negating its Tableau-0 self-consistency axiom")
+    (is (successful? external-proofs)
+        "ordinary Proflog accepts the same witness when tableau-proof/3 is supplied as an external runtime procedure")))
 
 (deftest sjas-profile-source-audit-rejects-host-proof-checker-route
   (let [profile-source (slurp "src/proflog/kernel/willard_sjas_profile.clj")

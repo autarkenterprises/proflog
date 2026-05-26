@@ -20,7 +20,6 @@
             [proflog.equality :as equality]
             [proflog.kernel :as kernel]
             [proflog.kernel-support :as support]
-            [proflog.program :as program]
             [proflog.relational-arithmetic :as arith]
             [proflog.subst :as subst]
             [proflog.willard-sjas-code :as sjas-code]))
@@ -2260,6 +2259,114 @@
                (reflected-clause-formulao arity relation body formula)))
            (range sjas-code/byte-base)))))
 
+(declare sjas-negated-formula-asto)
+
+(defn- reflected-call-env-argso
+  "Bind canonical reflected-clause parameters to actual call arguments.
+
+   Reflected clause records use one-based formula-code variable indexes for
+   their formal parameters. The proof checker decodes those indexes to the same
+   fixed `sjas-vN` noms used by formula-code theorem decoding, then builds the
+   ordinary branch environment expected by `subst/subst-formulao`."
+  [idx arity args env]
+  (if (> idx arity)
+    (fresh []
+      (== '() args)
+      (== '() env))
+    (fresh [arg arg-rest env-rest nom]
+      (== (lcons arg arg-rest) args)
+      (membero [idx nom] code-nom-entries)
+      (== (lcons [nom arg] env-rest) env)
+      (reflected-call-env-argso (inc idx) arity arg-rest env-rest))))
+
+(defn- decode-reflected-clause-callo
+  "Decode one reflected-clause record as a Procedure Call Rule target.
+
+   This is the procedure-call analogue of `decode-reflected-clause-formulao`.
+   It reads `[34 relation-index arity+1 body-formula...]` directly from the
+   reflected block of `system-code`, matches the decoded relation and arity
+   against the focused call atom, and exposes the body/negated-body formulas
+   needed by `pos-call` and `neg-call` proof constructors."
+  [prog bytes rest atom env body negated-body]
+  (fresh [relation args relation-index arity-byte body-bytes
+          decoded-body nnf-body]
+    (== (lcons 'app (lcons relation args)) atom)
+    (== (lcons system-reflected-clause-tag
+                (lcons relation-index
+                       (lcons arity-byte body-bytes)))
+        bytes)
+    (sjas-symbol-indexo prog relation-index relation)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (reflected-call-env-argso 1 arity args env)
+               (decode-formula-byteso prog body-bytes rest decoded-body)
+               (sjas-to-nnfo decoded-body nnf-body)
+               (sjas-internal-formula-asto nnf-body body)
+               (sjas-negated-formula-asto nnf-body negated-body)))
+           (range sjas-code/byte-base)))))
+
+(defn- reflected-call-in-clauseso
+  "Search encoded reflected clauses for a call-compatible procedure body."
+  [prog remaining bytes atom env body negated-body]
+  (if (zero? remaining)
+    fail
+    (fresh [after-current]
+      (conde
+        [(decode-reflected-clause-callo prog
+                                        bytes
+                                        after-current
+                                        atom
+                                        env
+                                        body
+                                        negated-body)]
+        [(fresh [current]
+           (decode-reflected-clause-formulao prog bytes after-current current)
+           (reflected-call-in-clauseso prog
+                                       (dec remaining)
+                                       after-current
+                                       atom
+                                       env
+                                       body
+                                       negated-body))]))))
+
+(defn- sjas-system-reflected-call-clauseo
+  "Resolve a proof-predicate procedure call from encoded reflected clauses.
+
+   Unlike the generic compiled-program Procedure Call Rule, this relation does
+   not consult a compiled clause list. It decodes the active finite SJAS system
+   code, skips the beta block, and searches the reflected Group-2b clause
+   records as object-level data."
+  [prog system-code atom env body negated-body]
+  (fresh [system-bytes system-read-proof profile-tag beta-count beta-bytes
+          after-betas reflected-count reflected-bytes]
+    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (skip-formula-byteso prog beta-total beta-bytes after-betas)
+               (== (lcons reflected-count reflected-bytes) after-betas)
+               (or*
+                 (map (fn [reflected-total]
+                        (fresh []
+                          (== (inc reflected-total) reflected-count)
+                          (reflected-call-in-clauseso prog
+                                                      reflected-total
+                                                      reflected-bytes
+                                                      atom
+                                                      env
+                                                      body
+                                                      negated-body)))
+                      (range sjas-code/byte-base)))))
+           (range sjas-code/byte-base)))))
+
 (defn- reflected-member-in-clauseso
   "Search the encoded reflected-clause section for a formula-equivalent axiom."
   [prog remaining bytes formula proof]
@@ -2698,25 +2805,6 @@
   [prog system-code]
   (== system-code (:sjas/system-code (some-> prog :sjas/registry deref))))
 
-(defn- sjas-reflected-proof-program
-  "Return the clause program visible to SJAS proof-predicate validation.
-
-   The active runtime program may include `external` clauses supplied by the
-   host application. Those clauses are intentionally outside the encoded SJAS
-   system, so a decoded `tableau-proof/3` or `subst-prf/4` certificate must not
-   use them when it asks the ordinary kernel to check a proof tree. The builder
-   records a reflected-only compiled program in the registry; this helper
-   reattaches the same registry for code decoding and keeps `:clauses` hidden so
-   the generic sidecar shortcuts remain disabled inside SJAS proof search."
-  [prog]
-  (let [registry (:sjas/registry prog)
-        reflected-program (:sjas/reflected-program (some-> registry deref))]
-    (if reflected-program
-      (assoc reflected-program
-             :sjas/registry registry
-             :clauses nil)
-      prog)))
-
 (defn- sjas-code-format
   "Return the public code representation selected by the active SJAS system.
 
@@ -3126,7 +3214,8 @@
    single-use universal produced by negated existentials, ordinary universals,
    existential witnesses, complementary literal closure, reflected procedure
    calls, and literal saving."
-  [agenda lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
+  [system-code agenda lits env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
   (conde
     [(fresh [branch-proof fml unexpanded]
        (== (list 'profiled 'willard-sjas-arithmetic branch-proof) proof)
@@ -3139,7 +3228,8 @@
        (support/selecto fml agenda unexpanded)
        (== (list 'and left right) fml)
        (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo left
+       (sjas-proof-check-stateo system-code
+                                left
                                 (lcons right unexpanded)
                                 lits
                                 env
@@ -3157,7 +3247,8 @@
        (support/selecto fml agenda unexpanded)
        (== (list 'or left right) fml)
        (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo left
+       (sjas-proof-check-stateo system-code
+                                left
                                 unexpanded
                                 lits
                                 env
@@ -3170,7 +3261,8 @@
                                 gamma-terms
                                 next-fuel
                                 left-proof)
-       (sjas-proof-check-stateo right
+       (sjas-proof-check-stateo system-code
+                                right
                                 unexpanded
                                 lits
                                 env
@@ -3192,7 +3284,8 @@
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
            (support/step-fuelo fuel next-fuel)
-           (sjas-proof-check-stateo body-subst
+           (sjas-proof-check-stateo system-code
+                                    body-subst
                                     unexpanded
                                     lits
                                     (lcons [binding-nom (ast/var-term free-var-nom)] env)
@@ -3214,7 +3307,8 @@
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
            (support/step-fuelo fuel next-fuel)
-           (sjas-proof-check-stateo body-subst
+           (sjas-proof-check-stateo system-code
+                                    body-subst
                                     unexpanded
                                     lits
                                     (lcons [binding-nom (ast/var-term free-var-nom)] env)
@@ -3236,7 +3330,8 @@
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
            (support/step-fuelo fuel next-fuel)
-           (sjas-proof-check-stateo body-subst
+           (sjas-proof-check-stateo system-code
+                                    body-subst
                                     unexpanded
                                     lits
                                     (lcons [binding-nom (ast/par-term parameter-nom)] env)
@@ -3267,9 +3362,15 @@
        (equality/walk-atomo atom sigma walked-atom)
        (== (lcons 'app (lcons relation args)) walked-atom)
        (support/l-ground-term*o args)
-       (program/call-clauseo prog walked-atom call-env body negated-body)
+       (sjas-system-reflected-call-clauseo prog
+                                           system-code
+                                           walked-atom
+                                           call-env
+                                           body
+                                           negated-body)
        (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo body
+       (sjas-proof-check-stateo system-code
+                                body
                                 '()
                                 '()
                                 call-env
@@ -3291,9 +3392,15 @@
        (equality/walk-atomo atom sigma walked-atom)
        (== (lcons 'app (lcons relation args)) walked-atom)
        (support/l-ground-term*o args)
-       (program/call-clauseo prog walked-atom call-env body negated-body)
+       (sjas-system-reflected-call-clauseo prog
+                                           system-code
+                                           walked-atom
+                                           call-env
+                                           body
+                                           negated-body)
        (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo negated-body
+       (sjas-proof-check-stateo system-code
+                                negated-body
                                 '()
                                 '()
                                 call-env
@@ -3315,7 +3422,8 @@
          [(== (list 'neg atom) lit)])
        (== (lcons next rest) unexpanded)
        (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo next
+       (sjas-proof-check-stateo system-code
+                                next
                                 rest
                                 (lcons lit lits)
                                 env
@@ -3330,9 +3438,10 @@
                                 prf))]))
 
 (defn- sjas-proof-check-stateo
-  [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
+  [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (sjas-proof-check-close-agendao
+    system-code
     (lcons fml unexpanded)
     lits
     env
@@ -3378,11 +3487,12 @@
    kernel's empty initial branch state but deliberately does not call
    `kernel/prove-programo`; all accepted evidence must be consumed by
    `sjas-proof-check-stateo` above."
-  [target prog fuel proof]
+  [prog system-code target fuel proof]
   (conde
     [(sjas-top-conj-arithmetic-proof-checko target proof)]
     [(fresh [sigma-out neqs-out]
-       (sjas-proof-check-stateo target
+       (sjas-proof-check-stateo system-code
+                                target
                                 '()
                                 '()
                                 '()
@@ -3428,8 +3538,9 @@
                                                       theorem-read-proof)
              (sjas-system-axiom-formulao prog system-code axiom-formula)
              (== (list 'and axiom-formula neg-theorem) target)
-             (sjas-proof-check-programo target
-                                        (sjas-reflected-proof-program prog)
+             (sjas-proof-check-programo prog
+                                        system-code
+                                        target
                                         fuel
                                         decoded-proof)])
           (== neqs neqs-out)
@@ -3467,8 +3578,9 @@
                                                     neg-theorem
                                                     theorem-read-proof)
            (== (list 'and axiom-formula neg-theorem) target)
-           (sjas-proof-check-programo target
-                                      (sjas-reflected-proof-program prog)
+           (sjas-proof-check-programo prog
+                                      system-code
+                                      target
                                       fuel
                                       decoded-proof)])
         (== neqs neqs-out)
@@ -3534,8 +3646,9 @@
                                           sigma-out)))
              (sjas-system-axiom-formulao prog system-code axiom-formula)
              (== (list 'and axiom-formula neg-theorem) target)
-             (sjas-proof-check-programo target
-                                        (sjas-reflected-proof-program prog)
+             (sjas-proof-check-programo prog
+                                        system-code
+                                        target
                                         fuel
                                         decoded-proof)])
           (== neqs neqs-out)
@@ -3578,8 +3691,9 @@
                                                     neg-theorem
                                                     theorem-read-proof)
            (== (list 'and axiom-formula neg-theorem) target)
-           (sjas-proof-check-programo target
-                                      (sjas-reflected-proof-program prog)
+           (sjas-proof-check-programo prog
+                                      system-code
+                                      target
                                       fuel
                                       decoded-proof)])
         (== neqs neqs-out)

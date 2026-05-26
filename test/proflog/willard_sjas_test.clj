@@ -306,7 +306,10 @@
           "hash-derived code labels must not be formal language constants")
       (is (not-any? #(contains? (:program system) %)
                     [:sjas/system-code :sjas/fact-atoms :sjas/proof-targets])
-          "compiled SJAS programs must not carry stale host-side proof or fact tables"))))
+          "compiled SJAS programs must not carry stale host-side proof or fact tables")
+      (is (not (contains? @(get-in system [:program :sjas/registry])
+                          :sjas/reflected-program))
+          "proof-predicate reflected calls must not depend on a reflected compiled-program side table"))))
 
 (deftest sjas-byte-codes-preserve-sequence-length-and-trailing-zeroes
   (testing "public code terms are byte strings, not lossy natural labels"
@@ -1046,6 +1049,39 @@
               240))
           "tableau-proof must validate reflected-clause certificates without delegating to the host kernel"))))
 
+(deftest sjas-proof-predicates-check-reflected-calls-from-system-code
+  (let [system (demo-system :willard-sjas-tableau0)
+        theorem (ast/pos-lit (ast/app-term 'demo sjas/one))
+        theorem-code (sjas/formula-code system theorem)
+        theorem-proof (first-proof
+                        (sjas/query-succeeds system theorem
+                                             {:proof-limit 1
+                                              :fuel 160}))
+        certificate (when theorem-proof
+                      (sjas/proof-certificate theorem-proof))
+        registry (atom (dissoc @(get-in system [:program :sjas/registry])
+                               :sjas/reflected-program))
+        stripped-program (assoc (:program system)
+                                :clauses nil
+                                :clause-list '()
+                                :alternative-clause-list '()
+                                :guarded-clause-list '()
+                                :sjas/registry registry)]
+    (is theorem-proof)
+    (is (proof/contains-step? theorem-proof 'neg-call))
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (is (successful?
+            (query/query-succeeds
+              stripped-program
+              (sjas/tableau-proof (:system-code system)
+                                  theorem-code
+                                  certificate)
+              1
+              240))
+          "reflected procedure calls inside proof certificates must be recovered from encoded system-code clauses"))))
+
 (deftest sjas-subst-prf-reconstructs-axiom-basis-without-system-registry
   (let [system (demo-system :willard-sjas-tableau0)
         registry (get-in system [:program :sjas/registry])
@@ -1418,6 +1454,10 @@
     (is (not (re-find #"mini-closed" profile-source)))
     (is (not (re-find #"kernel/prove-programo target" profile-source))
         "SJAS proof predicates must not short-circuit non-axiom certificates through the host proof kernel")
+    (is (not (re-find #"sjas-reflected-proof-program" profile-source))
+        "SJAS proof predicates must not recover proof-time clauses from a reflected compiled-program registry")
+    (is (not (re-find #"program/call-clauseo" profile-source))
+        "SJAS proof-predicate procedure calls must decode reflected system-code clauses")
     (is (not (re-find #"mini-closed" builder-source)))
     (is (not (re-find #"malformed" profile-source)))
     (is (not (re-find #"malformed" builder-source)))

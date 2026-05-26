@@ -702,14 +702,12 @@
         group3 (first (filter #(= :group-three (:group %)) axioms))
         ;; The user-facing program includes both reflected and external clauses.
         ;; Proof-predicate validation is narrower: it may use only clauses whose
-        ;; source appears in the encoded SJAS system. Store that reflected-only
-        ;; compiled view in the registry so the kernel bridge cannot accidentally
-        ;; cite application-layer clauses as SJAS proof steps.
-        reflected-program (language/compile-program lang reflected-clauses)
+        ;; source appears in the encoded SJAS system. The profile now recovers
+        ;; reflected proof-time calls from `system-code`, so no reflected
+        ;; compiled-program side table is stored in the registry.
         registry (atom {:sjas/system-code system-code
                         :sjas/code-format code-format
-                        :sjas/symbol-index-entries (symbol-index-entries coding-context)
-                        :sjas/reflected-program reflected-program})
+                        :sjas/symbol-index-entries (symbol-index-entries coding-context)})
         program (assoc (language/compile-program lang clauses)
                        :sjas/registry registry)]
     {:profile profile

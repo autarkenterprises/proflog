@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-05-26
 
+- Removed the remaining reflected compiled-program side table from SJAS
+  proof-predicate validation. Reflected `pos-call`/`neg-call` proof steps now
+  decode the active `system-code` reflected-clause bytes, bind canonical
+  reflected parameters to the focused call arguments, and expose body/negated
+  body formulas to the local proof checker. Added a regression that strips the
+  compiled clause lists and `:sjas/reflected-program` registry entry before
+  validating a reflected `neg-call` certificate, plus source/registry audits
+  rejecting the stale bridge. Updated
+  [SJAS Proof-Predicate Arithmeticized Checker](docs/log/2026-05-26-sjas-proof-predicate-arithmeticized-checker.md).
 - Replaced the non-`sjas-axiom` SJAS proof-predicate shortcut through
   `kernel/prove-programo` with a local proof-directed checker over decoded
   proof constructors. `tableau-proof/3` and `subst-prf/4` now validate the

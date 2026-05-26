@@ -27,8 +27,8 @@ certificate generation:
 - recursive tableau `conj` and `split`;
 - `univ`, `once-univ`, and `witness`;
 - complementary literal `close` and `savefml`;
-- reflected `pos-call` and `neg-call` procedure calls, evaluated against the
-  reflected-only program boundary rather than external runtime clauses.
+- reflected `pos-call` and `neg-call` procedure calls, decoded from the
+  `system-code` reflected-clause bytes rather than from compiled clause lists.
 
 Two no-kernel regressions guard the main accepted paths by redefining
 `kernel/prove-programo` to throw:
@@ -36,18 +36,25 @@ Two no-kernel regressions guard the main accepted paths by redefining
 - simple arithmetic certificates for `tableau-proof/3` and identity
   `subst-prf/4`;
 - reflected-clause `neg-call` certificates such as `demo(1)`.
+- reflected-clause `neg-call` certificates with `:clause-list`,
+  `:alternative-clause-list`, `:guarded-clause-list`, and
+  `:sjas/reflected-program` removed, forcing procedure-call evidence to come
+  from encoded `system-code`.
 
 A source audit also rejects reintroducing the exact
-`kernel/prove-programo target` proof-predicate route.
+`kernel/prove-programo target` proof-predicate route, the removed
+`sjas-reflected-proof-program` bridge, and `program/call-clauseo` inside the
+SJAS profile.
 
 ## Remaining Boundary
 
 This removes the host proof-kernel validation shortcut from SJAS proof
 predicates, but it is not yet a paper-grade proof that the checker is a complete
-arithmetic formalization of Willard's tableau deductive apparatus. In
-particular, reflected procedure calls still use the reflected-only compiled
-program as the operational clause boundary; a stricter future stage can replace
-that with clause lookup decoded from the `system-code` reflected-clause bytes.
+arithmetic formalization of Willard's tableau deductive apparatus. The reflected
+procedure-call boundary is now system-code-driven for the currently generated
+single-clause proof shapes. A stricter future stage still needs broader
+coverage for grouped multi-clause alternatives and a proof that the decoded
+clause-call relation preserves the relevant tableau intensional invariants.
 
 Operationally, the current checker is proof-directed and rejects unsupported
 proof constructors instead of falling back to the host kernel.
@@ -60,9 +67,14 @@ proof constructors instead of falling back to the host kernel.
 - Red regression observed before procedure-call extension:
   `sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator`
   failed because `neg-call` was not yet handled by the local checker.
+- Red regression observed before system-code reflected-call lookup:
+  `sjas-proof-predicates-check-reflected-calls-from-system-code` failed when
+  compiled clause lists and the reflected-program registry entry were removed.
 - Green focused checks:
   - `sjas-proof-predicates-check-simple-arithmetic-certificates-without-kernel-validator`
   - `sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator`
+  - `sjas-proof-predicates-check-reflected-calls-from-system-code`
+  - `sjas-formal-codes-are-godel-byte-terms`
   - `sjas-profile-source-audit-rejects-host-proof-checker-route`
   - structural non-generated theorem-code proof-predicate checks
   - Group-3 self-consistency substantive proof check

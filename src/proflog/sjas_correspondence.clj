@@ -161,11 +161,84 @@
                    :aspect :optimized-or-profile-layer
                    :obligation "Prove wrapper/layer irrelevance, provide bounded expansion, or replace with object-level rules."})))
 
+(def profile-form-classifications
+  "Path-sensitive classifications for concrete `(profiled kind subproof)` forms.
+
+   The bare symbol `profiled` is intentionally conservative in
+   `proof-symbol-classifications`, because its relevance depends on the second
+   field. This map records the current Track 2a refinement for that second
+   field."
+  {'willard-sjas-tableau0
+   {:status :probably-irrelevant
+    :aspect :sjas-profile-annotation
+    :obligation "Prove wrapper erasure and prove encoded system/profile selection fixes this tag."}
+
+   'willard-sjas-level1
+   {:status :probably-irrelevant
+    :aspect :sjas-profile-annotation
+    :obligation "Prove wrapper erasure and include Level-1 substitution vocabulary in profile-selection invariants."}
+
+   'willard-sjas-arithmetic
+   {:status :relevant
+    :aspect :sjas-arithmetic-closure
+    :obligation "Preserve the wrapped arithmetic/equality relation proof as object-language work."}
+
+   'willard-sjas-code
+   {:status :relevant
+    :aspect :sjas-code-closure
+    :obligation "Preserve the wrapped syntax/code-reading evidence and byte-structure proof."}
+
+   'willard-sjas-proof-check
+   {:status :relevant
+    :aspect :sjas-tableau-proof-predicate
+    :obligation "Account for the wrapped tableau-proof checking relation or replace it with object-level proof-tree checking."}
+
+   'willard-sjas-subst-proof-check
+   {:status :relevant
+    :aspect :sjas-substitution-proof-predicate
+    :obligation "Account for the wrapped subst-prf checking relation or replace it with object-level proof-tree checking."}
+
+   'willard-sjas-axiom-member
+   {:status :relevant
+    :aspect :sjas-axiom-membership
+    :obligation "Preserve decoded system-code axiom membership evidence."}
+
+   'willard-sjas-subst-code
+   {:status :relevant
+    :aspect :sjas-substitution-code
+    :obligation "Preserve structural substitution-code evidence."}
+
+   'propositional
+   {:status :probably-excluded
+    :aspect :generic-sidecar
+    :obligation "Prove generic sidecar closure is excluded from SJAS proof-predicate validation paths, or give a bounded expansion."}
+
+   'first-order
+   {:status :probably-excluded
+    :aspect :generic-sidecar
+    :obligation "Prove generic sidecar closure is excluded from SJAS proof-predicate validation paths, or give a bounded expansion."}})
+
 (defn classify-proof-symbol
   "Return the Track 2a classification for a proof symbol, or nil when the symbol
    is not part of the current SJAS proof-certificate alphabet."
   [sym]
   (get proof-symbol-classifications sym))
+
+(defn classify-profile-form
+  "Return the path-sensitive Track 2a classification for a concrete profiled
+   proof form.
+
+   Returns nil for non-profiled forms or for profile markers that have not yet
+   been classified."
+  [form]
+  (when (and (sequential? form)
+             (= 'profiled (first form))
+             (= 3 (count form)))
+    (get profile-form-classifications (second form))))
+
+(defn- profile-form?
+  [form]
+  (boolean (classify-profile-form form)))
 
 (defn audit-proof-term
   "Summarize the correspondence obligations present in a decoded proof term.
@@ -176,12 +249,23 @@
    payload symbols from genuinely unclassified proof constructors."
   [proof-term]
   (let [steps (set (proof/collect-steps proof-term))
+        profile-forms (into #{}
+                            (filter profile-form?)
+                            (tree-seq coll? seq proof-term))
         known? #(contains? proof-symbol-classifications %)
         by-status (fn [status]
                     (into #{}
                           (filter #(= status (:status (classify-proof-symbol %))))
-                          steps))]
+                          steps))
+        profile-by-status (fn [status]
+                            (into #{}
+                                  (filter #(= status (:status (classify-profile-form %))))
+                                  profile-forms))]
     {:symbols steps
      :relevant-symbols (by-status :relevant)
      :unresolved-symbols (by-status :unresolved)
+     :profile-forms profile-forms
+     :relevant-profile-forms (profile-by-status :relevant)
+     :probably-irrelevant-profile-forms (profile-by-status :probably-irrelevant)
+     :probably-excluded-profile-forms (profile-by-status :probably-excluded)
      :unclassified-symbols (into #{} (remove known?) steps)}))

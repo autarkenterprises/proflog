@@ -104,3 +104,17 @@ The next Track 2a implementation-oriented step should make the executable
 audit path-sensitive enough to distinguish these cases. The current
 symbol-level helper is still useful because it prevents newly encoded
 constructors from entering the alphabet without any classification at all.
+
+## Executable Follow-Up
+
+The executable audit now has a path-sensitive `classify-profile-form` helper in
+`src/proflog/sjas_correspondence.clj`. It classifies concrete
+`(profiled kind subproof)` forms as:
+
+- `:probably-irrelevant` for outer SJAS profile annotations;
+- `:relevant` for SJAS arithmetic, code, axiom-membership, proof-check, and
+  substitution-proof wrappers;
+- `:probably-excluded` for generic propositional and first-order sidecars.
+
+The symbol-level audit remains conservative because the bare symbol
+`profiled` is not enough to know which case applies.

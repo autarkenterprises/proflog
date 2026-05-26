@@ -35,3 +35,18 @@
              (:unresolved-symbols audit)))
       (is (= #{}
              (:unclassified-symbols audit))))))
+
+(deftest profile-wrapper-audit-is-path-sensitive
+  (testing "profiled wrappers have different relevance depending on their payload role"
+    (is (= :probably-irrelevant
+           (:status (correspondence/classify-profile-form
+                      '(profiled willard-sjas-tableau0 (conj close))))))
+    (is (= :relevant
+           (:status (correspondence/classify-profile-form
+                      '(profiled willard-sjas-arithmetic
+                         (sjas-equal (sjas-read-one)
+                                     (sjas-read-one)
+                                     (sjas-bind-done)))))))
+    (is (= :probably-excluded
+           (:status (correspondence/classify-profile-form
+                      '(profiled first-order (close))))))))

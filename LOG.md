@@ -84,6 +84,17 @@ complete contemporaneous transcript.
   from ordinary SJAS profile proofs because the profile hides `:clauses` before
   kernel search. See
   [SJAS Profile Wrapper Relevance](docs/log/2026-05-25-sjas-profile-wrapper-relevance.md).
+- Continued the profile-wrapper refinement by making the executable
+  `proflog.sjas-correspondence` audit path-sensitive for concrete
+  `(profiled kind subproof)` forms. The red test first failed because
+  `classify-profile-form` did not exist; the green implementation classifies
+  outer SJAS profile annotations as probably irrelevant, arithmetic/code/proof
+  wrappers as relevant, and generic propositional/first-order sidecars as
+  probably excluded. Verification: focused
+  `profile-wrapper-audit-is-path-sensitive` passed 1 test / 3 assertions;
+  `proflog.sjas-correspondence-test` passed 4 tests / 12 assertions;
+  `lein test-proflog-fast` passed 150 tests / 565 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions.
 
 ## 2026-05-23
 

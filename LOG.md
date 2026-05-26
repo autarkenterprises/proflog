@@ -74,6 +74,16 @@ complete contemporaneous transcript.
   actually reachable, not merely theoretical. Procedure-call and general
   equality/disequality constructors were not reached by this probe. See
   [SJAS Proof-Constructor Reachability Audit](docs/log/2026-05-25-sjas-proof-constructor-reachability-audit.md).
+- Refined the ADR-0073 Track 2a classification of `profiled` proof wrappers.
+  The outer `(profiled willard-sjas-tableau0 p)` and
+  `(profiled willard-sjas-level1 p)` wrappers are probably irrelevant
+  annotations if wrapper erasure and profile selection are proven. By contrast,
+  `willard-sjas-arithmetic`, code, proof-check, and subst-proof-check wrappers
+  mark relevant object-language or bridge work. Generic `(profiled
+  propositional p)` and `(profiled first-order p)` sidecars appear excluded
+  from ordinary SJAS profile proofs because the profile hides `:clauses` before
+  kernel search. See
+  [SJAS Profile Wrapper Relevance](docs/log/2026-05-25-sjas-profile-wrapper-relevance.md).
 
 ## 2026-05-23
 

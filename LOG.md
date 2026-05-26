@@ -20,6 +20,21 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-26
+
+- Continued ADR-0073 Track 2a in single-threaded mode after parking the Track 1
+  and Track 2b subagent worktrees in `MEMORY.md`. The new proof-size note
+  refines the relevance classification for Willard's Conventional Tableaux
+  Encoding Requirement: proof-size growth and byte-string inspectability are
+  relevant, exact curly-brace byte layout is irrelevant under a bounded
+  injective translation, and Proflog's current `proof-code-bytes` sanity check
+  is not yet a full size proof because it encodes proof skeletons rather than
+  formula-bearing tableau trees. Track 2b must either expand skeletal
+  certificates into formula-bearing trees with preserved size accounting, prove
+  the skeleton grammar is itself an admissible non-compressing tableau encoding,
+  or treat the kernel certificate path as an implementation-stage shortcut. See
+  [SJAS Proof-Size Relevance](docs/log/2026-05-26-sjas-proof-size-relevance.md).
+
 ## 2026-05-25
 
 - Logged the refined ADR-0072 internalization/correspondence program after the

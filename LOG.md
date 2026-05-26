@@ -54,6 +54,17 @@ complete contemporaneous transcript.
   changing `eq-step`, `neq-close`, `neq-rigid`, `neq-store`, `refl-close`, or
   equality-triggered calls. See
   [SJAS Equality and Disequality Relevance](docs/log/2026-05-26-sjas-equality-relevance.md).
+- Probed generic equality/disequality reachability in current SJAS theorem
+  proofs. The non-arithmetic reflexive equality theorem `mark(1)=mark(1)`
+  reaches `refl-close`, confirming generic equality is not merely an encodable
+  possibility. The constructor-clash disequality theorem
+  `mark(1)!=other(1)` reaches `free-close`, which the current SJAS proof-code
+  encoder rejects as an unsupported certificate symbol. This exposes a
+  proof-certificate grammar gap: Track 2b must not claim correspondence over
+  all current SJAS theorem proofs until reachable generic equality tags are
+  encoded and classified, represented by existing certificate constructors, or
+  excluded by a stated fragment boundary. See
+  [SJAS Equality Constructor Reachability](docs/log/2026-05-26-sjas-equality-reachability.md).
 
 ## 2026-05-25
 

@@ -11,11 +11,13 @@
                            (set (keys correspondence/proof-symbol-classifications)))))))
 
 (deftest proof-symbol-audit-exposes-relevant-and-unresolved-constructors
-  (testing "tableau structure is relevant and equality/procedure/profile bridges remain unresolved"
+  (testing "tableau structure and SJAS arithmetic equality are relevant, while kernel equality bridges remain unresolved"
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'split))))
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'close))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol 'sjas-equal))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'eq-step))))
     (is (= :unresolved

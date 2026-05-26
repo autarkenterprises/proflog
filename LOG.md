@@ -44,6 +44,16 @@ complete contemporaneous transcript.
   `pos-call`, `neg-call`, guarded-call, or equality-triggered call constructors
   from the correspondence fragment. See
   [SJAS Procedure-Call Relevance](docs/log/2026-05-26-sjas-procedure-call-relevance.md).
+- Refined ADR-0073 Track 2a equality classification. SJAS arithmetic equality
+  proof symbols `sjas-equal` and `sjas-eq-progress` are now classified as
+  relevant object-language arithmetic evidence, while generic Proflog
+  free-constructor equality and disequality constructors remain unresolved
+  proof-system extensions. The focused audit test first failed with
+  `sjas-equal` still classified as unresolved; the green change moves SJAS
+  arithmetic equality into the relevant code/arithmetic classification without
+  changing `eq-step`, `neq-close`, `neq-rigid`, `neq-store`, `refl-close`, or
+  equality-triggered calls. See
+  [SJAS Equality and Disequality Relevance](docs/log/2026-05-26-sjas-equality-relevance.md).
 
 ## 2026-05-25
 

@@ -43,6 +43,8 @@
      sjas-ug-code-mul64-zero
      sjas-bind-done
      sjas-bind-num
+     sjas-equal
+     sjas-eq-progress
      sjas-leq
      sjas-lt
      sjas-mult
@@ -74,9 +76,7 @@
      neq-close
      neq-rigid
      neq-store
-     refl-close
-     sjas-equal
-     sjas-eq-progress})
+     refl-close})
 
 (def ^:private unresolved-procedure-symbols
   "Proof constructors introduced by Proflog procedure-call and guarded-call

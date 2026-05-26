@@ -103,6 +103,15 @@ complete contemporaneous transcript.
   paths still call `kernel/prove-programo`; they need direct object-level
   checking or the full Track 2b proof-and-test correspondence. See
   [SJAS Profile Theory Rule Inventory](docs/log/2026-05-26-sjas-profile-theory-rule-inventory.md).
+- Summarized ADR-0073 Track 2a coverage after the single-threaded relevance
+  slices. The status note consolidates the relevant, probably irrelevant, and
+  macro-expandable aspects; records evidence-backed risks such as reachable
+  `neg-call`, `refl-close`, `free-close`, missing code-reader proof tags, and
+  skeletal quantifier witnesses; and narrows the remaining Track 2a gaps to
+  full reachability coverage, generic sidecar exclusion/expansion, Level-1
+  `subst-prf`, axiom-basis boundaries, beta validity, and Track 2b proof-medium
+  selection. See
+  [SJAS Track 2a Coverage Status](docs/log/2026-05-26-sjas-track2a-coverage-status.md).
 
 ## 2026-05-25
 

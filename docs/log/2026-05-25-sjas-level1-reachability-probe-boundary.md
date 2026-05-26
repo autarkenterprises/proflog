@@ -93,3 +93,59 @@ Level-1 substitution proof machinery as relevant and unresolved:
   remains unknown.
 - Track 2b must either include Level-1 constructor reachability in its proof
   obligations or explicitly state a Tableau-0-only boundary.
+
+## Narrower Follow-Up
+
+A narrower supplied-certificate probe completed successfully:
+
+```bash
+timeout 240s lein with-profile test trampoline run -m clojure.main -e \
+  "(require '[proflog.willard-sjas-test :as t]
+            '[proflog.willard-sjas :as sjas]
+            '[proflog.query :as query]
+            '[proflog.sjas-correspondence :as corr])
+   (let [demo-system @#'proflog.willard-sjas-test/demo-system
+         system (demo-system :willard-sjas-level1)
+         group3-record (:group-three system)
+         cert (sjas/proof-certificate 'sjas-axiom)
+         proofs (query/query-succeeds
+                  (:program system)
+                  (sjas/subst-prf (:system-code system)
+                                  (:selfcons-skeleton-code system)
+                                  (:code group3-record)
+                                  cert)
+                  1
+                  220)
+         p (first proofs)]
+     (prn {:proof-count (count proofs)
+           :first-proof p
+           :audit (when p (corr/audit-proof-term p))}))"
+```
+
+It returned one validation proof:
+
+```clojure
+(profiled
+  willard-sjas-level1
+  (profiled
+    willard-sjas-subst-proof-check
+    (sjas-code-bytes)
+    (willard-sjas-subst-code)
+    sjas-axiom))
+```
+
+This is not a non-`sjas-axiom` theorem certificate; it is proof-predicate
+validation for a supplied `sjas-axiom` certificate. It still gives useful
+Track 2a evidence:
+
+- the outer Level-1 wrapper is reachable and remains probably irrelevant after
+  wrapper-erasure and profile-selection proof;
+- `willard-sjas-subst-proof-check` is reachable and relevant;
+- `willard-sjas-subst-code`, `sjas-code-bytes`, and `sjas-axiom` are reachable
+  in Level-1 substitution-proof validation.
+
+The executable audit was updated because this proof exposed a shape mismatch:
+`willard-sjas-subst-proof-check` is a `(profiled ...)` form with
+relation-specific payload arity, not the simple three-element wrapper shape.
+`classify-profile-form` now accepts any profiled form with at least one payload
+item and classifies it by the second element.

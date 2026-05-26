@@ -229,11 +229,13 @@
    proof form.
 
    Returns nil for non-profiled forms or for profile markers that have not yet
-   been classified."
+   been classified. Some SJAS proof-check wrappers carry relation-specific
+   payloads after the marker, so profiled forms need at least one payload item
+   rather than exactly one."
   [form]
   (when (and (sequential? form)
              (= 'profiled (first form))
-             (= 3 (count form)))
+             (<= 3 (count form)))
     (get profile-form-classifications (second form))))
 
 (defn- profile-form?

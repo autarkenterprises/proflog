@@ -104,6 +104,19 @@ complete contemporaneous transcript.
   adding an explicit slow reachability test, rather than conflating constructor
   reachability with expensive theorem search. See
   [SJAS Level-1 Proof-Constructor Reachability Probe Boundary](docs/log/2026-05-25-sjas-level1-reachability-probe-boundary.md).
+- Followed the narrowed Level-1 path by auditing a supplied `sjas-axiom`
+  `subst-prf/4` validation proof under a `240s` shell timeout. The direct
+  validation probe returned one proof containing `(profiled
+  willard-sjas-level1 (profiled willard-sjas-subst-proof-check
+  (sjas-code-bytes) (willard-sjas-subst-code) sjas-axiom))`, confirming that
+  Level-1 substitution proof-check and substitution-code wrappers are reachable
+  in proof-predicate validation. The executable profile-form classifier now
+  accepts relation-specific profiled payload arities after a red test exposed
+  that the earlier three-element wrapper assumption missed
+  `willard-sjas-subst-proof-check`. Verification:
+  `proflog.sjas-correspondence-test` passed 5 tests / 14 assertions; `lein
+  test-proflog-fast` passed 151 tests / 567 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions.
 
 ## 2026-05-23
 

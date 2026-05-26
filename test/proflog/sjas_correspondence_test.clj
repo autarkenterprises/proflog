@@ -50,3 +50,23 @@
     (is (= :probably-excluded
            (:status (correspondence/classify-profile-form
                       '(profiled first-order (close))))))))
+
+(deftest proof-check-profile-wrapper-audit-allows-relation-specific-payloads
+  (testing "SJAS proof-check profile forms carry relation-specific payload arity"
+    (is (= :relevant
+           (:status (correspondence/classify-profile-form
+                      '(profiled willard-sjas-subst-proof-check
+                         (sjas-code-bytes)
+                         (willard-sjas-subst-code)
+                         sjas-axiom)))))
+    (let [audit (correspondence/audit-proof-term
+                  '(profiled willard-sjas-level1
+                     (profiled willard-sjas-subst-proof-check
+                       (sjas-code-bytes)
+                       (willard-sjas-subst-code)
+                       sjas-axiom)))]
+      (is (= #{'(profiled willard-sjas-subst-proof-check
+                  (sjas-code-bytes)
+                  (willard-sjas-subst-code)
+                  sjas-axiom)}
+             (:relevant-profile-forms audit))))))

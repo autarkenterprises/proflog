@@ -75,6 +75,16 @@ complete contemporaneous transcript.
   `(sjas-code-arg 1 sjas-code-args-end)` and `(free-close)` had no explicit
   unencodable report. See
   [SJAS Proof-Tag Inventory](docs/log/2026-05-26-sjas-proof-tag-inventory.md).
+- Recorded the lower-bound orientation for Track 2b macro-expansion proofs.
+  The correspondence proof does not need byte-for-byte or size equality between
+  Proflog and SJAS proof objects; it must show Proflog does not accept a more
+  compressed proof object than the SJAS semantic-tableau proof predicate would
+  allow under Willard's anti-compression requirement. This makes bounded macro
+  expansion preferable to fragment exclusion where viable: equality or
+  procedure-call constructors that expand to ordinary tableau work, increase
+  tree size, or act only at branch tips may be adequate if they preserve the
+  relevant lower bound. See
+  [SJAS Macro Expansion and Lower-Bound Adequacy](docs/log/2026-05-26-sjas-macro-expansion-lower-bound.md).
 
 ## 2026-05-25
 

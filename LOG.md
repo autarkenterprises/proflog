@@ -66,6 +66,14 @@ complete contemporaneous transcript.
   witness policy, beta validation, and proof-certificate constructor layout as
   explicit Track 2b proof obligations. See
   [SJAS Tableau Relevance Deep Dive](docs/log/2026-05-25-sjas-tableau-relevance-deep-dive.md).
+- Added a Track 2a runtime reachability audit for representative
+  non-`sjas-axiom` SJAS certificates. The probe shows the current Tableau-0
+  beta, arithmetic theorem, and Group-3 certificates use a smaller constructor
+  set than the full encodable alphabet, but `profiled`,
+  `willard-sjas-tableau0`, `willard-sjas-arithmetic`, and `sjas-equal` are
+  actually reachable, not merely theoretical. Procedure-call and general
+  equality/disequality constructors were not reached by this probe. See
+  [SJAS Proof-Constructor Reachability Audit](docs/log/2026-05-25-sjas-proof-constructor-reachability-audit.md).
 
 ## 2026-05-23
 

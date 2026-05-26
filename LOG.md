@@ -95,6 +95,15 @@ complete contemporaneous transcript.
   `proflog.sjas-correspondence-test` passed 4 tests / 12 assertions;
   `lein test-proflog-fast` passed 150 tests / 565 assertions; `lein
   test-proflog-extended` passed 68 tests / 203 assertions.
+- Probed Level-1 proof-constructor reachability for Track 2a and did not
+  retain it as a verifier. The broad command attempted to synthesize Level-1
+  beta and Group-3 theorem proofs through `sjas/query-succeeds`, then audit
+  their proof terms; it produced no constructor inventory after several
+  minutes. The follow-up note records this as an impractical evidence path and
+  narrows the next requirement to auditing supplied Level-1 certificates or
+  adding an explicit slow reachability test, rather than conflating constructor
+  reachability with expensive theorem search. See
+  [SJAS Level-1 Proof-Constructor Reachability Probe Boundary](docs/log/2026-05-25-sjas-level1-reachability-probe-boundary.md).
 
 ## 2026-05-23
 

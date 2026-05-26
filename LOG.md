@@ -22,6 +22,18 @@ complete contemporaneous transcript.
 
 ## 2026-05-26
 
+- Recorded a concrete SJAS/Proflog separation witness. The formula
+  `external-demo(0)` is definable in an SJAS language that declares
+  `external-demo/1`, but the corresponding `system-code` contains no beta axiom
+  or reflected Group-2b clause for it. Proper SJAS deduction should therefore
+  leave the branch open. Direct Proflog closes it with an external runtime
+  clause `external-demo(x) :- x = 0`, and the current `tableau-proof/3`
+  shortcut accepts the theorem certificate because `kernel/prove-programo` sees
+  that full runtime program. The stronger SJAS-base formula is
+  `tableau-proof(S0, code(external-demo(0)), P0)`, where `P0` is the proof code
+  for `(conj (neg-call ...))`; it should fail under proper SJAS proof checking
+  but currently closes through the shortcut. See
+  [SJAS/Proflog Separation Witness](docs/log/2026-05-26-sjas-proflog-separation-witness.md).
 - Attempted an informal proof, grounded in Willard's SJAS/analytic-tableaux
   papers and Fitting's Proflog/tableaux-for-logic-programming paper, of whether
   the current Proflog kernel can serve as an SJAS proof-predicate shortcut. The

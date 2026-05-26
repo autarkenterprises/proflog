@@ -95,6 +95,14 @@ complete contemporaneous transcript.
   than proof-code payloads, so Track 2b must reconstruct formula-bearing
   quantifier steps or enrich/canonicalize certificates. See
   [SJAS Quantifier and Witness Relevance](docs/log/2026-05-26-sjas-quantifier-witness-relevance.md).
+- Inventoried ADR-0073 Track 2a profile-specific SJAS branch rules. Arithmetic
+  equality/relation closure, syntax-code predicates, substitution-code, and
+  axiom membership are relevant object-language predicate work that may be
+  admitted as bounded macros or internalized directly. `tableau-proof/3` and
+  `subst-prf/4` wrappers remain high-risk bridges because their non-`sjas-axiom`
+  paths still call `kernel/prove-programo`; they need direct object-level
+  checking or the full Track 2b proof-and-test correspondence. See
+  [SJAS Profile Theory Rule Inventory](docs/log/2026-05-26-sjas-profile-theory-rule-inventory.md).
 
 ## 2026-05-25
 

@@ -183,9 +183,85 @@ closure are central.
 
 - Inventory Level-1 `subst-prf/4` certificates, especially fixed-point
   substitution proofs.
-- Inventory accepted certificates involving reflected clauses so
-  procedure-call or reflected-axiom expansion is not left speculative.
 - Check whether any current SJAS tests reach `profiled propositional`,
   `profiled first-order`, equality-triggered calls, or disequality closers.
 - Decide whether future reachability probes should become an explicit slow test
   suite rather than ad hoc documentation probes.
+
+## Reflected-Clause Follow-Up
+
+A bounded reflected-clause theorem probe shows procedure-call constructors are
+actually reachable in current SJAS certificates. The Tableau-0 demo system has
+the reflected clause:
+
+```clojure
+(demo x) :- (= x 1)
+```
+
+Command:
+
+```bash
+timeout 240s lein with-profile test trampoline run -m clojure.main -e \
+  "(require '[proflog.willard-sjas-test :as t]
+            '[proflog.willard-sjas :as sjas]
+            '[proflog.ast :as ast]
+            '[proflog.sjas-correspondence :as corr])
+   (let [demo-system @#'proflog.willard-sjas-test/demo-system
+         system (demo-system :willard-sjas-tableau0)
+         theorem (ast/pos-lit (ast/app-term 'demo sjas/one))
+         p (first (sjas/query-succeeds
+                   system theorem
+                   {:proof-limit 1
+                    :fuel 160}))]
+     (prn {:proof p
+           :audit (when p (corr/audit-proof-term p))}))"
+```
+
+It returned:
+
+```clojure
+(profiled
+  willard-sjas-tableau0
+  (conj
+    (neg-call
+      (profiled
+        willard-sjas-arithmetic
+        (sjas-equal
+          (sjas-read-one)
+          (sjas-read-one)
+          (sjas-bind-done))))))
+```
+
+Reachable symbols:
+
+```clojure
+#{sjas-read-one
+  willard-sjas-arithmetic
+  neg-call
+  sjas-equal
+  conj
+  profiled
+  sjas-bind-done
+  willard-sjas-tableau0}
+```
+
+Current classification:
+
+- relevant: `conj`, `sjas-read-one`, `sjas-bind-done`
+- unresolved: `neg-call`, `profiled`, `willard-sjas-tableau0`,
+  `willard-sjas-arithmetic`, `sjas-equal`
+- path-sensitive profile forms:
+  - probably irrelevant: outer `willard-sjas-tableau0` wrapper
+  - relevant: inner `willard-sjas-arithmetic` wrapper
+
+Track 2b can no longer treat procedure-call constructors as merely possible
+because they are in the proof-symbol alphabet. For any correspondence claim
+covering reflected clauses, it must decide whether `neg-call` and related
+procedure-call constructors are:
+
+1. primitive rules in the selected SJAS deduction apparatus;
+2. bounded macro expansions over reflected Group-2b axiom applications; or
+3. excluded by restricting the correspondence fragment.
+
+The third option would exclude at least this reflected-clause demonstration
+from the covered fragment.

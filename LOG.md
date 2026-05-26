@@ -117,6 +117,14 @@ complete contemporaneous transcript.
   `proflog.sjas-correspondence-test` passed 5 tests / 14 assertions; `lein
   test-proflog-fast` passed 151 tests / 567 assertions; `lein
   test-proflog-extended` passed 68 tests / 203 assertions.
+- Ran a bounded reflected-clause reachability probe for Track 2a. Proving
+  `demo(1)` in the Tableau-0 demo system returned a certificate containing
+  `neg-call`, so procedure-call constructors are reachable in current SJAS
+  proof certificates covering reflected clauses. This converts procedure-call
+  treatment from a speculative Track 2b risk into a concrete obligation:
+  either primitive SJAS rule status, bounded macro expansion through reflected
+  Group-2b axioms, or an explicit fragment exclusion. The result is recorded in
+  [SJAS Proof-Constructor Reachability Audit](docs/log/2026-05-25-sjas-proof-constructor-reachability-audit.md).
 
 ## 2026-05-23
 

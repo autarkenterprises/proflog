@@ -56,6 +56,16 @@ complete contemporaneous transcript.
   Verification: focused `proflog.sjas-correspondence-test` passed 3 tests /
   9 assertions; `lein test-proflog-fast` passed 149 tests / 562 assertions;
   `lein test-proflog-extended` passed 68 tests / 203 assertions.
+- Deepened ADR-0073 Track 2a relevance analysis on branch
+  `adr-0073-track2a-relevance`. The follow-up note corroborates the user
+  hypothesis conditionally: tableau tree shape, rule-induced child structure,
+  closure, inspectable coding, substitution vocabulary, axiom basis, and proof
+  size growth are relevant, while rule scheduling and runtime mechanics are
+  irrelevant only after proving they preserve accepted proof trees and size
+  bounds. It leaves equality, procedure calls, profiled closure, quantifier
+  witness policy, beta validation, and proof-certificate constructor layout as
+  explicit Track 2b proof obligations. See
+  [SJAS Tableau Relevance Deep Dive](docs/log/2026-05-25-sjas-tableau-relevance-deep-dive.md).
 
 ## 2026-05-23
 

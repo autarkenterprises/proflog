@@ -22,6 +22,18 @@ complete contemporaneous transcript.
 
 ## 2026-05-26
 
+- Logged explicit completion criteria for ADR-0073 Track 2b. A correspondence
+  proof is complete only after fixing the covered domain, formalizing compatible
+  Proflog and SJAS tableau semantics, defining the proof-object translation,
+  proving soundness and completeness, preserving every Track 2a relevant
+  invariant, proving proof-size lower-bound/anti-compression, supplying
+  irrelevance lemmas, and backing the result with operational tests. The same
+  note records that full Track 2b is not currently complete: unencodable
+  reachable proof tags, unresolved equality/procedure/profile constructors,
+  skeletal quantifier certificates, the remaining `kernel/prove-programo`
+  bridge, and the absence of a common formal semantics block a truthful
+  completion claim. See
+  [SJAS Correspondence Proof Criteria](docs/log/2026-05-26-sjas-correspondence-proof-criteria.md).
 - Continued ADR-0073 Track 2a in single-threaded mode after parking the Track 1
   and Track 2b subagent worktrees in `MEMORY.md`. The new proof-size note
   refines the relevance classification for Willard's Conventional Tableaux

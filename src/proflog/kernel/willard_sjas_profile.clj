@@ -5,8 +5,8 @@
 
    - U-grounding arithmetic is interpreted as relations over binary numerals
      whose object-language constants are `0` and `1`;
-   - `tableau-proof/3` checks a structural proof certificate by running the
-     existing Proflog kernel with the decoded proof term already supplied;
+   - `tableau-proof/3` checks structural proof certificates through an
+     SJAS-side proof-check relation over decoded proof constructors;
    - `subst-prf/4` exposes the Level-1 substitution-proof vocabulary by
      decoding formula codes and checking diagonal substitution structurally.
 
@@ -20,6 +20,7 @@
             [proflog.equality :as equality]
             [proflog.kernel :as kernel]
             [proflog.kernel-support :as support]
+            [proflog.program :as program]
             [proflog.relational-arithmetic :as arith]
             [proflog.subst :as subst]
             [proflog.willard-sjas-code :as sjas-code]))
@@ -3107,6 +3108,294 @@
       (== neqs neqs-out)
       (== '(profiled willard-sjas-subst-code) proof))))
 
+(declare sjas-proof-check-stateo)
+
+(defn- sjas-proof-check-close-agendao
+  "Check a decoded tableau proof term without invoking the host proof kernel.
+
+   This is the arithmeticization-facing proof checker used by SJAS proof
+   predicates. It mirrors the small part of the tableau kernel currently needed
+   by generated SJAS certificates while keeping the proof predicate as an
+   explicit first-order relation over decoded formulas and decoded proof
+   constructors.
+
+   The first two clauses are the crucial Track-1 boundary: a branch may close
+   directly when the focused negated theorem is false in the SJAS arithmetic
+   interpretation. The remaining clauses implement the tableau constructors
+   observed in generated self-consistency certificates: conjunction, the
+   single-use universal produced by negated existentials, ordinary universals,
+   existential witnesses, complementary literal closure, reflected procedure
+   calls, and literal saving."
+  [agenda lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
+  (conde
+    [(fresh [branch-proof fml unexpanded]
+       (== (list 'profiled 'willard-sjas-arithmetic branch-proof) proof)
+       (support/selecto fml agenda unexpanded)
+       (conde
+         [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
+         [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]))]
+    [(fresh [fml unexpanded left right next-fuel prf]
+       (== (list 'conj prf) proof)
+       (support/selecto fml agenda unexpanded)
+       (== (list 'and left right) fml)
+       (support/step-fuelo fuel next-fuel)
+       (sjas-proof-check-stateo left
+                                (lcons right unexpanded)
+                                lits
+                                env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                next-fuel
+                                prf))]
+    [(fresh [fml unexpanded left right next-fuel sigma-mid neqs-mid left-proof right-proof]
+       (== (list 'split left-proof right-proof) proof)
+       (support/selecto fml agenda unexpanded)
+       (== (list 'or left right) fml)
+       (support/step-fuelo fuel next-fuel)
+       (sjas-proof-check-stateo left
+                                unexpanded
+                                lits
+                                env
+                                proof-vars
+                                sigma
+                                sigma-mid
+                                neqs
+                                neqs-mid
+                                prog
+                                gamma-terms
+                                next-fuel
+                                left-proof)
+       (sjas-proof-check-stateo right
+                                unexpanded
+                                lits
+                                env
+                                proof-vars
+                                sigma-mid
+                                sigma-out
+                                neqs-mid
+                                neqs-out
+                                prog
+                                gamma-terms
+                                next-fuel
+                                right-proof))]
+    [(nominal/fresh [binding-nom]
+       (nominal/fresh [free-var-nom]
+         (fresh [fml unexpanded body body-subst narrowed-env next-fuel prf]
+           (== (list 'univ prf) proof)
+           (support/selecto fml agenda unexpanded)
+           (== (list 'forall (nominal/tie binding-nom body)) fml)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo body-subst
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    prf))))]
+    [(nominal/fresh [binding-nom]
+       (nominal/fresh [free-var-nom]
+         (fresh [fml unexpanded body body-subst narrowed-env next-fuel prf]
+           (== (list 'once-univ prf) proof)
+           (support/selecto fml agenda unexpanded)
+           (== (list 'once-forall (nominal/tie binding-nom body)) fml)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo body-subst
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    prf))))]
+    [(nominal/fresh [binding-nom]
+       (nominal/fresh [parameter-nom]
+         (fresh [fml unexpanded body body-subst narrowed-env next-fuel prf]
+           (== (list 'witness prf) proof)
+           (support/selecto fml agenda unexpanded)
+           (== (list 'exists (nominal/tie binding-nom body)) fml)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo body-subst
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/par-term parameter-nom)] env)
+                                    proof-vars
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    prf))))]
+    [(fresh [fml unexpanded lit atom]
+       (== '(close) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (conde
+         [(== (list 'pos atom) lit)]
+         [(== (list 'neg atom) lit)])
+       (support/complementary-lito lit lits sigma sigma-out proof)
+       (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
+    [(fresh [fml unexpanded lit atom walked-atom relation args call-env
+             body negated-body next-fuel subproof]
+       (== (list 'pos-call subproof) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'pos atom) lit)
+       (equality/walk-atomo atom sigma walked-atom)
+       (== (lcons 'app (lcons relation args)) walked-atom)
+       (support/l-ground-term*o args)
+       (program/call-clauseo prog walked-atom call-env body negated-body)
+       (support/step-fuelo fuel next-fuel)
+       (sjas-proof-check-stateo body
+                                '()
+                                '()
+                                call-env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                next-fuel
+                                subproof))]
+    [(fresh [fml unexpanded lit atom walked-atom relation args call-env
+             body negated-body next-fuel subproof]
+       (== (list 'neg-call subproof) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'neg atom) lit)
+       (equality/walk-atomo atom sigma walked-atom)
+       (== (lcons 'app (lcons relation args)) walked-atom)
+       (support/l-ground-term*o args)
+       (program/call-clauseo prog walked-atom call-env body negated-body)
+       (support/step-fuelo fuel next-fuel)
+       (sjas-proof-check-stateo negated-body
+                                '()
+                                '()
+                                call-env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                next-fuel
+                                subproof))]
+    [(fresh [fml unexpanded lit atom next rest next-fuel prf]
+       (== (list 'savefml prf) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (conde
+         [(== (list 'pos atom) lit)]
+         [(== (list 'neg atom) lit)])
+       (== (lcons next rest) unexpanded)
+       (support/step-fuelo fuel next-fuel)
+       (sjas-proof-check-stateo next
+                                rest
+                                (lcons lit lits)
+                                env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                next-fuel
+                                prf))]))
+
+(defn- sjas-proof-check-stateo
+  [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (sjas-proof-check-close-agendao
+    (lcons fml unexpanded)
+    lits
+    env
+    proof-vars
+    sigma
+    sigma-out
+    neqs
+    neqs-out
+    prog
+    gamma-terms
+    fuel
+    proof))
+
+(defn- sjas-arithmetic-branch-closeo
+  "Close one already-focused formula by an SJAS arithmetic certificate."
+  [fml proof]
+  (fresh [sigma-out neqs-out]
+    (conde
+      [(sjas-neq-closeo fml '() '() sigma-out '() neqs-out proof)]
+      [(sjas-neg-relation-closeo fml '() '() sigma-out '() neqs-out proof)])))
+
+(defn- sjas-top-conj-arithmetic-proof-checko
+  "Fast proof-directed check for the common arithmetic certificate shape.
+
+   Generated certificates for ground arithmetic theorems have the form
+   `(conj arithmetic-proof)`: after the top-level proof-predicate branch
+   expands `(and system-axioms negated-theorem)`, the tableau scheduler may
+   select the negated theorem and close it directly through SJAS arithmetic.
+   Checking that shape without an agenda walk avoids recursively traversing the
+   full generated axiom antecedent merely to discover that the proof did not
+   intend to use it."
+  [target proof]
+  (fresh [axiom-formula neg-theorem arithmetic-proof]
+    (== (list 'and axiom-formula neg-theorem) target)
+    (== (list 'conj arithmetic-proof) proof)
+    (sjas-arithmetic-branch-closeo neg-theorem arithmetic-proof)))
+
+(defn- sjas-proof-check-programo
+  "Validate `proof` for `target` through the SJAS-side proof checker.
+
+   The target is already the proof-predicate tableau branch,
+   `(and system-axioms negated-theorem)`. This wrapper preserves the ordinary
+   kernel's empty initial branch state but deliberately does not call
+   `kernel/prove-programo`; all accepted evidence must be consumed by
+   `sjas-proof-check-stateo` above."
+  [target prog fuel proof]
+  (conde
+    [(sjas-top-conj-arithmetic-proof-checko target proof)]
+    [(fresh [sigma-out neqs-out]
+       (sjas-proof-check-stateo target
+                                '()
+                                '()
+                                '()
+                                '()
+                                '()
+                                sigma-out
+                                '()
+                                neqs-out
+                                prog
+                                '()
+                                fuel
+                                proof))]))
+
 (defn- sjas-tableau-proof-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
   (let [ground-args (ground-negated-app-args fml 'tableau-proof 3)]
@@ -3139,11 +3428,10 @@
                                                       theorem-read-proof)
              (sjas-system-axiom-formulao prog system-code axiom-formula)
              (== (list 'and axiom-formula neg-theorem) target)
-             (kernel/prove-programo target '() '() '()
-                                    (sjas-reflected-proof-program prog)
-                                    '()
-                                    fuel
-                                    decoded-proof)])
+             (sjas-proof-check-programo target
+                                        (sjas-reflected-proof-program prog)
+                                        fuel
+                                        decoded-proof)])
           (== neqs neqs-out)
           (== (list 'profiled
                     'willard-sjas-proof-check
@@ -3179,11 +3467,10 @@
                                                     neg-theorem
                                                     theorem-read-proof)
            (== (list 'and axiom-formula neg-theorem) target)
-           (kernel/prove-programo target '() '() '()
-                                  (sjas-reflected-proof-program prog)
-                                  '()
-                                  fuel
-                                  decoded-proof)])
+           (sjas-proof-check-programo target
+                                      (sjas-reflected-proof-program prog)
+                                      fuel
+                                      decoded-proof)])
         (== neqs neqs-out)
         (== (list 'profiled
                   'willard-sjas-proof-check
@@ -3247,11 +3534,10 @@
                                           sigma-out)))
              (sjas-system-axiom-formulao prog system-code axiom-formula)
              (== (list 'and axiom-formula neg-theorem) target)
-             (kernel/prove-programo target '() '() '()
-                                    (sjas-reflected-proof-program prog)
-                                    '()
-                                    fuel
-                                    decoded-proof)])
+             (sjas-proof-check-programo target
+                                        (sjas-reflected-proof-program prog)
+                                        fuel
+                                        decoded-proof)])
           (== neqs neqs-out)
           (== (list 'profiled 'willard-sjas-subst-proof-check
                     proof-read-proof
@@ -3292,11 +3578,10 @@
                                                     neg-theorem
                                                     theorem-read-proof)
            (== (list 'and axiom-formula neg-theorem) target)
-           (kernel/prove-programo target '() '() '()
-                                  (sjas-reflected-proof-program prog)
-                                  '()
-                                  fuel
-                                  decoded-proof)])
+           (sjas-proof-check-programo target
+                                      (sjas-reflected-proof-program prog)
+                                      fuel
+                                      decoded-proof)])
         (== neqs neqs-out)
         (== (list 'profiled 'willard-sjas-subst-proof-check
                   proof-read-proof

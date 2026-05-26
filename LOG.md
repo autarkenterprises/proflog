@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-05-26
 
+- Replaced the non-`sjas-axiom` SJAS proof-predicate shortcut through
+  `kernel/prove-programo` with a local proof-directed checker over decoded
+  proof constructors. `tableau-proof/3` and `subst-prf/4` now validate the
+  currently generated arithmetic, reflected `neg-call`/`pos-call`, quantifier,
+  literal-saving, and literal-closure certificate shapes without delegating
+  decoded proof trees back to the host proof kernel. Added no-kernel
+  regressions with `kernel/prove-programo` redefined to throw, and a source
+  audit rejecting the old `kernel/prove-programo target` route. See
+  [SJAS Proof-Predicate Arithmeticized Checker](docs/log/2026-05-26-sjas-proof-predicate-arithmeticized-checker.md).
 - Completed executable regressions for the SJAS external-clause separation and
   self-consistency negating witness. `tableau-proof/3` and `subst-prf/4` now
   validate non-`sjas-axiom` decoded certificates against a reflected-only

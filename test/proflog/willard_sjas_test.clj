@@ -4,6 +4,7 @@
             [proflog.answers :as answers]
             [proflog.ast :as ast]
             [proflog.gamma :as gamma]
+            [proflog.kernel :as kernel]
             [proflog.language :as language]
             [proflog.normalize :as normalize]
             [proflog.proof :as proof]
@@ -987,6 +988,64 @@
             1
             80)))))
 
+(deftest sjas-proof-predicates-check-simple-arithmetic-certificates-without-kernel-validator
+  (let [system (demo-system :willard-sjas-tableau0)
+        beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+        beta-proof (first-proof
+                     (sjas/query-succeeds system (:formula beta-record)
+                                          {:proof-limit 1
+                                           :fuel 96}))
+        certificate (when beta-proof
+                      (sjas/proof-certificate beta-proof))]
+    (is beta-proof)
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tableau-proof (:system-code system)
+                                  (:code beta-record)
+                                  certificate)
+              1
+              200))
+          "tableau-proof must validate simple arithmetic certificates without delegating to the host kernel")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/subst-prf (:system-code system)
+                              (:code beta-record)
+                              (:code beta-record)
+                              certificate)
+              1
+              240))
+          "subst-prf must validate identity-substitution arithmetic certificates without delegating to the host kernel"))))
+
+(deftest sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator
+  (let [system (demo-system :willard-sjas-tableau0)
+        theorem (ast/pos-lit (ast/app-term 'demo sjas/one))
+        theorem-code (sjas/formula-code system theorem)
+        theorem-proof (first-proof
+                        (sjas/query-succeeds system theorem
+                                             {:proof-limit 1
+                                              :fuel 160}))
+        certificate (when theorem-proof
+                      (sjas/proof-certificate theorem-proof))]
+    (is theorem-proof)
+    (is (proof/contains-step? theorem-proof 'neg-call))
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tableau-proof (:system-code system)
+                                  theorem-code
+                                  certificate)
+              1
+              240))
+          "tableau-proof must validate reflected-clause certificates without delegating to the host kernel"))))
+
 (deftest sjas-subst-prf-reconstructs-axiom-basis-without-system-registry
   (let [system (demo-system :willard-sjas-tableau0)
         registry (get-in system [:program :sjas/registry])
@@ -1357,6 +1416,8 @@
     (is (not (re-find #"host-proof" profile-source)))
     (is (not (re-find #"whole-formula" profile-source)))
     (is (not (re-find #"mini-closed" profile-source)))
+    (is (not (re-find #"kernel/prove-programo target" profile-source))
+        "SJAS proof predicates must not short-circuit non-axiom certificates through the host proof kernel")
     (is (not (re-find #"mini-closed" builder-source)))
     (is (not (re-find #"malformed" profile-source)))
     (is (not (re-find #"malformed" builder-source)))

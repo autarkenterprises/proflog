@@ -13,6 +13,14 @@ working matrix that will determine what Track 2b must preserve when proving and
 testing correspondence between Proflog kernel acceptance and the SJAS
 arithmetized tableau proof predicate.
 
+For Track 2b, a proper proof requires more than direct operational agreement or
+informal inspection. The Proflog kernel relation and the SJAS tableau deductive
+apparatus must be formalized in compatible terms so equivalence, preservation of
+relevant measures, and any failure of equivalence can be checked rigorously. If
+the current computational and logical specifications are not sufficient for a
+direct proof, the program must lift the Proflog side, the SJAS side, or both
+into a third-party formal verification tool or a common intermediate semantics.
+
 The classifications below are grounded in the existing project notes:
 
 - [Willard Tableaux Proof Encoding](2026-05-20-willard-tableau-proof-encoding.md)
@@ -41,6 +49,7 @@ The classifications below are grounded in the existing project notes:
 | Beta truth and formula-class validation | Unresolved and deferred | ADR-0072 still records user-supplied beta truth and class validation as delegated to the user. | The proof machinery correspondence can proceed with beta membership as an assumption, but full SJAS soundness eventually needs a validation or explicit trust boundary. |
 | Mechanism of applying a rule once selected | Conditional | The user's hypothesis is plausible only if application mechanism does not alter child nodes, closure facts, or size. | Treat as irrelevant only after proving that each implementation rule application produces the same relevant child structure as the SJAS tableau rule. |
 | Failure to close self-referential proof trees | Relevant outcome, not by itself sufficient | The refined discussion distinguishes operational adequacy from internalization adequacy. Matching failures are evidence, but not proof of the arithmetized predicate. | Negative operational tests are required, but must be paired with the Track 2b proof. |
+| Formal specification medium for correspondence proof | Required meta-obligation | A proper correspondence proof needs compatible formalizations of the Proflog kernel and SJAS tableau specification, or a shared third-party/common-intermediate formalization. | Choose and document the proof medium before claiming Track 2b complete; examples include direct structural semantics over both proof relations or encoding one/both sides in a formal verification tool. |
 
 ## Working Assessment
 
@@ -71,3 +80,6 @@ that a Proflog kernel call preserves the relevant SJAS invariant.
 4. For equality, procedure calls, and profile-specific theory rules, should the
    correspondence be restricted to the current finite SJAS proof fragment or
    extended with explicit arithmetized rules?
+5. Is a direct proof over the current Proflog and SJAS specifications rigorous
+   enough, or must one or both sides be translated into a third-party formal
+   verification setting before Track 2b can be completed?

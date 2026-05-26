@@ -1,5 +1,21 @@
 # Memory
 
+## 2026-05-25 ADR-0073 SJAS Track State
+
+- Single-threaded focus is now Track 2a relevance analysis for ADR-0073.
+- Parked Track 1 arithmeticization worktree:
+  `/home/jpt4/code/proflog-worktrees/adr-0073-track1-arithmeticization`,
+  branch `adr-0073-track1-arithmeticization`.
+- Track 2a relevance worktree completed local commit
+  `797e8b63e0eeaa8c3ee6eef275342ae428aff286`
+  (`Deepen SJAS tableau relevance analysis`) in
+  `/home/jpt4/code/proflog-worktrees/adr-0073-track2a-relevance`.
+- Parked Track 2b formal-correspondence worktree:
+  `/home/jpt4/code/proflog-worktrees/adr-0073-track2b-formal-correspondence`,
+  branch `adr-0073-track2b-formal-correspondence`.
+- Subagent handles from the interrupted session are no longer available in the
+  runtime; use the worktrees and commits above as authoritative state.
+
 ## 2026-05-08 ADR-0047 SKI Quine
 
 - ADR-0047 branch: `adr-0047-ski-quine`.

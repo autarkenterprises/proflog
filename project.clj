@@ -77,6 +77,7 @@
                                     "proflog.pelletier-layering-test"
                                     "proflog.kernel-test"
                                     "proflog.proof-test"
+                                    "proflog.sjas-correspondence-test"
                                     "proflog.equality-test"
                                     "proflog.oracle.herbrand-test"
                                     "proflog.program-test"

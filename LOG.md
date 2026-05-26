@@ -43,6 +43,19 @@ complete contemporaneous transcript.
   rules, quantifier policy, and Proflog proof-certificate layout as unresolved.
   See
   [SJAS Tableau Relevance Matrix](docs/log/2026-05-25-sjas-tableau-relevance-matrix.md).
+- Continued ADR-0073 by adding an executable proof-symbol classification audit
+  for the encoded SJAS certificate alphabet. The red test first failed because
+  the audit namespace did not exist; the green implementation classifies every
+  symbol that `proflog.willard-sjas-code` can encode as relevant or unresolved
+  under the current Track 2a matrix, and reports unresolved obligations for
+  equality, procedure-call/profile, and optimized-layer constructors appearing
+  in actual proof terms. The ADR and relevance matrix now also specify that
+  Track 2b's "proper proof" requires compatible formal semantics for both the
+  Proflog kernel and the SJAS tableau apparatus, or a third-party/common
+  intermediate formalization capable of rigorous equivalence checking.
+  Verification: focused `proflog.sjas-correspondence-test` passed 3 tests /
+  9 assertions; `lein test-proflog-fast` passed 149 tests / 562 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions.
 
 ## 2026-05-23
 

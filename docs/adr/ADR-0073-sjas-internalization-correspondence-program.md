@@ -65,6 +65,16 @@ Track 2a, and must prove irrelevance for every implementation detail that is
 ignored. Operational tests are required in addition to the proof; they do not
 substitute for it.
 
+"Proof" in this track means a proper formal or formalizable correspondence
+argument, not an informal comparison of passing examples. At minimum, the
+Proflog kernel proof relation must be specified in terms compatible with the
+SJAS semantic-tableau specification, so both sides can be compared for
+equivalence or the absence of equivalence can be identified precisely. If direct
+examination of the implementation and SJAS specification cannot support that
+level of rigor, one or both sides must be encoded into a third-party formal
+verification setting, or both must be lifted into a common intermediate
+semantics that admits rigorous equivalence checking.
+
 ## Consequences
 
 - ADR-0072 remains useful and active: each removed host shortcut reduces the
@@ -99,6 +109,11 @@ Documentation-only slices must still pass `git diff --check` before commit.
   The tests must exercise representative proof objects in both directions of
   the correspondence and must include negative cases for features classified as
   relevant.
+- The Track 2b proof artifact must state the formal semantics used for the
+  Proflog kernel side and for the SJAS tableau side. It must justify why those
+  semantics are compatible enough for equivalence checking, or document the
+  selected third-party formalization/common intermediate language used to make
+  the comparison rigorous.
 - For semantic implementation commits, `lein test-proflog-fast`, `lein
   test-proflog-extended`, and `lein test-proflog-sjas` must pass before merge.
   The extended suite remains especially important for proof search, equality,
@@ -114,6 +129,9 @@ Documentation-only slices must still pass `git diff --check` before commit.
 - A written correspondence proof is supplied for the Proflog kernel and the
   SJAS-specified semantic-tableau predicate, preserving all relevant measures
   and proving irrelevance for ignored implementation details.
+- The proof is based on compatible formal specifications of both sides, or on a
+  third-party/common-intermediate formalization capable of checking the claimed
+  equivalence.
 - Operational tests demonstrate the correspondence over the implemented proof
   machinery, including representative positive and negative cases.
 - The implementation passes `lein test-proflog-fast`,

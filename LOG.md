@@ -34,6 +34,16 @@ complete contemporaneous transcript.
   the skeleton grammar is itself an admissible non-compressing tableau encoding,
   or treat the kernel certificate path as an implementation-stage shortcut. See
   [SJAS Proof-Size Relevance](docs/log/2026-05-26-sjas-proof-size-relevance.md).
+- Refined ADR-0073 Track 2a classification for procedure-call proof
+  constructors after the reflected-clause reachability probe exposed `neg-call`
+  in an SJAS certificate. Procedure calls are now classified as a relevant macro
+  layer whose primitive status remains unresolved: Track 2b must either name
+  Fitting/Proflog procedure calls as part of the selected SJAS deduction
+  apparatus, prove bounded expansion over reflected Group-2b axiom applications
+  and ordinary tableau rules, or exclude reflected-clause proofs using
+  `pos-call`, `neg-call`, guarded-call, or equality-triggered call constructors
+  from the correspondence fragment. See
+  [SJAS Procedure-Call Relevance](docs/log/2026-05-26-sjas-procedure-call-relevance.md).
 
 ## 2026-05-25
 

@@ -85,6 +85,16 @@ complete contemporaneous transcript.
   tree size, or act only at branch tips may be adequate if they preserve the
   relevant lower bound. See
   [SJAS Macro Expansion and Lower-Bound Adequacy](docs/log/2026-05-26-sjas-macro-expansion-lower-bound.md).
+- Classified ADR-0073 Track 2a quantifier and witness policy. Quantifier child
+  formulas, existential fresh-parameter witnesses, universal instantiated
+  parameter terms, bounded-quantifier side conditions, and ordinary gamma
+  repeatability are relevant. Runtime ordering of admissible instantiations is
+  probably irrelevant only under a proof that accepted certificates and size
+  accounting are unchanged. Current `univ`, `once-univ`, and `witness` proof
+  nodes are skeletal because their witness terms live in branch state rather
+  than proof-code payloads, so Track 2b must reconstruct formula-bearing
+  quantifier steps or enrich/canonicalize certificates. See
+  [SJAS Quantifier and Witness Relevance](docs/log/2026-05-26-sjas-quantifier-witness-relevance.md).
 
 ## 2026-05-25
 

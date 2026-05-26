@@ -125,6 +125,13 @@ complete contemporaneous transcript.
   either primitive SJAS rule status, bounded macro expansion through reflected
   Group-2b axioms, or an explicit fragment exclusion. The result is recorded in
   [SJAS Proof-Constructor Reachability Audit](docs/log/2026-05-25-sjas-proof-constructor-reachability-audit.md).
+- Classified finite `fuel` for ADR-0073 Track 2a. Fuel is not a Willard
+  proof-object feature, but it is an operational Proflog evaluator bound that
+  can affect whether a supplied certificate validates at a particular finite
+  bound. Track 2b must therefore state either an unbounded/existentially
+  sufficient-fuel correspondence theorem, or an explicit bounded-search theorem
+  with its own size relation. See
+  [SJAS Fuel Relevance](docs/log/2026-05-25-sjas-fuel-relevance.md).
 
 ## 2026-05-23
 

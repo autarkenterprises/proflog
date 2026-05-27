@@ -53,6 +53,23 @@
       (is (= #{'free-close}
              (:unresolved-symbols audit))))))
 
+(deftest proof-term-audit-classifies-u-grounding-canonical-byte-evidence
+  (testing "U-Grounding byte-reader evidence must stay inside the explicit proof-code alphabet"
+    (let [audit (correspondence/audit-proof-term
+                  '(sjas-ug-code-canonical-byte
+                     7
+                     (sjas-ug-code-byte-cons
+                       (sjas-ug-code-mul64-shift)
+                       (sjas-ug-code-canonical-byte))))]
+      (is (= #{}
+             (:unencodable-symbols audit)))
+      (is (= #{}
+             (:unclassified-symbols audit)))
+      (is (= #{'sjas-ug-code-canonical-byte
+               'sjas-ug-code-byte-cons
+               'sjas-ug-code-mul64-shift}
+             (:relevant-symbols audit))))))
+
 (deftest profile-wrapper-audit-is-path-sensitive
   (testing "profiled wrappers have different relevance depending on their payload role"
     (is (= :probably-irrelevant

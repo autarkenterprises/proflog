@@ -165,6 +165,7 @@
     sjas-ug-code-byte-cons
     sjas-ug-code-cons
     sjas-ug-code-end
+    sjas-ug-code-canonical-byte
     sjas-ug-code-mul64-shift
     sjas-ug-code-mul64-zero
     sjas-equal

@@ -279,10 +279,11 @@ core.logic's occurs check when walking the large substituted theorem numeral.
 The twenty-second stage tightens the proof-code alphabet for reachable SJAS
 proof evidence. The proof-code byte layout now includes an explicit byte
 payload tag, so evidence such as `(sjas-code-arg 1 sjas-code-args-end)` can be
-encoded and decoded as part of the certificate grammar. `sjas-code-arg` and
-`sjas-code-args-end` are classified as relevant code-reading evidence, while
-`free-close` is now encodable but remains an unresolved equality/free-constructor
-closure rule for ADR-0073 Track 2b.
+encoded and decoded as part of the certificate grammar. The same payload
+mechanism covers observed U-Grounding canonical-byte evidence. `sjas-code-arg`,
+`sjas-code-args-end`, and `sjas-ug-code-canonical-byte` are classified as
+relevant code-reading evidence, while `free-close` is now encodable but remains
+an unresolved equality/free-constructor closure rule for ADR-0073 Track 2b.
 
 Later stages must internalize, in order:
 
@@ -360,6 +361,8 @@ Tests must be red before implementation and then pass:
   predicates expose `sjas-code-arg` evidence rather than staged byte markers;
 - proof-code encoding and decoding round-trip byte payload evidence such as
   `(sjas-code-arg 1 sjas-code-args-end)`;
+- U-Grounding proof evidence containing `sjas-ug-code-canonical-byte` remains
+  encodable and classified by the correspondence audit;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.
 

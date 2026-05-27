@@ -15,10 +15,10 @@ the equality helper, and the SJAS profile. It follows
 which found that `free-close` is reachable in an SJAS theorem proof term but is
 not encodable as an SJAS proof certificate.
 
-2026-05-27 update: `free-close`, `sjas-code-arg`, and
-`sjas-code-args-end` are now in the SJAS proof-symbol alphabet, and the
-proof-code layout has an explicit byte-payload tag for `sjas-code-arg` byte
-arguments. See
+2026-05-27 update: `free-close`, `sjas-code-arg`,
+`sjas-code-args-end`, and `sjas-ug-code-canonical-byte` are now in the SJAS
+proof-symbol alphabet, and the proof-code layout has an explicit byte-payload
+tag for code-reader byte arguments. See
 [SJAS Proof-Code Byte Payloads](2026-05-27-sjas-proof-code-byte-payloads.md).
 This note remains useful as an inventory of the broader unresolved helper-tag
 surface.
@@ -58,7 +58,7 @@ are not in `proof-symbols`:
 | Equality contradiction and unification internals | `occurs-close`, `decompose`, `args`, `eq-refl`, `eq-bind`, `par-bind`, `atom-close`; `free-close` is now encoded but unresolved | These can occur below `eq-step`, `neq-close`, or complementary literal closure. `free-close` is already reachable in an SJAS theorem proof term and still needs a primitive/macro/exclusion proof. |
 | Guarded/multi-alternative procedure-call internals | `alt`, `guard-eq`, `guard-saturation-done`, `guarded-scope-done`, `guarded-seq-done`, `guarded-call-seq-done` | Guarded call proof terms can use these below already-declared guarded-call constructors. If guarded calls are admitted, these payload tags must be encoded or macro-erased. |
 | SJAS compact code-reader evidence | none currently missing for the observed `sjas-code-arg`/`sjas-code-args-end` path | Current tests assert `sjas-code-arg` appears in successful compact code-reader proofs; that path is now encodable with explicit byte payloads. |
-| SJAS U-Grounding bit-reader evidence | `sjas-ug-code-bit-zero`, `sjas-ug-code-bit-one`, `sjas-ug-code-bit-dbl`, `sjas-ug-code-bit-add-one`, `sjas-ug-code-canonical-byte` | These are profile proof tags for U-Grounding byte/numeral reading. If U-Grounding proof evidence can be supplied as a certificate, these need alphabet coverage or canonical erasure. |
+| SJAS U-Grounding bit-reader evidence | `sjas-ug-code-bit-zero`, `sjas-ug-code-bit-one`, `sjas-ug-code-bit-dbl`, `sjas-ug-code-bit-add-one`; `sjas-ug-code-canonical-byte` is now encoded and relevant | These are profile proof tags for U-Grounding byte/numeral reading. The observed canonical-byte proof evidence is now covered; lower-level bit peels still need reachability evidence before being admitted to the certificate alphabet. |
 | SJAS structural syntax evidence | `sjas-neg-pair-structural`, `sjas-read-canonical-num` | These are profile proof tags for code/syntax relations and arithmetic numeral reading. |
 | SJAS profile header evidence | `sjas-system-tableau0-profile`, `sjas-system-level1-profile` | These tags appear in system-code/profile decoding proof paths and are distinct from the public wrapper symbols `willard-sjas-tableau0` and `willard-sjas-level1`. |
 

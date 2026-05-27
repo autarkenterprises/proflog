@@ -82,8 +82,10 @@ Several previously speculative risks now have concrete evidence:
   or excluded.
 - `sjas-code-arg` and `sjas-code-args-end` are emitted by current compact
   code-reader proof paths. They are now in `proof-symbols`, and byte payloads
-  inside proof evidence are encoded by an explicit proof-byte tag. U-Grounding
-  bit-reader/helper tags still need separate reachability and classification.
+  inside proof evidence are encoded by an explicit proof-byte tag. The observed
+  U-Grounding `sjas-ug-code-canonical-byte` tag is now encoded and classified
+  as relevant; lower-level bit-reader/helper tags still need separate
+  reachability and classification.
 - `univ`, `once-univ`, and `witness` proof nodes are skeletal: their
   instantiation terms and parameters live in branch state rather than in the
   proof-code payload.

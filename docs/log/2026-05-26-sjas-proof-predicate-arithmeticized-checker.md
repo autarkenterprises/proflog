@@ -91,8 +91,9 @@ A later proof-code alphabet slice also made compact code-reader proof evidence
 encodable: `sjas-code-arg` and `sjas-code-args-end` are now proof symbols, and
 the proof-code layout has an explicit byte payload tag. That lets the
 constructor-byte evidence emitted by this checker round-trip through the
-certificate grammar. `free-close` is likewise encodable but remains unresolved
-for correspondence proof purposes.
+certificate grammar. The observed U-Grounding `sjas-ug-code-canonical-byte`
+evidence is covered by the same payload mechanism. `free-close` is likewise
+encodable but remains unresolved for correspondence proof purposes.
 
 ## Verification
 
@@ -121,6 +122,7 @@ for correspondence proof purposes.
 - Green focused checks:
   - `sjas-proof-codes-encode-byte-payload-evidence`
   - `sjas-proof-code-decoder-round-trips-byte-payload-evidence`
+  - `sjas-proof-codes-encode-u-grounding-canonical-byte-evidence`
   - `sjas-proof-predicates-check-simple-arithmetic-certificates-without-kernel-validator`
   - `sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator`
   - `sjas-proof-predicates-check-reflected-calls-from-system-code`

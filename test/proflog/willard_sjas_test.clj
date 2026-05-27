@@ -11,6 +11,7 @@
             [proflog.normalize :as normalize]
             [proflog.proof :as proof]
             [proflog.query :as query]
+            [proflog.sjas-correspondence :as correspondence]
             [proflog.willard-sjas :as sjas]
             [proflog.willard-sjas-code :as sjas-code]))
 
@@ -505,8 +506,15 @@
                      1
                      200)]
         (is (successful? proofs))
-        (is (proof/contains-step? (first-proof proofs) 'sjas-ug-code-byte-cons)
-            "U-Grounding proof predicates must not decode ground system or theorem codes with a host shortcut")))))
+        (let [proof (first-proof proofs)
+              audit (correspondence/audit-proof-term proof)]
+          (is (proof/contains-step? proof 'sjas-ug-code-byte-cons)
+              "U-Grounding proof predicates must not decode ground system or theorem codes with a host shortcut")
+          (is (proof/contains-step? proof 'sjas-ug-code-canonical-byte))
+          (is (= #{}
+                 (:unencodable-symbols audit)))
+          (is (= #{}
+                 (:unclassified-symbols audit))))))))
 
 (deftest sjas-u-grounding-subst-code-computes-level1-fixed-point
   (testing "Level-1 Subst uses the U-Grounding source code numeral as the diagonal term"
@@ -571,6 +579,20 @@
                       (l/== [bytes decoded-proof read-proof] q)))]
       (is (= 1 (count decoded)))
       (is (= proof (second (first decoded)))))))
+
+(deftest sjas-proof-codes-encode-u-grounding-canonical-byte-evidence
+  (testing "U-Grounding byte-reader evidence carries an explicit byte payload in the proof-code grammar"
+    (let [proof '(sjas-ug-code-canonical-byte
+                   7
+                   (sjas-ug-code-byte-cons
+                     (sjas-ug-code-mul64-shift)
+                     (sjas-ug-code-canonical-byte)))
+          certificate (sjas/proof-certificate proof)
+          bytes (sjas-code/code-term-bytes certificate)]
+      (is (sjas-code/code-term? certificate))
+      (is (= bytes (sjas-code/proof-code-bytes proof)))
+      (is (some #{sjas-code/proof-byte-tag} bytes)
+          "the canonical-byte evidence payload must be represented as a proof byte"))))
 
 (deftest sjas-syntax-predicates-decode-formula-godel-codes
   (testing "wff, class predicates, and neg-pair are derived from formula Godel codes"

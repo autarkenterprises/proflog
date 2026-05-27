@@ -26,11 +26,12 @@ complete contemporaneous transcript.
   Proof codes now have an explicit byte-payload tag, so evidence such as
   `(sjas-code-arg 1 sjas-code-args-end)` can be encoded and decoded without
   escaping the certificate grammar. Added `sjas-code-arg`,
-  `sjas-code-args-end`, and `free-close` to the declared proof-symbol alphabet.
-  The correspondence audit classifies the code-reader tags as relevant
-  inspectable code evidence and classifies `free-close` as encodable but still
-  unresolved pending an equality/free-constructor closure proof, macro
-  expansion, reachability exclusion, or fragment exclusion. See
+  `sjas-code-args-end`, `sjas-ug-code-canonical-byte`, and `free-close` to the
+  declared proof-symbol alphabet. The correspondence audit classifies the
+  compact and U-Grounding code-reader tags as relevant inspectable code
+  evidence and classifies `free-close` as encodable but still unresolved
+  pending an equality/free-constructor closure proof, macro expansion,
+  reachability exclusion, or fragment exclusion. See
   [SJAS Proof-Code Byte Payloads](docs/log/2026-05-27-sjas-proof-code-byte-payloads.md).
 
 ## 2026-05-26

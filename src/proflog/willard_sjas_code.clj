@@ -199,7 +199,9 @@
     sjas-code-arg
     sjas-code-args-end
     sjas-neg-pair-structural
-    free-close])
+    free-close
+    decompose
+    args])
 
 (def proof-symbol->index
   (into {} (map-indexed (fn [idx sym] [sym (inc idx)]) proof-symbols)))

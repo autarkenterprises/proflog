@@ -22,6 +22,10 @@
            (:status (correspondence/classify-proof-symbol 'eq-step))))
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'free-close))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol 'decompose))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol 'args))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'pos-call))))
     (is (= :unresolved

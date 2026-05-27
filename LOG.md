@@ -30,6 +30,12 @@ complete contemporaneous transcript.
   `free-close` as relevant closure evidence while leaving richer equality
   constructors unresolved. See
   [SJAS Free Equality Proof-Check Closure](docs/log/2026-05-27-sjas-free-equality-proof-check.md).
+- Extended the SJAS proof-code grammar for nested free-constructor equality
+  closure evidence by appending `decompose` and `args` to the stable proof
+  alphabet. `tableau-proof/3` now validates a nested encoded equality
+  certificate over preserved `code-2` constructor terms, and the audit
+  classifies these tags as relevant closure/tree evidence. See
+  [SJAS Nested Equality Proof-Code Coverage](docs/log/2026-05-27-sjas-nested-equality-proof-code.md).
 - Fixed the nominal lookup/hash guard bug in the legacy αleanTAP and
   greenfield nominal environment lookup relations. Core.logic's current
   `nom/hash` behavior passed the delayed-aliasing regression under the default

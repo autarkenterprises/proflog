@@ -19,6 +19,8 @@
      witness
      close
      free-close
+     decompose
+     args
      false-close
      savefml})
 

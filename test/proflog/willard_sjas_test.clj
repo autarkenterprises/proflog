@@ -574,6 +574,18 @@
       (is (some #{sjas-code/proof-byte-tag} bytes)
           "numeric byte payloads in proof evidence must be encoded explicitly"))))
 
+(deftest sjas-proof-codes-encode-nested-equality-closure-evidence
+  (testing "nested free-constructor equality closure evidence stays inside the proof-code grammar"
+    (let [proof '(conj
+                   (decompose
+                     (args
+                       (decompose ())
+                       (free-close))))
+          certificate (sjas/proof-certificate proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
+
 (deftest sjas-proof-code-decoder-round-trips-byte-payload-evidence
   (testing "the object-level proof-code decoder consumes explicit byte payloads"
     (let [proof '(conj
@@ -1215,6 +1227,33 @@
         (is (successful? proofs)
             "tableau-proof must validate encoded free equality closure certificates object-level")
         (is (proof/contains-step? (first-proof proofs) 'free-close))))))
+
+(deftest sjas-tableau-proof-accepts-decomposed-free-equality-certificates
+  (let [system (demo-system :willard-sjas-tableau0)
+        theorem (ast/neq-lit
+                  (ast/app-term 'code-2 sjas/zero sjas/zero)
+                  (ast/app-term 'code-2 sjas/zero sjas/one))
+        theorem-code (sjas/formula-code system theorem)
+        certificate (sjas/proof-certificate
+                      '(conj
+                         (decompose
+                           (args
+                             (decompose ())
+                             (free-close)))))]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (let [proofs (query/query-succeeds
+                     (:program system)
+                     (sjas/tableau-proof (:system-code system)
+                                         theorem-code
+                                         certificate)
+                     1
+                     180)]
+        (is (successful? proofs)
+            "tableau-proof must validate nested free equality closure certificates object-level")
+        (is (proof/contains-step? (first-proof proofs) 'decompose))
+        (is (proof/contains-step? (first-proof proofs) 'args))))))
 
 (deftest sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator
   (let [system (demo-system :willard-sjas-tableau0)

@@ -58,6 +58,20 @@
   [fml]
   (first (prove fml 1)))
 
+(deftest test-LK01-lookupo-guards-skipped-nominal-key
+  (testing "relational lookup cannot skip a key that later aliases the search key"
+    (is (= [:first]
+           (run* [q]
+             (nom wanted
+               (fresh [key skipped out]
+                 (lookupo key
+                          (lcons [skipped :first]
+                                 (lcons [wanted :second] '()))
+                          out)
+                 (== key skipped)
+                 (== skipped wanted)
+                 (== q out))))))))
+
 ;; ============================================================================
 ;; Section A: Base Prover — α, β, γ rules, complementary closure
 ;;

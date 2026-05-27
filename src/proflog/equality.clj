@@ -24,7 +24,8 @@
    branch-rewriting presentation: congruence comes from shared branch state
    rather than from paramodulating formulas themselves."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [!= == conde fresh lcons membero]]))
+  (:require [clojure.core.logic :refer [!= == conde fresh lcons membero]]
+            [clojure.core.logic.nominal :as nominal]))
 
 ;; Reading guide
 ;; -------------
@@ -54,13 +55,15 @@
 
    This is the low-level association-list lookup used throughout the equality
    engine. It is intentionally tiny and relational: one branch succeeds when
-   the head binding matches, and the other searches the tail."
+   the head binding matches, and the other searches the tail after asserting
+   that the searched nom is fresh for the skipped key."
   [binding-nom env value]
   (fresh [rest]
     (conde
       [(== (lcons [binding-nom value] rest) env)]
-      [(fresh [pair]
-         (== (lcons pair rest) env)
+      [(fresh [skipped-key skipped-value]
+         (== (lcons [skipped-key skipped-value] rest) env)
+         (nominal/hash binding-nom skipped-key)
          (lookupo binding-nom rest value))])))
 
 (defn unboundo

@@ -69,6 +69,7 @@
                                     "proflog.existential-disequality-test"
                                     "proflog.gamma-test"
                                     "proflog.closed-term-gamma-test"
+                                    "proflog.core-logic-nominal-hash-test"
                                     "proflog.frontend-test"
                                     "proflog.formula-profile-test"
                                     "proflog.robinson-q-test"

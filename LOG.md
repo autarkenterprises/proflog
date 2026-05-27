@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-05-27
 
+- Fixed the nominal lookup/hash guard bug in the legacy αleanTAP and
+  greenfield nominal environment lookup relations. Core.logic's current
+  `nom/hash` behavior passed the delayed-aliasing regression under the default
+  1.0.1 dependency, the 1.1.1 profile, and the vendored source overlay; the
+  local bug was missing use of that freshness guard when recursing past nominal
+  environment keys. See [ADR-0074](docs/adr/ADR-0074-nominal-lookup-hash-guard.md),
+  [AAR-0074](docs/aar/AAR-0074-nominal-lookup-hash-guard.md), and
+  [Nominal Lookup Hash Guard](docs/log/2026-05-27-nominal-lookup-hash-guard.md).
 - Added IULS 2026 Proflog talk materials under `iuls2026/`: the reviewed
   intent note, the sample ODP style source, a generated ODP slide deck, a
   Markdown slide source, lecture notes, and a small generator that preserves

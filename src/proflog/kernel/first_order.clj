@@ -43,8 +43,9 @@
   (fresh [rest]
     (conde
       [(== (lcons [binding-nom value] rest) env)]
-      [(fresh [pair]
-         (== (lcons pair rest) env)
+      [(fresh [skipped-key skipped-value]
+         (== (lcons [skipped-key skipped-value] rest) env)
+         (nominal/hash binding-nom skipped-key)
          (lookupo binding-nom rest value))])))
 
 (defn- subst-termo

@@ -11,7 +11,7 @@
                            (set (keys correspondence/proof-symbol-classifications)))))))
 
 (deftest proof-symbol-audit-exposes-relevant-and-unresolved-constructors
-  (testing "tableau structure and SJAS arithmetic equality are relevant, while kernel equality bridges remain unresolved"
+  (testing "tableau structure and direct free equality closure are relevant, while richer kernel equality bridges remain unresolved"
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'split))))
     (is (= :relevant
@@ -20,6 +20,8 @@
            (:status (correspondence/classify-proof-symbol 'sjas-equal))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'eq-step))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol 'free-close))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'pos-call))))
     (is (= :unresolved
@@ -48,9 +50,9 @@
              (:unencodable-symbols audit)))
       (is (= #{}
              (:unclassified-symbols audit)))
-      (is (= #{'conj 'sjas-code-arg 'sjas-code-args-end}
+      (is (= #{'conj 'free-close 'sjas-code-arg 'sjas-code-args-end}
              (:relevant-symbols audit)))
-      (is (= #{'free-close}
+      (is (= #{}
              (:unresolved-symbols audit))))))
 
 (deftest proof-term-audit-classifies-u-grounding-canonical-byte-evidence

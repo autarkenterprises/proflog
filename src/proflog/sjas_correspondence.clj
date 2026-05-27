@@ -18,6 +18,7 @@
      once-univ
      witness
      close
+     free-close
      false-close
      savefml})
 
@@ -87,8 +88,7 @@
      neq-close
      neq-rigid
      neq-store
-     refl-close
-     free-close})
+     refl-close})
 
 (def ^:private unresolved-procedure-symbols
   "Proof constructors introduced by Proflog procedure-call and guarded-call

@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-05-27
 
+- Advanced ADR-0073 Track 1 proof-predicate internalization by teaching the
+  SJAS-local proof checker to consume decoded free-constructor equality closure
+  evidence. `tableau-proof/3` now validates an encoded `(conj (free-close))`
+  certificate for the SJAS theorem `neq(0,1)` without delegating to
+  `kernel/prove-programo`, and the executable correspondence audit now treats
+  `free-close` as relevant closure evidence while leaving richer equality
+  constructors unresolved. See
+  [SJAS Free Equality Proof-Check Closure](docs/log/2026-05-27-sjas-free-equality-proof-check.md).
 - Fixed the nominal lookup/hash guard bug in the legacy αleanTAP and
   greenfield nominal environment lookup relations. Core.logic's current
   `nom/hash` behavior passed the delayed-aliasing regression under the default

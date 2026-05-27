@@ -3324,6 +3324,14 @@
        (conde
          [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
          [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]))]
+    [(fresh [fml unexpanded lit left right contradiction-proof]
+       (== contradiction-proof proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'eq left right) lit)
+       (equality/eq-contradictiono left right sigma contradiction-proof)
+       (== sigma sigma-out)
+       (== neqs neqs-out))]
     [(fresh [fml unexpanded left right next-fuel prf]
        (== (list 'conj prf) proof)
        (support/selecto fml agenda unexpanded)

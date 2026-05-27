@@ -57,6 +57,7 @@
    :constructor-recursive (fn [m & _] (:constructor-recursive m))}
   :aliases {"test-section"         ["run" "-m" "cljtap.run-section"]
             "test-all-timed"       ["run" "-m" "cljtap.run-section" "--all"]
+            "test-vars"            ["run" "-m" "proflog.focused-test-runner"]
             "test-proflog-fast"    ["test"
                                     "proflog.ast-test"
                                     "proflog.adversarial-test"
@@ -128,6 +129,8 @@
                                                          "proflog.kernel.relational-equality-fragment-test"]
             "test-proflog-sjas" ["test"
                                  "proflog.willard-sjas-test"]
+            "test-proflog-sjas-focused" ["run" "-m" "proflog.focused-test-runner"
+                                         "proflog.willard-sjas-test"]
             "test-proflog-sjas-slow" ["test"
                                       ":slow"
                                       "proflog.willard-sjas-test"]

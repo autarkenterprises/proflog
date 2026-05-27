@@ -22,6 +22,28 @@ complete contemporaneous transcript.
 
 ## 2026-05-26
 
+- Adopted focused, progress-visible testing as the default practice for SJAS
+  and other resource-heavy semantic suites. Added `proflog.focused-test-runner`,
+  `lein test-vars <namespace>`, and `lein test-proflog-sjas-focused`, and
+  documented the workflow in `AGENTS.md`, `README.md`, and
+  [Focused Testing Practice for Resource-Heavy Suites](docs/log/2026-05-26-focused-testing-practice.md).
+  The full opaque `lein test-proflog-sjas` namespace gate remains available,
+  but the default active-development path is exact selectors followed by
+  var-by-var timing so slow tests are visible and debuggable.
+- Removed the staged compact theorem-code reader from SJAS proof-predicate
+  validation. `tableau-proof/3` and `subst-prf/4` now expose compact
+  theorem-code constructor-byte reads as `sjas-code-arg` evidence, and compact
+  substitution source/target codes use object byte decoding instead of the old
+  staged helper. The direct U-Grounding Level-1 substitution attempt failed at
+  fuels 240, 500, 1000, and 2000, and then overflowed core.logic's occurs check
+  on the large substituted theorem numeral, so an isolated U-Grounding
+  substitution-side byte projection remains documented as a tractability
+  boundary. Recorded the related finite symbol-table boundary: current codes
+  still rely on source-preprocessing symbol indexes unless a later proof shows
+  nominal identity is irrelevant up to fixed injective coding. Added
+  [SJAS Symbol-Table Isomorphism Justification](docs/log/2026-05-26-sjas-symbol-table-isomorphism-justification.md)
+  and updated
+  [SJAS Proof-Predicate Arithmeticized Checker](docs/log/2026-05-26-sjas-proof-predicate-arithmeticized-checker.md).
 - Removed the remaining reflected compiled-program side table from SJAS
   proof-predicate validation. Reflected `pos-call`/`neg-call` proof steps now
   decode the active `system-code` reflected-clause bytes, bind canonical

@@ -170,16 +170,20 @@
   (ast/eq-lit sjas/one sjas/one))
 
 (defn- reflected-demo-clause
-  []
-  (ast/nom x
-    (ast/clause 'demo [x]
-                (ast/eq-lit (ast/var-term x) sjas/one))))
+  ([]
+   (reflected-demo-clause 'demo))
+  ([relation]
+   (ast/nom x
+     (ast/clause relation [x]
+                 (ast/eq-lit (ast/var-term x) sjas/one)))))
 
 (defn- external-demo-clause
-  []
-  (ast/nom x
-    (ast/clause 'external-demo [x]
-                (ast/eq-lit (ast/var-term x) sjas/zero))))
+  ([]
+   (external-demo-clause 'external-demo))
+  ([relation]
+   (ast/nom x
+     (ast/clause relation [x]
+                 (ast/eq-lit (ast/var-term x) sjas/zero)))))
 
 (defn- demo-system
   ([profile]
@@ -194,6 +198,16 @@
         :reflected-clauses [(reflected-demo-clause)]
         :external-clauses [(external-demo-clause)]}
        opts))))
+
+(defn- renamed-demo-system
+  [profile reflected-relation external-relation]
+  (sjas/system
+    {:profile profile
+     :relations {reflected-relation 1
+                 external-relation 1}
+     :beta [(demo-beta)]
+     :reflected-clauses [(reflected-demo-clause reflected-relation)]
+     :external-clauses [(external-demo-clause external-relation)]}))
 
 (defn- target-for-theorem
   [system formula]
@@ -310,6 +324,59 @@
       (is (not (contains? @(get-in system [:program :sjas/registry])
                           :sjas/reflected-program))
           "proof-predicate reflected calls must not depend on a reflected compiled-program side table"))))
+
+(deftest sjas-symbol-table-is-irrelevant-up-to-signature-isomorphism
+  (let [base (demo-system :willard-sjas-tableau0)
+        renamed (renamed-demo-system :willard-sjas-tableau0
+                                     'zz-demo
+                                     'zz-external-demo)
+        base-index (get-in base [:coding-context :symbol->index 'demo])
+        renamed-index (get-in renamed [:coding-context :symbol->index 'zz-demo])
+        base-reflected-record (first (filter #(= :group-two-b (:group %))
+                                             (:axioms base)))
+        renamed-reflected-record (first (filter #(= :group-two-b (:group %))
+                                                (:axioms renamed)))
+        base-theorem (ast/pos-lit (ast/app-term 'demo sjas/one))
+        renamed-theorem (ast/pos-lit (ast/app-term 'zz-demo sjas/one))
+        base-code (sjas/formula-code base base-theorem)
+        renamed-code (sjas/formula-code renamed renamed-theorem)
+        base-proof (first-proof
+                     (sjas/query-succeeds base base-theorem
+                                          {:proof-limit 1
+                                           :fuel 160}))
+        renamed-proof (first-proof
+                        (sjas/query-succeeds renamed renamed-theorem
+                                             {:proof-limit 1
+                                              :fuel 160}))
+        base-certificate (when base-proof
+                           (sjas/proof-certificate base-proof))
+        renamed-certificate (when renamed-proof
+                              (sjas/proof-certificate renamed-proof))]
+    (is base-proof)
+    (is renamed-proof)
+    (is (not= base-index renamed-index)
+        "the regression must exercise an actual finite codebook renaming")
+    (is (not= (:system-code base) (:system-code renamed))
+        "renamed signatures are recoded rather than nominally identical")
+    (is (not= base-code renamed-code))
+    (is (= base-index (nth (sjas-code/code-term-bytes base-code) 2)))
+    (is (= renamed-index (nth (sjas-code/code-term-bytes renamed-code) 2)))
+    (is (= base-certificate renamed-certificate)
+        "proof constructors and proof size are preserved by signature renaming")
+    (is (successful?
+          (query/query-succeeds
+            (:program base)
+            (sjas/axiom-member (:system-code base)
+                               (:code base-reflected-record))
+            1
+            160)))
+    (is (successful?
+          (query/query-succeeds
+            (:program renamed)
+            (sjas/axiom-member (:system-code renamed)
+                               (:code renamed-reflected-record))
+            1
+            160)))))
 
 (deftest sjas-byte-codes-preserve-sequence-length-and-trailing-zeroes
   (testing "public code terms are byte strings, not lossy natural labels"
@@ -813,6 +880,8 @@
     (is (successful? valid-proofs))
     (is (proof/contains-step? (first-proof valid-proofs) 'willard-sjas-theorem-code)
         "tableau-proof must decode generated theorem codes structurally during predicate application")
+    (is (proof/contains-step? (first-proof valid-proofs) 'sjas-code-arg)
+        "compact theorem-code decoding inside tableau-proof must expose object-level byte reads")
     (is (empty?
           (query/query-succeeds
             (:program system)
@@ -972,6 +1041,8 @@
     (is (successful? valid-proofs))
     (is (proof/contains-step? (first-proof valid-proofs) 'willard-sjas-theorem-code)
         "subst-prf must decode generated theorem codes structurally during predicate application")
+    (is (proof/contains-step? (first-proof valid-proofs) 'sjas-code-arg)
+        "compact theorem-code decoding inside subst-prf must expose object-level byte reads")
     (is (empty?
           (query/query-succeeds
             (:program system)
@@ -1458,6 +1529,12 @@
         "SJAS proof predicates must not recover proof-time clauses from a reflected compiled-program registry")
     (is (not (re-find #"program/call-clauseo" profile-source))
         "SJAS proof-predicate procedure calls must decode reflected system-code clauses")
+    (is (not (re-find #"sjas-decode-compact-formula-code-staged-proofo" profile-source))
+        "SJAS proof predicates must not use staged compact theorem-code decoding")
+    (is (not (re-find #"sjas-decode-substitution-target-codeo" profile-source))
+        "SJAS substitution predicates must not use staged target-code decoding")
+    (is (not (re-find #"ground-formal-code-term source-code" profile-source))
+        "SJAS substitution predicates must not use the old broad staged source-code branch")
     (is (not (re-find #"mini-closed" builder-source)))
     (is (not (re-find #"malformed" profile-source)))
     (is (not (re-find #"malformed" builder-source)))

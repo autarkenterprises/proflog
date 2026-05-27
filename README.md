@@ -398,8 +398,15 @@ includes Q conversion, Q3, and the corrected prime/evenness formulas.
 For the Willard SJAS-lang builder and proof profiles, run:
 
 ```text
-lein test-proflog-sjas
+lein test-proflog-sjas-focused
 ```
+
+The focused command runs `proflog.willard-sjas-test` one test var at a time and
+prints start/end timing for each var. Prefer it while doing active SJAS work;
+it makes slow but advancing proof checks visible and avoids losing minutes to
+an opaque namespace run. Use `lein test-proflog-sjas` as the ordinary
+`clojure.test` namespace gate only after the focused run has shown acceptable
+progress, or when a final full namespace confirmation is specifically needed.
 
 The worked example in [worked-examples/willard-sjas.md](worked-examples/willard-sjas.md)
 shows generated Group-Zero through Group-3 axiom bases, reflected versus

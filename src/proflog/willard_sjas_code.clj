@@ -141,6 +141,7 @@
     willard-sjas-tableau0
     willard-sjas-level1
     willard-sjas-arithmetic
+    willard-sjas-code
     willard-sjas-fact
     willard-sjas-axiom-member
     willard-sjas-theorem-code
@@ -190,8 +191,14 @@
     sjas-read-var
     sjas-read-zero
     sjas-axiom
+    wff
+    delta-star-0-code
+    pi-star-1-code
+    sigma-star-1-code
+    neg-pair
     sjas-code-arg
     sjas-code-args-end
+    sjas-neg-pair-structural
     free-close])
 
 (def proof-symbol->index

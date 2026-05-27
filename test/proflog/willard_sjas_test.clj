@@ -23,6 +23,10 @@
   [proofs]
   (first proofs))
 
+(defn- proof-symbol-audit
+  [proof]
+  (correspondence/audit-proof-term proof))
+
 (defn- n
   [value]
   (sjas/numeral value))
@@ -607,7 +611,17 @@
                        (:program system)
                        (sjas/wff code)
                        1
-                       32)]
+                       32)
+          delta-proofs (query/query-succeeds
+                         (:program system)
+                         (sjas/delta-star-0-code code)
+                         1
+                         32)
+          neg-pair-proofs (query/query-succeeds
+                            (:program system)
+                            (sjas/neg-pair code complement-code)
+                            1
+                            48)]
       (is (sjas-code/code-term? complement-code))
       (is (not= (sjas/not-code code) complement-code)
           "complements must be formula Godel-code terms, not not-code wrappers")
@@ -626,18 +640,23 @@
       (is (successful? wff-proofs))
       (is (proof/contains-step? (first-proof wff-proofs) 'sjas-code-arg)
           "compact formula-code predicates must read code constructor bytes through the object relation")
-      (is (successful?
-            (query/query-succeeds
-              (:program system)
-              (sjas/delta-star-0-code code)
-              1
-              32)))
-      (is (successful?
-            (query/query-succeeds
-              (:program system)
-              (sjas/neg-pair code complement-code)
-              1
-              48))))))
+      (is (= #{}
+             (:unencodable-symbols (proof-symbol-audit (first-proof wff-proofs)))))
+      (is (= #{}
+             (:unclassified-symbols (proof-symbol-audit (first-proof wff-proofs)))))
+      (is (sjas-code/code-term?
+            (sjas/proof-certificate (first-proof wff-proofs)))
+          "syntax predicate proof evidence must be representable in the SJAS proof-code grammar")
+      (is (successful? delta-proofs))
+      (is (= #{}
+             (:unencodable-symbols (proof-symbol-audit (first-proof delta-proofs)))))
+      (is (= #{}
+             (:unclassified-symbols (proof-symbol-audit (first-proof delta-proofs)))))
+      (is (successful? neg-pair-proofs))
+      (is (= #{}
+             (:unencodable-symbols (proof-symbol-audit (first-proof neg-pair-proofs)))))
+      (is (= #{}
+             (:unclassified-symbols (proof-symbol-audit (first-proof neg-pair-proofs))))))))
 
 (deftest sjas-system-does-not-generate-axiom-member-fact-registry
   (let [system (demo-system :willard-sjas-tableau0)

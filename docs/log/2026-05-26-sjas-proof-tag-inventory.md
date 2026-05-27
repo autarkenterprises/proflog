@@ -20,6 +20,9 @@ not encodable as an SJAS proof certificate.
 proof-symbol alphabet, and the proof-code layout has an explicit byte-payload
 tag for code-reader byte arguments. See
 [SJAS Proof-Code Byte Payloads](2026-05-27-sjas-proof-code-byte-payloads.md).
+The same day's syntax-evidence slice added `willard-sjas-code`, the syntax
+predicate relation tags, and `sjas-neg-pair-structural`; see
+[SJAS Syntax Proof Evidence Alphabet](2026-05-27-sjas-syntax-proof-evidence-alphabet.md).
 This note remains useful as an inventory of the broader unresolved helper-tag
 surface.
 
@@ -59,7 +62,7 @@ are not in `proof-symbols`:
 | Guarded/multi-alternative procedure-call internals | `alt`, `guard-eq`, `guard-saturation-done`, `guarded-scope-done`, `guarded-seq-done`, `guarded-call-seq-done` | Guarded call proof terms can use these below already-declared guarded-call constructors. If guarded calls are admitted, these payload tags must be encoded or macro-erased. |
 | SJAS compact code-reader evidence | none currently missing for the observed `sjas-code-arg`/`sjas-code-args-end` path | Current tests assert `sjas-code-arg` appears in successful compact code-reader proofs; that path is now encodable with explicit byte payloads. |
 | SJAS U-Grounding bit-reader evidence | `sjas-ug-code-bit-zero`, `sjas-ug-code-bit-one`, `sjas-ug-code-bit-dbl`, `sjas-ug-code-bit-add-one`; `sjas-ug-code-canonical-byte` is now encoded and relevant | These are profile proof tags for U-Grounding byte/numeral reading. The observed canonical-byte proof evidence is now covered; lower-level bit peels still need reachability evidence before being admitted to the certificate alphabet. |
-| SJAS structural syntax evidence | `sjas-neg-pair-structural`, `sjas-read-canonical-num` | These are profile proof tags for code/syntax relations and arithmetic numeral reading. |
+| SJAS structural syntax evidence | `sjas-read-canonical-num`; `sjas-neg-pair-structural` and syntax predicate relation tags are now encoded and relevant | These are profile proof tags for code/syntax relations and arithmetic numeral reading. The observed syntax predicate proof evidence is now covered; canonical numeral reading remains to be audited separately. |
 | SJAS profile header evidence | `sjas-system-tableau0-profile`, `sjas-system-level1-profile` | These tags appear in system-code/profile decoding proof paths and are distinct from the public wrapper symbols `willard-sjas-tableau0` and `willard-sjas-level1`. |
 
 The scan also produced obvious non-proof false positives such as `and`, `or`,

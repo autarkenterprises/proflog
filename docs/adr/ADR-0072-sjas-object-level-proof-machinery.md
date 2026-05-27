@@ -285,6 +285,13 @@ mechanism covers observed U-Grounding canonical-byte evidence. `sjas-code-arg`,
 relevant code-reading evidence, while `free-close` is now encodable but remains
 an unresolved equality/free-constructor closure rule for ADR-0073 Track 2b.
 
+The twenty-third stage covers syntax-predicate proof evidence in the same
+certificate alphabet. Representative `wff/1`, formula-class, and `neg-pair/2`
+proofs now use encoded/classified `willard-sjas-code`, syntax relation tags,
+and `sjas-neg-pair-structural` evidence. This closes a grammar gap for the
+proof evidence emitted by object-code syntax predicates; it does not by itself
+prove the full Track 2b correspondence theorem.
+
 Later stages must internalize, in order:
 
 1. removal or strict isolation of the remaining host ground-code shortcuts from
@@ -343,6 +350,8 @@ Tests must be red before implementation and then pass:
 - compact formula-code syntax predicate proofs include `sjas-code-arg` evidence
   for constructor-byte decoding instead of a bare staged `sjas-code-bytes`
   marker;
+- representative syntax predicate proofs have no unencodable or unclassified
+  proof symbols and can be passed through `sjas/proof-certificate`;
 - beta `sjas-axiom` citations expose `sjas-code-arg` evidence for compact
   theorem-code decoding while compact system-code staging remains documented;
 - fixed Group-0 and Group-1 `sjas-axiom` citations expose `sjas-code-arg`

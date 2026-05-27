@@ -33,6 +33,14 @@ complete contemporaneous transcript.
   pending an equality/free-constructor closure proof, macro expansion,
   reachability exclusion, or fragment exclusion. See
   [SJAS Proof-Code Byte Payloads](docs/log/2026-05-27-sjas-proof-code-byte-payloads.md).
+- Closed the corresponding syntax-predicate proof-evidence alphabet gap.
+  `willard-sjas-code`, `wff`, the formula-class predicate tags, `neg-pair`, and
+  `sjas-neg-pair-structural` are now encoded and classified as relevant
+  code/syntax evidence. The existing syntax predicate regression now also
+  audits representative `wff`, `delta-star-0-code`, and `neg-pair` proofs for
+  unencodable/unclassified symbols and verifies proof-certificate encoding for
+  successful syntax evidence. See
+  [SJAS Syntax Proof Evidence Alphabet](docs/log/2026-05-27-sjas-syntax-proof-evidence-alphabet.md).
 
 ## 2026-05-26
 

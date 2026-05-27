@@ -86,6 +86,11 @@ Several previously speculative risks now have concrete evidence:
   U-Grounding `sjas-ug-code-canonical-byte` tag is now encoded and classified
   as relevant; lower-level bit-reader/helper tags still need separate
   reachability and classification.
+- Representative `wff`, `delta-star-0-code`, and `neg-pair` syntax predicate
+  proofs now have encoded/classified `willard-sjas-code`, syntax relation, and
+  `sjas-neg-pair-structural` evidence. Other profile helper tags such as
+  canonical numeral-reading evidence still need reachability and
+  classification.
 - `univ`, `once-univ`, and `witness` proof nodes are skeletal: their
   instantiation terms and parameters live in branch state rather than in the
   proof-code payload.

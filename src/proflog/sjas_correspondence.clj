@@ -26,6 +26,7 @@
    decoding work. These are relevant because ADR-0073 must not allow the bridge
    to collapse inspectable Godel-code structure into an opaque host witness."
   '#{sjas-system-beta-axiom
+     willard-sjas-code
      sjas-system-code-bytes
      sjas-system-reflected-axiom
      sjas-system-group-zero-axiom
@@ -68,6 +69,12 @@
      sjas-read-zero
      sjas-code-arg
      sjas-code-args-end
+     sjas-neg-pair-structural
+     wff
+     delta-star-0-code
+     pi-star-1-code
+     sigma-star-1-code
+     neg-pair
      sjas-axiom})
 
 (def ^:private unresolved-equality-symbols

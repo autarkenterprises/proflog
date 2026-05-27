@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-05-27
 
+- Removed the remaining deterministic public-code byte projectors from the SJAS
+  profile. Compact and U-Grounding public code reads now pass through
+  `sjas-formal-code-byteso`; long system/Group-3 proof evidence is summarized
+  only after that relation succeeds. Fixed U-Grounding sentinel handling so
+  byte `63` is accepted inside payloads, and replaced the last U-Grounding
+  substitution-side byte shortcut with relation-backed decoding plus fused
+  substitution/alpha comparison. The minimal Level-1 U-Grounding fixed-point
+  check now succeeds without the old host projector; the larger reflected demo
+  path remains a core.logic runtime tractability boundary. See
+  [SJAS Public Code Byte Internalization](docs/log/2026-05-27-sjas-public-code-byte-internalization.md).
 - Logged the Track 2 clarification that Proflog may be studied both as a
   candidate implementation bridge for Willard's semantic-tableau `D` and,
   speculatively, as a formally specified deductive apparatus `D_Proflog` for

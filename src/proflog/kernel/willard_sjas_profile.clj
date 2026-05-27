@@ -392,6 +392,9 @@
                 [(nth sjas-code/byte-terms byte) byte])
               (range sjas-code/byte-base))))
 
+(def ^:private code-byte-term->byte
+  (into {} code-byte-term-entries))
+
 (def ^:private code-constructor-entries
   (apply list
          (map (fn [[constructor byte-count]]
@@ -607,7 +610,7 @@
          (== sigma-after sigma-out)
          (== (list 'sjas-ug-code-end byte-proof) proof)]
         [(fresh [tail-bytes tail-proof]
-           (!= sjas-code/u-grounding-sentinel-byte byte)
+           (!= zero-term tail)
            (sjas-ug-code-bytes-termo (dec remaining)
                                      tail
                                      tail-bytes
@@ -617,113 +620,23 @@
            (== (lcons byte tail-bytes) bytes)
            (== (list 'sjas-ug-code-cons byte-proof) proof))]))))
 
-(defn- ground-pop-bit
-  "Return `[bit tail-term]` for one ground canonical U-Grounding numeral step.
-
-   This helper inspects only the root constructor and its immediate children.
-   It deliberately does not compute the numeral's value; the recursive decoder
-   still consumes the object-language `dbl`/`add` structure one bit at a time."
-  [term]
-  (cond
-    (= zero-term term)
-    [0 zero-term]
-
-    (= one-term term)
-    [1 zero-term]
-
-    (and (seq? term)
-         (= 'app (first term))
-         (= 'dbl (second term)))
-    [0 (nth term 2)]
-
-    (and (seq? term)
-         (= 'app (first term))
-         (= 'add (second term))
-         (= one-term (nth term 3 nil)))
-    (let [doubled (nth term 2 nil)]
-      (when (and (seq? doubled)
-                 (= 'app (first doubled))
-                 (= 'dbl (second doubled)))
-        [1 (nth doubled 2)]))
-
-    :else
-    nil))
-
-(defn- ground-pop-byte
-  "Host-stack-safe byte popper for already-ground public code terms.
-
-   This is an operational projector for the already-ground public code term. It
-   follows the same six root-constructor pops as the relation above; it does
-   not use generated code constructors, hashes, or a total object-language
-   multiplication function."
-  [term]
-  (loop [remaining 6
-         current term
-         byte 0
-         bit-index 0]
-    (if (zero? remaining)
-      [byte current]
-      (when-let [[bit tail] (ground-pop-bit current)]
-        (recur (dec remaining)
-               tail
-               (if (zero? bit)
-                 byte
-                 (bit-set byte bit-index))
-               (inc bit-index))))))
-
-(defn- ground-u-grounding-code-term-bytes
-  "Decode a ground public U-Grounding code term by repeated byte pops.
-
-   The sentinel byte bounds the loop. An ill-formed term returns nil rather than
-   synthesizing bytes."
-  [term]
-  (loop [current term
-         out []
-         steps 0]
-    (when (clojure.core/<= steps sjas-code/max-code-bytes)
-      (when-let [[byte tail] (ground-pop-byte current)]
-        (if (and (= sjas-code/u-grounding-sentinel-byte byte)
-                 (= zero-term tail))
-          out
-          (recur tail
-                 (conj out byte)
-                 (inc steps)))))))
-
-(defn- ground-formal-code-term
-  "Return `[bytes kind read-proof]` for an already-ground public code term.
-
-   This is a deterministic entry shortcut, not a theorem decision procedure. It
-   keeps large U-Grounding numerals from first becoming a deep logic binding
-   that core.logic then re-walks during every formula-parser unification. The
-   formula, proof, and substitution predicates still consume the resulting byte
-   stream through their ordinary structural relations."
-  [term]
-  (if-let [bytes (ground-u-grounding-code-term-bytes term)]
-    [bytes :u-grounding '(sjas-ug-code-bytes)]
-    (when-let [bytes (sjas-code/code-term-bytes term)]
-      [bytes :compact '(sjas-code-bytes)])))
-
-(defn- byte-list-literal
-  "Return a proper Clojure list for byte literals passed to core.logic goals."
-  [bytes]
-  (apply list bytes))
-
-(defn- u-grounding-byte-list-literal
-  "Return the sentinel-terminated byte list for a U-Grounding numeral code."
-  [bytes]
-  (byte-list-literal (conj (vec bytes) sjas-code/u-grounding-sentinel-byte)))
-
 (defn- code-byte-termo
   [term byte]
-  (fresh [entry]
-    (membero entry code-byte-term-entries)
-    (== [term byte] entry)))
+  (if-let [ground-byte (get code-byte-term->byte term)]
+    (== ground-byte byte)
+    (fresh [entry]
+      (membero entry code-byte-term-entries)
+      (== [term byte] entry))))
 
 (defn- code-constructoro
   [constructor byte-count]
-  (fresh [entry]
-    (membero entry code-constructor-entries)
-    (== [constructor byte-count] entry)))
+  (if (symbol? constructor)
+    (if-let [ground-byte-count (sjas-code/code-symbol-byte-count constructor)]
+      (== ground-byte-count byte-count)
+      fail)
+    (fresh [entry]
+      (membero entry code-constructor-entries)
+      (== [constructor byte-count] entry))))
 
 (defn- code-argso
   [args bytes proof]
@@ -738,6 +651,32 @@
        (code-argso rest byte-rest rest-proof)
        (== (list 'sjas-code-arg byte rest-proof) proof))]))
 
+(defn- ground-compact-code-args
+  "Return the argument list for a ground compact public code term.
+
+   This dispatches only on the public `code-N` constructor shape and arity. The
+   byte values themselves are still checked by `code-byte-termo`, so accepted
+   proof evidence retains one `sjas-code-arg` node per encoded byte."
+  [term]
+  (when (= 'app (ast/tag-of term))
+    (let [constructor (second term)
+          args (vec (nnext term))]
+      (when-let [byte-count (sjas-code/code-symbol-byte-count constructor)]
+        (when (= byte-count (count args))
+          (apply list args))))))
+
+(defn- ground-code-argso
+  [args bytes proof]
+  (if (empty? args)
+    (fresh []
+      (== '() bytes)
+      (== '(sjas-code-args-end) proof))
+    (fresh [byte byte-rest rest-proof]
+      (code-byte-termo (first args) byte)
+      (== (lcons byte byte-rest) bytes)
+      (ground-code-argso (rest args) byte-rest rest-proof)
+      (== (list 'sjas-code-arg byte rest-proof) proof))))
+
 (defn- sjas-code-byteso
   "Decode an object-language SJAS code term into base-64 bytes.
 
@@ -746,13 +685,18 @@
    to the object language without forcing proof search to walk a huge nested
    binary numeral for every sentence and proof certificate."
   [term bytes sigma sigma-out proof]
-  (fresh [walked constructor args byte-count args-proof]
-    (equality/walko term sigma walked)
-    (== (lcons 'app (lcons constructor args)) walked)
-    (code-constructoro constructor byte-count)
-    (code-argso args bytes args-proof)
-    (== sigma sigma-out)
-    (== (list 'sjas-code-bytes args-proof) proof)))
+  (if-let [args (ground-compact-code-args term)]
+    (fresh [args-proof]
+      (ground-code-argso args bytes args-proof)
+      (== sigma sigma-out)
+      (== (list 'sjas-code-bytes args-proof) proof))
+    (fresh [walked constructor args byte-count args-proof]
+      (equality/walko term sigma walked)
+      (== (lcons 'app (lcons constructor args)) walked)
+      (code-constructoro constructor byte-count)
+      (code-argso args bytes args-proof)
+      (== sigma sigma-out)
+      (== (list 'sjas-code-bytes args-proof) proof))))
 
 (defn- sjas-ug-code-byteso
   "Decode an object-language U-Grounding numeral code into base-64 bytes.
@@ -1291,7 +1235,8 @@
 
 (declare sjas-subst-term-var-oneo
          sjas-subst-term-list-var-oneo
-         sjas-subst-formula-var-oneo)
+         sjas-subst-formula-var-oneo
+         sjas-byte-list-equalo)
 
 (defn- sjas-subst-term-list-var-oneo
   "Substitute in each term of an internal formula-code term list.
@@ -1319,6 +1264,16 @@
    are therefore left opaque rather than recursively decoded."
   [term replacement substituted]
   (conde
+    [(fresh [bytes substituted-bytes]
+       (== (list 'var 1) term)
+       (== (list 'num bytes) replacement)
+       (== (list 'num substituted-bytes) substituted)
+       (sjas-byte-list-equalo bytes substituted-bytes))]
+    [(fresh [bytes substituted-bytes]
+       (== (list 'var 1) term)
+       (== (list 'code bytes) replacement)
+       (== (list 'code substituted-bytes) substituted)
+       (sjas-byte-list-equalo bytes substituted-bytes))]
     [(== (list 'var 1) term)
      (== replacement substituted)]
     [(fresh [idx]
@@ -1332,12 +1287,14 @@
        (== (list 'app sym args) term)
        (== (list 'app sym substituted-args) substituted)
        (sjas-subst-term-list-var-oneo args replacement substituted-args))]
-    [(fresh [bytes]
+    [(fresh [bytes substituted-bytes]
        (== (list 'num bytes) term)
-       (== term substituted))]
-    [(fresh [bytes]
+       (== (list 'num substituted-bytes) substituted)
+       (sjas-byte-list-equalo bytes substituted-bytes))]
+    [(fresh [bytes substituted-bytes]
        (== (list 'code bytes) term)
-       (== term substituted))]))
+       (== (list 'code substituted-bytes) substituted)
+       (sjas-byte-list-equalo bytes substituted-bytes))]))
 
 (defn- sjas-subst-formula-var-oneo
   "Relate a decoded formula-code tree to its diagonal substitution result.
@@ -1460,6 +1417,23 @@
     (membero entry env)
     (== [source target] entry)))
 
+(defn- sjas-byte-list-equalo
+  "Compare decoded code-byte payloads structurally.
+
+   Large Level-1 self-reference formulas embed whole public code byte strings
+   inside `num` terms. Equating those lists through one shared logic variable
+   can overflow core.logic's occurs check; walking the lists byte by byte keeps
+   the comparison in the object relation."
+  [left right]
+  (conde
+    [(== '() left)
+     (== '() right)]
+    [(fresh [left-head left-tail right-head right-tail]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (== left-head right-head)
+       (sjas-byte-list-equalo left-tail right-tail))]))
+
 (defn- sjas-alpha-term-list-equivo
   [left right env]
   (conde
@@ -1495,12 +1469,14 @@
        (== (list 'app sym left-args) left)
        (== (list 'app sym right-args) right)
        (sjas-alpha-term-list-equivo left-args right-args env))]
-    [(fresh [bytes]
-       (== (list 'num bytes) left)
-       (== (list 'num bytes) right))]
-    [(fresh [bytes]
-       (== (list 'code bytes) left)
-       (== (list 'code bytes) right))]))
+    [(fresh [left-bytes right-bytes]
+       (== (list 'num left-bytes) left)
+       (== (list 'num right-bytes) right)
+       (sjas-byte-list-equalo left-bytes right-bytes))]
+    [(fresh [left-bytes right-bytes]
+       (== (list 'code left-bytes) left)
+       (== (list 'code right-bytes) right)
+       (sjas-byte-list-equalo left-bytes right-bytes))]))
 
 (defn- sjas-alpha-formula-equivo
   "Compare decoded formula-code trees modulo bound-variable alpha-renaming."
@@ -1579,6 +1555,187 @@
        (sjas-alpha-formula-equivo left-body
                                   right-body
                                   (lcons [left-idx right-idx] env)))]))
+
+(declare sjas-subst-alpha-term-equivo
+         sjas-subst-alpha-term-list-equivo
+         sjas-subst-alpha-formula-equivo)
+
+(defn- sjas-subst-alpha-term-list-equivo
+  [source-terms replacement target-terms env]
+  (conde
+    [(== '() source-terms)
+     (== '() target-terms)]
+    [(fresh [source-head source-tail target-head target-tail]
+       (== (lcons source-head source-tail) source-terms)
+       (== (lcons target-head target-tail) target-terms)
+       (sjas-subst-alpha-term-equivo source-head replacement target-head env)
+       (sjas-subst-alpha-term-list-equivo source-tail
+                                          replacement
+                                          target-tail
+                                          env))]))
+
+(defn- sjas-subst-alpha-term-equivo
+  "Compare a target term with the source term after diagonal substitution.
+
+   This fuses `sjas-subst-term-var-oneo` with alpha-equivalence so the Level-1
+   fixed-point check does not have to materialize a large intermediate formula
+   containing repeated quoted code payloads."
+  [source replacement target env]
+  (conde
+    [(== (list 'var 1) source)
+     (sjas-alpha-term-equivo replacement target env)]
+    [(fresh [idx]
+       (== (list 'var idx) source)
+       (positive-byte-except-oneo idx)
+       (sjas-alpha-term-equivo source target env))]
+    [(fresh [idx]
+       (== (list 'par idx) source)
+       (== (list 'par idx) target))]
+    [(fresh [sym source-args target-args]
+       (== (list 'app sym source-args) source)
+       (== (list 'app sym target-args) target)
+       (sjas-subst-alpha-term-list-equivo source-args
+                                          replacement
+                                          target-args
+                                          env))]
+    [(fresh [source-bytes target-bytes]
+       (== (list 'num source-bytes) source)
+       (== (list 'num target-bytes) target)
+       (sjas-byte-list-equalo source-bytes target-bytes))]
+    [(fresh [source-bytes target-bytes]
+       (== (list 'code source-bytes) source)
+       (== (list 'code target-bytes) target)
+       (sjas-byte-list-equalo source-bytes target-bytes))]))
+
+(defn- sjas-subst-alpha-formula-equivo
+  "Compare a target formula with the source formula after diagonal `v0` Subst."
+  [source replacement target env]
+  (conde
+    [(== (list 'true) source)
+     (== (list 'true) target)]
+    [(== (list 'false) source)
+     (== (list 'false) target)]
+    [(fresh [source-term target-term]
+       (== (list 'pos source-term) source)
+       (== (list 'pos target-term) target)
+       (sjas-subst-alpha-term-equivo source-term replacement target-term env))]
+    [(fresh [source-term target-term]
+       (== (list 'neg source-term) source)
+       (== (list 'neg target-term) target)
+       (sjas-subst-alpha-term-equivo source-term replacement target-term env))]
+    [(fresh [source-a source-b target-a target-b]
+       (== (list 'eq source-a source-b) source)
+       (== (list 'eq target-a target-b) target)
+       (sjas-subst-alpha-term-equivo source-a replacement target-a env)
+       (sjas-subst-alpha-term-equivo source-b replacement target-b env))]
+    [(fresh [source-a source-b target-a target-b]
+       (== (list 'neq source-a source-b) source)
+       (== (list 'neq target-a target-b) target)
+       (sjas-subst-alpha-term-equivo source-a replacement target-a env)
+       (sjas-subst-alpha-term-equivo source-b replacement target-b env))]
+    [(fresh [source-a source-b target-a target-b]
+       (== (list 'and source-a source-b) source)
+       (== (list 'and target-a target-b) target)
+       (sjas-subst-alpha-formula-equivo source-a replacement target-a env)
+       (sjas-subst-alpha-formula-equivo source-b replacement target-b env))]
+    [(fresh [source-a source-b target-a target-b]
+       (== (list 'or source-a source-b) source)
+       (== (list 'or target-a target-b) target)
+       (sjas-subst-alpha-formula-equivo source-a replacement target-a env)
+       (sjas-subst-alpha-formula-equivo source-b replacement target-b env))]
+    [(fresh [source-body target-body]
+       (== (list 'not source-body) source)
+       (== (list 'not target-body) target)
+       (sjas-subst-alpha-formula-equivo source-body
+                                        replacement
+                                        target-body
+                                        env))]
+    [(fresh [source-a source-b target-a target-b]
+       (== (list 'implies source-a source-b) source)
+       (== (list 'implies target-a target-b) target)
+       (sjas-subst-alpha-formula-equivo source-a replacement target-a env)
+       (sjas-subst-alpha-formula-equivo source-b replacement target-b env))]
+    [(fresh [source-body target-idx target-body]
+       (== (list 'forall 1 source-body) source)
+       (== (list 'forall target-idx target-body) target)
+       (sjas-alpha-formula-equivo source-body
+                                  target-body
+                                  (lcons [1 target-idx] env)))]
+    [(fresh [source-idx source-body target-idx target-body]
+       (== (list 'forall source-idx source-body) source)
+       (positive-byte-except-oneo source-idx)
+       (== (list 'forall target-idx target-body) target)
+       (sjas-subst-alpha-formula-equivo
+         source-body
+         replacement
+         target-body
+         (lcons [source-idx target-idx] env)))]
+    [(fresh [source-body target-idx target-body]
+       (== (list 'once-forall 1 source-body) source)
+       (== (list 'once-forall target-idx target-body) target)
+       (sjas-alpha-formula-equivo source-body
+                                  target-body
+                                  (lcons [1 target-idx] env)))]
+    [(fresh [source-idx source-body target-idx target-body]
+       (== (list 'once-forall source-idx source-body) source)
+       (positive-byte-except-oneo source-idx)
+       (== (list 'once-forall target-idx target-body) target)
+       (sjas-subst-alpha-formula-equivo
+         source-body
+         replacement
+         target-body
+         (lcons [source-idx target-idx] env)))]
+    [(fresh [source-body target-idx target-body]
+       (== (list 'exists 1 source-body) source)
+       (== (list 'exists target-idx target-body) target)
+       (sjas-alpha-formula-equivo source-body
+                                  target-body
+                                  (lcons [1 target-idx] env)))]
+    [(fresh [source-idx source-body target-idx target-body]
+       (== (list 'exists source-idx source-body) source)
+       (positive-byte-except-oneo source-idx)
+       (== (list 'exists target-idx target-body) target)
+       (sjas-subst-alpha-formula-equivo
+         source-body
+         replacement
+         target-body
+         (lcons [source-idx target-idx] env)))]
+    [(fresh [source-bound source-body target-idx target-bound target-body]
+       (== (list 'bounded-forall 1 source-bound source-body) source)
+       (== (list 'bounded-forall target-idx target-bound target-body) target)
+       (sjas-subst-alpha-term-equivo source-bound replacement target-bound env)
+       (sjas-alpha-formula-equivo source-body
+                                  target-body
+                                  (lcons [1 target-idx] env)))]
+    [(fresh [source-idx source-bound source-body
+             target-idx target-bound target-body]
+       (== (list 'bounded-forall source-idx source-bound source-body) source)
+       (positive-byte-except-oneo source-idx)
+       (== (list 'bounded-forall target-idx target-bound target-body) target)
+       (sjas-subst-alpha-term-equivo source-bound replacement target-bound env)
+       (sjas-subst-alpha-formula-equivo
+         source-body
+         replacement
+         target-body
+         (lcons [source-idx target-idx] env)))]
+    [(fresh [source-bound source-body target-idx target-bound target-body]
+       (== (list 'bounded-exists 1 source-bound source-body) source)
+       (== (list 'bounded-exists target-idx target-bound target-body) target)
+       (sjas-subst-alpha-term-equivo source-bound replacement target-bound env)
+       (sjas-alpha-formula-equivo source-body
+                                  target-body
+                                  (lcons [1 target-idx] env)))]
+    [(fresh [source-idx source-bound source-body
+             target-idx target-bound target-body]
+       (== (list 'bounded-exists source-idx source-bound source-body) source)
+       (positive-byte-except-oneo source-idx)
+       (== (list 'bounded-exists target-idx target-bound target-body) target)
+       (sjas-subst-alpha-term-equivo source-bound replacement target-bound env)
+       (sjas-subst-alpha-formula-equivo
+         source-body
+         replacement
+         target-body
+         (lcons [source-idx target-idx] env)))]))
 
 (declare sjas-internal-term-asto sjas-internal-formula-asto)
 
@@ -1830,41 +1987,34 @@
     [(== system-profile-tableau0-tag profile-tag)]
     [(== system-profile-level1-tag profile-tag)]))
 
-(defn- sjas-ground-code-byteso
-  "Expose the byte string for a public code term used in axiom citation.
+(declare code-read-marker-o)
 
-   Axiom citation is part of proof-predicate application, so U-Grounding
-   arithmetic code bytes must be exposed by the kernel relation even when the
-   term is already ground as a host value. Compact `code-N` constructor terms
-   are retained as an operational shortcut for large system-code arguments; the
-   smaller formula-code citation paths can opt into `sjas-object-code-byteso`
-   when their proof evidence needs constructor-byte reads."
-  [code bytes proof]
-  (if-let [[ground-bytes kind ground-read-proof] (ground-formal-code-term code)]
-    (if (= :compact kind)
-      (fresh []
-        (== (byte-list-literal ground-bytes) bytes)
-        (== (list 'sjas-system-code-bytes ground-read-proof) proof))
-      (fresh [read-proof sigma-out]
-        (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
-        (== '() sigma-out)
-        (== (list 'sjas-system-code-bytes read-proof) proof)))
-    (fresh [kind read-proof sigma-out]
-      (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
-      (== '() sigma-out)
-      (== (list 'sjas-system-code-bytes read-proof) proof))))
+(defn- sjas-public-code-byteso
+  "Expose public code bytes through the SJAS object-language code relation.
 
-(defn- sjas-object-code-byteso
-  "Expose public code bytes through the object code-byte relation.
-
-   This is used where the public formula code is small enough that proof
-   evidence can show the compact constructor-byte scan without forcing a large
-   compact `system-code` term through the same relation."
+   Both compact `code-N` terms and U-Grounding numeral terms are read by
+   `sjas-formal-code-byteso`. This keeps system, formula, proof, and
+   substitution code reads inspectable in proof evidence instead of projecting
+   already-ground Clojure terms to byte vectors outside the object relation."
   [code bytes proof]
   (fresh [kind read-proof sigma-out]
     (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
     (== '() sigma-out)
     (== (list 'sjas-system-code-bytes read-proof) proof)))
+
+(defn- sjas-public-code-bytes-summaryo
+  "Expose public code bytes while summarizing large code-read proof payloads.
+
+   The byte relation is still `sjas-formal-code-byteso`; only the returned
+   proof object is compressed to the code-format marker. This avoids exponential
+   core.logic reification for long system and Group-3 formula codes while
+   preserving object-level byte reading as the semantic check."
+  [code bytes proof]
+  (fresh [kind read-proof sigma-out marker]
+    (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
+    (== '() sigma-out)
+    (code-read-marker-o kind marker)
+    (== (list 'sjas-system-code-bytes marker) proof)))
 
 (defn- sjas-system-code-headero
   "Recognize the common header of an encoded finite SJAS system.
@@ -1913,8 +2063,8 @@
   [prog system-code formula-code proof]
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
           header-proof formula fixed-proof]
-    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
-    (sjas-object-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
     (sjas-system-code-headero system-bytes header-proof)
     (decode-formula-byteso prog formula-bytes '() formula)
     (sjas-fixed-axiom-formulao formula fixed-proof)
@@ -1975,8 +2125,8 @@
   [prog system-code formula-code proof]
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
           header-proof formula group-three-proof]
-    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
-    (sjas-ground-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-summaryo formula-code formula-bytes formula-read-proof)
     (sjas-tableau0-system-code-headero system-bytes header-proof)
     (decode-formula-byteso prog formula-bytes '() formula)
     (tableau0-group-three-formulao system-bytes formula group-three-proof)
@@ -2087,8 +2237,8 @@
   [prog system-code formula-code proof]
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
           header-proof formula group-three-proof]
-    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
-    (sjas-ground-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-summaryo formula-code formula-bytes formula-read-proof)
     (sjas-level1-system-code-headero system-bytes header-proof)
     (decode-formula-byteso prog formula-bytes '() formula)
     (level1-group-three-formulao prog system-bytes formula group-three-proof)
@@ -2147,8 +2297,8 @@
 (defn- sjas-beta-axiom-membero
   [prog system-code formula-code proof]
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof beta-proof]
-    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
-    (sjas-object-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
     (sjas-system-beta-formula-byteso prog system-bytes formula-bytes beta-proof)
     (== (list 'sjas-system-beta-axiom
               system-read-proof
@@ -2309,7 +2459,7 @@
   [prog system-code atom env body negated-body]
   (fresh [system-bytes system-read-proof profile-tag beta-count beta-bytes
           after-betas reflected-count reflected-bytes]
-    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
     (== (lcons system-code-tag
                 (lcons profile-tag
                        (lcons beta-count beta-bytes)))
@@ -2356,9 +2506,9 @@
 
    This is the Group-2b analogue of beta membership: it reads the reflected
    block from the encoded finite system source instead of asking whether a
-   generated `axiom-member/2` host fact exists. The surrounding code still uses
-   `sjas-ground-code-byteso` to expose already-ground byte strings, so this is a
-   partial internalization step rather than the final ADR-0072 end state."
+   generated `axiom-member/2` host fact exists. Callers now obtain
+   `system-bytes` through the same object-language public-code relation used by
+   syntax and theorem-code reads."
   [prog system-bytes formula proof]
   (fresh [profile-tag beta-count beta-bytes after-betas reflected-count reflected-bytes]
     (== (lcons system-code-tag
@@ -2403,8 +2553,8 @@
   [prog system-code formula-code proof]
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
           decoded-formula reflected-proof]
-    (sjas-ground-code-byteso system-code system-bytes system-read-proof)
-    (sjas-ground-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
     (reflected-axiom-formula-starto formula-bytes)
     (decode-formula-byteso prog formula-bytes '() decoded-formula)
     (sjas-system-reflected-formulao prog system-bytes decoded-formula reflected-proof)
@@ -2742,7 +2892,7 @@
 (defn- sjas-system-axiom-formulao
   [prog system-code axiom-formula]
   (fresh [system-bytes read-proof]
-    (sjas-ground-code-byteso system-code system-bytes read-proof)
+    (sjas-public-code-bytes-summaryo system-code system-bytes read-proof)
     (sjas-system-proof-axiom-formulao prog system-bytes axiom-formula)))
 
 (defn- sjas-axiom-membero
@@ -2786,37 +2936,14 @@
   (or (:sjas/code-format (some-> prog :sjas/registry deref))
       :compact))
 
-(defn- ground-u-grounding-substitution-bytes
-  "Return source bytes only for the isolated U-Grounding substitution boundary.
-
-   Compact code terms are now read by the object-level byte relation in
-   substitution predicates. Large U-Grounding fixed-point numerals still need
-   this source-byte projection to keep the Level-1 fixed-point check executable;
-   the boundary is deliberately narrower than `ground-formal-code-term` and is
-   used only where the substituted formula must quote its own public numeral."
-  [code]
-  (when-let [[bytes kind _read-proof] (ground-formal-code-term code)]
-    (when (= :u-grounding kind)
-      bytes)))
-
 (defn- sjas-substitution-formula-codeo
   "Decode a substitution-side formula code.
 
-   Compact codes use the object code-byte relation. U-Grounding fixed-point
-   codes keep the isolated ground-byte boundary because direct relational
-   walking of the large substituted theorem numeral currently overflows
-   core.logic's occurs check before it reaches formula comparison."
+   This is intentionally the same object-language code relation used by syntax
+   predicates and theorem-code reads. It does not recover bytes from an
+   already-ground host term before entering the SJAS relation."
   [prog code sigma sigma-out formula]
-  (if-let [u-grounding-bytes (ground-u-grounding-substitution-bytes code)]
-    (fresh [rest]
-      (== '() sigma)
-      (== '() sigma-out)
-      (decode-formula-byteso prog
-                             (byte-list-literal u-grounding-bytes)
-                             rest
-                             formula)
-      (== '() rest))
-    (sjas-decode-formula-codeo prog code sigma sigma-out formula)))
+  (sjas-decode-formula-codeo prog code sigma sigma-out formula))
 
 (defn- sjas-subst-code-anyo
   "Relate formula codes by structural diagonal substitution.
@@ -2827,46 +2954,30 @@
    is the object-language `Subst` operation needed by Level-1 SJAS
    self-reference; it is no longer a finite table of precomputed examples."
   [prog source-code substituted-code sigma sigma-out]
-  (if-let [u-grounding-source-bytes
-           (ground-u-grounding-substitution-bytes source-code)]
-    (let [source-byte-list (byte-list-literal u-grounding-source-bytes)
-          replacement (list 'num (u-grounding-byte-list-literal
-                                   u-grounding-source-bytes))]
-      (fresh [source-formula substituted-formula expected]
-        (== '() sigma)
-        (decode-formula-byteso prog source-byte-list '() source-formula)
-        (sjas-subst-formula-var-oneo source-formula
+  (fresh [source-bytes source-formula substituted-formula replacement
+          source-kind source-read-proof sigma-after-source]
+    (sjas-formal-code-byteso source-code
+                             source-bytes
+                             sigma
+                             sigma-after-source
+                             source-kind
+                             source-read-proof)
+    (decode-formula-byteso prog source-bytes '() source-formula)
+    (conde
+      [(== :compact source-kind)
+       (== (list 'code source-bytes) replacement)]
+      [(== :u-grounding source-kind)
+       (fresh [encoded-source-bytes]
+         (append-sentinel-byteo source-bytes encoded-source-bytes)
+         (== (list 'num encoded-source-bytes) replacement))])
+    (sjas-substitution-formula-codeo prog substituted-code
+                                     sigma-after-source
+                                     sigma-out
+                                     substituted-formula)
+    (sjas-subst-alpha-formula-equivo source-formula
                                      replacement
-                                     expected)
-        (sjas-substitution-formula-codeo prog substituted-code
-                                         '()
-                                         sigma-out
-                                         substituted-formula)
-        (sjas-alpha-formula-equivo expected substituted-formula '())))
-    (fresh [source-bytes source-formula substituted-formula expected replacement
-            source-kind source-read-proof sigma-after-source]
-      (sjas-formal-code-byteso source-code
-                               source-bytes
-                               sigma
-                               sigma-after-source
-                               source-kind
-                               source-read-proof)
-      (decode-formula-byteso prog source-bytes '() source-formula)
-      (conde
-        [(== :compact source-kind)
-         (== (list 'code source-bytes) replacement)]
-        [(== :u-grounding source-kind)
-         (fresh [encoded-source-bytes]
-           (append-sentinel-byteo source-bytes encoded-source-bytes)
-           (== (list 'num encoded-source-bytes) replacement))])
-      (sjas-subst-formula-var-oneo source-formula
-                                   replacement
-                                   expected)
-      (sjas-substitution-formula-codeo prog substituted-code
-                                       sigma-after-source
-                                       sigma-out
-                                       substituted-formula)
-      (sjas-alpha-formula-equivo expected substituted-formula '()))))
+                                     substituted-formula
+                                     '())))
 
 (defn- sjas-subst-source-codeo
   "Check that a substitution source code is a well-formed formula code.
@@ -2877,22 +2988,14 @@
    decoded formula syntax, proof checking uses this source-only relation unless
    it must compare against a concrete theorem code."
   [prog source-code sigma sigma-out]
-  (if-let [u-grounding-source-bytes
-           (ground-u-grounding-substitution-bytes source-code)]
-    (fresh [source-formula]
-      (== sigma sigma-out)
-      (decode-formula-byteso prog
-                             (byte-list-literal u-grounding-source-bytes)
-                             '()
-                             source-formula))
-    (fresh [source-bytes source-formula source-read-proof source-kind]
-      (sjas-formal-code-byteso source-code
-                               source-bytes
-                               sigma
-                               sigma-out
-                               source-kind
-                               source-read-proof)
-      (decode-formula-byteso prog source-bytes '() source-formula))))
+  (fresh [source-bytes source-formula source-read-proof source-kind]
+    (sjas-formal-code-byteso source-code
+                             source-bytes
+                             sigma
+                             sigma-out
+                             source-kind
+                             source-read-proof)
+    (decode-formula-byteso prog source-bytes '() source-formula)))
 
 (defn- sjas-class-relationo
   "Recognize the finite formula-class predicates generated for one SJAS system.

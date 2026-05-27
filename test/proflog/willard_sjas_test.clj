@@ -66,6 +66,19 @@
                 (:bindings record)))
         records))
 
+(defn- subst-code-relation-succeeds?
+  [system source-code target-code]
+  (successful?
+    (l/run 1 [q]
+      (l/fresh [sigma-out]
+        ((var-get #'sjas-profile/sjas-subst-code-anyo)
+         (:program system)
+         source-code
+         target-code
+         '()
+         sigma-out)
+        (l/== true q)))))
+
 (defn- formula-relation-symbols
   "Collect relation symbols appearing in atomic literals of an SJAS formula."
   [formula]
@@ -522,25 +535,21 @@
 
 (deftest sjas-u-grounding-subst-code-computes-level1-fixed-point
   (testing "Level-1 Subst uses the U-Grounding source code numeral as the diagonal term"
-    (let [system (demo-system :willard-sjas-level1
-                              {:code-format :u-grounding})
+    (let [system (sjas/system {:profile :willard-sjas-level1
+                               :code-format :u-grounding})
           group3-record (:group-three system)]
       (is (sjas-numeral-term? (:selfcons-skeleton-code system)))
       (is (sjas-numeral-term? (:code group3-record)))
-      (is (successful?
-            (query/query-succeeds
-              (:program system)
-              (sjas/subst-code (:selfcons-skeleton-code system)
-                               (:code group3-record))
-              1
-              240)))
-      (is (empty?
-            (query/query-succeeds
-              (:program system)
-              (sjas/subst-code (:system-code system)
-                               (:code group3-record))
-              1
-              160))))))
+      (is (subst-code-relation-succeeds?
+            system
+            (:selfcons-skeleton-code system)
+            (:code group3-record))
+          "the arithmeticized relation should verify the Level-1 fixed point without a host byte projector")
+      (is (not (subst-code-relation-succeeds?
+                 system
+                 (:system-code system)
+                 (:code group3-record)))
+          "a system code is not a formula code and must not pass as a substitution source"))))
 
 (deftest sjas-proof-codes-are-byte-strings-with-symbol-bit-lower-bound
   (testing "proof certificates encode proof syntax rather than hashing it"
@@ -1609,6 +1618,14 @@
         "SJAS substitution predicates must not use staged target-code decoding")
     (is (not (re-find #"ground-formal-code-term source-code" profile-source))
         "SJAS substitution predicates must not use the old broad staged source-code branch")
+    (is (not (re-find #"defn- ground-formal-code-term" profile-source))
+        "SJAS proof predicates must not project public code bytes through a deterministic host decoder")
+    (is (not (re-find #"defn- ground-u-grounding-substitution-bytes" profile-source))
+        "SJAS substitution predicates must not recover U-Grounding formula bytes through a host projector")
+    (is (not (re-find #"sjas-code/code-term-bytes term" profile-source))
+        "compact public code terms must be read through the object code-byte relation")
+    (is (not (re-find #"ground-u-grounding-code-term-bytes" profile-source))
+        "U-Grounding public code terms must be read through the object numeral relation")
     (is (not (re-find #"mini-closed" builder-source)))
     (is (not (re-find #"malformed" profile-source)))
     (is (not (re-find #"malformed" builder-source)))

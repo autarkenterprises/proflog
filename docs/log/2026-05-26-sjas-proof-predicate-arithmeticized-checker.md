@@ -75,14 +75,16 @@ justification is recorded in
 the table is admissible as a fixed codebook only up to kind/arity-preserving
 signature isomorphism, not as a freestanding nominal fact.
 
-Large U-Grounding Level-1 substitution still has a narrower performance
-boundary: compact substitution codes are read through object byte relations,
-but the Level-1 fixed-point check keeps an isolated ground-byte projection for
-large U-Grounding substitution-side formula codes. A direct relational attempt
-failed at the previous fuel bound and then overflowed core.logic's occurs check
-when the large substituted theorem numeral was walked to formula comparison.
-That bridge is documented as a tractability boundary, not a final
-internalization result.
+The 2026-05-27 public-code byte internalization step removed the isolated
+U-Grounding substitution-side byte projection described in the original version
+of this note. Substitution-code validation now decodes source and target
+formula codes through the formal object relation and uses a fused
+substitution-plus-alpha-equivalence relation for the diagonal check. A larger
+demo system with reflected clauses still overflows core.logic while decoding
+and comparing the 280-byte Group-3 target through the fully relational path,
+so the remaining boundary is runtime tractability rather than host-side byte
+projection. See
+[SJAS Public Code Byte Internalization](2026-05-27-sjas-public-code-byte-internalization.md).
 
 Operationally, the current checker is proof-directed and rejects unsupported
 proof constructors instead of falling back to the host kernel.
@@ -115,10 +117,10 @@ encodable but remains unresolved for correspondence proof purposes.
   staged compact theorem and substitution decoder names.
 - U-Grounding substitution boundary probe:
   direct object decoding of the Level-1 fixed-point substitution source failed
-  at fuels 240, 500, 1000, and 2000; after restoring only the isolated
-  U-Grounding substitution-side byte projection, target walking through the
-  object relation produced a core.logic `StackOverflowError`, so that target
-  side was isolated under the same U-Grounding boundary.
+  at fuels 240, 500, 1000, and 2000 during the first implementation attempt.
+  The 2026-05-27 follow-up fixed the U-Grounding sentinel handling and replaced
+  the isolated byte projector with relation-backed source/target decoding plus
+  fused substitution/alpha comparison.
 - Green focused checks:
   - `sjas-proof-codes-encode-byte-payload-evidence`
   - `sjas-proof-code-decoder-round-trips-byte-payload-evidence`

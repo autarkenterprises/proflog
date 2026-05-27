@@ -3332,6 +3332,30 @@
        (equality/eq-contradictiono left right sigma contradiction-proof)
        (== sigma sigma-out)
        (== neqs neqs-out))]
+    [(fresh [fml unexpanded lit left right sigma-mid step-proof
+             next rest next-fuel prf]
+       (== (list 'eq-step step-proof prf) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'eq left right) lit)
+       (equality/unify-termo left right sigma sigma-mid step-proof)
+       (== (lcons next rest) unexpanded)
+       (support/stable-neqso neqs sigma-mid)
+       (support/step-fuelo fuel next-fuel)
+       (sjas-proof-check-stateo system-code
+                                next
+                                rest
+                                lits
+                                env
+                                proof-vars
+                                sigma-mid
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                next-fuel
+                                prf))]
     [(fresh [fml unexpanded left right next-fuel prf]
        (== (list 'conj prf) proof)
        (support/selecto fml agenda unexpanded)

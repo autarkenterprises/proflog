@@ -27,6 +27,8 @@
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'args))))
     (is (= :unresolved
+           (:status (correspondence/classify-proof-symbol 'par-bind))))
+    (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'pos-call))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'profiled))))))

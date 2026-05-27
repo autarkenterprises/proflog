@@ -87,6 +87,7 @@
   '#{eq-step
      eq-triggered-call
      eq-triggered-neg-call
+     par-bind
      neq-close
      neq-rigid
      neq-store

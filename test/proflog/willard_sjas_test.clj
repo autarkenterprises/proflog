@@ -586,6 +586,19 @@
       (is (= (sjas-code/code-term-bytes certificate)
              (sjas-code/proof-code-bytes proof))))))
 
+(deftest sjas-proof-codes-encode-positive-equality-step-evidence
+  (testing "proof-local equality binding evidence stays inside the proof-code grammar"
+    (let [proof '(conj
+                   (witness
+                     (conj
+                       (eq-step
+                         (par-bind)
+                         (free-close)))))
+          certificate (sjas/proof-certificate proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
+
 (deftest sjas-proof-code-decoder-round-trips-byte-payload-evidence
   (testing "the object-level proof-code decoder consumes explicit byte payloads"
     (let [proof '(conj
@@ -1254,6 +1267,68 @@
             "tableau-proof must validate nested free equality closure certificates object-level")
         (is (proof/contains-step? (first-proof proofs) 'decompose))
         (is (proof/contains-step? (first-proof proofs) 'args))))))
+
+(deftest sjas-proof-check-accepts-positive-equality-steps-without-kernel-validator
+  (let [system (demo-system :willard-sjas-tableau0)
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            target (ast/and-form
+                     (ast/true-form)
+                     (ast/exists-form
+                       x
+                       (ast/and-form
+                         (ast/eq-lit x-term sjas/zero)
+                         (ast/eq-lit x-term sjas/one))))]
+        (with-redefs [kernel/prove-programo
+                      (fn [& _]
+                        (throw (ex-info "host kernel proof validator reached" {})))]
+          (is (successful?
+                (l/run 1 [q]
+                  (check-proof (:program system)
+                               (:system-code system)
+                               target
+                               80
+                               '(conj
+                                  (witness
+                                    (conj
+                                      (eq-step
+                                        (par-bind)
+                                        (free-close))))))
+                  (l/== true q)))
+              "decoded tableau proof checking must consume positive equality-step evidence object-level"))))))
+
+(deftest sjas-tableau-proof-accepts-positive-equality-step-certificates
+  (let [system (demo-system :willard-sjas-tableau0)]
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            theorem (ast/forall-form
+                      x
+                      (ast/or-form
+                        (ast/neq-lit x-term sjas/zero)
+                        (ast/neq-lit x-term sjas/one)))
+            theorem-code (sjas/formula-code system theorem)
+            certificate (sjas/proof-certificate
+                          '(conj
+                             (witness
+                               (conj
+                                 (eq-step
+                                   (par-bind)
+                                   (free-close))))))]
+        (with-redefs [kernel/prove-programo
+                      (fn [& _]
+                        (throw (ex-info "host kernel proof validator reached" {})))]
+          (let [proofs (query/query-succeeds
+                         (:program system)
+                         (sjas/tableau-proof (:system-code system)
+                                             theorem-code
+                                             certificate)
+                         1
+                         220)]
+            (is (successful? proofs)
+                "tableau-proof must validate encoded equality-step certificates object-level")
+            (is (proof/contains-step? (first-proof proofs) 'eq-step))
+            (is (proof/contains-step? (first-proof proofs) 'par-bind))))))))
 
 (deftest sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator
   (let [system (demo-system :willard-sjas-tableau0)

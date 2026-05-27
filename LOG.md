@@ -36,6 +36,14 @@ complete contemporaneous transcript.
   certificate over preserved `code-2` constructor terms, and the audit
   classifies these tags as relevant closure/tree evidence. See
   [SJAS Nested Equality Proof-Code Coverage](docs/log/2026-05-27-sjas-nested-equality-proof-code.md).
+- Advanced the SJAS-local proof checker through positive equality progress.
+  `par-bind` is now encodable in proof certificates, and `(eq-step step
+  subproof)` can update the branch equality substitution through
+  `equality/unify-termo` and continue inside the SJAS checker. The public
+  `tableau-proof/3` regression validates the theorem
+  `forall x. x != 0 or x != 1` with an encoded witness/equality-step
+  certificate without calling the host proof validator. See
+  [SJAS Positive Equality-Step Proof Check](docs/log/2026-05-27-sjas-positive-equality-step-proof-check.md).
 - Fixed the nominal lookup/hash guard bug in the legacy αleanTAP and
   greenfield nominal environment lookup relations. Core.logic's current
   `nom/hash` behavior passed the delayed-aliasing regression under the default

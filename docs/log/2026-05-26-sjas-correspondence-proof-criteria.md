@@ -251,18 +251,23 @@ The current code and Track 2a notes expose several hard blockers:
 - the Proflog kernel has not yet been formalized in a common semantics
   compatible with the SJAS tableau-side specification;
 - the SJAS tableau-side relation has not yet been supplied as a formal
-  formula-bearing tree semantics independent of the current
-  `kernel/prove-programo` bridge;
-- reachable proof tags such as `free-close` and code-reader tags such as
-  `sjas-code-arg` remain outside `proof-symbols`;
+  formula-bearing tree semantics independent of the current executable
+  proof-directed checker;
+- reachable compact code-reader tags `sjas-code-arg` and `sjas-code-args-end`
+  are now encoded and classified, and `free-close` is now encodable, but
+  `free-close` remains an unresolved equality/free-constructor closure rule
+  until it is proved primitive, macro-expanded, proved unreachable in the
+  covered fragment, or excluded;
 - generic equality, guarded/procedure-call internals, and some profile sidecar
   constructors are not yet proved primitive, macro-expanded, unreachable, or
   excluded;
 - `univ`, `once-univ`, and `witness` certificates are skeletal and do not by
   themselves carry all formula/witness information needed by the SJAS
   formula-bearing tableau tree;
-- non-`sjas-axiom` `tableau-proof/3` and `subst-prf/4` paths still decode the
-  certificate and call `kernel/prove-programo`;
+- non-`sjas-axiom` `tableau-proof/3` and `subst-prf/4` paths now use a local
+  proof-directed checker rather than `kernel/prove-programo`, but that checker
+  is not yet a formal correspondence proof for the full SJAS tableau
+  apparatus;
 - beta validity and some axiom-basis boundaries remain stated as assumptions or
   partial classifications rather than discharged proof obligations.
 

@@ -10,7 +10,10 @@ ADR-0063 through ADR-0071 moved SJAS formula, system, and proof codes away from
 opaque host labels and toward inspectable byte/base-64 and U-Grounding numeral
 representations. The current implementation is non-vacuous: `tableau-proof/3`
 and `subst-prf/4` consume code terms, decode proof certificates, and check the
-decoded certificates through the Proflog kernel.
+decoded certificates through a local SJAS proof-directed checker for the
+currently generated certificate shapes. That checker replaced the earlier
+`kernel/prove-programo` shortcut, but it is not yet a paper-grade
+arithmetization of the full semantic-tableau deductive apparatus.
 
 The remaining objective is stricter. Host-side computation is acceptable at the
 source-compilation boundary, just as Proflog source syntax is compiled into
@@ -24,9 +27,11 @@ The current implementation still has several object-level proof machinery
 boundaries:
 
 - the active system's proof antecedent is now reconstructed from `system-code`
-  rather than selected from generated `:sjas/system-entries` metadata, but the
-  reconstruction still feeds a decoded Proflog proof term to the generic kernel
-  checker instead of checking proof-code trees directly;
+  rather than selected from generated `:sjas/system-entries` metadata, and the
+  decoded proof term is checked by a local proof-directed relation rather than
+  by `kernel/prove-programo`; full completion still requires a formal
+  arithmetic/tableau specification of that checker or a correspondence proof
+  covering each accepted constructor;
 - formal axiom citation for standard SJAS axiom groups no longer needs generated
   `axiom-member/2` facts: Group-0, Group-1, Tableau-0 Group-3, and Level-1
   Group-3 citations validate the encoded system header and decode the theorem
@@ -246,14 +251,47 @@ This does not eliminate source preprocessing itself; it narrows the accepted
 host metadata path to one explicit registry that can be audited separately from
 object-level proof and coding relations.
 
+The nineteenth stage replaces the non-`sjas-axiom` proof-predicate shortcut
+through `kernel/prove-programo` with a local proof-directed checker for the
+currently generated certificate shapes. `tableau-proof/3` and `subst-prf/4`
+consume decoded proof constructors through `sjas-proof-check-programo` instead
+of handing the decoded proof term back to the generic host proof validator.
+Focused regressions redefine `kernel/prove-programo` to throw while validating
+simple arithmetic certificates, reflected-clause certificates, and identity
+`subst-prf/4` certificates.
+
+The twentieth stage removes the reflected compiled-program side table from
+proof-predicate validation. Reflected `pos-call` and `neg-call` proof
+constructors now decode reflected clause records from active `system-code` and
+bind their canonical parameters to focused call arguments. A regression strips
+compiled clause lists and the old reflected-program registry entry before
+validating a reflected `neg-call` certificate.
+
+The twenty-first stage removes staged compact theorem/substitution code
+readers from proof-predicate validation. Compact theorem-code reads inside
+`tableau-proof/3` and `subst-prf/4` now expose `sjas-code-arg` constructor-byte
+evidence, and compact substitution source/target codes use the same object
+byte relation. Large U-Grounding Level-1 substitution still keeps an isolated
+U-Grounding substitution-side ground-byte projection because the direct
+relation was not tractable at the recorded fuel bounds and overflowed
+core.logic's occurs check when walking the large substituted theorem numeral.
+
+The twenty-second stage tightens the proof-code alphabet for reachable SJAS
+proof evidence. The proof-code byte layout now includes an explicit byte
+payload tag, so evidence such as `(sjas-code-arg 1 sjas-code-args-end)` can be
+encoded and decoded as part of the certificate grammar. `sjas-code-arg` and
+`sjas-code-args-end` are classified as relevant code-reading evidence, while
+`free-close` is now encodable but remains an unresolved equality/free-constructor
+closure rule for ADR-0073 Track 2b.
+
 Later stages must internalize, in order:
 
 1. removal or strict isolation of the remaining host ground-code shortcuts from
-   compact system-code, compact theorem-code, substitution-code, and
-   proof-certificate checking semantics;
-2. code-level checking of tableau proof trees against decoded formulas and
-   axiom membership, instead of validating a decoded Proflog kernel proof term
-   by calling `kernel/prove-programo`;
+   compact system-code, U-Grounding Level-1 substitution-side decoding, and any
+   remaining proof-certificate checking semantics;
+2. formal completion of code-level tableau proof-tree checking against decoded
+   formulas and axiom membership, either by direct arithmeticization of the
+   local checker or by the ADR-0073 proof-and-test correspondence;
 3. optional future validation that beta axioms are true and in the required
    Willard formula classes.
 
@@ -314,6 +352,14 @@ Tests must be red before implementation and then pass:
   for the registry-only compiled-program shape;
 - proof predicates reject manually reintroduced top-level SJAS source metadata
   when the source-preprocessing registry is absent;
+- non-`sjas-axiom` proof predicates validate currently generated proof
+  certificates without reaching `kernel/prove-programo`;
+- reflected `pos-call`/`neg-call` proof evidence is recovered from encoded
+  `system-code`, not a reflected compiled-program side table;
+- compact theorem-code and compact substitution-code reads inside proof
+  predicates expose `sjas-code-arg` evidence rather than staged byte markers;
+- proof-code encoding and decoding round-trip byte payload evidence such as
+  `(sjas-code-arg 1 sjas-code-args-end)`;
 - focused tests record whether the remaining proof-predicate path still uses
   generated system/axiom registries, so later work can remove them.
 
@@ -321,8 +367,9 @@ Tests must be red before implementation and then pass:
 
 - `lein test :only proflog.willard-sjas-test/<new-focused-tests>` passes for
   each completed slice.
-- Before merging this ADR, `lein test-proflog-sjas` and
-  `lein test-proflog-sjas-slow` must pass and record runtimes.
+- Before merging this ADR, focused SJAS testing must show progress var by var,
+  and any final opaque SJAS namespace run must either pass within the accepted
+  runtime envelope or be explicitly recorded as deferred with rationale.
 - Before declaring the full active goal complete, a completion audit must show
   that each proof-predicate coding/decoding operation needed during predicate
   application is kernel-level and object-code driven, with only source

@@ -85,9 +85,13 @@ to object-language work and preserves the lower-bound proof-size discipline.
 
 The high-risk cases are rules that hide an unbounded proof tree or proof search
 behind a compact tag. `willard-sjas-proof-check` and
-`willard-sjas-subst-proof-check` are the primary examples because they can
-decode a proof certificate and call `kernel/prove-programo` rather than
-checking the proof-code tree object-level.
+`willard-sjas-subst-proof-check` were the primary examples while they decoded a
+proof certificate and called `kernel/prove-programo` rather than checking the
+proof-code tree object-level. The current implementation now uses a local
+proof-directed checker for the generated certificate shapes, but the same
+Track 2b risk remains until that checker is formalized against the
+SJAS-specified tableau apparatus or every wrapper is justified by a
+correspondence proof.
 
 ## Track 2a Conclusion
 

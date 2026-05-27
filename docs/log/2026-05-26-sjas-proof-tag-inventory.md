@@ -15,6 +15,14 @@ the equality helper, and the SJAS profile. It follows
 which found that `free-close` is reachable in an SJAS theorem proof term but is
 not encodable as an SJAS proof certificate.
 
+2026-05-27 update: `free-close`, `sjas-code-arg`, and
+`sjas-code-args-end` are now in the SJAS proof-symbol alphabet, and the
+proof-code layout has an explicit byte-payload tag for `sjas-code-arg` byte
+arguments. See
+[SJAS Proof-Code Byte Payloads](2026-05-27-sjas-proof-code-byte-payloads.md).
+This note remains useful as an inventory of the broader unresolved helper-tag
+surface.
+
 The main result is stronger than the single `free-close` case: the current
 declared certificate alphabet does not cover all proof evidence emitted on
 current SJAS paths. Some missing tags are generic equality internals; others are
@@ -47,9 +55,9 @@ are not in `proof-symbols`:
 
 | Area | Missing tags | Why relevant |
 |---|---|---|
-| Equality contradiction and unification internals | `free-close`, `occurs-close`, `decompose`, `args`, `eq-refl`, `eq-bind`, `par-bind`, `atom-close` | These can occur below `eq-step`, `neq-close`, or complementary literal closure. `free-close` is already reachable in an SJAS theorem proof term. |
+| Equality contradiction and unification internals | `occurs-close`, `decompose`, `args`, `eq-refl`, `eq-bind`, `par-bind`, `atom-close`; `free-close` is now encoded but unresolved | These can occur below `eq-step`, `neq-close`, or complementary literal closure. `free-close` is already reachable in an SJAS theorem proof term and still needs a primitive/macro/exclusion proof. |
 | Guarded/multi-alternative procedure-call internals | `alt`, `guard-eq`, `guard-saturation-done`, `guarded-scope-done`, `guarded-seq-done`, `guarded-call-seq-done` | Guarded call proof terms can use these below already-declared guarded-call constructors. If guarded calls are admitted, these payload tags must be encoded or macro-erased. |
-| SJAS compact code-reader evidence | `sjas-code-arg`, `sjas-code-args-end` | Current tests assert `sjas-code-arg` appears in successful compact code-reader proofs, but the tag is not encodable as a proof certificate. |
+| SJAS compact code-reader evidence | none currently missing for the observed `sjas-code-arg`/`sjas-code-args-end` path | Current tests assert `sjas-code-arg` appears in successful compact code-reader proofs; that path is now encodable with explicit byte payloads. |
 | SJAS U-Grounding bit-reader evidence | `sjas-ug-code-bit-zero`, `sjas-ug-code-bit-one`, `sjas-ug-code-bit-dbl`, `sjas-ug-code-bit-add-one`, `sjas-ug-code-canonical-byte` | These are profile proof tags for U-Grounding byte/numeral reading. If U-Grounding proof evidence can be supplied as a certificate, these need alphabet coverage or canonical erasure. |
 | SJAS structural syntax evidence | `sjas-neg-pair-structural`, `sjas-read-canonical-num` | These are profile proof tags for code/syntax relations and arithmetic numeral reading. |
 | SJAS profile header evidence | `sjas-system-tableau0-profile`, `sjas-system-level1-profile` | These tags appear in system-code/profile decoding proof paths and are distinct from the public wrapper symbols `willard-sjas-tableau0` and `willard-sjas-level1`. |
@@ -73,8 +81,9 @@ The red test first showed that a proof term containing
 
 had no `:unencodable-symbols` field even though all three non-`conj` symbols
 are outside `proof-symbols`. The green change computes `:unencodable-symbols`
-from the declared SJAS proof alphabet. This does not solve the alphabet gap,
-but it makes future reachability probes more precise.
+from the declared SJAS proof alphabet. This did not solve the alphabet gap at
+the time, but it made future reachability probes more precise. The 2026-05-27
+byte-payload slice then closed this specific compact-code-reader gap.
 
 ## Track 2a Consequences
 
@@ -96,6 +105,7 @@ complete Proflog proof grammar. It needs one of the following:
 3. Restrict the correspondence fragment so unencodable proof tags cannot occur,
    and test that the restriction holds.
 
-Until one of these routes is complete, the current `kernel/prove-programo`
-bridge is not correspondence-complete for all SJAS theorem proofs. It remains
-useful operational evidence and a source of reachability data for Track 2a.
+Until one of these routes is complete for the remaining helper tags, the
+current proof-directed checker is not correspondence-complete for all SJAS
+theorem proofs. It remains useful operational evidence and a source of
+reachability data for Track 2a.

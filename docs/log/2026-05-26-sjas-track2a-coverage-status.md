@@ -76,10 +76,14 @@ Several previously speculative risks now have concrete evidence:
   calls must be primitive, macro-expanded over reflected Group-2b axioms, or
   excluded from the covered fragment.
 - `refl-close` is reachable in a non-arithmetic equality SJAS theorem proof.
-- `free-close` is reachable in a constructor-clash proof term but is not in the
-  current SJAS proof-code alphabet.
-- `sjas-code-arg` and other compact/U-Grounding code-reader proof tags are
-  emitted by current proof paths but are not in `proof-symbols`.
+- `free-close` is reachable in a constructor-clash proof term. It is now in
+  the SJAS proof-code alphabet and classified as unresolved, so Track 2b still
+  must prove it primitive, macro-expandable, unreachable in the covered domain,
+  or excluded.
+- `sjas-code-arg` and `sjas-code-args-end` are emitted by current compact
+  code-reader proof paths. They are now in `proof-symbols`, and byte payloads
+  inside proof evidence are encoded by an explicit proof-byte tag. U-Grounding
+  bit-reader/helper tags still need separate reachability and classification.
 - `univ`, `once-univ`, and `witness` proof nodes are skeletal: their
   instantiation terms and parameters live in branch state rather than in the
   proof-code payload.

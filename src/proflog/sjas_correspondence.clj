@@ -65,6 +65,8 @@
      sjas-read-sub
      sjas-read-var
      sjas-read-zero
+     sjas-code-arg
+     sjas-code-args-end
      sjas-axiom})
 
 (def ^:private unresolved-equality-symbols
@@ -77,7 +79,8 @@
      neq-close
      neq-rigid
      neq-store
-     refl-close})
+     refl-close
+     free-close})
 
 (def ^:private unresolved-procedure-symbols
   "Proof constructors introduced by Proflog procedure-call and guarded-call

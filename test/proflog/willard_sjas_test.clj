@@ -1,10 +1,12 @@
 (ns proflog.willard-sjas-test
-  (:require [clojure.string :as str]
+  (:require [clojure.core.logic :as l]
+            [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [proflog.answers :as answers]
             [proflog.ast :as ast]
             [proflog.gamma :as gamma]
             [proflog.kernel :as kernel]
+            [proflog.kernel.willard-sjas-profile :as sjas-profile]
             [proflog.language :as language]
             [proflog.normalize :as normalize]
             [proflog.proof :as proof]
@@ -538,6 +540,37 @@
       (is (= bytes (sjas-code/code-term-bytes certificate)))
       (is (<= (* 5 symbol-count) (* 6 (count bytes)))
           "Willard's ordinary-tableau coding requirement needs at least five bits per encoded proof symbol"))))
+
+(deftest sjas-proof-codes-encode-byte-payload-evidence
+  (testing "code-reader proof evidence carries inspectable byte payloads rather than escaping the certificate grammar"
+    (let [proof '(conj
+                   (sjas-code-arg 1 sjas-code-args-end)
+                   (free-close))
+          certificate (sjas/proof-certificate proof)
+          bytes (sjas-code/code-term-bytes certificate)]
+      (is (sjas-code/code-term? certificate))
+      (is (= bytes (sjas-code/proof-code-bytes proof)))
+      (is (some #{sjas-code/proof-byte-tag} bytes)
+          "numeric byte payloads in proof evidence must be encoded explicitly"))))
+
+(deftest sjas-proof-code-decoder-round-trips-byte-payload-evidence
+  (testing "the object-level proof-code decoder consumes explicit byte payloads"
+    (let [proof '(conj
+                   (sjas-code-arg 1 sjas-code-args-end)
+                   (free-close))
+          certificate (sjas/proof-certificate proof)
+          decode-proof-codeo (var-get #'sjas-profile/decode-proof-codeo)
+          decoded (l/run* [q]
+                    (l/fresh [bytes decoded-proof read-proof]
+                      (decode-proof-codeo certificate
+                                          '()
+                                          '()
+                                          bytes
+                                          decoded-proof
+                                          read-proof)
+                      (l/== [bytes decoded-proof read-proof] q)))]
+      (is (= 1 (count decoded)))
+      (is (= proof (second (first decoded)))))))
 
 (deftest sjas-syntax-predicates-decode-formula-godel-codes
   (testing "wff, class predicates, and neg-pair are derived from formula Godel codes"

@@ -87,6 +87,13 @@ internalization result.
 Operationally, the current checker is proof-directed and rejects unsupported
 proof constructors instead of falling back to the host kernel.
 
+A later proof-code alphabet slice also made compact code-reader proof evidence
+encodable: `sjas-code-arg` and `sjas-code-args-end` are now proof symbols, and
+the proof-code layout has an explicit byte payload tag. That lets the
+constructor-byte evidence emitted by this checker round-trip through the
+certificate grammar. `free-close` is likewise encodable but remains unresolved
+for correspondence proof purposes.
+
 ## Verification
 
 - Red regression observed before implementation:
@@ -112,6 +119,8 @@ proof constructors instead of falling back to the host kernel.
   object relation produced a core.logic `StackOverflowError`, so that target
   side was isolated under the same U-Grounding boundary.
 - Green focused checks:
+  - `sjas-proof-codes-encode-byte-payload-evidence`
+  - `sjas-proof-code-decoder-round-trips-byte-payload-evidence`
   - `sjas-proof-predicates-check-simple-arithmetic-certificates-without-kernel-validator`
   - `sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator`
   - `sjas-proof-predicates-check-reflected-calls-from-system-code`

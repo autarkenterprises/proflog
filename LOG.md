@@ -20,6 +20,19 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-27
+
+- Closed a proof-certificate alphabet gap for reachable SJAS proof evidence.
+  Proof codes now have an explicit byte-payload tag, so evidence such as
+  `(sjas-code-arg 1 sjas-code-args-end)` can be encoded and decoded without
+  escaping the certificate grammar. Added `sjas-code-arg`,
+  `sjas-code-args-end`, and `free-close` to the declared proof-symbol alphabet.
+  The correspondence audit classifies the code-reader tags as relevant
+  inspectable code evidence and classifies `free-close` as encodable but still
+  unresolved pending an equality/free-constructor closure proof, macro
+  expansion, reachability exclusion, or fragment exclusion. See
+  [SJAS Proof-Code Byte Payloads](docs/log/2026-05-27-sjas-proof-code-byte-payloads.md).
+
 ## 2026-05-26
 
 - Adopted focused, progress-visible testing as the default practice for SJAS

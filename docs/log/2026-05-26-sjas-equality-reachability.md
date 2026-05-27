@@ -22,6 +22,11 @@ the kernel can return `free-close` in an SJAS proof term, but
 `proflog.willard-sjas-code/proof-code-bytes` currently cannot encode
 `free-close` as an SJAS certificate symbol.
 
+2026-05-27 update: `free-close` is now an encoded SJAS proof symbol and is
+classified as unresolved in the executable correspondence audit. This closes
+the narrow grammar gap for the tag, but not the Track 2b obligation to prove
+its primitive, macro-expanded, unreachable, or excluded status.
+
 ## Probe Commands
 
 The first probe used a Tableau-0 system with two extra unary function symbols,
@@ -106,9 +111,9 @@ This reachability evidence sharpens the equality classification:
 - `refl-close` is reachable in current SJAS theorem certificates and therefore
   must be handled by Track 2b if the correspondence covers non-arithmetic
   equality.
-- `free-close` is reachable in current SJAS theorem proof terms but is not
-  currently encodable as an SJAS proof certificate. This is a proof-certificate
-  grammar gap, not merely an unresolved relevance classification.
+- `free-close` is reachable in current SJAS theorem proof terms. It is now
+  encodable as an SJAS proof certificate symbol, but remains an unresolved
+  equality/free-constructor closure rule for Track 2b.
 - The existing proof-symbol classification audit covers the declared encoded
   certificate alphabet, but it does not prove that the alphabet covers every
   proof symbol the kernel can emit on SJAS theorem paths.
@@ -116,9 +121,8 @@ This reachability evidence sharpens the equality classification:
 Track 2b should not claim a correspondence over all current SJAS theorem proofs
 until one of these routes is chosen:
 
-1. Extend the encoded proof-symbol grammar to include reachable equality
-   internal tags such as `free-close`, classify them, and prove their place in
-   the selected equality calculus.
+1. For encoded reachable equality internal tags such as `free-close`, prove
+   their place in the selected equality calculus after classification.
 2. Change proof production so generic equality subproofs are represented only
    by already-declared certificate constructors with formally specified
    payloads.
@@ -134,9 +138,8 @@ may appear below `eq-step`, `neq-close`, or complementary literal closure.
 
 Generic equality/disequality is now evidence-backed as reachable, at least for
 `refl-close` and `free-close`. The current executable audit deliberately leaves
-`refl-close` unresolved, and `free-close` remains unclassified because it is not
-part of the declared SJAS certificate alphabet. The next equality-related
-Track 2a task is a complete kernel-proof-tag inventory: compare all proof tags
-the kernel can emit on SJAS paths against `proof-symbols`, then classify each
-as primitive, macro-expandable, excluded, or missing from the certificate
-grammar.
+both `refl-close` and `free-close` unresolved; `free-close` is now part of the
+declared SJAS certificate alphabet. The next equality-related Track 2a task is
+a complete kernel-proof-tag inventory: compare all proof tags the kernel can
+emit on SJAS paths against `proof-symbols`, then classify each as primitive,
+macro-expandable, excluded, or missing from the certificate grammar.

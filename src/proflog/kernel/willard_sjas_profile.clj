@@ -412,6 +412,9 @@
                  sym])
               sjas-code/index->proof-symbol)))
 
+(def ^:private proof-byte-entries
+  (apply list (range sjas-code/byte-base)))
+
 (defn- byte-bitso
   [bits byte]
   (fresh [entry]
@@ -1792,6 +1795,11 @@
            bytes)
        (proof-symbol-wide-indexo high low proof)
        (== after-symbol rest))]
+    [(fresh [byte after-byte]
+       (== (lcons sjas-code/proof-byte-tag (lcons byte after-byte)) bytes)
+       (membero byte proof-byte-entries)
+       (== byte proof)
+       (== after-byte rest))]
     [(decode-proof-list-with-counto bytes rest proof)]))
 
 (defn- decode-proof-codeo

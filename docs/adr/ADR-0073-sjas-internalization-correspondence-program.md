@@ -8,10 +8,13 @@
 ## Context
 
 ADR-0072 moved the SJAS implementation away from generated formula, axiom, and
-proof-target registries. It did not finish the stronger proof-machinery goal:
-generic `tableau-proof/3` and `subst-prf/4` still decode proof certificates to
-Proflog kernel proof terms and ask the implementation kernel to validate those
-terms.
+proof-target registries. Later ADR-0073/Track-1 work also replaced the
+non-`sjas-axiom` `tableau-proof/3` and `subst-prf/4` shortcut through
+`kernel/prove-programo` with a local proof-directed checker for the currently
+generated certificate shapes. The stronger proof-machinery goal is still not
+finished: the checker must either become a complete arithmetic/formal
+semantic-tableau predicate, or every remaining bridge and compact proof
+constructor must be justified by the correspondence proof required below.
 
 The refined concern is not simply that the call is host-side. The concern is
 whether the call collapses distinctions that SJAS self-reference needs to
@@ -114,10 +117,12 @@ Documentation-only slices must still pass `git diff --check` before commit.
   semantics are compatible enough for equivalence checking, or document the
   selected third-party formalization/common intermediate language used to make
   the comparison rigorous.
-- For semantic implementation commits, `lein test-proflog-fast`, `lein
-  test-proflog-extended`, and `lein test-proflog-sjas` must pass before merge.
-  The extended suite remains especially important for proof search, equality,
-  negation, and query behavior.
+- For semantic implementation commits, use the focused SJAS practice recorded
+  in `AGENTS.md`: exact selectors first, then `lein test-vars <namespace>` or
+  `lein test-proflog-sjas-focused` for expensive SJAS namespaces. Broad gates
+  remain `lein test-proflog-fast` and `lein test-proflog-extended`; use the
+  opaque `lein test-proflog-sjas` gate only when it adds signal or as a final
+  full namespace confirmation if its runtime is acceptable.
 
 ## Exit Criteria
 

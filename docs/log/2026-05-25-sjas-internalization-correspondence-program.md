@@ -313,7 +313,8 @@ relations; the question is whether the proof predicate denotes the relevant
 semantic-tableau apparatus, either by direct arithmeticization or by a proved
 correspondence.
 
-The resulting research/implementation program has three coupled tracks:
+The resulting research/implementation program has three coupled tracks and one
+speculative reciprocal track:
 
 1. **Arithmeticization.** Continue replacing host-side registries and staged
    decoders with object-level arithmetic relations over system, formula,
@@ -337,11 +338,22 @@ The resulting research/implementation program has three coupled tracks:
    the tests must provide operational evidence that the code executes according
    to the proved correspondence.
 
+2c. **Proflog-as-D Formalization.** Speculatively formalize the Proflog proof
+   kernel itself as a deductive apparatus `D_Proflog`, then determine whether
+   Willard-style SJAS results can be stated and proved for
+   `IS#_{D_Proflog}(beta)`. This is not a substitute for Track 2b unless the
+   implementation is abstracted into a stable formal calculus, the relevant
+   proof-size/tree invariants are supplied, and the literature proof
+   obligations are adapted to that calculus.
+
 The correspondence track depends on the relevance track. A theorem-level
 equivalence is not enough if it loses proof-object structure, proof size, branch
 shape, substitution/equality behavior, or another feature later found relevant
 to the SJAS self-reference. Conversely, if a feature is proven irrelevant, it
-need not be preserved.
+need not be preserved. The speculative Track 2c asks whether the selected
+deductive apparatus could be a formalized Proflog calculus rather than
+Willard's original semantic-tableau presentation; it still must conserve the
+invariants used by the SJAS arguments.
 
 ## Goal Prompt for Future Use
 
@@ -417,6 +429,25 @@ Track 2b: Proflog Correspondence
 - If a rigorous correspondence is established, it may justify the current
   `kernel/prove-programo` shortcut as a theorem-backed virtualization rather
   than an unjustified meta-level collapse.
+
+Track 2c: Proflog-as-D Formalization
+- Speculatively formalize the Proflog proof kernel as a candidate deductive
+  apparatus `D_Proflog`.
+- Define Proflog proof states, branch agendas, saved literals, environments,
+  proof variables, rigid parameters, equality substitutions, disequality
+  stores, reflected procedure calls, profile theory rules, proof certificates,
+  and any fuel/search parameters in a mathematical semantics independent of
+  accidental implementation details.
+- Determine whether Willard-style SJAS results can be adapted to
+  `IS#_{D_Proflog}(beta)`, including the self-consistency statement that
+  quantifies over the Proflog-formalized proof predicate.
+- Supply a proof-code and proof-size measure for Proflog certificates that
+  satisfies the relevant SJAS lower-bound/anti-compression requirements, or
+  prove a replacement measure adequate for the adapted argument.
+- Classify Proflog-specific features as admitted primitives, bounded macros,
+  irrelevant scheduler/runtime details, or excluded features.
+- Treat this as a possible future route, not as permission to identify SJAS
+  with whatever the current implementation happens to accept.
 
 Documentation obligations:
 - Maintain `LOG.md` as the chronological spine and put detailed analysis under

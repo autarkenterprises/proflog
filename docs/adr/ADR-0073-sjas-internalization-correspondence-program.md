@@ -30,7 +30,10 @@ systems.
 The development note
 [SJAS Internalization and Proflog Correspondence Program](../log/2026-05-25-sjas-internalization-correspondence-program.md)
 records the exchange that split the prior "full internalization" goal into
-three coordinated tracks.
+three coordinated tracks. A later refinement added a speculative reciprocal
+Track 2c: formalize the Proflog kernel itself as a candidate deductive
+apparatus `D_Proflog` and determine whether Willard-style SJAS results can be
+adapted to `IS#_{D_Proflog}(beta)`.
 
 ## Decision
 
@@ -78,6 +81,16 @@ level of rigor, one or both sides must be encoded into a third-party formal
 verification setting, or both must be lifted into a common intermediate
 semantics that admits rigorous equivalence checking.
 
+Track 2c is Proflog-as-D formalization. It is speculative and reciprocal to
+Track 2b. Instead of asking whether Proflog acceptance corresponds to
+Willard's selected semantic-tableau `D`, it asks whether the Proflog kernel can
+itself be specified as a deductive apparatus `D_Proflog` and whether the SJAS
+literature's results can be adapted to `IS#_{D_Proflog}(beta)`. This route
+requires a stable mathematical semantics for the Proflog kernel, including its
+proof states, branch agendas, equality/disequality machinery, procedure calls,
+profile rules, proof certificates, and proof-size measure. It does not license
+using "whatever the implementation currently accepts" as `D`.
+
 ## Consequences
 
 - ADR-0072 remains useful and active: each removed host shortcut reduces the
@@ -95,6 +108,9 @@ semantics that admits rigorous equivalence checking.
 - The correspondence work may identify Proflog implementation details that need
   explicit proof-term instrumentation or tests even when no user-visible theorem
   result changes.
+- Track 2c, if pursued, has its own burden: define `D_Proflog` as a formal
+  calculus and adapt the relevant Willard proof obligations to that calculus.
+  It is not a weaker version of Track 2b.
 
 ## Test Obligations
 
@@ -117,6 +133,10 @@ Documentation-only slices must still pass `git diff --check` before commit.
   semantics are compatible enough for equivalence checking, or document the
   selected third-party formalization/common intermediate language used to make
   the comparison rigorous.
+- Track 2c artifacts must state the formal semantics of `D_Proflog`, the proof
+  certificate grammar, the proof-size/lower-bound measure, and which
+  Proflog-specific rules are primitives, bounded macros, irrelevant runtime
+  details, or excluded features.
 - For semantic implementation commits, use the focused SJAS practice recorded
   in `AGENTS.md`: exact selectors first, then `lein test-vars <namespace>` or
   `lein test-proflog-sjas-focused` for expensive SJAS namespaces. Broad gates
@@ -143,5 +163,6 @@ Documentation-only slices must still pass `git diff --check` before commit.
   `lein test-proflog-extended`, and `lein test-proflog-sjas`; any deliberately
   deferred slow probes are recorded under `docs/log/` with rationale.
 - The AAR records which route justified each remaining bridge: direct
-  arithmeticization, proved-and-tested correspondence, or explicitly deferred
-  future work approved by the user.
+  arithmeticization, proved-and-tested correspondence, adopted
+  Proflog-as-D formalization, or explicitly deferred future work approved by
+  the user.

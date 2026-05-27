@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-05-27
 
+- Logged the Track 2 clarification that Proflog may be studied both as a
+  candidate implementation bridge for Willard's semantic-tableau `D` and,
+  speculatively, as a formally specified deductive apparatus `D_Proflog` for
+  `IS#_{D_Proflog}(beta)`. Added Track 2c to the ADR-0073 goal prompt:
+  formalize the Proflog kernel sufficiently to determine whether Willard-style
+  SJAS results can be adapted to it. Recorded why theorem-level equivalence is
+  too weak and which proof-object, tree, closure, encoding, size, substitution,
+  quantifier, equality, procedure-call, and axiom-basis invariants must be
+  conserved or explicitly proved irrelevant. See
+  [Proflog as a Candidate SJAS Deductive Apparatus](docs/log/2026-05-27-proflog-as-sjas-deductive-apparatus.md).
 - Closed a proof-certificate alphabet gap for reachable SJAS proof evidence.
   Proof codes now have an explicit byte-payload tag, so evidence such as
   `(sjas-code-arg 1 sjas-code-args-end)` can be encoded and decoded without

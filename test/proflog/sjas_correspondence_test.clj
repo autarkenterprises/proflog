@@ -26,6 +26,8 @@
            (:status (correspondence/classify-proof-symbol 'decompose))))
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'args))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol 'refl-close))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'par-bind))))
     (is (= :unresolved

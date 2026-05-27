@@ -44,6 +44,12 @@ complete contemporaneous transcript.
   `forall x. x != 0 or x != 1` with an encoded witness/equality-step
   certificate without calling the host proof validator. See
   [SJAS Positive Equality-Step Proof Check](docs/log/2026-05-27-sjas-positive-equality-step-proof-check.md).
+- Added SJAS-local proof checking for reflexive disequality closure.
+  `(refl-close)` now closes selected `neq` formulas whose terms are already
+  identical under the branch equality substitution, and `tableau-proof/3`
+  validates the encoded certificate for `eq(code-1(0), code-1(0))` without
+  delegating to the host kernel. See
+  [SJAS Reflexive Disequality Proof Check](docs/log/2026-05-27-sjas-reflexive-disequality-proof-check.md).
 - Fixed the nominal lookup/hash guard bug in the legacy αleanTAP and
   greenfield nominal environment lookup relations. Core.logic's current
   `nom/hash` behavior passed the delayed-aliasing regression under the default

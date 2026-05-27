@@ -3356,6 +3356,14 @@
                                 gamma-terms
                                 next-fuel
                                 prf))]
+    [(fresh [fml unexpanded lit left right]
+       (== '(refl-close) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'neq left right) lit)
+       (equality/same-termo left right sigma)
+       (== sigma sigma-out)
+       (== neqs neqs-out))]
     [(fresh [fml unexpanded left right next-fuel prf]
        (== (list 'conj prf) proof)
        (support/selecto fml agenda unexpanded)

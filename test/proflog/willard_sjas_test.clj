@@ -1330,6 +1330,46 @@
             (is (proof/contains-step? (first-proof proofs) 'eq-step))
             (is (proof/contains-step? (first-proof proofs) 'par-bind))))))))
 
+(deftest sjas-proof-check-accepts-reflexive-disequality-closures-without-kernel-validator
+  (let [system (demo-system :willard-sjas-tableau0)
+        term (ast/app-term 'code-1 sjas/zero)
+        target (ast/and-form
+                 (ast/true-form)
+                 (ast/neq-lit term term))
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           40
+                           '(conj (refl-close)))
+              (l/== true q)))
+          "decoded tableau proof checking must consume reflexive disequality closure evidence object-level"))))
+
+(deftest sjas-tableau-proof-accepts-reflexive-disequality-closure-certificates
+  (let [system (demo-system :willard-sjas-tableau0)
+        term (ast/app-term 'code-1 sjas/zero)
+        theorem (ast/eq-lit term term)
+        theorem-code (sjas/formula-code system theorem)
+        certificate (sjas/proof-certificate '(conj (refl-close)))]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (let [proofs (query/query-succeeds
+                     (:program system)
+                     (sjas/tableau-proof (:system-code system)
+                                         theorem-code
+                                         certificate)
+                     1
+                     160)]
+        (is (successful? proofs)
+            "tableau-proof must validate encoded reflexive disequality closure certificates object-level")
+        (is (proof/contains-step? (first-proof proofs) 'refl-close))))))
+
 (deftest sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator
   (let [system (demo-system :willard-sjas-tableau0)
         theorem (ast/pos-lit (ast/app-term 'demo sjas/one))

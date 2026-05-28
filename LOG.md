@@ -22,6 +22,17 @@ complete contemporaneous transcript.
 
 ## 2026-05-28
 
+- Repaired the `test-proflog-fitting-programs` gate after the LOPSTR+PPDP
+  artifact run exposed two stale assumptions. `query-status` now accepts an
+  optional structural `:max-fuel` bound so unresolved catalog rows can stop
+  before a known expensive next slice, and the finite-domain
+  `fd-unknown-total-unresolved` row uses that bound at fuel `1`. The
+  `append-inverse-flat` list matrix row now uses raw answer limit `10`, the
+  first current core.logic answer limit that exposes all four closed split
+  targets. Parent verification: `lein test-proflog-fitting-programs` passed 6
+  tests / 81 assertions in `72.23 s`, `lein test-proflog-fast` passed 159
+  tests / 594 assertions in `98.39 s`, and `lein test-proflog-extended` passed
+  68 tests / 203 assertions in `247.66 s`.
 - Logged the current ADR-0073 proof-machinery internalization process as eight
   logical slices: code format, syntax, system-code reconstruction, proof-code
   grammar, U-Grounding arithmetic, substitution/fixed-point machinery, tableau

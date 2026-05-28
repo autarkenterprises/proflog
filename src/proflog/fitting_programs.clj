@@ -176,8 +176,8 @@
                        (ast/pos-lit (app 'mystery vx))))]))))
 
 (defn query-case
-  [{:keys [id family description program query expected fuel proof-limit
-           timeout-ms poll-ms classification]}]
+  [{:keys [id family description program query expected fuel max-fuel
+           proof-limit timeout-ms poll-ms classification]}]
   {:id id
    :kind :query
    :family family
@@ -186,6 +186,7 @@
    :query query
    :expected expected
    :fuel fuel
+   :max-fuel max-fuel
    :proof-limit (or proof-limit 1)
    :timeout-ms timeout-ms
    :poll-ms poll-ms
@@ -338,6 +339,10 @@
         :program fd
         :query (ast/pos-lit (app 'unknown-total))
         :expected :unresolved
+        ;; Fuel 2 enters a substantially more expensive undefined-call search
+        ;; slice. The catalog row only needs bounded evidence that neither side
+        ;; closes before that frontier.
+        :max-fuel 1
         :timeout-ms 1000
         :poll-ms 0
         :classification :undefined-procedure-call})
@@ -382,7 +387,7 @@
    :proof-steps (some-> proofs first proof/collect-steps vec)})
 
 (defn- evaluate-query
-  [{:keys [program query expected fuel proof-limit timeout-ms poll-ms
+  [{:keys [program query expected fuel max-fuel proof-limit timeout-ms poll-ms
            classification]}]
   (case expected
     :succeeds
@@ -401,7 +406,8 @@
                 query
                 {:timeout-ms (or timeout-ms 250)
                  :proof-limit proof-limit
-                 :poll-ms (or poll-ms 5)})
+                 :poll-ms (or poll-ms 5)
+                 :max-fuel max-fuel})
      :classification classification}
 
     (throw (ex-info "Unsupported query expectation"
@@ -423,7 +429,7 @@
                  :list-matrix (evaluate-list-matrix case-spec))]
     (merge (select-keys case-spec
                         [:id :kind :family :description :expected
-                         :classification])
+                         :classification :max-fuel])
            result)))
 
 (defn evaluate-catalog

@@ -405,7 +405,10 @@
                [[x whole]
                 [y (list-term)]]}
              :fuel 64
-             :raw-limit 8
+             ;; Current core.logic answer ordering reaches the fourth closed
+             ;; split at raw answer 10. Keep the public catalog budget at the
+             ;; first limit that exposes every target split.
+             :raw-limit 10
              :call-depth 2}))
 
         :append-inverse-flat-longer

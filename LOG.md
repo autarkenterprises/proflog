@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-05-28
 
+- Added SJAS proof-code support for occurs-check equality closure.
+  `occurs-close` is now an encodable and decoded proof symbol, classified as
+  relevant closure evidence, and public `tableau-proof/3` validates the
+  certificate for `exists x. x != f(x)` without calling the host proof
+  validator. See
+  [SJAS Occurs-Check Proof Code](docs/log/2026-05-28-sjas-occurs-check-proof-code.md).
 - Added SJAS-local proof checking for equality-triggered negative reflected
   calls. `(eq-step step-proof (eq-triggered-neg-call subproof))` now wakes saved
   negative atoms after equality makes them object-language ground, decodes the

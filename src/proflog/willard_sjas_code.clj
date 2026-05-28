@@ -205,7 +205,8 @@
     par-bind
     eq-bind
     atom-close
-    eq-refl])
+    eq-refl
+    occurs-close])
 
 (def proof-symbol->index
   (into {} (map-indexed (fn [idx sym] [sym (inc idx)]) proof-symbols)))

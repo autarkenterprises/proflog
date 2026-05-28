@@ -19,6 +19,8 @@
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'atom-close))))
     (is (= :relevant
+           (:status (correspondence/classify-proof-symbol 'occurs-close))))
+    (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'sjas-equal))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'eq-step))))

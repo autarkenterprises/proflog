@@ -19,6 +19,7 @@
      witness
      close
      atom-close
+     occurs-close
      free-close
      decompose
      args

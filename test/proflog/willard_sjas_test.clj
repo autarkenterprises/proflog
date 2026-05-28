@@ -675,6 +675,14 @@
       (is (= (sjas-code/code-term-bytes certificate)
              (sjas-code/proof-code-bytes proof))))))
 
+(deftest sjas-proof-codes-encode-occurs-check-closure-evidence
+  (testing "occurs-check equality contradiction evidence stays inside the proof-code grammar"
+    (let [proof '(conj (once-univ (occurs-close)))
+          certificate (sjas/proof-certificate proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
+
 (deftest sjas-proof-code-decoder-round-trips-byte-payload-evidence
   (testing "the object-level proof-code decoder consumes explicit byte payloads"
     (let [proof '(conj
@@ -1719,6 +1727,53 @@
                                proof)
                   (l/== true q)))
               "decoded tableau proof checking must recover equality-triggered reflected negative calls from system-code"))))))
+
+(deftest sjas-proof-check-accepts-occurs-check-closures-without-kernel-validator
+  (let [system (demo-system :willard-sjas-tableau0 {:functions {'f 1}})
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            target (ast/and-form
+                     (ast/true-form)
+                     (ast/once-forall-form
+                       x
+                       (ast/eq-lit x-term (ast/app-term 'f x-term))))]
+        (with-redefs [kernel/prove-programo
+                      (fn [& _]
+                        (throw (ex-info "host kernel proof validator reached" {})))]
+          (is (successful?
+                (l/run 1 [q]
+                  (check-proof (:program system)
+                               (:system-code system)
+                               target
+                               80
+                               '(conj (once-univ (occurs-close))))
+                  (l/== true q)))
+              "decoded tableau proof checking must consume occurs-check closure evidence object-level"))))))
+
+(deftest sjas-tableau-proof-accepts-occurs-check-closure-certificates
+  (let [system (demo-system :willard-sjas-tableau0 {:functions {'f 1}})]
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            theorem (ast/exists-form
+                      x
+                      (ast/neq-lit x-term (ast/app-term 'f x-term)))
+            theorem-code (sjas/formula-code system theorem)
+            certificate (sjas/proof-certificate
+                          '(conj (once-univ (occurs-close))))]
+        (with-redefs [kernel/prove-programo
+                      (fn [& _]
+                        (throw (ex-info "host kernel proof validator reached" {})))]
+          (let [proofs (query/query-succeeds
+                         (:program system)
+                         (sjas/tableau-proof (:system-code system)
+                                             theorem-code
+                                             certificate)
+                         1
+                         220)]
+            (is (successful? proofs)
+                "tableau-proof must validate encoded occurs-check closure certificates object-level")
+            (is (proof/contains-step? (first-proof proofs) 'occurs-close))))))))
 
 (deftest sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator
   (let [system (demo-system :willard-sjas-tableau0)

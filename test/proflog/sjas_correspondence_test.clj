@@ -32,6 +32,10 @@
            (:status (correspondence/classify-proof-symbol 'neq-rigid))))
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'neq-store))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol 'neq-close))))
+    (is (= :unresolved
+           (:status (correspondence/classify-proof-symbol 'eq-bind))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'par-bind))))
     (is (= :unresolved

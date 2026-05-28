@@ -599,6 +599,18 @@
       (is (= (sjas-code/code-term-bytes certificate)
              (sjas-code/proof-code-bytes proof))))))
 
+(deftest sjas-proof-codes-encode-proof-variable-disequality-closure-evidence
+  (testing "proof-variable equality binding evidence stays inside the proof-code grammar"
+    (let [proof (list 'conj
+                      (list 'once-univ
+                            (list 'neq-close
+                                  (list 'decompose
+                                        (list 'args '(eq-bind) '())))))
+          certificate (sjas/proof-certificate proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
+
 (deftest sjas-proof-code-decoder-round-trips-byte-payload-evidence
   (testing "the object-level proof-code decoder consumes explicit byte payloads"
     (let [proof '(conj
@@ -1486,6 +1498,64 @@
                 "tableau-proof must validate encoded stored-disequality closure certificates object-level")
             (is (proof/contains-step? (first-proof proofs) 'neq-store))
             (is (proof/contains-step? (first-proof proofs) 'neq-close))))))))
+
+(deftest sjas-proof-check-accepts-proof-variable-disequality-closures-without-kernel-validator
+  (let [system (demo-system :willard-sjas-tableau0 {:functions {'f 1}})
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            target (ast/and-form
+                     (ast/true-form)
+                     (ast/once-forall-form
+                       x
+                       (ast/neq-lit (ast/app-term 'f x-term)
+                                    (ast/app-term 'f sjas/zero))))]
+        (with-redefs [kernel/prove-programo
+                      (fn [& _]
+                        (throw (ex-info "host kernel proof validator reached" {})))]
+          (is (successful?
+                (l/run 1 [q]
+                  (check-proof (:program system)
+                               (:system-code system)
+                               target
+                               80
+                               (list 'conj
+                                     (list 'once-univ
+                                           (list 'neq-close
+                                                 (list 'decompose
+                                                       (list 'args '(eq-bind) '()))))))
+                  (l/== true q)))
+              "decoded tableau proof checking must consume proof-variable disequality closure evidence object-level"))))))
+
+(deftest sjas-tableau-proof-accepts-proof-variable-disequality-closure-certificates
+  (let [system (demo-system :willard-sjas-tableau0 {:functions {'f 1}})]
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            theorem (ast/exists-form
+                      x
+                      (ast/eq-lit (ast/app-term 'f x-term)
+                                  (ast/app-term 'f sjas/zero)))
+            theorem-code (sjas/formula-code system theorem)
+            certificate (sjas/proof-certificate
+                          (list 'conj
+                                (list 'once-univ
+                                      (list 'neq-close
+                                            (list 'decompose
+                                                  (list 'args '(eq-bind) '()))))))]
+        (with-redefs [kernel/prove-programo
+                      (fn [& _]
+                        (throw (ex-info "host kernel proof validator reached" {})))]
+          (let [proofs (query/query-succeeds
+                         (:program system)
+                         (sjas/tableau-proof (:system-code system)
+                                             theorem-code
+                                             certificate)
+                         1
+                         220)]
+            (is (successful? proofs)
+                "tableau-proof must validate encoded proof-variable disequality closure certificates object-level")
+            (is (proof/contains-step? (first-proof proofs) 'neq-close))
+            (is (proof/contains-step? (first-proof proofs) 'eq-bind))))))))
 
 (deftest sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator
   (let [system (demo-system :willard-sjas-tableau0)

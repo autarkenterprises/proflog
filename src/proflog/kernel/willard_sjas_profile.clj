@@ -14,7 +14,7 @@
    arithmetic constraints and proof checking are both miniKanren goals
    interleaved at the branch rule boundary."
   (:refer-clojure :exclude [== < <=])
-  (:require [clojure.core.logic :refer [!= == conda conde fail fresh lcons membero or* run]]
+  (:require [clojure.core.logic :refer [!= == appendo conda conde fail fresh lcons membero or* run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -3374,6 +3374,18 @@
        (equality/same-termo left right sigma)
        (== sigma sigma-out)
        (== neqs neqs-out))]
+    [(fresh [fml unexpanded lit left right sigma-mid new-bindings
+             binding rest step-proof]
+       (== (list 'neq-close step-proof) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'neq left right) lit)
+       (equality/unify-termo left right sigma sigma-mid step-proof)
+       (appendo new-bindings sigma sigma-mid)
+       (== (lcons binding rest) new-bindings)
+       (support/proof-bindingso new-bindings proof-vars)
+       (== sigma-mid sigma-out)
+       (support/prune-contradictory-neqso neqs sigma-mid neqs-out))]
     [(fresh [fml unexpanded lit left right next rest next-fuel prf]
        (== (list 'neq-rigid prf) proof)
        (support/selecto fml agenda unexpanded)

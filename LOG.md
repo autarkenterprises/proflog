@@ -29,6 +29,13 @@ complete contemporaneous transcript.
   `tableau-proof/3` regression validates the encoded certificate for
   `forall x. x = 0 or x != 0` without calling the host proof validator. See
   [SJAS Stored Disequality Proof Check](docs/log/2026-05-28-sjas-stored-disequality-proof-check.md).
+- Added SJAS-local proof checking for proof-variable disequality closure.
+  `(neq-close step-proof)` now closes selected negative equalities when
+  relational unification binds only gamma-introduced proof variables, and
+  `eq-bind` is now part of the proof-code alphabet. The public regression uses
+  an inert `f/1` symbol to validate `exists x. f(x) = f(0)` without routing the
+  branch through U-grounding arithmetic. See
+  [SJAS Proof-Variable Disequality Proof Check](docs/log/2026-05-28-sjas-proof-variable-disequality-proof-check.md).
 
 ## 2026-05-27
 

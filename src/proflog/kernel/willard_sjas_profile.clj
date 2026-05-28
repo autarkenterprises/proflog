@@ -3299,6 +3299,44 @@
 
 (declare sjas-proof-check-stateo)
 
+(defn- sjas-saved-positive-call-closeso
+  "Close a saved positive atom after equality makes it callable.
+
+   This is the SJAS proof-checker analogue of the kernel's positive
+   `saved-call-closeso` branch. It deliberately resolves the procedure body
+   from the encoded reflected clauses in `system-code`, not from the compiled
+   runtime program clause table."
+  [system-code lits proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (fresh [atom walked-atom relation args call-env body negated-body
+          next-fuel subproof]
+    (membero (list 'pos atom) lits)
+    (equality/walk-atomo atom sigma walked-atom)
+    (== (lcons 'app (lcons relation args)) walked-atom)
+    (support/l-ground-term*o args)
+    (sjas-system-reflected-call-clauseo prog
+                                        system-code
+                                        walked-atom
+                                        call-env
+                                        body
+                                        negated-body)
+    (== (list 'eq-triggered-call subproof) proof)
+    (support/step-fuelo fuel next-fuel)
+    (sjas-proof-check-stateo system-code
+                             body
+                             '()
+                             '()
+                             call-env
+                             proof-vars
+                             sigma
+                             sigma-out
+                             neqs
+                             neqs-out
+                             prog
+                             gamma-terms
+                             next-fuel
+                             subproof)))
+
 (defn- sjas-proof-check-close-agendao
   "Check a decoded tableau proof term without invoking the host proof kernel.
 
@@ -3351,6 +3389,24 @@
        (equality/unify-termo left right sigma sigma-mid step-proof)
        (equality/contradictory-atomso lits sigma-mid sigma-out branch-proof)
        (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
+    [(fresh [fml unexpanded lit left right sigma-mid step-proof
+             branch-proof]
+       (== (list 'eq-step step-proof branch-proof) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'eq left right) lit)
+       (equality/unify-termo left right sigma sigma-mid step-proof)
+       (sjas-saved-positive-call-closeso system-code
+                                         lits
+                                         proof-vars
+                                         sigma-mid
+                                         sigma-out
+                                         neqs
+                                         neqs-out
+                                         prog
+                                         gamma-terms
+                                         fuel
+                                         branch-proof))]
     [(fresh [fml unexpanded lit left right sigma-mid step-proof
              next rest next-fuel prf]
        (== (list 'eq-step step-proof prf) proof)

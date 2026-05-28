@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-05-28
 
+- Added SJAS-local proof checking for equality-triggered positive reflected
+  calls. `(eq-step step-proof (eq-triggered-call subproof))` now wakes saved
+  positive atoms after equality makes them object-language ground, resolves the
+  procedure body from reflected clauses decoded from `system-code`, and checks
+  the subproof without consulting the runtime clause table or
+  `kernel/prove-programo`. See
+  [SJAS Equality-Triggered Positive Call Proof Check](docs/log/2026-05-28-sjas-equality-triggered-positive-call-proof-check.md).
 - Added SJAS-local proof checking for equality-triggered saved atom closure.
   `(eq-step step-proof (atom-close arg-proof))` now closes saved complementary
   atoms through the local proof checker, and `atom-close`/`eq-refl` are now

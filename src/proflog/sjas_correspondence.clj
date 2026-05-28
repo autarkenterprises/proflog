@@ -23,6 +23,7 @@
      args
      refl-close
      neq-rigid
+     neq-store
      false-close
      savefml})
 
@@ -90,8 +91,7 @@
      eq-triggered-call
      eq-triggered-neg-call
      par-bind
-     neq-close
-     neq-store})
+     neq-close})
 
 (def ^:private unresolved-procedure-symbols
   "Proof constructors introduced by Proflog procedure-call and guarded-call

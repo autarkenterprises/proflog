@@ -3333,6 +3333,16 @@
        (== sigma sigma-out)
        (== neqs neqs-out))]
     [(fresh [fml unexpanded lit left right sigma-mid step-proof
+             branch-proof]
+       (== (list 'eq-step step-proof branch-proof) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'eq left right) lit)
+       (equality/unify-termo left right sigma sigma-mid step-proof)
+       (equality/neq-violatedo neqs sigma-mid branch-proof)
+       (== sigma-mid sigma-out)
+       (support/prune-contradictory-neqso neqs sigma-mid neqs-out))]
+    [(fresh [fml unexpanded lit left right sigma-mid step-proof
              next rest next-fuel prf]
        (== (list 'eq-step step-proof prf) proof)
        (support/selecto fml agenda unexpanded)
@@ -3381,6 +3391,27 @@
                                 sigma
                                 sigma-out
                                 neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                next-fuel
+                                prf))]
+    [(fresh [fml unexpanded lit left right next rest next-fuel prf]
+       (== (list 'neq-store prf) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'neq left right) lit)
+       (== (lcons next rest) unexpanded)
+       (support/step-fuelo fuel next-fuel)
+       (sjas-proof-check-stateo system-code
+                                next
+                                rest
+                                lits
+                                env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                (lcons [left right] neqs)
                                 neqs-out
                                 prog
                                 gamma-terms

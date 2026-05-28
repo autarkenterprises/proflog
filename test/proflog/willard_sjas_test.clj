@@ -1423,6 +1423,70 @@
             "tableau-proof must validate encoded rigid disequality progress certificates object-level")
         (is (proof/contains-step? (first-proof proofs) 'neq-rigid))))))
 
+(deftest sjas-proof-check-accepts-stored-disequality-closures-without-kernel-validator
+  (let [system (demo-system :willard-sjas-tableau0)
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            target (ast/and-form
+                     (ast/true-form)
+                     (ast/exists-form
+                       x
+                       (ast/and-form
+                         (ast/neq-lit x-term sjas/zero)
+                         (ast/eq-lit x-term sjas/zero))))]
+        (with-redefs [kernel/prove-programo
+                      (fn [& _]
+                        (throw (ex-info "host kernel proof validator reached" {})))]
+          (is (successful?
+                (l/run 1 [q]
+                  (check-proof (:program system)
+                               (:system-code system)
+                               target
+                               80
+                               '(conj
+                                  (witness
+                                    (conj
+                                      (neq-store
+                                        (eq-step
+                                          (par-bind)
+                                          (neq-close)))))))
+                  (l/== true q)))
+              "decoded tableau proof checking must store disequality evidence and close it after equality progress"))))))
+
+(deftest sjas-tableau-proof-accepts-stored-disequality-closure-certificates
+  (let [system (demo-system :willard-sjas-tableau0)]
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            theorem (ast/forall-form
+                      x
+                      (ast/or-form
+                        (ast/eq-lit x-term sjas/zero)
+                        (ast/neq-lit x-term sjas/zero)))
+            theorem-code (sjas/formula-code system theorem)
+            certificate (sjas/proof-certificate
+                          '(conj
+                             (witness
+                               (conj
+                                 (neq-store
+                                   (eq-step
+                                     (par-bind)
+                                     (neq-close)))))))]
+        (with-redefs [kernel/prove-programo
+                      (fn [& _]
+                        (throw (ex-info "host kernel proof validator reached" {})))]
+          (let [proofs (query/query-succeeds
+                         (:program system)
+                         (sjas/tableau-proof (:system-code system)
+                                             theorem-code
+                                             certificate)
+                         1
+                         220)]
+            (is (successful? proofs)
+                "tableau-proof must validate encoded stored-disequality closure certificates object-level")
+            (is (proof/contains-step? (first-proof proofs) 'neq-store))
+            (is (proof/contains-step? (first-proof proofs) 'neq-close))))))))
+
 (deftest sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator
   (let [system (demo-system :willard-sjas-tableau0)
         theorem (ast/pos-lit (ast/app-term 'demo sjas/one))

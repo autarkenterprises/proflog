@@ -20,6 +20,16 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-28
+
+- Added SJAS-local proof checking for stored disequality closure. `(neq-store
+  subproof)` now records a delayed branch disequality, and the saved-disequality
+  form of `(eq-step step branch-proof)` closes when relational equality
+  progress collapses that stored obligation to `(neq-close)`. The public
+  `tableau-proof/3` regression validates the encoded certificate for
+  `forall x. x = 0 or x != 0` without calling the host proof validator. See
+  [SJAS Stored Disequality Proof Check](docs/log/2026-05-28-sjas-stored-disequality-proof-check.md).
+
 ## 2026-05-27
 
 - Advanced ADR-0073 Track 1 proof-predicate internalization by teaching the

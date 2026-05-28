@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-05-28
 
+- Logged the current ADR-0073 proof-machinery internalization process as eight
+  logical slices: code format, syntax, system-code reconstruction, proof-code
+  grammar, U-Grounding arithmetic, substitution/fixed-point machinery, tableau
+  proof checking, and reflected procedure-call recovery. The goal is not merely
+  to construct Godel codes for dependencies of `tableau-proof/3`; each
+  dependency must become an object-language relation over those codes or be
+  justified by the Track 2 correspondence proof. Updated ADR-0073 to make these
+  subelements explicit. See
+  [SJAS Proof-Machinery Internalization Slices](docs/log/2026-05-28-sjas-proof-machinery-internalization-slices.md).
 - Added SJAS proof-code support for occurs-check equality closure.
   `occurs-close` is now an encodable and decoded proof symbol, classified as
   relevant closure evidence, and public `tableau-proof/3` validates the

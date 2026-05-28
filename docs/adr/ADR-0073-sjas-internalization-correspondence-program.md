@@ -46,6 +46,44 @@ other predicate-application shortcuts with object-language relations over
 encoded formulas, systems, substitutions, proof trees, axiom membership, and
 branch closure. This remains the strongest implementation endpoint.
 
+Track 1 is not merely a project of assigning Godel codes to every dependency of
+the proof predicate. Codes are necessary but inert unless the relations that
+consume them are also represented in the SJAS object language. The direct
+internalization track is therefore organized into the following logical slices:
+
+1. **Code format:** expose formulas, systems, substitutions, and proof
+   certificates as inspectable compact byte terms or U-Grounding numerals, not
+   opaque host labels.
+2. **Syntax:** define object-level predicates such as `wff`, formula-class
+   predicates, and `neg-pair` over encoded formulas.
+3. **System-code reconstruction:** derive `axiom-member(system-code,
+   formula-code)` and reflected Group-2b clause data from the encoded finite
+   system rather than from generated host registries.
+4. **Proof-code grammar:** encode and decode proof constructors and payload
+   evidence as proof trees that can be inspected by the predicate.
+5. **U-Grounding arithmetic:** evaluate the arithmetic relations needed for
+   code decoding, byte/numeral interpretation, relation-backed fixed-radix
+   shifts, and proof-predicate helper relations inside the selected SJAS
+   profile.
+6. **Substitution and fixed points:** internalize `subst-code/2`,
+   `subst-prf/4`, diagonal substitution, and alpha-equivalent fixed-point
+   comparison over formula codes.
+7. **Tableau proof checking:** validate proof-code trees against formula-code
+   trees through object-level branch expansion, quantifier, equality,
+   disequality, saved-literal, and closure relations.
+8. **Reflected procedure calls:** recover positive and negative procedure-call
+   proof evidence from reflected clauses decoded from `system-code`, not from
+   external runtime clause tables.
+
+These slices cannot be collapsed into one monolithic implementation step
+without losing diagnostic clarity. A failed monolithic proof predicate may fail
+because of code injectivity, symbol-table reconstruction, syntax decoding,
+arithmetic normalization, substitution, axiom membership, equality closure,
+procedure-call recovery, or the tableau rule itself. Each slice must therefore
+name the host shortcut being removed, provide focused red/green evidence, and
+record whether the result is fully internalized, remains a runtime tractability
+boundary, or is deferred to Track 2b correspondence proof.
+
 Track 2a is relevance analysis. Before a Proflog correspondence can justify any
 remaining bridge, the project must determine which intensional aspects of the
 semantic-tableau apparatus are necessary for SJAS self-justification. The
@@ -120,6 +158,12 @@ Documentation-only slices must still pass `git diff --check` before commit.
 - Track 1 tests must expose the specific host shortcut being removed and show
   that the relevant predicate still succeeds or fails through object-level
   relations after the shortcut is gone.
+- Track 1 implementation slices must identify which proof-predicate dependency
+  is being internalized: code format, syntax, system-code reconstruction,
+  proof-code grammar, U-Grounding arithmetic, substitution/fixed points,
+  tableau proof checking, or reflected procedure-call recovery. Each slice
+  must leave behind a focused regression or source audit that would fail if the
+  prior host shortcut or nominal registry path were reintroduced.
 - Track 2a must maintain a relevance matrix that names each intensional aspect,
   classifies it as relevant, irrelevant, or unresolved, cites the project or
   Willard source for that classification when available, and records the proof

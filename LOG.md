@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-05-28
 
+- Added SJAS-local proof checking for equality-triggered saved atom closure.
+  `(eq-step step-proof (atom-close arg-proof))` now closes saved complementary
+  atoms through the local proof checker, and `atom-close`/`eq-refl` are now
+  encodable proof-code symbols. The focused checker regression saves
+  `color(x)` and `not color(0)`, then closes them after `x = 0`, with
+  `kernel/prove-programo` disabled. See
+  [SJAS Equality-Triggered Atom Closure Proof Check](docs/log/2026-05-28-sjas-equality-triggered-atom-closure-proof-check.md).
 - Added SJAS-local proof checking for stored disequality closure. `(neq-store
   subproof)` now records a delayed branch disequality, and the saved-disequality
   form of `(eq-step step branch-proof)` closes when relational equality

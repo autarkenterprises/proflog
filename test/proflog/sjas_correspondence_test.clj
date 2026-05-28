@@ -17,6 +17,8 @@
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'close))))
     (is (= :relevant
+           (:status (correspondence/classify-proof-symbol 'atom-close))))
+    (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'sjas-equal))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'eq-step))))
@@ -36,6 +38,8 @@
            (:status (correspondence/classify-proof-symbol 'neq-close))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'eq-bind))))
+    (is (= :unresolved
+           (:status (correspondence/classify-proof-symbol 'eq-refl))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'par-bind))))
     (is (= :unresolved

@@ -3343,6 +3343,15 @@
        (== sigma-mid sigma-out)
        (support/prune-contradictory-neqso neqs sigma-mid neqs-out))]
     [(fresh [fml unexpanded lit left right sigma-mid step-proof
+             branch-proof]
+       (== (list 'eq-step step-proof branch-proof) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'eq left right) lit)
+       (equality/unify-termo left right sigma sigma-mid step-proof)
+       (equality/contradictory-atomso lits sigma-mid sigma-out branch-proof)
+       (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
+    [(fresh [fml unexpanded lit left right sigma-mid step-proof
              next rest next-fuel prf]
        (== (list 'eq-step step-proof prf) proof)
        (support/selecto fml agenda unexpanded)

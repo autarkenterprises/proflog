@@ -27,6 +27,20 @@
   [proof]
   (correspondence/audit-proof-term proof))
 
+(defn- equality-triggered-atom-closure-proof
+  "Certificate shape for saving complementary atoms, then closing them after an
+   equality step makes their arguments identical."
+  []
+  (let [argument-proof (list 'args '(eq-refl) '())
+        atom-proof (list 'atom-close argument-proof)
+        equality-proof (list 'eq-step '(eq-bind) atom-proof)
+        save-negative (list 'savefml equality-proof)
+        negative-then-equality (list 'conj save-negative)
+        save-positive (list 'savefml negative-then-equality)
+        positive-then-rest (list 'conj save-positive)
+        universal-proof (list 'once-univ positive-then-rest)]
+    (list 'conj universal-proof)))
+
 (defn- n
   [value]
   (sjas/numeral value))
@@ -611,6 +625,14 @@
       (is (= (sjas-code/code-term-bytes certificate)
              (sjas-code/proof-code-bytes proof))))))
 
+(deftest sjas-proof-codes-encode-equality-triggered-atom-closure-evidence
+  (testing "saved atom closure evidence stays inside the proof-code grammar"
+    (let [proof (equality-triggered-atom-closure-proof)
+          certificate (sjas/proof-certificate proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
+
 (deftest sjas-proof-code-decoder-round-trips-byte-payload-evidence
   (testing "the object-level proof-code decoder consumes explicit byte payloads"
     (let [proof '(conj
@@ -629,6 +651,23 @@
                       (l/== [bytes decoded-proof read-proof] q)))]
       (is (= 1 (count decoded)))
       (is (= proof (second (first decoded)))))))
+
+(deftest sjas-proof-code-decoder-round-trips-equality-triggered-atom-closure-evidence
+  (testing "the object-level proof-code decoder consumes saved atom closure evidence"
+    (let [proof (equality-triggered-atom-closure-proof)
+          certificate (sjas/proof-certificate proof)
+          decode-proof-codeo (var-get #'sjas-profile/decode-proof-codeo)
+          decoded (l/run 1 [q]
+                    (l/fresh [bytes decoded-proof read-proof]
+                      (decode-proof-codeo certificate
+                                          '()
+                                          '()
+                                          bytes
+                                          decoded-proof
+                                          read-proof)
+                      (l/== decoded-proof q)))]
+      (is (= 1 (count decoded)))
+      (is (= proof (first decoded))))))
 
 (deftest sjas-proof-codes-encode-u-grounding-canonical-byte-evidence
   (testing "U-Grounding byte-reader evidence carries an explicit byte payload in the proof-code grammar"
@@ -1556,6 +1595,36 @@
                 "tableau-proof must validate encoded proof-variable disequality closure certificates object-level")
             (is (proof/contains-step? (first-proof proofs) 'neq-close))
             (is (proof/contains-step? (first-proof proofs) 'eq-bind))))))))
+
+(deftest sjas-proof-check-accepts-equality-triggered-atom-closures-without-kernel-validator
+  (let [system (demo-system :willard-sjas-tableau0 {:relations {'color 1}})
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            color-x (ast/app-term 'color x-term)
+            color-zero (ast/app-term 'color sjas/zero)
+            target (ast/and-form
+                     (ast/true-form)
+                     (ast/once-forall-form
+                       x
+                       (ast/and-form
+                         (ast/pos-lit color-x)
+                         (ast/and-form
+                           (ast/neg-lit color-zero)
+                           (ast/eq-lit x-term sjas/zero)))))
+            proof (equality-triggered-atom-closure-proof)]
+        (with-redefs [kernel/prove-programo
+                      (fn [& _]
+                        (throw (ex-info "host kernel proof validator reached" {})))]
+          (is (successful?
+                (l/run 1 [q]
+                  (check-proof (:program system)
+                               (:system-code system)
+                               target
+                               100
+                               proof)
+                  (l/== true q)))
+              "decoded tableau proof checking must consume equality-triggered atom closure evidence object-level"))))))
 
 (deftest sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator
   (let [system (demo-system :willard-sjas-tableau0)

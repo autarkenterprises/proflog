@@ -18,6 +18,7 @@
      once-univ
      witness
      close
+     atom-close
      free-close
      decompose
      args
@@ -91,6 +92,7 @@
   '#{eq-step
      eq-triggered-call
      eq-triggered-neg-call
+     eq-refl
      eq-bind
      par-bind})
 

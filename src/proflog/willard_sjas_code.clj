@@ -203,7 +203,9 @@
     decompose
     args
     par-bind
-    eq-bind])
+    eq-bind
+    atom-close
+    eq-refl])
 
 (def proof-symbol->index
   (into {} (map-indexed (fn [idx sym] [sym (inc idx)]) proof-symbols)))

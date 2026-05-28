@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-05-28
 
+- Added SJAS-local proof checking for equality-triggered negative reflected
+  calls. `(eq-step step-proof (eq-triggered-neg-call subproof))` now wakes saved
+  negative atoms after equality makes them object-language ground, decodes the
+  matching reflected clause from `system-code`, and checks the NNF negation of
+  the reflected body without using `kernel/prove-programo` or runtime clause
+  lookup. See
+  [SJAS Equality-Triggered Negative Call Proof Check](docs/log/2026-05-28-sjas-equality-triggered-negative-call-proof-check.md).
 - Added SJAS-local proof checking for equality-triggered positive reflected
   calls. `(eq-step step-proof (eq-triggered-call subproof))` now wakes saved
   positive atoms after equality makes them object-language ground, resolves the

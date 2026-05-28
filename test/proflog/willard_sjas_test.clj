@@ -54,6 +54,19 @@
                                 (list 'eq-triggered-call
                                       '(free-close))))))))
 
+(defn- equality-triggered-negative-call-proof
+  "Certificate shape for saving a negative atom, then calling its negated body
+   after equality makes its arguments object-language ground."
+  []
+  (list 'conj
+        (list 'witness
+              (list 'conj
+                    (list 'savefml
+                          (list 'eq-step
+                                '(par-bind)
+                                (list 'eq-triggered-neg-call
+                                      '(refl-close))))))))
+
 (defn- n
   [value]
   (sjas/numeral value))
@@ -649,6 +662,14 @@
 (deftest sjas-proof-codes-encode-equality-triggered-positive-call-evidence
   (testing "equality-triggered reflected call evidence stays inside the proof-code grammar"
     (let [proof (equality-triggered-positive-call-proof)
+          certificate (sjas/proof-certificate proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
+
+(deftest sjas-proof-codes-encode-equality-triggered-negative-call-evidence
+  (testing "equality-triggered reflected negative-call evidence stays inside the proof-code grammar"
+    (let [proof (equality-triggered-negative-call-proof)
           certificate (sjas/proof-certificate proof)]
       (is (sjas-code/code-term? certificate))
       (is (= (sjas-code/code-term-bytes certificate)
@@ -1672,6 +1693,32 @@
                                proof)
                   (l/== true q)))
               "decoded tableau proof checking must recover equality-triggered reflected calls from system-code"))))))
+
+(deftest sjas-proof-check-accepts-equality-triggered-negative-calls-without-kernel-validator
+  (let [system (demo-system :willard-sjas-tableau0)
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            target (ast/and-form
+                     (ast/true-form)
+                     (ast/exists-form
+                       x
+                       (ast/and-form
+                         (ast/neg-lit (ast/app-term 'demo x-term))
+                         (ast/eq-lit x-term sjas/one))))
+            proof (equality-triggered-negative-call-proof)]
+        (with-redefs [kernel/prove-programo
+                      (fn [& _]
+                        (throw (ex-info "host kernel proof validator reached" {})))]
+          (is (successful?
+                (l/run 1 [q]
+                  (check-proof (:program system)
+                               (:system-code system)
+                               target
+                               120
+                               proof)
+                  (l/== true q)))
+              "decoded tableau proof checking must recover equality-triggered reflected negative calls from system-code"))))))
 
 (deftest sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator
   (let [system (demo-system :willard-sjas-tableau0)

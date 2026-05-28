@@ -3337,6 +3337,42 @@
                              next-fuel
                              subproof)))
 
+(defn- sjas-saved-negative-call-closeso
+  "Close a saved negative atom after equality makes it callable.
+
+   This mirrors the kernel's negative `saved-call-closeso` branch: once the
+   saved atom is L-ground, open the NNF negation of the reflected clause body."
+  [system-code lits proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (fresh [atom walked-atom relation args call-env body negated-body
+          next-fuel subproof]
+    (membero (list 'neg atom) lits)
+    (equality/walk-atomo atom sigma walked-atom)
+    (== (lcons 'app (lcons relation args)) walked-atom)
+    (support/l-ground-term*o args)
+    (sjas-system-reflected-call-clauseo prog
+                                        system-code
+                                        walked-atom
+                                        call-env
+                                        body
+                                        negated-body)
+    (== (list 'eq-triggered-neg-call subproof) proof)
+    (support/step-fuelo fuel next-fuel)
+    (sjas-proof-check-stateo system-code
+                             negated-body
+                             '()
+                             '()
+                             call-env
+                             proof-vars
+                             sigma
+                             sigma-out
+                             neqs
+                             neqs-out
+                             prog
+                             gamma-terms
+                             next-fuel
+                             subproof)))
+
 (defn- sjas-proof-check-close-agendao
   "Check a decoded tableau proof term without invoking the host proof kernel.
 
@@ -3397,6 +3433,24 @@
        (== (list 'eq left right) lit)
        (equality/unify-termo left right sigma sigma-mid step-proof)
        (sjas-saved-positive-call-closeso system-code
+                                         lits
+                                         proof-vars
+                                         sigma-mid
+                                         sigma-out
+                                         neqs
+                                         neqs-out
+                                         prog
+                                         gamma-terms
+                                         fuel
+                                         branch-proof))]
+    [(fresh [fml unexpanded lit left right sigma-mid step-proof
+             branch-proof]
+       (== (list 'eq-step step-proof branch-proof) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'eq left right) lit)
+       (equality/unify-termo left right sigma sigma-mid step-proof)
+       (sjas-saved-negative-call-closeso system-code
                                          lits
                                          proof-vars
                                          sigma-mid

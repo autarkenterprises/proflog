@@ -1370,6 +1370,59 @@
             "tableau-proof must validate encoded reflexive disequality closure certificates object-level")
         (is (proof/contains-step? (first-proof proofs) 'refl-close))))))
 
+(deftest sjas-proof-check-accepts-rigid-disequality-progress-without-kernel-validator
+  (let [system (demo-system :willard-sjas-tableau0)
+        left (ast/app-term 'code-1 sjas/zero)
+        right (ast/app-term 'code-1 sjas/one)
+        target (ast/and-form
+                 (ast/true-form)
+                 (ast/and-form
+                   (ast/neq-lit left right)
+                   (ast/eq-lit sjas/zero sjas/one)))
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           60
+                           '(conj
+                              (conj
+                                (neq-rigid
+                                  (free-close)))))
+              (l/== true q)))
+          "decoded tableau proof checking must consume rigid disequality progress evidence object-level"))))
+
+(deftest sjas-tableau-proof-accepts-rigid-disequality-progress-certificates
+  (let [system (demo-system :willard-sjas-tableau0)
+        left (ast/app-term 'code-1 sjas/zero)
+        right (ast/app-term 'code-1 sjas/one)
+        theorem (ast/or-form
+                  (ast/eq-lit left right)
+                  (ast/neq-lit sjas/zero sjas/one))
+        theorem-code (sjas/formula-code system theorem)
+        certificate (sjas/proof-certificate
+                      '(conj
+                         (conj
+                           (neq-rigid
+                             (free-close)))))]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (let [proofs (query/query-succeeds
+                     (:program system)
+                     (sjas/tableau-proof (:system-code system)
+                                         theorem-code
+                                         certificate)
+                     1
+                     180)]
+        (is (successful? proofs)
+            "tableau-proof must validate encoded rigid disequality progress certificates object-level")
+        (is (proof/contains-step? (first-proof proofs) 'neq-rigid))))))
+
 (deftest sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator
   (let [system (demo-system :willard-sjas-tableau0)
         theorem (ast/pos-lit (ast/app-term 'demo sjas/one))

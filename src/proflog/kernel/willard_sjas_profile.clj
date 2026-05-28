@@ -3364,6 +3364,28 @@
        (equality/same-termo left right sigma)
        (== sigma sigma-out)
        (== neqs neqs-out))]
+    [(fresh [fml unexpanded lit left right next rest next-fuel prf]
+       (== (list 'neq-rigid prf) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'neq left right) lit)
+       (support/rigid-different-termo left right sigma)
+       (== (lcons next rest) unexpanded)
+       (support/step-fuelo fuel next-fuel)
+       (sjas-proof-check-stateo system-code
+                                next
+                                rest
+                                lits
+                                env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                next-fuel
+                                prf))]
     [(fresh [fml unexpanded left right next-fuel prf]
        (== (list 'conj prf) proof)
        (support/selecto fml agenda unexpanded)
@@ -3620,6 +3642,33 @@
     (== (list 'conj arithmetic-proof) proof)
     (sjas-arithmetic-branch-closeo neg-theorem arithmetic-proof)))
 
+(defn- sjas-top-conj-negated-theorem-proof-checko
+  "Fast object-level check for certificates that close the negated theorem.
+
+   The proof-predicate target has the shape `(and system-axioms neg-theorem)`.
+   Once the top conjunction is expanded, a branch that closes using only the
+   negated theorem is closed regardless of the still-pending axiom formula.
+   Checking that subproof directly avoids exploring the large reconstructed
+   axiom basis before selecting the second conjunct."
+  [prog system-code target fuel proof]
+  (fresh [axiom-formula neg-theorem prf sigma-out neqs-out]
+    (== (list 'and axiom-formula neg-theorem) target)
+    (== (list 'conj prf) proof)
+    (sjas-proof-check-stateo system-code
+                             neg-theorem
+                             '()
+                             '()
+                             '()
+                             '()
+                             '()
+                             sigma-out
+                             '()
+                             neqs-out
+                             prog
+                             '()
+                             fuel
+                             prf)))
+
 (defn- sjas-proof-check-programo
   "Validate `proof` for `target` through the SJAS-side proof checker.
 
@@ -3631,6 +3680,7 @@
   [prog system-code target fuel proof]
   (conde
     [(sjas-top-conj-arithmetic-proof-checko target proof)]
+    [(sjas-top-conj-negated-theorem-proof-checko prog system-code target fuel proof)]
     [(fresh [sigma-out neqs-out]
        (sjas-proof-check-stateo system-code
                                 target

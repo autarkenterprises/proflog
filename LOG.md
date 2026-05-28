@@ -50,6 +50,13 @@ complete contemporaneous transcript.
   validates the encoded certificate for `eq(code-1(0), code-1(0))` without
   delegating to the host kernel. See
   [SJAS Reflexive Disequality Proof Check](docs/log/2026-05-27-sjas-reflexive-disequality-proof-check.md).
+- Added SJAS-local proof checking for rigid disequality progress.
+  `(neq-rigid subproof)` now discharges constructor disequalities that are
+  already true in the free term algebra and continues with the remaining branch
+  work. The public proof-predicate path also gained an object-level
+  top-conjunction focus check so certificates that close the negated theorem do
+  not have to explore the reconstructed axiom basis first. See
+  [SJAS Rigid Disequality Proof Check](docs/log/2026-05-27-sjas-rigid-disequality-proof-check.md).
 - Fixed the nominal lookup/hash guard bug in the legacy αleanTAP and
   greenfield nominal environment lookup relations. Core.logic's current
   `nom/hash` behavior passed the delayed-aliasing regression under the default

@@ -28,6 +28,8 @@
            (:status (correspondence/classify-proof-symbol 'args))))
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'refl-close))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol 'neq-rigid))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'par-bind))))
     (is (= :unresolved

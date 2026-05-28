@@ -22,6 +22,7 @@
      decompose
      args
      refl-close
+     neq-rigid
      false-close
      savefml})
 
@@ -90,7 +91,6 @@
      eq-triggered-neg-call
      par-bind
      neq-close
-     neq-rigid
      neq-store})
 
 (def ^:private unresolved-procedure-symbols

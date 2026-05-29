@@ -389,7 +389,7 @@
   (let [base (demo-system :willard-sjas-tableau0)
         renamed (renamed-demo-system :willard-sjas-tableau0
                                      'zz-demo
-                                     'zz-external-demo)
+                                     'aa-external-demo)
         base-index (get-in base [:coding-context :symbol->index 'demo])
         renamed-index (get-in renamed [:coding-context :symbol->index 'zz-demo])
         base-reflected-record (first (filter #(= :group-two-b (:group %))
@@ -1261,6 +1261,39 @@
                                 certificate)
             1
             120)))))
+
+(deftest ^:slow sjas-proof-predicates-decode-built-in-relations-without-symbol-registry
+  (let [system (demo-system :willard-sjas-tableau0)
+        no-registry-program (dissoc (:program system) :sjas/registry)
+        theorem (sjas/lt sjas/one sjas/two)
+        theorem-code (sjas/formula-code system theorem)
+        theorem-proof (first-proof
+                        (sjas/query-succeeds system theorem
+                                             {:proof-limit 1
+                                              :fuel 96}))
+        certificate (when theorem-proof
+                      (sjas/proof-certificate theorem-proof))]
+    (is theorem-proof)
+    (is (not (contains? no-registry-program :sjas/registry)))
+    (is (successful?
+          (query/query-succeeds
+            no-registry-program
+            (sjas/tableau-proof (:system-code system)
+                                theorem-code
+                                certificate)
+            1
+            180))
+        "tableau-proof must recover fixed arithmetic relation semantics from formula-code structure, not the source symbol registry")
+    (is (successful?
+          (query/query-succeeds
+            no-registry-program
+            (sjas/subst-prf (:system-code system)
+                            theorem-code
+                            theorem-code
+                            certificate)
+            1
+            220))
+        "subst-prf must recover fixed arithmetic relation semantics from formula-code structure, not the source symbol registry")))
 
 (deftest ^:slow sjas-subst-prf-checks-structural-non-generated-theorem-codes
   (let [system (demo-system :willard-sjas-tableau0)

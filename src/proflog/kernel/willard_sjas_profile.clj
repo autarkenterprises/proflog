@@ -784,6 +784,13 @@
   "Shared code-level noms used when decoded formula-code variables become ASTs."
   sjas-code/code-nom-entries)
 
+(def ^:private reserved-symbol-index-entries
+  "Fixed SJAS vocabulary entries recoverable without a generated codebook."
+  (apply list
+         (map-indexed (fn [idx sym]
+                        [(inc idx) sym])
+                      sjas-code/reserved-coding-symbols)))
+
 (defn- positive-byteo
   [byte]
   (membero byte positive-byte-entries))
@@ -792,17 +799,27 @@
   [byte]
   (membero byte positive-byte-except-one-entries))
 
+(defn- sjas-reserved-symbol-indexo
+  [idx sym]
+  (fresh [entry]
+    (membero entry reserved-symbol-index-entries)
+    (== [idx sym] entry)))
+
 (defn- sjas-symbol-indexo
   "Relate a formula-code symbol index to a declared object-language symbol.
 
-   Symbol-index entries are source-preprocessing metadata and must be reached
-   through the active SJAS registry, not through stale top-level program keys."
+   User-symbol entries are source-preprocessing metadata reached through the
+   active SJAS registry. Fixed U-Grounding arithmetic and SJAS profile symbols
+   have reserved indexes, so proof-facing code can recover their semantics even
+   when the generated registry is absent."
   [prog idx sym]
-  (fresh [entry]
-    (membero entry (or (:sjas/symbol-index-entries
-                         (some-> prog :sjas/registry deref))
-                       '()))
-    (== [idx sym] entry)))
+  (conde
+    [(fresh [entry]
+       (membero entry (or (:sjas/symbol-index-entries
+                            (some-> prog :sjas/registry deref))
+                          '()))
+       (== [idx sym] entry))]
+    [(sjas-reserved-symbol-indexo idx sym)]))
 
 (declare decode-formula-byteso decode-term-byteso)
 

@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-05-29
 
+- Reserved fixed numeric symbol ids for the SJAS semantic vocabulary and taught
+  proof-facing formula decoding to recover those symbols without the generated
+  source registry. `tableau-proof/3` and `subst-prf/4` now validate the
+  non-generated arithmetic theorem `lt(1, 2)` with `:sjas/registry` removed,
+  so branch closure for fixed U-Grounding/profile relations no longer depends
+  on host-side symbol-table lookup. User symbols remain conventional codebook
+  entries justified up to signature isomorphism. The attempted removal of the
+  compact ground code reader was recorded as a tractability boundary after
+  focused selectors exceeded their timeouts. See
+  [SJAS Reserved Semantic Symbols](docs/log/2026-05-29-sjas-reserved-semantic-symbols.md).
 - Removed source symbol-table lookup from reflected procedure-call proof
   reconstruction. `tableau-proof/3` now validates the demo reflected
   `neg-call` certificate with runtime clause tables and `:sjas/registry`

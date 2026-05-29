@@ -88,6 +88,47 @@
     code 24
     num 25})
 
+(def reserved-coding-symbols
+  "Fixed SJAS vocabulary indexes recoverable without a source registry.
+
+   User symbols are conventional finite codebook entries, but the U-Grounding
+   functions and SJAS profile relations are semantic primitives of the selected
+   object language. Their indexes must therefore be stable enough for
+   proof-facing arithmetic and profile predicates to interpret an encoded
+   formula after the generated source symbol table has been removed."
+  [zero-symbol
+   one-symbol
+   'add
+   'axiom-member
+   'count
+   'dbl
+   'delta-star-0-code
+   'div
+   'leq
+   'log
+   'lt
+   'max
+   'mult
+   'neg-pair
+   'pi-star-1-code
+   'pred
+   'root
+   'sigma-star-1-code
+   'sub
+   'subst-code
+   'subst-prf
+   'tableau-proof
+   'wff])
+
+(def reserved-symbol->index
+  "One-based indexes for `reserved-coding-symbols`."
+  (into {} (map-indexed (fn [idx sym] [sym (inc idx)])
+                        reserved-coding-symbols)))
+
+(def index->reserved-symbol
+  "Inverse of `reserved-symbol->index`."
+  (into {} (map (fn [[sym idx]] [idx sym]) reserved-symbol->index)))
+
 (def ^:private system-tag 31)
 (def ^:private profile-tableau0-tag 32)
 (def ^:private profile-level1-tag 33)
@@ -438,15 +479,24 @@
 (defn context
   "Build the symbol table used while encoding one SJAS system.
 
-   The table is deterministic: symbols are ordered by printed name. Willard's
-   presentations fix a coding for the language before coding formulas; this
-   table is Proflog's finite-language counterpart."
+   The table is deterministic. SJAS primitive arithmetic/profile symbols keep
+   reserved indexes; additional user symbols are ordered by printed name after
+   that fixed prefix. Willard's presentations fix a coding for the language
+   before coding formulas; this table is Proflog's finite-language
+   counterpart."
   [symbols]
-  (let [ordered (->> symbols
-                     (filter symbol?)
-                     distinct
-                     (sort-by (juxt namespace name))
-                     vec)
+  (let [declared (->> symbols
+                      (filter symbol?)
+                      distinct
+                      set)
+        reserved (filterv declared reserved-coding-symbols)
+        extra (->> symbols
+                   (filter symbol?)
+                   distinct
+                   (remove (set reserved-coding-symbols))
+                   (sort-by (juxt namespace name))
+                   vec)
+        ordered (vec (concat reserved extra))
         symbol->index (into {} (map-indexed (fn [idx sym] [sym (inc idx)])
                                             ordered))]
     {:symbols ordered

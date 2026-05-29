@@ -807,27 +807,36 @@
     (is (not (contains? registry :sjas/system-entries))
         "proof predicates must reconstruct the finite axiom basis from system-code, not generated host antecedents")))
 
-(deftest sjas-proof-predicates-require-source-preprocessing-registry
+(deftest sjas-proof-predicates-do-not-require-source-preprocessing-registry
   (let [system (demo-system :willard-sjas-tableau0)
-        registry @(get-in system [:program :sjas/registry])
         fixed-record (first (filter #(= :group-zero (:group %)) (:axioms system)))
         axiom-certificate (sjas/proof-certificate 'sjas-axiom)
-        top-level-metadata-program (-> (:program system)
-                                       (dissoc :sjas/registry)
-                                       (assoc :sjas/system-code (:system-code system)
-                                              :sjas/code-format (:code-format system)
-                                              :sjas/symbol-index-entries (:sjas/symbol-index-entries registry)))]
-    (is (not (contains? top-level-metadata-program :sjas/registry))
+        no-registry-program (dissoc (:program system) :sjas/registry)]
+    (is (not (contains? no-registry-program :sjas/registry))
         "the regression must remove the source-preprocessing registry")
-    (is (empty?
+    (is (not (str/includes?
+               (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+               "sjas-active-systemo"))
+        "proof predicates must not retain an active-system registry guard")
+    (is (successful?
           (query/query-succeeds
-            top-level-metadata-program
+            no-registry-program
             (sjas/tableau-proof (:system-code system)
                                 (:code fixed-record)
                                 axiom-certificate)
             1
             96))
-        "proof predicates must not accept stale top-level source metadata as a registry substitute")))
+        "tableau-proof must validate fixed-axiom certificates from system-code, not an active source registry")
+    (is (successful?
+          (query/query-succeeds
+            no-registry-program
+            (sjas/subst-prf (:system-code system)
+                            (:code fixed-record)
+                            (:code fixed-record)
+                            axiom-certificate)
+            1
+            96))
+        "subst-prf must validate fixed-axiom certificates from system-code, not an active source registry")))
 
 (deftest ^:slow sjas-structural-code-predicates-accept-non-generated-formula-codes
   (testing "formula-code predicates parse codes beyond the generated axiom registry"

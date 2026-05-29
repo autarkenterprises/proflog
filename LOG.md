@@ -20,6 +20,20 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-29
+
+- Removed the active source-registry authorization guard from SJAS proof
+  predicates as an ADR-0073 Track 1 system-code reconstruction slice.
+  `tableau-proof/3` now validates a fixed Group-0 axiom certificate with
+  `:sjas/registry` absent, `subst-prf/4` validates the corresponding identity
+  certificate the same way, and the focused regression audits that
+  `sjas-active-systemo` is not reintroduced. `lein test-proflog-fast` and
+  `lein test-proflog-extended` passed; `lein test-proflog-sjas-focused` was
+  stopped for exact-selector investigation after the composite reflected/beta
+  example exceeded the focused-run envelope. The broader finite symbol-table
+  boundary remains a Track 1 internalization target. See
+  [SJAS Active Registry Proof-Predicate Removal](docs/log/2026-05-29-sjas-active-registry-proof-predicate-removal.md).
+
 ## 2026-05-28
 
 - Repaired the `test-proflog-fitting-programs` gate after the LOPSTR+PPDP

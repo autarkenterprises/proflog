@@ -2918,11 +2918,6 @@
     (equality/walk*o formula-code sigma walked-formula-code)
     (sjas-axiom-membero prog walked-system-code walked-formula-code proof)))
 
-(defn- sjas-active-systemo
-  "Require proof predicates to use the active source-preprocessing registry."
-  [prog system-code]
-  (== system-code (:sjas/system-code (some-> prog :sjas/registry deref))))
-
 (defn- sjas-code-format
   "Return the public code representation selected by the active SJAS system.
 
@@ -3868,7 +3863,6 @@
                 target sigma-proof proof-kind proof-read-proof theorem-read-proof]
           (== '() env)
           (== '() sigma)
-          (sjas-active-systemo prog system-code)
           ;; The active system code is not a formula code; reject this ill-typed
           ;; theorem argument before decoding the supplied certificate.
           (if (= theorem-code system-code)
@@ -3953,7 +3947,6 @@
                 sigma-proof proof-kind proof-read-proof theorem-read-proof]
           (== '() env)
           (== '() sigma)
-          (sjas-active-systemo prog system-code)
           ;; The active system code begins with the system-code header, so it is
           ;; not a well-formed formula code. Reject these common ill-typed
           ;; ground calls before decoding a potentially large proof certificate.
@@ -4018,7 +4011,6 @@
         (equality/walk-atomo atom sigma walked-atom)
         (== (list 'app 'subst-prf system-code substitution-code theorem-code proof-code)
             walked-atom)
-        (sjas-active-systemo prog system-code)
         (decode-proof-code-kindo proof-code sigma sigma-proof proof-bytes decoded-proof proof-kind)
         (code-read-marker-o proof-kind proof-read-proof)
         (conde

@@ -287,6 +287,15 @@
     {:source-code source-code
      :target-code target-code}))
 
+(defn- demo-var0-substitution-codes
+  [system]
+  (let [source-formula '(pos (app demo (var v0)))
+        source-code (canonical-formula-code system source-formula)
+        target-formula (list 'pos (list 'app 'demo source-code))
+        target-code (canonical-formula-code system target-formula)]
+    {:source-code source-code
+     :target-code target-code}))
+
 (defn- shadowed-var0-substitution-code
   [system]
   (canonical-formula-code
@@ -2160,6 +2169,26 @@
             1
             160))
         "a quantifier binding v0 shadows the substitution variable")))
+
+(deftest ^:slow sjas-subst-code-decodes-user-symbols-without-symbol-registry
+  (let [system (demo-system :willard-sjas-level1)
+        no-registry-program (dissoc (:program system) :sjas/registry)
+        {:keys [source-code target-code]} (demo-var0-substitution-codes system)]
+    (is (not (contains? no-registry-program :sjas/registry)))
+    (is (successful?
+          (query/query-succeeds
+            no-registry-program
+            (sjas/subst-code source-code target-code)
+            1
+            240))
+        "Subst is structural and must not need the source symbol registry for user application heads")
+    (is (empty?
+          (query/query-succeeds
+            no-registry-program
+            (sjas/subst-code source-code source-code)
+            1
+            160))
+        "the no-registry structural path must still reject the unsubstituted open formula")))
 
 (deftest sjas-subst-prf-uses-substitution-code-independently-of-theorem-code
   (let [system (demo-system :willard-sjas-level1)

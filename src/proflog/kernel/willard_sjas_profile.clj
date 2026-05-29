@@ -3163,11 +3163,13 @@
 (defn- sjas-substitution-formula-codeo
   "Decode a substitution-side formula code.
 
-   This is intentionally the same object-language code relation used by syntax
-   predicates and theorem-code reads. It does not recover bytes from an
-   already-ground host term before entering the SJAS relation."
-  [prog code sigma sigma-out formula]
-  (sjas-decode-formula-codeo prog code sigma sigma-out formula))
+   Substitution is structural: it preserves application-head identity, but it
+   does not need the semantic host symbol denoted by a finite codebook index.
+   Using the syntax decoder keeps user relation/function heads as `(sym n)` and
+   therefore lets `subst-code` run without the generated source registry."
+  [_prog code sigma sigma-out formula]
+  (fresh [read-proof]
+    (sjas-decode-syntax-formula-code-proofo code sigma sigma-out formula read-proof)))
 
 (defn- sjas-subst-code-anyo
   "Relate formula codes by structural diagonal substitution.
@@ -3186,7 +3188,7 @@
                              sigma-after-source
                              source-kind
                              source-read-proof)
-    (decode-formula-byteso prog source-bytes '() source-formula)
+    (decode-syntax-formula-byteso source-bytes '() source-formula)
     (conde
       [(== :compact source-kind)
        (== (list 'code source-bytes) replacement)]
@@ -3219,7 +3221,7 @@
                              sigma-out
                              source-kind
                              source-read-proof)
-    (decode-formula-byteso prog source-bytes '() source-formula)))
+    (decode-syntax-formula-byteso source-bytes '() source-formula)))
 
 (defn- sjas-class-relationo
   "Recognize the finite formula-class predicates generated for one SJAS system.

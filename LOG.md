@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-05-29
 
+- Removed source symbol-registry dependence from `subst-code/2` over
+  user-symbol formulas. Substitution now decodes source and target formula
+  codes through the syntax/numeric-symbol decoder, so `demo(v0)` structurally
+  substitutes to `demo(code(demo(v0)))` with `:sjas/registry` removed while the
+  unsubstituted open formula is still rejected. See
+  [SJAS Subst-Code Symbol-ID Decoder](docs/log/2026-05-29-sjas-subst-code-symbol-id-decoder.md).
 - Reserved fixed numeric symbol ids for the SJAS semantic vocabulary and taught
   proof-facing formula decoding to recover those symbols without the generated
   source registry. `tableau-proof/3` and `subst-prf/4` now validate the

@@ -1034,6 +1034,165 @@
        (decode-formula-byteso prog after-bound rest body)
        (== (list 'bounded-exists idx bound body) formula))]))
 
+(declare decode-syntax-formula-byteso decode-syntax-term-byteso)
+
+(defn- parse-syntax-term-list-byteso
+  [remaining bytes rest terms]
+  (if (zero? remaining)
+    (conde
+      [(== bytes rest)
+       (== '() terms)])
+    (fresh [head tail after-head]
+      (decode-syntax-term-byteso bytes after-head head)
+      (parse-syntax-term-list-byteso (dec remaining) after-head rest tail)
+      (== (lcons head tail) terms))))
+
+(defn- decode-syntax-app-arityo
+  "Decode an application payload for syntax predicates without symbol lookup."
+  [arity after-symbol rest sym term]
+  (if (= arity 63)
+    fail
+    (conda
+      [(fresh [arg-bytes args]
+         (== (lcons (inc arity) arg-bytes) after-symbol)
+         (parse-syntax-term-list-byteso arity arg-bytes rest args)
+         (== (list 'app sym args) term))]
+      [(decode-syntax-app-arityo (inc arity) after-symbol rest sym term)])))
+
+(defn- decode-syntax-app-termo
+  "Decode an app term as structure only: application tag, symbol id, arity, args.
+
+   Syntax predicates such as `wff` and the formula-class checks do not need the
+   host symbol named by a formula-code symbol index. Keeping the head as a
+   structural `(sym idx)` term removes the finite source-time codebook from the
+   syntax slice while still preserving symbol identity for structural
+   complement and alpha checks."
+  [bytes rest term]
+  (fresh [symbol-index after-symbol sym]
+    (== (lcons term-app-tag
+                (lcons symbol-index after-symbol))
+        bytes)
+    (positive-byteo symbol-index)
+    (== (list 'sym symbol-index) sym)
+    (decode-syntax-app-arityo 0 after-symbol rest sym term)))
+
+(defn- decode-syntax-term-byteso
+  "Parse a syntax-check term without projecting symbol indexes to host names."
+  [bytes rest term]
+  (conde
+    [(fresh [idx after-var]
+       (== (lcons term-var-tag (lcons idx after-var)) bytes)
+       (positive-byteo idx)
+       (== after-var rest)
+       (== (list 'var idx) term))]
+    [(fresh [idx after-par]
+       (== (lcons term-par-tag (lcons idx after-par)) bytes)
+       (positive-byteo idx)
+       (== after-par rest)
+       (== (list 'par idx) term))]
+    [(decode-syntax-app-termo bytes rest term)]
+    [(decode-natural-termo bytes rest term)]
+    [(decode-embedded-code-termo bytes rest term)]))
+
+(defn- decode-syntax-formula-byteso
+  "Parse formula syntax from bytes using structural numeric symbol ids.
+
+   This relation is intentionally narrower than proof-facing formula decoding:
+   it proves that the code is a well-formed formula tree and preserves enough
+   structure for formula-class and neg-pair checks, but it does not recover
+   source-language host symbols."
+  [bytes rest formula]
+  (conde
+    [(fresh [after]
+       (== (lcons formula-true-tag after) bytes)
+       (== after rest)
+       (== (list 'true) formula))]
+    [(fresh [after]
+       (== (lcons formula-false-tag after) bytes)
+       (== after rest)
+       (== (list 'false) formula))]
+    [(fresh [term after-tag]
+       (== (lcons formula-pos-tag after-tag) bytes)
+       (decode-syntax-term-byteso after-tag rest term)
+       (== (list 'pos term) formula))]
+    [(fresh [term after-tag]
+       (== (lcons formula-neg-tag after-tag) bytes)
+       (decode-syntax-term-byteso after-tag rest term)
+       (== (list 'neg term) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-eq-tag after-tag) bytes)
+       (decode-syntax-term-byteso after-tag after-left left)
+       (decode-syntax-term-byteso after-left rest right)
+       (== (list 'eq left right) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-neq-tag after-tag) bytes)
+       (decode-syntax-term-byteso after-tag after-left left)
+       (decode-syntax-term-byteso after-left rest right)
+       (== (list 'neq left right) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-and-tag after-tag) bytes)
+       (decode-syntax-formula-byteso after-tag after-left left)
+       (decode-syntax-formula-byteso after-left rest right)
+       (== (list 'and left right) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-or-tag after-tag) bytes)
+       (decode-syntax-formula-byteso after-tag after-left left)
+       (decode-syntax-formula-byteso after-left rest right)
+       (== (list 'or left right) formula))]
+    [(fresh [body after-tag]
+       (== (lcons formula-not-tag after-tag) bytes)
+       (decode-syntax-formula-byteso after-tag rest body)
+       (== (list 'not body) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-implies-tag after-tag) bytes)
+       (decode-syntax-formula-byteso after-tag after-left left)
+       (decode-syntax-formula-byteso after-left rest right)
+       (== (list 'implies left right) formula))]
+    [(fresh [idx body after-idx]
+       (== (lcons formula-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-syntax-formula-byteso after-idx rest body)
+       (== (list 'forall idx body) formula))]
+    [(fresh [idx body after-idx]
+       (== (lcons formula-once-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-syntax-formula-byteso after-idx rest body)
+       (== (list 'once-forall idx body) formula))]
+    [(fresh [idx body after-idx]
+       (== (lcons formula-exists-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-syntax-formula-byteso after-idx rest body)
+       (== (list 'exists idx body) formula))]
+    [(fresh [idx bound body after-idx after-bound]
+       (== (lcons formula-bounded-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-syntax-term-byteso after-idx after-bound bound)
+       (decode-syntax-formula-byteso after-bound rest body)
+       (== (list 'bounded-forall idx bound body) formula))]
+    [(fresh [idx bound body after-idx after-bound]
+       (== (lcons formula-bounded-exists-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-syntax-term-byteso after-idx after-bound bound)
+       (decode-syntax-formula-byteso after-bound rest body)
+       (== (list 'bounded-exists idx bound body) formula))]))
+
+(defn- sjas-decode-syntax-formula-code-proofo
+  [code sigma sigma-out formula read-proof]
+  (fresh [bytes rest kind]
+    (sjas-formal-code-byteso code bytes sigma sigma-out kind read-proof)
+    (decode-syntax-formula-byteso bytes rest formula)
+    (== '() rest)))
+
 (defn- sjas-decode-formula-code-proofo
   [prog code sigma sigma-out formula read-proof]
   (fresh [bytes rest kind]
@@ -3160,22 +3319,26 @@
    when the system was compiled. ADR-0072 removes that shortcut: the predicate
    succeeds only by decoding the supplied code term through the relational byte
    reader and formula grammar used for non-generated formulas."
-  [prog code sigma sigma-out formula branch-proof]
-  (sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof))
+  [_prog code sigma sigma-out formula branch-proof]
+  (fresh []
+    ;; `prog` is intentionally ignored in this syntax slice. Application heads
+    ;; remain numeric symbol ids, because `wff` needs shape and arity, not the
+    ;; source-time host names attached to those ids.
+    (sjas-decode-syntax-formula-code-proofo code sigma sigma-out formula branch-proof)))
 
 (defn- sjas-class-code-closeo
   "Close a formula-class predicate by decoding and classifying the formula AST."
-  [prog relation code sigma sigma-out formula branch-proof]
+  [_prog relation code sigma sigma-out formula branch-proof]
   (fresh []
-    (sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof)
+    (sjas-decode-syntax-formula-code-proofo code sigma sigma-out formula branch-proof)
     (sjas-structural-formula-classo relation formula)))
 
 (defn- sjas-neg-pair-code-closeo
   "Close `neg-pair(left,right)` by decoding both codes and complementing ASTs."
-  [prog left right sigma sigma-out formula complement branch-proof]
+  [_prog left right sigma sigma-out formula complement branch-proof]
   (fresh [sigma-mid left-proof right-proof]
-    (sjas-decode-formula-code-proofo prog left sigma sigma-mid formula left-proof)
-    (sjas-decode-formula-code-proofo prog right sigma-mid sigma-out complement right-proof)
+    (sjas-decode-syntax-formula-code-proofo left sigma sigma-mid formula left-proof)
+    (sjas-decode-syntax-formula-code-proofo right sigma-mid sigma-out complement right-proof)
     (sjas-formula-complemento formula complement)
     (== (list 'sjas-neg-pair-structural left-proof right-proof) branch-proof)))
 

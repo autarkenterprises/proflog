@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-05-29
 
+- Added a syntax-only formula-code decoder that keeps application heads as
+  structural numeric `(sym n)` terms instead of resolving symbol indexes
+  through `:sjas/symbol-index-entries`. `wff` now succeeds for an
+  application-bearing formula code with `:sjas/registry` removed, while the
+  remaining proof-facing symbol table boundary is left explicit. See
+  [SJAS Syntax Symbol-ID Decoder](docs/log/2026-05-29-sjas-syntax-symbol-id-decoder.md).
 - Removed the remaining `:sjas/code-format` source-registry read from SJAS
   syntax-code predicate closure. The proof profile now lets the object-level
   code reader infer compact versus U-Grounding representation from the supplied

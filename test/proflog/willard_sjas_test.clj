@@ -484,6 +484,24 @@
              "sjas-code-format"))
       "proof-profile code readers must infer compact vs U-Grounding from the code term, not source registry metadata"))
 
+(deftest sjas-syntax-predicates-decode-application-codes-without-symbol-registry
+  (testing "syntax checks need only application structure, numeric symbol ids, and arities"
+    (let [system (demo-system :willard-sjas-level1)
+          formula (sjas/lt sjas/one sjas/two)
+          code (sjas/formula-code system formula)
+          no-registry-program (dissoc (:program system) :sjas/registry)
+          wff-proofs (query/query-succeeds
+                       no-registry-program
+                       (sjas/wff code)
+                       1
+                       48)]
+      (is (sjas-code/code-term? code))
+      (is (not (contains? no-registry-program :sjas/registry)))
+      (is (successful? wff-proofs)
+          "wff should decode app-bearing formula codes without the source symbol table")
+      (is (proof/contains-step? (first-proof wff-proofs) 'sjas-code-arg)
+          "the syntax proof should still read the code bytes through the object relation"))))
+
 (deftest sjas-u-grounding-codes-preserve-trailing-zero-byte-sequences
   (testing "sentinel natural codes remain injective for byte strings ending in zero"
     (let [bytes [1 0]

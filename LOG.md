@@ -22,6 +22,17 @@ complete contemporaneous transcript.
 
 ## 2026-05-29
 
+- Removed source symbol-table lookup from reflected procedure-call proof
+  reconstruction. `tableau-proof/3` now validates the demo reflected
+  `neg-call` certificate with runtime clause tables and `:sjas/registry`
+  removed, by decoding theorem and reflected-clause application heads as
+  structural numeric `(sym n)` ids and comparing those ids against the
+  reflected records in `system-code`. The user-facing caveat remains that
+  system-code byte reading is only fully satisfactory when backed by
+  `sjas-formal-code-byteso` rather than a host byte projection; this slice
+  removes the symbol-codebook lookup from reflected calls, not every remaining
+  proof-predicate shortcut. See
+  [SJAS Reflected Call Symbol-ID Recovery](docs/log/2026-05-29-sjas-reflected-call-symbol-id-recovery.md).
 - Removed source symbol-table lookup from reflected Group-2b axiom membership.
   Reflected clause axiom citation now reconstructs and compares formula trees
   using structural numeric `(sym n)` relation heads, while reflected

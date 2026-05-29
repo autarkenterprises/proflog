@@ -1900,6 +1900,39 @@
               240))
           "reflected procedure calls inside proof certificates must be recovered from encoded system-code clauses"))))
 
+(deftest sjas-proof-predicates-check-reflected-calls-without-symbol-registry
+  (let [system (demo-system :willard-sjas-tableau0)
+        theorem (ast/pos-lit (ast/app-term 'demo sjas/one))
+        theorem-code (sjas/formula-code system theorem)
+        theorem-proof (first-proof
+                        (sjas/query-succeeds system theorem
+                                             {:proof-limit 1
+                                              :fuel 160}))
+        certificate (when theorem-proof
+                      (sjas/proof-certificate theorem-proof))
+        stripped-program (-> (:program system)
+                             (assoc :clauses nil
+                                    :clause-list '()
+                                    :alternative-clause-list '()
+                                    :guarded-clause-list '())
+                             (dissoc :sjas/registry))]
+    (is theorem-proof)
+    (is (proof/contains-step? theorem-proof 'neg-call))
+    (is (not (contains? stripped-program :sjas/registry))
+        "the regression must remove the finite source symbol table")
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (is (successful?
+            (query/query-succeeds
+              stripped-program
+              (sjas/tableau-proof (:system-code system)
+                                  theorem-code
+                                  certificate)
+              1
+              240))
+          "reflected procedure calls must compare encoded symbol ids from system-code, not host symbol names"))))
+
 (deftest sjas-subst-prf-reconstructs-axiom-basis-without-system-registry
   (let [system (demo-system :willard-sjas-tableau0)
         registry (get-in system [:program :sjas/registry])

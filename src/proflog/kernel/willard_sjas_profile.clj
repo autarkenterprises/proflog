@@ -1205,6 +1205,27 @@
   (fresh [read-proof]
     (sjas-decode-formula-code-proofo prog code sigma sigma-out formula read-proof)))
 
+(defn- decode-proof-formula-byteso
+  "Decode a proof-predicate formula, falling back to numeric symbol ids.
+
+   Proof predicates still prefer the ordinary proof-facing decoder when the
+   finite source codebook is present, because arithmetic/profile symbols such
+   as `lt`, `leq`, and `tableau-proof` currently have host-level interpreters.
+   When that codebook is absent, reflected procedure-call proof checking can
+   still compare application heads by their encoded numeric symbol ids, written
+   as structural `(sym n)` terms."
+  [prog bytes rest formula]
+  (conda
+    [(decode-formula-byteso prog bytes rest formula)]
+    [(decode-syntax-formula-byteso bytes rest formula)]))
+
+(defn- sjas-decode-proof-formula-code-proofo
+  [prog code sigma sigma-out formula read-proof]
+  (fresh [bytes rest kind]
+    (sjas-formal-code-byteso code bytes sigma sigma-out kind read-proof)
+    (decode-proof-formula-byteso prog bytes rest formula)
+    (== '() rest)))
+
 (declare sjas-delta-star-0-formulao
          sjas-pi-star-1-formulao
          sjas-sigma-star-1-formulao
@@ -2054,7 +2075,7 @@
    host-projected byte vector."
   [prog theorem-code sigma sigma-out neg-theorem theorem-read-proof]
   (fresh [formula complement read-proof]
-    (sjas-decode-formula-code-proofo prog theorem-code sigma sigma-out formula read-proof)
+    (sjas-decode-proof-formula-code-proofo prog theorem-code sigma sigma-out formula read-proof)
     (sjas-formula-complemento formula complement)
     (sjas-internal-formula-asto complement neg-theorem)
     (== (list 'willard-sjas-theorem-code read-proof) theorem-read-proof)))
@@ -2588,24 +2609,44 @@
    against the focused call atom, and exposes the body/negated-body formulas
    needed by `pos-call` and `neg-call` proof constructors."
   [prog bytes rest atom env body negated-body]
-  (fresh [relation args relation-index arity-byte body-bytes
-          decoded-body nnf-body]
-    (== (lcons 'app (lcons relation args)) atom)
-    (== (lcons system-reflected-clause-tag
-                (lcons relation-index
-                       (lcons arity-byte body-bytes)))
-        bytes)
-    (sjas-symbol-indexo prog relation-index relation)
-    (or*
-      (map (fn [arity]
-             (fresh []
-               (== (inc arity) arity-byte)
-               (reflected-call-env-argso 1 arity args env)
-               (decode-formula-byteso prog body-bytes rest decoded-body)
-               (sjas-to-nnfo decoded-body nnf-body)
-               (sjas-internal-formula-asto nnf-body body)
-               (sjas-negated-formula-asto nnf-body negated-body)))
-           (range sjas-code/byte-base)))))
+  (conda
+    [(fresh [relation args relation-index arity-byte body-bytes
+             decoded-body nnf-body]
+       (== (lcons 'app (lcons relation args)) atom)
+       (== (lcons system-reflected-clause-tag
+                   (lcons relation-index
+                          (lcons arity-byte body-bytes)))
+           bytes)
+       (sjas-symbol-indexo prog relation-index relation)
+       (or*
+         (map (fn [arity]
+                (fresh []
+                  (== (inc arity) arity-byte)
+                  (reflected-call-env-argso 1 arity args env)
+                  (decode-formula-byteso prog body-bytes rest decoded-body)
+                  (sjas-to-nnfo decoded-body nnf-body)
+                  (sjas-internal-formula-asto nnf-body body)
+                  (sjas-negated-formula-asto nnf-body negated-body)))
+              (range sjas-code/byte-base))))]
+    [(fresh [relation args relation-index arity-byte body-bytes
+             decoded-body nnf-body]
+       (== (lcons 'app (lcons relation args)) atom)
+       (== (lcons system-reflected-clause-tag
+                   (lcons relation-index
+                          (lcons arity-byte body-bytes)))
+           bytes)
+       (positive-byteo relation-index)
+       (== (list 'sym relation-index) relation)
+       (or*
+         (map (fn [arity]
+                (fresh []
+                  (== (inc arity) arity-byte)
+                  (reflected-call-env-argso 1 arity args env)
+                  (decode-syntax-formula-byteso body-bytes rest decoded-body)
+                  (sjas-to-nnfo decoded-body nnf-body)
+                  (sjas-internal-formula-asto nnf-body body)
+                  (sjas-negated-formula-asto nnf-body negated-body)))
+              (range sjas-code/byte-base))))]))
 
 (defn- reflected-call-in-clauseso
   "Search encoded reflected clauses for a call-compatible procedure body."
@@ -2622,7 +2663,7 @@
                                         body
                                         negated-body)]
         [(fresh [current]
-           (decode-reflected-clause-formulao prog bytes after-current current)
+           (decode-reflected-clause-syntax-formulao bytes after-current current)
            (reflected-call-in-clauseso prog
                                        (dec remaining)
                                        after-current
@@ -2973,7 +3014,7 @@
       (== bytes rest)
       (== '() formulas))
     (fresh [decoded ast-formula after-formula tail-formulas]
-      (decode-formula-byteso prog bytes after-formula decoded)
+      (decode-proof-formula-byteso prog bytes after-formula decoded)
       (sjas-proof-antecedent-formula-asto decoded ast-formula)
       (decode-proof-antecedent-formulaso prog
                                          (dec remaining)
@@ -2989,7 +3030,9 @@
       (== bytes rest)
       (== '() formulas))
     (fresh [decoded ast-formula after-record tail-formulas]
-      (decode-reflected-clause-formulao prog bytes after-record decoded)
+      (conda
+        [(decode-reflected-clause-formulao prog bytes after-record decoded)]
+        [(decode-reflected-clause-syntax-formulao bytes after-record decoded)])
       (sjas-proof-antecedent-formula-asto decoded ast-formula)
       (decode-reflected-proof-antecedent-formulaso prog
                                                    (dec remaining)

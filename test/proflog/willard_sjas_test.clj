@@ -825,6 +825,24 @@
     (is (not (contains? (:clauses (:program system)) 'axiom-member))
         "the generated SJAS basis must not add axiom-member/2 facts as ordinary clauses")))
 
+(deftest sjas-beta-axiom-member-decodes-application-codes-without-symbol-registry
+  (testing "beta membership compares formula bytes without source symbol lookup"
+    (let [beta-formula (sjas/lt sjas/one sjas/two)
+          system (demo-system :willard-sjas-tableau0
+                              {:beta [beta-formula]})
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          no-registry-program (dissoc (:program system) :sjas/registry)
+          proofs (query/query-succeeds
+                   no-registry-program
+                   (sjas/axiom-member (:system-code system)
+                                      (:code beta-record))
+                   1
+                   96)]
+      (is (not (contains? no-registry-program :sjas/registry)))
+      (is (sjas-code/code-term? (:code beta-record)))
+      (is (successful? proofs)
+          "Group-2 beta membership should not need the finite source symbol table"))))
+
 (deftest sjas-system-does-not-generate-proof-antecedent-registry
   (let [system (demo-system :willard-sjas-tableau0)
         registry @(get-in system [:program :sjas/registry])]

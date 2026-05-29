@@ -2419,16 +2419,16 @@
        (byte-prefixo prefix-tail bytes-tail rest))]))
 
 (defn- sjas-beta-member-in-formula-byteso
-  [prog remaining bytes formula-bytes proof]
+  [_prog remaining bytes formula-bytes proof]
   (if (zero? remaining)
     fail
     (fresh [current after-current after-prefix]
-      (decode-formula-byteso prog bytes after-current current)
+      (decode-syntax-formula-byteso bytes after-current current)
       (conde
         [(byte-prefixo formula-bytes bytes after-prefix)
          (== after-prefix after-current)
          (== '(sjas-system-beta-axiom) proof)]
-        [(sjas-beta-member-in-formula-byteso prog
+        [(sjas-beta-member-in-formula-byteso _prog
                                              (dec remaining)
                                              after-current
                                              formula-bytes

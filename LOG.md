@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-05-29
 
+- Removed source symbol-table lookup from Group-2 beta axiom membership.
+  `axiom-member(system, formula)` now scans beta formula byte boundaries with
+  the syntax-only decoder, so application-bearing beta formulas such as
+  `lt(1, 2)` can be cited with `:sjas/registry` removed. Reflected clauses and
+  proof-facing AST conversion still remain as symbol-code boundaries. See
+  [SJAS Beta Byte Membership Without Symbol Registry](docs/log/2026-05-29-sjas-beta-byte-membership-without-symbol-registry.md).
 - Added a syntax-only formula-code decoder that keeps application heads as
   structural numeric `(sym n)` terms instead of resolving symbol indexes
   through `:sjas/symbol-index-entries`. `wff` now succeeds for an

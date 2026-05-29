@@ -22,6 +22,11 @@ complete contemporaneous transcript.
 
 ## 2026-05-29
 
+- Removed source symbol-table lookup from reflected Group-2b axiom membership.
+  Reflected clause axiom citation now reconstructs and compares formula trees
+  using structural numeric `(sym n)` relation heads, while reflected
+  procedure-call recovery remains on the proof-facing symbol path. See
+  [SJAS Reflected Axiom Symbol-ID Membership](docs/log/2026-05-29-sjas-reflected-axiom-symbol-id-membership.md).
 - Removed source symbol-table lookup from Group-2 beta axiom membership.
   `axiom-member(system, formula)` now scans beta formula byte boundaries with
   the syntax-only decoder, so application-bearing beta formulas such as

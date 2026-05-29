@@ -2474,12 +2474,12 @@
    section. The decoded formulas are intentionally discarded here; this relation
    only proves that the bytes form well-encoded formulas and exposes the later
    tail."
-  [prog remaining bytes rest]
+  [_prog remaining bytes rest]
   (if (zero? remaining)
     (== bytes rest)
     (fresh [formula after-formula]
-      (decode-formula-byteso prog bytes after-formula formula)
-      (skip-formula-byteso prog (dec remaining) after-formula rest))))
+      (decode-syntax-formula-byteso bytes after-formula formula)
+      (skip-formula-byteso _prog (dec remaining) after-formula rest))))
 
 (defn- reflected-head-argso
   "Build the canonical head argument list for an encoded reflected clause.
@@ -2533,6 +2533,29 @@
              (fresh []
                (== (inc arity) arity-byte)
                (decode-formula-byteso prog body-bytes rest body)
+               (reflected-clause-formulao arity relation body formula)))
+           (range sjas-code/byte-base)))))
+
+(defn- decode-reflected-clause-syntax-formulao
+  "Decode a reflected-clause axiom without resolving source symbol names.
+
+   Axiom membership only needs the formula tree induced by the reflected record.
+   It does not need the host relation symbol used later by procedure-call proof
+   reconstruction, so this decoder keeps the reflected relation as `(sym idx)`
+   and decodes the body through the syntax-only formula decoder."
+  [bytes rest formula]
+  (fresh [relation-index arity-byte body-bytes relation body]
+    (== (lcons system-reflected-clause-tag
+                (lcons relation-index
+                       (lcons arity-byte body-bytes)))
+        bytes)
+    (positive-byteo relation-index)
+    (== (list 'sym relation-index) relation)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (decode-syntax-formula-byteso body-bytes rest body)
                (reflected-clause-formulao arity relation body formula)))
            (range sjas-code/byte-base)))))
 
@@ -2646,15 +2669,15 @@
 
 (defn- reflected-member-in-clauseso
   "Search the encoded reflected-clause section for a formula-equivalent axiom."
-  [prog remaining bytes formula proof]
+  [_prog remaining bytes formula proof]
   (if (zero? remaining)
     fail
     (fresh [current after-current]
-      (decode-reflected-clause-formulao prog bytes after-current current)
+      (decode-reflected-clause-syntax-formulao bytes after-current current)
       (conde
         [(sjas-alpha-formula-equivo current formula '())
          (== '(sjas-system-reflected-axiom) proof)]
-        [(reflected-member-in-clauseso prog
+        [(reflected-member-in-clauseso _prog
                                        (dec remaining)
                                        after-current
                                        formula
@@ -2715,7 +2738,7 @@
     (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
     (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
     (reflected-axiom-formula-starto formula-bytes)
-    (decode-formula-byteso prog formula-bytes '() decoded-formula)
+    (decode-syntax-formula-byteso formula-bytes '() decoded-formula)
     (sjas-system-reflected-formulao prog system-bytes decoded-formula reflected-proof)
     (== (list 'sjas-system-reflected-axiom
               system-read-proof

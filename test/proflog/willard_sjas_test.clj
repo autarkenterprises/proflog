@@ -843,6 +843,22 @@
       (is (successful? proofs)
           "Group-2 beta membership should not need the finite source symbol table"))))
 
+(deftest sjas-reflected-axiom-member-decodes-application-codes-without-symbol-registry
+  (testing "reflected axiom membership reconstructs clause formulas structurally"
+    (let [system (demo-system :willard-sjas-tableau0)
+          reflected-record (first (filter #(= :group-two-b (:group %)) (:axioms system)))
+          no-registry-program (dissoc (:program system) :sjas/registry)
+          proofs (query/query-succeeds
+                   no-registry-program
+                   (sjas/axiom-member (:system-code system)
+                                      (:code reflected-record))
+                   1
+                   128)]
+      (is (not (contains? no-registry-program :sjas/registry)))
+      (is (sjas-code/code-term? (:code reflected-record)))
+      (is (successful? proofs)
+          "Group-2b reflected axiom membership should not need the finite source symbol table"))))
+
 (deftest sjas-system-does-not-generate-proof-antecedent-registry
   (let [system (demo-system :willard-sjas-tableau0)
         registry @(get-in system [:program :sjas/registry])]

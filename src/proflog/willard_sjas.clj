@@ -614,18 +614,6 @@
      :relations (merge base-relations extra-relations)
      :proof-profile profile}))
 
-(defn- symbol-index-entries
-  "Expose the finite language-code symbol table to the SJAS proof profile.
-
-   Formula codes contain numeric indexes for function and relation symbols. The
-   profile may inspect those indexes relationally, but the finite symbol table is
-   fixed when the user source is translated into this SJAS system."
-  [coding-context]
-  (apply list
-         (map (fn [[sym idx]]
-                [idx sym])
-              (:symbol->index coding-context))))
-
 (defn system
   "Build a finite reflected SJAS system.
 
@@ -706,8 +694,7 @@
         ;; reflected proof-time calls from `system-code`, so no reflected
         ;; compiled-program side table is stored in the registry.
         registry (atom {:sjas/system-code system-code
-                        :sjas/code-format code-format
-                        :sjas/symbol-index-entries (symbol-index-entries coding-context)})
+                        :sjas/code-format code-format})
         program (assoc (language/compile-program lang clauses)
                        :sjas/registry registry)]
     {:profile profile

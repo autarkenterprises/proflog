@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-05-29
 
+- Removed the generated finite symbol table from compiled SJAS program
+  registries and from proof-profile formula-code decoding. Semantic SJAS
+  primitives are now recovered only through reserved numeric ids; user symbols
+  are compared structurally as numeric `(sym n)` ids in the proof predicate.
+  See
+  [SJAS Symbol-Table Registry Removal](docs/log/2026-05-29-sjas-symbol-table-registry-removal.md).
 - Removed source symbol-registry dependence from `subst-code/2` over
   user-symbol formulas. Substitution now decodes source and target formula
   codes through the syntax/numeric-symbol decoder, so `demo(v0)` structurally

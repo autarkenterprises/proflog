@@ -808,18 +808,12 @@
 (defn- sjas-symbol-indexo
   "Relate a formula-code symbol index to a declared object-language symbol.
 
-   User-symbol entries are source-preprocessing metadata reached through the
-   active SJAS registry. Fixed U-Grounding arithmetic and SJAS profile symbols
-   have reserved indexes, so proof-facing code can recover their semantics even
-   when the generated registry is absent."
-  [prog idx sym]
-  (conde
-    [(fresh [entry]
-       (membero entry (or (:sjas/symbol-index-entries
-                            (some-> prog :sjas/registry deref))
-                          '()))
-       (== [idx sym] entry))]
-    [(sjas-reserved-symbol-indexo idx sym)]))
+   Only the fixed U-Grounding arithmetic and SJAS profile symbols have semantic
+   names at proof-checking time. User symbols are handled by syntax decoders as
+   structural `(sym n)` ids unless reflected system-code records provide a
+   structural comparison target."
+  [_prog idx sym]
+  (sjas-reserved-symbol-indexo idx sym))
 
 (declare decode-formula-byteso decode-term-byteso)
 

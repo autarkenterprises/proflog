@@ -2,6 +2,13 @@
 
 Date: 2026-05-26
 
+Update 2026-05-29:
+[SJAS Symbol-Table Registry Removal](2026-05-29-sjas-symbol-table-registry-removal.md)
+removes this table from compiled SJAS program registries and from
+proof-profile decoding. The isomorphism argument below remains relevant to the
+source-side coding-context convention, but it is no longer an accepted
+proof-predicate runtime dependency.
+
 ## Question
 
 Current formula and system codes store finite symbol indexes. The runtime

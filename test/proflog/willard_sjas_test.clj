@@ -392,7 +392,10 @@
           "compiled SJAS programs must not carry stale host-side proof or fact tables")
       (is (not (contains? @(get-in system [:program :sjas/registry])
                           :sjas/reflected-program))
-          "proof-predicate reflected calls must not depend on a reflected compiled-program side table"))))
+          "proof-predicate reflected calls must not depend on a reflected compiled-program side table")
+      (is (not (contains? @(get-in system [:program :sjas/registry])
+                          :sjas/symbol-index-entries))
+          "proof predicates must not depend on a generated source symbol table"))))
 
 (deftest sjas-symbol-table-is-irrelevant-up-to-signature-isomorphism
   (let [base (demo-system :willard-sjas-tableau0)
@@ -2379,6 +2382,10 @@
         "SJAS substitution predicates must not use the old broad staged source-code branch")
     (is (not (re-find #"defn- ground-formal-code-term" profile-source))
         "SJAS proof predicates must not project public code bytes through a deterministic host decoder")
+    (is (not (re-find #":sjas/symbol-index-entries" profile-source))
+        "SJAS proof predicates must not recover formula-code symbols from a generated source table")
+    (is (not (re-find #":sjas/symbol-index-entries" builder-source))
+        "compiled SJAS programs must not carry a generated source symbol table")
     (is (not (re-find #"defn- ground-u-grounding-substitution-bytes" profile-source))
         "SJAS substitution predicates must not recover U-Grounding formula bytes through a host projector")
     (is (not (re-find #"sjas-code/code-term-bytes term" profile-source))

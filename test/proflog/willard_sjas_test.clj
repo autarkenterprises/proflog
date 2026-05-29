@@ -478,6 +478,12 @@
                     (keys (get-in system [:language :functions])))
           "U-Grounding coded systems must not expose generated code-N constructors"))))
 
+(deftest sjas-code-format-dispatch-does-not-read-source-registry
+  (is (not (str/includes?
+             (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+             "sjas-code-format"))
+      "proof-profile code readers must infer compact vs U-Grounding from the code term, not source registry metadata"))
+
 (deftest sjas-u-grounding-codes-preserve-trailing-zero-byte-sequences
   (testing "sentinel natural codes remain injective for byte strings ending in zero"
     (let [bytes [1 0]

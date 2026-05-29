@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-05-29
 
+- Removed the remaining `:sjas/code-format` source-registry read from SJAS
+  syntax-code predicate closure. The proof profile now lets the object-level
+  code reader infer compact versus U-Grounding representation from the supplied
+  code term. This narrows the remaining source-preprocessing boundary to the
+  finite symbol-index table. See
+  [SJAS Code-Format Registry Removal](docs/log/2026-05-29-sjas-code-format-registry-removal.md).
 - Removed the active source-registry authorization guard from SJAS proof
   predicates as an ADR-0073 Track 1 system-code reconstruction slice.
   `tableau-proof/3` now validates a fixed Group-0 axiom certificate with

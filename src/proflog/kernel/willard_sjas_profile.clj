@@ -2918,19 +2918,6 @@
     (equality/walk*o formula-code sigma walked-formula-code)
     (sjas-axiom-membero prog walked-system-code walked-formula-code proof)))
 
-(defn- sjas-code-format
-  "Return the public code representation selected by the active SJAS system.
-
-   This is profile metadata, not an object-language fact. It is used only to
-   choose a search order. U-Grounding code terms are deep binary numerals, so
-   trying generated-code table lookup first can force core.logic to compare
-   large numeral towers against every registry entry before the structural
-   decoder has a chance to run. Missing registry metadata falls back to compact
-   search order, but stale top-level program keys are deliberately ignored."
-  [prog]
-  (or (:sjas/code-format (some-> prog :sjas/registry deref))
-      :compact))
-
 (defn- sjas-substitution-formula-codeo
   "Decode a substitution-side formula code.
 
@@ -3173,19 +3160,19 @@
    when the system was compiled. ADR-0072 removes that shortcut: the predicate
    succeeds only by decoding the supplied code term through the relational byte
    reader and formula grammar used for non-generated formulas."
-  [prog code sigma sigma-out _structural-first? formula branch-proof]
+  [prog code sigma sigma-out formula branch-proof]
   (sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof))
 
 (defn- sjas-class-code-closeo
   "Close a formula-class predicate by decoding and classifying the formula AST."
-  [prog relation code sigma sigma-out _structural-first? formula branch-proof]
+  [prog relation code sigma sigma-out formula branch-proof]
   (fresh []
     (sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof)
     (sjas-structural-formula-classo relation formula)))
 
 (defn- sjas-neg-pair-code-closeo
   "Close `neg-pair(left,right)` by decoding both codes and complementing ASTs."
-  [prog left right sigma sigma-out _structural-first? formula complement branch-proof]
+  [prog left right sigma sigma-out formula complement branch-proof]
   (fresh [sigma-mid left-proof right-proof]
     (sjas-decode-formula-code-proofo prog left sigma sigma-mid formula left-proof)
     (sjas-decode-formula-code-proofo prog right sigma-mid sigma-out complement right-proof)
@@ -3193,18 +3180,18 @@
     (== (list 'sjas-neg-pair-structural left-proof right-proof) branch-proof)))
 
 (defn- sjas-syntax-code-brancho
-  [prog relation args sigma sigma-out structural-first? branch-proof]
+  [prog relation args sigma sigma-out branch-proof]
   (fresh [code left right formula complement]
     (conde
       [(== 'wff relation)
        (== (lcons code '()) args)
-       (sjas-wff-code-closeo prog code sigma sigma-out structural-first? formula branch-proof)]
+       (sjas-wff-code-closeo prog code sigma sigma-out formula branch-proof)]
       [(== (lcons code '()) args)
        (sjas-class-relationo relation)
-       (sjas-class-code-closeo prog relation code sigma sigma-out structural-first? formula branch-proof)]
+       (sjas-class-code-closeo prog relation code sigma sigma-out formula branch-proof)]
       [(== 'neg-pair relation)
        (== (lcons left (lcons right '())) args)
-       (sjas-neg-pair-code-closeo prog left right sigma sigma-out structural-first? formula complement branch-proof)])))
+       (sjas-neg-pair-code-closeo prog left right sigma sigma-out formula complement branch-proof)])))
 
 (defn- sjas-syntax-code-closeo
   "Close generated syntax-code predicates by decoding formula Godel-code terms.
@@ -3217,8 +3204,7 @@
    the branch proof preserves the byte-cons evidence from the relational
    decoder."
   [fml env sigma sigma-out neqs neqs-out prog proof]
-  (let [structural-first? (= :u-grounding (sjas-code-format prog))
-        ground-relation (ground-negated-relation fml)]
+  (let [ground-relation (ground-negated-relation fml)]
     (if (syntax-code-relation? ground-relation)
       (conde
         [(fresh [branch-proof]
@@ -3233,7 +3219,6 @@
                                               (if (= 'neg-pair ground-relation) 2 1)))
                                      '()
                                      sigma-out
-                                     structural-first?
                                      branch-proof)
            (== neqs neqs-out)
            (== (list 'profiled 'willard-sjas-code
@@ -3249,7 +3234,6 @@
                                      args
                                      sigma
                                      sigma-out
-                                     structural-first?
                                      branch-proof)
            (== neqs neqs-out)
            (== (list 'profiled 'willard-sjas-code (list relation branch-proof)) proof))])
@@ -3263,7 +3247,6 @@
                                   args
                                   sigma
                                   sigma-out
-                                  structural-first?
                                   branch-proof)
         (== neqs neqs-out)
         (== (list 'profiled 'willard-sjas-code (list relation branch-proof)) proof)))))

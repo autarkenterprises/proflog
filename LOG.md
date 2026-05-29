@@ -22,6 +22,22 @@ complete contemporaneous transcript.
 
 ## 2026-05-29
 
+- Removed the compact public-code host argument deconstructor and addressed
+  the resulting large semantic boundary. Compact `code-N` terms now bind their
+  constructor arity without enumerating the full signature, byte terms still
+  pass through the object byte relation, embedded `code(...)` payloads can
+  regenerate canonical byte numerals, reflected host-AST call checks use a
+  narrow signature-isomorphism bridge, and large non-axiom Group-3
+  tableau-proof reports use compact proof summaries after the SJAS close
+  relation succeeds. The negative `false` axiom-citation case now fails through
+  the SJAS axiom branch itself, with structural non-reifying beta-record skips,
+  rather than falling through to non-axiom proof-tree checking. The 1500s SJAS
+  focused-suite envelope advanced to the final alphabetic block with no
+  reported failures; the exact remaining tail then passed 110 assertions in one
+  JVM. `lein test-proflog-fast` passed 594 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+  See
+  [SJAS Compact Code Without Host Argument Projection](docs/log/2026-05-29-sjas-compact-code-no-host-args.md).
 - Replaced the compact public-code byte-term host lookup table with an
   arithmetic U-Grounding numeral decoder. `code-1(add(dbl(0),1))` now decodes
   as the one-byte formula code for `true`, while the source audit rejects the

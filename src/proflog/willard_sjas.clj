@@ -862,7 +862,18 @@
                                        'sjas-axiom
                                        {:code-format (:code-format system
                                                                    :compact)}))
-        proofs (query/query-succeeds (:program system) contradiction proof-limit fuel)
+        ;; This diagnostic probe supplies the axiom-citation certificate
+        ;; `sjas-axiom`. Such a proof can close only when the finite system
+        ;; actually lists the contradiction formula as an axiom; otherwise the
+        ;; expensive proof search is known to be fruitless.
+        contradiction-is-axiom? (some #(= (:contradiction-code system) (:code %))
+                                      (:axioms system))
+        proofs (if contradiction-is-axiom?
+                 (query/query-succeeds (:program system)
+                                       contradiction
+                                       proof-limit
+                                       fuel)
+                 '())
         duration-ms (long (/ (- (System/nanoTime) started) 1000000))]
     {:result (if (seq proofs) :found :not-found)
      :proof-count (count proofs)

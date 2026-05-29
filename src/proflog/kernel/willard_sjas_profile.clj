@@ -386,15 +386,6 @@
                  byte])
               (range sjas-code/byte-base))))
 
-(def ^:private code-byte-term-entries
-  (apply list
-         (map (fn [byte]
-                [(nth sjas-code/byte-terms byte) byte])
-              (range sjas-code/byte-base))))
-
-(def ^:private code-byte-term->byte
-  (into {} code-byte-term-entries))
-
 (def ^:private code-constructor-entries
   (apply list
          (map (fn [[constructor byte-count]]
@@ -620,13 +611,39 @@
            (== (lcons byte tail-bytes) bytes)
            (== (list 'sjas-ug-code-cons byte-proof) proof))]))))
 
+(declare compact-code-byte-bits-termo)
+
+(defn- compact-code-byte-bits-termo
+  "Read a compact-code byte argument through its U-Grounding numeral shape.
+
+   Compact code byte arguments are normally ground public numerals. This parser
+   is therefore shape-directed: it commits after the root constructor matches,
+   while still interpreting the byte arithmetically rather than comparing the
+   whole term against a generated table of 64 canonical byte terms."
+  [term bits]
+  (fresh [walked]
+    (equality/walko term '() walked)
+    (conda
+      [(== zero-term walked)
+       (== '() bits)]
+      [(== one-term walked)
+       (== one-bits bits)]
+      [(fresh [arg arg-bits]
+         (== (list 'app 'dbl arg) walked)
+         (compact-code-byte-bits-termo arg arg-bits)
+         (== (lcons 0 arg-bits) bits))]
+      [(fresh [arg doubled arg-bits]
+         (== (list 'app 'add doubled one-term) walked)
+         (== (list 'app 'dbl arg) doubled)
+         (compact-code-byte-bits-termo arg arg-bits)
+         (== (lcons 1 arg-bits) bits))])))
+
 (defn- code-byte-termo
+  "Interpret a compact-code byte argument as a small U-Grounding numeral."
   [term byte]
-  (if-let [ground-byte (get code-byte-term->byte term)]
-    (== ground-byte byte)
-    (fresh [entry]
-      (membero entry code-byte-term-entries)
-      (== [term byte] entry))))
+  (fresh [bits]
+    (compact-code-byte-bits-termo term bits)
+    (byte-bitso bits byte)))
 
 (defn- code-constructoro
   [constructor byte-count]

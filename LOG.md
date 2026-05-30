@@ -20,6 +20,19 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-30
+
+- Removed the large non-axiom `tableau-proof/3` proof-output summary shortcut.
+  Large theorem-code proofs now report the decoded proof tree instead of a
+  synthetic `(profiled willard-sjas-proof-check)` marker. The source audit
+  passed 32 assertions and the structural non-generated theorem-code selector
+  passed with full proof evidence; the Group-3 self-consistency demonstration
+  now exceeds a 900s envelope while materializing public proof evidence, making
+  the remaining boundary a runtime/reification problem rather than a semantic
+  acceptance shortcut. `lein test-proflog-fast` passed 594 assertions and
+  `lein test-proflog-extended` passed 203 assertions. See
+  [SJAS Large Tableau Proof Evidence](docs/log/2026-05-30-sjas-large-tableau-proof-evidence.md).
+
 ## 2026-05-29
 
 - Removed the compact public-code host argument deconstructor and addressed
@@ -27,9 +40,9 @@ complete contemporaneous transcript.
   constructor arity without enumerating the full signature, byte terms still
   pass through the object byte relation, embedded `code(...)` payloads can
   regenerate canonical byte numerals, reflected host-AST call checks use a
-  narrow signature-isomorphism bridge, and large non-axiom Group-3
-  tableau-proof reports use compact proof summaries after the SJAS close
-  relation succeeds. The negative `false` axiom-citation case now fails through
+  narrow signature-isomorphism bridge, and, at that stage, large non-axiom
+  Group-3 tableau-proof reports used compact proof summaries after the SJAS
+  close relation succeeded. The negative `false` axiom-citation case now fails through
   the SJAS axiom branch itself, with structural non-reifying beta-record skips,
   rather than falling through to non-axiom proof-tree checking. The 1500s SJAS
   focused-suite envelope advanced to the final alphabetic block with no

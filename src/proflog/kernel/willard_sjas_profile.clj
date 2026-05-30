@@ -4367,23 +4367,13 @@
                                 fuel
                                 proof))]))
 
-(defn- reported-decoded-proof-o
-  [theorem-code decoded-proof reported-proof]
-  (if (large-compact-code-term? theorem-code)
-    (conda
-      [(== 'sjas-axiom decoded-proof)
-       (== decoded-proof reported-proof)]
-      [(== '(profiled willard-sjas-proof-check) reported-proof)])
-    (== decoded-proof reported-proof)))
-
 (defn- sjas-tableau-proof-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
   (let [ground-args (ground-negated-app-args fml 'tableau-proof 3)]
     (if ground-args
       (let [[system-code theorem-code proof-code] ground-args]
         (fresh [decoded-proof proof-bytes axiom-formula neg-theorem
-                target sigma-proof proof-kind proof-read-proof theorem-read-proof
-                reported-proof]
+                target sigma-proof proof-kind proof-read-proof theorem-read-proof]
           (== '() env)
           (== '() sigma)
           ;; The active system code is not a formula code; reject this ill-typed
@@ -4412,13 +4402,12 @@
                                         target
                                         fuel
                                         decoded-proof)])
-          (reported-decoded-proof-o theorem-code decoded-proof reported-proof)
           (== neqs neqs-out)
           (== (list 'profiled
                     'willard-sjas-proof-check
                     proof-read-proof
                     theorem-read-proof
-                    reported-proof)
+                    decoded-proof)
               proof)))
       (fresh [lit atom walked-atom system-code theorem-code proof-code
               decoded-proof proof-bytes axiom-formula neg-theorem
@@ -4663,23 +4652,6 @@
         fail))
     fail))
 
-(def ^:private compact-sjas-axiom-proof-code
-  (sjas-code/proof-code-term 'sjas-axiom))
-
-(defn- large-non-axiom-tableau-proof-query?
-  [formula]
-  (when-let [[_system-code theorem-code proof-code]
-             (ground-negated-app-args formula 'tableau-proof 3)]
-    (and (large-compact-code-term? theorem-code)
-         (not= compact-sjas-axiom-proof-code proof-code))))
-
-(def ^:private large-tableau-proof-summary
-  '(profiled
-     willard-sjas-proof-check
-     (sjas-code-bytes)
-     (willard-sjas-theorem-code (sjas-code-bytes))
-     (profiled willard-sjas-proof-check)))
-
 ;; -----------------------------------------------------------------------------
 ;; Public proof-profile entrypoint
 ;; -----------------------------------------------------------------------------
@@ -4714,19 +4686,6 @@
         proofs (binding [kernel/*theory-profile-closeo* willard-sjas-theory-closeo]
                  (doall
                    (cond
-                     (large-non-axiom-tableau-proof-query? formula)
-                     (let [successes (run 1 [q]
-                                       (fresh [proof]
-                                         (direct-negated-profile-closeo
-                                           formula
-                                           program
-                                           fuel
-                                           proof)
-                                         (== true q)))]
-                       (if (seq successes)
-                         (take proof-limit (repeat large-tableau-proof-summary))
-                         '()))
-
                      (direct-negated-profile-relation formula)
                      (run proof-limit [proof]
                        (direct-negated-profile-closeo formula program fuel proof))

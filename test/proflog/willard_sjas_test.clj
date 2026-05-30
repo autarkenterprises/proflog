@@ -1452,6 +1452,44 @@
               (l/== true q)))
           "decoded tableau proof checking must consume free equality closure evidence object-level"))))
 
+(deftest sjas-proof-check-accepts-truth-and-falsehood-constructors-without-kernel-validator
+  (let [system (demo-system :willard-sjas-tableau0)
+        target (ast/and-form
+                 (ast/true-form)
+                 (ast/false-form))
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           40
+                           '(conj (skip-true (false-close))))
+              (l/== true q)))
+          "decoded tableau proof checking must consume skip-true and false-close evidence object-level"))))
+
+(deftest sjas-tableau-proof-accepts-false-close-certificates
+  (let [system (demo-system :willard-sjas-tableau0)
+        theorem (ast/true-form)
+        theorem-code (sjas/formula-code system theorem)
+        certificate (sjas/proof-certificate '(conj (false-close)))]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (let [proofs (query/query-succeeds
+                     (:program system)
+                     (sjas/tableau-proof (:system-code system)
+                                         theorem-code
+                                         certificate)
+                     1
+                     160)]
+        (is (successful? proofs)
+            "tableau-proof must validate encoded false-close certificates object-level")
+        (is (proof/contains-step? (first-proof proofs) 'false-close))))))
+
 (deftest sjas-tableau-proof-accepts-free-equality-closure-certificates
   (let [system (demo-system :willard-sjas-tableau0)
         theorem (ast/neq-lit sjas/zero sjas/one)

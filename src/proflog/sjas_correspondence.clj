@@ -28,7 +28,8 @@
      neq-store
      neq-close
      false-close
-     savefml})
+     savefml
+     skip-true})
 
 (def ^:private relevant-sjas-coding-symbols
   "Proof constructors that expose object-code, axiom-membership, or arithmetic
@@ -123,8 +124,7 @@
   "Proof constructors used by optimized proof layers, profile wrappers, and
    legacy/staging witnesses. These need bridge proofs or direct replacement
    before a kernel call can count as a fully justified SJAS proof predicate."
-  '#{skip-true
-     lem-close
+  '#{lem-close
      skolemized
      propositional
      first-order

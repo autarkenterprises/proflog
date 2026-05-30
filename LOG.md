@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-05-30
 
+- Internalized the ordinary semantic-tableau truth/falsehood proof
+  constructors in the SJAS proof checker. `false-close` now closes an explicit
+  falsehood branch, `skip-true` advances past a truth formula, public
+  `tableau-proof/3` accepts encoded `false-close` certificates without
+  reaching `kernel/prove-programo`, and the correspondence audit now classifies
+  `skip-true` as relevant tableau structure. `lein test-proflog-fast` passed
+  595 assertions and `lein test-proflog-extended` passed 203 assertions. See
+  [SJAS Truth and Falsehood Proof Constructors](docs/log/2026-05-30-sjas-truth-falsehood-proof-constructors.md).
+
 - Resolved the large Group-3 `tableau-proof/3` public proof-materialization
   timeout. The root cause was not certificate generation or semantic proof
   acceptance: focused probes showed the SJAS relation accepting the certificate

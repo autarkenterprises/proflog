@@ -38,6 +38,8 @@
            (:status (correspondence/classify-proof-symbol 'neq-store))))
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'neq-close))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol 'skip-true))))
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'eq-bind))))
     (is (= :unresolved

@@ -4108,6 +4108,32 @@
                                 gamma-terms
                                 next-fuel
                                 right-proof))]
+    [(fresh [fml unexpanded]
+       (== '(false-close) proof)
+       (support/selecto fml agenda unexpanded)
+       (== (list 'false) fml)
+       (== sigma sigma-out)
+       (== neqs neqs-out))]
+    [(fresh [fml unexpanded next rest next-fuel prf]
+       (== (list 'skip-true prf) proof)
+       (support/selecto fml agenda unexpanded)
+       (== (list 'true) fml)
+       (== (lcons next rest) unexpanded)
+       (support/step-fuelo fuel next-fuel)
+       (sjas-proof-check-stateo system-code
+                                next
+                                rest
+                                lits
+                                env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                next-fuel
+                                prf))]
     [(nominal/fresh [binding-nom]
        (nominal/fresh [free-var-nom]
          (fresh [fml unexpanded body body-subst narrowed-env next-fuel prf]

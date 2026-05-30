@@ -22,6 +22,18 @@ complete contemporaneous transcript.
 
 ## 2026-05-30
 
+- Reassessed the large SJAS proof-materialization timeout. The public
+  self-consistency selector now completes under a 1200s envelope, while a raw
+  direct-relation probe still times out when forcing the miniKanren proof
+  stream, confirming the issue is evidence reification rather than SJAS
+  proof-predicate acceptance. Added a focused red/green regression proving
+  large `tableau-proof/3` queries with `proof-limit 0` do not materialize the
+  reporting-side proof decoder, and moved report construction behind the
+  proof-limit and acceptance gate. See
+  [SJAS Proof Materialization Timeout Assessment](docs/log/2026-05-30-sjas-proof-materialization-timeout-assessment.md).
+  `lein test-proflog-fast` passed 596 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
 - Internalized `neg-call-alt` proof checking for multi-clause reflected
   negative calls. The SJAS proof-code alphabet now includes the inner `alt`
   constructor, the proof checker reconstructs matching negated alternatives

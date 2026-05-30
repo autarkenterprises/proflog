@@ -2440,6 +2440,25 @@
               1
               160))))))
 
+(deftest large-tableau-proof-zero-limit-does-not-materialize-report
+  (testing "the reporting-side proof decoder is not run when no proof is requested"
+    (let [system (demo-system :willard-sjas-tableau0)
+          large-theorem-code (sjas-code/bytes->code-term
+                               (repeat 33 1))
+          proof-code (sjas/proof-certificate 'sjas-axiom)]
+      (with-redefs [sjas-code/proof-formal-code-term->proof
+                    (fn [_]
+                      (throw (ex-info "report decoder should not run"
+                                      {})))]
+        (is (empty?
+              (query/query-succeeds
+                (:program system)
+                (sjas/tableau-proof (:system-code system)
+                                    large-theorem-code
+                                    proof-code)
+                0
+                1)))))))
+
 (deftest sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile
   (doseq [profile [:willard-sjas-tableau0 :willard-sjas-level1]]
     (let [system (demo-system profile)

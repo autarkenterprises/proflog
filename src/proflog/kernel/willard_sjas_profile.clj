@@ -4938,6 +4938,14 @@
                         (list 'sjas-system-code-bytes '(sjas-code-bytes)))
                   decoded-proof)))))))
 
+(defn- large-tableau-proof-reportable?
+  "True when a ground direct tableau query needs the large-proof report path."
+  [formula]
+  (when-let [[system-code theorem-code _proof-code]
+             (ground-negated-app-args formula 'tableau-proof 3)]
+    (and (large-compact-code-term? theorem-code)
+         (not= theorem-code system-code))))
+
 (defn- direct-profile-accepted?
   [formula program fuel]
   (boolean
@@ -4951,14 +4959,18 @@
   "Prove with SJAS arithmetic and certificate rules interleaved into the kernel."
   [profile program formula proof-limit fuel]
   (let [program (hide-sjas-clauses-from-generic-sidecars program)
-        direct-report (large-tableau-proof-report formula)
+        large-tableau-reportable? (large-tableau-proof-reportable? formula)
         proofs (binding [kernel/*theory-profile-closeo* willard-sjas-theory-closeo]
                  (doall
                    (cond
-                     direct-report
-                     (if (and (or (nil? proof-limit) (pos? proof-limit))
-                              (direct-profile-accepted? formula program fuel))
-                       (list direct-report)
+                     large-tableau-reportable?
+                     (if (or (nil? proof-limit) (pos? proof-limit))
+                       (if (direct-profile-accepted? formula program fuel)
+                         (if-let [direct-report (large-tableau-proof-report formula)]
+                           (list direct-report)
+                           (run proof-limit [proof]
+                             (direct-negated-profile-closeo formula program fuel proof)))
+                         '())
                        '())
 
                      (direct-negated-profile-relation formula)

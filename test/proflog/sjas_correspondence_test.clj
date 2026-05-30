@@ -49,6 +49,8 @@
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'pos-call))))
     (is (= :unresolved
+           (:status (correspondence/classify-proof-symbol 'alt))))
+    (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'profiled))))))
 
 (deftest proof-term-audit-reports-obligations-for-actual-proof-trees

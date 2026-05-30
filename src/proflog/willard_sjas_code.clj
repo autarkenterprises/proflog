@@ -247,7 +247,8 @@
     eq-bind
     atom-close
     eq-refl
-    occurs-close])
+    occurs-close
+    alt])
 
 (def proof-symbol->index
   (into {} (map-indexed (fn [idx sym] [sym (inc idx)]) proof-symbols)))

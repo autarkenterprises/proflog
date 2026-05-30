@@ -2962,6 +2962,43 @@
                                        body
                                        negated-body))]))))
 
+(defn- reflected-call-alternatives-in-clauseso
+  "Collect all encoded reflected clauses matching one procedure call.
+
+   The generic Proflog kernel compiles same-relation clauses into a finite list
+   of alternatives and `neg-call-alt` closes one negated alternative from that
+   list. SJAS proof-predicate checking cannot use that compiled host table, so
+   this relation reconstructs the matching negated alternatives by scanning the
+   reflected Group-2b records inside `system-code`."
+  [prog remaining bytes atom env negated-alternatives]
+  (if (zero? remaining)
+    (== '() negated-alternatives)
+    (fresh [after-current]
+      (conda
+        [(fresh [body negated-body rest]
+           (decode-reflected-clause-callo prog
+                                          bytes
+                                          after-current
+                                          atom
+                                          env
+                                          body
+                                          negated-body)
+           (== (lcons negated-body rest) negated-alternatives)
+           (reflected-call-alternatives-in-clauseso prog
+                                                    (dec remaining)
+                                                    after-current
+                                                    atom
+                                                    env
+                                                    rest))]
+        [(fresh [current]
+           (decode-reflected-clause-syntax-formulao bytes after-current current)
+           (reflected-call-alternatives-in-clauseso prog
+                                                    (dec remaining)
+                                                    after-current
+                                                    atom
+                                                    env
+                                                    negated-alternatives))]))))
+
 (defn- sjas-system-reflected-call-clauseo
   "Resolve a proof-predicate procedure call from encoded reflected clauses.
 
@@ -2995,6 +3032,37 @@
                                                       env
                                                       body
                                                       negated-body)))
+                      (range sjas-code/byte-base)))))
+           (range sjas-code/byte-base)))))
+
+(defn- sjas-system-reflected-call-alternativeso
+  "Resolve all same-relation reflected call alternatives from system-code."
+  [prog system-code atom env negated-alternatives]
+  (fresh [system-bytes system-read-proof profile-tag beta-count beta-bytes
+          after-betas reflected-count reflected-bytes]
+    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (skip-formula-byteso prog beta-total beta-bytes after-betas)
+               (== (lcons reflected-count reflected-bytes) after-betas)
+               (or*
+                 (map (fn [reflected-total]
+                        (fresh []
+                          (== (inc reflected-total) reflected-count)
+                          (reflected-call-alternatives-in-clauseso
+                            prog
+                            reflected-total
+                            reflected-bytes
+                            atom
+                            env
+                            negated-alternatives)))
                       (range sjas-code/byte-base)))))
            (range sjas-code/byte-base)))))
 
@@ -3881,6 +3949,43 @@
                              next-fuel
                              subproof)))
 
+(defn- sjas-close-one-formulao
+  "Close one formula from a reconstructed reflected alternative list."
+  [system-code formulas env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (conde
+    [(fresh [formula rest subproof]
+       (== (lcons formula rest) formulas)
+       (== (list 'alt subproof) proof)
+       (sjas-proof-check-stateo system-code
+                                formula
+                                '()
+                                '()
+                                env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                fuel
+                                subproof))]
+    [(fresh [formula rest]
+       (== (lcons formula rest) formulas)
+       (sjas-close-one-formulao system-code
+                                rest
+                                env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                fuel
+                                proof))]))
+
 (defn- sjas-proof-check-close-agendao
   "Check a decoded tableau proof term without invoking the host proof kernel.
 
@@ -4271,6 +4376,36 @@
                                 prog
                                 gamma-terms
                                 next-fuel
+                                subproof))]
+    [(fresh [fml unexpanded lit atom walked-atom relation args call-env
+             negated-alternatives first-alternative second-alternative
+             remaining-alternatives subproof]
+       (== (list 'neg-call-alt subproof) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'neg atom) lit)
+       (equality/walk-atomo atom sigma walked-atom)
+       (== (lcons 'app (lcons relation args)) walked-atom)
+       (support/l-ground-term*o args)
+       (sjas-system-reflected-call-alternativeso prog
+                                                 system-code
+                                                 walked-atom
+                                                 call-env
+                                                 negated-alternatives)
+       (== (lcons first-alternative
+                  (lcons second-alternative remaining-alternatives))
+           negated-alternatives)
+       (sjas-close-one-formulao system-code
+                                negated-alternatives
+                                call-env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                fuel
                                 subproof))]
     [(fresh [fml unexpanded lit atom next rest next-fuel prf]
        (== (list 'savefml prf) proof)

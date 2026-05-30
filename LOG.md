@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-05-30
 
+- Internalized `neg-call-alt` proof checking for multi-clause reflected
+  negative calls. The SJAS proof-code alphabet now includes the inner `alt`
+  constructor, the proof checker reconstructs matching negated alternatives
+  from encoded reflected Group-2b records in `system-code`, and public
+  `tableau-proof/3` validates an encoded `neg-call-alt` certificate with
+  compiled clause tables stripped. `lein test-proflog-fast` passed 596
+  assertions and `lein test-proflog-extended` passed 203 assertions. See
+  [SJAS Reflected Negative Call Alternatives](docs/log/2026-05-30-sjas-reflected-negative-call-alternatives.md).
+
 - Internalized the ordinary semantic-tableau truth/falsehood proof
   constructors in the SJAS proof checker. `false-close` now closes an explicit
   falsehood branch, `skip-true` advances past a truth formula, public

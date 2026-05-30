@@ -106,6 +106,7 @@
      neg-call
      neg-call-alt
      neg-call-guarded-alt
+     alt
      guarded-alt
      guarded-neg-alt
      guarded-neg-alt-saturated

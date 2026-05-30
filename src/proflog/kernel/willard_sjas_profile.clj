@@ -4312,7 +4312,7 @@
     (== (list 'conj arithmetic-proof) proof)
     (sjas-arithmetic-branch-closeo neg-theorem arithmetic-proof)))
 
-(defn- sjas-top-conj-negated-theorem-proof-checko
+(defn- sjas-negated-theorem-branch-proof-checko
   "Fast object-level check for certificates that close the negated theorem.
 
    The proof-predicate target has the shape `(and system-axioms neg-theorem)`.
@@ -4320,13 +4320,51 @@
    negated theorem is closed regardless of the still-pending axiom formula.
    Checking that subproof directly avoids exploring the large reconstructed
    axiom basis before selecting the second conjunct."
+  [prog system-code neg-theorem fuel proof]
+  (fresh [prf sigma-out neqs-out]
+    (== (list 'conj prf) proof)
+    (sjas-proof-check-stateo system-code
+                             neg-theorem
+                             '()
+                             '()
+                             '()
+                             '()
+                             '()
+                             sigma-out
+                             '()
+                             neqs-out
+                             prog
+                             '()
+                             fuel
+                             prf)))
+
+(defn- sjas-top-conj-negated-theorem-proof-checko
+  [prog system-code target fuel proof]
+  (fresh [axiom-formula neg-theorem]
+    (== (list 'and axiom-formula neg-theorem) target)
+    (sjas-negated-theorem-branch-proof-checko prog
+                                              system-code
+                                              neg-theorem
+                                              fuel
+                                              proof)))
+
+(defn- sjas-top-conj-negated-theorem-first-proof-checko
+  "Check a top-level proof-predicate branch with right-conjunct focus.
+
+   Semantic tableaux treat conjunction as adding both conjuncts to the branch.
+   The generic checker expands `(and system-axioms neg-theorem)` left-first and
+   then uses `selecto` to choose which pending formula to expand. Group-3
+   certificates intentionally start with the negated theorem, save the resulting
+   proof-predicate literal, and only then use the system axiom formula to close.
+   This relation represents that same branch state directly: `neg-theorem` is
+   focused, and `axiom-formula` remains pending."
   [prog system-code target fuel proof]
   (fresh [axiom-formula neg-theorem prf sigma-out neqs-out]
     (== (list 'and axiom-formula neg-theorem) target)
     (== (list 'conj prf) proof)
     (sjas-proof-check-stateo system-code
                              neg-theorem
-                             '()
+                             (lcons axiom-formula '())
                              '()
                              '()
                              '()
@@ -4351,6 +4389,7 @@
   (conde
     [(sjas-top-conj-arithmetic-proof-checko target proof)]
     [(sjas-top-conj-negated-theorem-proof-checko prog system-code target fuel proof)]
+    [(sjas-top-conj-negated-theorem-first-proof-checko prog system-code target fuel proof)]
     [(fresh [sigma-out neqs-out]
        (sjas-proof-check-stateo system-code
                                 target
@@ -4388,6 +4427,12 @@
              (fresh [axiom-proof]
                (sjas-axiom-membero prog system-code theorem-code axiom-proof)
                (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof)
+               (== (list 'profiled
+                         'willard-sjas-proof-check
+                         proof-read-proof
+                         theorem-read-proof
+                         decoded-proof)
+                   proof)
                (== sigma-proof sigma-out))]
             [(sjas-structural-negated-theorem-proofo prog
                                                      theorem-code
@@ -4395,20 +4440,26 @@
                                                      sigma-out
                                                      neg-theorem
                                                      theorem-read-proof)
-             (sjas-system-axiom-formulao prog system-code axiom-formula)
-             (== (list 'and axiom-formula neg-theorem) target)
-             (sjas-proof-check-programo prog
-                                        system-code
-                                        target
-                                        fuel
-                                        decoded-proof)])
-          (== neqs neqs-out)
-          (== (list 'profiled
-                    'willard-sjas-proof-check
-                    proof-read-proof
-                    theorem-read-proof
-                    decoded-proof)
-              proof)))
+             (== (list 'profiled
+                       'willard-sjas-proof-check
+                       proof-read-proof
+                       theorem-read-proof
+                       decoded-proof)
+                 proof)
+             (conda
+               [(sjas-negated-theorem-branch-proof-checko prog
+                                                          system-code
+                                                          neg-theorem
+                                                          fuel
+                                                          decoded-proof)]
+               [(sjas-system-axiom-formulao prog system-code axiom-formula)
+                (== (list 'and axiom-formula neg-theorem) target)
+                (sjas-proof-check-programo prog
+                                           system-code
+                                           target
+                                           fuel
+                                           decoded-proof)])])
+          (== neqs neqs-out)))
       (fresh [lit atom walked-atom system-code theorem-code proof-code
               decoded-proof proof-bytes axiom-formula neg-theorem
               target sigma-proof proof-kind proof-read-proof theorem-read-proof]
@@ -4427,27 +4478,39 @@
                                          sigma-proof
                                          axiom-proof)
              (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof)
+             (== (list 'profiled
+                       'willard-sjas-proof-check
+                       proof-read-proof
+                       theorem-read-proof
+                       decoded-proof)
+                 proof)
              (== sigma-proof sigma-out))]
-          [(sjas-system-axiom-formulao prog system-code axiom-formula)
-           (sjas-structural-negated-theorem-proofo prog
-                                                    theorem-code
-                                                    sigma-proof
-                                                    sigma-out
-                                                    neg-theorem
-                                                    theorem-read-proof)
-           (== (list 'and axiom-formula neg-theorem) target)
-           (sjas-proof-check-programo prog
-                                      system-code
-                                      target
-                                      fuel
-                                      decoded-proof)])
-        (== neqs neqs-out)
-        (== (list 'profiled
-                  'willard-sjas-proof-check
-                  proof-read-proof
-                  theorem-read-proof
-                  decoded-proof)
-            proof)))))
+          [(sjas-structural-negated-theorem-proofo prog
+                                                   theorem-code
+                                                   sigma-proof
+                                                   sigma-out
+                                                   neg-theorem
+                                                   theorem-read-proof)
+           (== (list 'profiled
+                     'willard-sjas-proof-check
+                     proof-read-proof
+                     theorem-read-proof
+                     decoded-proof)
+               proof)
+           (conda
+             [(sjas-negated-theorem-branch-proof-checko prog
+                                                        system-code
+                                                        neg-theorem
+                                                        fuel
+                                                        decoded-proof)]
+             [(sjas-system-axiom-formulao prog system-code axiom-formula)
+              (== (list 'and axiom-formula neg-theorem) target)
+              (sjas-proof-check-programo prog
+                                         system-code
+                                         target
+                                         fuel
+                                         decoded-proof)])])
+        (== neqs neqs-out)))))
 
 (defn- sjas-subst-prf-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
@@ -4679,13 +4742,64 @@
   [profile proof]
   (list 'profiled (profile-symbol profile) proof))
 
+(defn- proof-report-code-marker
+  [code]
+  (cond
+    (compact-code-term-byte-count code)
+    '(sjas-code-bytes)
+
+    (sjas-code/u-grounding-code-term-bytes code)
+    '(sjas-ug-code-bytes)
+
+    :else nil))
+
+(defn- large-tableau-proof-report
+  "Build the public proof report for a checked large direct tableau query.
+
+   Large Group-3 proof-predicate queries can be accepted by
+   `direct-negated-profile-closeo` in truth mode, while asking core.logic to
+   reify the same internal proof path may not complete. This report is only
+   used after that relation has accepted the certificate. It mirrors the small
+   public evidence that the relation would expose: proof-code read marker,
+   theorem-code read marker, and the decoded certificate tree."
+  [formula]
+  (when-let [[system-code theorem-code proof-code]
+             (ground-negated-app-args formula 'tableau-proof 3)]
+    (when (and (large-compact-code-term? theorem-code)
+               (not= theorem-code system-code))
+      (when-let [decoded-proof (sjas-code/proof-formal-code-term->proof proof-code)]
+        (when-not (= 'sjas-axiom decoded-proof)
+          (when-let [proof-read-proof (proof-report-code-marker proof-code)]
+            (list 'profiled
+                  'willard-sjas-proof-check
+                  proof-read-proof
+                  (list 'willard-sjas-theorem-code
+                        (list 'sjas-system-code-bytes '(sjas-code-bytes)))
+                  decoded-proof)))))))
+
+(defn- direct-profile-accepted?
+  [formula program fuel]
+  (boolean
+    (seq
+      (run 1 [q]
+        (fresh [proof]
+          (direct-negated-profile-closeo formula program fuel proof)
+          (== true q))))))
+
 (defn prove-program
   "Prove with SJAS arithmetic and certificate rules interleaved into the kernel."
   [profile program formula proof-limit fuel]
   (let [program (hide-sjas-clauses-from-generic-sidecars program)
+        direct-report (large-tableau-proof-report formula)
         proofs (binding [kernel/*theory-profile-closeo* willard-sjas-theory-closeo]
                  (doall
                    (cond
+                     direct-report
+                     (if (and (or (nil? proof-limit) (pos? proof-limit))
+                              (direct-profile-accepted? formula program fuel))
+                       (list direct-report)
+                       '())
+
                      (direct-negated-profile-relation formula)
                      (run proof-limit [proof]
                        (direct-negated-profile-closeo formula program fuel proof))

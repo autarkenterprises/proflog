@@ -698,6 +698,85 @@
                     {:value proof
                      :class (some-> proof class .getName)}))))
 
+(declare decode-proof-bytes)
+
+(defn- decode-proof-list-items
+  [remaining bytes]
+  (loop [remaining remaining
+         input (seq bytes)
+         output []]
+    (if (zero? remaining)
+      [output input]
+      (when-let [[item rest] (decode-proof-bytes input)]
+        (recur (dec remaining) rest (conj output item))))))
+
+(defn- decode-proof-bytes
+  [bytes]
+  (let [bytes (seq bytes)
+        tag (first bytes)
+        tail (next bytes)]
+    (cond
+      (nil? tag)
+      nil
+
+      (= proof-empty-list-tag tag)
+      ['() tail]
+
+      (= proof-symbol-tag tag)
+      (let [idx (first tail)]
+        (when-let [sym (get index->proof-symbol idx)]
+          [sym (next tail)]))
+
+      (= proof-wide-symbol-tag tag)
+      (let [high (first tail)
+            low (second tail)]
+        (when (and (integer? high)
+                   (integer? low)
+                   (<= 0 high)
+                   (< high byte-base)
+                   (<= 0 low)
+                   (< low byte-base))
+          (when-let [sym (get index->proof-symbol
+                               (+' (*' high byte-base) low))]
+            [sym (nnext tail)])))
+
+      (= proof-byte-tag tag)
+      (let [byte (first tail)]
+        (when (and (integer? byte)
+                   (<= 0 byte)
+                   (< byte byte-base))
+          [byte (next tail)]))
+
+      (= proof-list-tag tag)
+      (let [encoded-count (first tail)
+            item-count (when (integer? encoded-count)
+                         (dec encoded-count))]
+        (when (and item-count
+                   (< 1 encoded-count)
+                   (< encoded-count byte-base))
+          (decode-proof-list-items item-count (next tail))))
+
+      :else
+      nil)))
+
+(defn proof-bytes->term
+  "Decode a complete SJAS proof-code byte string to its proof term, or nil."
+  [bytes]
+  (when-let [[proof rest] (decode-proof-bytes bytes)]
+    (when (empty? rest)
+      proof)))
+
+(defn proof-formal-code-term->proof
+  "Decode either public SJAS proof-code representation to a proof term.
+
+   This is a reporting-side inverse for `proof-formal-code-term`. Semantic
+   proof-predicate acceptance remains the responsibility of the SJAS profile's
+   object-level proof-check relation."
+  [term]
+  (when-let [bytes (or (code-term-bytes term)
+                       (u-grounding-code-term-bytes term))]
+    (proof-bytes->term bytes)))
+
 (defn proof-code-value
   [proof]
   (bytes->natural (proof-code-bytes proof)))

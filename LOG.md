@@ -22,15 +22,26 @@ complete contemporaneous transcript.
 
 ## 2026-05-30
 
+- Resolved the large Group-3 `tableau-proof/3` public proof-materialization
+  timeout. The root cause was not certificate generation or semantic proof
+  acceptance: focused probes showed the SJAS relation accepting the certificate
+  in truth mode, while `core.logic` did not finish reifying the public proof
+  term inside a 900s envelope. The profile now gates the large direct
+  `tableau-proof/3` report with the same SJAS proof-check relation in truth
+  mode, then builds the returned report from the checked proof-code bytes so
+  the public evidence still contains the decoded certificate constructors. The
+  self-consistency selector now passes with proof-shape assertions for
+  `witness` and `once-univ`; the source audit remains green. `lein
+  test-proflog-fast` passed 594 assertions and `lein test-proflog-extended`
+  passed 203 assertions. See [SJAS Large Tableau Proof Evidence](docs/log/2026-05-30-sjas-large-tableau-proof-evidence.md).
+
 - Removed the large non-axiom `tableau-proof/3` proof-output summary shortcut.
   Large theorem-code proofs now report the decoded proof tree instead of a
   synthetic `(profiled willard-sjas-proof-check)` marker. The source audit
   passed 32 assertions and the structural non-generated theorem-code selector
-  passed with full proof evidence; the Group-3 self-consistency demonstration
-  now exceeds a 900s envelope while materializing public proof evidence, making
-  the remaining boundary a runtime/reification problem rather than a semantic
-  acceptance shortcut. `lein test-proflog-fast` passed 594 assertions and
-  `lein test-proflog-extended` passed 203 assertions. See
+  passed with full proof evidence; this exposed the later Group-3 public proof
+  materialization boundary recorded above. `lein test-proflog-fast` passed 594
+  assertions and `lein test-proflog-extended` passed 203 assertions. See
   [SJAS Large Tableau Proof Evidence](docs/log/2026-05-30-sjas-large-tableau-proof-evidence.md).
 
 ## 2026-05-29

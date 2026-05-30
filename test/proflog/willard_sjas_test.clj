@@ -749,6 +749,7 @@
                                           read-proof)
                       (l/== [bytes decoded-proof read-proof] q)))]
       (is (= 1 (count decoded)))
+      (is (= proof (sjas-code/proof-formal-code-term->proof certificate)))
       (is (= proof (second (first decoded)))))))
 
 (deftest sjas-proof-code-decoder-round-trips-equality-triggered-atom-closure-evidence
@@ -766,19 +767,22 @@
                                           read-proof)
                       (l/== decoded-proof q)))]
       (is (= 1 (count decoded)))
+      (is (= proof (sjas-code/proof-formal-code-term->proof certificate)))
       (is (= proof (first decoded))))))
 
 (deftest sjas-proof-codes-encode-u-grounding-canonical-byte-evidence
   (testing "U-Grounding byte-reader evidence carries an explicit byte payload in the proof-code grammar"
     (let [proof '(sjas-ug-code-canonical-byte
                    7
-                   (sjas-ug-code-byte-cons
-                     (sjas-ug-code-mul64-shift)
-                     (sjas-ug-code-canonical-byte)))
+                     (sjas-ug-code-byte-cons
+                       (sjas-ug-code-mul64-shift)
+                       (sjas-ug-code-canonical-byte)))
           certificate (sjas/proof-certificate proof)
+          ug-certificate (sjas/proof-certificate proof {:code-format :u-grounding})
           bytes (sjas-code/code-term-bytes certificate)]
       (is (sjas-code/code-term? certificate))
       (is (= bytes (sjas-code/proof-code-bytes proof)))
+      (is (= proof (sjas-code/proof-formal-code-term->proof ug-certificate)))
       (is (some #{sjas-code/proof-byte-tag} bytes)
           "the canonical-byte evidence payload must be represented as a proof byte"))))
 
@@ -2295,16 +2299,20 @@
                                               {:proof-limit 1
                                                :fuel 96}))
           group3-certificate (when group3-proof
-                               (sjas/proof-certificate group3-proof))]
+                               (sjas/proof-certificate group3-proof))
+          tableau-proofs (when group3-certificate
+                           (query/query-succeeds
+                             (:program system)
+                             (sjas/tableau-proof (:system-code system)
+                                                 (:code (:group-three system))
+                                                 group3-certificate)
+                             1
+                             160))
+          tableau-proof (first-proof tableau-proofs)]
       (is group3-proof)
-      (is (successful?
-            (query/query-succeeds
-              (:program system)
-              (sjas/tableau-proof (:system-code system)
-                                  (:code (:group-three system))
-                                  group3-certificate)
-              1
-              160)))))
+      (is (successful? tableau-proofs))
+      (is (proof/contains-step? tableau-proof 'witness))
+      (is (proof/contains-step? tableau-proof 'once-univ))))
   (testing "an explicitly inconsistent reflected basis can cite the real contradiction target"
     (let [system (sjas/system {:profile :willard-sjas-tableau0
                                :beta [(ast/false-form)]})

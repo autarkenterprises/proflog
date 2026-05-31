@@ -758,6 +758,20 @@
       (is (= (sjas-code/code-term-bytes certificate)
              (sjas-code/proof-code-bytes proof))))))
 
+(deftest sjas-proof-codes-encode-guard-equality-saturation-evidence
+  (testing "non-empty guarded equality saturation evidence stays inside the proof-code grammar"
+    (let [proof '(neg-call-guarded-alt
+                   (guarded-alt
+                     (guarded-neg-alt-saturated
+                       (guarded-scope-done)
+                       (guard-eq (eq-refl) (guard-saturation-done))
+                       (guarded-call-seq-done)
+                       (guarded-residual-seq-last (false-close)))))
+          certificate (sjas/proof-certificate proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
+
 (deftest sjas-proof-codes-encode-occurs-check-closure-evidence
   (testing "occurs-check equality contradiction evidence stays inside the proof-code grammar"
     (let [proof '(conj (once-univ (occurs-close)))
@@ -2184,6 +2198,92 @@
         (is (successful? proofs)
             "tableau-proof must validate encoded saturated guarded negative-call certificates from system-code, not compiled clause tables")
         (is (proof/contains-step? (first-proof proofs) 'guarded-neg-alt-saturated))
+        (is (proof/contains-step? (first-proof proofs) 'guarded-residual-seq-last))))))
+
+(deftest sjas-proof-check-accepts-guard-equality-saturation-from-system-code
+  (testing "non-empty guard saturation is validated from encoded reflected clauses"
+    (let [guarded-body (ast/and-form
+                         (ast/eq-lit sjas/one sjas/one)
+                         (ast/true-form))
+          system (sjas/system
+                   {:profile :willard-sjas-tableau0
+                    :relations {'guard-eq-demo 0}
+                    :beta []
+                    :reflected-clauses [(ast/clause 'guard-eq-demo
+                                                    []
+                                                    guarded-body)
+                                        (ast/clause 'guard-eq-demo
+                                                    []
+                                                    (ast/false-form))]})
+          target (ast/and-form
+                   (ast/true-form)
+                   (ast/neg-lit (ast/app-term 'guard-eq-demo)))
+          proof '(conj
+                   (skip-true
+                     (neg-call-guarded-alt
+                       (guarded-alt
+                         (guarded-neg-alt-saturated
+                           (guarded-scope-done)
+                           (guard-eq (eq-refl) (guard-saturation-done))
+                           (guarded-call-seq-done)
+                           (guarded-residual-seq-last (false-close)))))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (with-redefs [kernel/prove-programo
+                    (fn [& _]
+                      (throw (ex-info "host kernel proof validator reached" {})))]
+        (is (successful?
+              (l/run 1 [q]
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             120
+                             proof)
+                (l/== true q)))
+            "decoded tableau proof checking must recover non-empty reflected equality guards from system-code")))))
+
+(deftest sjas-tableau-proof-accepts-guard-equality-saturation-certificates
+  (let [guarded-body (ast/and-form
+                       (ast/eq-lit sjas/one sjas/one)
+                       (ast/true-form))
+        system (sjas/system
+                 {:profile :willard-sjas-tableau0
+                  :relations {'guard-eq-demo 0}
+                  :beta []
+                  :reflected-clauses [(ast/clause 'guard-eq-demo
+                                                  []
+                                                  guarded-body)
+                                      (ast/clause 'guard-eq-demo
+                                                  []
+                                                  (ast/false-form))]})
+        stripped-program (assoc (:program system)
+                                :clauses nil
+                                :clause-list '()
+                                :alternative-clause-list '()
+                                :guarded-clause-list '())
+        theorem (ast/pos-lit (ast/app-term 'guard-eq-demo))
+        theorem-code (sjas/formula-code system theorem)
+        certificate (sjas/proof-certificate
+                      '(conj
+                         (neg-call-guarded-alt
+                           (guarded-alt
+                             (guarded-neg-alt-saturated
+                               (guarded-scope-done)
+                               (guard-eq (eq-refl) (guard-saturation-done))
+                               (guarded-call-seq-done)
+                               (guarded-residual-seq-last (false-close)))))))]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (let [proofs (query/query-succeeds
+                     stripped-program
+                     (sjas/tableau-proof (:system-code system)
+                                         theorem-code
+                                         certificate)
+                     1
+                     220)]
+        (is (successful? proofs)
+            "tableau-proof must validate encoded guard saturation certificates from system-code, not compiled clause tables")
+        (is (proof/contains-step? (first-proof proofs) 'guard-eq))
         (is (proof/contains-step? (first-proof proofs) 'guarded-residual-seq-last))))))
 
 (deftest sjas-tableau-proof-accepts-reflected-negative-call-alternative-certificates

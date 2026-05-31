@@ -22,6 +22,17 @@ complete contemporaneous transcript.
 
 ## 2026-05-31
 
+- Internalized non-empty equality guard saturation for saturated guarded
+  negative-call proof checking. Reflected guarded alternatives reconstructed
+  from `system-code` now preserve guard and residual partitions, and the SJAS
+  checker consumes explicit `guard-eq` evidence before closing the residual
+  sequence, without consulting compiled guarded-clause tables. Non-empty
+  guarded call sequences, existential guarded scope, non-equality guards, and
+  answer-overlay guarded/query constructors remain Track 1 gaps. See
+  [SJAS Guard Equality Saturation Internalization](docs/log/2026-05-31-sjas-guard-equality-saturation-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
 - Internalized the no-scope/no-guard/no-recursive-call saturated guarded
   negative-call proof path. The SJAS checker now accepts
   `guarded-neg-alt-saturated` certificates whose guard saturation and guarded

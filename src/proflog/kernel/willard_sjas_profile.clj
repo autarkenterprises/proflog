@@ -3023,22 +3023,69 @@
        (sjas-negated-formula-asto formula ast-formula)
        (internal-formula-list-negated-asto rest ast-rest))]))
 
-(defn- internal-guarded-negated-conjuncts-asto
-  "Recover the fallback guarded-negative sequence for one reflected body.
+(defn- internal-formula-list-asto
+  "Translate decoded internal formulas to ordinary AST formulas."
+  [formulas ast-formulas]
+  (conde
+    [(== '() formulas)
+     (== '() ast-formulas)]
+    [(fresh [formula rest ast-formula ast-rest]
+       (== (lcons formula rest) formulas)
+       (== (lcons ast-formula ast-rest) ast-formulas)
+       (sjas-internal-formula-asto formula ast-formula)
+       (internal-formula-list-asto rest ast-rest))]))
+
+(defn- internal-guard-formulao
+  [formula]
+  (conde
+    [(fresh [left right]
+       (== (list 'eq left right) formula))]
+    [(fresh [left right]
+       (== (list 'neq left right) formula))]))
+
+(defn- internal-guarded-conjunct-partitiono
+  "Partition decoded conjuncts into guarded-call guard and residual groups."
+  [conjuncts guards residuals]
+  (conde
+    [(== '() conjuncts)
+     (== '() guards)
+     (== '() residuals)]
+    [(fresh [conjunct rest guard-rest]
+       (== (lcons conjunct rest) conjuncts)
+       (internal-guard-formulao conjunct)
+       (== (lcons conjunct guard-rest) guards)
+       (internal-guarded-conjunct-partitiono rest guard-rest residuals))]
+    [(fresh [conjunct rest residual-rest]
+       (== (lcons conjunct rest) conjuncts)
+       (== (lcons conjunct residual-rest) residuals)
+       (internal-guarded-conjunct-partitiono rest guards residual-rest))]))
+
+(defn- internal-guarded-alternative-asto
+  "Recover guarded-negative proof data for one reflected body.
 
    The generic guarded call path closes the negation of one alternative by
-   proving the negation of each guarded/conjunctive component in order. For
-   Track 1 proof-predicate checking, reconstruct that sequence from the
-   reflected clause body decoded out of `system-code` rather than from the
-   compiled guarded-clause host table."
-  [formula ast-negated-conjuncts]
-  (fresh [conjuncts]
+   either proving the fallback negation of each conjunct in source order, or by
+   saturating equality guards and then proving negated residuals. For Track 1
+   proof-predicate checking, reconstruct these lists from the reflected clause
+   body decoded out of `system-code` rather than from the compiled
+   guarded-clause host table."
+  [formula guarded-alternative]
+  (fresh [conjuncts guards residuals ast-guards
+          ast-negated-residuals ast-negated-conjuncts]
     (internal-formula-conjunctso formula conjuncts)
-    (internal-formula-list-negated-asto conjuncts ast-negated-conjuncts)))
+    (internal-guarded-conjunct-partitiono conjuncts guards residuals)
+    (internal-formula-list-asto guards ast-guards)
+    (internal-formula-list-negated-asto residuals ast-negated-residuals)
+    (internal-formula-list-negated-asto conjuncts ast-negated-conjuncts)
+    (== (list 'guarded-alternative
+              ast-guards
+              ast-negated-residuals
+              ast-negated-conjuncts)
+        guarded-alternative)))
 
 (defn- decode-reflected-clause-guarded-callo
   "Decode one reflected-clause record as guarded negative-call data."
-  [prog bytes rest atom env negated-conjuncts]
+  [prog bytes rest atom env guarded-alternative]
   (conda
     [(fresh [relation args relation-index arity-byte body-bytes
              decoded-body nnf-body]
@@ -3055,9 +3102,9 @@
                   (reflected-call-env-argso 1 arity args env)
                   (decode-formula-byteso prog body-bytes rest decoded-body)
                   (sjas-to-nnfo decoded-body nnf-body)
-                  (internal-guarded-negated-conjuncts-asto
+                  (internal-guarded-alternative-asto
                     nnf-body
-                    negated-conjuncts)))
+                    guarded-alternative)))
               (range sjas-code/byte-base))))]
     [(fresh [relation args relation-index arity-byte body-bytes
              decoded-body nnf-body]
@@ -3075,9 +3122,9 @@
                   (reflected-call-env-argso 1 arity args env)
                   (decode-syntax-formula-byteso body-bytes rest decoded-body)
                   (sjas-to-nnfo decoded-body nnf-body)
-                  (internal-guarded-negated-conjuncts-asto
+                  (internal-guarded-alternative-asto
                     nnf-body
-                    negated-conjuncts)))
+                    guarded-alternative)))
               (range sjas-code/byte-base))))]))
 
 (defn- reflected-call-guarded-alternatives-in-clauseso
@@ -3087,14 +3134,14 @@
     (== '() guarded-alternatives)
     (fresh [after-current]
       (conda
-        [(fresh [negated-conjuncts rest]
+        [(fresh [guarded-alternative rest]
            (decode-reflected-clause-guarded-callo prog
                                                   bytes
                                                   after-current
                                                   atom
                                                   env
-                                                  negated-conjuncts)
-           (== (lcons negated-conjuncts rest) guarded-alternatives)
+                                                  guarded-alternative)
+           (== (lcons guarded-alternative rest) guarded-alternatives)
            (reflected-call-guarded-alternatives-in-clauseso
              prog
              (dec remaining)
@@ -4254,12 +4301,42 @@
                                               fuel
                                               tail-proof))]))
 
+(defn- sjas-saturate-eq-guardso
+  "Saturate equality guards reconstructed from reflected system-code."
+  [guards env proof-vars sigma sigma-out neqs proof]
+  (conde
+    [(== '() guards)
+     (== sigma sigma-out)
+     (== '(guard-saturation-done) proof)]
+    [(fresh [guard rest lit left right sigma-mid new-bindings
+             step-proof tail-proof]
+       (== (lcons guard rest) guards)
+       (subst/subst-formulao guard env lit)
+       (== (list 'eq left right) lit)
+       (equality/unify-termo left right sigma sigma-mid step-proof)
+       (appendo new-bindings sigma sigma-mid)
+       (support/proof-bindingso new-bindings proof-vars)
+       (support/stable-neqso neqs sigma-mid)
+       (== (list 'guard-eq step-proof tail-proof) proof)
+       (sjas-saturate-eq-guardso rest
+                                  env
+                                  proof-vars
+                                  sigma-mid
+                                  sigma-out
+                                  neqs
+                                  tail-proof))]))
+
 (defn- sjas-close-guarded-negated-alternativeo
   "Validate fallback guarded negative-call evidence for one reflected body."
-  [system-code negated-conjuncts env proof-vars sigma sigma-out neqs neqs-out
+  [system-code guarded-alternative env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (conde
-    [(fresh [sequence-proof]
+    [(fresh [guards negated-residuals negated-conjuncts sequence-proof]
+       (== (list 'guarded-alternative
+                 guards
+                 negated-residuals
+                 negated-conjuncts)
+           guarded-alternative)
        (== (list 'guarded-neg-alt '(guarded-scope-done) sequence-proof) proof)
        (sjas-close-guarded-formula-sequenceo system-code
                                              negated-conjuncts
@@ -4273,20 +4350,32 @@
                                              gamma-terms
                                              fuel
                                              sequence-proof))]
-    [(fresh [guard-proof call-sequence-proof residual-sequence-proof]
+    [(fresh [guards negated-residuals negated-conjuncts guard-proof
+             call-sequence-proof residual-sequence-proof sigma-after-guards]
+       (== (list 'guarded-alternative
+                 guards
+                 negated-residuals
+                 negated-conjuncts)
+           guarded-alternative)
        (== (list 'guarded-neg-alt-saturated
                  '(guarded-scope-done)
                  guard-proof
                  call-sequence-proof
                  residual-sequence-proof)
            proof)
-       (== '(guard-saturation-done) guard-proof)
+       (sjas-saturate-eq-guardso guards
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-after-guards
+                                  neqs
+                                  guard-proof)
        (== '(guarded-call-seq-done) call-sequence-proof)
        (sjas-close-guarded-residual-sequenceo system-code
-                                              negated-conjuncts
+                                              negated-residuals
                                               env
                                               proof-vars
-                                              sigma
+                                              sigma-after-guards
                                               sigma-out
                                               neqs
                                               neqs-out

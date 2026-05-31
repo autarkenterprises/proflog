@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-05-31
 
+- Reassessed the large SJAS proof-materialization timeout after the guarded
+  proof-checking slices. The current public `tableau-proof/3` path no longer
+  reproduces the timeout: the substantive self-consistency selector completed in
+  1:10.65 with 6 assertions, and the adjacent structural theorem-code selector
+  completed in 0:41.11 with 4 assertions. The remaining timeout diagnosis is the
+  same boundary as before: raw miniKanren proof-state reification is much larger
+  than SJAS proof-predicate acceptance and public checked certificate evidence.
+  See
+  [SJAS Proof Materialization Current Assessment](docs/log/2026-05-31-sjas-proof-materialization-current-assessment.md).
+
 - Internalized leading existential guarded scope for reflected guarded
   negative-call proof checking. Guarded alternatives reconstructed from
   `system-code` now preserve decoded scope, and the SJAS checker consumes

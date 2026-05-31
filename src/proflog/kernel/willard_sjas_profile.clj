@@ -3060,6 +3060,18 @@
        (== (lcons conjunct residual-rest) residuals)
        (internal-guarded-conjunct-partitiono rest guards residual-rest))]))
 
+(defn- internal-leading-exists-scopeo
+  "Strip leading decoded existential binders for guarded negative-call scope."
+  [formula scope core]
+  (conda
+    [(fresh [idx body nom rest]
+       (== (list 'exists idx body) formula)
+       (membero [idx nom] code-nom-entries)
+       (== (lcons nom rest) scope)
+       (internal-leading-exists-scopeo body rest core))]
+    [(== '() scope)
+     (== formula core)]))
+
 (defn- internal-guarded-alternative-asto
   "Recover guarded-negative proof data for one reflected body.
 
@@ -3070,14 +3082,16 @@
    body decoded out of `system-code` rather than from the compiled
    guarded-clause host table."
   [formula guarded-alternative]
-  (fresh [conjuncts guards residuals ast-guards
+  (fresh [scope core conjuncts guards residuals ast-guards
           ast-negated-residuals ast-negated-conjuncts]
-    (internal-formula-conjunctso formula conjuncts)
+    (internal-leading-exists-scopeo formula scope core)
+    (internal-formula-conjunctso core conjuncts)
     (internal-guarded-conjunct-partitiono conjuncts guards residuals)
     (internal-formula-list-asto guards ast-guards)
     (internal-formula-list-negated-asto residuals ast-negated-residuals)
     (internal-formula-list-negated-asto conjuncts ast-negated-conjuncts)
     (== (list 'guarded-alternative
+              scope
               ast-guards
               ast-negated-residuals
               ast-negated-conjuncts)
@@ -4326,22 +4340,51 @@
                                   neqs
                                   tail-proof))]))
 
+(defn- sjas-open-existential-guarded-scopeo
+  "Instantiate reflected leading existential guarded scope."
+  [scope env proof-vars env-out proof-vars-out proof]
+  (conde
+    [(== '() scope)
+     (== env env-out)
+     (== proof-vars proof-vars-out)
+     (== '(guarded-scope-done) proof)]
+    [(nominal/fresh [free-var-nom]
+       (fresh [binding-nom rest narrowed-env tail-proof]
+         (== (lcons binding-nom rest) scope)
+         (subst/remove-bindo binding-nom env narrowed-env)
+         (== (list 'guarded-scope-exists tail-proof) proof)
+         (sjas-open-existential-guarded-scopeo
+           rest
+           (lcons [binding-nom (ast/var-term free-var-nom)] narrowed-env)
+           (lcons free-var-nom proof-vars)
+           env-out
+           proof-vars-out
+           tail-proof)))]))
+
 (defn- sjas-close-guarded-negated-alternativeo
   "Validate fallback guarded negative-call evidence for one reflected body."
   [system-code guarded-alternative env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (conde
-    [(fresh [guards negated-residuals negated-conjuncts sequence-proof]
+    [(fresh [scope guards negated-residuals negated-conjuncts scoped-env
+             scoped-proof-vars scope-proof sequence-proof]
        (== (list 'guarded-alternative
+                 scope
                  guards
                  negated-residuals
                  negated-conjuncts)
            guarded-alternative)
-       (== (list 'guarded-neg-alt '(guarded-scope-done) sequence-proof) proof)
-       (sjas-close-guarded-formula-sequenceo system-code
-                                             negated-conjuncts
+       (== (list 'guarded-neg-alt scope-proof sequence-proof) proof)
+       (sjas-open-existential-guarded-scopeo scope
                                              env
                                              proof-vars
+                                             scoped-env
+                                             scoped-proof-vars
+                                             scope-proof)
+       (sjas-close-guarded-formula-sequenceo system-code
+                                             negated-conjuncts
+                                             scoped-env
+                                             scoped-proof-vars
                                              sigma
                                              sigma-out
                                              neqs
@@ -4350,22 +4393,30 @@
                                              gamma-terms
                                              fuel
                                              sequence-proof))]
-    [(fresh [guards negated-residuals negated-conjuncts guard-proof
-             call-sequence-proof residual-sequence-proof sigma-after-guards]
+    [(fresh [scope guards negated-residuals negated-conjuncts scoped-env
+             scoped-proof-vars scope-proof guard-proof call-sequence-proof
+             residual-sequence-proof sigma-after-guards]
        (== (list 'guarded-alternative
+                 scope
                  guards
                  negated-residuals
                  negated-conjuncts)
            guarded-alternative)
        (== (list 'guarded-neg-alt-saturated
-                 '(guarded-scope-done)
+                 scope-proof
                  guard-proof
                  call-sequence-proof
                  residual-sequence-proof)
            proof)
+       (sjas-open-existential-guarded-scopeo scope
+                                             env
+                                             proof-vars
+                                             scoped-env
+                                             scoped-proof-vars
+                                             scope-proof)
        (sjas-saturate-eq-guardso guards
-                                  env
-                                  proof-vars
+                                  scoped-env
+                                  scoped-proof-vars
                                   sigma
                                   sigma-after-guards
                                   neqs
@@ -4373,8 +4424,8 @@
        (== '(guarded-call-seq-done) call-sequence-proof)
        (sjas-close-guarded-residual-sequenceo system-code
                                               negated-residuals
-                                              env
-                                              proof-vars
+                                              scoped-env
+                                              scoped-proof-vars
                                               sigma-after-guards
                                               sigma-out
                                               neqs

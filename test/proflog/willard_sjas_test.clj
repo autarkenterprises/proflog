@@ -772,6 +772,18 @@
       (is (= (sjas-code/code-term-bytes certificate)
              (sjas-code/proof-code-bytes proof))))))
 
+(deftest sjas-proof-codes-encode-existential-guarded-scope-evidence
+  (testing "existential guarded scope evidence stays inside the proof-code grammar"
+    (let [proof '(neg-call-guarded-alt
+                   (guarded-alt
+                     (guarded-neg-alt
+                       (guarded-scope-exists (guarded-scope-done))
+                       (guarded-seq-last (false-close)))))
+          certificate (sjas/proof-certificate proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
+
 (deftest sjas-proof-codes-encode-occurs-check-closure-evidence
   (testing "occurs-check equality contradiction evidence stays inside the proof-code grammar"
     (let [proof '(conj (once-univ (occurs-close)))
@@ -2285,6 +2297,86 @@
             "tableau-proof must validate encoded guard saturation certificates from system-code, not compiled clause tables")
         (is (proof/contains-step? (first-proof proofs) 'guard-eq))
         (is (proof/contains-step? (first-proof proofs) 'guarded-residual-seq-last))))))
+
+(deftest sjas-proof-check-accepts-existential-guarded-scope-from-system-code
+  (testing "existential guarded scope is validated from encoded reflected clauses"
+    (ast/nom x
+      (let [scoped-body (ast/exists-form x (ast/true-form))
+            system (sjas/system
+                     {:profile :willard-sjas-tableau0
+                      :relations {'guarded-scope-demo 0}
+                      :beta []
+                      :reflected-clauses [(ast/clause 'guarded-scope-demo
+                                                      []
+                                                      scoped-body)
+                                          (ast/clause 'guarded-scope-demo
+                                                      []
+                                                      (ast/false-form))]})
+            target (ast/and-form
+                     (ast/true-form)
+                     (ast/neg-lit (ast/app-term 'guarded-scope-demo)))
+            proof '(conj
+                     (skip-true
+                       (neg-call-guarded-alt
+                         (guarded-alt
+                           (guarded-neg-alt
+                             (guarded-scope-exists (guarded-scope-done))
+                             (guarded-seq-last (false-close)))))))
+            check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+        (with-redefs [kernel/prove-programo
+                      (fn [& _]
+                        (throw (ex-info "host kernel proof validator reached" {})))]
+          (is (successful?
+                (l/run 1 [q]
+                  (check-proof (:program system)
+                               (:system-code system)
+                               target
+                               120
+                               proof)
+                  (l/== true q)))
+              "decoded tableau proof checking must recover existential guarded scope from system-code"))))))
+
+(deftest sjas-tableau-proof-accepts-existential-guarded-scope-certificates
+  (ast/nom x
+    (let [scoped-body (ast/exists-form x (ast/true-form))
+          system (sjas/system
+                   {:profile :willard-sjas-tableau0
+                    :relations {'guarded-scope-demo 0}
+                    :beta []
+                    :reflected-clauses [(ast/clause 'guarded-scope-demo
+                                                    []
+                                                    scoped-body)
+                                        (ast/clause 'guarded-scope-demo
+                                                    []
+                                                    (ast/false-form))]})
+          stripped-program (assoc (:program system)
+                                  :clauses nil
+                                  :clause-list '()
+                                  :alternative-clause-list '()
+                                  :guarded-clause-list '())
+          theorem (ast/pos-lit (ast/app-term 'guarded-scope-demo))
+          theorem-code (sjas/formula-code system theorem)
+          certificate (sjas/proof-certificate
+                        '(conj
+                           (neg-call-guarded-alt
+                             (guarded-alt
+                               (guarded-neg-alt
+                                 (guarded-scope-exists (guarded-scope-done))
+                                 (guarded-seq-last (false-close)))))))]
+      (with-redefs [kernel/prove-programo
+                    (fn [& _]
+                      (throw (ex-info "host kernel proof validator reached" {})))]
+        (let [proofs (query/query-succeeds
+                       stripped-program
+                       (sjas/tableau-proof (:system-code system)
+                                           theorem-code
+                                           certificate)
+                       1
+                       220)]
+          (is (successful? proofs)
+              "tableau-proof must validate encoded guarded-scope certificates from system-code, not compiled clause tables")
+          (is (proof/contains-step? (first-proof proofs) 'guarded-scope-exists))
+          (is (proof/contains-step? (first-proof proofs) 'guarded-seq-last)))))))
 
 (deftest sjas-tableau-proof-accepts-reflected-negative-call-alternative-certificates
   (ast/nom x

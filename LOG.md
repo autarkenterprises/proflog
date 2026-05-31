@@ -22,6 +22,17 @@ complete contemporaneous transcript.
 
 ## 2026-05-31
 
+- Internalized leading existential guarded scope for reflected guarded
+  negative-call proof checking. Guarded alternatives reconstructed from
+  `system-code` now preserve decoded scope, and the SJAS checker consumes
+  `guarded-scope-exists` evidence to extend the branch environment before
+  checking fallback or saturated guarded paths. Other leading quantifier forms,
+  recursive guarded call sequences, non-equality guards, and answer-overlay
+  guarded/query constructors remain Track 1 gaps. See
+  [SJAS Existential Guarded Scope Internalization](docs/log/2026-05-31-sjas-existential-guarded-scope-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
 - Internalized non-empty equality guard saturation for saturated guarded
   negative-call proof checking. Reflected guarded alternatives reconstructed
   from `system-code` now preserve guard and residual partitions, and the SJAS

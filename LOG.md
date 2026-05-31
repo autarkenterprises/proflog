@@ -22,6 +22,17 @@ complete contemporaneous transcript.
 
 ## 2026-05-31
 
+- Internalized the no-scope/no-guard/no-recursive-call saturated guarded
+  negative-call proof path. The SJAS checker now accepts
+  `guarded-neg-alt-saturated` certificates whose guard saturation and guarded
+  call sequence are empty and whose residual sequence closes the decoded
+  reflected body reconstructed from `system-code`. Recursive guarded
+  call-sequence, non-empty guard saturation, existential guarded scope, and
+  answer-overlay guarded variants remain Track 1 gaps. See
+  [SJAS Saturated Guarded Negative Call Internalization](docs/log/2026-05-31-sjas-saturated-guarded-negative-call-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
 - Internalized the fallback guarded negative-call proof path for reflected
   multi-clause procedure calls. The SJAS proof-code alphabet now includes the
   guarded terminal markers needed by kernel evidence, and the SJAS proof

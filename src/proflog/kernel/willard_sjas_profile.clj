@@ -4192,24 +4192,108 @@
                                              fuel
                                              tail-proof))]))
 
+(defn- sjas-close-guarded-residual-sequenceo
+  "Close the residual sequence in a saturated guarded alternative.
+
+   This Track 1 slice supports the no-guard/no-recursive-call saturated macro
+   path by checking the reconstructed negated reflected body as residual
+   formulas. Recursive guarded call-sequence descent remains a separate
+   constructor family."
+  [system-code formulas env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (conde
+    [(== '() formulas)
+     (== sigma sigma-out)
+     (== neqs neqs-out)
+     (== '(guarded-residual-seq-done) proof)]
+    [(fresh [formula subproof]
+       (== (lcons formula '()) formulas)
+       (== (list 'guarded-residual-seq-last subproof) proof)
+       (sjas-proof-check-stateo system-code
+                                formula
+                                '()
+                                '()
+                                env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                fuel
+                                subproof))]
+    [(fresh [formula second-formula rest sigma-mid neqs-mid
+             head-proof tail-proof]
+       (== (lcons formula (lcons second-formula rest)) formulas)
+       (== (list 'guarded-residual-seq-step head-proof tail-proof) proof)
+       (sjas-proof-check-stateo system-code
+                                formula
+                                '()
+                                '()
+                                env
+                                proof-vars
+                                sigma
+                                sigma-mid
+                                neqs
+                                neqs-mid
+                                prog
+                                gamma-terms
+                                fuel
+                                head-proof)
+       (sjas-close-guarded-residual-sequenceo system-code
+                                              (lcons second-formula rest)
+                                              env
+                                              proof-vars
+                                              sigma-mid
+                                              sigma-out
+                                              neqs-mid
+                                              neqs-out
+                                              prog
+                                              gamma-terms
+                                              fuel
+                                              tail-proof))]))
+
 (defn- sjas-close-guarded-negated-alternativeo
   "Validate fallback guarded negative-call evidence for one reflected body."
   [system-code negated-conjuncts env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
-  (fresh [sequence-proof]
-    (== (list 'guarded-neg-alt '(guarded-scope-done) sequence-proof) proof)
-    (sjas-close-guarded-formula-sequenceo system-code
-                                          negated-conjuncts
-                                          env
-                                          proof-vars
-                                          sigma
-                                          sigma-out
-                                          neqs
-                                          neqs-out
-                                          prog
-                                          gamma-terms
-                                          fuel
-                                          sequence-proof)))
+  (conde
+    [(fresh [sequence-proof]
+       (== (list 'guarded-neg-alt '(guarded-scope-done) sequence-proof) proof)
+       (sjas-close-guarded-formula-sequenceo system-code
+                                             negated-conjuncts
+                                             env
+                                             proof-vars
+                                             sigma
+                                             sigma-out
+                                             neqs
+                                             neqs-out
+                                             prog
+                                             gamma-terms
+                                             fuel
+                                             sequence-proof))]
+    [(fresh [guard-proof call-sequence-proof residual-sequence-proof]
+       (== (list 'guarded-neg-alt-saturated
+                 '(guarded-scope-done)
+                 guard-proof
+                 call-sequence-proof
+                 residual-sequence-proof)
+           proof)
+       (== '(guard-saturation-done) guard-proof)
+       (== '(guarded-call-seq-done) call-sequence-proof)
+       (sjas-close-guarded-residual-sequenceo system-code
+                                              negated-conjuncts
+                                              env
+                                              proof-vars
+                                              sigma
+                                              sigma-out
+                                              neqs
+                                              neqs-out
+                                              prog
+                                              gamma-terms
+                                              fuel
+                                              residual-sequence-proof))]))
 
 (defn- sjas-close-one-guarded-alternativeo
   "Close one guarded reflected alternative reconstructed from system-code."

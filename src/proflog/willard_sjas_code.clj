@@ -248,7 +248,13 @@
     atom-close
     eq-refl
     occurs-close
-    alt])
+    alt
+    guarded-scope-done
+    guarded-seq-done
+    guarded-call-seq-done
+    guarded-residual-seq-done
+    guard-saturation-done
+    guard-eq])
 
 (def proof-symbol->index
   (into {} (map-indexed (fn [idx sym] [sym (inc idx)]) proof-symbols)))

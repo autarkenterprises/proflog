@@ -732,6 +732,18 @@
       (is (= (sjas-code/code-term-bytes certificate)
              (sjas-code/proof-code-bytes proof))))))
 
+(deftest sjas-proof-codes-encode-guarded-negative-call-evidence
+  (testing "guarded reflected negative-call evidence stays inside the proof-code grammar"
+    (let [proof '(neg-call-guarded-alt
+                   (guarded-alt
+                     (guarded-neg-alt
+                       (guarded-scope-done)
+                       (guarded-seq-last (false-close)))))
+          certificate (sjas/proof-certificate proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
+
 (deftest sjas-proof-codes-encode-occurs-check-closure-evidence
   (testing "occurs-check equality contradiction evidence stays inside the proof-code grammar"
     (let [proof '(conj (once-univ (occurs-close)))
@@ -2003,6 +2015,82 @@
                              proof)
                 (l/== true q)))
             "decoded tableau proof checking must recover multi-clause reflected negative calls from system-code")))))
+
+(deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
+  (testing "guarded negative call evidence is validated from encoded reflected clauses"
+    (let [system (sjas/system
+                   {:profile :willard-sjas-tableau0
+                    :relations {'guarded-demo 0}
+                    :beta []
+                    :reflected-clauses [(ast/clause 'guarded-demo
+                                                    []
+                                                    (ast/true-form))
+                                        (ast/clause 'guarded-demo
+                                                    []
+                                                    (ast/false-form))]})
+          target (ast/and-form
+                   (ast/true-form)
+                   (ast/neg-lit (ast/app-term 'guarded-demo)))
+          proof '(conj
+                   (skip-true
+                     (neg-call-guarded-alt
+                       (guarded-alt
+                         (guarded-neg-alt
+                           (guarded-scope-done)
+                           (guarded-seq-last (false-close)))))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (with-redefs [kernel/prove-programo
+                    (fn [& _]
+                      (throw (ex-info "host kernel proof validator reached" {})))]
+        (is (successful?
+              (l/run 1 [q]
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             120
+                             proof)
+                (l/== true q)))
+            "decoded tableau proof checking must recover guarded reflected negative calls from system-code")))))
+
+(deftest sjas-tableau-proof-accepts-guarded-reflected-negative-call-certificates
+  (let [system (sjas/system
+                 {:profile :willard-sjas-tableau0
+                  :relations {'guarded-demo 0}
+                  :beta []
+                  :reflected-clauses [(ast/clause 'guarded-demo
+                                                  []
+                                                  (ast/true-form))
+                                      (ast/clause 'guarded-demo
+                                                  []
+                                                  (ast/false-form))]})
+        stripped-program (assoc (:program system)
+                                :clauses nil
+                                :clause-list '()
+                                :alternative-clause-list '()
+                                :guarded-clause-list '())
+        theorem (ast/pos-lit (ast/app-term 'guarded-demo))
+        theorem-code (sjas/formula-code system theorem)
+        certificate (sjas/proof-certificate
+                      '(conj
+                         (neg-call-guarded-alt
+                           (guarded-alt
+                             (guarded-neg-alt
+                               (guarded-scope-done)
+                               (guarded-seq-last (false-close)))))))]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (let [proofs (query/query-succeeds
+                     stripped-program
+                     (sjas/tableau-proof (:system-code system)
+                                         theorem-code
+                                         certificate)
+                     1
+                     220)]
+        (is (successful? proofs)
+            "tableau-proof must validate encoded guarded negative-call certificates from system-code, not compiled clause tables")
+        (is (proof/contains-step? (first-proof proofs) 'neg-call-guarded-alt))
+        (is (proof/contains-step? (first-proof proofs) 'guarded-alt))))))
 
 (deftest sjas-tableau-proof-accepts-reflected-negative-call-alternative-certificates
   (ast/nom x

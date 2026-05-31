@@ -117,6 +117,12 @@
      guarded-residual-seq-step
      guarded-residual-seq-last
      guarded-scope-exists
+     guarded-scope-done
+     guarded-seq-done
+     guarded-call-seq-done
+     guarded-residual-seq-done
+     guard-saturation-done
+     guard-eq
      query-pos-call
      query-neg-call
      query-neg-call-guarded-alt})

@@ -51,6 +51,10 @@
     (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'alt))))
     (is (= :unresolved
+           (:status (correspondence/classify-proof-symbol 'guarded-scope-done))))
+    (is (= :unresolved
+           (:status (correspondence/classify-proof-symbol 'guarded-seq-done))))
+    (is (= :unresolved
            (:status (correspondence/classify-proof-symbol 'profiled))))))
 
 (deftest proof-term-audit-reports-obligations-for-actual-proof-trees

@@ -20,6 +20,20 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-05-31
+
+- Internalized the fallback guarded negative-call proof path for reflected
+  multi-clause procedure calls. The SJAS proof-code alphabet now includes the
+  guarded terminal markers needed by kernel evidence, and the SJAS proof
+  checker validates encoded `neg-call-guarded-alt` certificates by
+  reconstructing guarded alternatives from reflected Group-2b records in
+  `system-code`, with compiled clause tables stripped in the public regression.
+  The saturated guard-first and answer-overlay guarded variants remain future
+  Track 1 slices. See
+  [SJAS Guarded Negative Call Internalization](docs/log/2026-05-31-sjas-guarded-negative-call-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
 ## 2026-05-30
 
 - Reassessed the large SJAS proof-materialization timeout. The public

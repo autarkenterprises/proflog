@@ -2870,7 +2870,8 @@
                (reflected-clause-formulao arity relation body formula)))
            (range sjas-code/byte-base)))))
 
-(declare sjas-negated-formula-asto)
+(declare sjas-negated-formula-asto
+         formula-list-appendo)
 
 (defn- reflected-call-env-argso
   "Bind canonical reflected-clause parameters to actual call arguments.
@@ -2999,6 +3000,118 @@
                                                     env
                                                     negated-alternatives))]))))
 
+(defn- internal-formula-conjunctso
+  "Flatten a decoded internal formula's top-level conjunctions."
+  [formula conjuncts]
+  (conda
+    [(fresh [left right left-conjuncts right-conjuncts]
+       (== (list 'and left right) formula)
+       (internal-formula-conjunctso left left-conjuncts)
+       (internal-formula-conjunctso right right-conjuncts)
+       (formula-list-appendo left-conjuncts right-conjuncts conjuncts))]
+    [(== (lcons formula '()) conjuncts)]))
+
+(defn- internal-formula-list-negated-asto
+  "Translate decoded internal formulas to their AST-level NNF negations."
+  [formulas ast-formulas]
+  (conde
+    [(== '() formulas)
+     (== '() ast-formulas)]
+    [(fresh [formula rest ast-formula ast-rest]
+       (== (lcons formula rest) formulas)
+       (== (lcons ast-formula ast-rest) ast-formulas)
+       (sjas-negated-formula-asto formula ast-formula)
+       (internal-formula-list-negated-asto rest ast-rest))]))
+
+(defn- internal-guarded-negated-conjuncts-asto
+  "Recover the fallback guarded-negative sequence for one reflected body.
+
+   The generic guarded call path closes the negation of one alternative by
+   proving the negation of each guarded/conjunctive component in order. For
+   Track 1 proof-predicate checking, reconstruct that sequence from the
+   reflected clause body decoded out of `system-code` rather than from the
+   compiled guarded-clause host table."
+  [formula ast-negated-conjuncts]
+  (fresh [conjuncts]
+    (internal-formula-conjunctso formula conjuncts)
+    (internal-formula-list-negated-asto conjuncts ast-negated-conjuncts)))
+
+(defn- decode-reflected-clause-guarded-callo
+  "Decode one reflected-clause record as guarded negative-call data."
+  [prog bytes rest atom env negated-conjuncts]
+  (conda
+    [(fresh [relation args relation-index arity-byte body-bytes
+             decoded-body nnf-body]
+       (== (lcons 'app (lcons relation args)) atom)
+       (== (lcons system-reflected-clause-tag
+                   (lcons relation-index
+                          (lcons arity-byte body-bytes)))
+           bytes)
+       (sjas-reflected-relation-indexo prog relation-index relation)
+       (or*
+         (map (fn [arity]
+                (fresh []
+                  (== (inc arity) arity-byte)
+                  (reflected-call-env-argso 1 arity args env)
+                  (decode-formula-byteso prog body-bytes rest decoded-body)
+                  (sjas-to-nnfo decoded-body nnf-body)
+                  (internal-guarded-negated-conjuncts-asto
+                    nnf-body
+                    negated-conjuncts)))
+              (range sjas-code/byte-base))))]
+    [(fresh [relation args relation-index arity-byte body-bytes
+             decoded-body nnf-body]
+       (== (lcons 'app (lcons relation args)) atom)
+       (== (lcons system-reflected-clause-tag
+                   (lcons relation-index
+                          (lcons arity-byte body-bytes)))
+           bytes)
+       (positive-byteo relation-index)
+       (== (list 'sym relation-index) relation)
+       (or*
+         (map (fn [arity]
+                (fresh []
+                  (== (inc arity) arity-byte)
+                  (reflected-call-env-argso 1 arity args env)
+                  (decode-syntax-formula-byteso body-bytes rest decoded-body)
+                  (sjas-to-nnfo decoded-body nnf-body)
+                  (internal-guarded-negated-conjuncts-asto
+                    nnf-body
+                    negated-conjuncts)))
+              (range sjas-code/byte-base))))]))
+
+(defn- reflected-call-guarded-alternatives-in-clauseso
+  "Collect guarded negative-call alternatives from encoded reflected clauses."
+  [prog remaining bytes atom env guarded-alternatives]
+  (if (zero? remaining)
+    (== '() guarded-alternatives)
+    (fresh [after-current]
+      (conda
+        [(fresh [negated-conjuncts rest]
+           (decode-reflected-clause-guarded-callo prog
+                                                  bytes
+                                                  after-current
+                                                  atom
+                                                  env
+                                                  negated-conjuncts)
+           (== (lcons negated-conjuncts rest) guarded-alternatives)
+           (reflected-call-guarded-alternatives-in-clauseso
+             prog
+             (dec remaining)
+             after-current
+             atom
+             env
+             rest))]
+        [(fresh [current]
+           (decode-reflected-clause-syntax-formulao bytes after-current current)
+           (reflected-call-guarded-alternatives-in-clauseso
+             prog
+             (dec remaining)
+             after-current
+             atom
+             env
+             guarded-alternatives))]))))
+
 (defn- sjas-system-reflected-call-clauseo
   "Resolve a proof-predicate procedure call from encoded reflected clauses.
 
@@ -3063,6 +3176,37 @@
                             atom
                             env
                             negated-alternatives)))
+                      (range sjas-code/byte-base)))))
+           (range sjas-code/byte-base)))))
+
+(defn- sjas-system-reflected-guarded-call-alternativeso
+  "Resolve guarded reflected call alternatives from encoded system data."
+  [prog system-code atom env guarded-alternatives]
+  (fresh [system-bytes system-read-proof profile-tag beta-count beta-bytes
+          after-betas reflected-count reflected-bytes]
+    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (skip-formula-byteso prog beta-total beta-bytes after-betas)
+               (== (lcons reflected-count reflected-bytes) after-betas)
+               (or*
+                 (map (fn [reflected-total]
+                        (fresh []
+                          (== (inc reflected-total) reflected-count)
+                          (reflected-call-guarded-alternatives-in-clauseso
+                            prog
+                            reflected-total
+                            reflected-bytes
+                            atom
+                            env
+                            guarded-alternatives)))
                       (range sjas-code/byte-base)))))
            (range sjas-code/byte-base)))))
 
@@ -3986,6 +4130,122 @@
                                 fuel
                                 proof))]))
 
+(defn- sjas-close-guarded-formula-sequenceo
+  "Close the guarded fallback sequence for one reflected alternative.
+
+   The sequence elements are reconstructed from encoded reflected clause bodies
+   by `sjas-system-reflected-guarded-call-alternativeso`. Each element is an
+   ordinary AST formula, so validation delegates back to the same SJAS
+   proof-check state relation rather than to the host kernel."
+  [system-code formulas env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (conde
+    [(== '() formulas)
+     (== sigma sigma-out)
+     (== neqs neqs-out)
+     (== '(guarded-seq-done) proof)]
+    [(fresh [formula subproof]
+       (== (lcons formula '()) formulas)
+       (== (list 'guarded-seq-last subproof) proof)
+       (sjas-proof-check-stateo system-code
+                                formula
+                                '()
+                                '()
+                                env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                fuel
+                                subproof))]
+    [(fresh [formula second-formula rest sigma-mid neqs-mid
+             head-proof tail-proof]
+       (== (lcons formula (lcons second-formula rest)) formulas)
+       (== (list 'guarded-seq-step head-proof tail-proof) proof)
+       (sjas-proof-check-stateo system-code
+                                formula
+                                '()
+                                '()
+                                env
+                                proof-vars
+                                sigma
+                                sigma-mid
+                                neqs
+                                neqs-mid
+                                prog
+                                gamma-terms
+                                fuel
+                                head-proof)
+       (sjas-close-guarded-formula-sequenceo system-code
+                                             (lcons second-formula rest)
+                                             env
+                                             proof-vars
+                                             sigma-mid
+                                             sigma-out
+                                             neqs-mid
+                                             neqs-out
+                                             prog
+                                             gamma-terms
+                                             fuel
+                                             tail-proof))]))
+
+(defn- sjas-close-guarded-negated-alternativeo
+  "Validate fallback guarded negative-call evidence for one reflected body."
+  [system-code negated-conjuncts env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (fresh [sequence-proof]
+    (== (list 'guarded-neg-alt '(guarded-scope-done) sequence-proof) proof)
+    (sjas-close-guarded-formula-sequenceo system-code
+                                          negated-conjuncts
+                                          env
+                                          proof-vars
+                                          sigma
+                                          sigma-out
+                                          neqs
+                                          neqs-out
+                                          prog
+                                          gamma-terms
+                                          fuel
+                                          sequence-proof)))
+
+(defn- sjas-close-one-guarded-alternativeo
+  "Close one guarded reflected alternative reconstructed from system-code."
+  [system-code guarded-alternatives env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (conde
+    [(fresh [guarded-alternative rest subproof]
+       (== (lcons guarded-alternative rest) guarded-alternatives)
+       (== (list 'guarded-alt subproof) proof)
+       (sjas-close-guarded-negated-alternativeo system-code
+                                                guarded-alternative
+                                                env
+                                                proof-vars
+                                                sigma
+                                                sigma-out
+                                                neqs
+                                                neqs-out
+                                                prog
+                                                gamma-terms
+                                                fuel
+                                                subproof))]
+    [(fresh [guarded-alternative rest]
+       (== (lcons guarded-alternative rest) guarded-alternatives)
+       (sjas-close-one-guarded-alternativeo system-code
+                                            rest
+                                            env
+                                            proof-vars
+                                            sigma
+                                            sigma-out
+                                            neqs
+                                            neqs-out
+                                            prog
+                                            gamma-terms
+                                            fuel
+                                            proof))]))
+
 (defn- sjas-proof-check-close-agendao
   "Check a decoded tableau proof term without invoking the host proof kernel.
 
@@ -4377,6 +4637,37 @@
                                 gamma-terms
                                 next-fuel
                                 subproof))]
+    [(fresh [fml unexpanded lit atom walked-atom relation args call-env
+             guarded-alternatives first-alternative second-alternative
+             remaining-alternatives subproof]
+       (== (list 'neg-call-guarded-alt subproof) proof)
+       (support/selecto fml agenda unexpanded)
+       (subst/subst-formulao fml env lit)
+       (== (list 'neg atom) lit)
+       (equality/walk-atomo atom sigma walked-atom)
+       (== (lcons 'app (lcons relation args)) walked-atom)
+       (support/l-ground-term*o args)
+       (sjas-system-reflected-guarded-call-alternativeso
+         prog
+         system-code
+         walked-atom
+         call-env
+         guarded-alternatives)
+       (== (lcons first-alternative
+                  (lcons second-alternative remaining-alternatives))
+           guarded-alternatives)
+       (sjas-close-one-guarded-alternativeo system-code
+                                            guarded-alternatives
+                                            call-env
+                                            proof-vars
+                                            sigma
+                                            sigma-out
+                                            neqs
+                                            neqs-out
+                                            prog
+                                            gamma-terms
+                                            fuel
+                                            subproof))]
     [(fresh [fml unexpanded lit atom walked-atom relation args call-env
              negated-alternatives first-alternative second-alternative
              remaining-alternatives subproof]

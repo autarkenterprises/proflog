@@ -75,6 +75,15 @@ internalization track is therefore organized into the following logical slices:
    proof evidence from reflected clauses decoded from `system-code`, not from
    external runtime clause tables.
 
+The normative Track 1 target is specified in
+[SJAS Tableau Proof Arithmeticization Specification](../SJAS_TABLEAU_ARITHMETIZATION_SPEC.md).
+That artifact fixes the semantic endpoint for this track: an object-language
+relation `TabPrf_beta(system-code,theorem-code,proof-code)` whose truth means
+that the proof code decodes to a closed semantic tableau for the decoded finite
+system axioms plus the negated theorem. Performance shortcuts and proof-directed
+entry points are acceptable only insofar as they instantiate that relation over
+the accepted proof-code fragment.
+
 These slices cannot be collapsed into one monolithic implementation step
 without losing diagnostic clarity. A failed monolithic proof predicate may fail
 because of code injectivity, symbol-table reconstruction, syntax decoding,

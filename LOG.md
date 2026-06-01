@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Refocused ADR-0073 Track 1 on the paper-grade semantic target rather than
+  further small checker fixes. Added a normative in-principle arithmeticization
+  specification for `TabPrf_beta(system-code,theorem-code,proof-code)` as a
+  bounded object-language relation over decoded finite systems, theorem codes,
+  proof trees, tableau local rules, branch closure, substitution, and reflected
+  clause expansion. The LOPSTR/PPDP system-description paper now summarizes
+  this specification as the semantic basis for `IS#_D(beta)` internalization.
+  See [SJAS Tableau Arithmeticization Specification](docs/log/2026-06-01-sjas-tableau-arithmeticization-spec.md).
+
 - Closed the stale unresolved bucket for implemented SJAS profile/code proof
   evidence. The executable correspondence audit now classifies `profiled`,
   Willard profile markers, arithmetic/code/axiom/theorem/proof-check markers,

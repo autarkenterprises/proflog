@@ -113,7 +113,6 @@
      guarded-seq-step
      guarded-seq-last
      guarded-call-seq-step
-     guarded-call-seq-defer
      guarded-residual-seq-step
      guarded-residual-seq-last
      guarded-scope-exists
@@ -122,7 +121,13 @@
      guarded-call-seq-done
      guarded-residual-seq-done
      guard-saturation-done
-     guard-eq
+     guard-eq})
+
+(def ^:private excluded-answer-overlay-symbols
+  "Answer-export proof constructors deliberately not admitted by SJAS theorem
+   proof predicates. They describe query entry and residual deferral behavior,
+   not semantic-tableau proof checking for encoded theorem/proof pairs."
+  '#{guarded-call-seq-defer
      query-pos-call
      query-neg-call
      query-neg-call-guarded-alt})
@@ -189,6 +194,10 @@
                   {:status :unresolved
                    :aspect :procedure-call-expansion
                    :obligation "Prove procedure/profile calls preserve accepted proof trees and relevant size measures."})
+    (classify-set excluded-answer-overlay-symbols
+                  {:status :excluded
+                   :aspect :answer-overlay
+                   :obligation "Reject query-entry and residual-deferral proof constructors from SJAS proof-predicate certificates."})
     (classify-set excluded-layer-symbols
                   {:status :excluded
                    :aspect :generic-sidecar

@@ -134,6 +134,25 @@
       (is (= #{proof}
              (:excluded-profile-forms audit))))))
 
+(deftest answer-overlay-proof-forms-are-explicitly-excluded
+  (testing "answer-export proof constructors are not admitted by the SJAS proof predicate"
+    (is (= :excluded
+           (:status (correspondence/classify-proof-symbol 'query-pos-call))))
+    (is (= :excluded
+           (:status (correspondence/classify-proof-symbol 'query-neg-call))))
+    (is (= :excluded
+           (:status (correspondence/classify-proof-symbol 'query-neg-call-guarded-alt))))
+    (is (= :excluded
+           (:status (correspondence/classify-proof-symbol 'guarded-call-seq-defer))))
+    (let [audit (correspondence/audit-proof-term
+                  '(query-neg-call-guarded-alt
+                     (guarded-call-seq-defer
+                       (guarded-call-seq-done))))]
+      (is (= #{'query-neg-call-guarded-alt 'guarded-call-seq-defer}
+             (:excluded-symbols audit)))
+      (is (= #{'guarded-call-seq-done}
+             (:unresolved-symbols audit))))))
+
 (deftest proof-check-profile-wrapper-audit-allows-relation-specific-payloads
   (testing "SJAS proof-check profile forms carry relation-specific payload arity"
     (is (= :relevant

@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Closed the answer-overlay proof-constructor boundary for SJAS theorem proof
+  predicates by explicit exclusion. `query-pos-call`, `query-neg-call`,
+  `query-neg-call-guarded-alt`, and `guarded-call-seq-defer` remain encodable
+  proof evidence for answer export, but the correspondence audit marks them
+  excluded from SJAS proof-predicate certificates and `tableau-proof/3` rejects
+  query-entry certificates rather than treating them as theorem proofs. See
+  [SJAS Answer Overlay Exclusion](docs/log/2026-06-01-sjas-answer-overlay-exclusion.md).
+  `lein test-proflog-fast` passed 610 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
 - Closed the generic optimized sidecar boundary for SJAS proof predicates by
   explicit exclusion. `sjas/proof-certificate` now erases only outer
   `willard-sjas-tableau0` and `willard-sjas-level1` annotations, preserving

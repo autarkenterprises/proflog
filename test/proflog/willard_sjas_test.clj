@@ -793,6 +793,15 @@
       (is (= sidecar-proof
              (sjas-code/proof-formal-code-term->proof certificate))))))
 
+(deftest sjas-proof-codes-encode-answer-overlay-evidence
+  (testing "answer-overlay proof evidence remains inspectable but outside the SJAS proof predicate"
+    (let [proof '(query-pos-call (conj (false-close)))
+          certificate (sjas/proof-certificate proof)]
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof)))
+      (is (= proof
+             (sjas-code/proof-formal-code-term->proof certificate))))))
+
 (deftest sjas-proof-codes-encode-recursive-guarded-call-sequence-evidence
   (testing "recursive guarded-call sequence evidence stays inside the proof-code grammar"
     (let [proof '(neg-call-guarded-alt
@@ -1599,6 +1608,25 @@
               1
               160))
           "SJAS proof predicates must reject generic optimized sidecar certificates rather than erasing the wrapper"))))
+
+(deftest sjas-tableau-proof-rejects-answer-overlay-query-certificates
+  (let [system (demo-system :willard-sjas-tableau0)
+        theorem (ast/true-form)
+        theorem-code (sjas/formula-code system theorem)
+        certificate (sjas/proof-certificate
+                      '(query-pos-call (conj (false-close))))]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tableau-proof (:system-code system)
+                                  theorem-code
+                                  certificate)
+              1
+              160))
+          "SJAS proof predicates must reject answer-overlay query-entry certificates"))))
 
 (deftest sjas-tableau-proof-accepts-free-equality-closure-certificates
   (let [system (demo-system :willard-sjas-tableau0)

@@ -113,9 +113,26 @@
                          (sjas-equal (sjas-read-one)
                                      (sjas-read-one)
                                      (sjas-bind-done)))))))
-    (is (= :probably-excluded
+    (is (= :excluded
            (:status (correspondence/classify-profile-form
                       '(profiled first-order (close))))))))
+
+(deftest generic-sidecar-proof-forms-are-explicitly-excluded
+  (testing "optimized generic sidecars are not admitted by the SJAS proof predicate"
+    (is (= :excluded
+           (:status (correspondence/classify-proof-symbol 'propositional))))
+    (is (= :excluded
+           (:status (correspondence/classify-proof-symbol 'first-order))))
+    (is (= :excluded
+           (:status (correspondence/classify-proof-symbol 'lem-close))))
+    (is (= :excluded
+           (:status (correspondence/classify-proof-symbol 'skolemized))))
+    (let [proof '(profiled propositional (conj (false-close)))
+          audit (correspondence/audit-proof-term proof)]
+      (is (= #{'propositional}
+             (:excluded-symbols audit)))
+      (is (= #{proof}
+             (:excluded-profile-forms audit))))))
 
 (deftest proof-check-profile-wrapper-audit-allows-relation-specific-payloads
   (testing "SJAS proof-check profile forms carry relation-specific payload arity"

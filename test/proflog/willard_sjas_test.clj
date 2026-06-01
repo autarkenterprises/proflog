@@ -784,6 +784,15 @@
       (is (= (sjas-code/code-term-bytes certificate)
              (sjas-code/proof-code-bytes proof))))))
 
+(deftest sjas-proof-certificates-preserve-generic-profiled-sidecar-evidence
+  (testing "only outer SJAS profile annotations are erased before proof-code encoding"
+    (let [sidecar-proof '(profiled propositional (conj (false-close)))
+          certificate (sjas/proof-certificate sidecar-proof)]
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes sidecar-proof)))
+      (is (= sidecar-proof
+             (sjas-code/proof-formal-code-term->proof certificate))))))
+
 (deftest sjas-proof-codes-encode-recursive-guarded-call-sequence-evidence
   (testing "recursive guarded-call sequence evidence stays inside the proof-code grammar"
     (let [proof '(neg-call-guarded-alt
@@ -1571,6 +1580,25 @@
         (is (successful? proofs)
             "tableau-proof must validate encoded false-close certificates object-level")
         (is (proof/contains-step? (first-proof proofs) 'false-close))))))
+
+(deftest sjas-tableau-proof-rejects-generic-profiled-sidecar-certificates
+  (let [system (demo-system :willard-sjas-tableau0)
+        theorem (ast/true-form)
+        theorem-code (sjas/formula-code system theorem)
+        certificate (sjas/proof-certificate
+                      '(profiled propositional (conj (false-close))))]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tableau-proof (:system-code system)
+                                  theorem-code
+                                  certificate)
+              1
+              160))
+          "SJAS proof predicates must reject generic optimized sidecar certificates rather than erasing the wrapper"))))
 
 (deftest sjas-tableau-proof-accepts-free-equality-closure-certificates
   (let [system (demo-system :willard-sjas-tableau0)

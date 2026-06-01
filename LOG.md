@@ -22,6 +22,18 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Closed the generic optimized sidecar boundary for SJAS proof predicates by
+  explicit exclusion. `sjas/proof-certificate` now erases only outer
+  `willard-sjas-tableau0` and `willard-sjas-level1` annotations, preserving
+  generic `(profiled propositional ...)` and `(profiled first-order ...)`
+  wrappers in proof-code trees so `tableau-proof/3` rejects them rather than
+  silently accepting the wrapped subproof. The correspondence audit now marks
+  `lem-close`, `skolemized`, `propositional`, and `first-order` as excluded
+  from SJAS proof-predicate certificates. See
+  [SJAS Generic Sidecar Exclusion](docs/log/2026-06-01-sjas-generic-sidecar-exclusion.md).
+  `lein test-proflog-fast` passed 604 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
 - Replaced the large `tableau-proof/3` public report's host proof-code inverse
   with the SJAS proof-code decoding relation. Large proof reports still run
   only after the SJAS checker accepts the proof-predicate query, but the decoded

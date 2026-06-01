@@ -127,15 +127,20 @@
      query-neg-call
      query-neg-call-guarded-alt})
 
-(def ^:private unresolved-layer-symbols
-  "Proof constructors used by optimized proof layers, profile wrappers, and
-   legacy/staging witnesses. These need bridge proofs or direct replacement
-   before a kernel call can count as a fully justified SJAS proof predicate."
+(def ^:private excluded-layer-symbols
+  "Generic optimized sidecar constructors deliberately not admitted by the SJAS
+   proof predicate. They remain encodable so legacy/public proof evidence can be
+   inspected, but Track 1 treats them as outside the SJAS proof-code fragment."
   '#{lem-close
      skolemized
      propositional
-     first-order
-     profiled
+     first-order})
+
+(def ^:private unresolved-layer-symbols
+  "Profile wrappers and SJAS-specific staging witnesses whose role depends on
+   the concrete profiled form. Generic sidecars are classified separately as
+   excluded from SJAS proof-predicate certificates."
+  '#{profiled
      willard-sjas-tableau0
      willard-sjas-level1
      willard-sjas-arithmetic
@@ -160,6 +165,8 @@
 
    `:status` is deliberately coarse:
    - `:relevant` means Track 2b must preserve this proof-object feature.
+   - `:excluded` means Track 1 rejects this feature from SJAS proof-predicate
+     certificates instead of carrying it into correspondence.
    - `:unresolved` means the feature may be sound, but its relevance or allowed
      expansion has not yet been proven.
 
@@ -182,6 +189,10 @@
                   {:status :unresolved
                    :aspect :procedure-call-expansion
                    :obligation "Prove procedure/profile calls preserve accepted proof trees and relevant size measures."})
+    (classify-set excluded-layer-symbols
+                  {:status :excluded
+                   :aspect :generic-sidecar
+                   :obligation "Reject generic optimized sidecar closure from SJAS proof-predicate certificates."})
     (classify-set unresolved-layer-symbols
                   {:status :unresolved
                    :aspect :optimized-or-profile-layer
@@ -235,14 +246,14 @@
     :obligation "Preserve structural substitution-code evidence."}
 
    'propositional
-   {:status :probably-excluded
+   {:status :excluded
     :aspect :generic-sidecar
-    :obligation "Prove generic sidecar closure is excluded from SJAS proof-predicate validation paths, or give a bounded expansion."}
+    :obligation "Reject generic sidecar closure from SJAS proof-predicate validation paths."}
 
    'first-order
-   {:status :probably-excluded
+   {:status :excluded
     :aspect :generic-sidecar
-    :obligation "Prove generic sidecar closure is excluded from SJAS proof-predicate validation paths, or give a bounded expansion."}})
+    :obligation "Reject generic sidecar closure from SJAS proof-predicate validation paths."}})
 
 (defn classify-proof-symbol
   "Return the Track 2a classification for a proof symbol, or nil when the symbol
@@ -294,10 +305,12 @@
                                   profile-forms))]
     {:symbols steps
      :relevant-symbols (by-status :relevant)
+     :excluded-symbols (by-status :excluded)
      :unresolved-symbols (by-status :unresolved)
      :profile-forms profile-forms
      :relevant-profile-forms (profile-by-status :relevant)
      :probably-irrelevant-profile-forms (profile-by-status :probably-irrelevant)
+     :excluded-profile-forms (profile-by-status :excluded)
      :probably-excluded-profile-forms (profile-by-status :probably-excluded)
      :unencodable-symbols (into #{} (remove encodable?) steps)
      :unclassified-symbols (into #{} (remove known?) steps)}))

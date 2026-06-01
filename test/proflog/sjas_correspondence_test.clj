@@ -54,7 +54,7 @@
            (:status (correspondence/classify-proof-symbol 'guarded-scope-done))))
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'guarded-seq-done))))
-    (is (= :unresolved
+    (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'profiled))))))
 
 (deftest implemented-proof-checker-constructors-are-relevant
@@ -88,6 +88,25 @@
       (is (= :relevant (:status (correspondence/classify-proof-symbol sym)))
           (str sym " should be classified as SJAS proof-checker structure")))))
 
+(deftest implemented-sjas-profile-layer-markers-are-classified
+  (testing "SJAS profile-layer evidence markers are not stale unresolved gaps"
+    (doseq [sym '[profiled
+                  willard-sjas-tableau0
+                  willard-sjas-level1
+                  willard-sjas-arithmetic
+                  willard-sjas-code
+                  willard-sjas-axiom-member
+                  willard-sjas-theorem-code
+                  willard-sjas-proof-check
+                  willard-sjas-subst-code
+                  willard-sjas-subst-proof-check]]
+      (is (= :relevant (:status (correspondence/classify-proof-symbol sym)))
+          (str sym " should be classified as implemented SJAS profile evidence")))
+    (doseq [sym '[willard-sjas-fact
+                  sjas-generated-axiom-member]]
+      (is (= :excluded (:status (correspondence/classify-proof-symbol sym)))
+          (str sym " should be classified as obsolete generated-host evidence")))))
+
 (deftest proof-term-audit-reports-obligations-for-actual-proof-trees
   (testing "a decoded proof term can be summarized by Track 2a correspondence obligations"
     (let [audit (correspondence/audit-proof-term
@@ -100,6 +119,34 @@
              (:relevant-symbols audit)))
       (is (= #{}
              (:unresolved-symbols audit)))
+      (is (= #{}
+             (:unclassified-symbols audit))))))
+
+(deftest proof-term-audit-has-no-unresolved-markers-for-implemented-sjas-evidence
+  (testing "implemented SJAS proof predicate evidence is classified as relevant, not unresolved"
+    (let [proof '(profiled willard-sjas-proof-check
+                   (sjas-code-bytes)
+                   (willard-sjas-theorem-code
+                     (sjas-system-code-bytes (sjas-code-bytes)))
+                   (conj
+                     (profiled willard-sjas-arithmetic
+                       (sjas-equal
+                         (sjas-read-one)
+                         (sjas-read-one)
+                         (sjas-bind-done)))))
+          audit (correspondence/audit-proof-term proof)]
+      (is (= #{}
+             (:unresolved-symbols audit)))
+      (is (set/subset?
+            '#{profiled
+               willard-sjas-proof-check
+               willard-sjas-theorem-code
+               sjas-system-code-bytes
+               sjas-code-bytes
+               conj
+               willard-sjas-arithmetic
+               sjas-equal}
+            (:relevant-symbols audit)))
       (is (= #{}
              (:unclassified-symbols audit))))))
 

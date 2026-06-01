@@ -122,6 +122,25 @@
      guard-saturation-done
      guard-eq})
 
+(def ^:private relevant-sjas-profile-symbols
+  "SJAS profile-layer markers that remain visible in checked proof evidence.
+
+   These are not host registries. They name the object-level proof relation
+   that produced or consumed the enclosed evidence: arithmetic/code closure,
+   axiom membership, theorem-code reading, proof-predicate checking, or
+   substitution checking. Outer Tableau-0/Level-1 profile annotations are
+   erased by public certificate construction, but public proof evidence still
+   carries them as explicit selected-profile markers."
+  '#{profiled
+     willard-sjas-tableau0
+     willard-sjas-level1
+     willard-sjas-arithmetic
+     willard-sjas-axiom-member
+     willard-sjas-theorem-code
+     willard-sjas-proof-check
+     willard-sjas-subst-code
+     willard-sjas-subst-proof-check})
+
 (def ^:private excluded-answer-overlay-symbols
   "Answer-export proof constructors deliberately not admitted by SJAS theorem
    proof predicates. They describe query entry and residual deferral behavior,
@@ -138,22 +157,8 @@
   '#{lem-close
      skolemized
      propositional
-     first-order})
-
-(def ^:private unresolved-layer-symbols
-  "Profile wrappers and SJAS-specific staging witnesses whose role depends on
-   the concrete profiled form. Generic sidecars are classified separately as
-   excluded from SJAS proof-predicate certificates."
-  '#{profiled
-     willard-sjas-tableau0
-     willard-sjas-level1
-     willard-sjas-arithmetic
+     first-order
      willard-sjas-fact
-     willard-sjas-axiom-member
-     willard-sjas-theorem-code
-     willard-sjas-proof-check
-     willard-sjas-subst-code
-     willard-sjas-subst-proof-check
      sjas-generated-axiom-member})
 
 (defn- classify-set
@@ -193,6 +198,10 @@
                   {:status :relevant
                    :aspect :procedure-call-expansion
                    :obligation "Preserve reflected procedure-call and guarded-alternative proof-tree structure."})
+    (classify-set relevant-sjas-profile-symbols
+                  {:status :relevant
+                   :aspect :sjas-profile-proof-evidence
+                   :obligation "Preserve explicit SJAS profile, code, axiom-membership, theorem-code, and proof-predicate evidence markers."})
     (classify-set excluded-answer-overlay-symbols
                   {:status :excluded
                    :aspect :answer-overlay
@@ -200,11 +209,7 @@
     (classify-set excluded-layer-symbols
                   {:status :excluded
                    :aspect :generic-sidecar
-                   :obligation "Reject generic optimized sidecar closure from SJAS proof-predicate certificates."})
-    (classify-set unresolved-layer-symbols
-                  {:status :unresolved
-                   :aspect :optimized-or-profile-layer
-                   :obligation "Prove wrapper/layer irrelevance, provide bounded expansion, or replace with object-level rules."})))
+                   :obligation "Reject generic optimized sidecar and obsolete generated-host closure from SJAS proof-predicate certificates."})))
 
 (def profile-form-classifications
   "Path-sensitive classifications for concrete `(profiled kind subproof)` forms.

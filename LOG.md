@@ -22,6 +22,17 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Closed the stale unresolved bucket for implemented SJAS profile/code proof
+  evidence. The executable correspondence audit now classifies `profiled`,
+  Willard profile markers, arithmetic/code/axiom/theorem/proof-check markers,
+  and substitution proof markers as relevant SJAS proof evidence, while
+  obsolete generated-host markers such as `willard-sjas-fact` and
+  `sjas-generated-axiom-member` are explicitly excluded. See
+  [SJAS Profile Marker Audit Closure](docs/log/2026-06-01-sjas-profile-marker-audit-closure.md).
+  The proof-symbol status probe now reports no unresolved encoded proof symbols;
+  `lein test-proflog-fast` passed 653 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
 - Resolved the remaining raw large proof-evidence materialization timeout for
   direct SJAS `tableau-proof/3` checks. The public proof path already completed,
   but forcing the private `direct-negated-profile-closeo` proof stream still

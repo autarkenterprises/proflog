@@ -3153,6 +3153,8 @@
         "theorem-code evidence must not switch behavior at a performance byte limit")
     (is (not (re-find #"large-compact-code-term\\?" profile-source))
         "large theorem codes must be decoded by the same object relation as small theorem codes")
+    (is (not (re-find #"sjas-public-code-bytes-summaryo" profile-source))
+        "large system/formula code paths must use the uniform object code-reader marker, not a semantic summary relation")
     (is (not (re-find #"large-non-axiom-tableau-proof-query" profile-source))
         "large tableau-proof queries must not replace decoded proof evidence with an acceptance summary")
     (is (not (re-find #"large-tableau-proof-summary" profile-source))

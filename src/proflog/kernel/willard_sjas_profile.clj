@@ -2449,13 +2449,14 @@
     (== '() sigma-out)
     (== (list 'sjas-system-code-bytes read-proof) proof)))
 
-(defn- sjas-public-code-bytes-summaryo
-  "Expose public code bytes while summarizing large code-read proof payloads.
+(defn- sjas-public-code-bytes-markero
+  "Expose public code bytes with uniform code-reader marker evidence.
 
-   The byte relation is still `sjas-formal-code-byteso`; only the returned
-   proof object is compressed to the code-format marker. This avoids exponential
-   core.logic reification for long system and Group-3 formula codes while
-   preserving object-level byte reading as the semantic check."
+   The byte relation is `sjas-formal-code-byteso`; this relation does not
+   project host byte vectors or consult a registry. The returned proof object
+   records the checked code-reader kind instead of reifying the complete
+   recursive byte-read proof tree. This is a proof-evidence representation
+   choice, not a separate semantic code-reading relation."
   [code bytes proof]
   (fresh [kind read-proof sigma-out marker]
     (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
@@ -2510,7 +2511,7 @@
   [prog system-code formula-code proof]
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
           header-proof formula fixed-proof]
-    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-markero system-code system-bytes system-read-proof)
     (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
     (sjas-system-code-headero system-bytes header-proof)
     (decode-formula-byteso prog formula-bytes '() formula)
@@ -2572,8 +2573,8 @@
   [prog system-code formula-code proof]
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
           header-proof formula group-three-proof]
-    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
-    (sjas-public-code-bytes-summaryo formula-code formula-bytes formula-read-proof)
+    (sjas-public-code-bytes-markero system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-markero formula-code formula-bytes formula-read-proof)
     (sjas-tableau0-system-code-headero system-bytes header-proof)
     (decode-formula-byteso prog formula-bytes '() formula)
     (tableau0-group-three-formulao system-bytes formula group-three-proof)
@@ -2684,8 +2685,8 @@
   [prog system-code formula-code proof]
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
           header-proof formula group-three-proof]
-    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
-    (sjas-public-code-bytes-summaryo formula-code formula-bytes formula-read-proof)
+    (sjas-public-code-bytes-markero system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-markero formula-code formula-bytes formula-read-proof)
     (sjas-level1-system-code-headero system-bytes header-proof)
     (decode-formula-byteso prog formula-bytes '() formula)
     (level1-group-three-formulao prog system-bytes formula group-three-proof)
@@ -2745,7 +2746,7 @@
 (defn- sjas-beta-axiom-membero
   [prog system-code formula-code proof]
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof beta-proof]
-    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-markero system-code system-bytes system-read-proof)
     (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
     (sjas-system-beta-formula-byteso prog system-bytes formula-bytes beta-proof)
     (== (list 'sjas-system-beta-axiom
@@ -3195,7 +3196,7 @@
   [prog system-code atom env body negated-body]
   (fresh [system-bytes system-read-proof profile-tag beta-count beta-bytes
           after-betas reflected-count reflected-bytes]
-    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-markero system-code system-bytes system-read-proof)
     (== (lcons system-code-tag
                 (lcons profile-tag
                        (lcons beta-count beta-bytes)))
@@ -3226,7 +3227,7 @@
   [prog system-code atom env negated-alternatives]
   (fresh [system-bytes system-read-proof profile-tag beta-count beta-bytes
           after-betas reflected-count reflected-bytes]
-    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-markero system-code system-bytes system-read-proof)
     (== (lcons system-code-tag
                 (lcons profile-tag
                        (lcons beta-count beta-bytes)))
@@ -3257,7 +3258,7 @@
   [prog system-code atom env guarded-alternatives]
   (fresh [system-bytes system-read-proof profile-tag beta-count beta-bytes
           after-betas reflected-count reflected-bytes]
-    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-markero system-code system-bytes system-read-proof)
     (== (lcons system-code-tag
                 (lcons profile-tag
                        (lcons beta-count beta-bytes)))
@@ -3360,8 +3361,8 @@
   [prog system-code formula-code proof]
   (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
           decoded-formula reflected-proof]
-    (sjas-public-code-bytes-summaryo system-code system-bytes system-read-proof)
-    (sjas-public-code-bytes-summaryo formula-code formula-bytes formula-read-proof)
+    (sjas-public-code-bytes-markero system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-markero formula-code formula-bytes formula-read-proof)
     (reflected-axiom-formula-starto formula-bytes)
     (decode-syntax-formula-byteso formula-bytes '() decoded-formula)
     (sjas-system-reflected-formulao prog system-bytes decoded-formula reflected-proof)
@@ -3701,7 +3702,7 @@
 (defn- sjas-system-axiom-formulao
   [prog system-code axiom-formula]
   (fresh [system-bytes read-proof]
-    (sjas-public-code-bytes-summaryo system-code system-bytes read-proof)
+    (sjas-public-code-bytes-markero system-code system-bytes read-proof)
     (sjas-system-proof-axiom-formulao prog system-bytes axiom-formula)))
 
 (defn- sjas-axiom-membero

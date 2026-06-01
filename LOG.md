@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Reframed large public system/formula code evidence as uniform code-reader
+  marker evidence. The old `sjas-public-code-bytes-summaryo` name is gone;
+  system-code and large formula-code proof paths still check
+  `sjas-formal-code-byteso`, but public evidence now makes explicit that it is
+  recording the checked code-reader kind rather than a separate semantic
+  summary relation. See
+  [SJAS Public Code Marker Evidence](docs/log/2026-06-01-sjas-public-code-marker-evidence.md).
+
 - Removed the size-dependent theorem-code decoder inside SJAS proof
   predicates. `tableau-proof/3` and `subst-prf/4` theorem-code reads now always
   consume public codes through `sjas-formal-code-byteso` and return a uniform

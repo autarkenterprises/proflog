@@ -20,6 +20,20 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-01
+
+- Internalized recursive guarded-call sequence checking for saturated reflected
+  negative-call alternatives. Guarded alternatives reconstructed from
+  `system-code` now preserve decoded guard, recursive-call, residual, and
+  fallback partitions; the proof checker consumes `guarded-call-seq-step` by
+  resolving the nested negated call from encoded reflected Group-2b records
+  rather than compiled guarded-clause tables. `guarded-call-seq-defer`,
+  answer-overlay query constructors, non-equality guard saturation, and generic
+  optimized layer/profile wrappers remain Track 1 gaps. See
+  [SJAS Recursive Guarded Call Sequence Internalization](docs/log/2026-06-01-sjas-recursive-guarded-call-sequence-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
 ## 2026-05-31
 
 - Reassessed the large SJAS proof-materialization timeout after the guarded

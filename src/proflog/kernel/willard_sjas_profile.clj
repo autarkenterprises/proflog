@@ -3043,22 +3043,81 @@
     [(fresh [left right]
        (== (list 'neq left right) formula))]))
 
+(defn- reflected-relation-index-in-clauseso
+  "True when `relation-index` names a reflected relation in system-code bytes."
+  [remaining bytes relation-index]
+  (if (zero? remaining)
+    fail
+    (fresh [current-index arity-byte body-bytes after-current current]
+      (conde
+        [(== (lcons system-reflected-clause-tag
+                    (lcons current-index
+                           (lcons arity-byte body-bytes)))
+             bytes)
+         (decode-reflected-clause-syntax-formulao bytes after-current current)
+         (== current-index relation-index)]
+        [(decode-reflected-clause-syntax-formulao bytes after-current current)
+         (reflected-relation-index-in-clauseso
+           (dec remaining)
+           after-current
+           relation-index)]))))
+
+(defn- internal-call-formulao
+  "Recognize decoded conjuncts that call a relation reflected in system-code."
+  [prog reflected-total reflected-bytes formula]
+  (fresh [atom relation args relation-index]
+    (conde
+      [(== (list 'pos atom) formula)]
+      [(== (list 'neg atom) formula)])
+    (== (list 'app relation args) atom)
+    (conde
+      [(== (list 'sym relation-index) relation)]
+      [(sjas-reflected-relation-indexo prog relation-index relation)])
+    (reflected-relation-index-in-clauseso
+      reflected-total
+      reflected-bytes
+      relation-index)))
+
 (defn- internal-guarded-conjunct-partitiono
-  "Partition decoded conjuncts into guarded-call guard and residual groups."
-  [conjuncts guards residuals]
+  "Partition decoded conjuncts into guard, reflected call, and residual groups."
+  [prog reflected-total reflected-bytes conjuncts guards calls residuals]
   (conde
     [(== '() conjuncts)
      (== '() guards)
+     (== '() calls)
      (== '() residuals)]
     [(fresh [conjunct rest guard-rest]
        (== (lcons conjunct rest) conjuncts)
        (internal-guard-formulao conjunct)
        (== (lcons conjunct guard-rest) guards)
-       (internal-guarded-conjunct-partitiono rest guard-rest residuals))]
+       (internal-guarded-conjunct-partitiono prog
+                                             reflected-total
+                                             reflected-bytes
+                                             rest
+                                             guard-rest
+                                             calls
+                                             residuals))]
+    [(fresh [conjunct rest call-rest]
+       (== (lcons conjunct rest) conjuncts)
+       (internal-call-formulao prog reflected-total reflected-bytes conjunct)
+       (== (lcons conjunct call-rest) calls)
+       (internal-guarded-conjunct-partitiono prog
+                                             reflected-total
+                                             reflected-bytes
+                                             rest
+                                             guards
+                                             call-rest
+                                             residuals))]
     [(fresh [conjunct rest residual-rest]
        (== (lcons conjunct rest) conjuncts)
        (== (lcons conjunct residual-rest) residuals)
-       (internal-guarded-conjunct-partitiono rest guards residual-rest))]))
+       (internal-guarded-conjunct-partitiono prog
+                                             reflected-total
+                                             reflected-bytes
+                                             rest
+                                             guards
+                                             calls
+                                             residual-rest))]))
 
 (defn- internal-leading-exists-scopeo
   "Strip leading decoded existential binders for guarded negative-call scope."
@@ -3081,25 +3140,33 @@
    proof-predicate checking, reconstruct these lists from the reflected clause
    body decoded out of `system-code` rather than from the compiled
    guarded-clause host table."
-  [formula guarded-alternative]
-  (fresh [scope core conjuncts guards residuals ast-guards
-          ast-negated-residuals ast-negated-conjuncts]
+  [prog reflected-total reflected-bytes formula guarded-alternative]
+  (fresh [scope core conjuncts guards calls residuals ast-guards
+          ast-negated-calls ast-negated-residuals ast-negated-conjuncts]
     (internal-leading-exists-scopeo formula scope core)
     (internal-formula-conjunctso core conjuncts)
-    (internal-guarded-conjunct-partitiono conjuncts guards residuals)
+    (internal-guarded-conjunct-partitiono prog
+                                          reflected-total
+                                          reflected-bytes
+                                          conjuncts
+                                          guards
+                                          calls
+                                          residuals)
     (internal-formula-list-asto guards ast-guards)
+    (internal-formula-list-negated-asto calls ast-negated-calls)
     (internal-formula-list-negated-asto residuals ast-negated-residuals)
     (internal-formula-list-negated-asto conjuncts ast-negated-conjuncts)
     (== (list 'guarded-alternative
               scope
               ast-guards
+              ast-negated-calls
               ast-negated-residuals
               ast-negated-conjuncts)
         guarded-alternative)))
 
 (defn- decode-reflected-clause-guarded-callo
   "Decode one reflected-clause record as guarded negative-call data."
-  [prog bytes rest atom env guarded-alternative]
+  [prog reflected-total reflected-bytes bytes rest atom env guarded-alternative]
   (conda
     [(fresh [relation args relation-index arity-byte body-bytes
              decoded-body nnf-body]
@@ -3114,9 +3181,12 @@
                 (fresh []
                   (== (inc arity) arity-byte)
                   (reflected-call-env-argso 1 arity args env)
-                  (decode-formula-byteso prog body-bytes rest decoded-body)
+                  (decode-proof-formula-byteso prog body-bytes rest decoded-body)
                   (sjas-to-nnfo decoded-body nnf-body)
                   (internal-guarded-alternative-asto
+                    prog
+                    reflected-total
+                    reflected-bytes
                     nnf-body
                     guarded-alternative)))
               (range sjas-code/byte-base))))]
@@ -3134,22 +3204,27 @@
                 (fresh []
                   (== (inc arity) arity-byte)
                   (reflected-call-env-argso 1 arity args env)
-                  (decode-syntax-formula-byteso body-bytes rest decoded-body)
+                  (decode-proof-formula-byteso prog body-bytes rest decoded-body)
                   (sjas-to-nnfo decoded-body nnf-body)
                   (internal-guarded-alternative-asto
+                    prog
+                    reflected-total
+                    reflected-bytes
                     nnf-body
                     guarded-alternative)))
               (range sjas-code/byte-base))))]))
 
 (defn- reflected-call-guarded-alternatives-in-clauseso
   "Collect guarded negative-call alternatives from encoded reflected clauses."
-  [prog remaining bytes atom env guarded-alternatives]
+  [prog reflected-total reflected-bytes remaining bytes atom env guarded-alternatives]
   (if (zero? remaining)
     (== '() guarded-alternatives)
     (fresh [after-current]
       (conda
         [(fresh [guarded-alternative rest]
            (decode-reflected-clause-guarded-callo prog
+                                                  reflected-total
+                                                  reflected-bytes
                                                   bytes
                                                   after-current
                                                   atom
@@ -3158,6 +3233,8 @@
            (== (lcons guarded-alternative rest) guarded-alternatives)
            (reflected-call-guarded-alternatives-in-clauseso
              prog
+             reflected-total
+             reflected-bytes
              (dec remaining)
              after-current
              atom
@@ -3167,6 +3244,8 @@
            (decode-reflected-clause-syntax-formulao bytes after-current current)
            (reflected-call-guarded-alternatives-in-clauseso
              prog
+             reflected-total
+             reflected-bytes
              (dec remaining)
              after-current
              atom
@@ -3263,6 +3342,8 @@
                           (== (inc reflected-total) reflected-count)
                           (reflected-call-guarded-alternatives-in-clauseso
                             prog
+                            reflected-total
+                            reflected-bytes
                             reflected-total
                             reflected-bytes
                             atom
@@ -4078,7 +4159,7 @@
       (== neqs neqs-out)
       (== '(profiled willard-sjas-subst-code) proof))))
 
-(declare sjas-proof-check-stateo)
+(declare sjas-proof-check-stateo sjas-close-one-guarded-alternativeo)
 
 (defn- sjas-saved-positive-call-closeso
   "Close a saved positive atom after equality makes it callable.
@@ -4256,10 +4337,9 @@
 (defn- sjas-close-guarded-residual-sequenceo
   "Close the residual sequence in a saturated guarded alternative.
 
-   This Track 1 slice supports the no-guard/no-recursive-call saturated macro
-   path by checking the reconstructed negated reflected body as residual
-   formulas. Recursive guarded call-sequence descent remains a separate
-   constructor family."
+   Residual formulas are non-guard, non-recursive-call conjuncts reconstructed
+   from encoded reflected clause bodies. Recursive reflected calls are handled
+   by `sjas-close-guarded-negated-call-sequenceo` before this relation runs."
   [system-code formulas env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (conde
@@ -4315,6 +4395,62 @@
                                               fuel
                                               tail-proof))]))
 
+(defn- sjas-close-guarded-negated-call-sequenceo
+  "Close recursively negated reflected calls in a saturated guarded alternative."
+  [system-code formulas env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (conde
+    [(== '() formulas)
+     (== sigma sigma-out)
+     (== neqs neqs-out)
+     (== '(guarded-call-seq-done) proof)]
+    [(fresh [formula rest lit atom walked-atom relation args call-env
+             guarded-alternatives first-alternative second-alternative
+             remaining-alternatives sigma-mid neqs-mid call-proof tail-proof]
+       (== (lcons formula rest) formulas)
+       (subst/subst-formulao formula env lit)
+       (== (list 'neg atom) lit)
+       (equality/walk-atomo atom sigma walked-atom)
+       (== (lcons 'app (lcons relation args)) walked-atom)
+       (support/l-ground-term*o args)
+       (sjas-system-reflected-guarded-call-alternativeso
+         prog
+         system-code
+         walked-atom
+         call-env
+         guarded-alternatives)
+       (== (lcons first-alternative
+                  (lcons second-alternative remaining-alternatives))
+           guarded-alternatives)
+       (== (list 'guarded-call-seq-step
+                 (list 'neg-call-guarded-alt call-proof)
+                 tail-proof)
+           proof)
+       (sjas-close-one-guarded-alternativeo system-code
+                                            guarded-alternatives
+                                            call-env
+                                            proof-vars
+                                            sigma
+                                            sigma-mid
+                                            neqs
+                                            neqs-mid
+                                            prog
+                                            gamma-terms
+                                            fuel
+                                            call-proof)
+       (sjas-close-guarded-negated-call-sequenceo system-code
+                                                  rest
+                                                  env
+                                                  proof-vars
+                                                  sigma-mid
+                                                  sigma-out
+                                                  neqs-mid
+                                                  neqs-out
+                                                  prog
+                                                  gamma-terms
+                                                  fuel
+                                                  tail-proof))]))
+
 (defn- sjas-saturate-eq-guardso
   "Saturate equality guards reconstructed from reflected system-code."
   [guards env proof-vars sigma sigma-out neqs proof]
@@ -4366,11 +4502,12 @@
   [system-code guarded-alternative env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (conde
-    [(fresh [scope guards negated-residuals negated-conjuncts scoped-env
-             scoped-proof-vars scope-proof sequence-proof]
+    [(fresh [scope guards negated-calls negated-residuals negated-conjuncts
+             scoped-env scoped-proof-vars scope-proof sequence-proof]
        (== (list 'guarded-alternative
                  scope
                  guards
+                 negated-calls
                  negated-residuals
                  negated-conjuncts)
            guarded-alternative)
@@ -4393,12 +4530,14 @@
                                              gamma-terms
                                              fuel
                                              sequence-proof))]
-    [(fresh [scope guards negated-residuals negated-conjuncts scoped-env
-             scoped-proof-vars scope-proof guard-proof call-sequence-proof
-             residual-sequence-proof sigma-after-guards]
+    [(fresh [scope guards negated-calls negated-residuals negated-conjuncts
+             scoped-env scoped-proof-vars scope-proof guard-proof
+             call-sequence-proof residual-sequence-proof sigma-after-guards
+             sigma-after-calls neqs-after-calls]
        (== (list 'guarded-alternative
                  scope
                  guards
+                 negated-calls
                  negated-residuals
                  negated-conjuncts)
            guarded-alternative)
@@ -4421,14 +4560,25 @@
                                   sigma-after-guards
                                   neqs
                                   guard-proof)
-       (== '(guarded-call-seq-done) call-sequence-proof)
+       (sjas-close-guarded-negated-call-sequenceo system-code
+                                                  negated-calls
+                                                  scoped-env
+                                                  scoped-proof-vars
+                                                  sigma-after-guards
+                                                  sigma-after-calls
+                                                  neqs
+                                                  neqs-after-calls
+                                                  prog
+                                                  gamma-terms
+                                                  fuel
+                                                  call-sequence-proof)
        (sjas-close-guarded-residual-sequenceo system-code
                                               negated-residuals
                                               scoped-env
                                               scoped-proof-vars
-                                              sigma-after-guards
+                                              sigma-after-calls
                                               sigma-out
-                                              neqs
+                                              neqs-after-calls
                                               neqs-out
                                               prog
                                               gamma-terms

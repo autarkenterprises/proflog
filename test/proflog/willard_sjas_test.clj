@@ -784,6 +784,28 @@
       (is (= (sjas-code/code-term-bytes certificate)
              (sjas-code/proof-code-bytes proof))))))
 
+(deftest sjas-proof-codes-encode-recursive-guarded-call-sequence-evidence
+  (testing "recursive guarded-call sequence evidence stays inside the proof-code grammar"
+    (let [proof '(neg-call-guarded-alt
+                   (guarded-alt
+                     (guarded-neg-alt-saturated
+                       (guarded-scope-done)
+                       (guard-saturation-done)
+                       (guarded-call-seq-step
+                         (neg-call-guarded-alt
+                           (guarded-alt
+                             (guarded-neg-alt-saturated
+                               (guarded-scope-done)
+                               (guard-saturation-done)
+                               (guarded-call-seq-done)
+                               (guarded-residual-seq-last (false-close)))))
+                         (guarded-call-seq-done))
+                       (guarded-residual-seq-last (false-close)))))
+          certificate (sjas/proof-certificate proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
+
 (deftest sjas-proof-codes-encode-occurs-check-closure-evidence
   (testing "occurs-check equality contradiction evidence stays inside the proof-code grammar"
     (let [proof '(conj (once-univ (occurs-close)))
@@ -2377,6 +2399,87 @@
               "tableau-proof must validate encoded guarded-scope certificates from system-code, not compiled clause tables")
           (is (proof/contains-step? (first-proof proofs) 'guarded-scope-exists))
           (is (proof/contains-step? (first-proof proofs) 'guarded-seq-last)))))))
+
+(defn- nested-guarded-call-system
+  "Build a reflected-only two-relation system for recursive guarded-call tests."
+  []
+  (let [outer-body (ast/and-form
+                     (ast/pos-lit (ast/app-term 'inner-guarded-demo))
+                     (ast/true-form))]
+    (sjas/system
+      {:profile :willard-sjas-tableau0
+       :relations {'outer-guarded-demo 0
+                   'inner-guarded-demo 0}
+       :beta []
+       :reflected-clauses [(ast/clause 'outer-guarded-demo [] outer-body)
+                           (ast/clause 'outer-guarded-demo [] (ast/false-form))
+                           (ast/clause 'inner-guarded-demo [] (ast/true-form))
+                           (ast/clause 'inner-guarded-demo [] (ast/false-form))]})))
+
+(def nested-guarded-call-branch-proof
+  '(neg-call-guarded-alt
+     (guarded-alt
+       (guarded-neg-alt-saturated
+         (guarded-scope-done)
+         (guard-saturation-done)
+         (guarded-call-seq-step
+           (neg-call-guarded-alt
+             (guarded-alt
+               (guarded-neg-alt-saturated
+                 (guarded-scope-done)
+                 (guard-saturation-done)
+                 (guarded-call-seq-done)
+                 (guarded-residual-seq-last (false-close)))))
+           (guarded-call-seq-done))
+         (guarded-residual-seq-last (false-close))))))
+
+(deftest sjas-proof-check-accepts-recursive-guarded-call-sequence-from-system-code
+  (testing "recursive guarded call sequences are validated from encoded reflected clauses"
+    (let [system (nested-guarded-call-system)
+          target (ast/and-form
+                   (ast/true-form)
+                   (ast/neg-lit (ast/app-term 'outer-guarded-demo)))
+          proof (list 'conj
+                      (list 'skip-true nested-guarded-call-branch-proof))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (with-redefs [kernel/prove-programo
+                    (fn [& _]
+                      (throw (ex-info "host kernel proof validator reached" {})))]
+        (is (successful?
+              (l/run 1 [q]
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             160
+                             proof)
+                (l/== true q)))
+            "decoded tableau proof checking must recover recursive guarded call sequences from system-code")))))
+
+(deftest sjas-tableau-proof-accepts-recursive-guarded-call-sequence-certificates
+  (let [system (nested-guarded-call-system)
+        stripped-program (assoc (:program system)
+                                :clauses nil
+                                :clause-list '()
+                                :alternative-clause-list '()
+                                :guarded-clause-list '())
+        theorem (ast/pos-lit (ast/app-term 'outer-guarded-demo))
+        theorem-code (sjas/formula-code system theorem)
+        certificate (sjas/proof-certificate
+                      (list 'conj nested-guarded-call-branch-proof))]
+    (with-redefs [kernel/prove-programo
+                  (fn [& _]
+                    (throw (ex-info "host kernel proof validator reached" {})))]
+      (let [proofs (query/query-succeeds
+                     stripped-program
+                     (sjas/tableau-proof (:system-code system)
+                                         theorem-code
+                                         certificate)
+                     1
+                     240)]
+        (is (successful? proofs)
+            "tableau-proof must validate encoded guarded-call sequence certificates from system-code, not compiled clause tables")
+        (is (proof/contains-step? (first-proof proofs) 'guarded-call-seq-step))
+        (is (proof/contains-step? (first-proof proofs) 'guarded-residual-seq-last))))))
 
 (deftest sjas-tableau-proof-accepts-reflected-negative-call-alternative-certificates
   (ast/nom x

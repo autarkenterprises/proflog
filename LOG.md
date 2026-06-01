@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Removed the large `tableau-proof/3` public proof-report shortcut from the
+  SJAS profile. Large direct proof-predicate queries now have to reify the
+  proof evidence produced by `direct-negated-profile-closeo` itself instead of
+  first checking truth and then returning a synthetic compact report. This
+  favors Track 1 correctness and full proof-evidence internalization over the
+  earlier runtime escape hatch. See
+  [SJAS Large Proof Report Shortcut Removal](docs/log/2026-06-01-sjas-large-proof-report-shortcut-removal.md).
+
 - Refocused ADR-0073 Track 1 on the paper-grade semantic target rather than
   further small checker fixes. Added a normative in-principle arithmeticization
   specification for `TabPrf_beta(system-code,theorem-code,proof-code)` as a

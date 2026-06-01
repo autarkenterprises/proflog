@@ -5596,74 +5596,13 @@
   [profile proof]
   (list 'profiled (profile-symbol profile) proof))
 
-(defn- report-decoded-proof-code
-  "Decode public report evidence through the SJAS proof-code relation."
-  [proof-code]
-  (first
-    (run 1 [q]
-      (fresh [proof-bytes decoded-proof proof-kind proof-read-proof sigma-out]
-        (decode-proof-code-kindo proof-code '() sigma-out proof-bytes decoded-proof proof-kind)
-        (code-read-marker-o proof-kind proof-read-proof)
-        (!= 'sjas-axiom decoded-proof)
-        (== (list proof-read-proof decoded-proof) q)))))
-
-(defn- large-tableau-proof-report
-  "Build the public proof report for a checked large direct tableau query.
-
-   Large Group-3 proof-predicate queries can be accepted by
-   `direct-negated-profile-closeo` in truth mode, while asking core.logic to
-   reify the same internal proof path may not complete. This report is only
-   used after that relation has accepted the certificate. It mirrors the small
-   public evidence that the relation would expose: proof-code read marker,
-   theorem-code read marker, and the decoded certificate tree."
-  [formula]
-  (when-let [[system-code theorem-code proof-code]
-             (ground-negated-app-args formula 'tableau-proof 3)]
-    (when (and (large-compact-code-term? theorem-code)
-               (not= theorem-code system-code))
-      (when-let [[proof-read-proof decoded-proof] (report-decoded-proof-code proof-code)]
-        (list 'profiled
-              'willard-sjas-proof-check
-              proof-read-proof
-              (list 'willard-sjas-theorem-code
-                    (list 'sjas-system-code-bytes '(sjas-code-bytes)))
-              decoded-proof)))))
-
-(defn- large-tableau-proof-reportable?
-  "True when a ground direct tableau query needs the large-proof report path."
-  [formula]
-  (when-let [[system-code theorem-code _proof-code]
-             (ground-negated-app-args formula 'tableau-proof 3)]
-    (and (large-compact-code-term? theorem-code)
-         (not= theorem-code system-code))))
-
-(defn- direct-profile-accepted?
-  [formula program fuel]
-  (boolean
-    (seq
-      (run 1 [q]
-        (fresh [proof]
-          (direct-negated-profile-closeo formula program fuel proof)
-          (== true q))))))
-
 (defn prove-program
   "Prove with SJAS arithmetic and certificate rules interleaved into the kernel."
   [profile program formula proof-limit fuel]
   (let [program (hide-sjas-clauses-from-generic-sidecars program)
-        large-tableau-reportable? (large-tableau-proof-reportable? formula)
         proofs (binding [kernel/*theory-profile-closeo* willard-sjas-theory-closeo]
                  (doall
                    (cond
-                     large-tableau-reportable?
-                     (if (or (nil? proof-limit) (pos? proof-limit))
-                       (if (direct-profile-accepted? formula program fuel)
-                         (if-let [direct-report (large-tableau-proof-report formula)]
-                           (list direct-report)
-                           (run proof-limit [proof]
-                             (direct-negated-profile-closeo formula program fuel proof)))
-                         '())
-                       '())
-
                      (direct-negated-profile-relation formula)
                      (run proof-limit [proof]
                        (direct-negated-profile-closeo formula program fuel proof))

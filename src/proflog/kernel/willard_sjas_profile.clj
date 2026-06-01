@@ -5568,16 +5568,16 @@
   [profile proof]
   (list 'profiled (profile-symbol profile) proof))
 
-(defn- proof-report-code-marker
-  [code]
-  (cond
-    (compact-code-term-byte-count code)
-    '(sjas-code-bytes)
-
-    (sjas-code/u-grounding-code-term-bytes code)
-    '(sjas-ug-code-bytes)
-
-    :else nil))
+(defn- report-decoded-proof-code
+  "Decode public report evidence through the SJAS proof-code relation."
+  [proof-code]
+  (first
+    (run 1 [q]
+      (fresh [proof-bytes decoded-proof proof-kind proof-read-proof sigma-out]
+        (decode-proof-code-kindo proof-code '() sigma-out proof-bytes decoded-proof proof-kind)
+        (code-read-marker-o proof-kind proof-read-proof)
+        (!= 'sjas-axiom decoded-proof)
+        (== (list proof-read-proof decoded-proof) q)))))
 
 (defn- large-tableau-proof-report
   "Build the public proof report for a checked large direct tableau query.
@@ -5593,15 +5593,13 @@
              (ground-negated-app-args formula 'tableau-proof 3)]
     (when (and (large-compact-code-term? theorem-code)
                (not= theorem-code system-code))
-      (when-let [decoded-proof (sjas-code/proof-formal-code-term->proof proof-code)]
-        (when-not (= 'sjas-axiom decoded-proof)
-          (when-let [proof-read-proof (proof-report-code-marker proof-code)]
-            (list 'profiled
-                  'willard-sjas-proof-check
-                  proof-read-proof
-                  (list 'willard-sjas-theorem-code
-                        (list 'sjas-system-code-bytes '(sjas-code-bytes)))
-                  decoded-proof)))))))
+      (when-let [[proof-read-proof decoded-proof] (report-decoded-proof-code proof-code)]
+        (list 'profiled
+              'willard-sjas-proof-check
+              proof-read-proof
+              (list 'willard-sjas-theorem-code
+                    (list 'sjas-system-code-bytes '(sjas-code-bytes)))
+              decoded-proof)))))
 
 (defn- large-tableau-proof-reportable?
   "True when a ground direct tableau query needs the large-proof report path."

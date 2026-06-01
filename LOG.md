@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Replaced the large `tableau-proof/3` public report's host proof-code inverse
+  with the SJAS proof-code decoding relation. Large proof reports still run
+  only after the SJAS checker accepts the proof-predicate query, but the decoded
+  certificate tree returned in compact public evidence is now produced through
+  `decode-proof-code-kindo` and `code-read-marker-o`, not
+  `proof-formal-code-term->proof`. See
+  [SJAS Large Proof Report Decoder Internalization](docs/log/2026-06-01-sjas-large-proof-report-decoder-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
 - Internalized recursive guarded-call sequence checking for saturated reflected
   negative-call alternatives. Guarded alternatives reconstructed from
   `system-code` now preserve decoded guard, recursive-call, residual, and

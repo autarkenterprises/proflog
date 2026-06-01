@@ -3035,6 +3035,8 @@
         "large tableau-proof queries must return the object-level proof evidence they checked")
     (is (not (re-find #"reported-decoded-proof-o" profile-source))
         "proof reporting must not hide decoded non-axiom proof trees behind a summary marker")
+    (is (not (re-find #"proof-formal-code-term->proof" profile-source))
+        "large proof reporting must decode proof-code trees through the SJAS proof-code relation")
     (is (not (re-find #"defn- ground-u-grounding-substitution-bytes" profile-source))
         "SJAS substitution predicates must not recover U-Grounding formula bytes through a host projector")
     (is (not (re-find #"sjas-code/code-term-bytes term" profile-source))

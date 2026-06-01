@@ -14,7 +14,7 @@
    arithmetic constraints and proof checking are both miniKanren goals
    interleaved at the branch rule boundary."
   (:refer-clojure :exclude [== < <=])
-  (:require [clojure.core.logic :refer [!= == appendo conda conde fail fresh lcons lvar? membero or* project run]]
+  (:require [clojure.core.logic :refer [!= == appendo conda conde fail fresh lcons membero or* run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -618,56 +618,49 @@
 (defn- compact-code-byte-bits-termo
   "Read a compact-code byte argument through its U-Grounding numeral shape.
 
-   Compact code byte arguments are normally ground public numerals. This parser
-   is therefore shape-directed: it commits after the root constructor matches,
-   while still interpreting the byte arithmetically rather than comparing the
-   whole term against a generated table of 64 canonical byte terms."
+   The parser is relational in the two modes used by the proof predicate:
+   ground public byte terms decode to byte values, and finite byte values can
+   rebuild public numeral terms for embedded code payloads. The byte value is
+   still interpreted arithmetically rather than compared against a generated
+   table of 64 canonical byte terms."
   [term bits]
   (fresh [walked]
     (equality/walko term '() walked)
-    (conda
-      [(== zero-term walked)
-       (== '() bits)]
-      [(== one-term walked)
-       (== one-bits bits)]
+    (conde
+      [(== '() bits)
+       (== zero-term walked)]
+      [(== one-bits bits)
+       (== one-term walked)]
       [(fresh [arg arg-bits]
+         (== (lcons 0 arg-bits) bits)
          (== (list 'app 'dbl arg) walked)
-         (compact-code-byte-bits-termo arg arg-bits)
-         (== (lcons 0 arg-bits) bits))]
+         (compact-code-byte-bits-termo arg arg-bits))]
       [(fresh [arg doubled arg-bits]
+         (== (lcons 1 arg-bits) bits)
          (== (list 'app 'add doubled one-term) walked)
          (== (list 'app 'dbl arg) doubled)
-         (compact-code-byte-bits-termo arg arg-bits)
-         (== (lcons 1 arg-bits) bits))])))
-
-(defn- ground-code-byte-termo
-  [term byte]
-  (project [term]
-    (if (lvar? term)
-      fail
-      (fresh [bits]
-        (compact-code-byte-bits-termo term bits)
-        (byte-bitso bits byte)))))
-
-(defn- generated-code-byte-termo
-  [term byte]
-  (fresh [bits term-proof]
-    (byte-bitso bits byte)
-    (bits->canonical-termo bits term term-proof)))
+         (compact-code-byte-bits-termo arg arg-bits))])))
 
 (defn- code-byte-termo
-  "Relate a compact-code byte argument to its U-Grounding numeral value."
-  [term byte]
-  (conda
-    [(ground-code-byte-termo term byte)]
-    [(generated-code-byte-termo term byte)]))
+  "Relate a compact-code byte argument to its U-Grounding numeral value.
 
-(defn- ground-code-constructoro
-  [constructor byte-count]
-  (project [constructor]
-    (if-let [ground-byte-count (sjas-code/code-symbol-byte-count constructor)]
-      (== ground-byte-count byte-count)
-      fail)))
+   The host `seq?` check is only a goal-ordering choice. Present public terms
+   derive their bits through the object-level numeral reader before the finite
+   byte relation is consulted. Logic-variable mode constrains the finite byte
+   value first and then tries canonical numeral generation before falling back
+   to the object-level numeral reader; that keeps generated embedded codes
+   canonical while still accepting already-bound noncanonical byte numerals.
+   Neither mode projects a ground byte term through a host decoder."
+  [term byte]
+  (if (seq? term)
+    (fresh [bits]
+      (compact-code-byte-bits-termo term bits)
+      (byte-bitso bits byte))
+    (fresh [bits term-proof]
+      (byte-bitso bits byte)
+      (conda
+        [(bits->canonical-termo bits term term-proof)]
+        [(compact-code-byte-bits-termo term bits)]))))
 
 (defn- code-constructoro
   [constructor byte-count]
@@ -683,11 +676,9 @@
       fail)
 
     :else
-    (conda
-      [(ground-code-constructoro constructor byte-count)]
-      [(fresh [entry]
-         (membero entry code-constructor-entries)
-         (== [constructor byte-count] entry))])))
+    (fresh [entry]
+      (membero entry code-constructor-entries)
+      (== [constructor byte-count] entry))))
 
 (defn- code-argso
   [args bytes proof]

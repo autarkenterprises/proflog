@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Removed the remaining `project`/`lvar?` compact-code reader bridge from the
+  SJAS proof profile. Compact byte terms now decode through the object-level
+  U-grounding numeral reader and finite byte relation; generated embedded code
+  bytes still use canonical numeral generation with a noncanonical fallback.
+  Focused tests show the expected tractability cost in deep system-code proof
+  checks, but fast and extended gates passed. See
+  [SJAS Compact Code Projector Removal](docs/log/2026-06-01-sjas-compact-code-projector-removal.md).
+
 - Reframed large public system/formula code evidence as uniform code-reader
   marker evidence. The old `sjas-public-code-bytes-summaryo` name is gone;
   system-code and large formula-code proof paths still check

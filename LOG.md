@@ -22,6 +22,19 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Resolved the remaining raw large proof-evidence materialization timeout for
+  direct SJAS `tableau-proof/3` checks. The public proof path already completed,
+  but forcing the private `direct-negated-profile-closeo` proof stream still
+  timed out because a logic-valued empty sigma made the theorem-code decoder
+  select detailed per-byte evidence instead of the compact large-code marker.
+  The ground direct branch now requires empty proof-code sigma before decoding
+  large theorem codes with compact read evidence, preserving object-level byte
+  decoding and proof checking while making raw evidence reifiable. See
+  [SJAS Large Proof Raw Evidence Materialization](docs/log/2026-06-01-sjas-large-proof-raw-evidence-materialization.md).
+  The new regression passed in 1:11.81 after timing out red at 180s; `lein
+  test-proflog-fast`, `lein test-proflog-extended`, and the focused SJAS runner
+  all passed.
+
 - Aligned the executable correspondence audit with implemented Track 1
   proof-checker constructors. Equality, equality-triggered saved calls,
   reflected procedure calls, guarded alternatives, guarded scope, guarded call

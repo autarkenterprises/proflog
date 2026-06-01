@@ -2992,6 +2992,35 @@
                 0
                 1)))))))
 
+(deftest large-tableau-proof-raw-direct-evidence-materializes
+  (testing "the internal proof-predicate close relation can reify a large checked certificate"
+    (let [system (demo-system :willard-sjas-tableau0)
+          group3-proof (first-proof
+                         (sjas/query-succeeds system
+                                              (:formula (:group-three system))
+                                              {:proof-limit 1
+                                               :fuel 96}))
+          certificate (sjas/proof-certificate group3-proof)
+          negated-query (normalize/negate-formula
+                          (sjas/tableau-proof (:system-code system)
+                                              (:code (:group-three system))
+                                              certificate))
+          program ((var-get #'sjas-profile/hide-sjas-clauses-from-generic-sidecars)
+                   (:program system))
+          closeo (var-get #'sjas-profile/direct-negated-profile-closeo)
+          proofs (binding [kernel/*theory-profile-closeo*
+                           sjas-profile/willard-sjas-theory-closeo]
+                   (doall
+                     (l/run 1 [proof]
+                       (closeo negated-query program 160 proof))))
+          direct-proof (first-proof proofs)]
+      (is group3-proof)
+      (is (successful? proofs))
+      (is (proof/contains-step? direct-proof 'witness))
+      (is (proof/contains-step? direct-proof 'once-univ))
+      (is (< (count (pr-str direct-proof)) 5000)
+          "large direct evidence should expose the checked certificate without reifying per-byte theorem reads"))))
+
 (deftest sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile
   (doseq [profile [:willard-sjas-tableau0 :willard-sjas-level1]]
     (let [system (demo-system profile)

@@ -2371,6 +2371,32 @@
     (sjas-internal-formula-asto complement neg-theorem)
     (== (list 'willard-sjas-theorem-code read-proof) theorem-read-proof)))
 
+(defn- sjas-ground-structural-negated-theorem-proofo
+  "Decode a theorem code for a ground direct proof-predicate call.
+
+   In the direct ground `tableau-proof/3` branch, proof-code reading starts from
+   an empty sigma. For large compact theorem codes, forcing the theorem decoder
+   to see that empty sigma as a host-ground value lets it use the compact
+   code-read marker instead of constructing a per-byte theorem-read proof. The
+   theorem bytes and formula are still decoded by the same object-level
+   relation; only the returned evidence for the code reader is summarized."
+  [prog theorem-code sigma sigma-out neg-theorem theorem-read-proof]
+  (if (large-compact-code-term? theorem-code)
+    (fresh []
+      (== '() sigma)
+      (sjas-structural-negated-theorem-proofo prog
+                                               theorem-code
+                                               '()
+                                               sigma-out
+                                               neg-theorem
+                                               theorem-read-proof))
+    (sjas-structural-negated-theorem-proofo prog
+                                             theorem-code
+                                             sigma
+                                             sigma-out
+                                             neg-theorem
+                                             theorem-read-proof)))
+
 (defn- proof-symbol-indexo
   [idx sym]
   (fresh [entry]
@@ -5262,12 +5288,12 @@
                          decoded-proof)
                    proof)
                (== sigma-proof sigma-out))]
-            [(sjas-structural-negated-theorem-proofo prog
-                                                     theorem-code
-                                                     sigma-proof
-                                                     sigma-out
-                                                     neg-theorem
-                                                     theorem-read-proof)
+            [(sjas-ground-structural-negated-theorem-proofo prog
+                                                            theorem-code
+                                                            sigma-proof
+                                                            sigma-out
+                                                            neg-theorem
+                                                            theorem-read-proof)
              (== (list 'profiled
                        'willard-sjas-proof-check
                        proof-read-proof

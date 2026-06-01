@@ -1312,8 +1312,8 @@
     (is (successful? valid-proofs))
     (is (proof/contains-step? (first-proof valid-proofs) 'willard-sjas-theorem-code)
         "tableau-proof must decode generated theorem codes structurally during predicate application")
-    (is (proof/contains-step? (first-proof valid-proofs) 'sjas-code-arg)
-        "compact theorem-code decoding inside tableau-proof must expose object-level byte reads")
+    (is (proof/contains-step? (first-proof valid-proofs) 'sjas-code-bytes)
+        "theorem-code decoding inside tableau-proof must cite the uniform object code-reader relation")
     (is (empty?
           (query/query-succeeds
             (:program system)
@@ -1506,8 +1506,8 @@
     (is (successful? valid-proofs))
     (is (proof/contains-step? (first-proof valid-proofs) 'willard-sjas-theorem-code)
         "subst-prf must decode generated theorem codes structurally during predicate application")
-    (is (proof/contains-step? (first-proof valid-proofs) 'sjas-code-arg)
-        "compact theorem-code decoding inside subst-prf must expose object-level byte reads")
+    (is (proof/contains-step? (first-proof valid-proofs) 'sjas-code-bytes)
+        "theorem-code decoding inside subst-prf must cite the uniform object code-reader relation")
     (is (empty?
           (query/query-succeeds
             (:program system)
@@ -3147,6 +3147,12 @@
         "large semantic system-code scans must use object-level structural relations")
     (is (not (re-find #"sjas-code/code-term-bytes system-code" profile-source))
         "proof-profile system codes must not be decoded by host byte extraction")
+    (is (not (re-find #"sjas-decode-proof-formula-code-detail-proofo" profile-source))
+        "theorem-code decoding inside proof predicates must not use a separate large-code decoder")
+    (is (not (re-find #"detailed-theorem-code-byte-limit" profile-source))
+        "theorem-code evidence must not switch behavior at a performance byte limit")
+    (is (not (re-find #"large-compact-code-term\\?" profile-source))
+        "large theorem codes must be decoded by the same object relation as small theorem codes")
     (is (not (re-find #"large-non-axiom-tableau-proof-query" profile-source))
         "large tableau-proof queries must not replace decoded proof evidence with an acceptance summary")
     (is (not (re-find #"large-tableau-proof-summary" profile-source))

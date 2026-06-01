@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Removed the size-dependent theorem-code decoder inside SJAS proof
+  predicates. `tableau-proof/3` and `subst-prf/4` theorem-code reads now always
+  consume public codes through `sjas-formal-code-byteso` and return a uniform
+  code-reader marker (`sjas-code-bytes` or `sjas-ug-code-bytes`) rather than
+  switching at a host byte-count threshold. See
+  [SJAS Theorem-Code Uniform Reader Marker](docs/log/2026-06-01-sjas-theorem-code-uniform-reader-marker.md).
+
 - Removed the proof-facing source-signature codebook bridge from the SJAS
   profile. The decoder now maps fixed SJAS vocabulary indexes to semantic
   symbols and user indexes to structural `(sym n)` ids, so reflected

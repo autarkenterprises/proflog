@@ -1449,43 +1449,29 @@
     (decode-proof-formula-byteso prog bytes rest formula)
     (== '() rest)))
 
-(declare sjas-public-code-bytes-summaryo)
+(declare code-read-marker-o)
 
-(def ^:private detailed-theorem-code-byte-limit
-  "Compact theorem codes at or below this size keep per-byte proof evidence.
+(defn- sjas-decode-proof-formula-code-markero
+  "Decode a proof-predicate formula code with uniform code-reader evidence.
 
-   Larger semantic proof targets, especially Group-3 self-consistency formulas,
-   still run through the same object-level byte relation but return the compact
-   read marker to keep proof reification tractable."
-  32)
+   This relation still consumes the public code through `sjas-formal-code-byteso`
+   and decodes the resulting byte stream object-level. The public proof evidence
+   records the code-reader relation that was checked, not the full recursive
+   byte-read derivation. Crucially, the evidence is size-independent: large and
+   small theorem codes follow the same path."
+  [prog code sigma sigma-out formula read-proof]
+  (fresh [bytes rest kind raw-read-proof marker]
+    (sjas-formal-code-byteso code bytes sigma sigma-out kind raw-read-proof)
+    (decode-proof-formula-byteso prog bytes rest formula)
+    (== '() rest)
+    (code-read-marker-o kind marker)
+    (== marker read-proof)))
 
 (defn- compact-code-term-byte-count
   [term]
   (when (and (seq? term)
              (= 'app (first term)))
     (sjas-code/code-symbol-byte-count (second term))))
-
-(defn- large-compact-code-term?
-  [term]
-  (when-let [byte-count (compact-code-term-byte-count term)]
-    (> byte-count detailed-theorem-code-byte-limit)))
-
-(defn- sjas-decode-proof-formula-code-detail-proofo
-  [prog code sigma sigma-out formula read-proof]
-  (if (and (= '() sigma)
-           (large-compact-code-term? code))
-    (fresh [bytes rest]
-      (sjas-public-code-bytes-summaryo code bytes read-proof)
-      (decode-proof-formula-byteso prog bytes rest formula)
-      (== '() rest)
-      (== '() sigma-out))
-    (sjas-decode-proof-formula-code-proofo
-      prog
-      code
-      sigma
-      sigma-out
-      formula
-      read-proof)))
 
 (declare sjas-delta-star-0-formulao
          sjas-pi-star-1-formulao
@@ -2336,12 +2322,12 @@
    host-projected byte vector."
   [prog theorem-code sigma sigma-out neg-theorem theorem-read-proof]
   (fresh [formula complement read-proof]
-    (sjas-decode-proof-formula-code-detail-proofo prog
-                                                  theorem-code
-                                                  sigma
-                                                  sigma-out
-                                                  formula
-                                                  read-proof)
+    (sjas-decode-proof-formula-code-markero prog
+                                            theorem-code
+                                            sigma
+                                            sigma-out
+                                            formula
+                                            read-proof)
     (sjas-formula-complemento formula complement)
     (sjas-internal-formula-asto complement neg-theorem)
     (== (list 'willard-sjas-theorem-code read-proof) theorem-read-proof)))
@@ -2349,28 +2335,17 @@
 (defn- sjas-ground-structural-negated-theorem-proofo
   "Decode a theorem code for a ground direct proof-predicate call.
 
-   In the direct ground `tableau-proof/3` branch, proof-code reading starts from
-   an empty sigma. For large compact theorem codes, forcing the theorem decoder
-   to see that empty sigma as a host-ground value lets it use the compact
-   code-read marker instead of constructing a per-byte theorem-read proof. The
-   theorem bytes and formula are still decoded by the same object-level
-   relation; only the returned evidence for the code reader is summarized."
+   This wrapper preserves the ground direct proof-predicate shape while using
+   the same object-level theorem-code reader as all other proof-predicate
+   branches. Large theorem codes therefore reify the code-reader evidence they
+   actually checked instead of switching to a performance summary."
   [prog theorem-code sigma sigma-out neg-theorem theorem-read-proof]
-  (if (large-compact-code-term? theorem-code)
-    (fresh []
-      (== '() sigma)
-      (sjas-structural-negated-theorem-proofo prog
-                                               theorem-code
-                                               '()
-                                               sigma-out
-                                               neg-theorem
-                                               theorem-read-proof))
-    (sjas-structural-negated-theorem-proofo prog
-                                             theorem-code
-                                             sigma
-                                             sigma-out
-                                             neg-theorem
-                                             theorem-read-proof)))
+  (sjas-structural-negated-theorem-proofo prog
+                                          theorem-code
+                                          sigma
+                                          sigma-out
+                                          neg-theorem
+                                          theorem-read-proof))
 
 (defn- proof-symbol-indexo
   [idx sym]

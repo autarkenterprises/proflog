@@ -863,40 +863,19 @@
   [_prog idx sym]
   (sjas-reserved-symbol-indexo idx sym))
 
-(defn- program-coding-context
-  "Reconstruct the deterministic source signature codebook for host ASTs.
+(defn- sjas-object-symbol-indexo
+  "Decode a symbol index without consulting the source-language codebook.
 
-   Encoded theorem-code paths do not use this: user symbols decode as structural
-   `(sym n)` ids and compare against reflected system-code records. This bridge
-   is only for direct proof-checker tests that supply an already-built host AST
-   containing source symbols such as `demo`; system-code alone stores the
-   numeric relation index, not the original nominal spelling."
-  [prog]
-  (let [{:keys [constants functions relations]} (:language prog)
-        code-constructor? (fn [sym]
-                            (boolean (sjas-code/code-symbol-byte-count sym)))]
-    (sjas-code/context
-      (concat constants
-              (remove code-constructor? (keys functions))
-              (keys relations)))))
+   Fixed SJAS vocabulary entries keep their semantic names because arithmetic
+   and proof-profile predicates must dispatch on those symbols. User symbols are
+   preserved as structural `(sym n)` identifiers, which is enough for reflected
+   call matching and alpha comparison while remaining independent of host names."
+  [idx sym]
+  (conda
+    [(sjas-reserved-symbol-indexo idx sym)]
+    [(positive-byteo idx)
+     (== (list 'sym idx) sym)]))
 
-(defn- program-symbol-index
-  [prog sym]
-  (get-in (program-coding-context prog) [:symbol->index sym]))
-
-(defn- sjas-host-symbol-indexo
-  [prog idx sym]
-  (project [sym]
-    (if-let [ground-idx (and (symbol? sym)
-                             (program-symbol-index prog sym))]
-      (== ground-idx idx)
-      fail)))
-
-(defn- sjas-reflected-relation-indexo
-  [prog idx relation]
-  (conde
-    [(sjas-symbol-indexo prog idx relation)]
-    [(sjas-host-symbol-indexo prog idx relation)]))
 
 (declare decode-formula-byteso decode-term-byteso)
 
@@ -1015,7 +994,7 @@
     (== (lcons term-app-tag
                 (lcons symbol-index after-symbol))
         bytes)
-    (sjas-symbol-indexo prog symbol-index sym)
+    (sjas-object-symbol-indexo symbol-index sym)
     (decode-app-arityo prog 0 after-symbol rest sym term)))
 
 (defn- decode-term-byteso
@@ -1454,18 +1433,14 @@
     (sjas-decode-formula-code-proofo prog code sigma sigma-out formula read-proof)))
 
 (defn- decode-proof-formula-byteso
-  "Decode a proof-predicate formula, falling back to numeric symbol ids.
+  "Decode a proof-predicate formula from object code.
 
-   Proof predicates still prefer the ordinary proof-facing decoder when the
-   finite source codebook is present, because arithmetic/profile symbols such
-   as `lt`, `leq`, and `tableau-proof` currently have host-level interpreters.
-   When that codebook is absent, reflected procedure-call proof checking can
-   still compare application heads by their encoded numeric symbol ids, written
-   as structural `(sym n)` terms."
+   Fixed SJAS vocabulary symbols decode to their semantic names. User symbols
+   decode to structural `(sym n)` ids, so proof checking can compare reflected
+   procedure calls by code identity without reconstructing a host source
+   signature."
   [prog bytes rest formula]
-  (conde
-    [(decode-formula-byteso prog bytes rest formula)]
-    [(decode-syntax-formula-byteso bytes rest formula)]))
+  (decode-formula-byteso prog bytes rest formula))
 
 (defn- sjas-decode-proof-formula-code-proofo
   [prog code sigma sigma-out formula read-proof]
@@ -2856,17 +2831,16 @@
   "Decode one reflected-clause record from the reflected section of system-code.
 
    The record layout is `[34 relation-index arity+1 body-formula-bytes...]`.
-   Relation indexes are resolved through the finite source-time symbol table;
-   this table is part of the compiled language interface, while the formula
-   bytes and clause shape are checked by kernel relations during predicate
-   application."
+   Fixed SJAS vocabulary indexes decode to their semantic symbols, while user
+   relation indexes stay structural. No source-language symbol table is needed
+   to reconstruct the axiom tree."
   [prog bytes rest formula]
   (fresh [relation-index arity-byte body-bytes relation body]
     (== (lcons system-reflected-clause-tag
                 (lcons relation-index
                        (lcons arity-byte body-bytes)))
         bytes)
-    (sjas-symbol-indexo prog relation-index relation)
+    (sjas-object-symbol-indexo relation-index relation)
     (or*
       (map (fn [arity]
              (fresh []
@@ -2928,44 +2902,24 @@
    against the focused call atom, and exposes the body/negated-body formulas
    needed by `pos-call` and `neg-call` proof constructors."
   [prog bytes rest atom env body negated-body]
-  (conda
-    [(fresh [relation args relation-index arity-byte body-bytes
-             decoded-body nnf-body]
-       (== (lcons 'app (lcons relation args)) atom)
-       (== (lcons system-reflected-clause-tag
-                   (lcons relation-index
-                          (lcons arity-byte body-bytes)))
-           bytes)
-       (sjas-reflected-relation-indexo prog relation-index relation)
-       (or*
-         (map (fn [arity]
-                (fresh []
-                  (== (inc arity) arity-byte)
-                  (reflected-call-env-argso 1 arity args env)
-                  (decode-formula-byteso prog body-bytes rest decoded-body)
-                  (sjas-to-nnfo decoded-body nnf-body)
-                  (sjas-internal-formula-asto nnf-body body)
-                  (sjas-negated-formula-asto nnf-body negated-body)))
-              (range sjas-code/byte-base))))]
-    [(fresh [relation args relation-index arity-byte body-bytes
-             decoded-body nnf-body]
-       (== (lcons 'app (lcons relation args)) atom)
-       (== (lcons system-reflected-clause-tag
-                   (lcons relation-index
-                          (lcons arity-byte body-bytes)))
-           bytes)
-       (positive-byteo relation-index)
-       (== (list 'sym relation-index) relation)
-       (or*
-         (map (fn [arity]
-                (fresh []
-                  (== (inc arity) arity-byte)
-                  (reflected-call-env-argso 1 arity args env)
-                  (decode-syntax-formula-byteso body-bytes rest decoded-body)
-                  (sjas-to-nnfo decoded-body nnf-body)
-                  (sjas-internal-formula-asto nnf-body body)
-                  (sjas-negated-formula-asto nnf-body negated-body)))
-              (range sjas-code/byte-base))))]))
+  (fresh [relation args relation-index arity-byte body-bytes
+          decoded-body nnf-body]
+    (== (lcons 'app (lcons relation args)) atom)
+    (== (lcons system-reflected-clause-tag
+                (lcons relation-index
+                       (lcons arity-byte body-bytes)))
+        bytes)
+    (sjas-object-symbol-indexo relation-index relation)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (reflected-call-env-argso 1 arity args env)
+               (decode-formula-byteso prog body-bytes rest decoded-body)
+               (sjas-to-nnfo decoded-body nnf-body)
+               (sjas-internal-formula-asto nnf-body body)
+               (sjas-negated-formula-asto nnf-body negated-body)))
+           (range sjas-code/byte-base)))))
 
 (defn- reflected-call-in-clauseso
   "Search encoded reflected clauses for a call-compatible procedure body."
@@ -3100,7 +3054,7 @@
     (== (list 'app relation args) atom)
     (conde
       [(== (list 'sym relation-index) relation)]
-      [(sjas-reflected-relation-indexo prog relation-index relation)])
+      [(sjas-object-symbol-indexo relation-index relation)])
     (reflected-relation-index-in-clauseso
       reflected-total
       reflected-bytes
@@ -3195,52 +3149,28 @@
 (defn- decode-reflected-clause-guarded-callo
   "Decode one reflected-clause record as guarded negative-call data."
   [prog reflected-total reflected-bytes bytes rest atom env guarded-alternative]
-  (conda
-    [(fresh [relation args relation-index arity-byte body-bytes
-             decoded-body nnf-body]
-       (== (lcons 'app (lcons relation args)) atom)
-       (== (lcons system-reflected-clause-tag
-                   (lcons relation-index
-                          (lcons arity-byte body-bytes)))
-           bytes)
-       (sjas-reflected-relation-indexo prog relation-index relation)
-       (or*
-         (map (fn [arity]
-                (fresh []
-                  (== (inc arity) arity-byte)
-                  (reflected-call-env-argso 1 arity args env)
-                  (decode-proof-formula-byteso prog body-bytes rest decoded-body)
-                  (sjas-to-nnfo decoded-body nnf-body)
-                  (internal-guarded-alternative-asto
-                    prog
-                    reflected-total
-                    reflected-bytes
-                    nnf-body
-                    guarded-alternative)))
-              (range sjas-code/byte-base))))]
-    [(fresh [relation args relation-index arity-byte body-bytes
-             decoded-body nnf-body]
-       (== (lcons 'app (lcons relation args)) atom)
-       (== (lcons system-reflected-clause-tag
-                   (lcons relation-index
-                          (lcons arity-byte body-bytes)))
-           bytes)
-       (positive-byteo relation-index)
-       (== (list 'sym relation-index) relation)
-       (or*
-         (map (fn [arity]
-                (fresh []
-                  (== (inc arity) arity-byte)
-                  (reflected-call-env-argso 1 arity args env)
-                  (decode-proof-formula-byteso prog body-bytes rest decoded-body)
-                  (sjas-to-nnfo decoded-body nnf-body)
-                  (internal-guarded-alternative-asto
-                    prog
-                    reflected-total
-                    reflected-bytes
-                    nnf-body
-                    guarded-alternative)))
-              (range sjas-code/byte-base))))]))
+  (fresh [relation args relation-index arity-byte body-bytes
+          decoded-body nnf-body]
+    (== (lcons 'app (lcons relation args)) atom)
+    (== (lcons system-reflected-clause-tag
+                (lcons relation-index
+                       (lcons arity-byte body-bytes)))
+        bytes)
+    (sjas-object-symbol-indexo relation-index relation)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (reflected-call-env-argso 1 arity args env)
+               (decode-proof-formula-byteso prog body-bytes rest decoded-body)
+               (sjas-to-nnfo decoded-body nnf-body)
+               (internal-guarded-alternative-asto
+                 prog
+                 reflected-total
+                 reflected-bytes
+                 nnf-body
+                 guarded-alternative)))
+           (range sjas-code/byte-base)))))
 
 (defn- reflected-call-guarded-alternatives-in-clauseso
   "Collect guarded negative-call alternatives from encoded reflected clauses."

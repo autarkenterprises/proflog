@@ -167,6 +167,33 @@
     bounded-exists (formula-atoms (get-in (second formula) [:body :body]))
     []))
 
+(defn- encoded-relation-index
+  "Return the formula-code relation index for `relation` in `system`.
+
+   Private proof-checker tests intentionally feed decoded proof targets rather
+   than public theorem codes. User relation symbols in those decoded targets
+   should therefore use the same structural `(sym n)` identity that the
+   arithmeticized theorem-code decoder produces, not the host source symbol."
+  [system relation arity]
+  (let [args (repeat arity sjas/zero)
+        formula (ast/pos-lit (apply ast/app-term relation args))
+        bytes (sjas-code/code-term-bytes (sjas/formula-code system formula))]
+    (nth bytes 2)))
+
+(defn- structural-app-term
+  [system relation & args]
+  (list* 'app
+         (list 'sym (encoded-relation-index system relation (count args)))
+         args))
+
+(defn- structural-pos-lit
+  [system relation & args]
+  (ast/pos-lit (apply structural-app-term system relation args)))
+
+(defn- structural-neg-lit
+  [system relation & args]
+  (ast/neg-lit (apply structural-app-term system relation args)))
+
 (deftest sjas-profile-languages-have-binary-u-grounding-shape
   (testing "SJAS languages expose Willard-style binary U-grounding symbols"
     (doseq [[profile lang] [[:willard-sjas-tableau0 sjas/tableau0-profile-language]
@@ -1991,7 +2018,7 @@
                      (ast/exists-form
                        x
                        (ast/and-form
-                         (ast/pos-lit (ast/app-term 'demo x-term))
+                         (structural-pos-lit system 'demo x-term)
                          (ast/eq-lit x-term sjas/zero))))
             proof (equality-triggered-positive-call-proof)]
         (with-redefs [kernel/prove-programo
@@ -2017,7 +2044,7 @@
                      (ast/exists-form
                        x
                        (ast/and-form
-                         (ast/neg-lit (ast/app-term 'demo x-term))
+                         (structural-neg-lit system 'demo x-term)
                          (ast/eq-lit x-term sjas/one))))
             proof (equality-triggered-negative-call-proof)]
         (with-redefs [kernel/prove-programo
@@ -2118,7 +2145,7 @@
                                                     (ast/eq-lit (ast/var-term x) sjas/zero))]})
           target (ast/and-form
                    (ast/true-form)
-                   (ast/neg-lit (ast/app-term 'multi-demo sjas/one)))
+                   (structural-neg-lit system 'multi-demo sjas/one))
           proof '(conj (skip-true (neg-call-alt (alt (refl-close)))))
           check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
       (with-redefs [kernel/prove-programo
@@ -2148,7 +2175,7 @@
                                                     (ast/false-form))]})
           target (ast/and-form
                    (ast/true-form)
-                   (ast/neg-lit (ast/app-term 'guarded-demo)))
+                   (structural-neg-lit system 'guarded-demo))
           proof '(conj
                    (skip-true
                      (neg-call-guarded-alt
@@ -2224,7 +2251,7 @@
                                                     (ast/false-form))]})
           target (ast/and-form
                    (ast/true-form)
-                   (ast/neg-lit (ast/app-term 'guarded-saturated-demo)))
+                   (structural-neg-lit system 'guarded-saturated-demo))
           proof '(conj
                    (skip-true
                      (neg-call-guarded-alt
@@ -2307,7 +2334,7 @@
                                                     (ast/false-form))]})
           target (ast/and-form
                    (ast/true-form)
-                   (ast/neg-lit (ast/app-term 'guard-eq-demo)))
+                   (structural-neg-lit system 'guard-eq-demo))
           proof '(conj
                    (skip-true
                      (neg-call-guarded-alt
@@ -2392,7 +2419,7 @@
                                                       (ast/false-form))]})
             target (ast/and-form
                      (ast/true-form)
-                     (ast/neg-lit (ast/app-term 'guarded-scope-demo)))
+                     (structural-neg-lit system 'guarded-scope-demo))
             proof '(conj
                      (skip-true
                        (neg-call-guarded-alt
@@ -2494,7 +2521,7 @@
     (let [system (nested-guarded-call-system)
           target (ast/and-form
                    (ast/true-form)
-                   (ast/neg-lit (ast/app-term 'outer-guarded-demo)))
+                   (structural-neg-lit system 'outer-guarded-demo))
           proof (list 'conj
                       (list 'skip-true nested-guarded-call-branch-proof))
           check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
@@ -3098,6 +3125,12 @@
         "SJAS proof predicates must not recover formula-code symbols from a generated source table")
     (is (not (re-find #":sjas/symbol-index-entries" builder-source))
         "compiled SJAS programs must not carry a generated source symbol table")
+    (is (not (re-find #"program-coding-context" profile-source))
+        "proof-facing formula decoding must not reconstruct a host source-signature codebook")
+    (is (not (re-find #"sjas-host-symbol-indexo" profile-source))
+        "reflected proof checking must match user symbols structurally by encoded index")
+    (is (not (re-find #"sjas-reflected-relation-indexo" profile-source))
+        "reflected call matching must not fall back to host relation names")
     (is (not (re-find #"code-byte-term->byte" profile-source))
         "compact code byte terms must not be decoded through a host lookup table")
     (is (not (re-find #"code-byte-term-entries" profile-source))

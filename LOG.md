@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Removed the proof-facing source-signature codebook bridge from the SJAS
+  profile. The decoder now maps fixed SJAS vocabulary indexes to semantic
+  symbols and user indexes to structural `(sym n)` ids, so reflected
+  procedure-call proof checking matches calls by encoded symbol index rather
+  than reconstructed host relation names. See
+  [SJAS Proof Decoder Structural Symbols](docs/log/2026-06-01-sjas-proof-decoder-structural-symbols.md).
+
 - Removed the large `tableau-proof/3` public proof-report shortcut from the
   SJAS profile. Large direct proof-predicate queries now have to reify the
   proof evidence produced by `direct-negated-profile-closeo` itself instead of

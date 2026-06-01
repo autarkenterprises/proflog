@@ -87,10 +87,9 @@
      neg-pair
      sjas-axiom})
 
-(def ^:private unresolved-equality-symbols
-  "Proof constructors for equality, disequality, and equality-triggered profile
-   behavior. ADR-0073 marks these high risk until they are either formalized as
-   SJAS rules, macro-expanded to tableau subtrees, or excluded from a fragment."
+(def ^:private relevant-equality-symbols
+  "Equality, disequality, and equality-triggered proof constructors consumed by
+   the SJAS object-level proof checker."
   '#{eq-step
      eq-triggered-call
      eq-triggered-neg-call
@@ -98,10 +97,10 @@
      eq-bind
      par-bind})
 
-(def ^:private unresolved-procedure-symbols
+(def ^:private relevant-procedure-symbols
   "Proof constructors introduced by Proflog procedure-call and guarded-call
-   machinery. They may be sound implementation steps, but Track 2b must still
-   prove that they preserve the relevant SJAS proof-tree and size measures."
+   machinery that are now checked by the SJAS object-level proof checker from
+   reflected system-code, explicit guarded partitions, and proof-code trees."
   '#{pos-call
      neg-call
      neg-call-alt
@@ -186,14 +185,14 @@
                   {:status :relevant
                    :aspect :sjas-code-and-arithmetic-structure
                    :obligation "Preserve inspectable formula/system/proof code decoding and arithmetic witnesses."})
-    (classify-set unresolved-equality-symbols
-                  {:status :unresolved
+    (classify-set relevant-equality-symbols
+                  {:status :relevant
                    :aspect :equality-extension
-                   :obligation "Classify as SJAS primitive, bounded tableau macro, conservative fragment, or excluded bridge."})
-    (classify-set unresolved-procedure-symbols
-                  {:status :unresolved
+                   :obligation "Preserve equality/disequality proof-state updates and equality-triggered saved-call closure."})
+    (classify-set relevant-procedure-symbols
+                  {:status :relevant
                    :aspect :procedure-call-expansion
-                   :obligation "Prove procedure/profile calls preserve accepted proof trees and relevant size measures."})
+                   :obligation "Preserve reflected procedure-call and guarded-alternative proof-tree structure."})
     (classify-set excluded-answer-overlay-symbols
                   {:status :excluded
                    :aspect :answer-overlay

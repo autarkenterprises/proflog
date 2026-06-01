@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Aligned the executable correspondence audit with implemented Track 1
+  proof-checker constructors. Equality, equality-triggered saved calls,
+  reflected procedure calls, guarded alternatives, guarded scope, guarded call
+  sequences, residual sequences, and equality guard saturation constructors
+  that the SJAS checker now consumes object-level are classified as relevant
+  proof-checker structure rather than stale unresolved gaps. See
+  [SJAS Implemented Constructor Classification](docs/log/2026-06-01-sjas-implemented-constructor-classification.md).
+  `lein test-proflog-fast` passed 638 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
 - Closed the answer-overlay proof-constructor boundary for SJAS theorem proof
   predicates by explicit exclusion. `query-pos-call`, `query-neg-call`,
   `query-neg-call-guarded-alt`, and `guarded-call-seq-defer` remain encodable

@@ -52,6 +52,12 @@ complete contemporaneous transcript.
   survives session boundaries. The same requirement is now in
   [AGENTS.md](AGENTS.md).
 
+- Replaced the committed-choice `tableau-proof/3` split between `sjas-axiom`
+  and substantive proof certificates with a proof-code byte discriminator shared
+  by `tableau-proof/3` and `subst-prf/4`. The source audit now rejects `conda`
+  in `sjas-tableau-proof-closeo`. See
+  [SJAS Proof-Code Relational Split](docs/log/2026-06-02-sjas-proof-code-relational-split.md).
+
 ## 2026-06-01
 
 - Removed proof-facing marker evidence, direct host-ground SJAS profile

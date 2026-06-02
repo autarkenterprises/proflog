@@ -897,6 +897,55 @@
       (is (= proof (sjas-code/proof-formal-code-term->proof certificate)))
       (is (= proof (first decoded))))))
 
+(deftest sjas-proof-code-discriminator-splits-axiom-and-substantive-certificates
+  (testing "proof predicates classify sjas-axiom from proof bytes without committed choice"
+    (let [decode-axiom (var-get #'sjas-profile/decode-sjas-axiom-proof-codeo)
+          decode-non-axiom (var-get #'sjas-profile/decode-non-sjas-axiom-proof-codeo)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          ug-axiom-certificate (sjas/proof-certificate 'sjas-axiom
+                                                       {:code-format :u-grounding})
+          substantive-proof '(false-close)
+          substantive-certificate (sjas/proof-certificate substantive-proof)
+          axiom-bytes (apply list (sjas-code/proof-code-bytes 'sjas-axiom))
+          axiom-decodes (l/run 1 [q]
+                          (l/fresh [sigma-out bytes read-proof]
+                            (decode-axiom axiom-certificate
+                                          '()
+                                          sigma-out
+                                          bytes
+                                          read-proof)
+                            (l/== [sigma-out bytes] q)))
+          ug-axiom-decodes (l/run 1 [q]
+                             (l/fresh [sigma-out bytes read-proof]
+                               (decode-axiom ug-axiom-certificate
+                                             '()
+                                             sigma-out
+                                             bytes
+                                             read-proof)
+                               (l/== [sigma-out bytes] q)))
+          axiom-as-non-axiom (l/run 1 [q]
+                               (l/fresh [sigma-out bytes decoded read-proof]
+                                 (decode-non-axiom axiom-certificate
+                                                   '()
+                                                   sigma-out
+                                                   bytes
+                                                   decoded
+                                                   read-proof)
+                                 (l/== decoded q)))
+          substantive-decodes (l/run 1 [q]
+                                (l/fresh [sigma-out bytes decoded read-proof]
+                                  (decode-non-axiom substantive-certificate
+                                                    '()
+                                                    sigma-out
+                                                    bytes
+                                                    decoded
+                                                    read-proof)
+                                  (l/== [sigma-out decoded] q)))]
+      (is (= [['() axiom-bytes]] axiom-decodes))
+      (is (= [['() axiom-bytes]] ug-axiom-decodes))
+      (is (empty? axiom-as-non-axiom))
+      (is (= [['() substantive-proof]] substantive-decodes)))))
+
 (deftest sjas-proof-codes-encode-u-grounding-canonical-byte-evidence
   (testing "U-Grounding byte-reader evidence carries an explicit byte payload in the proof-code grammar"
     (let [proof '(sjas-ug-code-canonical-byte
@@ -3154,6 +3203,8 @@
         "proof predicates must not bypass tableau state validation with top-conjunction shortcuts")
     (is (not (re-find #"sjas-negated-theorem-branch-proof-checko" profile-source))
         "proof predicates must not bypass tableau state validation by focusing the negated theorem directly")
+    (is (not (re-find #"(?s)defn- sjas-tableau-proof-closeo.*?\(conda" profile-source))
+        "tableau-proof proof-code classification must be a relation, not a committed-choice scheduler")
     (is (= 2 (count (re-seq #"\(kernel/prove-programo" profile-source)))
         "the ordinary kernel may remain only as the public proof-search engine, not as an internal proof-predicate validator")
     (is (not (re-find #"compact-false-formula-code" profile-source))

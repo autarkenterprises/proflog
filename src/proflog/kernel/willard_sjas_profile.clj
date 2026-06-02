@@ -2316,6 +2316,37 @@
     (decode-proof-byteso proof-bytes rest proof)
     (== '() rest)))
 
+(def ^:private sjas-axiom-proof-bytes
+  (apply list (sjas-code/proof-code-bytes 'sjas-axiom)))
+
+(defn- decode-sjas-axiom-proof-codeo
+  "Decode a public proof code as the distinguished `sjas-axiom` certificate.
+
+   The special axiom-citation certificate is a fixed proof-grammar symbol, so
+   exact proof-byte equality is enough to classify it. This keeps proof-code
+   classification inside the encoded byte relation while avoiding a
+   committed-choice split in `tableau-proof/3` or `subst-prf/4`."
+  [code sigma sigma-out proof-bytes proof-read-proof]
+  (fresh [kind]
+    (== sjas-axiom-proof-bytes proof-bytes)
+    (sjas-formal-code-byteso code proof-bytes sigma sigma-out kind proof-read-proof)))
+
+(defn- decode-non-sjas-axiom-proof-codeo
+  "Decode a public proof code as a substantive proof tree.
+
+   Substantive tableau certificates are list-root proof nodes. The one bare
+   proof-symbol certificate accepted by these proof predicates is the special
+   `sjas-axiom` citation handled by `decode-sjas-axiom-proof-codeo`; requiring
+   the proof-list tag here positively distinguishes the ordinary proof-tree
+   branch without leaving large residual disequality constraints to reify."
+  [code sigma sigma-out proof-bytes proof proof-read-proof]
+  (fresh [kind rest item-count after-count]
+    (sjas-formal-code-byteso code proof-bytes sigma sigma-out kind proof-read-proof)
+    (== (lcons sjas-code/proof-list-tag (lcons item-count after-count))
+        proof-bytes)
+    (decode-proof-byteso proof-bytes rest proof)
+    (== '() rest)))
+
 (defn- sjas-system-profile-tago
   [profile-tag]
   (conde
@@ -4845,9 +4876,13 @@
     (== (list 'neg atom) lit)
     (equality/walk-atomo atom sigma walked-atom)
     (== (list 'app 'tableau-proof system-code theorem-code proof-code) walked-atom)
-    (decode-proof-codeo proof-code sigma sigma-proof proof-bytes decoded-proof proof-read-proof)
-    (conda
-      [(== 'sjas-axiom decoded-proof)
+    (conde
+      [(decode-sjas-axiom-proof-codeo proof-code
+                                      sigma
+                                      sigma-proof
+                                      proof-bytes
+                                      proof-read-proof)
+       (== 'sjas-axiom decoded-proof)
        (fresh [axiom-proof]
          (sjas-walked-axiom-membero prog
                                      system-code
@@ -4862,7 +4897,13 @@
                    decoded-proof)
              proof)
          (== sigma-proof sigma-out))]
-      [(sjas-structural-negated-theorem-proofo prog
+      [(decode-non-sjas-axiom-proof-codeo proof-code
+                                          sigma
+                                          sigma-proof
+                                          proof-bytes
+                                          decoded-proof
+                                          proof-read-proof)
+       (sjas-structural-negated-theorem-proofo prog
                                                theorem-code
                                                sigma-proof
                                                sigma-out
@@ -4893,9 +4934,13 @@
     (equality/walk-atomo atom sigma walked-atom)
     (== (list 'app 'subst-prf system-code substitution-code theorem-code proof-code)
         walked-atom)
-    (decode-proof-codeo proof-code sigma sigma-proof proof-bytes decoded-proof proof-read-proof)
     (conde
-      [(== 'sjas-axiom decoded-proof)
+      [(decode-sjas-axiom-proof-codeo proof-code
+                                      sigma
+                                      sigma-proof
+                                      proof-bytes
+                                      proof-read-proof)
+       (== 'sjas-axiom decoded-proof)
        (conde
          [(fresh [axiom-proof]
             (sjas-walked-axiom-membero prog
@@ -4907,7 +4952,12 @@
             (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof))]
          [(sjas-subst-code-anyo prog substitution-code theorem-code sigma-proof sigma-out)
           (== '(willard-sjas-subst-code) theorem-read-proof)])]
-      [(!= 'sjas-axiom decoded-proof)
+      [(decode-non-sjas-axiom-proof-codeo proof-code
+                                          sigma
+                                          sigma-proof
+                                          proof-bytes
+                                          decoded-proof
+                                          proof-read-proof)
        (sjas-system-axiom-formulao prog system-code axiom-formula)
        (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-valid)
        (sjas-structural-negated-theorem-proofo prog

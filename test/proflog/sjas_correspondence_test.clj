@@ -99,6 +99,8 @@
                   willard-sjas-theorem-code
                   willard-sjas-proof-check
                   willard-sjas-subst-code
+                  willard-sjas-subst-source-result
+                  willard-sjas-subst-exprf
                   willard-sjas-subst-proof-check]]
       (is (= :relevant (:status (correspondence/classify-proof-symbol sym)))
           (str sym " should be classified as implemented SJAS profile evidence")))

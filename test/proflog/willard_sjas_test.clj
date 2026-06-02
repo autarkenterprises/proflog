@@ -2885,19 +2885,45 @@
             160))
         "the no-registry structural path must still reject the unsubstituted open formula")))
 
-(deftest sjas-subst-prf-uses-substitution-code-independently-of-theorem-code
-  (let [system (demo-system :willard-sjas-level1)
+(deftest sjas-subst-source-result-computes-explicit-proof-antecedent
+  (let [system (demo-system :willard-sjas-tableau0)
+        fixed-record (first (filter #(= :group-zero (:group %)) (:axioms system)))
+        results (l/run 1 [q]
+                  (l/fresh [antecedent proof sigma-out]
+                    ((var-get #'sjas-profile/sjas-subst-source-result-antecedento)
+                     (:program system)
+                     (:code fixed-record)
+                     '()
+                     sigma-out
+                     antecedent
+                     proof)
+                    (l/== [antecedent proof sigma-out] q)))
+        [antecedent proof sigma-out] (first results)]
+    (is (= 1 (count results)))
+    (is (= '() sigma-out))
+    (is (= 'neq (first antecedent)))
+    (is (proof/contains-step? proof 'willard-sjas-subst-source-result)
+        "subst-prf must have a relation-backed witness for the substituted source sentence")
+    (is (proof/contains-step? proof 'sjas-code-arg)
+        "the substituted source witness must be decoded from public code bytes")))
+
+(deftest ^:slow sjas-subst-prf-uses-substitution-code-independently-of-theorem-code
+  (let [system (demo-system :willard-sjas-tableau0)
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
-        certificate (sjas/proof-certificate 'sjas-axiom)]
-    (is (successful?
-          (query/query-succeeds
-            (:program system)
-            (sjas/subst-prf (:system-code system)
-                            (:selfcons-skeleton-code system)
-                            (:code beta-record)
-                            certificate)
-            1
-            220)))))
+        fixed-record (first (filter #(= :group-zero (:group %)) (:axioms system)))
+        certificate (sjas/proof-certificate 'sjas-axiom)
+        proofs (query/query-succeeds
+                 (:program system)
+                 (sjas/subst-prf (:system-code system)
+                                 (:code fixed-record)
+                                 (:code beta-record)
+                                 certificate)
+                 1
+                 220)
+        proof (first-proof proofs)]
+    (is (successful? proofs))
+    (is (proof/contains-step? proof 'willard-sjas-subst-source-result)
+        "subst-prf must explicitly compute the substituted source witness, not merely check that the source code is well formed")))
 
 (deftest sjas-level1-group-three-uses-substitution-proof-vocabulary
   (let [system (demo-system :willard-sjas-level1)
@@ -3227,6 +3253,8 @@
         "compact public code terms must be read through the object code-byte relation")
     (is (not (re-find #"ground-u-grounding-code-term-bytes" profile-source))
         "U-Grounding public code terms must be read through the object numeral relation")
+    (is (not (re-find #"sjas-subst-source-codeo" profile-source))
+        "subst-prf must compute the substituted source witness instead of using a source-only well-formedness shortcut")
     (is (not (re-find #"mini-closed" builder-source)))
     (is (not (re-find #"malformed" profile-source)))
     (is (not (re-find #"malformed" builder-source)))

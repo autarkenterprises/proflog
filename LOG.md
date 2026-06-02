@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Removed the source-only `subst-prf/4` substitution witness shortcut from the
+  SJAS proof predicate path. `subst-prf` now computes the diagonal substituted
+  source sentence as an explicit proof antecedent and includes that sentence in
+  the non-axiom proof-check target. Current-source long `subst-prf` selectors
+  are running durably under `test-runs/` with timestamp `20260602T230615Z`. See
+  [SJAS SubstPrf Explicit Source Result](docs/log/2026-06-02-sjas-substprf-explicit-source-result.md).
+
 - Fixed a Track 1 semantic-tableau proof-predicate bug in the SJAS `split`
   rule. The local checker no longer threads equality substitutions or
   disequality stores from the left disjunct into the right disjunct; sibling

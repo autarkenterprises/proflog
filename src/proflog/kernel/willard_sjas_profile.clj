@@ -3675,23 +3675,36 @@
                                      substituted-formula
                                      '())))
 
-(defn- sjas-subst-source-codeo
-  "Check that a substitution source code is a well-formed formula code.
+(defn- sjas-subst-source-result-antecedento
+  "Compute the substituted source sentence used by `SubstPrf`.
 
-   `subst-prf/4` sometimes needs only the existence of a substituted formula,
-   not the public code for that formula. Generating a fresh public code term is
-   an expensive synthesis problem. Since structural substitution is total on
-   decoded formula syntax, proof checking uses this source-only relation unless
-   it must compare against a concrete theorem code."
-  [prog source-code sigma sigma-out]
-  (fresh [source-bytes source-formula source-read-proof source-kind]
+   Willard's `SubstPrf(g,t,p)` factors through an existential sentence `h` such
+   that `Subst(g,h)` and `p` proves `t` from beta plus `h`. This relation
+   decodes `g`, computes the diagonal substitution result as internal formula
+   syntax, and converts that result to the proof-antecedent AST used by the
+   local tableau checker. It deliberately does not synthesize a public code term
+   for `h`; it still computes the object-level substituted sentence that the
+   proof predicate must add to its axiom basis."
+  [_prog source-code sigma sigma-out antecedent proof]
+  (fresh [source-bytes source-formula substituted-formula replacement
+          source-kind source-read-proof]
     (sjas-formal-code-byteso source-code
                              source-bytes
                              sigma
                              sigma-out
                              source-kind
                              source-read-proof)
-    (decode-syntax-formula-byteso source-bytes '() source-formula)))
+    (decode-syntax-formula-byteso source-bytes '() source-formula)
+    (conde
+      [(== :compact source-kind)
+       (== (list 'code source-bytes) replacement)]
+      [(== :u-grounding source-kind)
+       (fresh [encoded-source-bytes]
+         (append-sentinel-byteo source-bytes encoded-source-bytes)
+         (== (list 'num encoded-source-bytes) replacement))])
+    (sjas-subst-formula-var-oneo source-formula replacement substituted-formula)
+    (sjas-proof-antecedent-formula-asto substituted-formula antecedent)
+    (== (list 'willard-sjas-subst-source-result source-read-proof) proof)))
 
 (defn- sjas-class-relationo
   "Recognize the finite formula-class predicates generated for one SJAS system.
@@ -4927,8 +4940,9 @@
 (defn- sjas-subst-prf-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
   (fresh [lit atom walked-atom system-code substitution-code theorem-code proof-code
-          decoded-proof proof-bytes axiom-formula neg-theorem
-          target sigma-valid sigma-proof proof-read-proof theorem-read-proof]
+          decoded-proof proof-bytes axiom-formula subst-axiom-formula
+          extended-axiom-formula neg-theorem target sigma-valid sigma-proof
+          proof-read-proof theorem-read-proof theorem-code-proof subst-proof]
     (subst/subst-formulao fml env lit)
     (== (list 'neg atom) lit)
     (equality/walk-atomo atom sigma walked-atom)
@@ -4948,8 +4962,14 @@
                                         theorem-code
                                         sigma-proof
                                         axiom-proof)
-            (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-out)
-            (== (list 'willard-sjas-axiom-member axiom-proof) theorem-read-proof))]
+            (sjas-subst-source-result-antecedento prog
+                                                  substitution-code
+                                                  sigma-proof
+                                                  sigma-out
+                                                  subst-axiom-formula
+                                                  subst-proof)
+            (== (list 'willard-sjas-axiom-member axiom-proof subst-proof)
+                theorem-read-proof))]
          [(sjas-subst-code-anyo prog substitution-code theorem-code sigma-proof sigma-out)
           (== '(willard-sjas-subst-code) theorem-read-proof)])]
       [(decode-non-sjas-axiom-proof-codeo proof-code
@@ -4959,14 +4979,23 @@
                                           decoded-proof
                                           proof-read-proof)
        (sjas-system-axiom-formulao prog system-code axiom-formula)
-       (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-valid)
+       (sjas-subst-source-result-antecedento prog
+                                             substitution-code
+                                             sigma-proof
+                                             sigma-valid
+                                             subst-axiom-formula
+                                             subst-proof)
        (sjas-structural-negated-theorem-proofo prog
                                                 theorem-code
                                                 sigma-valid
                                                 sigma-out
                                                 neg-theorem
-                                                theorem-read-proof)
-       (== (list 'and axiom-formula neg-theorem) target)
+                                                theorem-code-proof)
+       (== (list 'willard-sjas-subst-exprf subst-proof theorem-code-proof)
+           theorem-read-proof)
+       (== (list 'and axiom-formula subst-axiom-formula)
+           extended-axiom-formula)
+       (== (list 'and extended-axiom-formula neg-theorem) target)
        (sjas-proof-check-programo prog
                                   system-code
                                   target

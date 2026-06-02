@@ -188,6 +188,8 @@
     willard-sjas-theorem-code
     willard-sjas-proof-check
     willard-sjas-subst-code
+    willard-sjas-subst-source-result
+    willard-sjas-subst-exprf
     willard-sjas-subst-proof-check
     sjas-bind-done
     sjas-bind-num

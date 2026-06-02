@@ -139,6 +139,8 @@
      willard-sjas-theorem-code
      willard-sjas-proof-check
      willard-sjas-subst-code
+     willard-sjas-subst-source-result
+     willard-sjas-subst-exprf
      willard-sjas-subst-proof-check})
 
 (def ^:private excluded-answer-overlay-symbols

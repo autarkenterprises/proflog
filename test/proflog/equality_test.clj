@@ -32,6 +32,16 @@
                  (logic/== skipped wanted)
                  (logic/== q out))))))))
 
+(deftest bound-parameter-walk-is-deterministic
+  (testing "a parameter already bound by equality must walk to its binding only"
+    (ast/nom p
+      (let [bound (ast/app-term 'zero)]
+        (is (= [bound]
+               (logic/run* [q]
+                 (equality/walko (ast/par-term p)
+                                 (list [p bound])
+                                 q))))))))
+
 (deftest free-constructor-clash-closes-equality
   (testing "distinct constructors cannot be equal in the free-constructor theory"
     (is (provable?

@@ -128,6 +128,7 @@
     ;; Delta parameter still rigid at the root.
     [(fresh [binding-nom]
        (== (list 'par binding-nom) term)
+       (unboundo binding-nom sigma)
        (== term out))]
     ;; Constructor applications are already at a stable root.
     [(fresh [head args]

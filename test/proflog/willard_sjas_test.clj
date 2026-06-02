@@ -1592,6 +1592,38 @@
               (l/== true q)))
           "decoded tableau proof checking must consume skip-true and false-close evidence object-level"))))
 
+(deftest sjas-proof-check-keeps-split-branch-state-independent
+  (let [system (demo-system :willard-sjas-tableau0)
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (ast/nom x
+      (let [x-term (ast/var-term x)
+            target (ast/and-form
+                     (ast/true-form)
+                     (ast/exists-form
+                       x
+                       (ast/or-form
+                         (ast/and-form
+                           (ast/eq-lit x-term sjas/zero)
+                           (ast/false-form))
+                         (ast/neq-lit x-term sjas/zero))))
+            invalid-proof '(conj
+                             (witness
+                               (split
+                                 (conj
+                                   (eq-step
+                                     (par-bind)
+                                     (false-close)))
+                                 (refl-close))))]
+        (is (empty?
+              (l/run 1 [q]
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             100
+                             invalid-proof)
+                (l/== true q)))
+            "split branches must not share equality substitutions from sibling branch closures")))))
+
 (deftest sjas-tableau-proof-accepts-false-close-certificates
   (let [system (demo-system :willard-sjas-tableau0)
         theorem (ast/true-form)

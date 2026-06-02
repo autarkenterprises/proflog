@@ -4317,18 +4317,18 @@
   "Check a decoded tableau proof term without invoking the host proof kernel.
 
    This is the arithmeticization-facing proof checker used by SJAS proof
-   predicates. It mirrors the small part of the tableau kernel currently needed
-   by generated SJAS certificates while keeping the proof predicate as an
-   explicit first-order relation over decoded formulas and decoded proof
-   constructors.
+   predicates. It implements the local semantic-tableau proof relation as an
+   explicit first-order relation over decoded formulas, decoded proof
+   constructors, branch equality state, decoded system-code axioms, and
+   reflected clause expansions.
 
-   The first two clauses are the crucial Track-1 boundary: a branch may close
-   directly when the focused negated theorem is false in the SJAS arithmetic
-   interpretation. The remaining clauses implement the tableau constructors
-   observed in generated self-consistency certificates: conjunction, the
-   single-use universal produced by negated existentials, ordinary universals,
-   existential witnesses, complementary literal closure, reflected procedure
-   calls, and literal saving."
+   The clauses cover the NNF tableau fragment produced by the SJAS code
+   decoders: conjunction, disjunction with sibling-local branch state,
+   truth/falsehood, universal and once-universal instantiation, existential
+   witnesses, equality/disequality progress and closure, complementary literal
+   closure, arithmetic/profile branch closure, decoded axiom membership,
+   reflected procedure calls, guarded reflected alternatives, and literal
+   saving."
   [system-code agenda lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (conde
@@ -4507,11 +4507,15 @@
                                 gamma-terms
                                 next-fuel
                                 prf))]
-    [(fresh [fml unexpanded left right next-fuel sigma-mid neqs-mid left-proof right-proof]
+    [(fresh [fml unexpanded left right next-fuel left-sigma-out right-sigma-out
+             left-neqs-out right-neqs-out left-proof right-proof]
        (== (list 'split left-proof right-proof) proof)
        (support/selecto fml agenda unexpanded)
        (== (list 'or left right) fml)
        (support/step-fuelo fuel next-fuel)
+       ;; Semantic-tableau siblings share the incoming branch state, but
+       ;; equality/disequality updates produced while closing one sibling do
+       ;; not become evidence for closing the other sibling.
        (sjas-proof-check-stateo system-code
                                 left
                                 unexpanded
@@ -4519,9 +4523,9 @@
                                 env
                                 proof-vars
                                 sigma
-                                sigma-mid
+                                left-sigma-out
                                 neqs
-                                neqs-mid
+                                left-neqs-out
                                 prog
                                 gamma-terms
                                 next-fuel
@@ -4532,14 +4536,16 @@
                                 lits
                                 env
                                 proof-vars
-                                sigma-mid
-                                sigma-out
-                                neqs-mid
-                                neqs-out
+                                sigma
+                                right-sigma-out
+                                neqs
+                                right-neqs-out
                                 prog
                                 gamma-terms
                                 next-fuel
-                                right-proof))]
+                                right-proof)
+       (== sigma sigma-out)
+       (== neqs neqs-out))]
     [(fresh [fml unexpanded]
        (== '(false-close) proof)
        (support/selecto fml agenda unexpanded)

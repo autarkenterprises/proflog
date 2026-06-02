@@ -20,6 +20,24 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-02
+
+- Fixed a Track 1 semantic-tableau proof-predicate bug in the SJAS `split`
+  rule. The local checker no longer threads equality substitutions or
+  disequality stores from the left disjunct into the right disjunct; sibling
+  branches now close from the same incoming branch state, so one branch cannot
+  close by borrowing a unification produced only in its sibling. Added a
+  focused red/green regression for the invalid proof and updated the checker
+  documentation to state the complete NNF tableau fragment it implements. See
+  [SJAS Split Branch Independence](docs/log/2026-06-02-sjas-split-branch-independence.md).
+
+- Tightened equality walking for bound rigid parameters while investigating
+  the long SJAS self-consistency proof run. `walko` now leaves `(par p)` rigid
+  only when `p` is unbound in the equality substitution, matching proof-variable
+  walking and removing an unsound extra search alternative where a bound
+  parameter could ignore its binding. See
+  [Equality Bound Parameter Walk](docs/log/2026-06-02-equality-bound-parameter-walk.md).
+
 ## 2026-06-01
 
 - Removed proof-facing marker evidence, direct host-ground SJAS profile

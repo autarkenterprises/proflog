@@ -38,6 +38,20 @@ complete contemporaneous transcript.
   parameter could ignore its binding. See
   [Equality Bound Parameter Walk](docs/log/2026-06-02-equality-bound-parameter-walk.md).
 
+- Removed a redundant empty-substitution equality walk from the SJAS compact
+  byte reader while the long self-consistency validation continued running.
+  Compact code bytes still decode through the object-level U-Grounding numeral
+  relation and finite byte relation, but the parser no longer calls the full
+  equality walker where no substitution state can affect the result; canonical
+  byte generation also rejects mismatched public roots before recursive numeral
+  construction. See
+  [SJAS Compact Byte Empty Walk Removal](docs/log/2026-06-02-sjas-compact-byte-empty-walk-removal.md).
+
+- Recorded that multi-hour SJAS proof probes must use durable `test-runs/`
+  logs, saved PIDs, and detachable runners (`nohup`/`tmux`) so pass/fail output
+  survives session boundaries. The same requirement is now in
+  [AGENTS.md](AGENTS.md).
+
 ## 2026-06-01
 
 - Removed proof-facing marker evidence, direct host-ground SJAS profile

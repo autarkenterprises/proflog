@@ -63,14 +63,14 @@
     [(fresh [tail tail-term tail-proof]
        (== (lcons 0 tail) bits)
        (arith/poso tail)
-       (bits->canonical-termo tail tail-term tail-proof)
        (== (list 'app 'dbl tail-term) term)
+       (bits->canonical-termo tail tail-term tail-proof)
        (== (list 'sjas-num-dbl tail-proof) proof))]
     [(fresh [tail tail-term tail-proof]
        (== (lcons 1 tail) bits)
        (arith/poso tail)
-       (bits->canonical-termo tail tail-term tail-proof)
        (== (list 'app 'add (list 'app 'dbl tail-term) one-term) term)
+       (bits->canonical-termo tail tail-term tail-proof)
        (== (list 'sjas-num-add-one tail-proof) proof))]))
 
 (defn- bits->internal-canonical-termo
@@ -624,22 +624,20 @@
    still interpreted arithmetically rather than compared against a generated
    table of 64 canonical byte terms."
   [term bits]
-  (fresh [walked]
-    (equality/walko term '() walked)
-    (conde
-      [(== '() bits)
-       (== zero-term walked)]
-      [(== one-bits bits)
-       (== one-term walked)]
-      [(fresh [arg arg-bits]
-         (== (lcons 0 arg-bits) bits)
-         (== (list 'app 'dbl arg) walked)
-         (compact-code-byte-bits-termo arg arg-bits))]
-      [(fresh [arg doubled arg-bits]
-         (== (lcons 1 arg-bits) bits)
-         (== (list 'app 'add doubled one-term) walked)
-         (== (list 'app 'dbl arg) doubled)
-         (compact-code-byte-bits-termo arg arg-bits))])))
+  (conde
+    [(== '() bits)
+     (== zero-term term)]
+    [(== one-bits bits)
+     (== one-term term)]
+    [(fresh [arg arg-bits]
+       (== (lcons 0 arg-bits) bits)
+       (== (list 'app 'dbl arg) term)
+       (compact-code-byte-bits-termo arg arg-bits))]
+    [(fresh [arg doubled arg-bits]
+       (== (lcons 1 arg-bits) bits)
+       (== (list 'app 'add doubled one-term) term)
+       (== (list 'app 'dbl arg) doubled)
+       (compact-code-byte-bits-termo arg arg-bits))]))
 
 (defn- code-byte-termo
   "Relate a compact-code byte argument to its U-Grounding numeral value.

@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-06-01
 
+- Removed proof-facing marker evidence, direct host-ground SJAS profile
+  entrypoints, generic sidecar hiding, and compact-code reader host scheduling
+  from the Track 1 proof predicate path. `tableau-proof/3` and `subst-prf/4`
+  now carry full object-level code-reader evidence, public proof search routes
+  through the ordinary kernel with the SJAS theory rule bound, and compact code
+  bytes use the finite constructor/byte relations in all modes. See
+  [SJAS Proof Predicate Shortcut Excision](docs/log/2026-06-01-sjas-proof-predicate-shortcut-excision.md).
+
 - Removed the remaining `project`/`lvar?` compact-code reader bridge from the
   SJAS proof profile. Compact byte terms now decode through the object-level
   U-grounding numeral reader and finite byte relation; generated embedded code

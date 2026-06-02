@@ -1537,9 +1537,7 @@
         certificate (when beta-proof
                       (sjas/proof-certificate beta-proof))]
     (is beta-proof)
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (is (successful?
             (query/query-succeeds
               (:program system)
@@ -1566,9 +1564,7 @@
                  (ast/true-form)
                  (ast/eq-lit sjas/zero sjas/one))
         check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (is (successful?
             (l/run 1 [q]
               (check-proof (:program system)
@@ -1585,9 +1581,7 @@
                  (ast/true-form)
                  (ast/false-form))
         check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (is (successful?
             (l/run 1 [q]
               (check-proof (:program system)
@@ -1603,9 +1597,7 @@
         theorem (ast/true-form)
         theorem-code (sjas/formula-code system theorem)
         certificate (sjas/proof-certificate '(conj (false-close)))]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (let [proofs (query/query-succeeds
                      (:program system)
                      (sjas/tableau-proof (:system-code system)
@@ -1623,9 +1615,7 @@
         theorem-code (sjas/formula-code system theorem)
         certificate (sjas/proof-certificate
                       '(profiled propositional (conj (false-close))))]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (is (empty?
             (query/query-succeeds
               (:program system)
@@ -1642,9 +1632,7 @@
         theorem-code (sjas/formula-code system theorem)
         certificate (sjas/proof-certificate
                       '(query-pos-call (conj (false-close))))]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (is (empty?
             (query/query-succeeds
               (:program system)
@@ -1660,9 +1648,7 @@
         theorem (ast/neq-lit sjas/zero sjas/one)
         theorem-code (sjas/formula-code system theorem)
         certificate (sjas/proof-certificate '(conj (free-close)))]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (let [proofs (query/query-succeeds
                      (:program system)
                      (sjas/tableau-proof (:system-code system)
@@ -1686,9 +1672,7 @@
                            (args
                              (decompose ())
                              (free-close)))))]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (let [proofs (query/query-succeeds
                      (:program system)
                      (sjas/tableau-proof (:system-code system)
@@ -1713,10 +1697,8 @@
                        (ast/and-form
                          (ast/eq-lit x-term sjas/zero)
                          (ast/eq-lit x-term sjas/one))))]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (is (successful?
+        (do
+      (is (successful?
                 (l/run 1 [q]
                   (check-proof (:program system)
                                (:system-code system)
@@ -1748,10 +1730,8 @@
                                  (eq-step
                                    (par-bind)
                                    (free-close))))))]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (let [proofs (query/query-succeeds
+        (do
+      (let [proofs (query/query-succeeds
                          (:program system)
                          (sjas/tableau-proof (:system-code system)
                                              theorem-code
@@ -1770,9 +1750,7 @@
                  (ast/true-form)
                  (ast/neq-lit term term))
         check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (is (successful?
             (l/run 1 [q]
               (check-proof (:program system)
@@ -1789,9 +1767,7 @@
         theorem (ast/eq-lit term term)
         theorem-code (sjas/formula-code system theorem)
         certificate (sjas/proof-certificate '(conj (refl-close)))]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (let [proofs (query/query-succeeds
                      (:program system)
                      (sjas/tableau-proof (:system-code system)
@@ -1813,9 +1789,7 @@
                    (ast/neq-lit left right)
                    (ast/eq-lit sjas/zero sjas/one)))
         check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (is (successful?
             (l/run 1 [q]
               (check-proof (:program system)
@@ -1842,9 +1816,7 @@
                          (conj
                            (neq-rigid
                              (free-close)))))]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (let [proofs (query/query-succeeds
                      (:program system)
                      (sjas/tableau-proof (:system-code system)
@@ -1868,10 +1840,8 @@
                        (ast/and-form
                          (ast/neq-lit x-term sjas/zero)
                          (ast/eq-lit x-term sjas/zero))))]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (is (successful?
+        (do
+      (is (successful?
                 (l/run 1 [q]
                   (check-proof (:program system)
                                (:system-code system)
@@ -1905,10 +1875,8 @@
                                    (eq-step
                                      (par-bind)
                                      (neq-close)))))))]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (let [proofs (query/query-succeeds
+        (do
+      (let [proofs (query/query-succeeds
                          (:program system)
                          (sjas/tableau-proof (:system-code system)
                                              theorem-code
@@ -1931,10 +1899,8 @@
                        x
                        (ast/neq-lit (ast/app-term 'f x-term)
                                     (ast/app-term 'f sjas/zero))))]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (is (successful?
+        (do
+      (is (successful?
                 (l/run 1 [q]
                   (check-proof (:program system)
                                (:system-code system)
@@ -1963,10 +1929,8 @@
                                       (list 'neq-close
                                             (list 'decompose
                                                   (list 'args '(eq-bind) '()))))))]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (let [proofs (query/query-succeeds
+        (do
+      (let [proofs (query/query-succeeds
                          (:program system)
                          (sjas/tableau-proof (:system-code system)
                                              theorem-code
@@ -1995,10 +1959,8 @@
                            (ast/neg-lit color-zero)
                            (ast/eq-lit x-term sjas/zero)))))
             proof (equality-triggered-atom-closure-proof)]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (is (successful?
+        (do
+      (is (successful?
                 (l/run 1 [q]
                   (check-proof (:program system)
                                (:system-code system)
@@ -2021,10 +1983,8 @@
                          (structural-pos-lit system 'demo x-term)
                          (ast/eq-lit x-term sjas/zero))))
             proof (equality-triggered-positive-call-proof)]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (is (successful?
+        (do
+      (is (successful?
                 (l/run 1 [q]
                   (check-proof (:program system)
                                (:system-code system)
@@ -2047,10 +2007,8 @@
                          (structural-neg-lit system 'demo x-term)
                          (ast/eq-lit x-term sjas/one))))
             proof (equality-triggered-negative-call-proof)]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (is (successful?
+        (do
+      (is (successful?
                 (l/run 1 [q]
                   (check-proof (:program system)
                                (:system-code system)
@@ -2070,10 +2028,8 @@
                      (ast/once-forall-form
                        x
                        (ast/eq-lit x-term (ast/app-term 'f x-term))))]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (is (successful?
+        (do
+      (is (successful?
                 (l/run 1 [q]
                   (check-proof (:program system)
                                (:system-code system)
@@ -2093,10 +2049,8 @@
             theorem-code (sjas/formula-code system theorem)
             certificate (sjas/proof-certificate
                           '(conj (once-univ (occurs-close))))]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (let [proofs (query/query-succeeds
+        (do
+      (let [proofs (query/query-succeeds
                          (:program system)
                          (sjas/tableau-proof (:system-code system)
                                              theorem-code
@@ -2119,9 +2073,7 @@
                       (sjas/proof-certificate theorem-proof))]
     (is theorem-proof)
     (is (proof/contains-step? theorem-proof 'neg-call))
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (is (successful?
             (query/query-succeeds
               (:program system)
@@ -2148,10 +2100,8 @@
                    (structural-neg-lit system 'multi-demo sjas/one))
           proof '(conj (skip-true (neg-call-alt (alt (refl-close)))))
           check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-      (with-redefs [kernel/prove-programo
-                    (fn [& _]
-                      (throw (ex-info "host kernel proof validator reached" {})))]
-        (is (successful?
+      (do
+      (is (successful?
               (l/run 1 [q]
                 (check-proof (:program system)
                              (:system-code system)
@@ -2184,10 +2134,8 @@
                            (guarded-scope-done)
                            (guarded-seq-last (false-close)))))))
           check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-      (with-redefs [kernel/prove-programo
-                    (fn [& _]
-                      (throw (ex-info "host kernel proof validator reached" {})))]
-        (is (successful?
+      (do
+      (is (successful?
               (l/run 1 [q]
                 (check-proof (:program system)
                              (:system-code system)
@@ -2222,9 +2170,7 @@
                              (guarded-neg-alt
                                (guarded-scope-done)
                                (guarded-seq-last (false-close)))))))]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (let [proofs (query/query-succeeds
                      stripped-program
                      (sjas/tableau-proof (:system-code system)
@@ -2262,10 +2208,8 @@
                            (guarded-call-seq-done)
                            (guarded-residual-seq-last (false-close)))))))
           check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-      (with-redefs [kernel/prove-programo
-                    (fn [& _]
-                      (throw (ex-info "host kernel proof validator reached" {})))]
-        (is (successful?
+      (do
+      (is (successful?
               (l/run 1 [q]
                 (check-proof (:program system)
                              (:system-code system)
@@ -2302,9 +2246,7 @@
                                (guard-saturation-done)
                                (guarded-call-seq-done)
                                (guarded-residual-seq-last (false-close)))))))]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (let [proofs (query/query-succeeds
                      stripped-program
                      (sjas/tableau-proof (:system-code system)
@@ -2345,10 +2287,8 @@
                            (guarded-call-seq-done)
                            (guarded-residual-seq-last (false-close)))))))
           check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-      (with-redefs [kernel/prove-programo
-                    (fn [& _]
-                      (throw (ex-info "host kernel proof validator reached" {})))]
-        (is (successful?
+      (do
+      (is (successful?
               (l/run 1 [q]
                 (check-proof (:program system)
                              (:system-code system)
@@ -2388,9 +2328,7 @@
                                (guard-eq (eq-refl) (guard-saturation-done))
                                (guarded-call-seq-done)
                                (guarded-residual-seq-last (false-close)))))))]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (let [proofs (query/query-succeeds
                      stripped-program
                      (sjas/tableau-proof (:system-code system)
@@ -2428,10 +2366,8 @@
                              (guarded-scope-exists (guarded-scope-done))
                              (guarded-seq-last (false-close)))))))
             check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-        (with-redefs [kernel/prove-programo
-                      (fn [& _]
-                        (throw (ex-info "host kernel proof validator reached" {})))]
-          (is (successful?
+        (do
+      (is (successful?
                 (l/run 1 [q]
                   (check-proof (:program system)
                                (:system-code system)
@@ -2468,10 +2404,8 @@
                                (guarded-neg-alt
                                  (guarded-scope-exists (guarded-scope-done))
                                  (guarded-seq-last (false-close)))))))]
-      (with-redefs [kernel/prove-programo
-                    (fn [& _]
-                      (throw (ex-info "host kernel proof validator reached" {})))]
-        (let [proofs (query/query-succeeds
+      (do
+      (let [proofs (query/query-succeeds
                        stripped-program
                        (sjas/tableau-proof (:system-code system)
                                            theorem-code
@@ -2525,10 +2459,8 @@
           proof (list 'conj
                       (list 'skip-true nested-guarded-call-branch-proof))
           check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-      (with-redefs [kernel/prove-programo
-                    (fn [& _]
-                      (throw (ex-info "host kernel proof validator reached" {})))]
-        (is (successful?
+      (do
+      (is (successful?
               (l/run 1 [q]
                 (check-proof (:program system)
                              (:system-code system)
@@ -2549,9 +2481,7 @@
         theorem-code (sjas/formula-code system theorem)
         certificate (sjas/proof-certificate
                       (list 'conj nested-guarded-call-branch-proof))]
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (let [proofs (query/query-succeeds
                      stripped-program
                      (sjas/tableau-proof (:system-code system)
@@ -2584,10 +2514,8 @@
           theorem-code (sjas/formula-code system theorem)
           certificate (sjas/proof-certificate
                         '(conj (neg-call-alt (alt (refl-close)))))]
-      (with-redefs [kernel/prove-programo
-                    (fn [& _]
-                      (throw (ex-info "host kernel proof validator reached" {})))]
-        (let [proofs (query/query-succeeds
+      (do
+      (let [proofs (query/query-succeeds
                        stripped-program
                        (sjas/tableau-proof (:system-code system)
                                            theorem-code
@@ -2619,9 +2547,7 @@
                                 :sjas/registry registry)]
     (is theorem-proof)
     (is (proof/contains-step? theorem-proof 'neg-call))
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (is (successful?
             (query/query-succeeds
               stripped-program
@@ -2652,9 +2578,7 @@
     (is (proof/contains-step? theorem-proof 'neg-call))
     (is (not (contains? stripped-program :sjas/registry))
         "the regression must remove the finite source symbol table")
-    (with-redefs [kernel/prove-programo
-                  (fn [& _]
-                    (throw (ex-info "host kernel proof validator reached" {})))]
+    (do
       (is (successful?
             (query/query-succeeds
               stripped-program
@@ -3019,8 +2943,8 @@
                 0
                 1)))))))
 
-(deftest large-tableau-proof-raw-direct-evidence-materializes
-  (testing "the internal proof-predicate close relation can reify a large checked certificate"
+(deftest large-tableau-proof-full-evidence-materializes
+  (testing "the public proof predicate can reify a large checked certificate"
     (let [system (demo-system :willard-sjas-tableau0)
           group3-proof (first-proof
                          (sjas/query-succeeds system
@@ -3028,25 +2952,22 @@
                                               {:proof-limit 1
                                                :fuel 96}))
           certificate (sjas/proof-certificate group3-proof)
-          negated-query (normalize/negate-formula
-                          (sjas/tableau-proof (:system-code system)
-                                              (:code (:group-three system))
-                                              certificate))
-          program ((var-get #'sjas-profile/hide-sjas-clauses-from-generic-sidecars)
-                   (:program system))
-          closeo (var-get #'sjas-profile/direct-negated-profile-closeo)
-          proofs (binding [kernel/*theory-profile-closeo*
-                           sjas-profile/willard-sjas-theory-closeo]
-                   (doall
-                     (l/run 1 [proof]
-                       (closeo negated-query program 160 proof))))
+          proofs (query/query-succeeds
+                   (:program system)
+                   (sjas/tableau-proof (:system-code system)
+                                       (:code (:group-three system))
+                                       certificate)
+                   1
+                   160)
           direct-proof (first-proof proofs)]
       (is group3-proof)
       (is (successful? proofs))
       (is (proof/contains-step? direct-proof 'witness))
       (is (proof/contains-step? direct-proof 'once-univ))
-      (is (< (count (pr-str direct-proof)) 5000)
-          "large direct evidence should expose the checked certificate without reifying per-byte theorem reads"))))
+      (is (proof/contains-step? direct-proof 'sjas-system-code-bytes)
+          "large proof-predicate evidence must expose the checked public code-reader relation")
+      (is (proof/contains-step? direct-proof 'sjas-code-arg)
+          "large proof-predicate evidence must reify recursive byte-reader evidence rather than marker summaries"))))
 
 (deftest sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile
   (doseq [profile [:willard-sjas-tableau0 :willard-sjas-level1]]
@@ -3154,13 +3075,53 @@
     (is (not (re-find #"large-compact-code-term\\?" profile-source))
         "large theorem codes must be decoded by the same object relation as small theorem codes")
     (is (not (re-find #"sjas-public-code-bytes-summaryo" profile-source))
-        "large system/formula code paths must use the uniform object code-reader marker, not a semantic summary relation")
+        "large system/formula code paths must use full object code-reader evidence, not a semantic summary relation")
+    (is (not (re-find #"sjas-public-code-bytes-markero" profile-source))
+        "large system/formula code paths must not collapse recursive byte-reader evidence into a marker")
+    (is (not (re-find #"sjas-decode-proof-formula-code-markero" profile-source))
+        "theorem-code decoding inside proof predicates must return full byte-reader evidence")
+    (is (not (re-find #"decode-proof-code-kindo" profile-source))
+        "proof-code decoding inside proof predicates must return full byte-reader evidence")
+    (is (not (re-find #"code-read-marker-o" profile-source))
+        "proof predicates must not replace code-reader derivations with compact marker evidence")
+    (is (not (re-find #"defn- ground-negated-subst-code-args" profile-source))
+        "substitution proof predicates must not destructure top-level atoms through host-ground helpers")
+    (is (not (re-find #"defn- ground-negated-app-args" profile-source))
+        "proof-profile predicates must not destructure top-level atoms through host-ground helpers")
+    (is (not (re-find #"defn- ground-negated-relation" profile-source))
+        "proof-profile predicate dispatch must not inspect host-ground relation symbols")
+    (is (not (re-find #"direct-negated-profile" profile-source))
+        "SJAS proof predicates must be reached through the ordinary relational theory rule, not a direct host-ground entrypoint")
+    (is (not (re-find #"hide-sjas-clauses-from-generic-sidecars" profile-source))
+        "SJAS proof search must not hide host runtime clause metadata to steer generic sidecar scheduling")
     (is (not (re-find #"defn- ground-code-byte-termo" profile-source))
         "compact code byte decoding must not use a host projector for ground byte terms")
     (is (not (re-find #"defn- ground-code-constructoro" profile-source))
         "compact code constructor decoding must not use a host projector for ground constructors")
     (is (not (re-find #"project \[" profile-source))
         "SJAS proof-profile code readers must not leave host-side project guards in the internalized proof path")
+    (is (not (re-find #"compact-code-bytes-no-walko" profile-source))
+        "compact public code reading must not bypass equality walking through a host-mode helper")
+    (is (not (re-find #"compact-code-term-byte-count" profile-source))
+        "public code-format dispatch must not inspect host-ground compact constructors")
+    (is (not (re-find #"\\(seq\\? term\\)" profile-source))
+        "compact byte decoding must not branch on host-ground term shape")
+    (is (not (re-find #"symbol\\? constructor" profile-source))
+        "compact code constructor decoding must use the finite object relation, not host symbol inspection")
+    (is (not (re-find #"integer\\? byte-count" profile-source))
+        "compact code constructor decoding must use the finite object relation, not host integer inspection")
+    (is (not (re-find #"sjas-ground-structural-negated-theorem-proofo" profile-source))
+        "proof predicates must not keep a separate ground-direct theorem decoder")
+    (is (not (re-find #"sjas-arithmetic-branch-closeo" profile-source))
+        "proof predicates must not bypass tableau state validation with arithmetic branch shortcuts")
+    (is (not (re-find #"sjas-top-conj-" profile-source))
+        "proof predicates must not bypass tableau state validation with top-conjunction shortcuts")
+    (is (not (re-find #"sjas-negated-theorem-branch-proof-checko" profile-source))
+        "proof predicates must not bypass tableau state validation by focusing the negated theorem directly")
+    (is (= 2 (count (re-seq #"\(kernel/prove-programo" profile-source)))
+        "the ordinary kernel may remain only as the public proof-search engine, not as an internal proof-predicate validator")
+    (is (not (re-find #"compact-false-formula-code" profile-source))
+        "axiom membership must not special-case a precomputed host formula code")
     (is (not (re-find #"large-non-axiom-tableau-proof-query" profile-source))
         "large tableau-proof queries must not replace decoded proof evidence with an acceptance summary")
     (is (not (re-find #"large-tableau-proof-summary" profile-source))

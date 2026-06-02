@@ -309,7 +309,7 @@ specification and has been moving toward it slice by slice:
 | `ByteSeq`, public code reading | `sjas-formal-code-byteso`, compact and U-grounding code readers |
 | formula-code reading | structural theorem-code decoders in `willard_sjas_profile.clj` |
 | `SystemCode` and `AxiomMember` | `sjas-system-axiom-formulao`, `sjas-axiom-membero` |
-| proof-code reading | `decode-proof-code-kindo` and proof-code byte tags |
+| proof-code reading | `decode-proof-codeo` and proof-code byte tags |
 | local tableau state | `sjas-proof-check-stateo` |
 | local proof-program wrapper | `sjas-proof-check-programo` |
 | top-level `tableau-proof` closure | `sjas-tableau-proof-closeo` |
@@ -317,11 +317,12 @@ specification and has been moving toward it slice by slice:
 | reflected calls | system-code-driven reflected clause relations |
 | correspondence audit | `proflog.sjas-correspondence` |
 
-The implementation may still contain performance shortcuts, focused fast paths,
-or profile-specific proof-directed entry points. Such paths are acceptable only
-when they are extensionally the same as the bounded relation above over the
-accepted proof-code fragment, and when they do not consult host theorem,
-axiom, symbol, or proof registries as semantic authorities.
+The implementation should not contain proof-facing performance shortcuts,
+focused host-ground entry points, marker summaries, or host scheduler bridges
+that stand in for object-level evidence. Any remaining runtime optimization
+must be outside the proof predicate or must be a semantics-preserving
+implementation of the same object relation, with the proof evidence still
+recording the decoded code, rule, and closure structure.
 
 ## Non-Claims
 

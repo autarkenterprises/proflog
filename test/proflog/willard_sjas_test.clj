@@ -774,6 +774,39 @@
       (is (= (sjas-code/code-term-bytes certificate)
              (sjas-code/proof-code-bytes proof))))))
 
+(deftest sjas-proof-code-decoder-checks-formula-bearing-tableau-nodes
+  (testing "encoded structural proof certificates are consumed by the SJAS proof checker"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/and-form (ast/true-form) (ast/false-form))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node
+                    system
+                    (ast/true-form)
+                    (structural-tableau-node system (ast/false-form))))
+          certificate (sjas/proof-certificate proof)
+          decode-proof (var-get #'sjas-profile/decode-non-sjas-axiom-proof-codeo)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the encoded structural proof should not rely on symbolic proof-rule tags")
+      (is (successful?
+            (l/run 1 [q]
+              (l/fresh [decoded-proof sigma-out proof-bytes proof-read-proof]
+                (decode-proof certificate
+                              '()
+                              sigma-out
+                              proof-bytes
+                              decoded-proof
+                              proof-read-proof)
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             30
+                             decoded-proof)
+                (l/== true q))))
+          "public proof-code decoding should preserve formula-bearing proof nodes for object-level checking"))))
+
 (deftest sjas-proof-codes-encode-byte-payload-evidence
   (testing "code-reader proof evidence carries inspectable byte payloads rather than escaping the certificate grammar"
     (let [proof '(conj

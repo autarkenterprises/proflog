@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Added focused public-boundary coverage for formula-bearing SJAS proof-code
+  decoding. Compact structural proof certificates now have a regression showing
+  they decode through the proof-code relation and are consumed by the SJAS proof
+  checker without symbolic proof-rule tags. See
+  [SJAS Structural Proof-Code Decoding](docs/log/2026-06-03-sjas-structural-proof-code-decoding.md).
+
 - Fixed formula-bearing SJAS structural binder naming for nested branch
   quantifiers. Structural `forall`, `once-forall`, and `exists` payloads now use
   branch-environment depth rather than proof-variable depth, so nested

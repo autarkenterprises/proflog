@@ -2576,6 +2576,55 @@
     (is (not (str/includes? structural-source "equality/unify-termo"))
         "formula-bearing structural equality progression must not call the proof-producing kernel unifier")))
 
+(deftest sjas-structural-proof-checker-has-no-proof-rule-tag-shortcuts
+  (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        start-token "(defn- sjas-structural-proof-check-stateo"
+        end-token "(defn- sjas-saved-positive-call-closeso"
+        start (str/index-of source start-token)
+        end (str/index-of source end-token start)
+        structural-source (subs source start end)
+        legacy-tags ['conj
+                     'split
+                     'univ
+                     'once-univ
+                     'witness
+                     'eq-step
+                     'eq-triggered-call
+                     'eq-triggered-neg-call
+                     'neq-close
+                     'neq-rigid
+                     'neq-store
+                     'refl-close
+                     'savefml
+                     'false-close
+                     'arith-close
+                     'close
+                     'pos-call
+                     'neg-call
+                     'neg-call-alt
+                     'neg-call-guarded-alt
+                     'skip-true
+                     'alt
+                     'guarded-alt
+                     'guarded-neg-alt
+                     'guarded-neg-alt-saturated
+                     'guarded-seq-step
+                     'guarded-seq-last
+                     'guarded-call-seq-step
+                     'guarded-residual-seq-step
+                     'guarded-residual-seq-last
+                     'guarded-scope-exists
+                     'guarded-scope-done
+                     'guarded-seq-done
+                     'guarded-call-seq-done
+                     'guarded-residual-seq-done
+                     'guard-saturation-done
+                     'guard-eq]]
+    (doseq [tag legacy-tags]
+      (is (not (str/includes? structural-source (str "'" tag)))
+          (str "formula-bearing structural proof checking must infer rules instead of matching proof tag "
+               tag)))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-rigid-disequality-continuations
   (testing "structural disequality nodes continue when terms are rigidly different"
     (let [system (demo-system :willard-sjas-tableau0)

@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Added a source audit proving the formula-bearing SJAS structural checker does
+  not match legacy proof-rule tags. The broader compatibility checker still
+  accepts old certificate shapes, but `sjas-structural-proof-check-stateo` now
+  has a regression preventing `conj`, `witness`, `eq-step`, procedure-call, and
+  guarded-call proof tags from re-entering the structural path. See
+  [SJAS Structural Checker Proof-Rule Tag Audit](docs/log/2026-06-03-sjas-structural-no-proof-rule-tags.md).
+
 - Added focused public-boundary coverage for formula-bearing SJAS proof-code
   decoding. Compact structural proof certificates now have a regression showing
   they decode through the proof-code relation and are consumed by the SJAS proof

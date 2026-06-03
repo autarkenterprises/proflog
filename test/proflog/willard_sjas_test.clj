@@ -2568,6 +2568,45 @@
               (l/== true q)))
           "formula-bearing rigid disequality nodes should continue structurally"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-disequality-storage
+  (testing "structural disequality nodes store unresolved parameter constraints without neq-store tags"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          body (ast/and-form
+                 (ast/neq-lit (ast/var-term binding) sjas/zero)
+                 (ast/false-form))
+          target (ast/exists-form binding body)
+          canonical-body (list 'and
+                               (list 'neq
+                                     (list 'par 'v0)
+                                     (list 'app (symbol "0")))
+                               (list 'false))
+          canonical-disequality (list 'neq
+                                      (list 'par 'v0)
+                                      (list 'app (symbol "0")))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (canonical-structural-tableau-node
+                    system
+                    canonical-body
+                    (canonical-structural-tableau-node
+                      system
+                      canonical-disequality
+                      (structural-tableau-node system (ast/false-form)))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural disequality proof should not use witness or neq-store proof-rule tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           40
+                           proof)
+              (l/== true q)))
+          "formula-bearing unresolved disequalities should be stored structurally and the branch should continue"))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

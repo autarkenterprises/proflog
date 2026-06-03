@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Extended formula-bearing SJAS disequality nodes to unresolved disequality
+  storage. Structural `exists` expansion can now use a canonical parameter
+  payload, and a formula-bearing disequality node can store unresolved
+  parameter constraints and continue without a `neq-store` proof-rule tag. See
+  [SJAS Structural Disequality Storage](docs/log/2026-06-03-sjas-structural-disequality-storage.md).
+
 - Extended formula-bearing SJAS quantifier nodes to canonical child payloads
   that mention introduced proof variables. Structural node comparison now uses
   the branch-visible formula after applying the quantifier environment, and

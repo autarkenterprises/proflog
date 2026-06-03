@@ -4323,6 +4323,16 @@
              (== nom next-nom)))
          code-nom-entries)))
 
+(defn- sjas-next-parameter-nomo
+  "Select a canonical code nom for the next structural delta parameter.
+
+   This first formula-bearing parameter fragment uses the current
+   proof-variable depth as its deterministic index, so a branch with no active
+   proof variables encodes its first parameter as `v0` and a branch under one
+   proof variable encodes its first parameter as `v1`."
+  [proof-vars next-nom]
+  (sjas-next-proof-var-nomo proof-vars next-nom))
+
 (defn- sjas-structural-proof-check-stateo
   "Validate the first formula-bearing tableau proof fragment.
 
@@ -4376,6 +4386,26 @@
                                   sigma
                                   sigma-out
                                   neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [lit left right child next rest next-fuel]
+         (== (lcons child '()) children)
+         (subst/subst-formulao fml env lit)
+         (== (list 'neq left right) lit)
+         (== (lcons next rest) unexpanded)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  next
+                                  rest
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  (lcons [left right] neqs)
                                   neqs-out
                                   prog
                                   gamma-terms
@@ -4538,10 +4568,10 @@
                                     next-fuel
                                     child)))]
       [(nominal/fresh [binding-nom]
-         (nominal/fresh [parameter-nom]
-           (fresh [body body-subst narrowed-env child next-fuel]
+         (fresh [parameter-nom body body-subst narrowed-env child next-fuel]
              (== (lcons child '()) children)
              (== (list 'exists (nominal/tie binding-nom body)) fml)
+             (sjas-next-parameter-nomo proof-vars parameter-nom)
              (subst/remove-bindo binding-nom env narrowed-env)
              (subst/subst-formulao body narrowed-env body-subst)
              (support/step-fuelo fuel next-fuel)
@@ -4558,7 +4588,7 @@
                                       prog
                                       gamma-terms
                                       next-fuel
-                                      child))))]
+                                      child)))]
       [(fresh [child next rest next-fuel]
          (== (lcons child '()) children)
          (== (list 'true) fml)

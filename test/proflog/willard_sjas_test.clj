@@ -376,6 +376,12 @@
   (or (sjas-code/code-term-bytes (sjas/formula-code system formula))
       (sjas-code/u-grounding-code-term-bytes (sjas/formula-code system formula))))
 
+(defn- canonical-formula-code-bytes
+  [system canonical-formula]
+  (sjas-code/code-term-bytes
+    (sjas-code/canonical-formula-code-term (:coding-context system)
+                                           canonical-formula)))
+
 (defn- structural-tableau-node
   "Encode one formula-bearing tableau node as proof data without a rule tag.
 
@@ -383,6 +389,19 @@
    applicable rule from the decoded node formula and its children."
   [system formula & children]
   (let [bytes (formula-code-bytes system formula)]
+    (is (pos? (count bytes)))
+    (is (< (count bytes) 64)
+        "the current structural-node slice uses one proof byte for formula length")
+    (apply list (concat [(count bytes)] bytes children))))
+
+(defn- canonical-structural-tableau-node
+  "Encode a formula-bearing node from canonical formula-code syntax.
+
+   This is needed for child nodes that mention variables or parameters
+   introduced by a parent quantifier. Runtime AST noms are not stable proof-code
+   bytes; canonical `v0`, `v1`, ... payloads are."
+  [system canonical-formula & children]
+  (let [bytes (canonical-formula-code-bytes system canonical-formula)]
     (is (pos? (count bytes)))
     (is (< (count bytes) 64)
         "the current structural-node slice uses one proof byte for formula length")
@@ -2390,6 +2409,32 @@
                   (l/== true q)))
               (str "formula-bearing quantifier node should validate structurally: "
                    (pr-str (ast/tag-of target)))))))))
+
+(deftest sjas-proof-check-accepts-formula-bearing-quantifier-variable-children
+  (testing "structural quantifier children may use canonical variable payloads"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          body (ast/neq-lit (ast/var-term binding) sjas/zero)
+          target (ast/forall-form binding body)
+          canonical-child (list 'neq
+                                (list 'var 'v0)
+                                (list 'app (symbol "0")))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (canonical-structural-tableau-node system canonical-child))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural quantified proof should not use witness, univ, neq-close, or arithmetic proof tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           30
+                           proof)
+              (l/== true q)))
+          "formula-bearing quantifier children should decode canonical v0 payloads into branch variables"))))
 
 (deftest sjas-proof-check-accepts-formula-bearing-reflexive-disequality-closures
   (testing "structural disequality leaves can close reflexive contradictions without refl-close tags"

@@ -20,6 +20,15 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-03
+
+- Extended formula-bearing SJAS quantifier nodes to canonical child payloads
+  that mention introduced proof variables. Structural node comparison now uses
+  the branch-visible formula after applying the quantifier environment, and
+  `forall`/`once-forall` expansion chooses canonical `v0`, `v1`, ... noms so
+  child proof nodes have stable formula-code bytes. See
+  [SJAS Canonical Quantifier Child Nodes](docs/log/2026-06-03-sjas-canonical-quantifier-children.md).
+
 ## 2026-06-02
 
 - Switched formula-bearing SJAS structural arithmetic closure to proof-free

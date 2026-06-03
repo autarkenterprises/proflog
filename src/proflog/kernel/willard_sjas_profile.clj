@@ -4299,6 +4299,30 @@
             (sjas-unify-termo-coreo left-head right-head sigma sigma-mid)
             (sjas-eq-contradiction-term*o-coreo left-tail right-tail sigma-mid))]))]))
 
+(defn- proof-vars-lengtho
+  "Succeed when `proof-vars` contains exactly `expected` active variables."
+  [proof-vars expected]
+  (if (zero? expected)
+    (== '() proof-vars)
+    (fresh [head tail]
+      (== (lcons head tail) proof-vars)
+      (proof-vars-lengtho tail (dec expected)))))
+
+(defn- sjas-next-proof-var-nomo
+  "Select the canonical code nom for the next structural proof variable.
+
+   Formula-bearing child nodes encode introduced variables as `v0`, `v1`, ...
+   rather than as host nominal identities. The structural checker therefore
+   uses the same fixed `code-nom-entries` table as formula-code decoding,
+   keyed by the current proof-variable depth."
+  [proof-vars next-nom]
+  (or*
+    (map (fn [[idx nom]]
+           (fresh []
+             (proof-vars-lengtho proof-vars (dec idx))
+             (== nom next-nom)))
+         code-nom-entries)))
+
 (defn- sjas-structural-proof-check-stateo
   "Validate the first formula-bearing tableau proof fragment.
 
@@ -4311,9 +4335,10 @@
    closure, equality progression, and rigid disequality progression."
   [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
-  (fresh [node-formula children]
+  (fresh [node-formula visible-formula children]
     (formula-bearing-proof-nodeo prog proof node-formula children)
-    (== fml node-formula)
+    (subst/subst-formulao fml env visible-formula)
+    (== visible-formula node-formula)
     (conde
       [(fresh []
          (== '() children)
@@ -4469,49 +4494,49 @@
                                   next-fuel
                                   child))]
       [(nominal/fresh [binding-nom]
-         (nominal/fresh [free-var-nom]
-           (fresh [body body-subst narrowed-env child next-fuel]
-             (== (lcons child '()) children)
-             (== (list 'forall (nominal/tie binding-nom body)) fml)
-             (subst/remove-bindo binding-nom env narrowed-env)
-             (subst/subst-formulao body narrowed-env body-subst)
-             (support/step-fuelo fuel next-fuel)
-             (sjas-proof-check-stateo system-code
-                                      body-subst
-                                      unexpanded
-                                      lits
-                                      (lcons [binding-nom (ast/var-term free-var-nom)] env)
-                                      (lcons free-var-nom proof-vars)
-                                      sigma
-                                      sigma-out
-                                      neqs
-                                      neqs-out
-                                      prog
-                                      gamma-terms
-                                      next-fuel
-                                      child))))]
+         (fresh [free-var-nom body body-subst narrowed-env child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'forall (nominal/tie binding-nom body)) fml)
+           (sjas-next-proof-var-nomo proof-vars free-var-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    body-subst
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
       [(nominal/fresh [binding-nom]
-         (nominal/fresh [free-var-nom]
-           (fresh [body body-subst narrowed-env child next-fuel]
-             (== (lcons child '()) children)
-             (== (list 'once-forall (nominal/tie binding-nom body)) fml)
-             (subst/remove-bindo binding-nom env narrowed-env)
-             (subst/subst-formulao body narrowed-env body-subst)
-             (support/step-fuelo fuel next-fuel)
-             (sjas-proof-check-stateo system-code
-                                      body-subst
-                                      unexpanded
-                                      lits
-                                      (lcons [binding-nom (ast/var-term free-var-nom)] env)
-                                      (lcons free-var-nom proof-vars)
-                                      sigma
-                                      sigma-out
-                                      neqs
-                                      neqs-out
-                                      prog
-                                      gamma-terms
-                                      next-fuel
-                                      child))))]
+         (fresh [free-var-nom body body-subst narrowed-env child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'once-forall (nominal/tie binding-nom body)) fml)
+           (sjas-next-proof-var-nomo proof-vars free-var-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    body-subst
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
       [(nominal/fresh [binding-nom]
          (nominal/fresh [parameter-nom]
            (fresh [body body-subst narrowed-env child next-fuel]

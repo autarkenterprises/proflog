@@ -286,6 +286,40 @@
         :external-clauses [(external-demo-clause)]}
        opts))))
 
+(deftest reflected-call-header-match-and-nonmatch-are-explicit-relations
+  (let [system (demo-system :willard-sjas-tableau0
+                            {:relations {'multi-demo 1}})
+        relation-index (encoded-relation-index system 'multi-demo 1)
+        other-index (if (= 1 relation-index) 2 1)
+        atom (structural-app-term system 'multi-demo sjas/one)
+        matcho (var-get #'sjas-profile/reflected-call-header-matcho)
+        nonmatcho (var-get #'sjas-profile/reflected-call-header-nonmatcho)]
+    (is (successful?
+          (l/run 1 [q]
+            (matcho atom relation-index 2)
+            (l/== true q)))
+        "matching reflected clauses are selected by encoded relation index and arity byte")
+    (is (empty?
+          (l/run 1 [q]
+            (matcho atom relation-index 1)
+            (l/== true q)))
+        "the match relation rejects the same relation with the wrong encoded arity")
+    (is (successful?
+          (l/run 1 [q]
+            (nonmatcho atom relation-index 1)
+            (l/== true q)))
+        "wrong arity is an explicit reflected-clause nonmatch")
+    (is (successful?
+          (l/run 1 [q]
+            (nonmatcho atom other-index 2)
+            (l/== true q)))
+        "wrong relation index is an explicit reflected-clause nonmatch")
+    (is (empty?
+          (l/run 1 [q]
+            (nonmatcho atom relation-index 2)
+            (l/== true q)))
+        "a matching reflected clause cannot also be skipped by the nonmatch relation")))
+
 (defn- renamed-demo-system
   [profile reflected-relation external-relation]
   (sjas/system
@@ -3233,6 +3267,10 @@
         "tableau-proof proof-code classification must be a relation, not a committed-choice scheduler")
     (is (not (re-find #"(?s)defn- sjas-axiom-membero.*?\(conda" profile-source))
         "axiom-member group selection must be an ordinary finite relation, not committed-choice search control")
+    (is (not (re-find #"(?s)defn- reflected-call-alternatives-in-clauseso(?:(?!\n\(defn-).)*\(conda" profile-source))
+        "reflected negative-call alternative collection must use explicit encoded-clause match/nonmatch relations")
+    (is (not (re-find #"(?s)defn- reflected-call-guarded-alternatives-in-clauseso(?:(?!\n\(defn-).)*\(conda" profile-source))
+        "guarded reflected alternative collection must use explicit encoded-clause match/nonmatch relations")
     (is (= 2 (count (re-seq #"\(kernel/prove-programo" profile-source)))
         "the ordinary kernel may remain only as the public proof-search engine, not as an internal proof-predicate validator")
     (is (not (re-find #"compact-false-formula-code" profile-source))

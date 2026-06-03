@@ -770,6 +770,13 @@
 (def ^:private positive-byte-except-one-entries
   (apply list (range 2 sjas-code/byte-base)))
 
+(def ^:private positive-byte-neq-entries
+  (apply list
+         (for [left (range 1 sjas-code/byte-base)
+               right (range 1 sjas-code/byte-base)
+               :when (not= left right)]
+           [left right])))
+
 (def ^:private code-nom-entries
   "Shared code-level noms used when decoded formula-code variables become ASTs."
   sjas-code/code-nom-entries)
@@ -788,6 +795,12 @@
 (defn- positive-byte-except-oneo
   [byte]
   (membero byte positive-byte-except-one-entries))
+
+(defn- positive-byte-neqo
+  [left right]
+  (fresh [entry]
+    (membero entry positive-byte-neq-entries)
+    (== [left right] entry)))
 
 (defn- sjas-reserved-symbol-indexo
   [idx sym]
@@ -2771,6 +2784,62 @@
       (== (lcons [nom arg] env-rest) env)
       (reflected-call-env-argso (inc idx) arity arg-rest env-rest))))
 
+(defn- term-list-exact-lengtho
+  [remaining terms]
+  (if (zero? remaining)
+    (== '() terms)
+    (fresh [head tail]
+      (== (lcons head tail) terms)
+      (term-list-exact-lengtho (dec remaining) tail))))
+
+(defn- reflected-atom-relation-indexo
+  "Relate a decoded call atom relation to the reflected system-code symbol id.
+
+   Fixed SJAS vocabulary has reserved semantic symbols. User relations decoded
+   from formula codes keep the structural `(sym idx)` form. This relation
+   recovers the same finite byte index in either case without consulting the
+   source-language symbol table."
+  [relation relation-index]
+  (conde
+    [(sjas-reserved-symbol-indexo relation-index relation)]
+    [(positive-byteo relation-index)
+     (== (list 'sym relation-index) relation)]))
+
+(defn- reflected-atom-arity-byteo
+  "Relate a focused call atom's argument list to the encoded arity byte."
+  [args arity-byte]
+  (or*
+    (map (fn [arity]
+           (fresh []
+             (== (inc arity) arity-byte)
+             (term-list-exact-lengtho arity args)))
+         (range (dec sjas-code/byte-base)))))
+
+(defn- reflected-call-header-matcho
+  "Check that one encoded reflected-clause header matches the focused call."
+  [atom relation-index arity-byte]
+  (fresh [relation args]
+    (== (lcons 'app (lcons relation args)) atom)
+    (reflected-atom-relation-indexo relation relation-index)
+    (reflected-atom-arity-byteo args arity-byte)))
+
+(defn- reflected-call-header-nonmatcho
+  "Prove that an encoded reflected-clause header cannot match the focused call.
+
+   This is the object-level replacement for using `conda` as an if-then-else
+   while collecting reflected alternatives. A clause is skipped only when its
+   relation index differs from the focused call's index, or when the relation
+   index agrees but the encoded arity byte differs from the call's arity byte."
+  [atom relation-index arity-byte]
+  (fresh [relation args atom-relation-index atom-arity-byte]
+    (== (lcons 'app (lcons relation args)) atom)
+    (reflected-atom-relation-indexo relation atom-relation-index)
+    (reflected-atom-arity-byteo args atom-arity-byte)
+    (conde
+      [(positive-byte-neqo relation-index atom-relation-index)]
+      [(== relation-index atom-relation-index)
+       (positive-byte-neqo arity-byte atom-arity-byte)])))
+
 (defn- decode-reflected-clause-callo
   "Decode one reflected-clause record as a Procedure Call Rule target.
 
@@ -2834,9 +2903,14 @@
   [prog remaining bytes atom env negated-alternatives]
   (if (zero? remaining)
     (== '() negated-alternatives)
-    (fresh [after-current]
-      (conda
-        [(fresh [body negated-body rest]
+    (fresh [relation-index arity-byte body-bytes after-current]
+      (== (lcons system-reflected-clause-tag
+                  (lcons relation-index
+                         (lcons arity-byte body-bytes)))
+          bytes)
+      (conde
+        [(reflected-call-header-matcho atom relation-index arity-byte)
+         (fresh [body negated-body rest]
            (decode-reflected-clause-callo prog
                                           bytes
                                           after-current
@@ -2851,7 +2925,8 @@
                                                     atom
                                                     env
                                                     rest))]
-        [(fresh [current]
+        [(reflected-call-header-nonmatcho atom relation-index arity-byte)
+         (fresh [current]
            (decode-reflected-clause-syntax-formulao bytes after-current current)
            (reflected-call-alternatives-in-clauseso prog
                                                     (dec remaining)
@@ -3055,9 +3130,14 @@
   [prog reflected-total reflected-bytes remaining bytes atom env guarded-alternatives]
   (if (zero? remaining)
     (== '() guarded-alternatives)
-    (fresh [after-current]
-      (conda
-        [(fresh [guarded-alternative rest]
+    (fresh [relation-index arity-byte body-bytes after-current]
+      (== (lcons system-reflected-clause-tag
+                  (lcons relation-index
+                         (lcons arity-byte body-bytes)))
+          bytes)
+      (conde
+        [(reflected-call-header-matcho atom relation-index arity-byte)
+         (fresh [guarded-alternative rest]
            (decode-reflected-clause-guarded-callo prog
                                                   reflected-total
                                                   reflected-bytes
@@ -3076,7 +3156,8 @@
              atom
              env
              rest))]
-        [(fresh [current]
+        [(reflected-call-header-nonmatcho atom relation-index arity-byte)
+         (fresh [current]
            (decode-reflected-clause-syntax-formulao bytes after-current current)
            (reflected-call-guarded-alternatives-in-clauseso
              prog

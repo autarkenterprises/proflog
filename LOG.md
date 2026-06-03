@@ -29,6 +29,12 @@ complete contemporaneous transcript.
   evidence. See
   [SJAS Axiom-Member Relational Dispatch](docs/log/2026-06-02-sjas-axiom-member-relational-dispatch.md).
 
+- Replaced committed-choice reflected negative-call alternative collection with
+  explicit encoded-clause match/nonmatch relations. Reflected alternatives are
+  now included when relation index and arity byte match the focused call, and
+  skipped only when a finite nonmatch relation proves the header differs. See
+  [SJAS Reflected Alternative Explicit Nonmatch](docs/log/2026-06-02-sjas-reflected-alternative-explicit-nonmatch.md).
+
 - Removed the source-only `subst-prf/4` substitution witness shortcut from the
   SJAS proof predicate path. `subst-prf` now computes the diagonal substituted
   source sentence as an explicit proof antecedent and includes that sentence in

@@ -2402,6 +2402,24 @@
               (l/== true q)))
           "formula-bearing disequality leaves should close when both sides are equal in branch state"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-arithmetic-closures
+  (testing "structural arithmetic leaves close through profile arithmetic without arith-close tags"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/neg-lit (ast/app-term 'leq sjas/one sjas/one))
+          proof (structural-tableau-node system target)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural arithmetic proof should not use arith-close or profiled arithmetic proof tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           80
+                           proof)
+              (l/== true q)))
+          "formula-bearing arithmetic leaves should close by evaluating the SJAS arithmetic relation internally"))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

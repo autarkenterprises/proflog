@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Extended formula-bearing SJAS tableau proof leaves to arithmetic/profile
+  closure. The checker can now close structural arithmetic leaves by evaluating
+  the SJAS arithmeticized closure cores internally, without requiring either
+  `(arith-close)` or a profiled arithmetic proof trace in the proof certificate.
+  See
+  [SJAS Structural Arithmetic Closure](docs/log/2026-06-02-sjas-structural-arithmetic-closure.md).
+
 - Extended formula-bearing SJAS tableau proof leaves to reflexive disequality
   closure. The checker now closes structural disequality leaves when both sides
   are equal in the branch state, without requiring a `refl-close` proof-rule

@@ -2430,7 +2430,7 @@
     (membero entry proof-symbol-wide-index-entries)
     (== [high low sym] entry)))
 
-(declare decode-proof-byteso)
+(declare decode-proof-byteso decode-structural-proof-byteso)
 
 (defn- parse-proof-items
   [remaining bytes rest proof]
@@ -2475,9 +2475,43 @@
        (parse-proof-items-wide next-high next-low after-head rest tail)
        (== (lcons head tail) proof))]))
 
+(defn- parse-structural-proof-items
+  [remaining bytes rest proof]
+  (if (zero? remaining)
+    (conde
+      [(== bytes rest)
+       (== '() proof)])
+    (fresh [head tail after-head]
+      (decode-structural-proof-byteso bytes after-head head)
+      (parse-structural-proof-items (dec remaining) after-head rest tail)
+      (== (lcons head tail) proof))))
+
+(defn- parse-structural-proof-items-wide
+  [high low bytes rest proof]
+  (conde
+    [(== 0 high)
+     (== 0 low)
+     (== bytes rest)
+     (== '() proof)]
+    [(fresh [next-high next-low head tail after-head]
+       (decrement-wide-proof-counto high low next-high next-low)
+       (decode-structural-proof-byteso bytes after-head head)
+       (parse-structural-proof-items-wide next-high
+                                          next-low
+                                          after-head
+                                          rest
+                                          tail)
+       (== (lcons head tail) proof))]))
+
 (defn- decode-proof-list-with-counto
   [bytes rest proof]
   (conde
+    [(fresh [high low after-count]
+       (== (lcons sjas-code/proof-wide-list-tag
+                   (lcons high (lcons low after-count)))
+           bytes)
+       (positive-wide-proof-counto high low)
+       (parse-proof-items-wide high low after-count rest proof))]
     [(or*
        (map (fn [count]
               (fresh [after-count]
@@ -2485,13 +2519,25 @@
                             (lcons (inc count) after-count))
                     bytes)
                 (parse-proof-items count after-count rest proof)))
-            (range 1 63)))]
+            (range 1 63)))]))
+
+(defn- decode-structural-proof-list-with-counto
+  [bytes rest proof]
+  (conde
     [(fresh [high low after-count]
        (== (lcons sjas-code/proof-wide-list-tag
                    (lcons high (lcons low after-count)))
            bytes)
        (positive-wide-proof-counto high low)
-       (parse-proof-items-wide high low after-count rest proof))]))
+       (parse-structural-proof-items-wide high low after-count rest proof))]
+    [(or*
+       (map (fn [count]
+              (fresh [after-count]
+                (== (lcons sjas-code/proof-list-tag
+                            (lcons (inc count) after-count))
+                    bytes)
+                (parse-structural-proof-items count after-count rest proof)))
+            (range 1 63)))]))
 
 (defn- decode-proof-byteso
   "Relate a base-64 proof-code byte stream to a Proflog kernel proof term."
@@ -2511,10 +2557,26 @@
        (== after-symbol rest))]
     [(fresh [byte after-byte]
        (== (lcons sjas-code/proof-byte-tag (lcons byte after-byte)) bytes)
-       (membero byte proof-byte-entries)
        (== byte proof)
        (== after-byte rest))]
     [(decode-proof-list-with-counto bytes rest proof)]))
+
+(defn- decode-structural-proof-byteso
+  "Decode proof-code bytes for SJAS formula-bearing tableau certificates.
+
+   The proof-predicate non-axiom branch consumes tableau trees whose nodes are
+   lists of formula bytes and child nodes. Symbolic Proflog proof-rule tags are
+   deliberately excluded here; the checker infers rules from formulas and
+   branch state instead of trusting encoded kernel trace constructors."
+  [bytes rest proof]
+  (conde
+    [(== (lcons sjas-code/proof-empty-list-tag rest) bytes)
+     (== '() proof)]
+    [(fresh [byte after-byte]
+       (== (lcons sjas-code/proof-byte-tag (lcons byte after-byte)) bytes)
+       (== byte proof)
+       (== after-byte rest))]
+    [(decode-structural-proof-list-with-counto bytes rest proof)]))
 
 (defn- decode-proof-codeo
   [code sigma sigma-out proof-bytes proof proof-read-proof]
@@ -2541,17 +2603,24 @@
 (defn- decode-non-sjas-axiom-proof-codeo
   "Decode a public proof code as a substantive proof tree.
 
-   Substantive tableau certificates are list-root proof nodes. The one bare
-   proof-symbol certificate accepted by these proof predicates is the special
-   `sjas-axiom` citation handled by `decode-sjas-axiom-proof-codeo`; requiring
-   the proof-list tag here positively distinguishes the ordinary proof-tree
-   branch without leaving large residual disequality constraints to reify."
+   Substantive tableau certificates are list-root formula-bearing proof nodes.
+   The one bare proof-symbol certificate accepted by these proof predicates is
+   the special `sjas-axiom` citation handled by
+   `decode-sjas-axiom-proof-codeo`. Non-axiom decoding uses the structural
+   proof grammar, so legacy kernel proof-rule traces such as `(false-close)`
+   are rejected before proof checking."
   [code sigma sigma-out proof-bytes proof proof-read-proof]
-  (fresh [kind rest item-count after-count]
+  (fresh [kind rest]
     (sjas-formal-code-byteso code proof-bytes sigma sigma-out kind proof-read-proof)
-    (== (lcons sjas-code/proof-list-tag (lcons item-count after-count))
-        proof-bytes)
-    (decode-proof-byteso proof-bytes rest proof)
+    (conde
+      [(fresh [item-count after-count]
+         (== (lcons sjas-code/proof-list-tag (lcons item-count after-count))
+             proof-bytes))]
+      [(fresh [high low after-count]
+         (== (lcons sjas-code/proof-wide-list-tag
+                     (lcons high (lcons low after-count)))
+             proof-bytes))])
+    (decode-structural-proof-byteso proof-bytes rest proof)
     (== '() rest)))
 
 (defn- sjas-system-profile-tago
@@ -4197,7 +4266,7 @@
     (== neqs neqs-out)
     (== '(profiled willard-sjas-subst-code) proof)))
 
-(declare sjas-proof-check-stateo sjas-close-one-guarded-alternativeo)
+(declare sjas-proof-check-stateo)
 
 (defn- proof-byte-prefixo
   [remaining input bytes rest]
@@ -4207,7 +4276,6 @@
       (== input rest))
     (fresh [byte input-rest bytes-rest]
       (== (lcons byte input-rest) input)
-      (membero byte proof-byte-entries)
       (== (lcons byte bytes-rest) bytes)
       (proof-byte-prefixo (dec remaining) input-rest bytes-rest rest))))
 
@@ -4218,7 +4286,6 @@
      (== '() bytes)]
     [(fresh [byte proof-rest bytes-rest]
        (== (lcons byte proof-rest) proof)
-       (membero byte proof-byte-entries)
        (== (lcons byte bytes-rest) bytes)
        (proof-byte-list-termo proof-rest bytes-rest))]))
 
@@ -4231,6 +4298,11 @@
    the decoded formula and child list."
   [prog proof formula children]
   (conde
+    [(fresh [formula-byte-proof formula-bytes decoded-formula]
+       (== (lcons formula-byte-proof children) proof)
+       (proof-byte-list-termo formula-byte-proof formula-bytes)
+       (decode-proof-formula-byteso prog formula-bytes '() decoded-formula)
+       (sjas-internal-formula-asto decoded-formula formula))]
     [(or*
        (map (fn [byte-count]
               (fresh [after-count formula-bytes decoded-formula]
@@ -4238,12 +4310,7 @@
                 (proof-byte-prefixo byte-count after-count formula-bytes children)
                 (decode-proof-formula-byteso prog formula-bytes '() decoded-formula)
                 (sjas-internal-formula-asto decoded-formula formula)))
-            (range 1 sjas-code/byte-base)))]
-    [(fresh [formula-byte-proof formula-bytes decoded-formula]
-       (== (lcons formula-byte-proof children) proof)
-       (proof-byte-list-termo formula-byte-proof formula-bytes)
-       (decode-proof-formula-byteso prog formula-bytes '() decoded-formula)
-       (sjas-internal-formula-asto decoded-formula formula))]))
+            (range 1 sjas-code/byte-base)))]))
 
 (declare sjas-atom-unify-coreo
          sjas-unify-termo-coreo
@@ -4823,986 +4890,25 @@
                                   next-fuel
                                   child))])))
 
-(defn- sjas-saved-positive-call-closeso
-  "Close a saved positive atom after equality makes it callable.
-
-   This is the SJAS proof-checker analogue of the kernel's positive
-   `saved-call-closeso` branch. It deliberately resolves the procedure body
-   from the encoded reflected clauses in `system-code`, not from the compiled
-   runtime program clause table."
-  [system-code lits proof-vars sigma sigma-out neqs neqs-out
-   prog gamma-terms fuel proof]
-  (fresh [atom walked-atom relation args call-env body negated-body
-          next-fuel subproof]
-    (membero (list 'pos atom) lits)
-    (equality/walk-atomo atom sigma walked-atom)
-    (== (lcons 'app (lcons relation args)) walked-atom)
-    (support/l-ground-term*o args)
-    (sjas-system-reflected-call-clauseo prog
-                                        system-code
-                                        walked-atom
-                                        call-env
-                                        body
-                                        negated-body)
-    (== (list 'eq-triggered-call subproof) proof)
-    (support/step-fuelo fuel next-fuel)
-    (sjas-proof-check-stateo system-code
-                             body
-                             '()
-                             '()
-                             call-env
-                             proof-vars
-                             sigma
-                             sigma-out
-                             neqs
-                             neqs-out
-                             prog
-                             gamma-terms
-                             next-fuel
-                             subproof)))
-
-(defn- sjas-saved-negative-call-closeso
-  "Close a saved negative atom after equality makes it callable.
-
-   This mirrors the kernel's negative `saved-call-closeso` branch: once the
-   saved atom is L-ground, open the NNF negation of the reflected clause body."
-  [system-code lits proof-vars sigma sigma-out neqs neqs-out
-   prog gamma-terms fuel proof]
-  (fresh [atom walked-atom relation args call-env body negated-body
-          next-fuel subproof]
-    (membero (list 'neg atom) lits)
-    (equality/walk-atomo atom sigma walked-atom)
-    (== (lcons 'app (lcons relation args)) walked-atom)
-    (support/l-ground-term*o args)
-    (sjas-system-reflected-call-clauseo prog
-                                        system-code
-                                        walked-atom
-                                        call-env
-                                        body
-                                        negated-body)
-    (== (list 'eq-triggered-neg-call subproof) proof)
-    (support/step-fuelo fuel next-fuel)
-    (sjas-proof-check-stateo system-code
-                             negated-body
-                             '()
-                             '()
-                             call-env
-                             proof-vars
-                             sigma
-                             sigma-out
-                             neqs
-                             neqs-out
-                             prog
-                             gamma-terms
-                             next-fuel
-                             subproof)))
-
-(defn- sjas-close-one-formulao
-  "Close one formula from a reconstructed reflected alternative list."
-  [system-code formulas env proof-vars sigma sigma-out neqs neqs-out
-   prog gamma-terms fuel proof]
-  (conde
-    [(fresh [formula rest subproof]
-       (== (lcons formula rest) formulas)
-       (== (list 'alt subproof) proof)
-       (sjas-proof-check-stateo system-code
-                                formula
-                                '()
-                                '()
-                                env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                fuel
-                                subproof))]
-    [(fresh [formula rest]
-       (== (lcons formula rest) formulas)
-       (sjas-close-one-formulao system-code
-                                rest
-                                env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                fuel
-                                proof))]))
-
-(defn- sjas-close-guarded-formula-sequenceo
-  "Close the guarded fallback sequence for one reflected alternative.
-
-   The sequence elements are reconstructed from encoded reflected clause bodies
-   by `sjas-system-reflected-guarded-call-alternativeso`. Each element is an
-   ordinary AST formula, so validation delegates back to the same SJAS
-   proof-check state relation rather than to the host kernel."
-  [system-code formulas env proof-vars sigma sigma-out neqs neqs-out
-   prog gamma-terms fuel proof]
-  (conde
-    [(== '() formulas)
-     (== sigma sigma-out)
-     (== neqs neqs-out)
-     (== '(guarded-seq-done) proof)]
-    [(fresh [formula subproof]
-       (== (lcons formula '()) formulas)
-       (== (list 'guarded-seq-last subproof) proof)
-       (sjas-proof-check-stateo system-code
-                                formula
-                                '()
-                                '()
-                                env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                fuel
-                                subproof))]
-    [(fresh [formula second-formula rest sigma-mid neqs-mid
-             head-proof tail-proof]
-       (== (lcons formula (lcons second-formula rest)) formulas)
-       (== (list 'guarded-seq-step head-proof tail-proof) proof)
-       (sjas-proof-check-stateo system-code
-                                formula
-                                '()
-                                '()
-                                env
-                                proof-vars
-                                sigma
-                                sigma-mid
-                                neqs
-                                neqs-mid
-                                prog
-                                gamma-terms
-                                fuel
-                                head-proof)
-       (sjas-close-guarded-formula-sequenceo system-code
-                                             (lcons second-formula rest)
-                                             env
-                                             proof-vars
-                                             sigma-mid
-                                             sigma-out
-                                             neqs-mid
-                                             neqs-out
-                                             prog
-                                             gamma-terms
-                                             fuel
-                                             tail-proof))]))
-
-(defn- sjas-close-guarded-residual-sequenceo
-  "Close the residual sequence in a saturated guarded alternative.
-
-   Residual formulas are non-guard, non-recursive-call conjuncts reconstructed
-   from encoded reflected clause bodies. Recursive reflected calls are handled
-   by `sjas-close-guarded-negated-call-sequenceo` before this relation runs."
-  [system-code formulas env proof-vars sigma sigma-out neqs neqs-out
-   prog gamma-terms fuel proof]
-  (conde
-    [(== '() formulas)
-     (== sigma sigma-out)
-     (== neqs neqs-out)
-     (== '(guarded-residual-seq-done) proof)]
-    [(fresh [formula subproof]
-       (== (lcons formula '()) formulas)
-       (== (list 'guarded-residual-seq-last subproof) proof)
-       (sjas-proof-check-stateo system-code
-                                formula
-                                '()
-                                '()
-                                env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                fuel
-                                subproof))]
-    [(fresh [formula second-formula rest sigma-mid neqs-mid
-             head-proof tail-proof]
-       (== (lcons formula (lcons second-formula rest)) formulas)
-       (== (list 'guarded-residual-seq-step head-proof tail-proof) proof)
-       (sjas-proof-check-stateo system-code
-                                formula
-                                '()
-                                '()
-                                env
-                                proof-vars
-                                sigma
-                                sigma-mid
-                                neqs
-                                neqs-mid
-                                prog
-                                gamma-terms
-                                fuel
-                                head-proof)
-       (sjas-close-guarded-residual-sequenceo system-code
-                                              (lcons second-formula rest)
-                                              env
-                                              proof-vars
-                                              sigma-mid
-                                              sigma-out
-                                              neqs-mid
-                                              neqs-out
-                                              prog
-                                              gamma-terms
-                                              fuel
-                                              tail-proof))]))
-
-(defn- sjas-close-guarded-negated-call-sequenceo
-  "Close recursively negated reflected calls in a saturated guarded alternative."
-  [system-code formulas env proof-vars sigma sigma-out neqs neqs-out
-   prog gamma-terms fuel proof]
-  (conde
-    [(== '() formulas)
-     (== sigma sigma-out)
-     (== neqs neqs-out)
-     (== '(guarded-call-seq-done) proof)]
-    [(fresh [formula rest lit atom walked-atom relation args call-env
-             guarded-alternatives first-alternative second-alternative
-             remaining-alternatives sigma-mid neqs-mid call-proof tail-proof]
-       (== (lcons formula rest) formulas)
-       (subst/subst-formulao formula env lit)
-       (== (list 'neg atom) lit)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
-       (sjas-system-reflected-guarded-call-alternativeso
-         prog
-         system-code
-         walked-atom
-         call-env
-         guarded-alternatives)
-       (== (lcons first-alternative
-                  (lcons second-alternative remaining-alternatives))
-           guarded-alternatives)
-       (== (list 'guarded-call-seq-step
-                 (list 'neg-call-guarded-alt call-proof)
-                 tail-proof)
-           proof)
-       (sjas-close-one-guarded-alternativeo system-code
-                                            guarded-alternatives
-                                            call-env
-                                            proof-vars
-                                            sigma
-                                            sigma-mid
-                                            neqs
-                                            neqs-mid
-                                            prog
-                                            gamma-terms
-                                            fuel
-                                            call-proof)
-       (sjas-close-guarded-negated-call-sequenceo system-code
-                                                  rest
-                                                  env
-                                                  proof-vars
-                                                  sigma-mid
-                                                  sigma-out
-                                                  neqs-mid
-                                                  neqs-out
-                                                  prog
-                                                  gamma-terms
-                                                  fuel
-                                                  tail-proof))]))
-
-(defn- sjas-saturate-eq-guardso
-  "Saturate equality guards reconstructed from reflected system-code."
-  [guards env proof-vars sigma sigma-out neqs proof]
-  (conde
-    [(== '() guards)
-     (== sigma sigma-out)
-     (== '(guard-saturation-done) proof)]
-    [(fresh [guard rest lit left right sigma-mid new-bindings
-             step-proof tail-proof]
-       (== (lcons guard rest) guards)
-       (subst/subst-formulao guard env lit)
-       (== (list 'eq left right) lit)
-       (equality/unify-termo left right sigma sigma-mid step-proof)
-       (appendo new-bindings sigma sigma-mid)
-       (support/proof-bindingso new-bindings proof-vars)
-       (support/stable-neqso neqs sigma-mid)
-       (== (list 'guard-eq step-proof tail-proof) proof)
-       (sjas-saturate-eq-guardso rest
-                                  env
-                                  proof-vars
-                                  sigma-mid
-                                  sigma-out
-                                  neqs
-                                  tail-proof))]))
-
-(defn- sjas-open-existential-guarded-scopeo
-  "Instantiate reflected leading existential guarded scope."
-  [scope env proof-vars env-out proof-vars-out proof]
-  (conde
-    [(== '() scope)
-     (== env env-out)
-     (== proof-vars proof-vars-out)
-     (== '(guarded-scope-done) proof)]
-    [(nominal/fresh [free-var-nom]
-       (fresh [binding-nom rest narrowed-env tail-proof]
-         (== (lcons binding-nom rest) scope)
-         (subst/remove-bindo binding-nom env narrowed-env)
-         (== (list 'guarded-scope-exists tail-proof) proof)
-         (sjas-open-existential-guarded-scopeo
-           rest
-           (lcons [binding-nom (ast/var-term free-var-nom)] narrowed-env)
-           (lcons free-var-nom proof-vars)
-           env-out
-           proof-vars-out
-           tail-proof)))]))
-
-(defn- sjas-close-guarded-negated-alternativeo
-  "Validate fallback guarded negative-call evidence for one reflected body."
-  [system-code guarded-alternative env proof-vars sigma sigma-out neqs neqs-out
-   prog gamma-terms fuel proof]
-  (conde
-    [(fresh [scope guards negated-calls negated-residuals negated-conjuncts
-             scoped-env scoped-proof-vars scope-proof sequence-proof]
-       (== (list 'guarded-alternative
-                 scope
-                 guards
-                 negated-calls
-                 negated-residuals
-                 negated-conjuncts)
-           guarded-alternative)
-       (== (list 'guarded-neg-alt scope-proof sequence-proof) proof)
-       (sjas-open-existential-guarded-scopeo scope
-                                             env
-                                             proof-vars
-                                             scoped-env
-                                             scoped-proof-vars
-                                             scope-proof)
-       (sjas-close-guarded-formula-sequenceo system-code
-                                             negated-conjuncts
-                                             scoped-env
-                                             scoped-proof-vars
-                                             sigma
-                                             sigma-out
-                                             neqs
-                                             neqs-out
-                                             prog
-                                             gamma-terms
-                                             fuel
-                                             sequence-proof))]
-    [(fresh [scope guards negated-calls negated-residuals negated-conjuncts
-             scoped-env scoped-proof-vars scope-proof guard-proof
-             call-sequence-proof residual-sequence-proof sigma-after-guards
-             sigma-after-calls neqs-after-calls]
-       (== (list 'guarded-alternative
-                 scope
-                 guards
-                 negated-calls
-                 negated-residuals
-                 negated-conjuncts)
-           guarded-alternative)
-       (== (list 'guarded-neg-alt-saturated
-                 scope-proof
-                 guard-proof
-                 call-sequence-proof
-                 residual-sequence-proof)
-           proof)
-       (sjas-open-existential-guarded-scopeo scope
-                                             env
-                                             proof-vars
-                                             scoped-env
-                                             scoped-proof-vars
-                                             scope-proof)
-       (sjas-saturate-eq-guardso guards
-                                  scoped-env
-                                  scoped-proof-vars
-                                  sigma
-                                  sigma-after-guards
-                                  neqs
-                                  guard-proof)
-       (sjas-close-guarded-negated-call-sequenceo system-code
-                                                  negated-calls
-                                                  scoped-env
-                                                  scoped-proof-vars
-                                                  sigma-after-guards
-                                                  sigma-after-calls
-                                                  neqs
-                                                  neqs-after-calls
-                                                  prog
-                                                  gamma-terms
-                                                  fuel
-                                                  call-sequence-proof)
-       (sjas-close-guarded-residual-sequenceo system-code
-                                              negated-residuals
-                                              scoped-env
-                                              scoped-proof-vars
-                                              sigma-after-calls
-                                              sigma-out
-                                              neqs-after-calls
-                                              neqs-out
-                                              prog
-                                              gamma-terms
-                                              fuel
-                                              residual-sequence-proof))]))
-
-(defn- sjas-close-one-guarded-alternativeo
-  "Close one guarded reflected alternative reconstructed from system-code."
-  [system-code guarded-alternatives env proof-vars sigma sigma-out neqs neqs-out
-   prog gamma-terms fuel proof]
-  (conde
-    [(fresh [guarded-alternative rest subproof]
-       (== (lcons guarded-alternative rest) guarded-alternatives)
-       (== (list 'guarded-alt subproof) proof)
-       (sjas-close-guarded-negated-alternativeo system-code
-                                                guarded-alternative
-                                                env
-                                                proof-vars
-                                                sigma
-                                                sigma-out
-                                                neqs
-                                                neqs-out
-                                                prog
-                                                gamma-terms
-                                                fuel
-                                                subproof))]
-    [(fresh [guarded-alternative rest]
-       (== (lcons guarded-alternative rest) guarded-alternatives)
-       (sjas-close-one-guarded-alternativeo system-code
-                                            rest
-                                            env
-                                            proof-vars
-                                            sigma
-                                            sigma-out
-                                            neqs
-                                            neqs-out
-                                            prog
-                                            gamma-terms
-                                            fuel
-                                            proof))]))
-
-(defn- sjas-proof-check-close-agendao
-  "Check a decoded tableau proof term without invoking the host proof kernel.
-
-   This is the arithmeticization-facing proof checker used by SJAS proof
-   predicates. It implements the local semantic-tableau proof relation as an
-   explicit first-order relation over decoded formulas, decoded proof
-   constructors, branch equality state, decoded system-code axioms, and
-   reflected clause expansions.
-
-   The clauses cover the NNF tableau fragment produced by the SJAS code
-   decoders: conjunction, disjunction with sibling-local branch state,
-   truth/falsehood, universal and once-universal instantiation, existential
-   witnesses, equality/disequality progress and closure, complementary literal
-   closure, arithmetic/profile branch closure, decoded axiom membership,
-   reflected procedure calls, guarded reflected alternatives, and literal
-   saving."
-  [system-code agenda lits env proof-vars sigma sigma-out neqs neqs-out
-   prog gamma-terms fuel proof]
-  (conde
-    [(fresh [fml unexpanded]
-       (support/selecto fml agenda unexpanded)
-       (sjas-structural-proof-check-stateo system-code
-                                           fml
-                                           unexpanded
-                                           lits
-                                           env
-                                           proof-vars
-                                           sigma
-                                           sigma-out
-                                           neqs
-                                           neqs-out
-                                           prog
-                                           gamma-terms
-                                           fuel
-                                           proof))]
-    [(fresh [branch-proof fml unexpanded]
-       (== (list 'profiled 'willard-sjas-arithmetic branch-proof) proof)
-       (support/selecto fml agenda unexpanded)
-       (conde
-         [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
-         [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]))]
-    [(fresh [fml unexpanded arithmetic-proof]
-       (== '(arith-close) proof)
-       (support/selecto fml agenda unexpanded)
-       (conde
-         [(sjas-neq-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof)]
-         [(sjas-neg-relation-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof)]))]
-    [(fresh [fml unexpanded lit left right contradiction-proof]
-       (== contradiction-proof proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'eq left right) lit)
-       (equality/eq-contradictiono left right sigma contradiction-proof)
-       (== sigma sigma-out)
-       (== neqs neqs-out))]
-    [(fresh [fml unexpanded lit left right sigma-mid step-proof
-             branch-proof]
-       (== (list 'eq-step step-proof branch-proof) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'eq left right) lit)
-       (equality/unify-termo left right sigma sigma-mid step-proof)
-       (equality/neq-violatedo neqs sigma-mid branch-proof)
-       (== sigma-mid sigma-out)
-       (support/prune-contradictory-neqso neqs sigma-mid neqs-out))]
-    [(fresh [fml unexpanded lit left right sigma-mid step-proof
-             branch-proof]
-       (== (list 'eq-step step-proof branch-proof) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'eq left right) lit)
-       (equality/unify-termo left right sigma sigma-mid step-proof)
-       (equality/contradictory-atomso lits sigma-mid sigma-out branch-proof)
-       (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
-    [(fresh [fml unexpanded lit left right sigma-mid step-proof
-             branch-proof]
-       (== (list 'eq-step step-proof branch-proof) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'eq left right) lit)
-       (equality/unify-termo left right sigma sigma-mid step-proof)
-       (sjas-saved-positive-call-closeso system-code
-                                         lits
-                                         proof-vars
-                                         sigma-mid
-                                         sigma-out
-                                         neqs
-                                         neqs-out
-                                         prog
-                                         gamma-terms
-                                         fuel
-                                         branch-proof))]
-    [(fresh [fml unexpanded lit left right sigma-mid step-proof
-             branch-proof]
-       (== (list 'eq-step step-proof branch-proof) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'eq left right) lit)
-       (equality/unify-termo left right sigma sigma-mid step-proof)
-       (sjas-saved-negative-call-closeso system-code
-                                         lits
-                                         proof-vars
-                                         sigma-mid
-                                         sigma-out
-                                         neqs
-                                         neqs-out
-                                         prog
-                                         gamma-terms
-                                         fuel
-                                         branch-proof))]
-    [(fresh [fml unexpanded lit left right sigma-mid step-proof
-             next rest next-fuel prf]
-       (== (list 'eq-step step-proof prf) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'eq left right) lit)
-       (equality/unify-termo left right sigma sigma-mid step-proof)
-       (== (lcons next rest) unexpanded)
-       (support/stable-neqso neqs sigma-mid)
-       (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo system-code
-                                next
-                                rest
-                                lits
-                                env
-                                proof-vars
-                                sigma-mid
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                next-fuel
-                                prf))]
-    [(fresh [fml unexpanded lit left right]
-       (== '(refl-close) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'neq left right) lit)
-       (equality/same-termo left right sigma)
-       (== sigma sigma-out)
-       (== neqs neqs-out))]
-    [(fresh [fml unexpanded lit left right sigma-mid new-bindings
-             binding rest step-proof]
-       (== (list 'neq-close step-proof) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'neq left right) lit)
-       (equality/unify-termo left right sigma sigma-mid step-proof)
-       (appendo new-bindings sigma sigma-mid)
-       (== (lcons binding rest) new-bindings)
-       (support/proof-bindingso new-bindings proof-vars)
-       (== sigma-mid sigma-out)
-       (support/prune-contradictory-neqso neqs sigma-mid neqs-out))]
-    [(fresh [fml unexpanded lit left right next rest next-fuel prf]
-       (== (list 'neq-rigid prf) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'neq left right) lit)
-       (support/rigid-different-termo left right sigma)
-       (== (lcons next rest) unexpanded)
-       (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo system-code
-                                next
-                                rest
-                                lits
-                                env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                next-fuel
-                                prf))]
-    [(fresh [fml unexpanded lit left right next rest next-fuel prf]
-       (== (list 'neq-store prf) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'neq left right) lit)
-       (== (lcons next rest) unexpanded)
-       (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo system-code
-                                next
-                                rest
-                                lits
-                                env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                (lcons [left right] neqs)
-                                neqs-out
-                                prog
-                                gamma-terms
-                                next-fuel
-                                prf))]
-    [(fresh [fml unexpanded left right next-fuel prf]
-       (== (list 'conj prf) proof)
-       (support/selecto fml agenda unexpanded)
-       (== (list 'and left right) fml)
-       (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo system-code
-                                left
-                                (lcons right unexpanded)
-                                lits
-                                env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                next-fuel
-                                prf))]
-    [(fresh [fml unexpanded left right next-fuel left-sigma-out right-sigma-out
-             left-neqs-out right-neqs-out left-proof right-proof]
-       (== (list 'split left-proof right-proof) proof)
-       (support/selecto fml agenda unexpanded)
-       (== (list 'or left right) fml)
-       (support/step-fuelo fuel next-fuel)
-       ;; Semantic-tableau siblings share the incoming branch state, but
-       ;; equality/disequality updates produced while closing one sibling do
-       ;; not become evidence for closing the other sibling.
-       (sjas-proof-check-stateo system-code
-                                left
-                                unexpanded
-                                lits
-                                env
-                                proof-vars
-                                sigma
-                                left-sigma-out
-                                neqs
-                                left-neqs-out
-                                prog
-                                gamma-terms
-                                next-fuel
-                                left-proof)
-       (sjas-proof-check-stateo system-code
-                                right
-                                unexpanded
-                                lits
-                                env
-                                proof-vars
-                                sigma
-                                right-sigma-out
-                                neqs
-                                right-neqs-out
-                                prog
-                                gamma-terms
-                                next-fuel
-                                right-proof)
-       (== sigma sigma-out)
-       (== neqs neqs-out))]
-    [(fresh [fml unexpanded]
-       (== '(false-close) proof)
-       (support/selecto fml agenda unexpanded)
-       (== (list 'false) fml)
-       (== sigma sigma-out)
-       (== neqs neqs-out))]
-    [(fresh [fml unexpanded next rest next-fuel prf]
-       (== (list 'skip-true prf) proof)
-       (support/selecto fml agenda unexpanded)
-       (== (list 'true) fml)
-       (== (lcons next rest) unexpanded)
-       (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo system-code
-                                next
-                                rest
-                                lits
-                                env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                next-fuel
-                                prf))]
-    [(nominal/fresh [binding-nom]
-       (nominal/fresh [free-var-nom]
-         (fresh [fml unexpanded body body-subst narrowed-env next-fuel prf]
-           (== (list 'univ prf) proof)
-           (support/selecto fml agenda unexpanded)
-           (== (list 'forall (nominal/tie binding-nom body)) fml)
-           (subst/remove-bindo binding-nom env narrowed-env)
-           (subst/subst-formulao body narrowed-env body-subst)
-           (support/step-fuelo fuel next-fuel)
-           (sjas-proof-check-stateo system-code
-                                    body-subst
-                                    unexpanded
-                                    lits
-                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
-                                    (lcons free-var-nom proof-vars)
-                                    sigma
-                                    sigma-out
-                                    neqs
-                                    neqs-out
-                                    prog
-                                    gamma-terms
-                                    next-fuel
-                                    prf))))]
-    [(nominal/fresh [binding-nom]
-       (nominal/fresh [free-var-nom]
-         (fresh [fml unexpanded body body-subst narrowed-env next-fuel prf]
-           (== (list 'once-univ prf) proof)
-           (support/selecto fml agenda unexpanded)
-           (== (list 'once-forall (nominal/tie binding-nom body)) fml)
-           (subst/remove-bindo binding-nom env narrowed-env)
-           (subst/subst-formulao body narrowed-env body-subst)
-           (support/step-fuelo fuel next-fuel)
-           (sjas-proof-check-stateo system-code
-                                    body-subst
-                                    unexpanded
-                                    lits
-                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
-                                    (lcons free-var-nom proof-vars)
-                                    sigma
-                                    sigma-out
-                                    neqs
-                                    neqs-out
-                                    prog
-                                    gamma-terms
-                                    next-fuel
-                                    prf))))]
-    [(nominal/fresh [binding-nom]
-       (nominal/fresh [parameter-nom]
-         (fresh [fml unexpanded body body-subst narrowed-env next-fuel prf]
-           (== (list 'witness prf) proof)
-           (support/selecto fml agenda unexpanded)
-           (== (list 'exists (nominal/tie binding-nom body)) fml)
-           (subst/remove-bindo binding-nom env narrowed-env)
-           (subst/subst-formulao body narrowed-env body-subst)
-           (support/step-fuelo fuel next-fuel)
-           (sjas-proof-check-stateo system-code
-                                    body-subst
-                                    unexpanded
-                                    lits
-                                    (lcons [binding-nom (ast/par-term parameter-nom)] env)
-                                    proof-vars
-                                    sigma
-                                    sigma-out
-                                    neqs
-                                    neqs-out
-                                    prog
-                                    gamma-terms
-                                    next-fuel
-                                    prf))))]
-    [(fresh [fml unexpanded lit atom]
-       (== '(close) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (conde
-         [(== (list 'pos atom) lit)]
-         [(== (list 'neg atom) lit)])
-       (support/complementary-lito lit lits sigma sigma-out proof)
-       (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
-    [(fresh [fml unexpanded lit atom walked-atom relation args call-env
-             body negated-body next-fuel subproof]
-       (== (list 'pos-call subproof) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'pos atom) lit)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
-       (sjas-system-reflected-call-clauseo prog
-                                           system-code
-                                           walked-atom
-                                           call-env
-                                           body
-                                           negated-body)
-       (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo system-code
-                                body
-                                '()
-                                '()
-                                call-env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                next-fuel
-                                subproof))]
-    [(fresh [fml unexpanded lit atom walked-atom relation args call-env
-             body negated-body next-fuel subproof]
-       (== (list 'neg-call subproof) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'neg atom) lit)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
-       (sjas-system-reflected-call-clauseo prog
-                                           system-code
-                                           walked-atom
-                                           call-env
-                                           body
-                                           negated-body)
-       (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo system-code
-                                negated-body
-                                '()
-                                '()
-                                call-env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                next-fuel
-                                subproof))]
-    [(fresh [fml unexpanded lit atom walked-atom relation args call-env
-             guarded-alternatives first-alternative second-alternative
-             remaining-alternatives subproof]
-       (== (list 'neg-call-guarded-alt subproof) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'neg atom) lit)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
-       (sjas-system-reflected-guarded-call-alternativeso
-         prog
-         system-code
-         walked-atom
-         call-env
-         guarded-alternatives)
-       (== (lcons first-alternative
-                  (lcons second-alternative remaining-alternatives))
-           guarded-alternatives)
-       (sjas-close-one-guarded-alternativeo system-code
-                                            guarded-alternatives
-                                            call-env
-                                            proof-vars
-                                            sigma
-                                            sigma-out
-                                            neqs
-                                            neqs-out
-                                            prog
-                                            gamma-terms
-                                            fuel
-                                            subproof))]
-    [(fresh [fml unexpanded lit atom walked-atom relation args call-env
-             negated-alternatives first-alternative second-alternative
-             remaining-alternatives subproof]
-       (== (list 'neg-call-alt subproof) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (== (list 'neg atom) lit)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
-       (sjas-system-reflected-call-alternativeso prog
-                                                 system-code
-                                                 walked-atom
-                                                 call-env
-                                                 negated-alternatives)
-       (== (lcons first-alternative
-                  (lcons second-alternative remaining-alternatives))
-           negated-alternatives)
-       (sjas-close-one-formulao system-code
-                                negated-alternatives
-                                call-env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                fuel
-                                subproof))]
-    [(fresh [fml unexpanded lit atom next rest next-fuel prf]
-       (== (list 'savefml prf) proof)
-       (support/selecto fml agenda unexpanded)
-       (subst/subst-formulao fml env lit)
-       (conde
-         [(== (list 'pos atom) lit)]
-         [(== (list 'neg atom) lit)])
-       (== (lcons next rest) unexpanded)
-       (support/step-fuelo fuel next-fuel)
-       (sjas-proof-check-stateo system-code
-                                next
-                                rest
-                                (lcons lit lits)
-                                env
-                                proof-vars
-                                sigma
-                                sigma-out
-                                neqs
-                                neqs-out
-                                prog
-                                gamma-terms
-                                next-fuel
-                                prf))]))
-
 (defn- sjas-proof-check-stateo
   [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
-  (sjas-proof-check-close-agendao
-    system-code
-    (lcons fml unexpanded)
-    lits
-    env
-    proof-vars
-    sigma
-    sigma-out
-    neqs
-    neqs-out
-    prog
-    gamma-terms
-    fuel
-    proof))
+  (fresh [selected remaining]
+    (support/selecto selected (lcons fml unexpanded) remaining)
+    (sjas-structural-proof-check-stateo system-code
+                                        selected
+                                        remaining
+                                        lits
+                                        env
+                                        proof-vars
+                                        sigma
+                                        sigma-out
+                                        neqs
+                                        neqs-out
+                                        prog
+                                        gamma-terms
+                                        fuel
+                                        proof)))
 
 (defn- sjas-proof-check-programo
   "Validate `proof` for `target` through the SJAS-side proof checker.
@@ -5966,11 +5072,11 @@
                         neqs neqs-out prog gamma-terms fuel proof)]
     [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]
+    [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
+    [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
     [(sjas-syntax-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
     [(sjas-subst-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
-    [(sjas-axiom-member-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
-    [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
-    [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]))
+    [(sjas-axiom-member-closeo fml env sigma sigma-out neqs neqs-out prog proof)]))
 
 (defn willard-sjas-answer-theory-closeo
   "SJAS theory branch rule for the answer overlay.
@@ -5987,15 +5093,15 @@
      (== residuals residuals-out)]
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)
      (== residuals residuals-out)]
+    [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
+     (== residuals residuals-out)]
+    [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
+     (== residuals residuals-out)]
     [(sjas-syntax-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]
     [(sjas-subst-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]
     [(sjas-axiom-member-closeo fml env sigma sigma-out neqs neqs-out prog proof)
-     (== residuals residuals-out)]
-    [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
-     (== residuals residuals-out)]
-    [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
      (== residuals residuals-out)]))
 
 ;; -----------------------------------------------------------------------------

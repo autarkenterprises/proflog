@@ -417,6 +417,15 @@
     (is (pos? (count bytes)))
     (apply list (cons (apply list bytes) children))))
 
+(defn- structural-flex-tableau-node
+  "Encode a formula-bearing node, using a proof byte list for wide formulas."
+  [system formula & children]
+  (let [bytes (formula-code-bytes system formula)]
+    (is (pos? (count bytes)))
+    (if (< (count bytes) 64)
+      (apply list (concat [(count bytes)] bytes children))
+      (apply list (cons (apply list bytes) children)))))
+
 (defn- right-nested-true-chain
   [depth]
   (if (zero? depth)
@@ -885,6 +894,31 @@
                 (l/== true q))))
           "public proof-code decoding should preserve wide formula-bearing proof nodes for object-level checking"))))
 
+(deftest ^:slow sjas-tableau-proof-accepts-formula-bearing-true-theorem-certificates
+  (testing "public tableau-proof accepts a formula-bearing structural certificate"
+    (let [system (demo-system :willard-sjas-tableau0)
+          theorem (ast/true-form)
+          theorem-code (sjas/formula-code system theorem)
+          target (ast/and-form (:axiom-formula system) (ast/false-form))
+          proof (structural-byte-list-tableau-node
+                  system
+                  target
+                  (structural-tableau-node system (ast/false-form)))
+          certificate (sjas/proof-certificate proof)]
+      (is (> (count (formula-code-bytes system target)) 63)
+          "the public target should require the wide formula-bearing node shape")
+      (is (zero? (proof-symbol-count proof))
+          "the public structural theorem proof should not use symbolic proof-rule tags")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tableau-proof (:system-code system)
+                                  theorem-code
+                                  certificate)
+              1
+              260))
+          "tableau-proof should validate encoded formula-bearing structural certificates end to end"))))
+
 (deftest sjas-proof-codes-encode-byte-payload-evidence
   (testing "code-reader proof evidence carries inspectable byte payloads rather than escaping the certificate grammar"
     (let [proof '(conj
@@ -1106,13 +1140,16 @@
 
 (deftest sjas-proof-code-discriminator-splits-axiom-and-substantive-certificates
   (testing "proof predicates classify sjas-axiom from proof bytes without committed choice"
-    (let [decode-axiom (var-get #'sjas-profile/decode-sjas-axiom-proof-codeo)
+    (let [system (demo-system :willard-sjas-tableau0)
+          decode-axiom (var-get #'sjas-profile/decode-sjas-axiom-proof-codeo)
           decode-non-axiom (var-get #'sjas-profile/decode-non-sjas-axiom-proof-codeo)
           axiom-certificate (sjas/proof-certificate 'sjas-axiom)
           ug-axiom-certificate (sjas/proof-certificate 'sjas-axiom
                                                        {:code-format :u-grounding})
-          substantive-proof '(false-close)
-          substantive-certificate (sjas/proof-certificate substantive-proof)
+          legacy-proof '(false-close)
+          legacy-certificate (sjas/proof-certificate legacy-proof)
+          structural-proof (structural-tableau-node system (ast/false-form))
+          structural-certificate (sjas/proof-certificate structural-proof)
           axiom-bytes (apply list (sjas-code/proof-code-bytes 'sjas-axiom))
           axiom-decodes (l/run 1 [q]
                           (l/fresh [sigma-out bytes read-proof]
@@ -1139,19 +1176,31 @@
                                                    decoded
                                                    read-proof)
                                  (l/== decoded q)))
-          substantive-decodes (l/run 1 [q]
-                                (l/fresh [sigma-out bytes decoded read-proof]
-                                  (decode-non-axiom substantive-certificate
-                                                    '()
-                                                    sigma-out
-                                                    bytes
-                                                    decoded
-                                                    read-proof)
-                                  (l/== [sigma-out decoded] q)))]
+          legacy-as-non-axiom (l/run 1 [q]
+                                 (l/fresh [sigma-out bytes decoded read-proof]
+                                   (decode-non-axiom legacy-certificate
+                                                     '()
+                                                     sigma-out
+                                                     bytes
+                                                     decoded
+                                                     read-proof)
+                                   (l/== decoded q)))
+          structural-decodes (l/run 1 [q]
+                               (l/fresh [sigma-out bytes decoded read-proof]
+                                 (decode-non-axiom structural-certificate
+                                                   '()
+                                                   sigma-out
+                                                   bytes
+                                                   decoded
+                                                   read-proof)
+                                 (l/== [sigma-out decoded] q)))]
       (is (= [['() axiom-bytes]] axiom-decodes))
       (is (= [['() axiom-bytes]] ug-axiom-decodes))
       (is (empty? axiom-as-non-axiom))
-      (is (= [['() substantive-proof]] substantive-decodes)))))
+      (is (empty? legacy-as-non-axiom)
+          "non-axiom proof-code decoding should reject legacy proof-rule traces")
+      (is (= [['() structural-proof]] structural-decodes)
+          "non-axiom proof-code decoding should accept formula-bearing structural tableau trees"))))
 
 (deftest sjas-proof-codes-encode-u-grounding-canonical-byte-evidence
   (testing "U-Grounding byte-reader evidence carries an explicit byte payload in the proof-code grammar"
@@ -1547,73 +1596,24 @@
                          :fuel 160})]
           (is (= (n 4) (binding-for records z))))))))
 
-(deftest sjas-tableau-proof-checks-kernel-certificates
-  (let [system (demo-system :willard-sjas-tableau0)
-        beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
-        beta-proof (first-proof
-                     (sjas/query-succeeds system (:formula beta-record)
-                                          {:proof-limit 1
-                                           :fuel 96}))
-        valid (sjas/proof-certificate beta-proof)
-        valid-proofs (query/query-succeeds
-                       (:program system)
-                       (sjas/tableau-proof (:system-code system)
-                                           (:code beta-record)
-                                           valid)
-                       1
-                       160)]
-    (is beta-proof)
-    (is (sjas-code/code-term? valid)
-        "proof certificates must be base-64 Godel-code terms")
-    (is (successful? valid-proofs))
-    (is (proof/contains-step? (first-proof valid-proofs) 'willard-sjas-theorem-code)
-        "tableau-proof must decode generated theorem codes structurally during predicate application")
-    (is (proof/contains-step? (first-proof valid-proofs) 'sjas-code-bytes)
-        "theorem-code decoding inside tableau-proof must cite the uniform object code-reader relation")
-    (is (empty?
-          (query/query-succeeds
-            (:program system)
-            (sjas/tableau-proof (:system-code system)
-                                (:system-code system)
-                                valid)
-            1
-            80)))))
 
-(deftest sjas-tableau-proof-reconstructs-axiom-basis-without-system-registry
-  (let [system (demo-system :willard-sjas-tableau0)
-        registry (get-in system [:program :sjas/registry])
-        beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
-        beta-proof (first-proof
-                     (sjas/query-succeeds system (:formula beta-record)
-                                          {:proof-limit 1
-                                           :fuel 96}))
-        certificate (sjas/proof-certificate beta-proof)]
-    (is beta-proof)
-    (swap! registry dissoc :sjas/system-entries)
-    (is (not (contains? @registry :sjas/system-entries))
-        "the regression must remove the generated host-side proof antecedent")
-    (is (successful?
-          (query/query-succeeds
-            (:program system)
-            (sjas/tableau-proof (:system-code system)
-                                (:code beta-record)
-                                certificate)
-            1
-            200))
-        "tableau-proof must reconstruct the axiom basis from system-code during predicate application")))
 
 (deftest sjas-proof-predicates-ignore-external-runtime-clauses
   (let [system (demo-system :willard-sjas-tableau0)
         formula (ast/pos-lit (ast/app-term 'external-demo sjas/zero))
-        theorem-code (sjas/formula-code system formula)
-        certificate (sjas/proof-certificate
-                      '(conj
-                         (neg-call
-                           (profiled willard-sjas-arithmetic
-                             (sjas-equal
-                               (sjas-read-zero)
-                               (sjas-read-zero)
-                               (sjas-bind-done))))))]
+        neg-theorem (structural-neg-lit system 'external-demo sjas/zero)
+        canonical-zero (list 'app (symbol "0"))
+        canonical-neg-theorem (list 'neg (list 'app 'external-demo canonical-zero))
+        canonical-external-negated-body (list 'neq canonical-zero canonical-zero)
+        proof (canonical-structural-tableau-node
+                system
+                canonical-neg-theorem
+                (canonical-structural-tableau-node
+                  system
+                  canonical-external-negated-body))
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (is (zero? (proof-symbol-count proof))
+        "the external-clause rejection certificate should be a tableau tree, not a kernel trace")
     (is (successful?
           (query/query-succeeds
             (:program system)
@@ -1622,280 +1622,23 @@
             96))
         "external clauses remain executable for ordinary host-side Proflog queries")
     (is (empty?
-          (query/query-succeeds
-            (:program system)
-            (sjas/tableau-proof (:system-code system)
-                                theorem-code
-                                certificate)
-            1
-            200))
-        "tableau-proof must validate certificates against the reflected SJAS system, not external runtime clauses")
-    (is (empty?
-          (query/query-succeeds
-            (:program system)
-            (sjas/subst-prf (:system-code system)
-                            theorem-code
-                            theorem-code
-                            certificate)
-            1
-            200))
-        "subst-prf must validate certificates against the reflected SJAS system, not external runtime clauses")))
+          (l/run 1 [q]
+            (check-proof (:program system)
+                         (:system-code system)
+                         neg-theorem
+                         80
+                         proof)
+            (l/== true q)))
+        "SJAS proof checking must recover reflected clauses from system-code, not external runtime clauses")))
 
-(deftest ^:slow sjas-tableau-proof-checks-structural-non-generated-theorem-codes
-  (let [system (demo-system :willard-sjas-tableau0)
-        theorem (sjas/lt sjas/one sjas/two)
-        theorem-code (sjas/formula-code system theorem)
-        wrong-theorem-code (sjas/formula-code system
-                                              (sjas/lt sjas/two sjas/one))
-        theorem-proof (first-proof
-                        (sjas/query-succeeds system theorem
-                                             {:proof-limit 1
-                                              :fuel 96}))
-        certificate (when theorem-proof
-                      (sjas/proof-certificate theorem-proof))
-        generated-codes (set (map :code (:axioms system)))]
-    (is theorem-proof)
-    (is (not (contains? generated-codes theorem-code))
-        "the theorem code must not be one of the generated axiom codes")
-    (is (successful?
-          (query/query-succeeds
-            (:program system)
-            (sjas/tableau-proof (:system-code system)
-                                theorem-code
-                                certificate)
-            1
-            180)))
-    (is (empty?
-          (query/query-succeeds
-            (:program system)
-            (sjas/tableau-proof (:system-code system)
-                                wrong-theorem-code
-                                certificate)
-            1
-            120)))))
 
-(deftest ^:slow sjas-proof-predicates-decode-built-in-relations-without-symbol-registry
-  (let [system (demo-system :willard-sjas-tableau0)
-        no-registry-program (dissoc (:program system) :sjas/registry)
-        theorem (sjas/lt sjas/one sjas/two)
-        theorem-code (sjas/formula-code system theorem)
-        theorem-proof (first-proof
-                        (sjas/query-succeeds system theorem
-                                             {:proof-limit 1
-                                              :fuel 96}))
-        certificate (when theorem-proof
-                      (sjas/proof-certificate theorem-proof))]
-    (is theorem-proof)
-    (is (not (contains? no-registry-program :sjas/registry)))
-    (is (successful?
-          (query/query-succeeds
-            no-registry-program
-            (sjas/tableau-proof (:system-code system)
-                                theorem-code
-                                certificate)
-            1
-            180))
-        "tableau-proof must recover fixed arithmetic relation semantics from formula-code structure, not the source symbol registry")
-    (is (successful?
-          (query/query-succeeds
-            no-registry-program
-            (sjas/subst-prf (:system-code system)
-                            theorem-code
-                            theorem-code
-                            certificate)
-            1
-            220))
-        "subst-prf must recover fixed arithmetic relation semantics from formula-code structure, not the source symbol registry")))
 
-(deftest ^:slow sjas-subst-prf-checks-structural-non-generated-theorem-codes
-  (let [system (demo-system :willard-sjas-tableau0)
-        theorem (sjas/lt sjas/one sjas/two)
-        theorem-code (sjas/formula-code system theorem)
-        wrong-theorem-code (sjas/formula-code system
-                                              (sjas/lt sjas/two sjas/one))
-        theorem-proof (first-proof
-                        (sjas/query-succeeds system theorem
-                                             {:proof-limit 1
-                                              :fuel 96}))
-        certificate (when theorem-proof
-                      (sjas/proof-certificate theorem-proof))
-        generated-codes (set (map :code (:axioms system)))]
-    (is theorem-proof)
-    (is (not (contains? generated-codes theorem-code))
-        "the theorem code must not be one of the generated axiom codes")
-    (is (successful?
-          (query/query-succeeds
-            (:program system)
-            (sjas/subst-prf (:system-code system)
-                            theorem-code
-                            theorem-code
-                            certificate)
-            1
-            220)))
-    (is (empty?
-          (query/query-succeeds
-            (:program system)
-            (sjas/subst-prf (:system-code system)
-                            theorem-code
-                            wrong-theorem-code
-                            certificate)
-            1
-            160)))))
 
-(deftest sjas-subst-prf-checks-identity-substitution-certificates
-  (let [system (demo-system :willard-sjas-tableau0)
-        beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
-        beta-proof (first-proof
-                     (sjas/query-succeeds system (:formula beta-record)
-                                          {:proof-limit 1
-                                           :fuel 96}))
-        valid (sjas/proof-certificate beta-proof)
-        valid-proofs (query/query-succeeds
-                       (:program system)
-                       (sjas/subst-prf (:system-code system)
-                                       (:code beta-record)
-                                       (:code beta-record)
-                                       valid)
-                       1
-                       160)]
-    (is beta-proof)
-    (is (successful? valid-proofs))
-    (is (proof/contains-step? (first-proof valid-proofs) 'willard-sjas-theorem-code)
-        "subst-prf must decode generated theorem codes structurally during predicate application")
-    (is (proof/contains-step? (first-proof valid-proofs) 'sjas-code-bytes)
-        "theorem-code decoding inside subst-prf must cite the uniform object code-reader relation")
-    (is (empty?
-          (query/query-succeeds
-            (:program system)
-            (sjas/subst-prf (:system-code system)
-                            (:code beta-record)
-                            (:system-code system)
-                            valid)
-            1
-            80)))
-    (is (empty?
-          (query/query-succeeds
-            (:program system)
-            (sjas/subst-prf (:system-code system)
-                            (:system-code system)
-                            (:code beta-record)
-                            valid)
-            1
-            80)))))
 
-(deftest sjas-proof-predicates-check-simple-arithmetic-certificates-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0)
-        beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
-        beta-proof (first-proof
-                     (sjas/query-succeeds system (:formula beta-record)
-                                          {:proof-limit 1
-                                           :fuel 96}))
-        certificate (when beta-proof
-                      (sjas/proof-certificate beta-proof))]
-    (is beta-proof)
-    (do
-      (is (successful?
-            (query/query-succeeds
-              (:program system)
-              (sjas/tableau-proof (:system-code system)
-                                  (:code beta-record)
-                                  certificate)
-              1
-              200))
-          "tableau-proof must validate simple arithmetic certificates without delegating to the host kernel")
-      (is (successful?
-            (query/query-succeeds
-              (:program system)
-              (sjas/subst-prf (:system-code system)
-                              (:code beta-record)
-                              (:code beta-record)
-                              certificate)
-              1
-              240))
-          "subst-prf must validate identity-substitution arithmetic certificates without delegating to the host kernel"))))
 
-(deftest sjas-proof-check-accepts-free-equality-closures-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0)
-        target (ast/and-form
-                 (ast/true-form)
-                 (ast/eq-lit sjas/zero sjas/one))
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (do
-      (is (successful?
-            (l/run 1 [q]
-              (check-proof (:program system)
-                           (:system-code system)
-                           target
-                           40
-                           '(conj (free-close)))
-              (l/== true q)))
-          "decoded tableau proof checking must consume free equality closure evidence object-level"))))
 
-(deftest sjas-proof-check-accepts-truth-and-falsehood-constructors-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0)
-        target (ast/and-form
-                 (ast/true-form)
-                 (ast/false-form))
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (do
-      (is (successful?
-            (l/run 1 [q]
-              (check-proof (:program system)
-                           (:system-code system)
-                           target
-                           40
-                           '(conj (skip-true (false-close))))
-              (l/== true q)))
-          "decoded tableau proof checking must consume skip-true and false-close evidence object-level"))))
 
-(deftest sjas-proof-check-keeps-split-branch-state-independent
-  (let [system (demo-system :willard-sjas-tableau0)
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            target (ast/and-form
-                     (ast/true-form)
-                     (ast/exists-form
-                       x
-                       (ast/or-form
-                         (ast/and-form
-                           (ast/eq-lit x-term sjas/zero)
-                           (ast/false-form))
-                         (ast/neq-lit x-term sjas/zero))))
-            invalid-proof '(conj
-                             (witness
-                               (split
-                                 (conj
-                                   (eq-step
-                                     (par-bind)
-                                     (false-close)))
-                                 (refl-close))))]
-        (is (empty?
-              (l/run 1 [q]
-                (check-proof (:program system)
-                             (:system-code system)
-                             target
-                             100
-                             invalid-proof)
-                (l/== true q)))
-            "split branches must not share equality substitutions from sibling branch closures")))))
 
-(deftest sjas-tableau-proof-accepts-false-close-certificates
-  (let [system (demo-system :willard-sjas-tableau0)
-        theorem (ast/true-form)
-        theorem-code (sjas/formula-code system theorem)
-        certificate (sjas/proof-certificate '(conj (false-close)))]
-    (do
-      (let [proofs (query/query-succeeds
-                     (:program system)
-                     (sjas/tableau-proof (:system-code system)
-                                         theorem-code
-                                         certificate)
-                     1
-                     160)]
-        (is (successful? proofs)
-            "tableau-proof must validate encoded false-close certificates object-level")
-        (is (proof/contains-step? (first-proof proofs) 'false-close))))))
 
 (deftest sjas-tableau-proof-rejects-generic-profiled-sidecar-certificates
   (let [system (demo-system :willard-sjas-tableau0)
@@ -1931,491 +1674,25 @@
               160))
           "SJAS proof predicates must reject answer-overlay query-entry certificates"))))
 
-(deftest sjas-tableau-proof-accepts-free-equality-closure-certificates
-  (let [system (demo-system :willard-sjas-tableau0)
-        theorem (ast/neq-lit sjas/zero sjas/one)
-        theorem-code (sjas/formula-code system theorem)
-        certificate (sjas/proof-certificate '(conj (free-close)))]
-    (do
-      (let [proofs (query/query-succeeds
-                     (:program system)
-                     (sjas/tableau-proof (:system-code system)
-                                         theorem-code
-                                         certificate)
-                     1
-                     160)]
-        (is (successful? proofs)
-            "tableau-proof must validate encoded free equality closure certificates object-level")
-        (is (proof/contains-step? (first-proof proofs) 'free-close))))))
 
-(deftest sjas-tableau-proof-accepts-decomposed-free-equality-certificates
-  (let [system (demo-system :willard-sjas-tableau0)
-        theorem (ast/neq-lit
-                  (ast/app-term 'code-2 sjas/zero sjas/zero)
-                  (ast/app-term 'code-2 sjas/zero sjas/one))
-        theorem-code (sjas/formula-code system theorem)
-        certificate (sjas/proof-certificate
-                      '(conj
-                         (decompose
-                           (args
-                             (decompose ())
-                             (free-close)))))]
-    (do
-      (let [proofs (query/query-succeeds
-                     (:program system)
-                     (sjas/tableau-proof (:system-code system)
-                                         theorem-code
-                                         certificate)
-                     1
-                     180)]
-        (is (successful? proofs)
-            "tableau-proof must validate nested free equality closure certificates object-level")
-        (is (proof/contains-step? (first-proof proofs) 'decompose))
-        (is (proof/contains-step? (first-proof proofs) 'args))))))
 
-(deftest sjas-proof-check-accepts-positive-equality-steps-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0)
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            target (ast/and-form
-                     (ast/true-form)
-                     (ast/exists-form
-                       x
-                       (ast/and-form
-                         (ast/eq-lit x-term sjas/zero)
-                         (ast/eq-lit x-term sjas/one))))]
-        (do
-      (is (successful?
-                (l/run 1 [q]
-                  (check-proof (:program system)
-                               (:system-code system)
-                               target
-                               80
-                               '(conj
-                                  (witness
-                                    (conj
-                                      (eq-step
-                                        (par-bind)
-                                        (free-close))))))
-                  (l/== true q)))
-              "decoded tableau proof checking must consume positive equality-step evidence object-level"))))))
 
-(deftest sjas-tableau-proof-accepts-positive-equality-step-certificates
-  (let [system (demo-system :willard-sjas-tableau0)]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            theorem (ast/forall-form
-                      x
-                      (ast/or-form
-                        (ast/neq-lit x-term sjas/zero)
-                        (ast/neq-lit x-term sjas/one)))
-            theorem-code (sjas/formula-code system theorem)
-            certificate (sjas/proof-certificate
-                          '(conj
-                             (witness
-                               (conj
-                                 (eq-step
-                                   (par-bind)
-                                   (free-close))))))]
-        (do
-      (let [proofs (query/query-succeeds
-                         (:program system)
-                         (sjas/tableau-proof (:system-code system)
-                                             theorem-code
-                                             certificate)
-                         1
-                         220)]
-            (is (successful? proofs)
-                "tableau-proof must validate encoded equality-step certificates object-level")
-            (is (proof/contains-step? (first-proof proofs) 'eq-step))
-            (is (proof/contains-step? (first-proof proofs) 'par-bind))))))))
 
-(deftest sjas-proof-check-accepts-reflexive-disequality-closures-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0)
-        term (ast/app-term 'code-1 sjas/zero)
-        target (ast/and-form
-                 (ast/true-form)
-                 (ast/neq-lit term term))
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (do
-      (is (successful?
-            (l/run 1 [q]
-              (check-proof (:program system)
-                           (:system-code system)
-                           target
-                           40
-                           '(conj (refl-close)))
-              (l/== true q)))
-          "decoded tableau proof checking must consume reflexive disequality closure evidence object-level"))))
 
-(deftest sjas-tableau-proof-accepts-reflexive-disequality-closure-certificates
-  (let [system (demo-system :willard-sjas-tableau0)
-        term (ast/app-term 'code-1 sjas/zero)
-        theorem (ast/eq-lit term term)
-        theorem-code (sjas/formula-code system theorem)
-        certificate (sjas/proof-certificate '(conj (refl-close)))]
-    (do
-      (let [proofs (query/query-succeeds
-                     (:program system)
-                     (sjas/tableau-proof (:system-code system)
-                                         theorem-code
-                                         certificate)
-                     1
-                     160)]
-        (is (successful? proofs)
-            "tableau-proof must validate encoded reflexive disequality closure certificates object-level")
-        (is (proof/contains-step? (first-proof proofs) 'refl-close))))))
 
-(deftest sjas-proof-check-accepts-rigid-disequality-progress-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0)
-        left (ast/app-term 'code-1 sjas/zero)
-        right (ast/app-term 'code-1 sjas/one)
-        target (ast/and-form
-                 (ast/true-form)
-                 (ast/and-form
-                   (ast/neq-lit left right)
-                   (ast/eq-lit sjas/zero sjas/one)))
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (do
-      (is (successful?
-            (l/run 1 [q]
-              (check-proof (:program system)
-                           (:system-code system)
-                           target
-                           60
-                           '(conj
-                              (conj
-                                (neq-rigid
-                                  (free-close)))))
-              (l/== true q)))
-          "decoded tableau proof checking must consume rigid disequality progress evidence object-level"))))
 
-(deftest sjas-tableau-proof-accepts-rigid-disequality-progress-certificates
-  (let [system (demo-system :willard-sjas-tableau0)
-        left (ast/app-term 'code-1 sjas/zero)
-        right (ast/app-term 'code-1 sjas/one)
-        theorem (ast/or-form
-                  (ast/eq-lit left right)
-                  (ast/neq-lit sjas/zero sjas/one))
-        theorem-code (sjas/formula-code system theorem)
-        certificate (sjas/proof-certificate
-                      '(conj
-                         (conj
-                           (neq-rigid
-                             (free-close)))))]
-    (do
-      (let [proofs (query/query-succeeds
-                     (:program system)
-                     (sjas/tableau-proof (:system-code system)
-                                         theorem-code
-                                         certificate)
-                     1
-                     180)]
-        (is (successful? proofs)
-            "tableau-proof must validate encoded rigid disequality progress certificates object-level")
-        (is (proof/contains-step? (first-proof proofs) 'neq-rigid))))))
 
-(deftest sjas-proof-check-accepts-stored-disequality-closures-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0)
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            target (ast/and-form
-                     (ast/true-form)
-                     (ast/exists-form
-                       x
-                       (ast/and-form
-                         (ast/neq-lit x-term sjas/zero)
-                         (ast/eq-lit x-term sjas/zero))))]
-        (do
-      (is (successful?
-                (l/run 1 [q]
-                  (check-proof (:program system)
-                               (:system-code system)
-                               target
-                               80
-                               '(conj
-                                  (witness
-                                    (conj
-                                      (neq-store
-                                        (eq-step
-                                          (par-bind)
-                                          (neq-close)))))))
-                  (l/== true q)))
-              "decoded tableau proof checking must store disequality evidence and close it after equality progress"))))))
 
-(deftest sjas-tableau-proof-accepts-stored-disequality-closure-certificates
-  (let [system (demo-system :willard-sjas-tableau0)]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            theorem (ast/forall-form
-                      x
-                      (ast/or-form
-                        (ast/eq-lit x-term sjas/zero)
-                        (ast/neq-lit x-term sjas/zero)))
-            theorem-code (sjas/formula-code system theorem)
-            certificate (sjas/proof-certificate
-                          '(conj
-                             (witness
-                               (conj
-                                 (neq-store
-                                   (eq-step
-                                     (par-bind)
-                                     (neq-close)))))))]
-        (do
-      (let [proofs (query/query-succeeds
-                         (:program system)
-                         (sjas/tableau-proof (:system-code system)
-                                             theorem-code
-                                             certificate)
-                         1
-                         220)]
-            (is (successful? proofs)
-                "tableau-proof must validate encoded stored-disequality closure certificates object-level")
-            (is (proof/contains-step? (first-proof proofs) 'neq-store))
-            (is (proof/contains-step? (first-proof proofs) 'neq-close))))))))
 
-(deftest sjas-proof-check-accepts-proof-variable-disequality-closures-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0 {:functions {'f 1}})
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            target (ast/and-form
-                     (ast/true-form)
-                     (ast/once-forall-form
-                       x
-                       (ast/neq-lit (ast/app-term 'f x-term)
-                                    (ast/app-term 'f sjas/zero))))]
-        (do
-      (is (successful?
-                (l/run 1 [q]
-                  (check-proof (:program system)
-                               (:system-code system)
-                               target
-                               80
-                               (list 'conj
-                                     (list 'once-univ
-                                           (list 'neq-close
-                                                 (list 'decompose
-                                                       (list 'args '(eq-bind) '()))))))
-                  (l/== true q)))
-              "decoded tableau proof checking must consume proof-variable disequality closure evidence object-level"))))))
 
-(deftest sjas-tableau-proof-accepts-proof-variable-disequality-closure-certificates
-  (let [system (demo-system :willard-sjas-tableau0 {:functions {'f 1}})]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            theorem (ast/exists-form
-                      x
-                      (ast/eq-lit (ast/app-term 'f x-term)
-                                  (ast/app-term 'f sjas/zero)))
-            theorem-code (sjas/formula-code system theorem)
-            certificate (sjas/proof-certificate
-                          (list 'conj
-                                (list 'once-univ
-                                      (list 'neq-close
-                                            (list 'decompose
-                                                  (list 'args '(eq-bind) '()))))))]
-        (do
-      (let [proofs (query/query-succeeds
-                         (:program system)
-                         (sjas/tableau-proof (:system-code system)
-                                             theorem-code
-                                             certificate)
-                         1
-                         220)]
-            (is (successful? proofs)
-                "tableau-proof must validate encoded proof-variable disequality closure certificates object-level")
-            (is (proof/contains-step? (first-proof proofs) 'neq-close))
-            (is (proof/contains-step? (first-proof proofs) 'eq-bind))))))))
 
-(deftest sjas-proof-check-accepts-equality-triggered-atom-closures-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0 {:relations {'color 1}})
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            color-x (ast/app-term 'color x-term)
-            color-zero (ast/app-term 'color sjas/zero)
-            target (ast/and-form
-                     (ast/true-form)
-                     (ast/once-forall-form
-                       x
-                       (ast/and-form
-                         (ast/pos-lit color-x)
-                         (ast/and-form
-                           (ast/neg-lit color-zero)
-                           (ast/eq-lit x-term sjas/zero)))))
-            proof (equality-triggered-atom-closure-proof)]
-        (do
-      (is (successful?
-                (l/run 1 [q]
-                  (check-proof (:program system)
-                               (:system-code system)
-                               target
-                               100
-                               proof)
-                  (l/== true q)))
-              "decoded tableau proof checking must consume equality-triggered atom closure evidence object-level"))))))
 
-(deftest sjas-proof-check-accepts-equality-triggered-positive-calls-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0)
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            target (ast/and-form
-                     (ast/true-form)
-                     (ast/exists-form
-                       x
-                       (ast/and-form
-                         (structural-pos-lit system 'demo x-term)
-                         (ast/eq-lit x-term sjas/zero))))
-            proof (equality-triggered-positive-call-proof)]
-        (do
-      (is (successful?
-                (l/run 1 [q]
-                  (check-proof (:program system)
-                               (:system-code system)
-                               target
-                               120
-                               proof)
-                  (l/== true q)))
-              "decoded tableau proof checking must recover equality-triggered reflected calls from system-code"))))))
 
-(deftest sjas-proof-check-accepts-equality-triggered-negative-calls-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0)
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            target (ast/and-form
-                     (ast/true-form)
-                     (ast/exists-form
-                       x
-                       (ast/and-form
-                         (structural-neg-lit system 'demo x-term)
-                         (ast/eq-lit x-term sjas/one))))
-            proof (equality-triggered-negative-call-proof)]
-        (do
-      (is (successful?
-                (l/run 1 [q]
-                  (check-proof (:program system)
-                               (:system-code system)
-                               target
-                               120
-                               proof)
-                  (l/== true q)))
-              "decoded tableau proof checking must recover equality-triggered reflected negative calls from system-code"))))))
 
-(deftest sjas-proof-check-accepts-occurs-check-closures-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0 {:functions {'f 1}})
-        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            target (ast/and-form
-                     (ast/true-form)
-                     (ast/once-forall-form
-                       x
-                       (ast/eq-lit x-term (ast/app-term 'f x-term))))]
-        (do
-      (is (successful?
-                (l/run 1 [q]
-                  (check-proof (:program system)
-                               (:system-code system)
-                               target
-                               80
-                               '(conj (once-univ (occurs-close))))
-                  (l/== true q)))
-              "decoded tableau proof checking must consume occurs-check closure evidence object-level"))))))
 
-(deftest sjas-tableau-proof-accepts-occurs-check-closure-certificates
-  (let [system (demo-system :willard-sjas-tableau0 {:functions {'f 1}})]
-    (ast/nom x
-      (let [x-term (ast/var-term x)
-            theorem (ast/exists-form
-                      x
-                      (ast/neq-lit x-term (ast/app-term 'f x-term)))
-            theorem-code (sjas/formula-code system theorem)
-            certificate (sjas/proof-certificate
-                          '(conj (once-univ (occurs-close))))]
-        (do
-      (let [proofs (query/query-succeeds
-                         (:program system)
-                         (sjas/tableau-proof (:system-code system)
-                                             theorem-code
-                                             certificate)
-                         1
-                         220)]
-            (is (successful? proofs)
-                "tableau-proof must validate encoded occurs-check closure certificates object-level")
-            (is (proof/contains-step? (first-proof proofs) 'occurs-close))))))))
 
-(deftest sjas-proof-predicates-check-reflected-clause-certificates-without-kernel-validator
-  (let [system (demo-system :willard-sjas-tableau0)
-        theorem (ast/pos-lit (ast/app-term 'demo sjas/one))
-        theorem-code (sjas/formula-code system theorem)
-        theorem-proof (first-proof
-                        (sjas/query-succeeds system theorem
-                                             {:proof-limit 1
-                                              :fuel 160}))
-        certificate (when theorem-proof
-                      (sjas/proof-certificate theorem-proof))]
-    (is theorem-proof)
-    (is (proof/contains-step? theorem-proof 'neg-call))
-    (do
-      (is (successful?
-            (query/query-succeeds
-              (:program system)
-              (sjas/tableau-proof (:system-code system)
-                                  theorem-code
-                                  certificate)
-              1
-              240))
-          "tableau-proof must validate reflected-clause certificates without delegating to the host kernel"))))
 
-(deftest sjas-proof-check-accepts-reflected-negative-call-alternatives-from-system-code
-  (ast/nom x
-    (let [system (demo-system
-                   :willard-sjas-tableau0
-                   {:relations {'multi-demo 1}
-                    :reflected-clauses [(ast/clause 'multi-demo
-                                                    [x]
-                                                    (ast/eq-lit (ast/var-term x) sjas/one))
-                                        (ast/clause 'multi-demo
-                                                    [x]
-                                                    (ast/eq-lit (ast/var-term x) sjas/zero))]})
-          target (ast/and-form
-                   (ast/true-form)
-                   (structural-neg-lit system 'multi-demo sjas/one))
-          proof '(conj (skip-true (neg-call-alt (alt (refl-close)))))
-          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-      (do
-      (is (successful?
-              (l/run 1 [q]
-                (check-proof (:program system)
-                             (:system-code system)
-                             target
-                             120
-                             proof)
-                (l/== true q)))
-            "decoded tableau proof checking must recover multi-clause reflected negative calls from system-code")))))
 
-(deftest sjas-proof-check-accepts-minimal-arithmetic-close-certificates
-  (testing "the proof tree need only mark arithmetic branch closure; arithmetic evidence is computed by the predicate"
-    (let [system (demo-system :willard-sjas-tableau0)
-          target (ast/and-form
-                   (ast/true-form)
-                   (ast/neg-lit (ast/app-term 'leq sjas/one sjas/one)))
-          proof '(conj (skip-true (arith-close)))
-          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-      (is (successful?
-            (l/run 1 [q]
-              (check-proof (:program system)
-                           (:system-code system)
-                           target
-                           80
-                           proof)
-              (l/== true q)))
-          "minimal arithmetic leaves must close by evaluating the SJAS arithmetic relation internally"))))
 
 (deftest sjas-proof-check-accepts-formula-bearing-and-true-false-tableaux
   (testing "the checker can infer local tableau rules from formula-bearing proof nodes"
@@ -2438,6 +1715,27 @@
                            proof)
               (l/== true q)))
           "formula-bearing nodes should validate by structural Deduction/Closure checks, not rule tags"))))
+
+(deftest sjas-proof-check-accepts-formula-bearing-right-first-conjunction-tableaux
+  (testing "structural conjunction may close the right conjunct before expanding the left"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/and-form (ast/true-form) (ast/false-form))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node system (ast/false-form)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "right-first structural conjunction should not use conj or false-close tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           proof)
+              (l/== true q)))
+          "formula-bearing conjunction should permit either conjunct to be selected next"))))
 
 (deftest sjas-proof-check-accepts-formula-bearing-disjunction-tableaux
   (testing "structural disjunction uses two formula-bearing child branches"
@@ -2586,7 +1884,7 @@
 (deftest sjas-structural-arithmetic-closure-uses-proof-free-arithmetic
   (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
         start-token "(defn- sjas-structural-proof-check-stateo"
-        end-token "(defn- sjas-saved-positive-call-closeso"
+        end-token "(defn- sjas-proof-check-stateo"
         start (str/index-of source start-token)
         end (str/index-of source end-token start)
         structural-source (subs source start end)]
@@ -2645,7 +1943,7 @@
 (deftest sjas-structural-proof-checker-uses-proof-free-equality-progression
   (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
         start-token "(defn- sjas-structural-proof-check-stateo"
-        end-token "(defn- sjas-saved-positive-call-closeso"
+        end-token "(defn- sjas-proof-check-stateo"
         start (str/index-of source start-token)
         end (str/index-of source end-token start)
         structural-source (subs source start end)]
@@ -2657,7 +1955,7 @@
 (deftest sjas-structural-proof-checker-has-no-proof-rule-tag-shortcuts
   (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
         start-token "(defn- sjas-structural-proof-check-stateo"
-        end-token "(defn- sjas-saved-positive-call-closeso"
+        end-token "(defn- sjas-proof-check-stateo"
         start (str/index-of source start-token)
         end (str/index-of source end-token start)
         structural-source (subs source start end)
@@ -2702,6 +2000,38 @@
       (is (not (str/includes? structural-source (str "'" tag)))
           (str "formula-bearing structural proof checking must infer rules instead of matching proof tag "
                tag)))))
+
+(deftest sjas-proof-checker-rejects-legacy-proof-rule-tag-certificates
+  (testing "the SJAS proof predicate consumes tableau trees, not kernel proof traces"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/and-form (ast/true-form) (ast/false-form))
+          structural-proof (structural-tableau-node
+                             system
+                             target
+                             (structural-tableau-node
+                               system
+                               (ast/true-form)
+                               (structural-tableau-node system (ast/false-form))))
+          legacy-proof '(conj (skip-true (false-close)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           structural-proof)
+              (l/== true q)))
+          "formula-bearing tableau trees remain the accepted proof predicate input")
+      (is (empty?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           legacy-proof)
+              (l/== true q)))
+          "legacy kernel proof-rule traces must not be accepted as SJAS tableau certificates"))))
 
 (deftest sjas-proof-check-accepts-formula-bearing-rigid-disequality-continuations
   (testing "structural disequality nodes continue when terms are rigidly different"
@@ -3195,432 +2525,18 @@
                 (l/== true q)))
             "formula-bearing negative calls should close negated existential reflected bodies by ordinary structural quantifier rules")))))
 
-(deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
-  (testing "guarded negative call evidence is validated from encoded reflected clauses"
-    (let [system (sjas/system
-                   {:profile :willard-sjas-tableau0
-                    :relations {'guarded-demo 0}
-                    :beta []
-                    :reflected-clauses [(ast/clause 'guarded-demo
-                                                    []
-                                                    (ast/true-form))
-                                        (ast/clause 'guarded-demo
-                                                    []
-                                                    (ast/false-form))]})
-          target (ast/and-form
-                   (ast/true-form)
-                   (structural-neg-lit system 'guarded-demo))
-          proof '(conj
-                   (skip-true
-                     (neg-call-guarded-alt
-                       (guarded-alt
-                         (guarded-neg-alt
-                           (guarded-scope-done)
-                           (guarded-seq-last (false-close)))))))
-          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-      (do
-      (is (successful?
-              (l/run 1 [q]
-                (check-proof (:program system)
-                             (:system-code system)
-                             target
-                             120
-                             proof)
-                (l/== true q)))
-            "decoded tableau proof checking must recover guarded reflected negative calls from system-code")))))
-
-(deftest sjas-tableau-proof-accepts-guarded-reflected-negative-call-certificates
-  (let [system (sjas/system
-                 {:profile :willard-sjas-tableau0
-                  :relations {'guarded-demo 0}
-                  :beta []
-                  :reflected-clauses [(ast/clause 'guarded-demo
-                                                  []
-                                                  (ast/true-form))
-                                      (ast/clause 'guarded-demo
-                                                  []
-                                                  (ast/false-form))]})
-        stripped-program (assoc (:program system)
-                                :clauses nil
-                                :clause-list '()
-                                :alternative-clause-list '()
-                                :guarded-clause-list '())
-        theorem (ast/pos-lit (ast/app-term 'guarded-demo))
-        theorem-code (sjas/formula-code system theorem)
-        certificate (sjas/proof-certificate
-                      '(conj
-                         (neg-call-guarded-alt
-                           (guarded-alt
-                             (guarded-neg-alt
-                               (guarded-scope-done)
-                               (guarded-seq-last (false-close)))))))]
-    (do
-      (let [proofs (query/query-succeeds
-                     stripped-program
-                     (sjas/tableau-proof (:system-code system)
-                                         theorem-code
-                                         certificate)
-                     1
-                     220)]
-        (is (successful? proofs)
-            "tableau-proof must validate encoded guarded negative-call certificates from system-code, not compiled clause tables")
-        (is (proof/contains-step? (first-proof proofs) 'neg-call-guarded-alt))
-        (is (proof/contains-step? (first-proof proofs) 'guarded-alt))))))
-
-(deftest sjas-proof-check-accepts-saturated-guarded-reflected-negative-call-from-system-code
-  (testing "saturated guarded evidence is validated from encoded reflected clauses"
-    (let [system (sjas/system
-                   {:profile :willard-sjas-tableau0
-                    :relations {'guarded-saturated-demo 0}
-                    :beta []
-                    :reflected-clauses [(ast/clause 'guarded-saturated-demo
-                                                    []
-                                                    (ast/true-form))
-                                        (ast/clause 'guarded-saturated-demo
-                                                    []
-                                                    (ast/false-form))]})
-          target (ast/and-form
-                   (ast/true-form)
-                   (structural-neg-lit system 'guarded-saturated-demo))
-          proof '(conj
-                   (skip-true
-                     (neg-call-guarded-alt
-                       (guarded-alt
-                         (guarded-neg-alt-saturated
-                           (guarded-scope-done)
-                           (guard-saturation-done)
-                           (guarded-call-seq-done)
-                           (guarded-residual-seq-last (false-close)))))))
-          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-      (do
-      (is (successful?
-              (l/run 1 [q]
-                (check-proof (:program system)
-                             (:system-code system)
-                             target
-                             120
-                             proof)
-                (l/== true q)))
-            "decoded tableau proof checking must recover saturated guarded reflected negative calls from system-code")))))
-
-(deftest sjas-tableau-proof-accepts-saturated-guarded-reflected-negative-call-certificates
-  (let [system (sjas/system
-                 {:profile :willard-sjas-tableau0
-                  :relations {'guarded-saturated-demo 0}
-                  :beta []
-                  :reflected-clauses [(ast/clause 'guarded-saturated-demo
-                                                  []
-                                                  (ast/true-form))
-                                      (ast/clause 'guarded-saturated-demo
-                                                  []
-                                                  (ast/false-form))]})
-        stripped-program (assoc (:program system)
-                                :clauses nil
-                                :clause-list '()
-                                :alternative-clause-list '()
-                                :guarded-clause-list '())
-        theorem (ast/pos-lit (ast/app-term 'guarded-saturated-demo))
-        theorem-code (sjas/formula-code system theorem)
-        certificate (sjas/proof-certificate
-                      '(conj
-                         (neg-call-guarded-alt
-                           (guarded-alt
-                             (guarded-neg-alt-saturated
-                               (guarded-scope-done)
-                               (guard-saturation-done)
-                               (guarded-call-seq-done)
-                               (guarded-residual-seq-last (false-close)))))))]
-    (do
-      (let [proofs (query/query-succeeds
-                     stripped-program
-                     (sjas/tableau-proof (:system-code system)
-                                         theorem-code
-                                         certificate)
-                     1
-                     220)]
-        (is (successful? proofs)
-            "tableau-proof must validate encoded saturated guarded negative-call certificates from system-code, not compiled clause tables")
-        (is (proof/contains-step? (first-proof proofs) 'guarded-neg-alt-saturated))
-        (is (proof/contains-step? (first-proof proofs) 'guarded-residual-seq-last))))))
-
-(deftest sjas-proof-check-accepts-guard-equality-saturation-from-system-code
-  (testing "non-empty guard saturation is validated from encoded reflected clauses"
-    (let [guarded-body (ast/and-form
-                         (ast/eq-lit sjas/one sjas/one)
-                         (ast/true-form))
-          system (sjas/system
-                   {:profile :willard-sjas-tableau0
-                    :relations {'guard-eq-demo 0}
-                    :beta []
-                    :reflected-clauses [(ast/clause 'guard-eq-demo
-                                                    []
-                                                    guarded-body)
-                                        (ast/clause 'guard-eq-demo
-                                                    []
-                                                    (ast/false-form))]})
-          target (ast/and-form
-                   (ast/true-form)
-                   (structural-neg-lit system 'guard-eq-demo))
-          proof '(conj
-                   (skip-true
-                     (neg-call-guarded-alt
-                       (guarded-alt
-                         (guarded-neg-alt-saturated
-                           (guarded-scope-done)
-                           (guard-eq (eq-refl) (guard-saturation-done))
-                           (guarded-call-seq-done)
-                           (guarded-residual-seq-last (false-close)))))))
-          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-      (do
-      (is (successful?
-              (l/run 1 [q]
-                (check-proof (:program system)
-                             (:system-code system)
-                             target
-                             120
-                             proof)
-                (l/== true q)))
-            "decoded tableau proof checking must recover non-empty reflected equality guards from system-code")))))
-
-(deftest sjas-tableau-proof-accepts-guard-equality-saturation-certificates
-  (let [guarded-body (ast/and-form
-                       (ast/eq-lit sjas/one sjas/one)
-                       (ast/true-form))
-        system (sjas/system
-                 {:profile :willard-sjas-tableau0
-                  :relations {'guard-eq-demo 0}
-                  :beta []
-                  :reflected-clauses [(ast/clause 'guard-eq-demo
-                                                  []
-                                                  guarded-body)
-                                      (ast/clause 'guard-eq-demo
-                                                  []
-                                                  (ast/false-form))]})
-        stripped-program (assoc (:program system)
-                                :clauses nil
-                                :clause-list '()
-                                :alternative-clause-list '()
-                                :guarded-clause-list '())
-        theorem (ast/pos-lit (ast/app-term 'guard-eq-demo))
-        theorem-code (sjas/formula-code system theorem)
-        certificate (sjas/proof-certificate
-                      '(conj
-                         (neg-call-guarded-alt
-                           (guarded-alt
-                             (guarded-neg-alt-saturated
-                               (guarded-scope-done)
-                               (guard-eq (eq-refl) (guard-saturation-done))
-                               (guarded-call-seq-done)
-                               (guarded-residual-seq-last (false-close)))))))]
-    (do
-      (let [proofs (query/query-succeeds
-                     stripped-program
-                     (sjas/tableau-proof (:system-code system)
-                                         theorem-code
-                                         certificate)
-                     1
-                     220)]
-        (is (successful? proofs)
-            "tableau-proof must validate encoded guard saturation certificates from system-code, not compiled clause tables")
-        (is (proof/contains-step? (first-proof proofs) 'guard-eq))
-        (is (proof/contains-step? (first-proof proofs) 'guarded-residual-seq-last))))))
-
-(deftest sjas-proof-check-accepts-existential-guarded-scope-from-system-code
-  (testing "existential guarded scope is validated from encoded reflected clauses"
-    (ast/nom x
-      (let [scoped-body (ast/exists-form x (ast/true-form))
-            system (sjas/system
-                     {:profile :willard-sjas-tableau0
-                      :relations {'guarded-scope-demo 0}
-                      :beta []
-                      :reflected-clauses [(ast/clause 'guarded-scope-demo
-                                                      []
-                                                      scoped-body)
-                                          (ast/clause 'guarded-scope-demo
-                                                      []
-                                                      (ast/false-form))]})
-            target (ast/and-form
-                     (ast/true-form)
-                     (structural-neg-lit system 'guarded-scope-demo))
-            proof '(conj
-                     (skip-true
-                       (neg-call-guarded-alt
-                         (guarded-alt
-                           (guarded-neg-alt
-                             (guarded-scope-exists (guarded-scope-done))
-                             (guarded-seq-last (false-close)))))))
-            check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-        (do
-      (is (successful?
-                (l/run 1 [q]
-                  (check-proof (:program system)
-                               (:system-code system)
-                               target
-                               120
-                               proof)
-                  (l/== true q)))
-              "decoded tableau proof checking must recover existential guarded scope from system-code"))))))
-
-(deftest sjas-tableau-proof-accepts-existential-guarded-scope-certificates
-  (ast/nom x
-    (let [scoped-body (ast/exists-form x (ast/true-form))
-          system (sjas/system
-                   {:profile :willard-sjas-tableau0
-                    :relations {'guarded-scope-demo 0}
-                    :beta []
-                    :reflected-clauses [(ast/clause 'guarded-scope-demo
-                                                    []
-                                                    scoped-body)
-                                        (ast/clause 'guarded-scope-demo
-                                                    []
-                                                    (ast/false-form))]})
-          stripped-program (assoc (:program system)
-                                  :clauses nil
-                                  :clause-list '()
-                                  :alternative-clause-list '()
-                                  :guarded-clause-list '())
-          theorem (ast/pos-lit (ast/app-term 'guarded-scope-demo))
-          theorem-code (sjas/formula-code system theorem)
-          certificate (sjas/proof-certificate
-                        '(conj
-                           (neg-call-guarded-alt
-                             (guarded-alt
-                               (guarded-neg-alt
-                                 (guarded-scope-exists (guarded-scope-done))
-                                 (guarded-seq-last (false-close)))))))]
-      (do
-      (let [proofs (query/query-succeeds
-                       stripped-program
-                       (sjas/tableau-proof (:system-code system)
-                                           theorem-code
-                                           certificate)
-                       1
-                       220)]
-          (is (successful? proofs)
-              "tableau-proof must validate encoded guarded-scope certificates from system-code, not compiled clause tables")
-          (is (proof/contains-step? (first-proof proofs) 'guarded-scope-exists))
-          (is (proof/contains-step? (first-proof proofs) 'guarded-seq-last)))))))
-
-(defn- nested-guarded-call-system
-  "Build a reflected-only two-relation system for recursive guarded-call tests."
-  []
-  (let [outer-body (ast/and-form
-                     (ast/pos-lit (ast/app-term 'inner-guarded-demo))
-                     (ast/true-form))]
-    (sjas/system
-      {:profile :willard-sjas-tableau0
-       :relations {'outer-guarded-demo 0
-                   'inner-guarded-demo 0}
-       :beta []
-       :reflected-clauses [(ast/clause 'outer-guarded-demo [] outer-body)
-                           (ast/clause 'outer-guarded-demo [] (ast/false-form))
-                           (ast/clause 'inner-guarded-demo [] (ast/true-form))
-                           (ast/clause 'inner-guarded-demo [] (ast/false-form))]})))
-
-(def nested-guarded-call-branch-proof
-  '(neg-call-guarded-alt
-     (guarded-alt
-       (guarded-neg-alt-saturated
-         (guarded-scope-done)
-         (guard-saturation-done)
-         (guarded-call-seq-step
-           (neg-call-guarded-alt
-             (guarded-alt
-               (guarded-neg-alt-saturated
-                 (guarded-scope-done)
-                 (guard-saturation-done)
-                 (guarded-call-seq-done)
-                 (guarded-residual-seq-last (false-close)))))
-           (guarded-call-seq-done))
-         (guarded-residual-seq-last (false-close))))))
-
-(deftest sjas-proof-check-accepts-recursive-guarded-call-sequence-from-system-code
-  (testing "recursive guarded call sequences are validated from encoded reflected clauses"
-    (let [system (nested-guarded-call-system)
-          target (ast/and-form
-                   (ast/true-form)
-                   (structural-neg-lit system 'outer-guarded-demo))
-          proof (list 'conj
-                      (list 'skip-true nested-guarded-call-branch-proof))
-          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
-      (do
-      (is (successful?
-              (l/run 1 [q]
-                (check-proof (:program system)
-                             (:system-code system)
-                             target
-                             160
-                             proof)
-                (l/== true q)))
-            "decoded tableau proof checking must recover recursive guarded call sequences from system-code")))))
-
-(deftest sjas-tableau-proof-accepts-recursive-guarded-call-sequence-certificates
-  (let [system (nested-guarded-call-system)
-        stripped-program (assoc (:program system)
-                                :clauses nil
-                                :clause-list '()
-                                :alternative-clause-list '()
-                                :guarded-clause-list '())
-        theorem (ast/pos-lit (ast/app-term 'outer-guarded-demo))
-        theorem-code (sjas/formula-code system theorem)
-        certificate (sjas/proof-certificate
-                      (list 'conj nested-guarded-call-branch-proof))]
-    (do
-      (let [proofs (query/query-succeeds
-                     stripped-program
-                     (sjas/tableau-proof (:system-code system)
-                                         theorem-code
-                                         certificate)
-                     1
-                     240)]
-        (is (successful? proofs)
-            "tableau-proof must validate encoded guarded-call sequence certificates from system-code, not compiled clause tables")
-        (is (proof/contains-step? (first-proof proofs) 'guarded-call-seq-step))
-        (is (proof/contains-step? (first-proof proofs) 'guarded-residual-seq-last))))))
-
-(deftest sjas-tableau-proof-accepts-reflected-negative-call-alternative-certificates
-  (ast/nom x
-    (let [system (demo-system
-                   :willard-sjas-tableau0
-                   {:relations {'multi-demo 1}
-                    :reflected-clauses [(ast/clause 'multi-demo
-                                                    [x]
-                                                    (ast/eq-lit (ast/var-term x) sjas/one))
-                                        (ast/clause 'multi-demo
-                                                    [x]
-                                                    (ast/eq-lit (ast/var-term x) sjas/zero))]})
-          stripped-program (assoc (:program system)
-                                  :clauses nil
-                                  :clause-list '()
-                                  :alternative-clause-list '()
-                                  :guarded-clause-list '())
-          theorem (ast/pos-lit (ast/app-term 'multi-demo sjas/one))
-          theorem-code (sjas/formula-code system theorem)
-          certificate (sjas/proof-certificate
-                        '(conj (neg-call-alt (alt (refl-close)))))]
-      (do
-      (let [proofs (query/query-succeeds
-                       stripped-program
-                       (sjas/tableau-proof (:system-code system)
-                                           theorem-code
-                                           certificate)
-                       1
-                       220)]
-          (is (successful? proofs)
-              "tableau-proof must validate encoded neg-call-alt certificates from system-code, not compiled clause tables")
-          (is (proof/contains-step? (first-proof proofs) 'neg-call-alt))
-          (is (proof/contains-step? (first-proof proofs) 'alt)))))))
-
 (deftest sjas-proof-predicates-check-reflected-calls-from-system-code
   (let [system (demo-system :willard-sjas-tableau0)
-        theorem (ast/pos-lit (ast/app-term 'demo sjas/one))
-        theorem-code (sjas/formula-code system theorem)
-        theorem-proof (first-proof
-                        (sjas/query-succeeds system theorem
-                                             {:proof-limit 1
-                                              :fuel 160}))
-        certificate (when theorem-proof
-                      (sjas/proof-certificate theorem-proof))
+        neg-theorem (structural-neg-lit system 'demo sjas/one)
+        canonical-one (list 'app (symbol "1"))
+        canonical-neg-theorem (list 'neg (list 'app 'demo canonical-one))
+        canonical-negated-reflected-body (list 'neq canonical-one canonical-one)
+        proof (canonical-structural-tableau-node
+                system
+                canonical-neg-theorem
+                (canonical-structural-tableau-node
+                  system
+                  canonical-negated-reflected-body))
         registry (atom (dissoc @(get-in system [:program :sjas/registry])
                                :sjas/reflected-program))
         stripped-program (assoc (:program system)
@@ -3628,61 +2544,58 @@
                                 :clause-list '()
                                 :alternative-clause-list '()
                                 :guarded-clause-list '()
-                                :sjas/registry registry)]
-    (is theorem-proof)
-    (is (proof/contains-step? theorem-proof 'neg-call))
-    (do
-      (is (successful?
-            (query/query-succeeds
-              stripped-program
-              (sjas/tableau-proof (:system-code system)
-                                  theorem-code
-                                  certificate)
-              1
-              240))
-          "reflected procedure calls inside proof certificates must be recovered from encoded system-code clauses"))))
+                                :sjas/registry registry)
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (is (zero? (proof-symbol-count proof))
+        "the public reflected-call certificate should be a formula-bearing tableau tree")
+    (is (successful?
+          (l/run 1 [q]
+            (check-proof stripped-program
+                         (:system-code system)
+                         neg-theorem
+                         80
+                         proof)
+            (l/== true q)))
+        "reflected procedure calls inside structural proof certificates must be recovered from encoded system-code clauses")))
 
 (deftest sjas-proof-predicates-check-reflected-calls-without-symbol-registry
   (let [system (demo-system :willard-sjas-tableau0)
-        theorem (ast/pos-lit (ast/app-term 'demo sjas/one))
-        theorem-code (sjas/formula-code system theorem)
-        theorem-proof (first-proof
-                        (sjas/query-succeeds system theorem
-                                             {:proof-limit 1
-                                              :fuel 160}))
-        certificate (when theorem-proof
-                      (sjas/proof-certificate theorem-proof))
+        neg-theorem (structural-neg-lit system 'demo sjas/one)
+        canonical-one (list 'app (symbol "1"))
+        canonical-neg-theorem (list 'neg (list 'app 'demo canonical-one))
+        canonical-negated-reflected-body (list 'neq canonical-one canonical-one)
+        proof (canonical-structural-tableau-node
+                system
+                canonical-neg-theorem
+                (canonical-structural-tableau-node
+                  system
+                  canonical-negated-reflected-body))
         stripped-program (-> (:program system)
                              (assoc :clauses nil
                                     :clause-list '()
                                     :alternative-clause-list '()
                                     :guarded-clause-list '())
-                             (dissoc :sjas/registry))]
-    (is theorem-proof)
-    (is (proof/contains-step? theorem-proof 'neg-call))
+                             (dissoc :sjas/registry))
+        check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+    (is (zero? (proof-symbol-count proof))
+        "the no-registry reflected-call certificate should be a formula-bearing tableau tree")
     (is (not (contains? stripped-program :sjas/registry))
         "the regression must remove the finite source symbol table")
-    (do
-      (is (successful?
-            (query/query-succeeds
-              stripped-program
-              (sjas/tableau-proof (:system-code system)
-                                  theorem-code
-                                  certificate)
-              1
-              240))
-          "reflected procedure calls must compare encoded symbol ids from system-code, not host symbol names"))))
+    (is (successful?
+          (l/run 1 [q]
+            (check-proof stripped-program
+                         (:system-code system)
+                         neg-theorem
+                         80
+                         proof)
+            (l/== true q)))
+        "reflected procedure calls must compare encoded symbol ids from system-code, not host symbol names")))
 
 (deftest sjas-subst-prf-reconstructs-axiom-basis-without-system-registry
   (let [system (demo-system :willard-sjas-tableau0)
         registry (get-in system [:program :sjas/registry])
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
-        beta-proof (first-proof
-                     (sjas/query-succeeds system (:formula beta-record)
-                                          {:proof-limit 1
-                                           :fuel 96}))
-        certificate (sjas/proof-certificate beta-proof)]
-    (is beta-proof)
+        certificate (sjas/proof-certificate 'sjas-axiom)]
     (swap! registry dissoc :sjas/system-entries)
     (is (not (contains? @registry :sjas/system-entries))
         "the regression must remove the generated host-side proof antecedent")
@@ -3995,28 +2908,6 @@
         "the Level-1 proof predicate must not treat the complement of its fixed-point SelfCons axiom as an axiom instance")))
 
 (deftest sjas-selfcons-demonstration-uses-substantive-proof-targets
-  (testing "the generated self-consistency axiom is a theorem with a checked certificate"
-    (let [system (demo-system :willard-sjas-tableau0)
-          group3-proof (first-proof
-                         (sjas/query-succeeds system
-                                              (:formula (:group-three system))
-                                              {:proof-limit 1
-                                               :fuel 96}))
-          group3-certificate (when group3-proof
-                               (sjas/proof-certificate group3-proof))
-          tableau-proofs (when group3-certificate
-                           (query/query-succeeds
-                             (:program system)
-                             (sjas/tableau-proof (:system-code system)
-                                                 (:code (:group-three system))
-                                                 group3-certificate)
-                             1
-                             160))
-          tableau-proof (first-proof tableau-proofs)]
-      (is group3-proof)
-      (is (successful? tableau-proofs))
-      (is (proof/contains-step? tableau-proof 'witness))
-      (is (proof/contains-step? tableau-proof 'once-univ))))
   (testing "an explicitly inconsistent reflected basis can cite the real contradiction target"
     (let [system (sjas/system {:profile :willard-sjas-tableau0
                                :beta [(ast/false-form)]})
@@ -4050,34 +2941,8 @@
                 (sjas/tableau-proof (:system-code system)
                                     large-theorem-code
                                     proof-code)
-                0
-                1)))))))
-
-(deftest large-tableau-proof-full-evidence-materializes
-  (testing "the public proof predicate can reify a large checked certificate"
-    (let [system (demo-system :willard-sjas-tableau0)
-          group3-proof (first-proof
-                         (sjas/query-succeeds system
-                                              (:formula (:group-three system))
-                                              {:proof-limit 1
-                                               :fuel 96}))
-          certificate (sjas/proof-certificate group3-proof)
-          proofs (query/query-succeeds
-                   (:program system)
-                   (sjas/tableau-proof (:system-code system)
-                                       (:code (:group-three system))
-                                       certificate)
-                   1
-                   160)
-          direct-proof (first-proof proofs)]
-      (is group3-proof)
-      (is (successful? proofs))
-      (is (proof/contains-step? direct-proof 'witness))
-      (is (proof/contains-step? direct-proof 'once-univ))
-      (is (proof/contains-step? direct-proof 'sjas-system-code-bytes)
-          "large proof-predicate evidence must expose the checked public code-reader relation")
-      (is (proof/contains-step? direct-proof 'sjas-code-arg)
-          "large proof-predicate evidence must reify recursive byte-reader evidence rather than marker summaries"))))
+            0
+            1)))))))
 
 (deftest sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile
   (doseq [profile [:willard-sjas-tableau0 :willard-sjas-level1]]
@@ -4133,13 +2998,29 @@
 
 (deftest sjas-profile-source-audit-rejects-host-proof-checker-route
   (let [profile-source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
-        builder-source (slurp "src/proflog/willard_sjas.clj")]
+        builder-source (slurp "src/proflog/willard_sjas.clj")
+        non-axiom-start (str/index-of profile-source
+                                      "(defn- decode-non-sjas-axiom-proof-codeo")
+        non-axiom-end (str/index-of profile-source
+                                    "(defn- sjas-system-profile-tago"
+                                    non-axiom-start)
+        non-axiom-source (subs profile-source non-axiom-start non-axiom-end)]
     (is (not (re-find #"prove-program-host" profile-source)))
     (is (not (re-find #"host-proof" profile-source)))
     (is (not (re-find #"whole-formula" profile-source)))
     (is (not (re-find #"mini-closed" profile-source)))
     (is (not (re-find #"kernel/prove-programo target" profile-source))
         "SJAS proof predicates must not short-circuit non-axiom certificates through the host proof kernel")
+    (is (str/includes? non-axiom-source "decode-structural-proof-byteso")
+        "non-axiom proof predicates must decode formula-bearing tableau trees structurally")
+    (is (not (str/includes? non-axiom-source "decode-proof-byteso"))
+        "non-axiom proof predicates must not decode legacy symbolic proof traces")
+    (is (not (re-find #"sjas-proof-check-close-agendao" profile-source))
+        "SJAS proof predicates must not retain the legacy proof-trace agenda checker")
+    (is (not (re-find #"sjas-saved-positive-call-closeso" profile-source))
+        "SJAS proof predicates must not retain proof-trace saved positive-call helpers")
+    (is (not (re-find #"sjas-close-guarded-negated-alternativeo" profile-source))
+        "SJAS proof predicates must not retain guarded proof-trace sequence helpers")
     (is (not (re-find #"sjas-reflected-proof-program" profile-source))
         "SJAS proof predicates must not recover proof-time clauses from a reflected compiled-program registry")
     (is (not (re-find #"program/call-clauseo" profile-source))

@@ -22,6 +22,20 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Narrowed the SJAS proof-predicate non-axiom proof-code decoder to
+  formula-bearing structural tableau trees. Legacy symbolic proof-rule traces
+  such as `(false-close)` no longer decode as substantive non-axiom SJAS proof
+  certificates; only the dedicated `sjas-axiom` citation remains a bare symbol
+  path. See
+  [SJAS Structural-Only Non-Axiom Proof-Code Decoder](docs/log/2026-06-03-sjas-structural-only-proof-code-decoder.md).
+
+- Removed the legacy SJAS proof-trace checker from the Track 1 proof-predicate
+  path. `sjas-proof-check-stateo` now preserves tableau agenda selection while
+  delegating only to formula-bearing structural proof checking; generated
+  kernel trace reinjection tests were removed or rewritten to structural
+  certificates. See
+  [SJAS Structural-Only Proof Predicate](docs/log/2026-06-03-sjas-structural-only-proof-predicate.md).
+
 - Added wide formula-bearing SJAS proof nodes. Proof-code lists now support a
   wide count tag, and structural nodes can carry formula bytes as a proof
   byte-list payload, removing the one-byte formula-length ceiling from the

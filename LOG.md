@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Added wide formula-bearing SJAS proof nodes. Proof-code lists now support a
+  wide count tag, and structural nodes can carry formula bytes as a proof
+  byte-list payload, removing the one-byte formula-length ceiling from the
+  initial formula-bearing proof-node fragment. See
+  [SJAS Wide Formula-Bearing Proof Nodes](docs/log/2026-06-03-sjas-wide-formula-bearing-proof-nodes.md).
+
 - Recorded the remaining public legacy certificate boundary for SJAS proof
   internalization. The structural checker is decoded and isolated from proof
   tags, but `tableau-proof/3`/`subst-prf/4` still accept legacy non-axiom

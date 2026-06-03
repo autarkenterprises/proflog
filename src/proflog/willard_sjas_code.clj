@@ -138,6 +138,7 @@
 (def proof-empty-list-tag 43)
 (def proof-wide-symbol-tag 44)
 (def proof-byte-tag 45)
+(def proof-wide-list-tag 46)
 
 (def proof-symbols
   "Kernel proof atoms that may appear in encoded SJAS certificates."
@@ -700,8 +701,20 @@
     (sequential? proof)
     (if (empty? proof)
       [proof-empty-list-tag]
-      (into [proof-list-tag (one-byte-count :proof-list-count (count proof))]
-            (mapcat proof-code-bytes proof)))
+      (let [item-count (count proof)]
+        (if (< item-count (dec byte-base))
+          (into [proof-list-tag (one-byte-count :proof-list-count item-count)]
+                (mapcat proof-code-bytes proof))
+          (let [high (quot item-count byte-base)
+                low (mod item-count byte-base)]
+            (when (>= item-count (* byte-base byte-base))
+              (throw (ex-info "SJAS proof list count out of range"
+                              {:count item-count
+                               :byte-base byte-base})))
+            (into [proof-wide-list-tag
+                   (checked-byte :proof-list-count-high high)
+                   (checked-byte :proof-list-count-low low)]
+                  (mapcat proof-code-bytes proof))))))
 
     :else
     (throw (ex-info "Unsupported proof payload in SJAS certificate"
@@ -765,6 +778,20 @@
                    (< 1 encoded-count)
                    (< encoded-count byte-base))
           (decode-proof-list-items item-count (next tail))))
+
+      (= proof-wide-list-tag tag)
+      (let [high (first tail)
+            low (second tail)
+            item-count (when (and (integer? high)
+                                  (integer? low)
+                                  (<= 0 high)
+                                  (< high byte-base)
+                                  (<= 0 low)
+                                  (< low byte-base))
+                         (+' (*' high byte-base) low))]
+        (when (and item-count
+                   (pos? item-count))
+          (decode-proof-list-items item-count (nnext tail))))
 
       :else
       nil)))

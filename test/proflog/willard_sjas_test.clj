@@ -407,6 +407,23 @@
         "the current structural-node slice uses one proof byte for formula length")
     (apply list (concat [(count bytes)] bytes children))))
 
+(defn- structural-byte-list-tableau-node
+  "Encode one formula-bearing node with its formula bytes as a proof byte list.
+
+   This shape is needed once formula-code payloads exceed the one-byte flat
+   prefix supported by the first structural-node fragment."
+  [system formula & children]
+  (let [bytes (formula-code-bytes system formula)]
+    (is (pos? (count bytes)))
+    (apply list (cons (apply list bytes) children))))
+
+(defn- right-nested-true-chain
+  [depth]
+  (if (zero? depth)
+    (ast/false-form)
+    (ast/and-form (ast/true-form)
+                  (right-nested-true-chain (dec depth)))))
+
 (deftest sjas-system-builder-generates-groups-and-reflected-boundary
   (testing "users supply beta/program clauses; the builder supplies codes and Group-3"
     (let [system (demo-system :willard-sjas-tableau0)]
@@ -806,6 +823,67 @@
                              decoded-proof)
                 (l/== true q))))
           "public proof-code decoding should preserve formula-bearing proof nodes for object-level checking"))))
+
+(deftest sjas-proof-check-accepts-byte-list-formula-bearing-false-nodes
+  (testing "formula-bearing nodes may carry formula bytes as a proof byte list"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/false-form)
+          proof (structural-byte-list-tableau-node system target)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof)))
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           proof)
+              (l/== true q)))
+          "the structural checker should accept a byte-list encoded formula node"))))
+
+(deftest sjas-proof-code-decoder-checks-wide-formula-bearing-tableau-nodes
+  (testing "encoded structural proof certificates support formula byte payloads beyond the flat one-byte node fragment"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/and-form
+                   (ast/false-form)
+                   (right-nested-true-chain 32))
+          target-bytes (formula-code-bytes system target)
+          proof (structural-byte-list-tableau-node
+                  system
+                  target
+                  (structural-tableau-node system (ast/false-form)))
+          certificate (sjas/proof-certificate proof)
+          decode-proof (var-get #'sjas-profile/decode-non-sjas-axiom-proof-codeo)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (> (count target-bytes) 63)
+          "the root formula should be too large for the old flat formula-length byte")
+      (is (zero? (proof-symbol-count proof))
+          "the wide structural proof should not rely on symbolic proof-rule tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           120
+                           proof)
+              (l/== true q)))
+          "the structural checker should accept the in-memory wide formula-bearing node")
+      (is (successful?
+            (l/run 1 [q]
+              (l/fresh [decoded-proof sigma-out proof-bytes proof-read-proof]
+                (decode-proof certificate
+                              '()
+                              sigma-out
+                              proof-bytes
+                              decoded-proof
+                              proof-read-proof)
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             120
+                             decoded-proof)
+                (l/== true q))))
+          "public proof-code decoding should preserve wide formula-bearing proof nodes for object-level checking"))))
 
 (deftest sjas-proof-codes-encode-byte-payload-evidence
   (testing "code-reader proof evidence carries inspectable byte payloads rather than escaping the certificate grammar"

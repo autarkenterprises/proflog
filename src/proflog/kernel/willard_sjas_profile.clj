@@ -555,6 +555,17 @@
 (def ^:private proof-byte-entries
   (apply list (range sjas-code/byte-base)))
 
+(def ^:private proof-byte-decrement-entries
+  (apply list
+         (map (fn [byte] [byte (dec byte)])
+              (range 1 sjas-code/byte-base))))
+
+(defn- proof-byte-decremento
+  [byte predecessor]
+  (fresh [entry]
+    (membero entry proof-byte-decrement-entries)
+    (== [byte predecessor] entry)))
+
 (defn- byte-bitso
   [bits byte]
   (fresh [entry]
@@ -2432,16 +2443,55 @@
       (parse-proof-items (dec remaining) after-head rest tail)
       (== (lcons head tail) proof))))
 
+(defn- positive-wide-proof-counto
+  [high low]
+  (conde
+    [(membero high positive-byte-entries)
+     (membero low proof-byte-entries)]
+    [(== 0 high)
+     (membero low positive-byte-entries)]))
+
+(defn- decrement-wide-proof-counto
+  [high low high-out low-out]
+  (conde
+    [(membero low positive-byte-entries)
+     (== high high-out)
+     (proof-byte-decremento low low-out)]
+    [(membero high positive-byte-entries)
+     (== 0 low)
+     (proof-byte-decremento high high-out)
+     (== (dec sjas-code/byte-base) low-out)]))
+
+(defn- parse-proof-items-wide
+  [high low bytes rest proof]
+  (conde
+    [(== 0 high)
+     (== 0 low)
+     (== bytes rest)
+     (== '() proof)]
+    [(fresh [next-high next-low head tail after-head]
+       (decrement-wide-proof-counto high low next-high next-low)
+       (decode-proof-byteso bytes after-head head)
+       (parse-proof-items-wide next-high next-low after-head rest tail)
+       (== (lcons head tail) proof))]))
+
 (defn- decode-proof-list-with-counto
   [bytes rest proof]
-  (or*
-    (map (fn [count]
-           (fresh [after-count]
-             (== (lcons sjas-code/proof-list-tag
-                         (lcons (inc count) after-count))
-                 bytes)
-             (parse-proof-items count after-count rest proof)))
-         (range 1 63))))
+  (conde
+    [(or*
+       (map (fn [count]
+              (fresh [after-count]
+                (== (lcons sjas-code/proof-list-tag
+                            (lcons (inc count) after-count))
+                    bytes)
+                (parse-proof-items count after-count rest proof)))
+            (range 1 63)))]
+    [(fresh [high low after-count]
+       (== (lcons sjas-code/proof-wide-list-tag
+                   (lcons high (lcons low after-count)))
+           bytes)
+       (positive-wide-proof-counto high low)
+       (parse-proof-items-wide high low after-count rest proof))]))
 
 (defn- decode-proof-byteso
   "Relate a base-64 proof-code byte stream to a Proflog kernel proof term."
@@ -4161,6 +4211,17 @@
       (== (lcons byte bytes-rest) bytes)
       (proof-byte-prefixo (dec remaining) input-rest bytes-rest rest))))
 
+(defn- proof-byte-list-termo
+  [proof bytes]
+  (conde
+    [(== '() proof)
+     (== '() bytes)]
+    [(fresh [byte proof-rest bytes-rest]
+       (== (lcons byte proof-rest) proof)
+       (membero byte proof-byte-entries)
+       (== (lcons byte bytes-rest) bytes)
+       (proof-byte-list-termo proof-rest bytes-rest))]))
+
 (defn- formula-bearing-proof-nodeo
   "Decode one formula-bearing tableau node from proof data.
 
@@ -4169,14 +4230,20 @@
    `Deduction` and `Closure` rules are inferred by the structural checker from
    the decoded formula and child list."
   [prog proof formula children]
-  (or*
-    (map (fn [byte-count]
-           (fresh [after-count formula-bytes decoded-formula]
-             (== (lcons byte-count after-count) proof)
-             (proof-byte-prefixo byte-count after-count formula-bytes children)
-             (decode-proof-formula-byteso prog formula-bytes '() decoded-formula)
-             (sjas-internal-formula-asto decoded-formula formula)))
-         (range 1 sjas-code/byte-base))))
+  (conde
+    [(or*
+       (map (fn [byte-count]
+              (fresh [after-count formula-bytes decoded-formula]
+                (== (lcons byte-count after-count) proof)
+                (proof-byte-prefixo byte-count after-count formula-bytes children)
+                (decode-proof-formula-byteso prog formula-bytes '() decoded-formula)
+                (sjas-internal-formula-asto decoded-formula formula)))
+            (range 1 sjas-code/byte-base)))]
+    [(fresh [formula-byte-proof formula-bytes decoded-formula]
+       (== (lcons formula-byte-proof children) proof)
+       (proof-byte-list-termo formula-byte-proof formula-bytes)
+       (decode-proof-formula-byteso prog formula-bytes '() decoded-formula)
+       (sjas-internal-formula-asto decoded-formula formula))]))
 
 (declare sjas-atom-unify-coreo
          sjas-unify-termo-coreo

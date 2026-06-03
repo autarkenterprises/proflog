@@ -2384,6 +2384,24 @@
               (str "formula-bearing quantifier node should validate structurally: "
                    (pr-str (ast/tag-of target)))))))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-reflexive-disequality-closures
+  (testing "structural disequality leaves can close reflexive contradictions without refl-close tags"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/neq-lit sjas/zero sjas/zero)
+          proof (structural-tableau-node system target)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural disequality proof should not use the refl-close proof-rule tag")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           proof)
+              (l/== true q)))
+          "formula-bearing disequality leaves should close when both sides are equal in branch state"))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

@@ -4036,7 +4036,7 @@
    tableau rule from parent formula, child formula, and branch state. The
    current fragment covers conjunction, disjunction, true-skip, false closure,
    literal continuation, complementary literal closure, and structural
-   quantifier expansion."
+   quantifier expansion, and reflexive disequality closure."
   [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (fresh [node-formula children]
@@ -4056,6 +4056,13 @@
            [(== (list 'neg atom) lit)])
          (sjas-complementary-lit-close-coreo lit lits sigma sigma-out)
          (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
+      [(fresh [lit left right]
+         (== '() children)
+         (subst/subst-formulao fml env lit)
+         (== (list 'neq left right) lit)
+         (equality/same-termo left right sigma)
+         (== sigma sigma-out)
+         (== neqs neqs-out))]
       [(fresh [left right child next-fuel]
          (== (lcons child '()) children)
          (== (list 'and left right) fml)

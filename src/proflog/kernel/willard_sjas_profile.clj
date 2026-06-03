@@ -4051,6 +4051,44 @@
                                   gamma-terms
                                   next-fuel
                                   child))]
+      [(fresh [left right left-child right-child next-fuel
+               left-sigma-out right-sigma-out left-neqs-out right-neqs-out]
+         (== (lcons left-child (lcons right-child '())) children)
+         (== (list 'or left right) fml)
+         (support/step-fuelo fuel next-fuel)
+         ;; Structural tableau siblings share the incoming branch state. Any
+         ;; equality or disequality evidence produced while closing one child
+         ;; remains local to that child.
+         (sjas-proof-check-stateo system-code
+                                  left
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  left-sigma-out
+                                  neqs
+                                  left-neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  left-child)
+         (sjas-proof-check-stateo system-code
+                                  right
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  right-sigma-out
+                                  neqs
+                                  right-neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  right-child)
+         (== sigma sigma-out)
+         (== neqs neqs-out))]
       [(fresh [child next rest next-fuel]
          (== (lcons child '()) children)
          (== (list 'true) fml)

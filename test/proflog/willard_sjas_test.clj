@@ -2309,6 +2309,28 @@
               (l/== true q)))
           "formula-bearing nodes should validate by structural Deduction/Closure checks, not rule tags"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-disjunction-tableaux
+  (testing "structural disjunction uses two formula-bearing child branches"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/or-form (ast/false-form) (ast/false-form))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node system (ast/false-form))
+                  (structural-tableau-node system (ast/false-form)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural disjunction proof should not use the split proof-rule tag")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           proof)
+              (l/== true q)))
+          "formula-bearing disjunction nodes should validate by child branch structure"))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

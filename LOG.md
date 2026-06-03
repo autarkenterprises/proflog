@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Extended formula-bearing SJAS tableau proof nodes to structural disjunction.
+  The checker now infers the `or` branching rule from the decoded formula node
+  and validates two child branches without a Proflog `split` proof-rule tag,
+  while preserving sibling-local equality and disequality state. See
+  [SJAS Structural Disjunction Tableau Nodes](docs/log/2026-06-02-sjas-structural-disjunction-tableau.md).
+
 - Added the first formula-bearing SJAS tableau proof-node fragment. Proof nodes
   can now carry encoded formula bytes and children, while the checker infers
   `and`, `true`, and `false` tableau behavior from formula/tree structure

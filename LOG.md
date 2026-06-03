@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Recorded the remaining public legacy certificate boundary for SJAS proof
+  internalization. The structural checker is decoded and isolated from proof
+  tags, but `tableau-proof/3`/`subst-prf/4` still accept legacy non-axiom
+  certificate shapes until a positive public structural theorem proof supports
+  narrowing that surface. See
+  [SJAS Public Legacy Certificate Boundary](docs/log/2026-06-03-sjas-public-legacy-certificate-boundary.md).
+
 - Added a source audit proving the formula-bearing SJAS structural checker does
   not match legacy proof-rule tags. The broader compatibility checker still
   accepts old certificate shapes, but `sjas-structural-proof-check-stateo` now

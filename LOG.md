@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Extended formula-bearing SJAS positive reflected calls to structural
+  procedure expansion. Positive calls now recover reflected clause bodies from
+  encoded `system-code` and check the child formula-bearing subtree without a
+  `pos-call` proof constructor. See
+  [SJAS Structural Positive Reflected Calls](docs/log/2026-06-03-sjas-structural-positive-reflected-call.md).
+
 - Extended formula-bearing SJAS equality leaves to saved-literal closure after
   equality. Equality now closes structurally when proof-free unification makes
   saved positive and negative literals complementary, without `savefml`,

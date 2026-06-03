@@ -2702,6 +2702,34 @@
               (l/== true q)))
           "formula-bearing equality leaves should close saved complementary literals after unification"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-positive-reflected-calls
+  (testing "structural positive calls expand reflected system-code clauses without pos-call tags"
+    (let [system (sjas/system
+                   {:profile :willard-sjas-tableau0
+                    :relations {'positive-demo 0}
+                    :beta []
+                    :reflected-clauses [(ast/clause 'positive-demo
+                                                    []
+                                                    (ast/false-form))]})
+          target (structural-pos-lit system 'positive-demo)
+          canonical-target (list 'pos (list 'app 'positive-demo))
+          proof (canonical-structural-tableau-node
+                  system
+                  canonical-target
+                  (structural-tableau-node system (ast/false-form)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural reflected-call proof should not use the pos-call proof-rule tag")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           60
+                           proof)
+              (l/== true q)))
+          "formula-bearing positive calls should recover reflected bodies from encoded system-code"))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

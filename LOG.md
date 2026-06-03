@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Extended formula-bearing SJAS negative reflected calls to structural
+  procedure expansion. Single-clause negative calls now recover reflected
+  clause bodies from encoded `system-code` and check the child formula-bearing
+  subtree without a `neg-call` proof constructor. See
+  [SJAS Structural Negative Reflected Calls](docs/log/2026-06-03-sjas-structural-negative-reflected-call.md).
+
 - Extended formula-bearing SJAS positive reflected calls to structural
   procedure expansion. Positive calls now recover reflected clause bodies from
   encoded `system-code` and check the child formula-bearing subtree without a

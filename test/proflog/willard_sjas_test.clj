@@ -2730,6 +2730,34 @@
               (l/== true q)))
           "formula-bearing positive calls should recover reflected bodies from encoded system-code"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-negative-reflected-calls
+  (testing "structural negative calls expand negated reflected system-code clauses without neg-call tags"
+    (let [system (sjas/system
+                   {:profile :willard-sjas-tableau0
+                    :relations {'negative-demo 0}
+                    :beta []
+                    :reflected-clauses [(ast/clause 'negative-demo
+                                                    []
+                                                    (ast/true-form))]})
+          target (structural-neg-lit system 'negative-demo)
+          canonical-target (list 'neg (list 'app 'negative-demo))
+          proof (canonical-structural-tableau-node
+                  system
+                  canonical-target
+                  (structural-tableau-node system (ast/false-form)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural reflected negative-call proof should not use the neg-call proof-rule tag")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           60
+                           proof)
+              (l/== true q)))
+          "formula-bearing negative calls should recover negated reflected bodies from encoded system-code"))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

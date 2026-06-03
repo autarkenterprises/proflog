@@ -4588,6 +4588,35 @@
                                   gamma-terms
                                   next-fuel
                                   child))]
+      [(fresh [lit atom walked-atom relation args call-env body negated-body
+               child next-fuel]
+         (== (lcons child '()) children)
+         (subst/subst-formulao fml env lit)
+         (== (list 'neg atom) lit)
+         (equality/walk-atomo atom sigma walked-atom)
+         (== (lcons 'app (lcons relation args)) walked-atom)
+         (support/l-ground-term*o args)
+         (sjas-system-reflected-call-clauseo prog
+                                             system-code
+                                             walked-atom
+                                             call-env
+                                             body
+                                             negated-body)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  negated-body
+                                  '()
+                                  '()
+                                  call-env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
       [(nominal/fresh [binding-nom]
          (fresh [free-var-nom body body-subst narrowed-env child next-fuel]
            (== (lcons child '()) children)

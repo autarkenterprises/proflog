@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Extended formula-bearing SJAS tableau proof nodes to rigid disequality
+  progression. The checker now continues structurally when a disequality's
+  terms are rigidly different under the branch state, without a `neq-rigid`
+  proof-rule tag. See
+  [SJAS Structural Rigid Disequality Progression](docs/log/2026-06-02-sjas-structural-rigid-disequality.md).
+
 - Extended formula-bearing SJAS tableau proof nodes to equality progression.
   Equality nodes now update branch substitution and continue structurally,
   without an `eq-step` proof-rule tag in the proof certificate for the covered

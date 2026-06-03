@@ -4037,7 +4037,7 @@
    current fragment covers conjunction, disjunction, true-skip, false closure,
    literal continuation, complementary literal closure, and structural
    quantifier expansion, reflexive disequality closure, and arithmetic/profile
-   closure, and equality progression."
+   closure, equality progression, and rigid disequality progression."
   [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (fresh [node-formula children]
@@ -4064,6 +4064,27 @@
          (equality/same-termo left right sigma)
          (== sigma sigma-out)
          (== neqs neqs-out))]
+      [(fresh [lit left right child next rest next-fuel]
+         (== (lcons child '()) children)
+         (subst/subst-formulao fml env lit)
+         (== (list 'neq left right) lit)
+         (support/rigid-different-termo left right sigma)
+         (== (lcons next rest) unexpanded)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  next
+                                  rest
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
       [(fresh [arithmetic-proof]
          (== '() children)
          (conde

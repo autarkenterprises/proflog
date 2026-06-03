@@ -2445,6 +2445,31 @@
               (l/== true q)))
           "formula-bearing equality nodes should update branch state and continue structurally"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-rigid-disequality-continuations
+  (testing "structural disequality nodes continue when terms are rigidly different"
+    (let [system (demo-system :willard-sjas-tableau0)
+          disequality (ast/neq-lit sjas/zero sjas/one)
+          target (ast/and-form disequality (ast/false-form))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node
+                    system
+                    disequality
+                    (structural-tableau-node system (ast/false-form))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural rigid disequality proof should not use the neq-rigid proof-rule tag")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           30
+                           proof)
+              (l/== true q)))
+          "formula-bearing rigid disequality nodes should continue structurally"))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

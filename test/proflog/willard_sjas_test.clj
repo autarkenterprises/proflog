@@ -2358,6 +2358,13 @@
               (l/== true q)))
           "formula-bearing literal leaves should close against saved branch literals"))))
 
+(deftest sjas-complementary-literal-closure-uses-proof-free-atom-unifier
+  (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")]
+    (is (str/includes? source "sjas-atom-unify-coreo atom opposite sigma sigma-out")
+        "structural complementary literal closure should compute atom unification without kernel proof-trace output")
+    (is (not (str/includes? source "equality/atom-unifyo atom opposite sigma sigma-out atom-proof"))
+        "formula-bearing complementary literal closure must not call the proof-producing kernel atom unifier")))
+
 (deftest sjas-proof-check-accepts-formula-bearing-quantifier-expansions
   (testing "structural quantifier nodes infer expansion without witness or universal proof tags"
     (let [system (demo-system :willard-sjas-tableau0)

@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Switched formula-bearing SJAS complementary literal closure to proof-free
+  atom unification. The structural checker now closes complementary saved
+  literals through `sjas-atom-unify-coreo` rather than the kernel's
+  proof-producing `equality/atom-unifyo`. See
+  [SJAS Proof-Free Complementary Literal Closure](docs/log/2026-06-02-sjas-proof-free-complementary-literals.md).
+
 - Switched formula-bearing SJAS equality progression to proof-free unification.
   The structural checker now computes equality branch substitutions with
   `sjas-unify-termo-coreo` rather than the kernel's proof-producing

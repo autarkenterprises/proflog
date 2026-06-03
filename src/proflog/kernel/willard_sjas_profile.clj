@@ -4016,22 +4016,23 @@
              (sjas-internal-formula-asto decoded-formula formula)))
          (range 1 sjas-code/byte-base))))
 
-(defn- sjas-complementary-lit-close-coreo
-  [lit lits sigma sigma-out]
-  (conde
-    [(fresh [atom opposite atom-proof]
-       (== (list 'pos atom) lit)
-       (membero (list 'neg opposite) lits)
-       (equality/atom-unifyo atom opposite sigma sigma-out atom-proof))]
-    [(fresh [atom opposite atom-proof]
-       (== (list 'neg atom) lit)
-       (membero (list 'pos opposite) lits)
-       (equality/atom-unifyo atom opposite sigma sigma-out atom-proof))]))
-
-(declare sjas-unify-termo-coreo
+(declare sjas-atom-unify-coreo
+         sjas-unify-termo-coreo
          sjas-unify-term*o-coreo
          sjas-eq-contradiction-coreo
          sjas-eq-contradiction-term*o-coreo)
+
+(defn- sjas-complementary-lit-close-coreo
+  [lit lits sigma sigma-out]
+  (conde
+    [(fresh [atom opposite]
+       (== (list 'pos atom) lit)
+       (membero (list 'neg opposite) lits)
+       (sjas-atom-unify-coreo atom opposite sigma sigma-out))]
+    [(fresh [atom opposite]
+       (== (list 'neg atom) lit)
+       (membero (list 'pos opposite) lits)
+       (sjas-atom-unify-coreo atom opposite sigma sigma-out))]))
 
 (defn- sjas-unify-termo-coreo
   "Proof-free term unification for structural SJAS tableau checks.
@@ -4080,6 +4081,14 @@
        (== (lcons right-head right-tail) right)
        (sjas-unify-termo-coreo left-head right-head sigma sigma-mid)
        (sjas-unify-term*o-coreo left-tail right-tail sigma-mid sigma-out))]))
+
+(defn- sjas-atom-unify-coreo
+  "Unify complementary atom arguments without producing proof trace evidence."
+  [left right sigma sigma-out]
+  (fresh [head left-args right-args]
+    (== (lcons 'app (lcons head left-args)) left)
+    (== (lcons 'app (lcons head right-args)) right)
+    (sjas-unify-term*o-coreo left-args right-args sigma sigma-out)))
 
 (defn- sjas-eq-contradiction-coreo
   "Succeed when an equality literal is impossible, without proof trace tags.

@@ -2420,6 +2420,31 @@
               (l/== true q)))
           "formula-bearing arithmetic leaves should close by evaluating the SJAS arithmetic relation internally"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-equality-continuations
+  (testing "structural equality nodes advance branch state without eq-step tags"
+    (let [system (demo-system :willard-sjas-tableau0)
+          equality (ast/eq-lit sjas/one sjas/one)
+          target (ast/and-form equality (ast/false-form))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node
+                    system
+                    equality
+                    (structural-tableau-node system (ast/false-form))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural equality proof should not use the eq-step proof-rule tag")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           30
+                           proof)
+              (l/== true q)))
+          "formula-bearing equality nodes should update branch state and continue structurally"))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

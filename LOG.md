@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Extended formula-bearing SJAS tableau proof nodes to equality progression.
+  Equality nodes now update branch substitution and continue structurally,
+  without an `eq-step` proof-rule tag in the proof certificate for the covered
+  fragment. See
+  [SJAS Structural Equality Progression](docs/log/2026-06-02-sjas-structural-equality-progression.md).
+
 - Extended formula-bearing SJAS tableau proof leaves to arithmetic/profile
   closure. The checker can now close structural arithmetic leaves by evaluating
   the SJAS arithmeticized closure cores internally, without requiring either

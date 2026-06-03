@@ -2607,6 +2607,52 @@
               (l/== true q)))
           "formula-bearing unresolved disequalities should be stored structurally and the branch should continue"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-stored-disequality-closures
+  (testing "structural equality leaves close when stored disequalities become false"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          body (ast/and-form
+                 (ast/neq-lit (ast/var-term binding) sjas/zero)
+                 (ast/eq-lit (ast/var-term binding) sjas/zero))
+          target (ast/exists-form binding body)
+          canonical-body (list 'and
+                               (list 'neq
+                                     (list 'par 'v0)
+                                     (list 'app (symbol "0")))
+                               (list 'eq
+                                     (list 'par 'v0)
+                                     (list 'app (symbol "0"))))
+          canonical-disequality (list 'neq
+                                      (list 'par 'v0)
+                                      (list 'app (symbol "0")))
+          canonical-equality (list 'eq
+                                   (list 'par 'v0)
+                                   (list 'app (symbol "0")))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (canonical-structural-tableau-node
+                    system
+                    canonical-body
+                    (canonical-structural-tableau-node
+                      system
+                      canonical-disequality
+                      (canonical-structural-tableau-node
+                        system
+                        canonical-equality))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural stored-disequality proof should not use witness, neq-store, eq-step, or neq-close tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           50
+                           proof)
+              (l/== true q)))
+          "formula-bearing equality leaves should close when equality violates stored disequalities"))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

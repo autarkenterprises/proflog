@@ -22,6 +22,11 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Extended formula-bearing SJAS equality leaves to stored-disequality closure.
+  Equality now closes structurally when proof-free unification makes a stored
+  disequality false, without `eq-step` or `neq-close` proof constructors. See
+  [SJAS Structural Stored Disequality Closure](docs/log/2026-06-03-sjas-structural-stored-disequality-closure.md).
+
 - Extended formula-bearing SJAS disequality nodes to unresolved disequality
   storage. Structural `exists` expansion can now use a canonical parameter
   payload, and a formula-bearing disequality node can store unresolved

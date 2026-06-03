@@ -4299,6 +4299,16 @@
             (sjas-unify-termo-coreo left-head right-head sigma sigma-mid)
             (sjas-eq-contradiction-term*o-coreo left-tail right-tail sigma-mid))]))]))
 
+(defn- sjas-neq-violated-coreo
+  "Succeed when a stored disequality has become false under `sigma`."
+  [neqs sigma]
+  (fresh [left right rest]
+    (conde
+      [(== (lcons [left right] rest) neqs)
+       (equality/same-termo left right sigma)]
+      [(== (lcons [left right] rest) neqs)
+       (sjas-neq-violated-coreo rest sigma)])))
+
 (defn- proof-vars-lengtho
   "Succeed when `proof-vars` contains exactly `expected` active variables."
   [proof-vars expected]
@@ -4423,6 +4433,14 @@
          (sjas-eq-contradiction-coreo left right sigma)
          (== sigma sigma-out)
          (== neqs neqs-out))]
+      [(fresh [lit left right sigma-mid]
+         (== '() children)
+         (subst/subst-formulao fml env lit)
+         (== (list 'eq left right) lit)
+         (sjas-unify-termo-coreo left right sigma sigma-mid)
+         (sjas-neq-violated-coreo neqs sigma-mid)
+         (== sigma-mid sigma-out)
+         (support/prune-contradictory-neqso neqs sigma-mid neqs-out))]
       [(fresh [lit left right sigma-mid child next rest next-fuel]
          (== (lcons child '()) children)
          (subst/subst-formulao fml env lit)

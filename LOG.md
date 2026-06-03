@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Extended formula-bearing SJAS tableau proof leaves to reflexive disequality
+  closure. The checker now closes structural disequality leaves when both sides
+  are equal in the branch state, without requiring a `refl-close` proof-rule
+  tag. See
+  [SJAS Structural Reflexive Disequality Closure](docs/log/2026-06-02-sjas-structural-reflexive-disequality.md).
+
 - Extended formula-bearing SJAS tableau proof nodes to structural quantifier
   expansion for `exists`, `forall`, and `once-forall`. The checker now infers
   quantifier expansion from decoded formula nodes and branch state without

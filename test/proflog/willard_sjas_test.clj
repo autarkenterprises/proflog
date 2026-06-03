@@ -2607,6 +2607,70 @@
               (l/== true q)))
           "formula-bearing unresolved disequalities should be stored structurally and the branch should continue"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-distinct-nested-existential-parameters
+  (testing "nested structural existential parameters use distinct canonical noms"
+    (let [system (demo-system :willard-sjas-tableau0)
+          outer-binding (sjas-code/code-nom 1)
+          inner-binding (sjas-code/code-nom 2)
+          outer-var (ast/var-term outer-binding)
+          inner-var (ast/var-term inner-binding)
+          inner-body (ast/and-form
+                       (ast/neq-lit inner-var sjas/one)
+                       (ast/false-form))
+          outer-body (ast/and-form
+                       (ast/neq-lit outer-var sjas/zero)
+                       (ast/exists-form inner-binding inner-body))
+          target (ast/exists-form outer-binding outer-body)
+          canonical-zero (list 'app (symbol "0"))
+          canonical-one (list 'app (symbol "1"))
+          canonical-par0 (list 'par 'v0)
+          canonical-par1 (list 'par 'v1)
+          canonical-var1 (list 'var 'v1)
+          canonical-outer-disequality (list 'neq canonical-par0 canonical-zero)
+          canonical-inner-disequality (list 'neq canonical-par1 canonical-one)
+          canonical-inner-body (list 'and
+                                     canonical-inner-disequality
+                                     (list 'false))
+          canonical-inner-exists (list 'exists
+                                       'v1
+                                       (list 'and
+                                             (list 'neq canonical-var1 canonical-one)
+                                             (list 'false)))
+          canonical-outer-body (list 'and
+                                     canonical-outer-disequality
+                                     canonical-inner-exists)
+          proof (structural-tableau-node
+                  system
+                  target
+                  (canonical-structural-tableau-node
+                    system
+                    canonical-outer-body
+                    (canonical-structural-tableau-node
+                      system
+                      canonical-outer-disequality
+                      (canonical-structural-tableau-node
+                        system
+                        canonical-inner-exists
+                        (canonical-structural-tableau-node
+                          system
+                          canonical-inner-body
+                          (canonical-structural-tableau-node
+                            system
+                            canonical-inner-disequality
+                            (structural-tableau-node system (ast/false-form))))))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural nested-existential proof should not use witness or neq-store tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           80
+                           proof)
+              (l/== true q)))
+          "formula-bearing nested existentials should allocate distinct canonical parameters"))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-stored-disequality-closures
   (testing "structural equality leaves close when stored disequalities become false"
     (let [system (demo-system :willard-sjas-tableau0)

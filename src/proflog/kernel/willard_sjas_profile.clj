@@ -4320,39 +4320,30 @@
        (membero (list 'pos right-atom) lits)])
     (sjas-atom-unify-coreo left-atom right-atom sigma sigma-out)))
 
-(defn- proof-vars-lengtho
-  "Succeed when `proof-vars` contains exactly `expected` active variables."
-  [proof-vars expected]
+(defn- branch-env-lengtho
+  "Succeed when the structural branch environment contains `expected` binders."
+  [env expected]
   (if (zero? expected)
-    (== '() proof-vars)
-    (fresh [head tail]
-      (== (lcons head tail) proof-vars)
-      (proof-vars-lengtho tail (dec expected)))))
+    (== '() env)
+    (fresh [binding term tail]
+      (== (lcons [binding term] tail) env)
+      (branch-env-lengtho tail (dec expected)))))
 
-(defn- sjas-next-proof-var-nomo
-  "Select the canonical code nom for the next structural proof variable.
+(defn- sjas-next-branch-nomo
+  "Select the canonical code nom for the next structural branch binder.
 
-   Formula-bearing child nodes encode introduced variables as `v0`, `v1`, ...
-   rather than as host nominal identities. The structural checker therefore
-   uses the same fixed `code-nom-entries` table as formula-code decoding,
-   keyed by the current proof-variable depth."
-  [proof-vars next-nom]
+   Formula-bearing child nodes encode introduced variables and parameters as
+   `v0`, `v1`, ... rather than as host nominal identities. The structural
+   checker keys that canonical name to the branch environment depth so nested
+   binders receive distinct payloads even when multiple existential parameters
+   appear at the same proof-variable depth."
+  [env next-nom]
   (or*
     (map (fn [[idx nom]]
            (fresh []
-             (proof-vars-lengtho proof-vars (dec idx))
+             (branch-env-lengtho env (dec idx))
              (== nom next-nom)))
          code-nom-entries)))
-
-(defn- sjas-next-parameter-nomo
-  "Select a canonical code nom for the next structural delta parameter.
-
-   This first formula-bearing parameter fragment uses the current
-   proof-variable depth as its deterministic index, so a branch with no active
-   proof variables encodes its first parameter as `v0` and a branch under one
-   proof variable encodes its first parameter as `v1`."
-  [proof-vars next-nom]
-  (sjas-next-proof-var-nomo proof-vars next-nom))
 
 (defn- sjas-structural-proof-check-stateo
   "Validate the first formula-bearing tableau proof fragment.
@@ -4683,7 +4674,7 @@
          (fresh [free-var-nom body body-subst narrowed-env child next-fuel]
            (== (lcons child '()) children)
            (== (list 'forall (nominal/tie binding-nom body)) fml)
-           (sjas-next-proof-var-nomo proof-vars free-var-nom)
+           (sjas-next-branch-nomo env free-var-nom)
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
            (support/step-fuelo fuel next-fuel)
@@ -4705,7 +4696,7 @@
          (fresh [free-var-nom body body-subst narrowed-env child next-fuel]
            (== (lcons child '()) children)
            (== (list 'once-forall (nominal/tie binding-nom body)) fml)
-           (sjas-next-proof-var-nomo proof-vars free-var-nom)
+           (sjas-next-branch-nomo env free-var-nom)
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
            (support/step-fuelo fuel next-fuel)
@@ -4727,7 +4718,7 @@
          (fresh [parameter-nom body body-subst narrowed-env child next-fuel]
              (== (lcons child '()) children)
              (== (list 'exists (nominal/tie binding-nom body)) fml)
-             (sjas-next-parameter-nomo proof-vars parameter-nom)
+             (sjas-next-branch-nomo env parameter-nom)
              (subst/remove-bindo binding-nom env narrowed-env)
              (subst/subst-formulao body narrowed-env body-subst)
              (support/step-fuelo fuel next-fuel)

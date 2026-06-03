@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Fixed formula-bearing SJAS structural binder naming for nested branch
+  quantifiers. Structural `forall`, `once-forall`, and `exists` payloads now use
+  branch-environment depth rather than proof-variable depth, so nested
+  existential parameters receive distinct canonical names such as `par v0` and
+  `par v1`. See
+  [SJAS Structural Branch Binder Names](docs/log/2026-06-03-sjas-structural-branch-binder-names.md).
+
 - Added formula-bearing SJAS coverage for guarded-shaped reflected negative
   bodies without guarded proof constructors. The structural path now explicitly
   closes decoded negated reflected bodies with ordinary disjunction and

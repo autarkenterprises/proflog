@@ -2702,6 +2702,107 @@
               (l/== true q)))
           "formula-bearing equality leaves should close saved complementary literals after unification"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-equality-triggered-positive-calls
+  (testing "structural equality nodes open saved reflected positive calls after unification"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          positive (structural-pos-lit system 'demo (ast/var-term binding))
+          equality (ast/eq-lit (ast/var-term binding) sjas/zero)
+          body (ast/and-form positive equality)
+          target (ast/exists-form binding body)
+          canonical-zero (list 'app (symbol "0"))
+          canonical-one (list 'app (symbol "1"))
+          canonical-par (list 'par 'v0)
+          canonical-bound (list 'var 'v0)
+          canonical-positive (list 'pos
+                                   (list 'app 'demo canonical-par))
+          canonical-equality (list 'eq canonical-par canonical-zero)
+          canonical-body (list 'and canonical-positive canonical-equality)
+          canonical-target (list 'exists
+                                 'v0
+                                 (list 'and
+                                       (list 'pos
+                                             (list 'app 'demo canonical-bound))
+                                       (list 'eq canonical-bound canonical-zero)))
+          canonical-call-body (list 'eq canonical-zero canonical-one)
+          proof (canonical-structural-tableau-node
+                  system
+                  canonical-target
+                  (canonical-structural-tableau-node
+                    system
+                    canonical-body
+                    (canonical-structural-tableau-node
+                      system
+                      canonical-positive
+                      (canonical-structural-tableau-node
+                        system
+                        canonical-equality
+                        (canonical-structural-tableau-node
+                          system
+                          canonical-call-body)))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural equality-triggered positive call proof should not use savefml, eq-step, or eq-triggered-call tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           80
+                           proof)
+              (l/== true q)))
+          "formula-bearing equality nodes should recover saved positive reflected calls from encoded system-code"))))
+
+(deftest sjas-proof-check-accepts-formula-bearing-equality-triggered-negative-calls
+  (testing "structural equality nodes open saved reflected negative calls after unification"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          negative (structural-neg-lit system 'demo (ast/var-term binding))
+          equality (ast/eq-lit (ast/var-term binding) sjas/one)
+          body (ast/and-form negative equality)
+          target (ast/exists-form binding body)
+          canonical-one (list 'app (symbol "1"))
+          canonical-par (list 'par 'v0)
+          canonical-bound (list 'var 'v0)
+          canonical-negative (list 'neg
+                                   (list 'app 'demo canonical-par))
+          canonical-equality (list 'eq canonical-par canonical-one)
+          canonical-body (list 'and canonical-negative canonical-equality)
+          canonical-target (list 'exists
+                                 'v0
+                                 (list 'and
+                                       (list 'neg
+                                             (list 'app 'demo canonical-bound))
+                                       (list 'eq canonical-bound canonical-one)))
+          canonical-call-body (list 'neq canonical-one canonical-one)
+          proof (canonical-structural-tableau-node
+                  system
+                  canonical-target
+                  (canonical-structural-tableau-node
+                    system
+                    canonical-body
+                    (canonical-structural-tableau-node
+                      system
+                      canonical-negative
+                      (canonical-structural-tableau-node
+                        system
+                        canonical-equality
+                        (canonical-structural-tableau-node
+                          system
+                          canonical-call-body)))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural equality-triggered negative call proof should not use savefml, eq-step, or eq-triggered-neg-call tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           80
+                           proof)
+              (l/== true q)))
+          "formula-bearing equality nodes should recover saved negative reflected calls from encoded system-code"))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-positive-reflected-calls
   (testing "structural positive calls expand reflected system-code clauses without pos-call tags"
     (let [system (sjas/system

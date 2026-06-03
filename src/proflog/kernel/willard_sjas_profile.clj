@@ -4459,6 +4459,68 @@
          (sjas-unify-termo-coreo left right sigma sigma-mid)
          (sjas-contradictory-atoms-coreo lits sigma-mid sigma-out)
          (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
+      [(fresh [lit left right sigma-mid atom walked-atom relation args
+               call-env body negated-body child next-fuel]
+         (== (lcons child '()) children)
+         (subst/subst-formulao fml env lit)
+         (== (list 'eq left right) lit)
+         (sjas-unify-termo-coreo left right sigma sigma-mid)
+         (membero (list 'pos atom) lits)
+         (equality/walk-atomo atom sigma-mid walked-atom)
+         (== (lcons 'app (lcons relation args)) walked-atom)
+         (support/l-ground-term*o args)
+         (sjas-system-reflected-call-clauseo prog
+                                             system-code
+                                             walked-atom
+                                             call-env
+                                             body
+                                             negated-body)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  body
+                                  '()
+                                  '()
+                                  call-env
+                                  proof-vars
+                                  sigma-mid
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [lit left right sigma-mid atom walked-atom relation args
+               call-env body negated-body child next-fuel]
+         (== (lcons child '()) children)
+         (subst/subst-formulao fml env lit)
+         (== (list 'eq left right) lit)
+         (sjas-unify-termo-coreo left right sigma sigma-mid)
+         (membero (list 'neg atom) lits)
+         (equality/walk-atomo atom sigma-mid walked-atom)
+         (== (lcons 'app (lcons relation args)) walked-atom)
+         (support/l-ground-term*o args)
+         (sjas-system-reflected-call-clauseo prog
+                                             system-code
+                                             walked-atom
+                                             call-env
+                                             body
+                                             negated-body)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  negated-body
+                                  '()
+                                  '()
+                                  call-env
+                                  proof-vars
+                                  sigma-mid
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
       [(fresh [lit left right sigma-mid child next rest next-fuel]
          (== (lcons child '()) children)
          (subst/subst-formulao fml env lit)

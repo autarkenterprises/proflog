@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Extended formula-bearing SJAS equality nodes to reflected calls triggered by
+  unification. Saved positive and negative calls now open reflected bodies from
+  encoded `system-code` using proof-free structural equality progression, with
+  the reflected body represented as a child formula-bearing node rather than an
+  `eq-triggered-call` or `eq-triggered-neg-call` proof constructor. See
+  [SJAS Structural Equality-Triggered Reflected Calls](docs/log/2026-06-03-sjas-structural-equality-triggered-reflected-calls.md).
+
 - Added focused coverage showing formula-bearing SJAS negative reflected-call
   alternatives do not require `neg-call-alt` or `alt` proof constructors. The
   structural reflected-call relation ranges over encoded matching clauses, and

@@ -2758,6 +2758,39 @@
               (l/== true q)))
           "formula-bearing negative calls should recover negated reflected bodies from encoded system-code"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-negative-reflected-alternatives
+  (testing "structural negative calls select encoded reflected alternatives without neg-call-alt tags"
+    (ast/nom x
+      (let [system (demo-system
+                     :willard-sjas-tableau0
+                     {:relations {'multi-demo 1}
+                      :reflected-clauses [(ast/clause 'multi-demo
+                                                      [x]
+                                                      (ast/eq-lit (ast/var-term x) sjas/one))
+                                          (ast/clause 'multi-demo
+                                                      [x]
+                                                      (ast/eq-lit (ast/var-term x) sjas/zero))]})
+            target (structural-neg-lit system 'multi-demo sjas/one)
+            canonical-one (list 'app (symbol "1"))
+            canonical-target (list 'neg (list 'app 'multi-demo canonical-one))
+            canonical-child (list 'neq canonical-one canonical-one)
+            proof (canonical-structural-tableau-node
+                    system
+                    canonical-target
+                    (canonical-structural-tableau-node system canonical-child))
+            check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+        (is (zero? (proof-symbol-count proof))
+            "the structural reflected negative alternative proof should not use neg-call-alt or alt tags")
+        (is (successful?
+              (l/run 1 [q]
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             80
+                             proof)
+                (l/== true q)))
+            "formula-bearing negative calls should select reflected alternatives from encoded system-code")))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

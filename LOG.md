@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Added focused coverage showing formula-bearing SJAS negative reflected-call
+  alternatives do not require `neg-call-alt` or `alt` proof constructors. The
+  structural reflected-call relation ranges over encoded matching clauses, and
+  the child formula code selects the negated reflected body. See
+  [SJAS Structural Negative Reflected Alternatives](docs/log/2026-06-03-sjas-structural-negative-reflected-alternatives.md).
+
 - Extended formula-bearing SJAS negative reflected calls to structural
   procedure expansion. Single-clause negative calls now recover reflected
   clause bodies from encoded `system-code` and check the child formula-bearing

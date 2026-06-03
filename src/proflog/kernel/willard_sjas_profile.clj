@@ -4309,6 +4309,17 @@
       [(== (lcons [left right] rest) neqs)
        (sjas-neq-violated-coreo rest sigma)])))
 
+(defn- sjas-contradictory-atoms-coreo
+  "Succeed when saved positive and negative literals unify without proof trace."
+  [lits sigma sigma-out]
+  (fresh [left-atom right-atom]
+    (conde
+      [(membero (list 'pos left-atom) lits)
+       (membero (list 'neg right-atom) lits)]
+      [(membero (list 'neg left-atom) lits)
+       (membero (list 'pos right-atom) lits)])
+    (sjas-atom-unify-coreo left-atom right-atom sigma sigma-out)))
+
 (defn- proof-vars-lengtho
   "Succeed when `proof-vars` contains exactly `expected` active variables."
   [proof-vars expected]
@@ -4441,6 +4452,13 @@
          (sjas-neq-violated-coreo neqs sigma-mid)
          (== sigma-mid sigma-out)
          (support/prune-contradictory-neqso neqs sigma-mid neqs-out))]
+      [(fresh [lit left right sigma-mid]
+         (== '() children)
+         (subst/subst-formulao fml env lit)
+         (== (list 'eq left right) lit)
+         (sjas-unify-termo-coreo left right sigma sigma-mid)
+         (sjas-contradictory-atoms-coreo lits sigma-mid sigma-out)
+         (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
       [(fresh [lit left right sigma-mid child next rest next-fuel]
          (== (lcons child '()) children)
          (subst/subst-formulao fml env lit)

@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Extended formula-bearing SJAS equality leaves to saved-literal closure after
+  equality. Equality now closes structurally when proof-free unification makes
+  saved positive and negative literals complementary, without `savefml`,
+  `eq-step`, or `close` proof constructors. See
+  [SJAS Structural Equality-Triggered Literal Closure](docs/log/2026-06-03-sjas-structural-equality-triggered-literal-closure.md).
+
 - Extended formula-bearing SJAS equality leaves to stored-disequality closure.
   Equality now closes structurally when proof-free unification makes a stored
   disequality false, without `eq-step` or `neq-close` proof constructors. See

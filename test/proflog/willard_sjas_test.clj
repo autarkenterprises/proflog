@@ -2653,6 +2653,55 @@
               (l/== true q)))
           "formula-bearing equality leaves should close when equality violates stored disequalities"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-equality-triggered-literal-closures
+  (testing "structural equality leaves close saved complementary literals after unification"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          positive (ast/pos-lit (ast/app-term 'wff (ast/var-term binding)))
+          negative (ast/neg-lit (ast/app-term 'wff sjas/zero))
+          equality (ast/eq-lit (ast/var-term binding) sjas/zero)
+          body (ast/and-form positive (ast/and-form negative equality))
+          target (ast/forall-form binding body)
+          canonical-positive (list 'pos
+                                   (list 'app 'wff (list 'var 'v0)))
+          canonical-negative (list 'neg
+                                   (list 'app 'wff (list 'app (symbol "0"))))
+          canonical-equality (list 'eq
+                                   (list 'var 'v0)
+                                   (list 'app (symbol "0")))
+          canonical-tail (list 'and canonical-negative canonical-equality)
+          canonical-body (list 'and canonical-positive canonical-tail)
+          proof (structural-tableau-node
+                  system
+                  target
+                  (canonical-structural-tableau-node
+                    system
+                    canonical-body
+                    (canonical-structural-tableau-node
+                      system
+                      canonical-positive
+                      (canonical-structural-tableau-node
+                        system
+                        canonical-tail
+                        (canonical-structural-tableau-node
+                          system
+                          canonical-negative
+                          (canonical-structural-tableau-node
+                            system
+                            canonical-equality))))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural equality-triggered literal proof should not use savefml, eq-step, or close tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           60
+                           proof)
+              (l/== true q)))
+          "formula-bearing equality leaves should close saved complementary literals after unification"))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

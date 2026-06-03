@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Switched formula-bearing SJAS structural arithmetic closure to proof-free
+  arithmetic readers and relation checks. Structural arithmetic leaves now
+  close through dedicated proof-free cores rather than returning local
+  arithmetic read/relation proof payloads. See
+  [SJAS Proof-Free Structural Arithmetic Closure](docs/log/2026-06-02-sjas-proof-free-structural-arithmetic.md).
+
 - Switched formula-bearing SJAS complementary literal closure to proof-free
   atom unification. The structural checker now closes complementary saved
   literals through `sjas-atom-unify-coreo` rather than the kernel's

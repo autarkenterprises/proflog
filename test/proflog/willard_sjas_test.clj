@@ -2427,6 +2427,22 @@
               (l/== true q)))
           "formula-bearing arithmetic leaves should close by evaluating the SJAS arithmetic relation internally"))))
 
+(deftest sjas-structural-arithmetic-closure-uses-proof-free-arithmetic
+  (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        start-token "(defn- sjas-structural-proof-check-stateo"
+        end-token "(defn- sjas-saved-positive-call-closeso"
+        start (str/index-of source start-token)
+        end (str/index-of source end-token start)
+        structural-source (subs source start end)]
+    (is (str/includes? structural-source "sjas-neq-close-structural-coreo")
+        "structural arithmetic disequality closure should not require arithmetic proof payloads")
+    (is (str/includes? structural-source "sjas-neg-relation-close-structural-coreo")
+        "structural arithmetic relation closure should not require arithmetic proof payloads")
+    (is (not (str/includes? structural-source "sjas-neq-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof"))
+        "formula-bearing structural arithmetic closure must not call the proof-producing disequality core")
+    (is (not (str/includes? structural-source "sjas-neg-relation-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof"))
+        "formula-bearing structural arithmetic closure must not call the proof-producing relation core")))
+
 (deftest sjas-proof-check-accepts-formula-bearing-equality-continuations
   (testing "structural equality nodes advance branch state without eq-step tags"
     (let [system (demo-system :willard-sjas-tableau0)

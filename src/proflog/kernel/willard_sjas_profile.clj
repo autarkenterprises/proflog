@@ -366,6 +366,150 @@
        (sjas-pending-bindso pending-all sigma-read sigma-out bind-proof)
        (== (list 'sjas-lt left-proof right-proof bind-proof) proof))]))
 
+(declare sjas-num-input-coreo
+         sjas-unify-termo-coreo)
+
+(defn- bits->canonical-termo-coreo
+  "Proof-free version of `bits->canonical-termo`.
+
+   Structural tableau arithmetic needs the canonical numeral term only to bind
+   pending object variables. The proof trace explaining that numeral read is
+   not part of the formula-bearing tableau tree."
+  [bits term]
+  (conde
+    [(== '() bits)
+     (== zero-term term)]
+    [(== one-bits bits)
+     (== one-term term)]
+    [(fresh [tail tail-term]
+       (== (lcons 0 tail) bits)
+       (arith/poso tail)
+       (== (list 'app 'dbl tail-term) term)
+       (bits->canonical-termo-coreo tail tail-term))]
+    [(fresh [tail tail-term]
+       (== (lcons 1 tail) bits)
+       (arith/poso tail)
+       (== (list 'app 'add (list 'app 'dbl tail-term) one-term) term)
+       (bits->canonical-termo-coreo tail tail-term))]))
+
+(defn- sjas-pending-binds-coreo
+  "Bind delayed arithmetic variables without constructing read proofs."
+  [pending sigma sigma-out]
+  (conde
+    [(== '() pending)
+     (== sigma sigma-out)]
+    [(fresh [term bits rest canonical sigma-mid]
+       (== (lcons [term bits] rest) pending)
+       (bits->canonical-termo-coreo bits canonical)
+       (sjas-unify-termo-coreo term canonical sigma sigma-mid)
+       (sjas-pending-binds-coreo rest sigma-mid sigma-out))]))
+
+(defn- sjas-num-app-coreo
+  "Proof-free reader for public SJAS arithmetic application terms."
+  [walked bits sigma sigma-out pending pending-out]
+  (conde
+    [(== zero-term walked)
+     (== '() bits)
+     (== sigma sigma-out)
+     (== pending pending-out)]
+    [(== one-term walked)
+     (== one-bits bits)
+     (== sigma sigma-out)
+     (== pending pending-out)]
+    [(fresh [arg arg-bits]
+       (== (list 'app 'dbl arg) walked)
+       (sjas-num-input-coreo arg arg-bits sigma sigma-out pending pending-out)
+       (arith/pluso arg-bits arg-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'add left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (arith/pluso left-bits right-bits bits))]
+    [(fresh [arg arg-bits]
+       (== (list 'app 'pred arg) walked)
+       (sjas-num-input-coreo arg arg-bits sigma sigma-out pending pending-out)
+       (sjas-monuso arg-bits one-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'sub left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (sjas-monuso left-bits right-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'div left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (sjas-divo left-bits right-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'max left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (sjas-maxo left-bits right-bits bits))]
+    [(fresh [arg arg-bits]
+       (== (list 'app 'log arg) walked)
+       (sjas-num-input-coreo arg arg-bits sigma sigma-out pending pending-out)
+       (sjas-logo arg-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'root left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (sjas-rooto left-bits right-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'count left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (sjas-counto left-bits right-bits bits))]))
+
+(defn- sjas-num-input-coreo
+  "Read an SJAS arithmetic term to bits without returning proof evidence."
+  [term bits sigma sigma-out pending pending-out]
+  (fresh [walked]
+    (equality/walk*o term sigma walked)
+    (conde
+      [(fresh [nom]
+         (== (list 'var nom) walked)
+         (== sigma sigma-out)
+         (== (lcons [walked bits] pending) pending-out))]
+      [(sjas-num-app-coreo walked bits sigma sigma-out pending pending-out)])))
+
+(defn- sjas-normal-equal-coreo
+  "Proof-free arithmetic equality over SJAS numeral terms."
+  [left right sigma sigma-out]
+  (fresh [left-bits right-bits sigma-left sigma-read pending-left pending-all]
+    (sjas-num-input-coreo left left-bits sigma sigma-left '() pending-left)
+    (sjas-num-input-coreo right right-bits sigma-left sigma-read pending-left pending-all)
+    (== left-bits right-bits)
+    (sjas-pending-binds-coreo pending-all sigma-read sigma-out)))
+
+(defn- sjas-relation-holds-coreo
+  "Proof-free evaluator for SJAS arithmetic relation leaves."
+  [relation args sigma sigma-out]
+  (conde
+    [(fresh [left right product left-bits right-bits product-bits
+             sigma-left sigma-right sigma-read pending-left pending-right pending-all]
+       (== 'mult relation)
+       (== (lcons left (lcons right (lcons product '()))) args)
+       (sjas-num-input-coreo left left-bits sigma sigma-left '() pending-left)
+       (sjas-num-input-coreo right right-bits sigma-left sigma-right pending-left pending-right)
+       (sjas-num-input-coreo product product-bits sigma-right sigma-read pending-right pending-all)
+       (arith/*o left-bits right-bits product-bits)
+       (sjas-pending-binds-coreo pending-all sigma-read sigma-out))]
+    [(fresh [left right left-bits right-bits sigma-left sigma-read
+             pending-left pending-all]
+       (== 'leq relation)
+       (== (lcons left (lcons right '())) args)
+       (sjas-num-input-coreo left left-bits sigma sigma-left '() pending-left)
+       (sjas-num-input-coreo right right-bits sigma-left sigma-read pending-left pending-all)
+       (arith/<=o left-bits right-bits)
+       (sjas-pending-binds-coreo pending-all sigma-read sigma-out))]
+    [(fresh [left right left-bits right-bits sigma-left sigma-read
+             pending-left pending-all]
+       (== 'lt relation)
+       (== (lcons left (lcons right '())) args)
+       (sjas-num-input-coreo left left-bits sigma sigma-left '() pending-left)
+       (sjas-num-input-coreo right right-bits sigma-left sigma-read pending-left pending-all)
+       (arith/<o left-bits right-bits)
+       (sjas-pending-binds-coreo pending-all sigma-read sigma-out))]))
+
 ;; -----------------------------------------------------------------------------
 ;; Arithmetic code decoding
 ;; -----------------------------------------------------------------------------
@@ -3819,6 +3963,14 @@
     (sjas-normal-equalo left right sigma sigma-out eq-proof)
     (== neqs neqs-out)))
 
+(defn- sjas-neq-close-structural-coreo
+  [fml env sigma sigma-out neqs neqs-out]
+  (fresh [lit left right]
+    (subst/subst-formulao fml env lit)
+    (== (list 'neq left right) lit)
+    (sjas-normal-equal-coreo left right sigma sigma-out)
+    (== neqs neqs-out)))
+
 (defn- sjas-neq-closeo
   [fml env sigma sigma-out neqs neqs-out proof]
   (fresh [eq-proof]
@@ -3833,6 +3985,16 @@
     (equality/walk-atomo atom sigma walked-atom)
     (== (lcons 'app (lcons relation args)) walked-atom)
     (sjas-relation-holdso relation args sigma sigma-out relation-proof)
+    (== neqs neqs-out)))
+
+(defn- sjas-neg-relation-close-structural-coreo
+  [fml env sigma sigma-out neqs neqs-out]
+  (fresh [lit atom walked-atom relation args]
+    (subst/subst-formulao fml env lit)
+    (== (list 'neg atom) lit)
+    (equality/walk-atomo atom sigma walked-atom)
+    (== (lcons 'app (lcons relation args)) walked-atom)
+    (sjas-relation-holds-coreo relation args sigma sigma-out)
     (== neqs neqs-out)))
 
 (defn- sjas-neg-relation-closeo
@@ -4194,11 +4356,11 @@
                                   gamma-terms
                                   next-fuel
                                   child))]
-      [(fresh [arithmetic-proof]
+      [(fresh []
          (== '() children)
          (conde
-           [(sjas-neq-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof)]
-           [(sjas-neg-relation-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof)]))]
+           [(sjas-neq-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
+           [(sjas-neg-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]))]
       [(fresh [lit left right]
          (== '() children)
          (subst/subst-formulao fml env lit)

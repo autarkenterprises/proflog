@@ -371,6 +371,23 @@
     (sequential? proof) (reduce + 0 (map proof-symbol-count proof))
     :else 0))
 
+(defn- formula-code-bytes
+  [system formula]
+  (or (sjas-code/code-term-bytes (sjas/formula-code system formula))
+      (sjas-code/u-grounding-code-term-bytes (sjas/formula-code system formula))))
+
+(defn- structural-tableau-node
+  "Encode one formula-bearing tableau node as proof data without a rule tag.
+
+   Shape: `(byte-count byte... child...)`. The local checker must infer the
+   applicable rule from the decoded node formula and its children."
+  [system formula & children]
+  (let [bytes (formula-code-bytes system formula)]
+    (is (pos? (count bytes)))
+    (is (< (count bytes) 64)
+        "the current structural-node slice uses one proof byte for formula length")
+    (apply list (concat [(count bytes)] bytes children))))
+
 (deftest sjas-system-builder-generates-groups-and-reflected-boundary
   (testing "users supply beta/program clauses; the builder supplies codes and Group-3"
     (let [system (demo-system :willard-sjas-tableau0)]
@@ -711,6 +728,32 @@
       (is (= bytes (sjas-code/code-term-bytes certificate)))
       (is (<= (* 5 symbol-count) (* 6 (count bytes)))
           "Willard's ordinary-tableau coding requirement needs at least five bits per encoded proof symbol"))))
+
+(deftest sjas-proof-codes-encode-minimal-arithmetic-close-certificates
+  (testing "arithmetic branch closure can be encoded as a tableau leaf, not a trace of numeral reads"
+    (let [proof '(conj (skip-true (arith-close)))
+          certificate (sjas/proof-certificate proof)]
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
+
+(deftest sjas-proof-codes-encode-formula-bearing-tableau-nodes-without-rule-tags
+  (testing "semantic-tableau proof objects can carry formula nodes rather than Proflog proof-rule tags"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/and-form (ast/true-form) (ast/false-form))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node
+                    system
+                    (ast/true-form)
+                    (structural-tableau-node system (ast/false-form))))
+          certificate (sjas/proof-certificate proof)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural node proof should not use rule names such as conj, skip-true, or false-close")
+      (is (sjas-code/code-term? certificate))
+      (is (= (sjas-code/code-term-bytes certificate)
+             (sjas-code/proof-code-bytes proof))))))
 
 (deftest sjas-proof-codes-encode-byte-payload-evidence
   (testing "code-reader proof evidence carries inspectable byte payloads rather than escaping the certificate grammar"
@@ -2225,6 +2268,46 @@
                              proof)
                 (l/== true q)))
             "decoded tableau proof checking must recover multi-clause reflected negative calls from system-code")))))
+
+(deftest sjas-proof-check-accepts-minimal-arithmetic-close-certificates
+  (testing "the proof tree need only mark arithmetic branch closure; arithmetic evidence is computed by the predicate"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/and-form
+                   (ast/true-form)
+                   (ast/neg-lit (ast/app-term 'leq sjas/one sjas/one)))
+          proof '(conj (skip-true (arith-close)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           80
+                           proof)
+              (l/== true q)))
+          "minimal arithmetic leaves must close by evaluating the SJAS arithmetic relation internally"))))
+
+(deftest sjas-proof-check-accepts-formula-bearing-and-true-false-tableaux
+  (testing "the checker can infer local tableau rules from formula-bearing proof nodes"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/and-form (ast/true-form) (ast/false-form))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node
+                    system
+                    (ast/true-form)
+                    (structural-tableau-node system (ast/false-form))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           proof)
+              (l/== true q)))
+          "formula-bearing nodes should validate by structural Deduction/Closure checks, not rule tags"))))
 
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"

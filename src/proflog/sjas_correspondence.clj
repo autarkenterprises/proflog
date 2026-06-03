@@ -28,6 +28,7 @@
      neq-store
      neq-close
      false-close
+     arith-close
      savefml
      skip-true})
 

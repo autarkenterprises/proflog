@@ -155,6 +155,7 @@
     refl-close
     savefml
     false-close
+    arith-close
     close
     pos-call
     neg-call

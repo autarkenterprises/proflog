@@ -3811,24 +3811,34 @@
 ;; Branch closing rules
 ;; -----------------------------------------------------------------------------
 
-(defn- sjas-neq-closeo
-  [fml env sigma sigma-out neqs neqs-out proof]
-  (fresh [lit left right eq-proof]
+(defn- sjas-neq-close-coreo
+  [fml env sigma sigma-out neqs neqs-out eq-proof]
+  (fresh [lit left right]
     (subst/subst-formulao fml env lit)
     (== (list 'neq left right) lit)
     (sjas-normal-equalo left right sigma sigma-out eq-proof)
-    (== neqs neqs-out)
+    (== neqs neqs-out)))
+
+(defn- sjas-neq-closeo
+  [fml env sigma sigma-out neqs neqs-out proof]
+  (fresh [eq-proof]
+    (sjas-neq-close-coreo fml env sigma sigma-out neqs neqs-out eq-proof)
     (== (list 'profiled 'willard-sjas-arithmetic eq-proof) proof)))
 
-(defn- sjas-neg-relation-closeo
-  [fml env sigma sigma-out neqs neqs-out proof]
-  (fresh [lit atom walked-atom relation args relation-proof]
+(defn- sjas-neg-relation-close-coreo
+  [fml env sigma sigma-out neqs neqs-out relation-proof]
+  (fresh [lit atom walked-atom relation args]
     (subst/subst-formulao fml env lit)
     (== (list 'neg atom) lit)
     (equality/walk-atomo atom sigma walked-atom)
     (== (lcons 'app (lcons relation args)) walked-atom)
     (sjas-relation-holdso relation args sigma sigma-out relation-proof)
-    (== neqs neqs-out)
+    (== neqs neqs-out)))
+
+(defn- sjas-neg-relation-closeo
+  [fml env sigma sigma-out neqs neqs-out proof]
+  (fresh [relation-proof]
+    (sjas-neg-relation-close-coreo fml env sigma sigma-out neqs neqs-out relation-proof)
     (== (list 'profiled 'willard-sjas-arithmetic relation-proof) proof)))
 
 (defn- sjas-axiom-member-walked-closeo
@@ -3976,6 +3986,90 @@
     (== '(profiled willard-sjas-subst-code) proof)))
 
 (declare sjas-proof-check-stateo sjas-close-one-guarded-alternativeo)
+
+(defn- proof-byte-prefixo
+  [remaining input bytes rest]
+  (if (zero? remaining)
+    (fresh []
+      (== '() bytes)
+      (== input rest))
+    (fresh [byte input-rest bytes-rest]
+      (== (lcons byte input-rest) input)
+      (membero byte proof-byte-entries)
+      (== (lcons byte bytes-rest) bytes)
+      (proof-byte-prefixo (dec remaining) input-rest bytes-rest rest))))
+
+(defn- formula-bearing-proof-nodeo
+  "Decode one formula-bearing tableau node from proof data.
+
+   The node shape is `(byte-count byte... child...)`. It deliberately carries
+   the formula bytes and child proof nodes, not a proof-rule tag. Local
+   `Deduction` and `Closure` rules are inferred by the structural checker from
+   the decoded formula and child list."
+  [prog proof formula children]
+  (or*
+    (map (fn [byte-count]
+           (fresh [after-count formula-bytes]
+             (== (lcons byte-count after-count) proof)
+             (proof-byte-prefixo byte-count after-count formula-bytes children)
+             (decode-proof-formula-byteso prog formula-bytes '() formula)))
+         (range 1 sjas-code/byte-base))))
+
+(defn- sjas-structural-proof-check-stateo
+  "Validate the first formula-bearing tableau proof fragment.
+
+   This relation is the Track 1 route away from Proflog proof-trace evidence:
+   the proof object supplies formula nodes, and this checker infers the local
+   tableau rule from parent formula, child formula, and branch state. The
+   initial fragment covers conjunction, true-skip, and false closure."
+  [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (fresh [node-formula children]
+    (formula-bearing-proof-nodeo prog proof node-formula children)
+    (== fml node-formula)
+    (conde
+      [(fresh []
+         (== '() children)
+         (== (list 'false) fml)
+         (== sigma sigma-out)
+         (== neqs neqs-out))]
+      [(fresh [left right child next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'and left right) fml)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  left
+                                  (lcons right unexpanded)
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [child next rest next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'true) fml)
+         (== (lcons next rest) unexpanded)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  next
+                                  rest
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))])))
 
 (defn- sjas-saved-positive-call-closeso
   "Close a saved positive atom after equality makes it callable.
@@ -4455,12 +4549,34 @@
   [system-code agenda lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (conde
+    [(fresh [fml unexpanded]
+       (support/selecto fml agenda unexpanded)
+       (sjas-structural-proof-check-stateo system-code
+                                           fml
+                                           unexpanded
+                                           lits
+                                           env
+                                           proof-vars
+                                           sigma
+                                           sigma-out
+                                           neqs
+                                           neqs-out
+                                           prog
+                                           gamma-terms
+                                           fuel
+                                           proof))]
     [(fresh [branch-proof fml unexpanded]
        (== (list 'profiled 'willard-sjas-arithmetic branch-proof) proof)
        (support/selecto fml agenda unexpanded)
        (conde
          [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
          [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]))]
+    [(fresh [fml unexpanded arithmetic-proof]
+       (== '(arith-close) proof)
+       (support/selecto fml agenda unexpanded)
+       (conde
+         [(sjas-neq-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof)]
+         [(sjas-neg-relation-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof)]))]
     [(fresh [fml unexpanded lit left right contradiction-proof]
        (== contradiction-proof proof)
        (support/selecto fml agenda unexpanded)

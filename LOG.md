@@ -22,6 +22,22 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Added the first formula-bearing SJAS tableau proof-node fragment. Proof nodes
+  can now carry encoded formula bytes and children, while the checker infers
+  `and`, `true`, and `false` tableau behavior from formula/tree structure
+  rather than from Proflog proof-rule tags. This records the design objection
+  that trace evidence is an additional Godel-encoded structure whose
+  arithmeticized manipulation should be avoided unless correctness requires it.
+  See
+  [SJAS Formula-Bearing Tableau Nodes](docs/log/2026-06-02-sjas-formula-bearing-tableau-nodes.md).
+
+- Added a minimal SJAS `(arith-close)` tableau leaf certificate so arithmetic
+  branch closure need not be encoded as a full Proflog-style arithmetic proof
+  trace. The checker now evaluates the arithmetic closure relation internally
+  for this leaf, while the correspondence audit classifies the new proof symbol.
+  See
+  [SJAS Minimal Arithmetic Close Certificate](docs/log/2026-06-02-sjas-minimal-arithmetic-close.md).
+
 - Replaced the proof-facing committed-choice `sjas-axiom-membero` dispatcher
   with ordinary relational disjunction across the finite encoded-system axiom
   classes. The source audit now rejects `conda` in that dispatcher. Additional

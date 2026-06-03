@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-03
 
+- Added formula-bearing SJAS coverage for guarded-shaped reflected negative
+  bodies without guarded proof constructors. The structural path now explicitly
+  closes decoded negated reflected bodies with ordinary disjunction and
+  quantifier rules instead of `neg-call-guarded-alt`, guarded sequence, or
+  `guarded-scope-exists` tags for these fragments. See
+  [SJAS Structural Guarded Reflected Bodies](docs/log/2026-06-03-sjas-structural-guarded-reflected-bodies.md).
+
 - Extended formula-bearing SJAS equality nodes to reflected calls triggered by
   unification. Saved positive and negative calls now open reflected bodies from
   encoded `system-code` using proof-free structural equality progression, with

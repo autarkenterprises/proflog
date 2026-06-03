@@ -2892,6 +2892,85 @@
                 (l/== true q)))
             "formula-bearing negative calls should select reflected alternatives from encoded system-code")))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-guarded-negative-reflected-bodies
+  (testing "structural negative calls close guarded-shaped reflected bodies without guarded proof tags"
+    (let [guarded-body (ast/and-form
+                         (ast/eq-lit sjas/one sjas/one)
+                         (ast/true-form))
+          system (sjas/system
+                   {:profile :willard-sjas-tableau0
+                    :relations {'guarded-structural-demo 0}
+                    :beta []
+                    :reflected-clauses [(ast/clause 'guarded-structural-demo
+                                                    []
+                                                    guarded-body)
+                                        (ast/clause 'guarded-structural-demo
+                                                    []
+                                                    (ast/false-form))]})
+          target (structural-neg-lit system 'guarded-structural-demo)
+          canonical-one (list 'app (symbol "1"))
+          canonical-target (list 'neg (list 'app 'guarded-structural-demo))
+          canonical-left (list 'neq canonical-one canonical-one)
+          canonical-right (list 'false)
+          canonical-child (list 'or canonical-left canonical-right)
+          proof (canonical-structural-tableau-node
+                  system
+                  canonical-target
+                  (canonical-structural-tableau-node
+                    system
+                    canonical-child
+                    (canonical-structural-tableau-node system canonical-left)
+                    (canonical-structural-tableau-node system canonical-right)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural guarded negative-call proof should not use neg-call-guarded-alt, guarded-alt, guard-eq, or guarded sequence tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           100
+                           proof)
+              (l/== true q)))
+          "formula-bearing negative calls should close the decoded negated reflected body structurally"))))
+
+(deftest sjas-proof-check-accepts-formula-bearing-guarded-scope-reflected-bodies
+  (testing "structural negative calls use ordinary quantifier expansion for guarded existential scope"
+    (ast/nom x
+      (let [scoped-body (ast/exists-form x (ast/true-form))
+            system (sjas/system
+                     {:profile :willard-sjas-tableau0
+                      :relations {'guarded-scope-structural-demo 0}
+                      :beta []
+                      :reflected-clauses [(ast/clause 'guarded-scope-structural-demo
+                                                      []
+                                                      scoped-body)
+                                          (ast/clause 'guarded-scope-structural-demo
+                                                      []
+                                                      (ast/false-form))]})
+            target (structural-neg-lit system 'guarded-scope-structural-demo)
+            canonical-target (list 'neg (list 'app 'guarded-scope-structural-demo))
+            canonical-child (list 'once-forall 'v0 (list 'false))
+            proof (canonical-structural-tableau-node
+                    system
+                    canonical-target
+                    (canonical-structural-tableau-node
+                      system
+                      canonical-child
+                      (canonical-structural-tableau-node system (list 'false))))
+            check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+        (is (zero? (proof-symbol-count proof))
+            "the structural guarded-scope proof should not use neg-call-guarded-alt or guarded-scope-exists tags")
+        (is (successful?
+              (l/run 1 [q]
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             100
+                             proof)
+                (l/== true q)))
+            "formula-bearing negative calls should close negated existential reflected bodies by ordinary structural quantifier rules")))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

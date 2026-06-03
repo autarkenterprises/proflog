@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Extended formula-bearing SJAS tableau proof leaves to equality contradiction
+  closure. The checker now closes impossible equality leaves such as `0 = 1`
+  by structural branch-state analysis, without requiring `free-close`,
+  `occurs-close`, or `decompose` proof-trace constructors in the encoded proof
+  term. See
+  [SJAS Structural Equality Contradiction Closure](docs/log/2026-06-02-sjas-structural-equality-contradiction.md).
+
 - Extended formula-bearing SJAS tableau proof nodes to rigid disequality
   progression. The checker now continues structurally when a disequality's
   terms are rigidly different under the branch state, without a `neq-rigid`

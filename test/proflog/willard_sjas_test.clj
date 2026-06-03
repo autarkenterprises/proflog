@@ -2445,6 +2445,24 @@
               (l/== true q)))
           "formula-bearing equality nodes should update branch state and continue structurally"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-equality-contradiction-closures
+  (testing "structural equality leaves close free-constructor contradictions without kernel proof tags"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/eq-lit sjas/zero sjas/one)
+          proof (structural-tableau-node system target)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural equality contradiction proof should not use free-close or decompose tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           proof)
+              (l/== true q)))
+          "formula-bearing equality leaves should close when the equation is impossible in the term algebra"))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-rigid-disequality-continuations
   (testing "structural disequality nodes continue when terms are rigidly different"
     (let [system (demo-system :willard-sjas-tableau0)

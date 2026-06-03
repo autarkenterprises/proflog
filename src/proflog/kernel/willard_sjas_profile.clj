@@ -4028,6 +4028,106 @@
        (membero (list 'pos opposite) lits)
        (equality/atom-unifyo atom opposite sigma sigma-out atom-proof))]))
 
+(declare sjas-unify-termo-coreo
+         sjas-unify-term*o-coreo
+         sjas-eq-contradiction-coreo
+         sjas-eq-contradiction-term*o-coreo)
+
+(defn- sjas-unify-termo-coreo
+  "Proof-free term unification for structural SJAS tableau checks.
+
+   The ordinary equality helper returns kernel proof trace constructors such as
+   `eq-bind` and `decompose`. Formula-bearing SJAS tableau nodes should not
+   carry or require that trace payload, so this relation preserves the same
+   branch-state effect while exposing only `sigma` and `sigma-out`."
+  [left right sigma sigma-out]
+  (fresh [left-root right-root]
+    (equality/walko left sigma left-root)
+    (equality/walko right sigma right-root)
+    (conde
+      [(equality/same-termo left-root right-root sigma)
+       (== sigma sigma-out)]
+      [(fresh [binding-nom]
+         (== (list 'var binding-nom) left-root)
+         (equality/absent-termo binding-nom right-root sigma)
+         (== (lcons [binding-nom right-root] sigma) sigma-out))]
+      [(fresh [binding-nom]
+         (== (list 'var binding-nom) right-root)
+         (equality/absent-termo binding-nom left-root sigma)
+         (== (lcons [binding-nom left-root] sigma) sigma-out))]
+      [(fresh [binding-nom]
+         (== (list 'par binding-nom) left-root)
+         (equality/absent-paro binding-nom right-root sigma)
+         (== (lcons [binding-nom right-root] sigma) sigma-out))]
+      [(fresh [binding-nom]
+         (== (list 'par binding-nom) right-root)
+         (equality/absent-paro binding-nom left-root sigma)
+         (== (lcons [binding-nom left-root] sigma) sigma-out))]
+      [(fresh [head left-args right-args]
+         (== (lcons 'app (lcons head left-args)) left-root)
+         (== (lcons 'app (lcons head right-args)) right-root)
+         (sjas-unify-term*o-coreo left-args right-args sigma sigma-out))])))
+
+(defn- sjas-unify-term*o-coreo
+  "Pairwise proof-free companion for `sjas-unify-termo-coreo`."
+  [left right sigma sigma-out]
+  (conde
+    [(== '() left)
+     (== '() right)
+     (== sigma sigma-out)]
+    [(fresh [left-head left-tail right-head right-tail sigma-mid]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (sjas-unify-termo-coreo left-head right-head sigma sigma-mid)
+       (sjas-unify-term*o-coreo left-tail right-tail sigma-mid sigma-out))]))
+
+(defn- sjas-eq-contradiction-coreo
+  "Succeed when an equality literal is impossible, without proof trace tags.
+
+   This is the structural SJAS closure analogue of the kernel's
+   `eq-contradictiono`: occurs failures, distinct constructor heads, argument
+   arity mismatch, and recursive same-head contradictions close a branch. The
+   relation intentionally returns no `free-close`, `occurs-close`, or
+   `decompose` payload."
+  [left right sigma]
+  (fresh [left-root right-root]
+    (equality/walko left sigma left-root)
+    (equality/walko right sigma right-root)
+    (conde
+      [(fresh [binding-nom]
+         (== (list 'var binding-nom) left-root)
+         (equality/occurs-termo binding-nom right-root sigma))]
+      [(fresh [binding-nom]
+         (== (list 'var binding-nom) right-root)
+         (equality/occurs-termo binding-nom left-root sigma))]
+      [(fresh [left-head left-args right-head right-args]
+         (== (lcons 'app (lcons left-head left-args)) left-root)
+         (== (lcons 'app (lcons right-head right-args)) right-root)
+         (!= left-head right-head))]
+      [(fresh [head left-args right-args]
+         (== (lcons 'app (lcons head left-args)) left-root)
+         (== (lcons 'app (lcons head right-args)) right-root)
+         (sjas-eq-contradiction-term*o-coreo left-args right-args sigma))])))
+
+(defn- sjas-eq-contradiction-term*o-coreo
+  "Find a proof-free contradiction inside application argument lists."
+  [left right sigma]
+  (conde
+    [(fresh [head tail]
+       (== (lcons head tail) left)
+       (== '() right))]
+    [(fresh [head tail]
+       (== '() left)
+       (== (lcons head tail) right))]
+    [(fresh [left-head left-tail right-head right-tail]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (conde
+         [(sjas-eq-contradiction-coreo left-head right-head sigma)]
+         [(fresh [sigma-mid]
+            (sjas-unify-termo-coreo left-head right-head sigma sigma-mid)
+            (sjas-eq-contradiction-term*o-coreo left-tail right-tail sigma-mid))]))]))
+
 (defn- sjas-structural-proof-check-stateo
   "Validate the first formula-bearing tableau proof fragment.
 
@@ -4090,6 +4190,13 @@
          (conde
            [(sjas-neq-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof)]
            [(sjas-neg-relation-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof)]))]
+      [(fresh [lit left right]
+         (== '() children)
+         (subst/subst-formulao fml env lit)
+         (== (list 'eq left right) lit)
+         (sjas-eq-contradiction-coreo left right sigma)
+         (== sigma sigma-out)
+         (== neqs neqs-out))]
       [(fresh [lit left right sigma-mid child next rest next-fuel step-proof]
          (== (lcons child '()) children)
          (subst/subst-formulao fml env lit)

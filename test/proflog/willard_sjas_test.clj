@@ -2463,6 +2463,18 @@
               (l/== true q)))
           "formula-bearing equality leaves should close when the equation is impossible in the term algebra"))))
 
+(deftest sjas-structural-proof-checker-uses-proof-free-equality-progression
+  (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        start-token "(defn- sjas-structural-proof-check-stateo"
+        end-token "(defn- sjas-saved-positive-call-closeso"
+        start (str/index-of source start-token)
+        end (str/index-of source end-token start)
+        structural-source (subs source start end)]
+    (is (str/includes? structural-source "sjas-unify-termo-coreo")
+        "structural equality progression should compute branch substitutions without kernel proof-trace output")
+    (is (not (str/includes? structural-source "equality/unify-termo"))
+        "formula-bearing structural equality progression must not call the proof-producing kernel unifier")))
+
 (deftest sjas-proof-check-accepts-formula-bearing-rigid-disequality-continuations
   (testing "structural disequality nodes continue when terms are rigidly different"
     (let [system (demo-system :willard-sjas-tableau0)

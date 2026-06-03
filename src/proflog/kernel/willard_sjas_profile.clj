@@ -4197,11 +4197,11 @@
          (sjas-eq-contradiction-coreo left right sigma)
          (== sigma sigma-out)
          (== neqs neqs-out))]
-      [(fresh [lit left right sigma-mid child next rest next-fuel step-proof]
+      [(fresh [lit left right sigma-mid child next rest next-fuel]
          (== (lcons child '()) children)
          (subst/subst-formulao fml env lit)
          (== (list 'eq left right) lit)
-         (equality/unify-termo left right sigma sigma-mid step-proof)
+         (sjas-unify-termo-coreo left right sigma sigma-mid)
          (== (lcons next rest) unexpanded)
          (support/stable-neqso neqs sigma-mid)
          (support/step-fuelo fuel next-fuel)

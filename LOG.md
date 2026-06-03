@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Switched formula-bearing SJAS equality progression to proof-free unification.
+  The structural checker now computes equality branch substitutions with
+  `sjas-unify-termo-coreo` rather than the kernel's proof-producing
+  `equality/unify-termo`, closing another local proof-trace boundary in Track
+  1. See
+  [SJAS Proof-Free Equality Progression](docs/log/2026-06-02-sjas-proof-free-equality-progression.md).
+
 - Extended formula-bearing SJAS tableau proof leaves to equality contradiction
   closure. The checker now closes impossible equality leaves such as `0 = 1`
   by structural branch-state analysis, without requiring `free-close`,

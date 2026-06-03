@@ -4009,11 +4009,24 @@
   [prog proof formula children]
   (or*
     (map (fn [byte-count]
-           (fresh [after-count formula-bytes]
+           (fresh [after-count formula-bytes decoded-formula]
              (== (lcons byte-count after-count) proof)
              (proof-byte-prefixo byte-count after-count formula-bytes children)
-             (decode-proof-formula-byteso prog formula-bytes '() formula)))
+             (decode-proof-formula-byteso prog formula-bytes '() decoded-formula)
+             (sjas-internal-formula-asto decoded-formula formula)))
          (range 1 sjas-code/byte-base))))
+
+(defn- sjas-complementary-lit-close-coreo
+  [lit lits sigma sigma-out]
+  (conde
+    [(fresh [atom opposite atom-proof]
+       (== (list 'pos atom) lit)
+       (membero (list 'neg opposite) lits)
+       (equality/atom-unifyo atom opposite sigma sigma-out atom-proof))]
+    [(fresh [atom opposite atom-proof]
+       (== (list 'neg atom) lit)
+       (membero (list 'pos opposite) lits)
+       (equality/atom-unifyo atom opposite sigma sigma-out atom-proof))]))
 
 (defn- sjas-structural-proof-check-stateo
   "Validate the first formula-bearing tableau proof fragment.
@@ -4021,7 +4034,8 @@
    This relation is the Track 1 route away from Proflog proof-trace evidence:
    the proof object supplies formula nodes, and this checker infers the local
    tableau rule from parent formula, child formula, and branch state. The
-   initial fragment covers conjunction, true-skip, and false closure."
+   current fragment covers conjunction, disjunction, true-skip, false closure,
+   literal continuation, and complementary literal closure."
   [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (fresh [node-formula children]
@@ -4033,6 +4047,14 @@
          (== (list 'false) fml)
          (== sigma sigma-out)
          (== neqs neqs-out))]
+      [(fresh [lit atom]
+         (== '() children)
+         (subst/subst-formulao fml env lit)
+         (conde
+           [(== (list 'pos atom) lit)]
+           [(== (list 'neg atom) lit)])
+         (sjas-complementary-lit-close-coreo lit lits sigma sigma-out)
+         (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
       [(fresh [left right child next-fuel]
          (== (lcons child '()) children)
          (== (list 'and left right) fml)
@@ -4089,6 +4111,28 @@
                                   right-child)
          (== sigma sigma-out)
          (== neqs neqs-out))]
+      [(fresh [lit atom child next rest next-fuel]
+         (== (lcons child '()) children)
+         (subst/subst-formulao fml env lit)
+         (conde
+           [(== (list 'pos atom) lit)]
+           [(== (list 'neg atom) lit)])
+         (== (lcons next rest) unexpanded)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  next
+                                  rest
+                                  (lcons lit lits)
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
       [(fresh [child next rest next-fuel]
          (== (lcons child '()) children)
          (== (list 'true) fml)

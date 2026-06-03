@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Extended formula-bearing SJAS tableau proof nodes to literal continuation
+  and complementary literal closure. Literal nodes can now save branch context
+  and close against saved complementary literals without `savefml` or `close`
+  proof-rule tags; formula-bearing node decoding now converts decoded SJAS
+  formula-code syntax into AST form before branch-state comparison. See
+  [SJAS Structural Literal Closure](docs/log/2026-06-02-sjas-structural-literal-closure.md).
+
 - Extended formula-bearing SJAS tableau proof nodes to structural disjunction.
   The checker now infers the `or` branching rule from the decoded formula node
   and validates two child branches without a Proflog `split` proof-rule tag,

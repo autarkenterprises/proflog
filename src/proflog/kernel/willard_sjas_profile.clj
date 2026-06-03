@@ -3609,7 +3609,7 @@
 
 (defn- sjas-axiom-membero
   [prog system-code formula-code proof]
-  (conda
+  (conde
     [(sjas-beta-axiom-membero prog system-code formula-code proof)]
     [(sjas-reflected-axiom-membero prog system-code formula-code proof)]
     [(sjas-fixed-axiom-membero prog system-code formula-code proof)]

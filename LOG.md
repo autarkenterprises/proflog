@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Replaced the proof-facing committed-choice `sjas-axiom-membero` dispatcher
+  with ordinary relational disjunction across the finite encoded-system axiom
+  classes. The source audit now rejects `conda` in that dispatcher. Additional
+  focused axiom/proof-predicate selectors are still running as proof-search
+  evidence. See
+  [SJAS Axiom-Member Relational Dispatch](docs/log/2026-06-02-sjas-axiom-member-relational-dispatch.md).
+
 - Removed the source-only `subst-prf/4` substitution witness shortcut from the
   SJAS proof predicate path. `subst-prf` now computes the diagonal substituted
   source sentence as an explicit proof antecedent and includes that sentence in

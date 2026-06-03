@@ -3231,6 +3231,8 @@
         "proof predicates must not bypass tableau state validation by focusing the negated theorem directly")
     (is (not (re-find #"(?s)defn- sjas-tableau-proof-closeo.*?\(conda" profile-source))
         "tableau-proof proof-code classification must be a relation, not a committed-choice scheduler")
+    (is (not (re-find #"(?s)defn- sjas-axiom-membero.*?\(conda" profile-source))
+        "axiom-member group selection must be an ordinary finite relation, not committed-choice search control")
     (is (= 2 (count (re-seq #"\(kernel/prove-programo" profile-source)))
         "the ordinary kernel may remain only as the public proof-search engine, not as an internal proof-predicate validator")
     (is (not (re-find #"compact-false-formula-code" profile-source))

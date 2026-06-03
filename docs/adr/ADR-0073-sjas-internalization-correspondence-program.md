@@ -215,6 +215,11 @@ Documentation-only slices must still pass `git diff --check` before commit.
 - The implementation passes `lein test-proflog-fast`,
   `lein test-proflog-extended`, and `lein test-proflog-sjas`; any deliberately
   deferred slow probes are recorded under `docs/log/` with rationale.
+- After the Track 1 proof machinery is fully internalized, the project prints
+  the numerical Godel code of the self-consistency statement for the concrete
+  `IS#_D(beta)` instance. This must be computed from the fully internalized
+  system/formula coding path, not from a transitional host-side proof-predicate
+  shortcut.
 - The AAR records which route justified each remaining bridge: direct
   arithmeticization, proved-and-tested correspondence, adopted
   Proflog-as-D formalization, or explicitly deferred future work approved by

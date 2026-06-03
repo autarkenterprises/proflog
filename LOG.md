@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-02
 
+- Extended formula-bearing SJAS tableau proof nodes to structural quantifier
+  expansion for `exists`, `forall`, and `once-forall`. The checker now infers
+  quantifier expansion from decoded formula nodes and branch state without
+  `witness`, `univ`, or `once-univ` proof-rule tags for the covered fragment.
+  See
+  [SJAS Structural Quantifier Tableau Nodes](docs/log/2026-06-02-sjas-structural-quantifier-tableau.md).
+
 - Extended formula-bearing SJAS tableau proof nodes to literal continuation
   and complementary literal closure. Literal nodes can now save branch context
   and close against saved complementary literals without `savefml` or `close`

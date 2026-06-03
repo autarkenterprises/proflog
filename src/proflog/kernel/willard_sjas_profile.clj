@@ -4035,7 +4035,8 @@
    the proof object supplies formula nodes, and this checker infers the local
    tableau rule from parent formula, child formula, and branch state. The
    current fragment covers conjunction, disjunction, true-skip, false closure,
-   literal continuation, and complementary literal closure."
+   literal continuation, complementary literal closure, and structural
+   quantifier expansion."
   [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (fresh [node-formula children]
@@ -4133,6 +4134,72 @@
                                   gamma-terms
                                   next-fuel
                                   child))]
+      [(nominal/fresh [binding-nom]
+         (nominal/fresh [free-var-nom]
+           (fresh [body body-subst narrowed-env child next-fuel]
+             (== (lcons child '()) children)
+             (== (list 'forall (nominal/tie binding-nom body)) fml)
+             (subst/remove-bindo binding-nom env narrowed-env)
+             (subst/subst-formulao body narrowed-env body-subst)
+             (support/step-fuelo fuel next-fuel)
+             (sjas-proof-check-stateo system-code
+                                      body-subst
+                                      unexpanded
+                                      lits
+                                      (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                      (lcons free-var-nom proof-vars)
+                                      sigma
+                                      sigma-out
+                                      neqs
+                                      neqs-out
+                                      prog
+                                      gamma-terms
+                                      next-fuel
+                                      child))))]
+      [(nominal/fresh [binding-nom]
+         (nominal/fresh [free-var-nom]
+           (fresh [body body-subst narrowed-env child next-fuel]
+             (== (lcons child '()) children)
+             (== (list 'once-forall (nominal/tie binding-nom body)) fml)
+             (subst/remove-bindo binding-nom env narrowed-env)
+             (subst/subst-formulao body narrowed-env body-subst)
+             (support/step-fuelo fuel next-fuel)
+             (sjas-proof-check-stateo system-code
+                                      body-subst
+                                      unexpanded
+                                      lits
+                                      (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                      (lcons free-var-nom proof-vars)
+                                      sigma
+                                      sigma-out
+                                      neqs
+                                      neqs-out
+                                      prog
+                                      gamma-terms
+                                      next-fuel
+                                      child))))]
+      [(nominal/fresh [binding-nom]
+         (nominal/fresh [parameter-nom]
+           (fresh [body body-subst narrowed-env child next-fuel]
+             (== (lcons child '()) children)
+             (== (list 'exists (nominal/tie binding-nom body)) fml)
+             (subst/remove-bindo binding-nom env narrowed-env)
+             (subst/subst-formulao body narrowed-env body-subst)
+             (support/step-fuelo fuel next-fuel)
+             (sjas-proof-check-stateo system-code
+                                      body-subst
+                                      unexpanded
+                                      lits
+                                      (lcons [binding-nom (ast/par-term parameter-nom)] env)
+                                      proof-vars
+                                      sigma
+                                      sigma-out
+                                      neqs
+                                      neqs-out
+                                      prog
+                                      gamma-terms
+                                      next-fuel
+                                      child))))]
       [(fresh [child next rest next-fuel]
          (== (lcons child '()) children)
          (== (list 'true) fml)

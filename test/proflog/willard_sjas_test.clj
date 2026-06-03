@@ -2358,6 +2358,32 @@
               (l/== true q)))
           "formula-bearing literal leaves should close against saved branch literals"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-quantifier-expansions
+  (testing "structural quantifier nodes infer expansion without witness or universal proof tags"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          cases [(ast/exists-form binding (ast/false-form))
+                 (ast/forall-form binding (ast/false-form))
+                 (ast/once-forall-form binding (ast/false-form))]
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (doseq [target cases]
+        (let [proof (structural-tableau-node
+                      system
+                      target
+                      (structural-tableau-node system (ast/false-form)))]
+          (is (zero? (proof-symbol-count proof))
+              "the structural quantifier proof should not use witness, univ, or once-univ proof-rule tags")
+          (is (successful?
+                (l/run 1 [q]
+                  (check-proof (:program system)
+                               (:system-code system)
+                               target
+                               20
+                               proof)
+                  (l/== true q)))
+              (str "formula-bearing quantifier node should validate structurally: "
+                   (pr-str (ast/tag-of target)))))))))
+
 (deftest sjas-proof-check-accepts-guarded-reflected-negative-call-from-system-code
   (testing "guarded negative call evidence is validated from encoded reflected clauses"
     (let [system (sjas/system

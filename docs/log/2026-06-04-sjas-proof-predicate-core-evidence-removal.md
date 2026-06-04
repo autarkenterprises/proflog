@@ -275,3 +275,59 @@ A new durable public formula-bearing theorem proof probe was launched under
 `test-runs/sjas-public-formula-bearing-true-theorem-term-first-byte-reader-*`.
 It was still running during this slice and is evidence for the term-first
 public reader change, not for any further Track 2 correspondence claim.
+
+## Ordinary Tableau Negation Rules
+
+The formula-code grammar admits surface `not` formulas, and the Track 1
+specification names ordinary semantic-tableau rules for double negation,
+negated conjunction, and negated disjunction. The structural proof checker had
+already covered positive conjunction/disjunction, literals, quantifiers,
+equality/disequality, arithmetic/profile closures, and reflected calls, but it
+did not accept formula-bearing proof trees whose local node formula was one of
+these negated compound forms.
+
+Red tests were added for formula-bearing structural proof trees with no
+proof-rule trace tags:
+
+- `not(not(false))`, whose child is `false`;
+- `not(and(true,true))`, whose two child branches are `not(true)`;
+- `not(or(false,true))`, whose same branch continues through `not(false)` and
+  then closes at `not(true)`.
+
+Implementation:
+
+- `not(true)` is a closed false-truth leaf.
+- `not(false)` behaves as a true formula over the current branch and continues
+  with the next unexpanded formula.
+- `not(not(phi))` continues with `phi`.
+- `not(and(left,right))` branches into independent `not(left)` and
+  `not(right)` child branches.
+- `not(or(left,right))` adds `not(left)` and `not(right)` to the same branch.
+
+These cases are local structural tableau rules over decoded formula-bearing
+proof nodes. They do not introduce proof-rule tags, host normalization, or a
+call back to the Proflog kernel proof checker.
+
+Focused verification:
+
+```text
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-double-negation-tableaux
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-negated-conjunction-tableaux
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-negated-disjunction-tableaux
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-and-true-false-tableaux
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-disjunction-tableaux
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-complementary-literal-closures
+lein test :only proflog.willard-sjas-test/sjas-profile-source-audit-rejects-host-proof-checker-route
+```
+
+Regression verification:
+
+```text
+lein test-proflog-fast
+Ran 165 tests containing 656 assertions.
+0 failures, 0 errors.
+
+lein test-proflog-extended
+Ran 68 tests containing 203 assertions.
+0 failures, 0 errors.
+```

@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Added ordinary semantic-tableau negation cases to the SJAS structural proof
+  checker. Formula-bearing proof nodes now validate double-negation removal,
+  negated-conjunction branching, and negated-disjunction same-branch expansion
+  directly from decoded formula structure, without proof-rule trace tags. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
 - Split compact-code byte handling in the SJAS proof predicate. Presented
   public code terms now parse their numeral bits before finite byte lookup,
   while embedded decoded-code payload reconstruction uses a separate byte-first

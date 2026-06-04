@@ -1778,6 +1778,76 @@
               (l/== true q)))
           "formula-bearing disjunction nodes should validate by child branch structure"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-double-negation-tableaux
+  (testing "structural double negation removes both negations without proof-rule tags"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/not-form (ast/not-form (ast/false-form)))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node system (ast/false-form)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural double-negation proof should not use proof-rule tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           proof)
+              (l/== true q)))
+          "formula-bearing double negation should validate by local tableau structure"))))
+
+(deftest sjas-proof-check-accepts-formula-bearing-negated-conjunction-tableaux
+  (testing "structural negated conjunction branches into negated conjuncts"
+    (let [system (demo-system :willard-sjas-tableau0)
+          not-true (ast/not-form (ast/true-form))
+          target (ast/not-form (ast/and-form (ast/true-form) (ast/true-form)))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node system not-true)
+                  (structural-tableau-node system not-true))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural negated-conjunction proof should not use split or false-close proof-rule tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           proof)
+              (l/== true q)))
+          "formula-bearing negated conjunction should validate by branch structure"))))
+
+(deftest sjas-proof-check-accepts-formula-bearing-negated-disjunction-tableaux
+  (testing "structural negated disjunction adds both negated disjuncts to one branch"
+    (let [system (demo-system :willard-sjas-tableau0)
+          not-false (ast/not-form (ast/false-form))
+          not-true (ast/not-form (ast/true-form))
+          target (ast/not-form (ast/or-form (ast/false-form) (ast/true-form)))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node
+                    system
+                    not-false
+                    (structural-tableau-node system not-true)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural negated-disjunction proof should not use proof-rule tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           30
+                           proof)
+              (l/== true q)))
+          "formula-bearing negated disjunction should validate by same-branch structure"))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-complementary-literal-closures
   (testing "structural literal nodes save branch context and close at a complementary leaf"
     (let [system (demo-system :willard-sjas-tableau0)

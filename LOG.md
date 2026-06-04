@@ -20,6 +20,18 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-04
+
+- Removed auxiliary proof-trace evidence from the SJAS `tableau-proof/3` and
+  `subst-prf/4` proof-predicate path. The predicates now use proof-free core
+  relations for public code reading, proof-code decoding, theorem-code
+  negation, finite-system axiom membership, axiom-conjunction reconstruction,
+  and substitution antecedent recovery, while the returned Proflog proof is only
+  the proof-predicate closure marker. This keeps the supplied formula-bearing
+  tableau proof code as the relevant SJAS evidence rather than adjoining a
+  second proof trace. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
 ## 2026-06-03
 
 - Narrowed the SJAS proof-predicate non-axiom proof-code decoder to

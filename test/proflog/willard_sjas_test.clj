@@ -737,9 +737,14 @@
         (is (successful? proofs))
         (let [proof (first-proof proofs)
               audit (correspondence/audit-proof-term proof)]
-          (is (proof/contains-step? proof 'sjas-ug-code-byte-cons)
-              "U-Grounding proof predicates must not decode ground system or theorem codes with a host shortcut")
-          (is (proof/contains-step? proof 'sjas-ug-code-canonical-byte))
+          (is (proof/contains-step? proof 'willard-sjas-proof-check)
+              "tableau-proof should close through the SJAS proof predicate")
+          (is (not (proof/contains-step? proof 'sjas-ug-code-byte-cons))
+              "tableau-proof answer proofs should not adjoin byte-reader traces to the supplied tableau certificate")
+          (is (not (proof/contains-step? proof 'sjas-ug-code-canonical-byte))
+              "the returned Proflog proof trace is not part of the SJAS proof code")
+          (is (not (proof/contains-step? proof 'sjas-axiom))
+              "the supplied proof-code is checked, not copied into answer evidence")
           (is (= #{}
                  (:unencodable-symbols audit)))
           (is (= #{}
@@ -2838,8 +2843,10 @@
                  220)
         proof (first-proof proofs)]
     (is (successful? proofs))
-    (is (proof/contains-step? proof 'willard-sjas-subst-source-result)
-        "subst-prf must explicitly compute the substituted source witness, not merely check that the source code is well formed")))
+    (is (proof/contains-step? proof 'willard-sjas-subst-proof-check)
+        "subst-prf should close through the SJAS substitution proof predicate")
+    (is (not (proof/contains-step? proof 'willard-sjas-subst-source-result))
+        "subst-prf answer proofs should not adjoin the substitution-code trace to the supplied tableau certificate")))
 
 (deftest sjas-level1-group-three-uses-substitution-proof-vocabulary
   (let [system (demo-system :willard-sjas-level1)
@@ -3004,7 +3011,33 @@
         non-axiom-end (str/index-of profile-source
                                     "(defn- sjas-system-profile-tago"
                                     non-axiom-start)
-        non-axiom-source (subs profile-source non-axiom-start non-axiom-end)]
+        non-axiom-source (subs profile-source non-axiom-start non-axiom-end)
+        tableau-close-start (str/index-of profile-source
+                                          "(defn- sjas-tableau-proof-closeo")
+        tableau-close-end (str/index-of profile-source
+                                        "(defn- sjas-subst-prf-closeo"
+                                        tableau-close-start)
+        tableau-close-source (subs profile-source
+                                   tableau-close-start
+                                   tableau-close-end)
+        subst-close-start (str/index-of profile-source
+                                        "(defn- sjas-subst-prf-closeo")
+        subst-close-end (str/index-of profile-source
+                                      "(defn willard-sjas-theory-closeo"
+                                      subst-close-start)
+        subst-close-source (subs profile-source
+                                 subst-close-start
+                                 subst-close-end)
+        reflected-antecedent-start (str/index-of
+                                     profile-source
+                                     "(defn- decode-reflected-proof-antecedent-formulaso")
+        reflected-antecedent-end (str/index-of
+                                   profile-source
+                                   "(defn- sjas-fixed-proof-antecedent-formulaso"
+                                   reflected-antecedent-start)
+        reflected-antecedent-source (subs profile-source
+                                          reflected-antecedent-start
+                                          reflected-antecedent-end)]
     (is (not (re-find #"prove-program-host" profile-source)))
     (is (not (re-find #"host-proof" profile-source)))
     (is (not (re-find #"whole-formula" profile-source)))
@@ -3137,6 +3170,42 @@
         "proof reporting must not hide decoded non-axiom proof trees behind a summary marker")
     (is (not (re-find #"proof-formal-code-term->proof" profile-source))
         "large proof reporting must decode proof-code trees through the SJAS proof-code relation")
+    (is (not (re-find #"(?s)\(list 'profiled\s+'willard-sjas-proof-check\s+proof-read-proof\s+theorem-read-proof\s+decoded-proof\)"
+                      profile-source))
+        "tableau-proof answer evidence must not adjoin code-reader and decoded-proof traces to the supplied tableau proof code")
+    (is (not (re-find #"(?s)\(list 'profiled 'willard-sjas-subst-proof-check\s+proof-read-proof\s+theorem-read-proof\s+decoded-proof\)"
+                      profile-source))
+        "subst-prf answer evidence must not adjoin code-reader and decoded-proof traces to the supplied tableau proof code")
+    (is (str/includes? tableau-close-source "decode-sjas-axiom-proof-code-coreo")
+        "tableau-proof must decode axiom certificates without auxiliary proof traces")
+    (is (str/includes? tableau-close-source "decode-non-sjas-axiom-proof-code-coreo")
+        "tableau-proof must decode structural certificates without auxiliary proof traces")
+    (is (str/includes? tableau-close-source "sjas-structural-negated-theorem-coreo")
+        "tableau-proof must decode theorem codes without auxiliary theorem-code traces")
+    (is (str/includes? tableau-close-source "sjas-system-axiom-formula-coreo")
+        "tableau-proof must reconstruct AxiomConj through proof-free object relations")
+    (is (str/includes? tableau-close-source "sjas-walked-axiom-member-coreo")
+        "tableau-proof axiom citation must check finite-system membership without auxiliary proof traces")
+    (is (not (str/includes? tableau-close-source "decode-sjas-axiom-proof-codeo"))
+        "tableau-proof must not call the proof-producing axiom certificate decoder")
+    (is (not (str/includes? tableau-close-source "decode-non-sjas-axiom-proof-codeo"))
+        "tableau-proof must not call the proof-producing structural certificate decoder")
+    (is (str/includes? subst-close-source "decode-sjas-axiom-proof-code-coreo")
+        "subst-prf must decode axiom certificates without auxiliary proof traces")
+    (is (str/includes? subst-close-source "decode-non-sjas-axiom-proof-code-coreo")
+        "subst-prf must decode structural certificates without auxiliary proof traces")
+    (is (str/includes? subst-close-source "sjas-structural-negated-theorem-coreo")
+        "subst-prf must decode theorem codes without auxiliary theorem-code traces")
+    (is (str/includes? subst-close-source "sjas-system-axiom-formula-coreo")
+        "subst-prf must reconstruct AxiomConj through proof-free object relations")
+    (is (str/includes? subst-close-source "sjas-walked-axiom-member-coreo")
+        "subst-prf axiom citation must check finite-system membership without auxiliary proof traces")
+    (is (not (str/includes? subst-close-source "decode-sjas-axiom-proof-codeo"))
+        "subst-prf must not call the proof-producing axiom certificate decoder")
+    (is (not (str/includes? subst-close-source "decode-non-sjas-axiom-proof-codeo"))
+        "subst-prf must not call the proof-producing structural certificate decoder")
+    (is (not (str/includes? reflected-antecedent-source "conda"))
+        "reflected axiom antecedent reconstruction must be a relation over reflected records, not committed-choice fallback decoding")
     (is (not (re-find #"defn- ground-u-grounding-substitution-bytes" profile-source))
         "SJAS substitution predicates must not recover U-Grounding formula bytes through a host projector")
     (is (not (re-find #"sjas-code/code-term-bytes term" profile-source))

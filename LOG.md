@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Split recursive `tableau-proof/3` and `subst-prf/4` SJAS predicate checking
+  into proof-free core relations plus thin public answer wrappers. Structural
+  formula-bearing tableau leaves now call the core relations directly, so the
+  SJAS-side tableau proof predicate does not materialize an extra Proflog
+  answer-proof marker around recursive proof-predicate leaves. Focused
+  regressions and the fast/extended gates passed.
+
 - Added structural leaf closures for `axiom-member/2`, `tableau-proof/3`, and
   `subst-prf/4` inside the SJAS formula-bearing tableau checker. These leaves
   now route through decoded system-code membership, the arithmeticized proof

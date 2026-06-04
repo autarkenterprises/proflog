@@ -2243,6 +2243,38 @@
       (is (not (str/includes? axiom-structural-source "sjas-axiom-member-closeo"))
           "structural axiom-member closure must not materialize ordinary axiom-member proof evidence"))))
 
+(deftest sjas-structural-recursive-proof-predicate-closures-avoid-answer-proof-wrappers
+  (testing "formula-bearing recursive proof-predicate leaves do not build ordinary answer-proof evidence"
+    (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+          tableau-structural-start (str/index-of
+                                     source
+                                     "(defn- sjas-tableau-proof-structural-closeo")
+          tableau-structural-end (str/index-of
+                                   source
+                                   "(defn- sjas-subst-prf-structural-closeo"
+                                   tableau-structural-start)
+          tableau-structural-source (subs source
+                                          tableau-structural-start
+                                          tableau-structural-end)
+          subst-structural-start (str/index-of
+                                   source
+                                   "(defn- sjas-subst-prf-structural-closeo")
+          subst-structural-end (str/index-of
+                                 source
+                                 "(defn willard-sjas-theory-closeo"
+                                 subst-structural-start)
+          subst-structural-source (subs source
+                                        subst-structural-start
+                                        subst-structural-end)]
+      (is (str/includes? tableau-structural-source "sjas-tableau-proof-coreo")
+          "structural tableau-proof closure should call the proof-free object relation")
+      (is (not (str/includes? tableau-structural-source "sjas-tableau-proof-closeo"))
+          "structural tableau-proof closure must not materialize the ordinary answer-proof wrapper")
+      (is (str/includes? subst-structural-source "sjas-subst-prf-coreo")
+          "structural subst-prf closure should call the proof-free object relation")
+      (is (not (str/includes? subst-structural-source "sjas-subst-prf-closeo"))
+          "structural subst-prf closure must not materialize the ordinary answer-proof wrapper"))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-equality-continuations
   (testing "structural equality nodes advance branch state without eq-step tags"
     (let [system (demo-system :willard-sjas-tableau0)
@@ -3347,18 +3379,34 @@
                                     "(defn- sjas-system-profile-tago"
                                     non-axiom-start)
         non-axiom-source (subs profile-source non-axiom-start non-axiom-end)
+        tableau-core-start (str/index-of profile-source
+                                         "(defn- sjas-tableau-proof-coreo")
+        tableau-core-end (str/index-of profile-source
+                                       "(defn- sjas-tableau-proof-closeo"
+                                       tableau-core-start)
+        tableau-core-source (subs profile-source
+                                  tableau-core-start
+                                  tableau-core-end)
         tableau-close-start (str/index-of profile-source
                                           "(defn- sjas-tableau-proof-closeo")
         tableau-close-end (str/index-of profile-source
-                                        "(defn- sjas-subst-prf-closeo"
+                                        "(defn- sjas-subst-prf-coreo"
                                         tableau-close-start)
         tableau-close-source (subs profile-source
                                    tableau-close-start
                                    tableau-close-end)
+        subst-core-start (str/index-of profile-source
+                                       "(defn- sjas-subst-prf-coreo")
+        subst-core-end (str/index-of profile-source
+                                     "(defn- sjas-subst-prf-closeo"
+                                     subst-core-start)
+        subst-core-source (subs profile-source
+                                subst-core-start
+                                subst-core-end)
         subst-close-start (str/index-of profile-source
                                         "(defn- sjas-subst-prf-closeo")
         subst-close-end (str/index-of profile-source
-                                      "(defn willard-sjas-theory-closeo"
+                                      "(defn- sjas-tableau-proof-structural-closeo"
                                       subst-close-start)
         subst-close-source (subs profile-source
                                  subst-close-start
@@ -3627,33 +3675,37 @@
     (is (not (re-find #"(?s)\(list 'profiled 'willard-sjas-subst-proof-check\s+proof-read-proof\s+theorem-read-proof\s+decoded-proof\)"
                       profile-source))
         "subst-prf answer evidence must not adjoin code-reader and decoded-proof traces to the supplied tableau proof code")
-    (is (str/includes? tableau-close-source "decode-sjas-axiom-proof-code-coreo")
+    (is (str/includes? tableau-close-source "sjas-tableau-proof-coreo")
+        "tableau-proof wrapper must delegate to the proof-free object relation")
+    (is (str/includes? tableau-core-source "decode-sjas-axiom-proof-code-coreo")
         "tableau-proof must decode axiom certificates without auxiliary proof traces")
-    (is (str/includes? tableau-close-source "decode-non-sjas-axiom-proof-code-coreo")
+    (is (str/includes? tableau-core-source "decode-non-sjas-axiom-proof-code-coreo")
         "tableau-proof must decode structural certificates without auxiliary proof traces")
-    (is (str/includes? tableau-close-source "sjas-structural-negated-theorem-coreo")
+    (is (str/includes? tableau-core-source "sjas-structural-negated-theorem-coreo")
         "tableau-proof must decode theorem codes without auxiliary theorem-code traces")
-    (is (str/includes? tableau-close-source "sjas-system-axiom-formula-coreo")
+    (is (str/includes? tableau-core-source "sjas-system-axiom-formula-coreo")
         "tableau-proof must reconstruct AxiomConj through proof-free object relations")
-    (is (str/includes? tableau-close-source "sjas-walked-axiom-member-coreo")
+    (is (str/includes? tableau-core-source "sjas-walked-axiom-member-coreo")
         "tableau-proof axiom citation must check finite-system membership without auxiliary proof traces")
-    (is (not (str/includes? tableau-close-source "decode-sjas-axiom-proof-codeo"))
+    (is (not (str/includes? tableau-core-source "decode-sjas-axiom-proof-codeo"))
         "tableau-proof must not call the proof-producing axiom certificate decoder")
-    (is (not (str/includes? tableau-close-source "decode-non-sjas-axiom-proof-codeo"))
+    (is (not (str/includes? tableau-core-source "decode-non-sjas-axiom-proof-codeo"))
         "tableau-proof must not call the proof-producing structural certificate decoder")
-    (is (str/includes? subst-close-source "decode-sjas-axiom-proof-code-coreo")
+    (is (str/includes? subst-close-source "sjas-subst-prf-coreo")
+        "subst-prf wrapper must delegate to the proof-free object relation")
+    (is (str/includes? subst-core-source "decode-sjas-axiom-proof-code-coreo")
         "subst-prf must decode axiom certificates without auxiliary proof traces")
-    (is (str/includes? subst-close-source "decode-non-sjas-axiom-proof-code-coreo")
+    (is (str/includes? subst-core-source "decode-non-sjas-axiom-proof-code-coreo")
         "subst-prf must decode structural certificates without auxiliary proof traces")
-    (is (str/includes? subst-close-source "sjas-structural-negated-theorem-coreo")
+    (is (str/includes? subst-core-source "sjas-structural-negated-theorem-coreo")
         "subst-prf must decode theorem codes without auxiliary theorem-code traces")
-    (is (str/includes? subst-close-source "sjas-system-axiom-formula-coreo")
+    (is (str/includes? subst-core-source "sjas-system-axiom-formula-coreo")
         "subst-prf must reconstruct AxiomConj through proof-free object relations")
-    (is (str/includes? subst-close-source "sjas-walked-axiom-member-coreo")
+    (is (str/includes? subst-core-source "sjas-walked-axiom-member-coreo")
         "subst-prf axiom citation must check finite-system membership without auxiliary proof traces")
-    (is (not (str/includes? subst-close-source "decode-sjas-axiom-proof-codeo"))
+    (is (not (str/includes? subst-core-source "decode-sjas-axiom-proof-codeo"))
         "subst-prf must not call the proof-producing axiom certificate decoder")
-    (is (not (str/includes? subst-close-source "decode-non-sjas-axiom-proof-codeo"))
+    (is (not (str/includes? subst-core-source "decode-non-sjas-axiom-proof-codeo"))
         "subst-prf must not call the proof-producing structural certificate decoder")
     (is (not (str/includes? reflected-antecedent-source "conda"))
         "reflected axiom antecedent reconstruction must be a relation over reflected records, not committed-choice fallback decoding")

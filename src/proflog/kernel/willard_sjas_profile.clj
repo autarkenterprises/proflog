@@ -6031,8 +6031,15 @@
                              fuel
                              proof)))
 
-(defn- sjas-tableau-proof-closeo
-  [fml env sigma sigma-out neqs neqs-out prog fuel proof]
+(defn- sjas-tableau-proof-coreo
+  "Proof-free `tableau-proof/3` predicate relation.
+
+   This is the object relation used both by the ordinary SJAS theory wrapper
+   and by formula-bearing structural tableau leaves. It decodes the supplied
+   proof code, theorem code, and finite system code, then validates either an
+   axiom citation or a structural tableau tree without constructing a separate
+   Proflog answer-proof payload."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
   (fresh [lit atom walked-atom system-code theorem-code proof-code
           decoded-proof proof-bytes axiom-formula neg-theorem
           target sigma-proof]
@@ -6069,11 +6076,29 @@
                                   target
                                   fuel
                                   decoded-proof)])
-    (== '(profiled willard-sjas-proof-check) proof)
     (== neqs neqs-out)))
 
-(defn- sjas-subst-prf-closeo
+(defn- sjas-tableau-proof-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
+  (fresh []
+    (sjas-tableau-proof-coreo fml
+                              env
+                              sigma
+                              sigma-out
+                              neqs
+                              neqs-out
+                              prog
+                              fuel)
+    (== '(profiled willard-sjas-proof-check) proof)))
+
+(defn- sjas-subst-prf-coreo
+  "Proof-free `subst-prf/4` predicate relation.
+
+   `SubstPrf` first validates the substitution-side formula relation, then
+   checks the supplied theorem proof against beta plus the substituted source
+   sentence. The relation intentionally returns only branch state effects; the
+   ordinary public answer marker is layered on by `sjas-subst-prf-closeo`."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
   (fresh [lit atom walked-atom system-code substitution-code theorem-code proof-code
           decoded-proof proof-bytes axiom-formula subst-axiom-formula
           extended-axiom-formula neg-theorem target sigma-valid sigma-proof]
@@ -6124,7 +6149,19 @@
                                   target
                                   fuel
                                   decoded-proof)])
-    (== neqs neqs-out)
+    (== neqs neqs-out)))
+
+(defn- sjas-subst-prf-closeo
+  [fml env sigma sigma-out neqs neqs-out prog fuel proof]
+  (fresh []
+    (sjas-subst-prf-coreo fml
+                          env
+                          sigma
+                          sigma-out
+                          neqs
+                          neqs-out
+                          prog
+                          fuel)
     (== '(profiled willard-sjas-subst-proof-check) proof)))
 
 (defn- sjas-tableau-proof-structural-closeo
@@ -6132,19 +6169,17 @@
 
    The formula-bearing proof tree already supplies the relevant local evidence,
    so this relation keeps only the object-level predicate success and branch
-   state effects. The ordinary answer proof marker from
-   `sjas-tableau-proof-closeo` is not part of the SJAS tableau proof code."
+   state effects. The ordinary answer proof marker is not part of the SJAS
+   tableau proof code."
   [fml env sigma sigma-out neqs neqs-out prog fuel]
-  (fresh [proof]
-    (sjas-tableau-proof-closeo fml
-                               env
-                               sigma
-                               sigma-out
-                               neqs
-                               neqs-out
-                               prog
-                               fuel
-                               proof)))
+  (sjas-tableau-proof-coreo fml
+                            env
+                            sigma
+                            sigma-out
+                            neqs
+                            neqs-out
+                            prog
+                            fuel))
 
 (defn- sjas-subst-prf-structural-closeo
   "Close a structural tableau leaf through `subst-prf/4`.
@@ -6154,16 +6189,14 @@
    substitution and proof-predicate relations but does not require or encode a
    separate Proflog proof trace in the formula-bearing tableau node."
   [fml env sigma sigma-out neqs neqs-out prog fuel]
-  (fresh [proof]
-    (sjas-subst-prf-closeo fml
-                           env
-                           sigma
-                           sigma-out
-                           neqs
-                           neqs-out
-                           prog
-                           fuel
-                           proof)))
+  (sjas-subst-prf-coreo fml
+                        env
+                        sigma
+                        sigma-out
+                        neqs
+                        neqs-out
+                        prog
+                        fuel))
 
 (defn willard-sjas-theory-closeo
   "SJAS theory branch rule bound into the ordinary proof kernel."

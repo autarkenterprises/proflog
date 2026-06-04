@@ -293,9 +293,8 @@ Red coverage:
 
 Implementation:
 
-- Added `sjas-axiom-member-structural-closeo`, which delegates to decoded
-  `axiom-member/2` membership while discarding the ordinary Proflog answer
-  marker.
+- Added `sjas-axiom-member-structural-closeo`, which checks decoded
+  `axiom-member/2` membership through the proof-free core relation.
 - Added `sjas-tableau-proof-structural-closeo`, which invokes the existing
   object-level `tableau-proof/3` closure without making its answer marker part
   of the formula-bearing proof tree.
@@ -313,7 +312,7 @@ Focused verification:
 
 ```text
 lein test :only proflog.willard-sjas-test/sjas-structural-recursive-proof-predicate-closures-use-object-relations
-Ran 1 tests containing 6 assertions.
+Ran 1 tests containing 8 assertions.
 0 failures, 0 errors.
 
 lein test :only proflog.willard-sjas-test/sjas-profile-source-audit-rejects-host-proof-checker-route

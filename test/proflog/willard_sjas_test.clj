@@ -2211,6 +2211,15 @@
           start (str/index-of source start-token)
           end (str/index-of source end-token start)
           structural-source (subs source start end)
+          axiom-structural-start (str/index-of
+                                   source
+                                   "(defn- sjas-axiom-member-structural-closeo")
+          axiom-structural-end (str/index-of source
+                                             "(defn- sjas-eq-progresso"
+                                             axiom-structural-start)
+          axiom-structural-source (subs source
+                                        axiom-structural-start
+                                        axiom-structural-end)
           axiom-member-close-var (ns-resolve 'proflog.kernel.willard-sjas-profile
                                              'sjas-axiom-member-structural-closeo)
           tableau-close-var (ns-resolve 'proflog.kernel.willard-sjas-profile
@@ -2228,7 +2237,11 @@
       (is (fn? (when tableau-close-var (var-get tableau-close-var)))
           "tableau-proof structural closure relation should exist")
       (is (fn? (when subst-close-var (var-get subst-close-var)))
-          "subst-prf structural closure relation should exist"))))
+          "subst-prf structural closure relation should exist")
+      (is (str/includes? axiom-structural-source "sjas-walked-axiom-member-coreo")
+          "structural axiom-member closure must use proof-free decoded membership")
+      (is (not (str/includes? axiom-structural-source "sjas-axiom-member-closeo"))
+          "structural axiom-member closure must not materialize ordinary axiom-member proof evidence"))))
 
 (deftest sjas-proof-check-accepts-formula-bearing-equality-continuations
   (testing "structural equality nodes advance branch state without eq-step tags"

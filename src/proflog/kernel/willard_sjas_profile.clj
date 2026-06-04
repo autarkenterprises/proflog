@@ -4813,15 +4813,16 @@
    marker for this closure. They only require the object relation that reads
    the system and formula codes and preserves the branch state."
   [fml env sigma sigma-out neqs neqs-out prog]
-  (fresh [proof]
-    (sjas-axiom-member-closeo fml
-                              env
-                              sigma
-                              sigma-out
-                              neqs
-                              neqs-out
-                              prog
-                              proof)))
+  (fresh [lit atom walked-atom relation args system-code formula-code]
+    (subst/subst-formulao fml env lit)
+    (== (list 'neg atom) lit)
+    (equality/walk-atomo atom sigma walked-atom)
+    (== (lcons 'app (lcons relation args)) walked-atom)
+    (== 'axiom-member relation)
+    (== (lcons system-code (lcons formula-code '())) args)
+    (sjas-walked-axiom-member-coreo prog system-code formula-code sigma)
+    (== sigma sigma-out)
+    (== neqs neqs-out)))
 
 (defn- sjas-eq-progresso
   "Consume a true arithmetic equality and continue with the pending branch.

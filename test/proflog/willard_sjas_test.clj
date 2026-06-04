@@ -1896,6 +1896,61 @@
               (l/== true q)))
           "formula-bearing negated implication should validate by same-branch structure"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-negated-atomic-duals
+  (testing "structural surface negation over literals and equality dualizes locally"
+    (let [system (demo-system :willard-sjas-tableau0)
+          leq-zero-zero (ast/app-term 'leq sjas/zero sjas/zero)
+          not-pos (ast/not-form (ast/pos-lit leq-zero-zero))
+          not-neg (ast/not-form (ast/neg-lit leq-zero-zero))
+          not-eq (ast/not-form (ast/eq-lit sjas/zero sjas/zero))
+          not-neq (ast/not-form (ast/neq-lit sjas/zero sjas/zero))
+          cases [[not-pos (structural-tableau-node
+                            system
+                            not-pos
+                            (structural-tableau-node system (ast/neg-lit leq-zero-zero)))]
+                 [(ast/and-form not-neg (ast/false-form))
+                  (structural-tableau-node
+                    system
+                    (ast/and-form not-neg (ast/false-form))
+                    (structural-tableau-node
+                      system
+                      not-neg
+                      (structural-tableau-node
+                        system
+                        (ast/pos-lit leq-zero-zero)
+                        (structural-tableau-node system (ast/false-form)))))]
+                 [not-eq (structural-tableau-node
+                           system
+                           not-eq
+                           (structural-tableau-node
+                             system
+                             (ast/neq-lit sjas/zero sjas/zero)))]
+                 [(ast/and-form not-neq (ast/false-form))
+                  (structural-tableau-node
+                    system
+                    (ast/and-form not-neq (ast/false-form))
+                    (structural-tableau-node
+                      system
+                      not-neq
+                      (structural-tableau-node
+                        system
+                        (ast/eq-lit sjas/zero sjas/zero)
+                        (structural-tableau-node system (ast/false-form)))))]]
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (doseq [[target proof] cases]
+        (is (zero? (proof-symbol-count proof))
+            "the structural negated atomic proof should not use proof-rule tags")
+        (is (successful?
+              (l/run 1 [q]
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             50
+                             proof)
+                (l/== true q)))
+            (str "formula-bearing surface negation should dualize structurally: "
+                 (pr-str target)))))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-complementary-literal-closures
   (testing "structural literal nodes save branch context and close at a complementary leaf"
     (let [system (demo-system :willard-sjas-tableau0)

@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Added negated atomic and equality dual rules to the SJAS structural proof
+  checker. Formula-bearing proof nodes now validate surface negation over
+  positive/negative atoms and equality/disequality by local tableau dualization,
+  without host normalization or proof-rule tags. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
 - Added negated quantifier dual rules to the SJAS structural proof checker.
   Formula-bearing proof nodes now validate negated universal, existential,
   once-universal, and bounded quantifier expansions through decoded branch

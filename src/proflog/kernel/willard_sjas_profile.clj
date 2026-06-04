@@ -5145,9 +5145,10 @@
    the proof object supplies formula nodes, and this checker infers the local
    tableau rule from parent formula, child formula, and branch state. The
    current fragment covers conjunction, disjunction, true-skip, false closure,
-   double negation, implication, negated conjunction/disjunction/implication,
-   negated quantifier duals, literal continuation, complementary literal
-   closure, and structural/bounded quantifier expansion,
+   double negation, implication, negated atomic/equality duals, negated
+   conjunction/disjunction/implication, negated quantifier duals, literal
+   continuation, complementary literal closure, and structural/bounded
+   quantifier expansion,
    reflexive disequality closure, arithmetic/profile closure, equality
    progression, and rigid disequality progression."
   [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
@@ -5192,6 +5193,78 @@
          (support/step-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   body
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [atom child next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'pos atom)) fml)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  (list 'neg atom)
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [atom child next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'neg atom)) fml)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  (list 'pos atom)
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [left right child next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'eq left right)) fml)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  (list 'neq left right)
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [left right child next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'neq left right)) fml)
+         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  (list 'eq left right)
                                   unexpanded
                                   lits
                                   env

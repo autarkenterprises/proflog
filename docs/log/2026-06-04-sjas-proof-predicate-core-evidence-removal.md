@@ -271,6 +271,70 @@ Ran 68 tests containing 203 assertions.
 0 failures, 0 errors.
 ```
 
+## Negated Atomic and Equality Dual Rules
+
+The decoded formula grammar permits surface `not` over atomic and equality
+forms. After the compound and quantifier negation slices, those cases remained
+as missing local tableau rules in the arithmeticized proof checker. Leaving them
+out meant a formula-bearing tableau node for `not(pos(atom))`,
+`not(neg(atom))`, `not(eq(left,right))`, or `not(neq(left,right))` could only be
+handled by an external normalization step, which is not acceptable for the
+Track 1 proof-predicate target.
+
+Red coverage:
+
+- `not(pos(leq(0,0)))` must continue locally as `neg(leq(0,0))`.
+- `not(neg(leq(0,0)))` must continue locally as `pos(leq(0,0))`.
+- `not(eq(0,0))` must continue locally as `neq(0,0)`.
+- `not(neq(0,0))` must continue locally as `eq(0,0)`.
+
+Implementation:
+
+- `sjas-structural-proof-check-stateo` now dualizes surface negation over
+  positive and negative atomic formulas.
+- `sjas-structural-proof-check-stateo` now dualizes surface negation over
+  equality and disequality formulas.
+
+These are local tableau rule checks over decoded formula-bearing proof nodes.
+They do not introduce proof-rule tags, host-side negation normal form
+conversion, or a call back to the Proflog kernel proof checker.
+
+Focused verification:
+
+```text
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-negated-atomic-duals
+Ran 1 tests containing 32 assertions.
+0 failures, 0 errors.
+
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-double-negation-tableaux
+Ran 1 tests containing 6 assertions.
+0 failures, 0 errors.
+
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-complementary-literal-closures
+Ran 1 tests containing 8 assertions.
+0 failures, 0 errors.
+
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-equality-continuations
+Ran 1 tests containing 8 assertions.
+0 failures, 0 errors.
+
+lein test :only proflog.willard-sjas-test/sjas-profile-source-audit-rejects-host-proof-checker-route
+Ran 1 tests containing 115 assertions.
+0 failures, 0 errors.
+```
+
+Regression verification:
+
+```text
+lein test-proflog-fast
+Ran 165 tests containing 656 assertions.
+0 failures, 0 errors.
+
+lein test-proflog-extended
+Ran 68 tests containing 203 assertions.
+0 failures, 0 errors.
+```
+
 ## Negated Quantifier Dual Rules
 
 The decoded proof-formula grammar admits `not` wrapped around quantified and

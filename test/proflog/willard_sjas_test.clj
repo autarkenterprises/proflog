@@ -2203,6 +2203,33 @@
     (is (not (str/includes? structural-source "sjas-neg-relation-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof"))
         "formula-bearing structural arithmetic closure must not call the proof-producing relation core")))
 
+(deftest sjas-structural-recursive-proof-predicate-closures-use-object-relations
+  (testing "structural tableau leaves close recursive proof predicates through arithmeticized predicate relations"
+    (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+          start-token "(defn- sjas-structural-proof-check-stateo"
+          end-token "(defn- sjas-proof-check-stateo"
+          start (str/index-of source start-token)
+          end (str/index-of source end-token start)
+          structural-source (subs source start end)
+          axiom-member-close-var (ns-resolve 'proflog.kernel.willard-sjas-profile
+                                             'sjas-axiom-member-structural-closeo)
+          tableau-close-var (ns-resolve 'proflog.kernel.willard-sjas-profile
+                                        'sjas-tableau-proof-structural-closeo)
+          subst-close-var (ns-resolve 'proflog.kernel.willard-sjas-profile
+                                      'sjas-subst-prf-structural-closeo)]
+      (is (str/includes? structural-source "sjas-axiom-member-structural-closeo")
+          "structural proof checking must close axiom-member atoms through decoded system-code membership")
+      (is (str/includes? structural-source "sjas-tableau-proof-structural-closeo")
+          "structural proof checking must close tableau-proof atoms through the arithmeticized predicate relation")
+      (is (str/includes? structural-source "sjas-subst-prf-structural-closeo")
+          "structural proof checking must close subst-prf atoms through the arithmeticized predicate relation")
+      (is (fn? (when axiom-member-close-var (var-get axiom-member-close-var)))
+          "axiom-member structural closure relation should exist")
+      (is (fn? (when tableau-close-var (var-get tableau-close-var)))
+          "tableau-proof structural closure relation should exist")
+      (is (fn? (when subst-close-var (var-get subst-close-var)))
+          "subst-prf structural closure relation should exist"))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-equality-continuations
   (testing "structural equality nodes advance branch state without eq-step tags"
     (let [system (demo-system :willard-sjas-tableau0)

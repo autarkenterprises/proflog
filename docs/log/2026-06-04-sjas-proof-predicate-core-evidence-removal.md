@@ -271,6 +271,80 @@ Ran 68 tests containing 203 assertions.
 0 failures, 0 errors.
 ```
 
+## Axiom And Recursive Proof-Predicate Leaf Closures
+
+The Track 1 tableau arithmeticization specification requires structural leaves
+for `axiom-member/2`, `tableau-proof/3`, and `subst-prf/4` to close through
+their corresponding object relations. The ordinary profile had branch closers
+for those predicates, but the formula-bearing structural checker only had
+generic arithmetic/profile closure at the equivalent leaf point. That meant a
+structural tableau leaf whose decoded formula was a negated proof-predicate atom
+was not explicitly routed through the arithmeticized system-code membership,
+proof-predicate, or substitution-proof relation.
+
+Red coverage:
+
+- The structural checker source must call an `axiom-member` structural closure
+  at leaf nodes.
+- The structural checker source must call structural closures for
+  `tableau-proof/3` and `subst-prf/4` at leaf nodes.
+- The structural closure functions must exist as callable proof-free relations
+  rather than as proof-rule tags embedded in the supplied tableau proof object.
+
+Implementation:
+
+- Added `sjas-axiom-member-structural-closeo`, which delegates to decoded
+  `axiom-member/2` membership while discarding the ordinary Proflog answer
+  marker.
+- Added `sjas-tableau-proof-structural-closeo`, which invokes the existing
+  object-level `tableau-proof/3` closure without making its answer marker part
+  of the formula-bearing proof tree.
+- Added `sjas-subst-prf-structural-closeo`, the corresponding structural leaf
+  closure for `subst-prf/4`.
+- Wired all three closures into the structural checker before generic
+  arithmetic/profile relation closure.
+
+These closures do not call `kernel/prove-programo` from inside the proof
+predicate. They preserve the Track 1 route: decoded system-code membership,
+decoded theorem/proof codes, structural tableau checking, and structural
+substitution checking remain the operative object relations.
+
+Focused verification:
+
+```text
+lein test :only proflog.willard-sjas-test/sjas-structural-recursive-proof-predicate-closures-use-object-relations
+Ran 1 tests containing 6 assertions.
+0 failures, 0 errors.
+
+lein test :only proflog.willard-sjas-test/sjas-profile-source-audit-rejects-host-proof-checker-route
+Ran 1 tests containing 115 assertions.
+0 failures, 0 errors.
+
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-arithmetic-closures
+Ran 1 tests containing 4 assertions.
+0 failures, 0 errors.
+
+lein test :only proflog.willard-sjas-test/sjas-structural-proof-checker-has-no-proof-rule-tag-shortcuts
+Ran 1 tests containing 37 assertions.
+0 failures, 0 errors.
+
+lein test :only proflog.willard-sjas-test/sjas-proof-checker-rejects-legacy-proof-rule-tag-certificates
+Ran 1 tests containing 8 assertions.
+0 failures, 0 errors.
+```
+
+Regression verification on the final source:
+
+```text
+lein test-proflog-fast
+Ran 165 tests containing 656 assertions.
+0 failures, 0 errors.
+
+lein test-proflog-extended
+Ran 68 tests containing 203 assertions.
+0 failures, 0 errors.
+```
+
 ## Negated Atomic and Equality Dual Rules
 
 The decoded formula grammar permits surface `not` over atomic and equality

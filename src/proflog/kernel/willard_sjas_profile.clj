@@ -4806,6 +4806,23 @@
   [fml env sigma sigma-out neqs neqs-out prog proof]
   (sjas-axiom-member-walked-closeo fml env sigma sigma-out neqs neqs-out prog proof))
 
+(defn- sjas-axiom-member-structural-closeo
+  "Close a structural tableau leaf through decoded `axiom-member/2`.
+
+   Formula-bearing tableau proofs do not encode the ordinary Proflog answer
+   marker for this closure. They only require the object relation that reads
+   the system and formula codes and preserves the branch state."
+  [fml env sigma sigma-out neqs neqs-out prog]
+  (fresh [proof]
+    (sjas-axiom-member-closeo fml
+                              env
+                              sigma
+                              sigma-out
+                              neqs
+                              neqs-out
+                              prog
+                              proof)))
+
 (defn- sjas-eq-progresso
   "Consume a true arithmetic equality and continue with the pending branch.
 
@@ -4925,7 +4942,9 @@
     (== neqs neqs-out)
     (== '(profiled willard-sjas-subst-code) proof)))
 
-(declare sjas-proof-check-stateo)
+(declare sjas-proof-check-stateo
+         sjas-tableau-proof-structural-closeo
+         sjas-subst-prf-structural-closeo)
 
 (defn- proof-byte-prefixo
   [remaining input bytes rest]
@@ -5149,8 +5168,9 @@
    conjunction/disjunction/implication, negated quantifier duals, literal
    continuation, complementary literal closure, and structural/bounded
    quantifier expansion,
-   reflexive disequality closure, arithmetic/profile closure, equality
-   progression, and rigid disequality progression."
+   reflexive disequality closure, axiom-membership closure, recursive
+   proof-predicate closure, arithmetic/profile closure, equality progression,
+   and rigid disequality progression."
   [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (fresh [node-formula visible-formula children]
@@ -5552,6 +5572,29 @@
       [(fresh []
          (== '() children)
          (conde
+           [(sjas-axiom-member-structural-closeo fml
+                                                 env
+                                                 sigma
+                                                 sigma-out
+                                                 neqs
+                                                 neqs-out
+                                                 prog)]
+           [(sjas-tableau-proof-structural-closeo fml
+                                                  env
+                                                  sigma
+                                                  sigma-out
+                                                  neqs
+                                                  neqs-out
+                                                  prog
+                                                  fuel)]
+           [(sjas-subst-prf-structural-closeo fml
+                                              env
+                                              sigma
+                                              sigma-out
+                                              neqs
+                                              neqs-out
+                                              prog
+                                              fuel)]
            [(sjas-neq-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
            [(sjas-neg-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]))]
       [(fresh [lit left right]
@@ -6082,6 +6125,44 @@
                                   decoded-proof)])
     (== neqs neqs-out)
     (== '(profiled willard-sjas-subst-proof-check) proof)))
+
+(defn- sjas-tableau-proof-structural-closeo
+  "Close a structural tableau leaf through `tableau-proof/3`.
+
+   The formula-bearing proof tree already supplies the relevant local evidence,
+   so this relation keeps only the object-level predicate success and branch
+   state effects. The ordinary answer proof marker from
+   `sjas-tableau-proof-closeo` is not part of the SJAS tableau proof code."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (fresh [proof]
+    (sjas-tableau-proof-closeo fml
+                               env
+                               sigma
+                               sigma-out
+                               neqs
+                               neqs-out
+                               prog
+                               fuel
+                               proof)))
+
+(defn- sjas-subst-prf-structural-closeo
+  "Close a structural tableau leaf through `subst-prf/4`.
+
+   This is the substitution-proof analogue of
+   `sjas-tableau-proof-structural-closeo`: it invokes the arithmeticized
+   substitution and proof-predicate relations but does not require or encode a
+   separate Proflog proof trace in the formula-bearing tableau node."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (fresh [proof]
+    (sjas-subst-prf-closeo fml
+                           env
+                           sigma
+                           sigma-out
+                           neqs
+                           neqs-out
+                           prog
+                           fuel
+                           proof)))
 
 (defn willard-sjas-theory-closeo
   "SJAS theory branch rule bound into the ordinary proof kernel."

@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Added structural leaf closures for `axiom-member/2`, `tableau-proof/3`, and
+  `subst-prf/4` inside the SJAS formula-bearing tableau checker. These leaves
+  now route through decoded system-code membership, the arithmeticized proof
+  predicate, and the arithmeticized substitution proof relation rather than
+  falling through to generic arithmetic closure or the Proflog kernel. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
 - Added negated atomic and equality dual rules to the SJAS structural proof
   checker. Formula-bearing proof nodes now validate surface negation over
   positive/negative atoms and equality/disequality by local tableau dualization,

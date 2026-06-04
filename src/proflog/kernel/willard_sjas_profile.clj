@@ -1075,6 +1075,14 @@
                         [(inc idx) sym])
                       sjas-code/reserved-coding-symbols)))
 
+(def ^:private user-symbol-index-entries
+  "Formula-code symbol indexes not reserved by the fixed SJAS codebook."
+  (let [reserved-indexes (set (range 1
+                                      (inc (count sjas-code/reserved-coding-symbols))))]
+    (apply list
+           (remove reserved-indexes
+                   (range 1 sjas-code/byte-base)))))
+
 (defn- positive-byteo
   [byte]
   (membero byte positive-byte-entries))
@@ -1101,6 +1109,10 @@
     (membero entry reserved-symbol-index-entries)
     (== [idx sym] entry)))
 
+(defn- sjas-user-symbol-indexo
+  [idx]
+  (membero idx user-symbol-index-entries))
+
 (defn- sjas-symbol-indexo
   "Relate a formula-code symbol index to a declared object-language symbol.
 
@@ -1119,9 +1131,9 @@
    preserved as structural `(sym n)` identifiers, which is enough for reflected
    call matching and alpha comparison while remaining independent of host names."
   [idx sym]
-  (conda
+  (conde
     [(sjas-reserved-symbol-indexo idx sym)]
-    [(positive-byteo idx)
+    [(sjas-user-symbol-indexo idx)
      (== (list 'sym idx) sym)]))
 
 

@@ -69,6 +69,11 @@ not replace the relation with a host-side acceptance summary.
 `decode-reflected-proof-antecedent-formulaso` now decodes reflected Group-2b
 antecedents through `decode-reflected-clause-formulao` directly.
 
+The proof-facing object symbol decoder now separates fixed SJAS reserved
+indexes from user symbol indexes by disjoint finite relations. A reserved
+proof-predicate symbol such as `tableau-proof` can no longer also decode as a
+generic structural `(sym n)` user relation.
+
 ## Verification
 
 Focused selectors passing after the change:
@@ -85,6 +90,7 @@ lein test :only proflog.willard-sjas-test/sjas-subst-prf-reconstructs-axiom-basi
 lein test :only proflog.willard-sjas-test/sjas-u-grounding-subst-code-computes-level1-fixed-point
 lein test :only proflog.willard-sjas-test/sjas-tableau-proof-rejects-generic-profiled-sidecar-certificates
 lein test :only proflog.willard-sjas-test/sjas-tableau-proof-rejects-answer-overlay-query-certificates
+lein test :only proflog.willard-sjas-test/sjas-object-symbol-index-decoding-separates-reserved-and-user-symbols
 git diff --check -- src/proflog/kernel/willard_sjas_profile.clj test/proflog/willard_sjas_test.clj
 ```
 

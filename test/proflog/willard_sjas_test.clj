@@ -650,6 +650,20 @@
       (is (proof/contains-step? (first-proof wff-proofs) 'sjas-code-arg)
           "the syntax proof should still read the code bytes through the object relation"))))
 
+(deftest sjas-object-symbol-index-decoding-separates-reserved-and-user-symbols
+  (let [decode-symbol (var-get #'sjas-profile/sjas-object-symbol-indexo)
+        tableau-proof-index (sjas-code/reserved-symbol->index 'tableau-proof)]
+    (is (= '(tableau-proof)
+           (l/run 1 [q]
+             (decode-symbol tableau-proof-index q)))
+        "reserved proof-predicate symbols decode to their semantic relation name")
+    (is (empty?
+          (l/run 1 [q]
+            (decode-symbol tableau-proof-index
+                           (list 'sym tableau-proof-index))
+            (l/== true q)))
+        "reserved proof-predicate symbols must not also decode as generic user symbols")))
+
 (deftest sjas-u-grounding-codes-preserve-trailing-zero-byte-sequences
   (testing "sentinel natural codes remain injective for byte strings ending in zero"
     (let [bytes [1 0]
@@ -3037,7 +3051,15 @@
                                    reflected-antecedent-start)
         reflected-antecedent-source (subs profile-source
                                           reflected-antecedent-start
-                                          reflected-antecedent-end)]
+                                          reflected-antecedent-end)
+        object-symbol-start (str/index-of profile-source
+                                          "(defn- sjas-object-symbol-indexo")
+        object-symbol-end (str/index-of profile-source
+                                        "(declare decode-formula-byteso"
+                                        object-symbol-start)
+        object-symbol-source (subs profile-source
+                                   object-symbol-start
+                                   object-symbol-end)]
     (is (not (re-find #"prove-program-host" profile-source)))
     (is (not (re-find #"host-proof" profile-source)))
     (is (not (re-find #"whole-formula" profile-source)))
@@ -3206,6 +3228,8 @@
         "subst-prf must not call the proof-producing structural certificate decoder")
     (is (not (str/includes? reflected-antecedent-source "conda"))
         "reflected axiom antecedent reconstruction must be a relation over reflected records, not committed-choice fallback decoding")
+    (is (not (str/includes? object-symbol-source "conda"))
+        "proof-facing object symbol decoding must use disjoint reserved/user symbol relations, not committed-choice fallback")
     (is (not (re-find #"defn- ground-u-grounding-substitution-bytes" profile-source))
         "SJAS substitution predicates must not recover U-Grounding formula bytes through a host projector")
     (is (not (re-find #"sjas-code/code-term-bytes term" profile-source))

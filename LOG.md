@@ -22,6 +22,13 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Removed host runtime fuel consumption from local formula-bearing SJAS tableau
+  proof-tree validation. Fixed proof-code checking now descends through the
+  supplied finite proof tree without charging `support/step-fuelo`, so valid
+  structural certificates are not rejected merely because the external Proflog
+  evaluator fuel is zero. Focused regressions and the fast/extended gates
+  passed.
+
 - Added proof-free finite-system-code validation to the `subst-prf/4`
   substitution-result axiom branch. Even when `Subst(g,t)` supplies the
   temporary added axiom, the proof predicate now requires the supplied

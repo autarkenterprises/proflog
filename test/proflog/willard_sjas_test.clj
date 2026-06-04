@@ -1733,7 +1733,26 @@
                            20
                            proof)
               (l/== true q)))
-          "formula-bearing nodes should validate by structural Deduction/Closure checks, not rule tags"))))
+          "formula-bearing nodes should validate by structural Deduction/Closure checks, not rule tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           0
+                           proof)
+              (l/== true q)))
+          "fixed formula-bearing proof validation must not depend on external runtime fuel"))))
+
+(deftest sjas-structural-proof-checker-does-not-consume-runtime-fuel
+  (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        start-token "(defn- sjas-structural-proof-check-stateo"
+        end-token "(defn- sjas-proof-check-stateo"
+        start (str/index-of source start-token)
+        end (str/index-of source end-token start)
+        structural-source (subs source start end)]
+    (is (not (str/includes? structural-source "support/step-fuelo"))
+        "fixed SJAS tableau proof validation must be a relation over the proof tree, not over external evaluator fuel")))
 
 (deftest sjas-proof-check-accepts-formula-bearing-right-first-conjunction-tableaux
   (testing "structural conjunction may close the right conjunct before expanding the left"

@@ -5170,6 +5170,16 @@
              (== nom next-nom)))
          code-nom-entries)))
 
+(defn- sjas-proof-tree-next-fuelo
+  "Preserve runtime fuel while validating a fixed SJAS proof tree.
+
+   The formula-bearing proof predicate is a relation over decoded system,
+   theorem, and proof codes. Its recursion is driven by child proof nodes, so
+   accepting a fixed certificate must not depend on an external evaluator fuel
+   counter."
+  [fuel next-fuel]
+  (== fuel next-fuel))
+
 (defn- sjas-structural-proof-check-stateo
   "Validate the first formula-bearing tableau proof fragment.
 
@@ -5205,7 +5215,7 @@
          (== (lcons child '()) children)
          (== (list 'not (list 'false)) fml)
          (== (lcons next rest) unexpanded)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   next
                                   rest
@@ -5223,7 +5233,7 @@
       [(fresh [body child next-fuel]
          (== (lcons child '()) children)
          (== (list 'not (list 'not body)) fml)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   body
                                   unexpanded
@@ -5241,7 +5251,7 @@
       [(fresh [atom child next-fuel]
          (== (lcons child '()) children)
          (== (list 'not (list 'pos atom)) fml)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   (list 'neg atom)
                                   unexpanded
@@ -5259,7 +5269,7 @@
       [(fresh [atom child next-fuel]
          (== (lcons child '()) children)
          (== (list 'not (list 'neg atom)) fml)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   (list 'pos atom)
                                   unexpanded
@@ -5277,7 +5287,7 @@
       [(fresh [left right child next-fuel]
          (== (lcons child '()) children)
          (== (list 'not (list 'eq left right)) fml)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   (list 'neq left right)
                                   unexpanded
@@ -5295,7 +5305,7 @@
       [(fresh [left right child next-fuel]
          (== (lcons child '()) children)
          (== (list 'not (list 'neq left right)) fml)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   (list 'eq left right)
                                   unexpanded
@@ -5314,7 +5324,7 @@
                left-sigma-out right-sigma-out left-neqs-out right-neqs-out]
          (== (lcons left-child (lcons right-child '())) children)
          (== (list 'not (list 'and left right)) fml)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   (list 'not left)
                                   unexpanded
@@ -5348,7 +5358,7 @@
       [(fresh [left right child next-fuel]
          (== (lcons child '()) children)
          (== (list 'not (list 'or left right)) fml)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   (list 'not left)
                                   (lcons (list 'not right) unexpanded)
@@ -5367,7 +5377,7 @@
                left-sigma-out right-sigma-out left-neqs-out right-neqs-out]
          (== (lcons left-child (lcons right-child '())) children)
          (== (list 'implies left right) fml)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   (list 'not left)
                                   unexpanded
@@ -5401,7 +5411,7 @@
       [(fresh [left right child next-fuel]
          (== (lcons child '()) children)
          (== (list 'not (list 'implies left right)) fml)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   left
                                   (lcons (list 'not right) unexpanded)
@@ -5427,7 +5437,7 @@
            (sjas-next-branch-nomo env parameter-nom)
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
-           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
            (sjas-proof-check-stateo system-code
                                     (list 'not body-subst)
                                     unexpanded
@@ -5449,7 +5459,7 @@
            (sjas-next-branch-nomo env free-var-nom)
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
-           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
            (sjas-proof-check-stateo system-code
                                     (list 'not body-subst)
                                     unexpanded
@@ -5480,7 +5490,7 @@
                      (list 'app 'leq (list 'var binding-nom) bound-subst))
                guard)
            (== (list 'and guard (list 'not body-subst)) guarded-body)
-           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
            (sjas-proof-check-stateo system-code
                                     guarded-body
                                     unexpanded
@@ -5511,7 +5521,7 @@
                      (list 'app 'leq (list 'var binding-nom) bound-subst))
                guard)
            (== (list 'or guard (list 'not body-subst)) guarded-body)
-           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
            (sjas-proof-check-stateo system-code
                                     guarded-body
                                     unexpanded
@@ -5547,7 +5557,7 @@
          (== (list 'neq left right) lit)
          (support/rigid-different-termo left right sigma)
          (== (lcons next rest) unexpanded)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   next
                                   rest
@@ -5567,7 +5577,7 @@
          (subst/subst-formulao fml env lit)
          (== (list 'neq left right) lit)
          (== (lcons next rest) unexpanded)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   next
                                   rest
@@ -5648,7 +5658,7 @@
                                              call-env
                                              body
                                              negated-body)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   body
                                   '()
@@ -5679,7 +5689,7 @@
                                              call-env
                                              body
                                              negated-body)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   negated-body
                                   '()
@@ -5701,7 +5711,7 @@
          (sjas-unify-termo-coreo left right sigma sigma-mid)
          (== (lcons next rest) unexpanded)
          (support/stable-neqso neqs sigma-mid)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   next
                                   rest
@@ -5719,7 +5729,7 @@
       [(fresh [left right child next-fuel]
          (== (lcons child '()) children)
          (== (list 'and left right) fml)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   left
                                   (lcons right unexpanded)
@@ -5738,7 +5748,7 @@
                left-sigma-out right-sigma-out left-neqs-out right-neqs-out]
          (== (lcons left-child (lcons right-child '())) children)
          (== (list 'or left right) fml)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          ;; Structural tableau siblings share the incoming branch state. Any
          ;; equality or disequality evidence produced while closing one child
          ;; remains local to that child.
@@ -5779,7 +5789,7 @@
            [(== (list 'pos atom) lit)]
            [(== (list 'neg atom) lit)])
          (== (lcons next rest) unexpanded)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   next
                                   rest
@@ -5808,7 +5818,7 @@
                                              call-env
                                              body
                                              negated-body)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   body
                                   '()
@@ -5837,7 +5847,7 @@
                                              call-env
                                              body
                                              negated-body)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   negated-body
                                   '()
@@ -5859,7 +5869,7 @@
            (sjas-next-branch-nomo env free-var-nom)
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
-           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
            (sjas-proof-check-stateo system-code
                                     body-subst
                                     unexpanded
@@ -5881,7 +5891,7 @@
            (sjas-next-branch-nomo env free-var-nom)
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
-           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
            (sjas-proof-check-stateo system-code
                                     body-subst
                                     unexpanded
@@ -5903,7 +5913,7 @@
            (sjas-next-branch-nomo env parameter-nom)
            (subst/remove-bindo binding-nom env narrowed-env)
            (subst/subst-formulao body narrowed-env body-subst)
-           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
            (sjas-proof-check-stateo system-code
                                     body-subst
                                     unexpanded
@@ -5933,7 +5943,7 @@
                      (list 'app 'leq (list 'var binding-nom) bound-subst))
                guard)
            (== (list 'or guard body-subst) guarded-body)
-           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
            (sjas-proof-check-stateo system-code
                                     guarded-body
                                     unexpanded
@@ -5963,7 +5973,7 @@
                      (list 'app 'leq (list 'var binding-nom) bound-subst))
                guard)
            (== (list 'and guard body-subst) guarded-body)
-           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
            (sjas-proof-check-stateo system-code
                                     guarded-body
                                     unexpanded
@@ -5982,7 +5992,7 @@
          (== (lcons child '()) children)
          (== (list 'true) fml)
          (== (lcons next rest) unexpanded)
-         (support/step-fuelo fuel next-fuel)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
          (sjas-proof-check-stateo system-code
                                   next
                                   rest

@@ -804,7 +804,7 @@
   [term byte]
   (fresh [bits term-proof]
     (byte-bitso bits byte)
-    (conda
+    (conde
       [(compact-code-byte-bits-termo term bits)]
       [(bits->canonical-termo bits term term-proof)])))
 

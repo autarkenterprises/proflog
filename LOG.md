@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Removed remaining proof-evidence and materialization overhead from the
+  reflected-call portion of the SJAS proof predicate path. Application arity
+  parsing no longer uses committed-choice recursion, compact byte decoding no
+  longer builds unused canonical numeral proof evidence, beta-block scans skip
+  structurally instead of decoding discarded formulas, and reflected procedure
+  call resolvers read system-code bytes through proof-free object relations.
+  See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
 - Removed auxiliary proof-trace evidence from the SJAS `tableau-proof/3` and
   `subst-prf/4` proof-predicate path. The predicates now use proof-free core
   relations for public code reading, proof-code decoding, theorem-code

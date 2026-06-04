@@ -798,15 +798,14 @@
   "Relate a compact-code byte argument to its U-Grounding numeral value.
 
    Present public terms derive their bits through the object-level numeral
-   reader before the finite byte relation is consulted. Logic-variable mode may
-   generate canonical byte numerals from the same finite byte relation. Neither
-   mode projects a ground byte term through a host decoder."
+   reader after the finite byte relation supplies a bounded six-bit candidate.
+   Logic-variable mode generates canonical byte numerals from the same finite
+   byte relation. Neither mode projects a ground byte term through a host
+   decoder."
   [term byte]
-  (fresh [bits term-proof]
+  (fresh [bits]
     (byte-bitso bits byte)
-    (conde
-      [(compact-code-byte-bits-termo term bits)]
-      [(bits->canonical-termo bits term term-proof)])))
+    (compact-code-byte-bits-termo term bits)))
 
 (defn- code-constructoro
   [constructor byte-count]
@@ -1233,29 +1232,25 @@
     (decode-natural-bodyo low high payload-bytes rest term)))
 
 (defn- decode-app-arityo
-  "Decode an application payload after the relation symbol has been read.
-
-   The next byte is the arity plus one. It is part of the reflected byte stream,
-   so the decoder still checks it relationally; `conda` only commits after that
-   byte has matched, avoiding stale arity alternatives during proof checking."
-  [prog arity after-symbol rest sym term]
-  (if (= arity 63)
+  "Decode an application payload after the relation symbol has been read."
+  [prog arity after-symbol rest args]
+  (if (= arity (dec sjas-code/byte-base))
     fail
-    (conda
-      [(fresh [arg-bytes args]
+    (conde
+      [(fresh [arg-bytes]
          (== (lcons (inc arity) arg-bytes) after-symbol)
-         (parse-term-list-byteso prog arity arg-bytes rest args)
-         (== (list 'app sym args) term))]
-      [(decode-app-arityo prog (inc arity) after-symbol rest sym term)])))
+         (parse-term-list-byteso prog arity arg-bytes rest args))]
+      [(decode-app-arityo prog (inc arity) after-symbol rest args)])))
 
 (defn- decode-app-termo
   [prog bytes rest term]
-  (fresh [symbol-index after-symbol sym]
+  (fresh [symbol-index after-symbol sym args]
     (== (lcons term-app-tag
                 (lcons symbol-index after-symbol))
         bytes)
+    (== (list 'app sym args) term)
     (sjas-object-symbol-indexo symbol-index sym)
-    (decode-app-arityo prog 0 after-symbol rest sym term)))
+    (decode-app-arityo prog 0 after-symbol rest args)))
 
 (defn- decode-term-byteso
   "Parse one canonical SJAS term from a flat formula-code byte stream.
@@ -1382,15 +1377,14 @@
 
 (defn- decode-syntax-app-arityo
   "Decode an application payload for syntax predicates without symbol lookup."
-  [arity after-symbol rest sym term]
-  (if (= arity 63)
+  [arity after-symbol rest args]
+  (if (= arity (dec sjas-code/byte-base))
     fail
-    (conda
-      [(fresh [arg-bytes args]
+    (conde
+      [(fresh [arg-bytes]
          (== (lcons (inc arity) arg-bytes) after-symbol)
-         (parse-syntax-term-list-byteso arity arg-bytes rest args)
-         (== (list 'app sym args) term))]
-      [(decode-syntax-app-arityo (inc arity) after-symbol rest sym term)])))
+         (parse-syntax-term-list-byteso arity arg-bytes rest args))]
+      [(decode-syntax-app-arityo (inc arity) after-symbol rest args)])))
 
 (defn- decode-syntax-app-termo
   "Decode an app term as structure only: application tag, symbol id, arity, args.
@@ -1401,13 +1395,14 @@
    syntax slice while still preserving symbol identity for structural
    complement and alpha checks."
   [bytes rest term]
-  (fresh [symbol-index after-symbol sym]
+  (fresh [symbol-index after-symbol sym args]
     (== (lcons term-app-tag
                 (lcons symbol-index after-symbol))
         bytes)
     (positive-byteo symbol-index)
     (== (list 'sym symbol-index) sym)
-    (decode-syntax-app-arityo 0 after-symbol rest sym term)))
+    (== (list 'app sym args) term)
+    (decode-syntax-app-arityo 0 after-symbol rest args)))
 
 (defn- decode-syntax-term-byteso
   "Parse a syntax-check term without projecting symbol indexes to host names."
@@ -1551,9 +1546,9 @@
 
 (defn- skip-syntax-app-arityo
   [arity after-symbol rest]
-  (if (= arity 63)
+  (if (= arity (dec sjas-code/byte-base))
     fail
-    (conda
+    (conde
       [(fresh [arg-bytes]
          (== (lcons (inc arity) arg-bytes) after-symbol)
          (skip-syntax-term-list-byteso arity arg-bytes rest))]
@@ -3153,8 +3148,8 @@
   [_prog remaining bytes rest]
   (if (zero? remaining)
     (== bytes rest)
-    (fresh [formula after-formula]
-      (decode-syntax-formula-byteso bytes after-formula formula)
+    (fresh [after-formula]
+      (skip-syntax-formula-byteso bytes after-formula)
       (skip-formula-byteso _prog (dec remaining) after-formula rest))))
 
 (defn- reflected-head-argso
@@ -3648,9 +3643,9 @@
    code, skips the beta block, and searches the reflected Group-2b clause
    records as object-level data."
   [prog system-code atom env body negated-body]
-  (fresh [system-bytes system-read-proof profile-tag beta-count beta-bytes
+  (fresh [system-bytes profile-tag beta-count beta-bytes
           after-betas reflected-count reflected-bytes]
-    (sjas-public-code-byteso system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-coreo system-code system-bytes)
     (== (lcons system-code-tag
                 (lcons profile-tag
                        (lcons beta-count beta-bytes)))
@@ -3679,9 +3674,9 @@
 (defn- sjas-system-reflected-call-alternativeso
   "Resolve all same-relation reflected call alternatives from system-code."
   [prog system-code atom env negated-alternatives]
-  (fresh [system-bytes system-read-proof profile-tag beta-count beta-bytes
+  (fresh [system-bytes profile-tag beta-count beta-bytes
           after-betas reflected-count reflected-bytes]
-    (sjas-public-code-byteso system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-coreo system-code system-bytes)
     (== (lcons system-code-tag
                 (lcons profile-tag
                        (lcons beta-count beta-bytes)))
@@ -3710,9 +3705,9 @@
 (defn- sjas-system-reflected-guarded-call-alternativeso
   "Resolve guarded reflected call alternatives from encoded system data."
   [prog system-code atom env guarded-alternatives]
-  (fresh [system-bytes system-read-proof profile-tag beta-count beta-bytes
+  (fresh [system-bytes profile-tag beta-count beta-bytes
           after-betas reflected-count reflected-bytes]
-    (sjas-public-code-byteso system-code system-bytes system-read-proof)
+    (sjas-public-code-bytes-coreo system-code system-bytes)
     (== (lcons system-code-tag
                 (lcons profile-tag
                        (lcons beta-count beta-bytes)))

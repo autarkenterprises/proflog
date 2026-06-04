@@ -126,3 +126,47 @@ Track 1 work should continue auditing the actual proof-predicate path for
 proof-producing helper relations, committed-choice search control, and
 performance boundaries that prevent public structural theorem proofs from
 finishing.
+
+## Reflected-Call Resolver Cleanup
+
+The same proof-evidence reduction was extended into the reflected Procedure Call
+Rule used by the SJAS structural checker.
+
+Changes:
+
+- `decode-app-arityo`, `decode-syntax-app-arityo`, and
+  `skip-syntax-app-arityo` now use ordinary finite `conde` recursion over the
+  encoded arity byte rather than `conda`.
+- Application decoders expose `(app sym args)` before parsing the argument byte
+  list, so ground formula-bearing tableau nodes constrain the arity relation
+  early.
+- `code-byte-termo` no longer builds an unused `bits->canonical-termo` proof
+  branch after reading a compact code byte. The compact byte numeral relation is
+  the single byte-term path.
+- `skip-formula-byteso` advances over beta formulas with
+  `skip-syntax-formula-byteso`, avoiding materialization of decoded syntax trees
+  whose contents are discarded.
+- `sjas-system-reflected-call-clauseo`,
+  `sjas-system-reflected-call-alternativeso`, and
+  `sjas-system-reflected-guarded-call-alternativeso` now read `system-code`
+  through `sjas-public-code-bytes-coreo`, because the formula-bearing tableau
+  proof does not include separate byte-read proof evidence for these scans.
+
+Observed focused timings while the durable public structural proof probe was
+also running:
+
+```text
+sjas-public-code-bytes-coreo on the 23-byte demo system: about 51s
+sjas-system-reflected-call-clauseo for structural demo(1): about 53s
+lein test :only proflog.willard-sjas-test/sjas-proof-predicates-check-reflected-calls-from-system-code: passed
+lein test :only proflog.willard-sjas-test/sjas-proof-predicates-check-reflected-calls-without-symbol-registry: passed
+```
+
+The direct reflected-clause probe returned:
+
+```text
+([([a_0 (app 1)]) (eq (var a_0) (app 1)) (neq (var a_0) (app 1))])
+```
+
+This confirms the resolver is reconstructing the reflected clause body and its
+negation from encoded system data rather than from the compiled host registry.

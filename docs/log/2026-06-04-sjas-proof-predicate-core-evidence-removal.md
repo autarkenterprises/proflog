@@ -271,6 +271,59 @@ Ran 68 tests containing 203 assertions.
 0 failures, 0 errors.
 ```
 
+## Negated Quantifier Dual Rules
+
+The decoded proof-formula grammar admits `not` wrapped around quantified and
+bounded quantified formulas. A proof checker over formula-bearing nodes must
+therefore validate the ordinary tableau dual rules locally rather than relying
+on theorem-code complement generation to avoid those shapes.
+
+Red coverage:
+
+- `not(forall(v0,true))`, `not(exists(v0,true))`, and
+  `not(once-forall(v0,true))` each close through the corresponding dual
+  quantifier expansion to `not(true)`.
+- `not(bounded-forall(v0,0,true))` expands through an existential-style
+  positive `leq` guard and `not(true)`.
+- `not(bounded-exists(v0,0,true))` expands through a universal-style negated
+  `leq` guard and `not(true)`.
+
+Implementation:
+
+- Negated universal and negated once-universal nodes introduce a canonical
+  parameter and continue with `not(body)`.
+- Negated existential nodes introduce a canonical proof variable and continue
+  with `not(body)`.
+- Negated bounded universal nodes introduce a parameter and continue with
+  `and(leq(parameter,bound), not(body))`.
+- Negated bounded existential nodes introduce a proof variable and continue
+  with `or(not(leq(variable,bound)), not(body))`.
+
+These are ordinary local tableau rules over decoded formula-bearing proof
+nodes; they do not use host NNF conversion or proof-rule trace tags.
+
+Focused verification:
+
+```text
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-negated-quantifier-expansions
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-negated-bounded-quantifier-expansions
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-bounded-quantifier-expansions
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-quantifier-expansions
+lein test :only proflog.willard-sjas-test/sjas-profile-source-audit-rejects-host-proof-checker-route
+```
+
+Regression verification:
+
+```text
+lein test-proflog-fast
+Ran 165 tests containing 656 assertions.
+0 failures, 0 errors.
+
+lein test-proflog-extended
+Ran 68 tests containing 203 assertions.
+0 failures, 0 errors.
+```
+
 ## Implication Rules
 
 The formula-code grammar also admits `implies`, so a complete structural

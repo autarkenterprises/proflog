@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Added negated quantifier dual rules to the SJAS structural proof checker.
+  Formula-bearing proof nodes now validate negated universal, existential,
+  once-universal, and bounded quantifier expansions through decoded branch
+  environments and guard formulas. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
 - Added implication and negated-implication local tableau rules to the SJAS
   structural proof checker. Formula-bearing proof nodes now validate implication
   branching and negated-implication same-branch expansion from decoded formula

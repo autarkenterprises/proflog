@@ -1998,6 +1998,78 @@
             (str "formula-bearing bounded quantifier should validate structurally: "
                  (pr-str (ast/tag-of target))))))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-negated-quantifier-expansions
+  (testing "structural negated quantifiers expand through their dual quantifier rule"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          not-true (ast/not-form (ast/true-form))
+          cases [(ast/not-form (ast/forall-form binding (ast/true-form)))
+                 (ast/not-form (ast/exists-form binding (ast/true-form)))
+                 (ast/not-form (ast/once-forall-form binding (ast/true-form)))]
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (doseq [target cases]
+        (let [proof (structural-tableau-node
+                      system
+                      target
+                      (structural-tableau-node system not-true))]
+          (is (zero? (proof-symbol-count proof))
+              "the structural negated-quantifier proof should not use witness, univ, or proof-rule tags")
+          (is (successful?
+                (l/run 1 [q]
+                  (check-proof (:program system)
+                               (:system-code system)
+                               target
+                               30
+                               proof)
+                  (l/== true q)))
+              (str "formula-bearing negated quantifier should validate structurally: "
+                   (pr-str (ast/tag-of (second target))))))))))
+
+(deftest sjas-proof-check-accepts-formula-bearing-negated-bounded-quantifier-expansions
+  (testing "structural negated bounded quantifiers expand through dual guard formulas"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          canonical-zero (list 'app (symbol "0"))
+          not-true (list 'not (list 'true))
+          negated-bounded-forall (ast/not-form
+                                   (sjas/bounded-forall binding sjas/zero (ast/true-form)))
+          forall-guard (list 'pos (list 'app 'leq (list 'par 'v0) canonical-zero))
+          forall-child (list 'and forall-guard not-true)
+          forall-proof (structural-tableau-node
+                         system
+                         negated-bounded-forall
+                         (canonical-structural-tableau-node
+                           system
+                           forall-child
+                           (canonical-structural-tableau-node system not-true)))
+          negated-bounded-exists (ast/not-form
+                                   (sjas/bounded-exists binding sjas/zero (ast/true-form)))
+          exists-guard (list 'neg (list 'app 'leq (list 'var 'v0) canonical-zero))
+          exists-child (list 'or exists-guard not-true)
+          exists-proof (structural-tableau-node
+                         system
+                         negated-bounded-exists
+                         (canonical-structural-tableau-node
+                           system
+                           exists-child
+                           (canonical-structural-tableau-node system exists-guard)
+                           (canonical-structural-tableau-node system not-true)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (doseq [[target proof] [[negated-bounded-forall forall-proof]
+                              [negated-bounded-exists exists-proof]]]
+        (is (zero? (proof-symbol-count proof))
+            "the structural negated bounded-quantifier proof should not use witness, univ, or proof-rule tags")
+        (is (successful?
+              (l/run 1 [q]
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             60
+                             proof)
+                (l/== true q)))
+            (str "formula-bearing negated bounded quantifier should validate structurally: "
+                 (pr-str (ast/tag-of (second target)))))))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-quantifier-variable-children
   (testing "structural quantifier children may use canonical variable payloads"
     (let [system (demo-system :willard-sjas-tableau0)

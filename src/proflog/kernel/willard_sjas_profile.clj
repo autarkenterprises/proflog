@@ -5146,7 +5146,7 @@
    tableau rule from parent formula, child formula, and branch state. The
    current fragment covers conjunction, disjunction, true-skip, false closure,
    double negation, negated conjunction/disjunction, literal continuation,
-   complementary literal closure, and structural quantifier expansion,
+   complementary literal closure, and structural/bounded quantifier expansion,
    reflexive disequality closure, arithmetic/profile closure, equality
    progression, and rigid disequality progression."
   [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
@@ -5605,26 +5605,86 @@
                                     child)))]
       [(nominal/fresh [binding-nom]
          (fresh [parameter-nom body body-subst narrowed-env child next-fuel]
-             (== (lcons child '()) children)
-             (== (list 'exists (nominal/tie binding-nom body)) fml)
-             (sjas-next-branch-nomo env parameter-nom)
-             (subst/remove-bindo binding-nom env narrowed-env)
-             (subst/subst-formulao body narrowed-env body-subst)
-             (support/step-fuelo fuel next-fuel)
-             (sjas-proof-check-stateo system-code
-                                      body-subst
-                                      unexpanded
-                                      lits
-                                      (lcons [binding-nom (ast/par-term parameter-nom)] env)
-                                      proof-vars
-                                      sigma
-                                      sigma-out
-                                      neqs
-                                      neqs-out
-                                      prog
-                                      gamma-terms
-                                      next-fuel
-                                      child)))]
+           (== (lcons child '()) children)
+           (== (list 'exists (nominal/tie binding-nom body)) fml)
+           (sjas-next-branch-nomo env parameter-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    body-subst
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/par-term parameter-nom)] env)
+                                    proof-vars
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [free-var-nom bound body bound-subst body-subst narrowed-env
+                 guard guarded-body child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'bounded-forall
+                     (nominal/tie binding-nom {:bound bound :body body}))
+               fml)
+           (sjas-next-branch-nomo env free-var-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-termo bound narrowed-env bound-subst)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (== (list 'neg
+                     (list 'app 'leq (list 'var binding-nom) bound-subst))
+               guard)
+           (== (list 'or guard body-subst) guarded-body)
+           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    guarded-body
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [parameter-nom bound body bound-subst body-subst narrowed-env
+                 guard guarded-body child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'bounded-exists
+                     (nominal/tie binding-nom {:bound bound :body body}))
+               fml)
+           (sjas-next-branch-nomo env parameter-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-termo bound narrowed-env bound-subst)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (== (list 'pos
+                     (list 'app 'leq (list 'var binding-nom) bound-subst))
+               guard)
+           (== (list 'and guard body-subst) guarded-body)
+           (support/step-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    guarded-body
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/par-term parameter-nom)] env)
+                                    proof-vars
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
       [(fresh [child next rest next-fuel]
          (== (lcons child '()) children)
          (== (list 'true) fml)

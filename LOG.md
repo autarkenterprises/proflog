@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Added bounded-quantifier expansion to the SJAS structural proof checker.
+  Formula-bearing proof nodes now expand bounded existential and universal
+  formulas through their decoded `leq` guard formulas, with binder-aware
+  substitution support for bounded forms. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
 - Added ordinary semantic-tableau negation cases to the SJAS structural proof
   checker. Formula-bearing proof nodes now validate double-negation removal,
   negated-conjunction branching, and negated-disjunction same-branch expansion

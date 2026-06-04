@@ -1908,6 +1908,48 @@
               (str "formula-bearing quantifier node should validate structurally: "
                    (pr-str (ast/tag-of target)))))))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-bounded-quantifier-expansions
+  (testing "structural bounded quantifiers expand through their arithmetic guard formulas"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          canonical-zero (list 'app (symbol "0"))
+          bounded-exists (sjas/bounded-exists binding sjas/zero (ast/false-form))
+          exists-guard (list 'pos (list 'app 'leq (list 'par 'v0) canonical-zero))
+          exists-child (list 'and exists-guard (list 'false))
+          exists-proof (structural-tableau-node
+                         system
+                         bounded-exists
+                         (canonical-structural-tableau-node
+                           system
+                           exists-child
+                           (structural-tableau-node system (ast/false-form))))
+          bounded-forall (sjas/bounded-forall binding sjas/zero (ast/false-form))
+          forall-guard (list 'neg (list 'app 'leq (list 'var 'v0) canonical-zero))
+          forall-child (list 'or forall-guard (list 'false))
+          forall-proof (structural-tableau-node
+                         system
+                         bounded-forall
+                         (canonical-structural-tableau-node
+                           system
+                           forall-child
+                           (canonical-structural-tableau-node system forall-guard)
+                           (structural-tableau-node system (ast/false-form))))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (doseq [[target proof] [[bounded-exists exists-proof]
+                              [bounded-forall forall-proof]]]
+        (is (zero? (proof-symbol-count proof))
+            "the structural bounded-quantifier proof should not use witness, univ, or arithmetic proof tags")
+        (is (successful?
+              (l/run 1 [q]
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             50
+                             proof)
+                (l/== true q)))
+            (str "formula-bearing bounded quantifier should validate structurally: "
+                 (pr-str (ast/tag-of target))))))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-quantifier-variable-children
   (testing "structural quantifier children may use canonical variable payloads"
     (let [system (demo-system :willard-sjas-tableau0)

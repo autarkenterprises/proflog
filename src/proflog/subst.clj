@@ -79,6 +79,22 @@
                    narrowed-env (remove-binding env (:binding-nom tied))]
                (ast/exists-form (:binding-nom tied)
                                 (subst-formula (:body tied) narrowed-env)))
+      bounded-forall (let [tied (second formula)
+                           binding-nom (:binding-nom tied)
+                           {:keys [bound body]} (:body tied)
+                           narrowed-env (remove-binding env binding-nom)]
+                       (list 'bounded-forall
+                             (nominal/tie binding-nom
+                                          {:bound (subst-term bound narrowed-env)
+                                           :body (subst-formula body narrowed-env)})))
+      bounded-exists (let [tied (second formula)
+                           binding-nom (:binding-nom tied)
+                           {:keys [bound body]} (:body tied)
+                           narrowed-env (remove-binding env binding-nom)]
+                       (list 'bounded-exists
+                             (nominal/tie binding-nom
+                                          {:bound (subst-term bound narrowed-env)
+                                           :body (subst-formula body narrowed-env)})))
       formula)))
 
 ;; -----------------------------------------------------------------------------
@@ -216,4 +232,26 @@
          (== (list 'exists (nominal/tie binding-nom body)) formula)
          (== (list 'exists (nominal/tie binding-nom body-out)) out)
          (remove-bindo binding-nom env narrowed-env)
+         (subst-formulao body narrowed-env body-out)))]
+    [(nominal/fresh [binding-nom]
+       (fresh [bound body bound-out body-out narrowed-env]
+         (== (list 'bounded-forall
+                   (nominal/tie binding-nom {:bound bound :body body}))
+             formula)
+         (== (list 'bounded-forall
+                   (nominal/tie binding-nom {:bound bound-out :body body-out}))
+             out)
+         (remove-bindo binding-nom env narrowed-env)
+         (subst-termo bound narrowed-env bound-out)
+         (subst-formulao body narrowed-env body-out)))]
+    [(nominal/fresh [binding-nom]
+       (fresh [bound body bound-out body-out narrowed-env]
+         (== (list 'bounded-exists
+                   (nominal/tie binding-nom {:bound bound :body body}))
+             formula)
+         (== (list 'bounded-exists
+                   (nominal/tie binding-nom {:bound bound-out :body body-out}))
+             out)
+         (remove-bindo binding-nom env narrowed-env)
+         (subst-termo bound narrowed-env bound-out)
          (subst-formulao body narrowed-env body-out)))]))

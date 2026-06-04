@@ -271,6 +271,60 @@ Ran 68 tests containing 203 assertions.
 0 failures, 0 errors.
 ```
 
+## Bounded Quantifier Guard Expansion
+
+The proof-code formula grammar admits `bounded-forall` and `bounded-exists`,
+and the Track 1 tableau arithmeticization specification requires bounded
+quantifier variants to expand through their decoded bounded guard formulas. The
+structural checker previously handled only unbounded `forall`, `once-forall`,
+and `exists`. Because the shared substitution relation also lacked bounded
+formula cases, a formula-bearing proof node whose decoded formula was bounded
+could not even pass the initial visible-formula comparison.
+
+Red coverage:
+
+- `bounded-exists(v0,0,false)` must expand to the same-branch formula
+  `and(leq(par v0,0), false)` after introducing the canonical existential
+  parameter.
+- `bounded-forall(v0,0,false)` must expand to
+  `or(not(leq(var v0,0)), false)` after introducing the canonical universal
+  proof variable.
+
+Implementation:
+
+- `proflog.subst/subst-formula` and `subst-formulao` now handle bounded
+  quantifier forms with binder-aware environment narrowing, substituting both
+  the bound term and the body.
+- `sjas-structural-proof-check-stateo` now expands bounded existentials by
+  introducing a parameter and checking `and(guard, body)`.
+- `sjas-structural-proof-check-stateo` now expands bounded universals by
+  introducing a proof variable and checking `or(not guard, body)`.
+
+These are local tableau rule checks over decoded formula-bearing proof nodes.
+No host-side lowering or proof-rule trace constructor is accepted as evidence.
+
+Focused verification:
+
+```text
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-bounded-quantifier-expansions
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-quantifier-expansions
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-quantifier-variable-children
+lein test proflog.subst-test
+lein test :only proflog.willard-sjas-test/sjas-profile-source-audit-rejects-host-proof-checker-route
+```
+
+Regression verification:
+
+```text
+lein test-proflog-fast
+Ran 165 tests containing 656 assertions.
+0 failures, 0 errors.
+
+lein test-proflog-extended
+Ran 68 tests containing 203 assertions.
+0 failures, 0 errors.
+```
+
 A new durable public formula-bearing theorem proof probe was launched under
 `test-runs/sjas-public-formula-bearing-true-theorem-term-first-byte-reader-*`.
 It was still running during this slice and is evidence for the term-first

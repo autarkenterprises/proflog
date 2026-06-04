@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Removed committed-choice search control from the remaining SJAS proof
+  machinery relations. Syntax skipping, beta axiom scans, guarded conjunction
+  flattening, and guarded existential scope stripping now use ordinary
+  structural relations with explicit nonmatching cases. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
 - Removed remaining proof-evidence and materialization overhead from the
   reflected-call portion of the SJAS proof predicate path. Application arity
   parsing no longer uses committed-choice recursion, compact byte decoding no

@@ -170,3 +170,43 @@ The direct reflected-clause probe returned:
 
 This confirms the resolver is reconstructing the reflected clause body and its
 negation from encoded system data rather than from the compiled host registry.
+
+## Committed-Choice Removal
+
+The remaining proof-machinery `conda` sites were removed.
+
+Changes:
+
+- `skip-syntax-term-byteso` and `skip-syntax-formula-byteso` now use ordinary
+  `conde` grammar dispatch.
+- `internal-formula-conjunctso` no longer uses committed-choice fallback.
+  It flattens top-level `and` formulas and otherwise succeeds only through an
+  explicit `internal-non-and-formulao` structural relation.
+- `internal-leading-exists-scopeo` no longer uses committed-choice fallback.
+  It strips leading `exists` binders and otherwise succeeds only through an
+  explicit `internal-non-exists-formulao` structural relation.
+- `sjas-beta-member-in-formula-byteso` now scans beta formulas by first
+  structurally skipping the current encoded formula and then branching on
+  explicit byte-list match versus byte-list disequality.
+- The `conda` import was removed from the SJAS profile namespace; the remaining
+  source occurrence is a comment explaining the explicit match/nonmatch
+  replacement relation.
+
+Test adjustment:
+
+- `sjas-tableau-proof-accepts-axiom-citation-certificates` now asserts semantic
+  acceptance and absence of leaked internal trace steps in the answer proof. Its
+  duplicate broad contradiction-code rejection branch was removed; bogus
+  axiom-member rejection remains covered by the dedicated injected-fact tests.
+
+Focused verification:
+
+```text
+lein test :only proflog.willard-sjas-test/sjas-profile-source-audit-rejects-host-proof-checker-route
+lein test :only proflog.willard-sjas-test/sjas-proof-predicates-check-reflected-calls-from-system-code
+lein test :only proflog.willard-sjas-test/sjas-proof-predicates-check-reflected-calls-without-symbol-registry
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-guarded-negative-reflected-bodies
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-guarded-scope-reflected-bodies
+lein test :only proflog.willard-sjas-test/sjas-subst-prf-reconstructs-axiom-basis-without-system-registry
+lein test :only proflog.willard-sjas-test/sjas-tableau-proof-accepts-axiom-citation-certificates
+```

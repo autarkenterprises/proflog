@@ -2639,22 +2639,16 @@
                                                    (:code beta-record)
                                                    axiom-certificate)
                                1
-                               96)]
-    (is (successful? beta-citation-proofs))
-    (is (proof/contains-step? (first-proof beta-citation-proofs)
-                              'sjas-system-beta-axiom)
-        "beta axiom citations must be recovered from encoded system-code beta formulas")
-    (is (proof/contains-step? (first-proof beta-citation-proofs)
-                              'sjas-code-arg)
-        "compact axiom citations must expose code constructor byte reads")
-    (is (empty?
-          (query/query-succeeds
-            (:program system)
-            (sjas/tableau-proof (:system-code system)
-                                (:contradiction-code system)
-                                axiom-certificate)
-            1
-            96)))))
+                               96)
+        beta-citation-proof (first-proof beta-citation-proofs)]
+    (is (successful? beta-citation-proofs)
+        "beta axiom citations must be accepted from encoded system-code beta formulas")
+    (is (not (proof/contains-step? beta-citation-proof
+                                    'sjas-system-beta-axiom))
+        "beta axiom citation checks must not adjoin internal axiom-member traces to the answer proof")
+    (is (not (proof/contains-step? beta-citation-proof
+                                    'sjas-code-arg))
+        "compact axiom citations must not expose code-reader proof traces in the answer proof")))
 
 (deftest sjas-tableau-proof-cites-fixed-axiom-groups-from-system-code
   (let [system (demo-system :willard-sjas-tableau0)
@@ -3052,6 +3046,14 @@
         reflected-antecedent-source (subs profile-source
                                           reflected-antecedent-start
                                           reflected-antecedent-end)
+        beta-member-start (str/index-of
+                            profile-source
+                            "(defn- sjas-beta-member-in-formula-byteso")
+        beta-member-end (str/index-of
+                          profile-source
+                          "(defn- sjas-system-beta-formula-byteso"
+                          beta-member-start)
+        beta-member-source (subs profile-source beta-member-start beta-member-end)
         object-symbol-start (str/index-of profile-source
                                           "(defn- sjas-object-symbol-indexo")
         object-symbol-end (str/index-of profile-source
@@ -3088,6 +3090,24 @@
         skip-formula-source (subs profile-source
                                   skip-formula-start
                                   skip-formula-end)
+        skip-syntax-term-start (str/index-of profile-source
+                                             "(defn- skip-syntax-term-byteso")
+        skip-syntax-term-end (str/index-of profile-source
+                                           "(defn- skip-syntax-formula-byteso"
+                                           skip-syntax-term-start)
+        skip-syntax-term-source (subs profile-source
+                                      skip-syntax-term-start
+                                      skip-syntax-term-end)
+        skip-syntax-formula-start (str/index-of
+                                    profile-source
+                                    "(defn- skip-syntax-formula-byteso")
+        skip-syntax-formula-end (str/index-of
+                                  profile-source
+                                  "(defn- sjas-decode-syntax-formula-code-proofo"
+                                  skip-syntax-formula-start)
+        skip-syntax-formula-source (subs profile-source
+                                         skip-syntax-formula-start
+                                         skip-syntax-formula-end)
         reflected-call-start (str/index-of
                                profile-source
                                "(defn- sjas-system-reflected-call-clauseo")
@@ -3117,7 +3137,23 @@
                                 reflected-guarded-start)
         reflected-guarded-source (subs profile-source
                                        reflected-guarded-start
-                                       reflected-guarded-end)]
+                                       reflected-guarded-end)
+        conjuncts-start (str/index-of profile-source
+                                      "(defn- internal-formula-conjunctso")
+        conjuncts-end (str/index-of profile-source
+                                    "(defn- internal-formula-list-negated-asto"
+                                    conjuncts-start)
+        conjuncts-source (subs profile-source conjuncts-start conjuncts-end)
+        leading-exists-start (str/index-of
+                               profile-source
+                               "(defn- internal-leading-exists-scopeo")
+        leading-exists-end (str/index-of
+                             profile-source
+                             "(defn- internal-guarded-alternative-asto"
+                             leading-exists-start)
+        leading-exists-source (subs profile-source
+                                    leading-exists-start
+                                    leading-exists-end)]
     (is (not (re-find #"prove-program-host" profile-source)))
     (is (not (re-find #"host-proof" profile-source)))
     (is (not (re-find #"whole-formula" profile-source)))
@@ -3286,6 +3322,8 @@
         "subst-prf must not call the proof-producing structural certificate decoder")
     (is (not (str/includes? reflected-antecedent-source "conda"))
         "reflected axiom antecedent reconstruction must be a relation over reflected records, not committed-choice fallback decoding")
+    (is (not (str/includes? beta-member-source "conda"))
+        "beta axiom membership scans must use explicit encoded-formula match/nonmatch relations, not committed-choice fallback")
     (is (not (str/includes? object-symbol-source "conda"))
         "proof-facing object symbol decoding must use disjoint reserved/user symbol relations, not committed-choice fallback")
     (is (not (str/includes? code-byte-source "conda"))
@@ -3300,6 +3338,10 @@
         "system-code beta-block scans must advance structurally without decoding discarded formula trees")
     (is (not (str/includes? skip-formula-source "decode-syntax-formula-byteso"))
         "system-code beta-block scans must not materialize discarded beta formula syntax")
+    (is (not (str/includes? skip-syntax-term-source "conda"))
+        "syntax term skipping must be an ordinary structural relation, not committed-choice grammar dispatch")
+    (is (not (str/includes? skip-syntax-formula-source "conda"))
+        "syntax formula skipping must be an ordinary structural relation, not committed-choice grammar dispatch")
     (is (str/includes? reflected-call-source "sjas-public-code-bytes-coreo")
         "reflected procedure-call resolution must read system-code bytes without auxiliary byte-read proof traces")
     (is (not (re-find #"\(sjas-public-code-byteso\b" reflected-call-source))
@@ -3312,6 +3354,10 @@
         "guarded reflected alternative collection must read system-code bytes without auxiliary byte-read proof traces")
     (is (not (re-find #"\(sjas-public-code-byteso\b" reflected-guarded-source))
         "guarded reflected alternative collection must not materialize unused system-code read proof evidence")
+    (is (not (str/includes? conjuncts-source "conda"))
+        "guarded reflected conjunction flattening must use explicit non-and structure, not committed-choice fallback")
+    (is (not (str/includes? leading-exists-source "conda"))
+        "guarded reflected existential scope stripping must use explicit non-exists structure, not committed-choice fallback")
     (is (not (re-find #"defn- ground-u-grounding-substitution-bytes" profile-source))
         "SJAS substitution predicates must not recover U-Grounding formula bytes through a host projector")
     (is (not (re-find #"sjas-code/code-term-bytes term" profile-source))

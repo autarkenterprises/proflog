@@ -14,7 +14,7 @@
    arithmetic constraints and proof checking are both miniKanren goals
    interleaved at the branch rule boundary."
   (:refer-clojure :exclude [== < <=])
-  (:require [clojure.core.logic :refer [!= == appendo conda conde fail fresh lcons membero or* run]]
+  (:require [clojure.core.logic :refer [!= == appendo conde fail fresh lcons membero or* run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -1579,7 +1579,7 @@
    used when axiom membership only needs to move across system-code records,
    not materialize their decoded syntax trees."
   [bytes rest]
-  (conda
+  (conde
     [(fresh [idx after-var]
        (== (lcons term-var-tag (lcons idx after-var)) bytes)
        (positive-byteo idx)
@@ -1599,7 +1599,7 @@
    decoded formula tree. It preserves the same byte grammar, so beta axiom
    scans can remain object-level while failing quickly on nonmatching records."
   [bytes rest]
-  (conda
+  (conde
     [(fresh [after]
        (== (lcons formula-true-tag after) bytes)
        (== after rest))]
@@ -3088,22 +3088,25 @@
        (== (lcons head bytes-tail) bytes)
        (byte-prefixo prefix-tail bytes-tail rest))]))
 
+(declare byte-list-neqo)
+
 (defn- sjas-beta-member-in-formula-byteso
   [_prog remaining bytes formula-bytes proof]
   (if (zero? remaining)
     fail
-    (fresh [after-current after-prefix]
-      (conda
-        [(byte-prefixo formula-bytes bytes after-prefix)
-         (skip-syntax-formula-byteso bytes after-current)
-         (== after-prefix after-current)
+    (fresh [after-current]
+      (skip-syntax-formula-byteso bytes after-current)
+      (conde
+        [(byte-prefixo formula-bytes bytes after-current)
          (== '(sjas-system-beta-axiom) proof)]
-        [(skip-syntax-formula-byteso bytes after-current)
-         (sjas-beta-member-in-formula-byteso _prog
-                                             (dec remaining)
-                                             after-current
-                                             formula-bytes
-                                             proof)]))))
+        [(fresh [current-bytes]
+           (byte-prefixo current-bytes bytes after-current)
+           (byte-list-neqo formula-bytes current-bytes)
+           (sjas-beta-member-in-formula-byteso _prog
+                                               (dec remaining)
+                                               after-current
+                                               formula-bytes
+                                               proof))]))))
 
 (defn- sjas-system-beta-formula-byteso
   [prog system-bytes formula-bytes proof]
@@ -3401,16 +3404,47 @@
                                                     env
                                                     negated-alternatives))]))))
 
+(defn- internal-non-and-formulao
+  [formula]
+  (conde
+    [(== (list 'true) formula)]
+    [(== (list 'false) formula)]
+    [(fresh [term]
+       (== (list 'pos term) formula))]
+    [(fresh [term]
+       (== (list 'neg term) formula))]
+    [(fresh [left right]
+       (== (list 'eq left right) formula))]
+    [(fresh [left right]
+       (== (list 'neq left right) formula))]
+    [(fresh [left right]
+       (== (list 'or left right) formula))]
+    [(fresh [body]
+       (== (list 'not body) formula))]
+    [(fresh [left right]
+       (== (list 'implies left right) formula))]
+    [(fresh [idx body]
+       (== (list 'forall idx body) formula))]
+    [(fresh [idx body]
+       (== (list 'once-forall idx body) formula))]
+    [(fresh [idx body]
+       (== (list 'exists idx body) formula))]
+    [(fresh [idx bound body]
+       (== (list 'bounded-forall idx bound body) formula))]
+    [(fresh [idx bound body]
+       (== (list 'bounded-exists idx bound body) formula))]))
+
 (defn- internal-formula-conjunctso
   "Flatten a decoded internal formula's top-level conjunctions."
   [formula conjuncts]
-  (conda
+  (conde
     [(fresh [left right left-conjuncts right-conjuncts]
        (== (list 'and left right) formula)
        (internal-formula-conjunctso left left-conjuncts)
        (internal-formula-conjunctso right right-conjuncts)
        (formula-list-appendo left-conjuncts right-conjuncts conjuncts))]
-    [(== (lcons formula '()) conjuncts)]))
+    [(internal-non-and-formulao formula)
+     (== (lcons formula '()) conjuncts)]))
 
 (defn- internal-formula-list-negated-asto
   "Translate decoded internal formulas to their AST-level NNF negations."
@@ -3520,16 +3554,47 @@
                                              calls
                                              residual-rest))]))
 
+(defn- internal-non-exists-formulao
+  [formula]
+  (conde
+    [(== (list 'true) formula)]
+    [(== (list 'false) formula)]
+    [(fresh [term]
+       (== (list 'pos term) formula))]
+    [(fresh [term]
+       (== (list 'neg term) formula))]
+    [(fresh [left right]
+       (== (list 'eq left right) formula))]
+    [(fresh [left right]
+       (== (list 'neq left right) formula))]
+    [(fresh [left right]
+       (== (list 'and left right) formula))]
+    [(fresh [left right]
+       (== (list 'or left right) formula))]
+    [(fresh [body]
+       (== (list 'not body) formula))]
+    [(fresh [left right]
+       (== (list 'implies left right) formula))]
+    [(fresh [idx body]
+       (== (list 'forall idx body) formula))]
+    [(fresh [idx body]
+       (== (list 'once-forall idx body) formula))]
+    [(fresh [idx bound body]
+       (== (list 'bounded-forall idx bound body) formula))]
+    [(fresh [idx bound body]
+       (== (list 'bounded-exists idx bound body) formula))]))
+
 (defn- internal-leading-exists-scopeo
   "Strip leading decoded existential binders for guarded negative-call scope."
   [formula scope core]
-  (conda
+  (conde
     [(fresh [idx body nom rest]
        (== (list 'exists idx body) formula)
        (membero [idx nom] code-nom-entries)
        (== (lcons nom rest) scope)
        (internal-leading-exists-scopeo body rest core))]
-    [(== '() scope)
+    [(internal-non-exists-formulao formula)
+     (== '() scope)
      (== formula core)]))
 
 (defn- internal-guarded-alternative-asto

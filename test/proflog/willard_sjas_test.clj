@@ -1848,6 +1848,54 @@
               (l/== true q)))
           "formula-bearing negated disjunction should validate by same-branch structure"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-implication-tableaux
+  (testing "structural implication branches into a negated antecedent and consequent"
+    (let [system (demo-system :willard-sjas-tableau0)
+          not-true (ast/not-form (ast/true-form))
+          target (ast/implies-form (ast/true-form) (ast/false-form))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node system not-true)
+                  (structural-tableau-node system (ast/false-form)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural implication proof should not use proof-rule tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           proof)
+              (l/== true q)))
+          "formula-bearing implication should validate by branch structure"))))
+
+(deftest sjas-proof-check-accepts-formula-bearing-negated-implication-tableaux
+  (testing "structural negated implication adds antecedent and negated consequent to one branch"
+    (let [system (demo-system :willard-sjas-tableau0)
+          not-true (ast/not-form (ast/true-form))
+          target (ast/not-form (ast/implies-form (ast/true-form) (ast/true-form)))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node
+                    system
+                    (ast/true-form)
+                    (structural-tableau-node system not-true)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the structural negated-implication proof should not use proof-rule tags")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           30
+                           proof)
+              (l/== true q)))
+          "formula-bearing negated implication should validate by same-branch structure"))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-complementary-literal-closures
   (testing "structural literal nodes save branch context and close at a complementary leaf"
     (let [system (demo-system :willard-sjas-tableau0)

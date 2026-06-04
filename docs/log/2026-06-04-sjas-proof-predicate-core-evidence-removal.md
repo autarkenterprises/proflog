@@ -271,6 +271,52 @@ Ran 68 tests containing 203 assertions.
 0 failures, 0 errors.
 ```
 
+## Implication Rules
+
+The formula-code grammar also admits `implies`, so a complete structural
+checker over decoded formula-bearing proof nodes must not rely on source-time
+NNF conversion to erase implication before proof checking.
+
+Red coverage:
+
+- `implies(true,false)` must branch into `not(true)` and `false`.
+- `not(implies(true,true))` must continue on the same branch through `true`
+  and then `not(true)`.
+
+Implementation:
+
+- `sjas-structural-proof-check-stateo` now treats implication as a branching
+  tableau rule: `A -> B` branches to `not(A)` and `B`.
+- `sjas-structural-proof-check-stateo` now treats negated implication as a
+  same-branch rule: `not(A -> B)` adds `A` and `not(B)` to the branch.
+
+These checks are local relations over the decoded formula and child proof-node
+shape. They do not call host normalization and do not accept proof-rule trace
+tags as evidence.
+
+Focused verification:
+
+```text
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-implication-tableaux
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-negated-implication-tableaux
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-negated-disjunction-tableaux
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-negated-conjunction-tableaux
+lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-bearing-disjunction-tableaux
+lein test :only proflog.willard-sjas-test/sjas-profile-source-audit-rejects-host-proof-checker-route
+```
+
+Regression verification:
+
+```text
+lein test-proflog-fast
+Ran 165 tests containing 656 assertions.
+0 failures, 0 errors.
+
+lein test-proflog-extended
+Ran 68 tests containing 203 assertions.
+0 failures, 0 errors.
+```
+
 ## Bounded Quantifier Guard Expansion
 
 The proof-code formula grammar admits `bounded-forall` and `bounded-exists`,

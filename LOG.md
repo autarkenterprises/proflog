@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Added implication and negated-implication local tableau rules to the SJAS
+  structural proof checker. Formula-bearing proof nodes now validate implication
+  branching and negated-implication same-branch expansion from decoded formula
+  structure, without host normalization or proof-rule tags. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
 - Added bounded-quantifier expansion to the SJAS structural proof checker.
   Formula-bearing proof nodes now expand bounded existential and universal
   formulas through their decoded `leq` guard formulas, with binder-aware

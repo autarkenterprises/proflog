@@ -4572,6 +4572,18 @@
                       (range sjas-code/byte-base)))))
            (range sjas-code/byte-base)))))
 
+(defn- sjas-system-code-valid-coreo
+  "Proof-free recognizer for a complete finite SJAS system code.
+
+   Some proof-predicate branches, such as the `Subst(g,t)` axiom of
+   `subst-prf/4`, do not otherwise need the reconstructed axiom conjunction.
+   They still must reject an invalid `system-code`, so this relation parses
+   the complete finite system record without exposing auxiliary proof evidence."
+  [prog system-code]
+  (fresh [system-bytes axiom-formula]
+    (sjas-public-code-bytes-coreo system-code system-bytes)
+    (sjas-system-proof-axiom-formula-coreo prog system-bytes axiom-formula)))
+
 (defn- sjas-system-axiom-formula-coreo
   "Proof-free public-code entry for axiom-conjunction reconstruction."
   [prog system-code axiom-formula]
@@ -6124,7 +6136,9 @@
                                                         sigma-proof
                                                         sigma-out
                                                         subst-axiom-formula))]
-         [(sjas-subst-code-any-coreo prog substitution-code theorem-code sigma-proof sigma-out)])]
+         [(fresh []
+            (sjas-system-code-valid-coreo prog system-code)
+            (sjas-subst-code-any-coreo prog substitution-code theorem-code sigma-proof sigma-out))])]
       [(decode-non-sjas-axiom-proof-code-coreo proof-code
                                                sigma
                                                sigma-proof

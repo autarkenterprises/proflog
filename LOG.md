@@ -22,6 +22,12 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Added proof-free finite-system-code validation to the `subst-prf/4`
+  substitution-result axiom branch. Even when `Subst(g,t)` supplies the
+  temporary added axiom, the proof predicate now requires the supplied
+  `system-code` to parse as a complete SJAS system record before accepting the
+  branch. Focused `subst-prf` regressions and the fast/extended gates passed.
+
 - Split recursive `tableau-proof/3` and `subst-prf/4` SJAS predicate checking
   into proof-free core relations plus thin public answer wrappers. Structural
   formula-bearing tableau leaves now call the core relations directly, so the

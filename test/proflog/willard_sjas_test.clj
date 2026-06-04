@@ -2988,6 +2988,19 @@
             220))
         "subst-prf must reconstruct the axiom basis from system-code during predicate application")))
 
+(deftest sjas-subst-prf-substitution-axiom-branch-validates-system-code
+  (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        subst-core-start (str/index-of source "(defn- sjas-subst-prf-coreo")
+        subst-core-end (str/index-of source
+                                     "(defn- sjas-subst-prf-closeo"
+                                     subst-core-start)
+        subst-core-source (subs source subst-core-start subst-core-end)]
+    (is (str/includes? subst-core-source "sjas-system-code-valid-coreo")
+        "subst-prf must validate the supplied finite system code before accepting the substitution-result axiom")
+    (is (re-find #"(?s)sjas-system-code-valid-coreo prog system-code.*sjas-subst-code-any-coreo"
+                 subst-core-source)
+        "system-code validation must occur in the same substitution-axiom branch as the subst-code check")))
+
 (deftest sjas-tableau-proof-accepts-axiom-citation-certificates
   (let [system (demo-system :willard-sjas-level1)
         beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))

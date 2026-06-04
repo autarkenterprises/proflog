@@ -210,3 +210,68 @@ lein test :only proflog.willard-sjas-test/sjas-proof-check-accepts-formula-beari
 lein test :only proflog.willard-sjas-test/sjas-subst-prf-reconstructs-axiom-basis-without-system-registry
 lein test :only proflog.willard-sjas-test/sjas-tableau-proof-accepts-axiom-citation-certificates
 ```
+
+## Compact Code Reader Mode Split
+
+The durable public formula-bearing theorem proof probe launched at
+`test-runs/sjas-public-formula-bearing-true-theorem-core-20260604T041844Z.log`
+failed after `elapsed 4:34:05 maxrss 4483872KB`. The failure occurred while
+materializing compact byte terms through `compact-code-byte-bits-termo`; the
+public proof-predicate path was generating finite byte candidates before using
+the presented object-language numeral shape to constrain them.
+
+The red source audit required two properties:
+
+- Public compact-code byte decoding must parse the presented numeral with
+  `compact-code-byte-bits-termo` before consulting the finite `byte-bitso`
+  relation.
+- Embedded decoded-code payload reconstruction must not reuse that public
+  reader path. It must use a separate byte-first builder path, because in that
+  mode the byte value is already known from object-level syntax decoding and
+  the public compact code term is being reconstructed.
+
+Implementation:
+
+- `code-byte-termo` is now the public-reader relation. It reads numeral bits
+  first and then relates those bits to a byte value.
+- `code-byte-build-termo` is the decoded-byte builder. It uses the known finite
+  byte value first and structurally builds the compact public numeral term.
+- `code-args-buildo` applies the builder over compact-code argument lists.
+- `sjas-internal-code-termo` now reconstructs embedded public code payloads
+  with `code-args-buildo` instead of the public reader.
+
+This split keeps both paths object-level: neither path projects a ground code
+term through a host byte decoder or generated formula registry. It is only a
+mode split for the same finite byte/numeral arithmetic relation.
+
+Focused verification:
+
+```text
+lein test :only proflog.willard-sjas-test/sjas-profile-source-audit-rejects-host-proof-checker-route
+lein test :only proflog.willard-sjas-test/sjas-formula-codes-preserve-trailing-zero-embedded-code-payloads
+lein test :only proflog.willard-sjas-test/sjas-syntax-predicates-decode-application-codes-without-symbol-registry
+```
+
+The direct public system-code probe returned the expected demo system bytes:
+
+```text
+((31 32 2 5 25 1 0 1 25 1 0 1 2 34 24 2 5 21 1 25 1 0 1))
+"Elapsed time: 27856.096106 msecs"
+```
+
+Regression verification:
+
+```text
+lein test-proflog-fast
+Ran 165 tests containing 656 assertions.
+0 failures, 0 errors.
+
+lein test-proflog-extended
+Ran 68 tests containing 203 assertions.
+0 failures, 0 errors.
+```
+
+A new durable public formula-bearing theorem proof probe was launched under
+`test-runs/sjas-public-formula-bearing-true-theorem-term-first-byte-reader-*`.
+It was still running during this slice and is evidence for the term-first
+public reader change, not for any further Track 2 correspondence claim.

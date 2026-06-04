@@ -798,10 +798,22 @@
   "Relate a compact-code byte argument to its U-Grounding numeral value.
 
    Present public terms derive their bits through the object-level numeral
-   reader after the finite byte relation supplies a bounded six-bit candidate.
-   Logic-variable mode generates canonical byte numerals from the same finite
-   byte relation. Neither mode projects a ground byte term through a host
-   decoder."
+   reader before the finite byte relation is consulted. Decoded-byte
+   reconstruction uses `code-byte-build-termo`; this relation is optimized for
+   the presented-code path. Neither mode projects a ground byte term through a
+   host decoder."
+  [term byte]
+  (fresh [bits]
+    (compact-code-byte-bits-termo term bits)
+    (byte-bitso bits byte)))
+
+(defn- code-byte-build-termo
+  "Build a compact-code public byte numeral from a decoded byte value.
+
+   This is the byte-first companion to `code-byte-termo`. It is used only when
+   embedded code payload bytes have already been decoded by object-level
+   syntax relations and the corresponding compact public code term must be
+   reconstructed structurally."
   [term byte]
   (fresh [bits]
     (byte-bitso bits byte)
@@ -824,6 +836,19 @@
        (code-byte-termo arg byte)
        (== (lcons byte byte-rest) bytes)
        (code-argso rest byte-rest rest-proof)
+       (== (list 'sjas-code-arg byte rest-proof) proof))]))
+
+(defn- code-args-buildo
+  [args bytes proof]
+  (conde
+    [(== '() args)
+     (== '() bytes)
+     (== '(sjas-code-args-end) proof)]
+    [(fresh [arg rest byte byte-rest rest-proof]
+       (== (lcons byte byte-rest) bytes)
+       (code-byte-build-termo arg byte)
+       (== (lcons arg rest) args)
+       (code-args-buildo rest byte-rest rest-proof)
        (== (list 'sjas-code-arg byte rest-proof) proof))]))
 
 (defn- sjas-code-byteso
@@ -2429,7 +2454,7 @@
            (fresh [constructor args args-proof]
              (byte-list-counto byte-count bytes)
              (code-constructoro constructor byte-count)
-             (code-argso args bytes args-proof)
+             (code-args-buildo args bytes args-proof)
              (== (lcons 'app (lcons constructor args)) term)))
          (range (inc sjas-code/max-code-bytes)))))
 

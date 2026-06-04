@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-06-04
 
+- Split compact-code byte handling in the SJAS proof predicate. Presented
+  public code terms now parse their numeral bits before finite byte lookup,
+  while embedded decoded-code payload reconstruction uses a separate byte-first
+  builder path. This preserves the object-level arithmetic reader for public
+  proof-predicate inputs without reintroducing generated formula registries or
+  host byte decoders. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
 - Removed committed-choice search control from the remaining SJAS proof
   machinery relations. Syntax skipping, beta axiom scans, guarded conjunction
   flattening, and guarded existential scope stripping now use ordinary

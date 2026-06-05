@@ -4163,14 +4163,30 @@
                                                    tail-formulas)
       (== (lcons ast-formula tail-formulas) formulas))))
 
+(defn- sjas-proof-antecedent-formula-listo
+  "Convert a finite fixed internal axiom list to proof antecedent formulas.
+
+   Group-0 and Group-1 are fixed finite schemata for every selected SJAS
+   profile. The relation still exposes each formula through
+   `sjas-proof-antecedent-formula-asto`; the host sequence only supplies the
+   finite fixed list being internalized."
+  [internal-formulas formulas]
+  (if (empty? internal-formulas)
+    (== '() formulas)
+    (fresh [head tail]
+      (sjas-proof-antecedent-formula-asto (first internal-formulas) head)
+      (sjas-proof-antecedent-formula-listo (rest internal-formulas) tail)
+      (== (lcons head tail) formulas))))
+
 (defn- sjas-fixed-proof-antecedent-formulaso
+  "Reconstruct the fixed Group-0 and Group-1 antecedents for `AxiomConj(s)`."
   [formulas]
-  (fresh [first-axiom second-axiom]
-    (sjas-proof-antecedent-formula-asto (first group-zero-internal-formulas)
-                                        first-axiom)
-    (sjas-proof-antecedent-formula-asto (second group-zero-internal-formulas)
-                                        second-axiom)
-    (== (list first-axiom second-axiom) formulas)))
+  (fresh [group-zero-formulas group-one-formulas]
+    (sjas-proof-antecedent-formula-listo group-zero-internal-formulas
+                                         group-zero-formulas)
+    (sjas-proof-antecedent-formula-listo group-one-internal-formulas
+                                         group-one-formulas)
+    (formula-list-appendo group-zero-formulas group-one-formulas formulas)))
 
 (defn- sjas-system-group-three-proof-antecedento
   [prog profile-tag system-bytes formula]

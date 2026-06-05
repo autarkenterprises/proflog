@@ -675,18 +675,12 @@
                                code-format)
         clauses (concat reflected-clauses
                         external-clauses)
-        ;; U-grounding arithmetic is now interpreted by the SJAS profile.
-        ;; Keeping the reflected Group-1 formulas in `axiom-member` preserves
-        ;; their SJAS codes, but adding them as ordinary positive equalities in
-        ;; every theorem antecedent would let the free-constructor equality
-        ;; rule misread true arithmetic equations as constructor clashes.
-        theorem-axioms (remove #(= :group-one (:group %)) axioms)
         ;; Formula codes remember canonical binder indexes rather than arbitrary
         ;; source nom identities. The proof predicate must later reconstruct the
         ;; same axiom antecedent from `system-code`, so theorem queries use that
         ;; canonical binder convention at the source-compilation boundary.
         axiom-formula (and* (map (comp code-canonical-formula :formula)
-                                 theorem-axioms))
+                                 axioms))
         group3 (first (filter #(= :group-three (:group %)) axioms))
         ;; The user-facing program includes both reflected and external clauses.
         ;; Proof-predicate validation is narrower: it may use only clauses whose

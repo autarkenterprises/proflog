@@ -20,6 +20,15 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-05
+
+- Repaired fixed axiom-basis reconstruction for the SJAS proof predicate.
+  `AxiomConj(s)` now reconstructs all fixed Group-0 and Group-1 antecedents
+  through the proof-predicate relation instead of hard-coding only the two
+  Group-0 formulas, and the generated theorem antecedent no longer filters out
+  Group-1. Focused red/green selectors passed; broader gates were run under
+  niceness to reduce machine pressure.
+
 ## 2026-06-04
 
 - Removed host runtime fuel consumption from local formula-bearing SJAS tableau

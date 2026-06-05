@@ -143,6 +143,13 @@
     bounded-exists (formula-relation-symbols (get-in (second formula) [:body :body]))
     []))
 
+(defn- conjunction-leaves
+  [formula]
+  (if (= 'and (ast/tag-of formula))
+    (concat (conjunction-leaves (second formula))
+            (conjunction-leaves (nth formula 2)))
+    [formula]))
+
 (defn- formula-atoms
   "Collect atomic application terms appearing in an SJAS formula."
   [formula]
@@ -499,6 +506,20 @@
       (is (= (:system-code base) (:system-code external-changed)))
       (is (= (-> base :group-three :code)
              (-> external-changed :group-three :code))))))
+
+(deftest sjas-system-builder-axiom-formula-includes-fixed-group-one
+  (testing "the public theorem antecedent agrees with the fixed axiom basis"
+    (let [system (demo-system :willard-sjas-tableau0)
+          code-canonical-formula (var-get #'sjas/code-canonical-formula)
+          axiom-leaves (conjunction-leaves (:axiom-formula system))
+          group-one-formulas (map (comp code-canonical-formula :formula)
+                                  (filter #(= :group-one (:group %))
+                                          (:axioms system)))]
+      (is (= 3 (count group-one-formulas))
+          "the regression must exercise the fixed Group-1 axiom records")
+      (doseq [formula group-one-formulas]
+        (is (some #(= formula %) axiom-leaves)
+            "the theorem antecedent must include every fixed Group-1 formula accepted by axiom-member/2")))))
 
 (deftest sjas-formal-codes-are-godel-byte-terms
   (testing "formal SJAS codes are inspectable base-64 Godel terms, not hash labels"
@@ -3063,6 +3084,24 @@
         (is (not (proof/contains-step? proof 'sjas-generated-axiom-member))
             (str group " citations should not fall back to generated axiom-member facts"))))))
 
+(deftest sjas-axiom-conj-reconstructs-fixed-group-one-axioms
+  (testing "AxiomConj(s) includes the same fixed axioms that axiom-member accepts"
+    (let [fixed-antecedents (var-get #'sjas-profile/sjas-fixed-proof-antecedent-formulaso)
+          antecedent-ast (var-get #'sjas-profile/sjas-proof-antecedent-formula-asto)
+          group-one-formula (first (var-get #'sjas-profile/group-one-internal-formulas))
+          expected (first
+                     (l/run 1 [q]
+                       (antecedent-ast group-one-formula q)))
+          fixed-formulas (first
+                           (l/run 1 [q]
+                             (fixed-antecedents q)))]
+      (is expected
+          "the test must construct the Group-1 antecedent formula through the same relation as AxiomConj")
+      (is fixed-formulas
+          "the test must reconstruct fixed antecedent formulas through the proof predicate relation")
+      (is (some #(= expected %) fixed-formulas)
+          "AxiomConj(s) must include fixed Group-1 axioms, not only make them citable by axiom-member/2"))))
+
 (deftest sjas-tableau-proof-cites-tableau0-group-three-from-system-code
   (let [system (demo-system :willard-sjas-tableau0)
         axiom-certificate (sjas/proof-certificate 'sjas-axiom)
@@ -3453,6 +3492,16 @@
         reflected-antecedent-source (subs profile-source
                                           reflected-antecedent-start
                                           reflected-antecedent-end)
+        fixed-antecedent-start (str/index-of
+                                 profile-source
+                                 "(defn- sjas-fixed-proof-antecedent-formulaso")
+        fixed-antecedent-end (str/index-of
+                               profile-source
+                               "(defn- sjas-system-group-three-proof-antecedento"
+                               fixed-antecedent-start)
+        fixed-antecedent-source (subs profile-source
+                                      fixed-antecedent-start
+                                      fixed-antecedent-end)
         beta-member-start (str/index-of
                             profile-source
                             "(defn- sjas-beta-member-in-formula-byteso")
@@ -3741,6 +3790,14 @@
         "subst-prf must not call the proof-producing structural certificate decoder")
     (is (not (str/includes? reflected-antecedent-source "conda"))
         "reflected axiom antecedent reconstruction must be a relation over reflected records, not committed-choice fallback decoding")
+    (is (str/includes? fixed-antecedent-source "group-zero-internal-formulas")
+        "AxiomConj fixed antecedents must include Group-0 axioms")
+    (is (str/includes? fixed-antecedent-source "group-one-internal-formulas")
+        "AxiomConj fixed antecedents must include Group-1 axioms")
+    (is (not (str/includes? fixed-antecedent-source "(first group-zero-internal-formulas)"))
+        "AxiomConj fixed antecedents must not hard-code only the first Group-0 formulas")
+    (is (not (str/includes? fixed-antecedent-source "(second group-zero-internal-formulas)"))
+        "AxiomConj fixed antecedents must not hard-code only the second Group-0 formula")
     (is (not (str/includes? beta-member-source "conda"))
         "beta axiom membership scans must use explicit encoded-formula match/nonmatch relations, not committed-choice fallback")
     (is (not (str/includes? object-symbol-source "conda"))

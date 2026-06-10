@@ -15,6 +15,7 @@
             [proflog.gamma :as gamma]
             [proflog.kernel.willard-sjas-profile :as willard-sjas-profile]
             [proflog.language :as language]
+            [proflog.normalize :as normalize]
             [proflog.query :as query]
             [proflog.willard-sjas-code :as sjas-code]))
 
@@ -304,14 +305,64 @@
   (let [[stripped? matrix] (strip-prefix formula 'exists)]
     (and stripped? (delta-star-0? matrix))))
 
+(defn- guarded-existential-body?
+  "Recognize the bounded-existential desugaring under `binding`:
+   `(and (leq (var binding) bound) rest)` (ADR-0092)."
+  [body binding]
+  (and (= 'and (ast/tag-of body))
+       (let [guard (second body)]
+         (and (= 'pos (ast/tag-of guard))
+              (let [atom (second guard)]
+                (and (= 'app (ast/tag-of atom))
+                     (= 'leq (second atom))
+                     (= (ast/var-term binding) (nth atom 2))))))))
+
+(defn- nnf-pi-star-1-shape?
+  "True when an NNF formula contains no positive unbounded existential.
+
+   In NNF every quantifier sits in positive position, unbounded universals
+   prenex outward classically, and bounded quantifiers belong to the
+   Delta-star-0 matrix, so this is the syntactic core of having a Pi-star-1
+   encoding. Guarded existentials of the bounded desugaring shape
+   `(exists x (and (leq x bound) body))` count as bounded (ADR-0092)."
+  [formula]
+  (case (ast/tag-of formula)
+    true true
+    false true
+    pos true
+    neg true
+    eq true
+    neq true
+    and (and (nnf-pi-star-1-shape? (second formula))
+             (nnf-pi-star-1-shape? (nth formula 2)))
+    or (and (nnf-pi-star-1-shape? (second formula))
+            (nnf-pi-star-1-shape? (nth formula 2)))
+    forall (nnf-pi-star-1-shape? (:body (second formula)))
+    once-forall (nnf-pi-star-1-shape? (:body (second formula)))
+    bounded-forall (let [{:keys [body]} (:body (second formula))]
+                     (nnf-pi-star-1-shape? body))
+    bounded-exists (let [{:keys [body]} (:body (second formula))]
+                     (nnf-pi-star-1-shape? body))
+    exists (let [tied (second formula)
+                 binding (:binding-nom tied)
+                 body (:body tied)]
+             (and (guarded-existential-body? body binding)
+                  (nnf-pi-star-1-shape? (nth body 2))))
+    false))
+
 (defn pi-star-1-encodable?
   "Return true when `formula` has a Pi-star-1 encoding.
 
-   Willard 2013 Definition 5.1 admits any axiom with a Pi-star-1 encoding into
-   the finite reflected basis. A Delta-star-0 sentence is the degenerate
-   universal closure of itself, so the reflected basis accepts either shape."
+   Willard 2013 Definition 5.1 admits any axiom with a Pi-star-1 encoding
+   into the finite reflected basis, which is a semantic latitude: an
+   antecedent existential prenexes universally, so classification must look
+   at negation normal form rather than the presented surface shape
+   (ADR-0092). The shape classifiers above keep their strict presented-form
+   readings; they are accepted first as the cheap common case."
   [formula]
-  (or (delta-star-0? formula) (pi-star-1? formula)))
+  (or (delta-star-0? formula)
+      (pi-star-1? formula)
+      (nnf-pi-star-1-shape? (normalize/to-nnf formula))))
 
 ;; -----------------------------------------------------------------------------
 ;; Stable source coding

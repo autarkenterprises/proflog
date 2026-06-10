@@ -4210,9 +4210,18 @@
                             :relations {'bad 1}
                             :reflected-clauses
                             [(ast/clause 'bad [y]
-                               (ast/exists-form x
+                               (ast/forall-form x
                                  (sjas/lt (ast/var-term x)
-                                          (ast/var-term y))))]})))
+                                          (ast/var-term y))))]}))
+            "a universal clause body negates to a positive existential and has no Pi*1 encoding")
+        (is (map? (sjas/system {:profile :willard-sjas-tableau0
+                                :relations {'ok 1}
+                                :reflected-clauses
+                                [(ast/clause 'ok [y]
+                                   (ast/exists-form x
+                                     (sjas/lt (ast/var-term x)
+                                              (ast/var-term y))))]}))
+            "an antecedent existential prenexes universally and stays admissible (ADR-0092)")
         (is (map? (sjas/system {:profile :willard-sjas-tableau0
                                 :relations {'demo 1}
                                 :beta [(ast/eq-lit sjas/one sjas/one)]
@@ -4383,7 +4392,7 @@
                                     non-axiom-start)
         non-axiom-source (subs profile-source non-axiom-start non-axiom-end)
         tableau-core-start (str/index-of profile-source
-                                         "(defn- sjas-tableau-proof-coreo")
+                                         "(defn- sjas-tableau-proof-callo")
         tableau-core-end (str/index-of profile-source
                                        "(defn- sjas-tableau-proof-closeo"
                                        tableau-core-start)
@@ -4688,8 +4697,14 @@
     (is (not (re-find #"(?s)\(list 'profiled 'willard-sjas-subst-proof-check\s+proof-read-proof\s+theorem-read-proof\s+decoded-proof\)"
                       profile-source))
         "subst-prf answer evidence must not adjoin code-reader and decoded-proof traces to the supplied tableau proof code")
-    (is (str/includes? tableau-close-source "sjas-tableau-proof-coreo")
-        "tableau-proof wrapper must delegate to the proof-free object relation")
+    (is (str/includes? tableau-close-source "sjas-tableau-proof-callo")
+        "tableau-proof wrapper must destructure the call through the shared object preamble")
+    (is (str/includes? tableau-close-source "sjas-walked-axiom-membero")
+        "tableau-proof citation answers must validate membership through the proof-bearing object relation (ADR-0091)")
+    (is (str/includes? tableau-close-source "sjas-tableau-proof-structural-coreo")
+        "tableau-proof structural answers must delegate to the proof-free object relation")
+    (is (str/includes? tableau-close-source "willard-sjas-proof-check member-proof")
+        "tableau-proof citation answers must nest the membership evidence inside the profile wrapper (ADR-0091)")
     (is (str/includes? tableau-core-source "sjas-formal-code-bytes-coreo proof-code")
         "tableau-proof must read proof-code bytes once before classifying certificate shape")
     (is (str/includes? tableau-core-source "sjas-axiom-proof-bytes")

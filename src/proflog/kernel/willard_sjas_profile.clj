@@ -7226,18 +7226,11 @@
                              fuel
                              proof)))
 
-(defn- sjas-tableau-proof-coreo
-  "Proof-free `tableau-proof/3` predicate relation.
-
-   This is the object relation used both by the ordinary SJAS theory wrapper
-   and by formula-bearing structural tableau leaves. It decodes the supplied
-   proof code, theorem code, and finite system code, then validates either an
-   axiom citation or a structural tableau tree without constructing a separate
-   Proflog answer-proof payload."
-  [fml env sigma sigma-out neqs neqs-out prog fuel]
-  (fresh [lit atom walked-atom system-code theorem-code proof-code
-          decoded-proof proof-bytes proof-kind axiom-formula neg-theorem
-          target sigma-proof sigma-theorem walked-system-code]
+(defn- sjas-tableau-proof-callo
+  "Destructure a negated `tableau-proof/3` branch literal into its code
+   arguments and decoded proof bytes (ADR-0091 shared preamble)."
+  [fml env sigma system-code theorem-code proof-bytes sigma-proof proof-kind]
+  (fresh [lit atom walked-atom proof-code]
     (sjas-subst-formulao fml env lit)
     (sjas-acyclic-unifyo (list 'neg atom) lit)
     (sjas-walk-atomo atom sigma walked-atom)
@@ -7247,48 +7240,89 @@
                                   proof-bytes
                                   sigma
                                   sigma-proof
-                                  proof-kind)
-    (conde
-      [(== sjas-axiom-proof-bytes proof-bytes)
-       (== 'sjas-axiom decoded-proof)
-       (fresh []
-         (sjas-walked-axiom-member-coreo prog
-                                          system-code
-                                          theorem-code
-                                          sigma-proof)
-         (== sigma-proof sigma-out))]
-      [(decode-structural-proof-bytes-coreo proof-bytes decoded-proof)
-       (sjas-structural-negated-theorem-coreo prog
-                                              theorem-code
-                                              sigma-proof
-                                              sigma-theorem
-                                              neg-theorem)
-       (sjas-system-axiom-formula-walked-coreo prog
-                                               system-code
-                                               sigma-theorem
-                                               sigma-out
-                                               walked-system-code
-                                               axiom-formula)
-       (sjas-acyclic-unifyo (list 'and axiom-formula neg-theorem) target)
-       (sjas-proof-check-programo prog
-                                  walked-system-code
-                                  target
-                                  fuel
-                                  decoded-proof)])
+                                  proof-kind)))
+
+(defn- sjas-tableau-proof-certificate-coreo
+  "Proof-free `sjas-axiom` certificate branch of `tableau-proof/3`."
+  [fml env sigma sigma-out neqs neqs-out prog]
+  (fresh [system-code theorem-code proof-bytes sigma-proof proof-kind]
+    (sjas-tableau-proof-callo fml env sigma
+                              system-code theorem-code
+                              proof-bytes sigma-proof proof-kind)
+    (== sjas-axiom-proof-bytes proof-bytes)
+    (sjas-walked-axiom-member-coreo prog
+                                     system-code
+                                     theorem-code
+                                     sigma-proof)
+    (== sigma-proof sigma-out)
     (== neqs neqs-out)))
+
+(defn- sjas-tableau-proof-structural-coreo
+  "Proof-free structural-certificate branch of `tableau-proof/3`."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (fresh [system-code theorem-code proof-bytes sigma-proof proof-kind
+          decoded-proof neg-theorem target sigma-theorem
+          walked-system-code axiom-formula]
+    (sjas-tableau-proof-callo fml env sigma
+                              system-code theorem-code
+                              proof-bytes sigma-proof proof-kind)
+    (decode-structural-proof-bytes-coreo proof-bytes decoded-proof)
+    (sjas-structural-negated-theorem-coreo prog
+                                           theorem-code
+                                           sigma-proof
+                                           sigma-theorem
+                                           neg-theorem)
+    (sjas-system-axiom-formula-walked-coreo prog
+                                            system-code
+                                            sigma-theorem
+                                            sigma-out
+                                            walked-system-code
+                                            axiom-formula)
+    (sjas-acyclic-unifyo (list 'and axiom-formula neg-theorem) target)
+    (sjas-proof-check-programo prog
+                               walked-system-code
+                               target
+                               fuel
+                               decoded-proof)
+    (== neqs neqs-out)))
+
+(defn- sjas-tableau-proof-coreo
+  "Proof-free `tableau-proof/3` predicate relation.
+
+   This is the object relation used both by the ordinary SJAS theory wrapper
+   and by formula-bearing structural tableau leaves. It decodes the supplied
+   proof code, theorem code, and finite system code, then validates either an
+   axiom citation or a structural tableau tree without constructing a separate
+   Proflog answer-proof payload."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (conde
+    [(sjas-tableau-proof-certificate-coreo fml env sigma sigma-out neqs neqs-out prog)]
+    [(sjas-tableau-proof-structural-coreo fml env sigma sigma-out neqs neqs-out prog fuel)]))
 
 (defn- sjas-tableau-proof-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
-  (fresh []
-    (sjas-tableau-proof-coreo fml
-                              env
-                              sigma
-                              sigma-out
-                              neqs
-                              neqs-out
-                              prog
-                              fuel)
-    (== '(profiled willard-sjas-proof-check) proof)))
+  (conde
+    ;; ADR-0091: citation certificates close through the proof-bearing
+    ;; membership relation so public answers carry the axiom evidence the
+    ;; e248c8b marker summary dropped; ADR-0090 pays the reification cost.
+    [(fresh [system-code theorem-code proof-bytes sigma-proof proof-kind
+             member-proof]
+       (sjas-tableau-proof-callo fml env sigma
+                                 system-code theorem-code
+                                 proof-bytes sigma-proof proof-kind)
+       (== sjas-axiom-proof-bytes proof-bytes)
+       (sjas-walked-axiom-membero prog
+                                  system-code
+                                  theorem-code
+                                  sigma-proof
+                                  member-proof)
+       (== sigma-proof sigma-out)
+       (== neqs neqs-out)
+       (== (list 'profiled 'willard-sjas-proof-check member-proof) proof))]
+    ;; Structural certificates keep the plain wrapper; their inspectable
+    ;; evidence is the decoded proof tree the checker validates node by node.
+    [(sjas-tableau-proof-structural-coreo fml env sigma sigma-out neqs neqs-out prog fuel)
+     (== '(profiled willard-sjas-proof-check) proof)]))
 
 (defn- sjas-subst-prf-coreo
   "Proof-free `subst-prf/4` predicate relation.

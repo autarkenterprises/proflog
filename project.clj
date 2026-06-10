@@ -91,6 +91,7 @@
             "test-proflog-extended" ["test"
                                     "proflog.answers-test"
                                      "proflog.integration-families-test"
+                                     "proflog.core-logic-canonical-extended-test"
                                      "proflog.list-programs-test"
                                      "proflog.quantified-programs-test"
                                      "proflog.query-extended-test"

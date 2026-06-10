@@ -32,13 +32,19 @@ triggered the fix.
 
 ## Decision
 
-Add a focused canonical regression namespace,
-`proflog.core-logic-canonical-test`, and include it in the normal
-`lein test-proflog-fast` gate. The suite will stay at core.logic level and will
-not depend on Proflog proof-search internals. Its examples should be useful to
-other miniKanren implementers as a recognizable conformance layer, with
-core.logic-specific extensions clearly separated from portable miniKanren
-semantics. It will cover:
+Add two canonical regression namespaces:
+
+- `proflog.core-logic-canonical-test`, included in the normal
+  `lein test-proflog-fast` gate for cheap engine/conformance coverage.
+- `proflog.core-logic-canonical-extended-test`, included in
+  `lein test-proflog-extended` for slower literature-derived pearls and
+  constraint puzzles that should not run on the fast path.
+
+Both suites will stay at core.logic level and will not depend on Proflog
+proof-search internals. Their examples should be useful to other miniKanren
+implementers as a recognizable conformance layer, with core.logic-specific
+extensions clearly separated from portable miniKanren semantics. They will
+cover:
 
 1. Core miniKanren semantics: unification orientation, sound occurs-check
    rejection, reification order, committed answer bounds, `project`, and
@@ -55,12 +61,12 @@ semantics. It will cover:
 5. Tabling semantics: tabled answer reuse must preserve results over ground
    and partially open arguments; the ground metadata must not collapse table
    keys or answer reification.
-6. Literature-derived relational programs: small, attributed Clojure
-   adaptations of classic miniKanren examples, including the standard
-   relational-interpreter quine query from the "miniKanren, Live and Untagged"
-   line of work. The fast suite should include only examples whose expected
-   duration stays modest; larger pearls and full interpreter suites belong in a
-   later extended conformance suite.
+6. Literature-derived relational programs: attributed Clojure adaptations of
+   classic miniKanren examples, including the standard relational-interpreter
+   quine and twine queries from the "miniKanren, Live and Untagged" line of
+   work. The fast suite should include only examples whose expected duration
+   stays modest; the extended suite carries the slower exact generated
+   quine/twine checks.
 7. CLP(FD): finite-domain interval/domain constraints, arithmetic propagation,
    disequality, distinctness, and equation sugar must still enumerate the
    expected small solution sets.
@@ -96,15 +102,21 @@ than forced into the optimization.
   directly with `lein test :only proflog.core-logic-canonical-test/<var>`.
 - The complete new namespace must pass on the ADR-0090 patched default overlay.
 - `lein test-proflog-fast` must pass after the namespace is added.
+- Before being added to `test-proflog-extended`, each extended test var must be
+  run directly with
+  `lein test :only proflog.core-logic-canonical-extended-test/<var>`.
+- `lein test-proflog-extended` must pass after the extended namespace is added.
 - Because the project also keeps an opt-in core.logic 1.1.1 overlay, the new
-  namespace should be run at least once under
+  canonical namespaces should be run at least once under
   `lein with-profile +core-logic-source-overlay test :only
-  proflog.core-logic-canonical-test`.
+  proflog.core-logic-canonical-test` and
+  `lein with-profile +core-logic-source-overlay test :only
+  proflog.core-logic-canonical-extended-test`.
 
 ## Exit Criteria
 
 - ADR, implementation, tests, and AAR are recorded.
-- The canonical namespace is in the fast gate.
+- The canonical namespaces are in the fast and extended gates.
 - Any uncovered core.logic surface is explicitly documented as a residual risk
   or future test expansion.
 

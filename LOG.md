@@ -39,6 +39,19 @@ complete contemporaneous transcript.
   (`8` tests, `53` assertions); `lein test-proflog-fast` green (`179` tests,
   `732` assertions, `5:33.00`); `lein test-proflog-extended` green (`68`
   tests, `203` assertions, `15:02.76`).
+- Extended ADR-0093 after user review clarified that the follow-up suite itself
+  needed to be written and run inside the same ADR. Added
+  `proflog.core-logic-canonical-extended-test` to `lein test-proflog-extended`
+  with quine/twine relational-interpreter pearls, SEND+MORE=MONEY, all 92
+  8-queens FD solutions, and backward binary multiplication factorization of
+  30. Evidence: the extended namespace passed focused (`4` tests, `10`
+  assertions), all four vars passed individually, the 1.1.1 source-overlay run
+  passed, `lein test-proflog-fast` passed (`179` tests, `732` assertions,
+  `9:46.96` while run concurrently), and `lein test-proflog-extended` passed
+  (`72` tests, `213` assertions, `22:46.99`). A direct raw
+  `(run 1 [q] (evalo q '() q))` probe against the tiny interpreter exceeded a
+  90-second bounded run, so the committed test uses exact generated quine/twine
+  shapes rather than a nonterminating raw search.
 - Executed ADR-0088 to completion on `adr-0088-sjas-runtime-rebaseline`.
   The bisect probe attributed the whole-program grind to `axiom-member`
   citations (beta queries run in seconds); stack samples placed the cost in

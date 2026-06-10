@@ -45,11 +45,17 @@ canonical miniKanren/core.logic surface, not only the single SJAS workload shape
 - Classic programs: `rembero` and a tiny relational interpreter that evaluates
   the standard self-quoting quine and can synthesize the quine binder with
   residual symbol/disequality constraints.
+- Extended classic programs: the first documented quine/twine pair from
+  "miniKanren, Live and Untagged"; the relation checks both concrete evaluation
+  directions and a symbolic twine shape.
 - Nominal: nominal/fresh, nominal/hash, and nominal/tie unification across
   alpha-renaming, with ground payloads present inside nominal bodies.
 - Tabling: answer reuse over repeated tabled calls, partially open arguments,
   and ground structures large enough to exercise the ADR-0090 tag path.
-- CLP(FD): interval/domain membership, +, *, <, !=, distinct, and eq sugar.
+- CLP(FD): interval/domain membership, +, *, <, !=, distinct, eq sugar,
+  SEND+MORE=MONEY, and all 92 8-queens solutions.
+- Pure relational arithmetic: backward binary multiplication factorization,
+  starting with factorization of 30.
 - Performance canaries: bounded walk/occurs probes with expected durations in
   metadata. Hour-scale SJAS probes remain in the SJAS suite and durable
   `test-runs/` logs, not in the canonical fast namespace.
@@ -62,7 +68,8 @@ canonical miniKanren/core.logic surface, not only the single SJAS workload shape
   regression test.
 - The suite is intentionally not exhaustive over every finite-domain puzzle,
   every full relational interpreter, or every nominal theorem-prover use. It is
-  a canonical canary layer below the existing Proflog/SJAS semantic tests; a
-  later extended conformance suite can host slower pearls such as fuller
-  quine-cycle/twine generation, larger CLP(FD) puzzles, and broader relational
-  arithmetic examples.
+  a canonical canary layer below the existing Proflog/SJAS semantic tests. A
+  direct raw `(run 1 [q] (evalo q '() q))` probe against the tiny interpreter
+  exceeded a 90-second bounded run, so exact generated quine/twine behavior is
+  committed while raw quine synthesis remains a future interpreter/search-order
+  task.

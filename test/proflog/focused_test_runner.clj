@@ -71,29 +71,37 @@
       (println (format ":DONE %s %.3f ms" name-str elapsed-ms))
       (flush))))
 
-(defn- run-selection
-  "Run the test vars selected by one runner argument, returning counters."
-  [arg]
-  (let [vars (selected-vars arg)
+(defn- run-selection-filtered
+  "Run one selection, dropping ^:slow vars when `skip-slow?` is set."
+  [skip-slow? arg]
+  (let [vars (cond->> (selected-vars arg)
+               skip-slow? (remove (comp :slow meta)))
         counter (atom {:pass 0 :fail 0 :error 0})]
-    (println (str ":SELECTION " arg " " (count vars) " tests"))
+    (println (str ":SELECTION " arg " " (count vars) " tests"
+                  (when skip-slow? " (not-slow)")))
     (flush)
     (doseq [var vars]
       (run-test-var counter var))
     @counter))
 
 (defn -main
-  "Entry point for `lein test-vars <test.namespace|test.namespace/var>...`."
+  "Entry point for `lein test-vars <test.namespace|test.namespace/var>...`.
+
+   A leading `:not-slow` argument drops ^:slow vars from namespace
+   selections (ADR-0088 partition), since `lein test` cannot scope a
+   selector keyword to a single namespace."
   [& args]
-  (when (empty? args)
-    (println "Usage: lein test-vars <test.namespace|test.namespace/var>...")
-    (System/exit 2))
-  (let [results (mapv run-selection args)
-        totals (apply merge-with + results)
-        failures (+ (:fail totals 0) (:error totals 0))]
-    (println (format ":SUMMARY pass=%d fail=%d error=%d"
-                     (:pass totals 0)
-                     (:fail totals 0)
-                     (:error totals 0)))
-    (shutdown-agents)
-    (System/exit (if (zero? failures) 0 1))))
+  (let [skip-slow? (= ":not-slow" (first args))
+        args (if skip-slow? (rest args) args)]
+    (when (empty? args)
+      (println "Usage: lein test-vars [:not-slow] <test.namespace|test.namespace/var>...")
+      (System/exit 2))
+    (let [results (mapv (partial run-selection-filtered skip-slow?) args)
+          totals (apply merge-with + results)
+          failures (+ (:fail totals 0) (:error totals 0))]
+      (println (format ":SUMMARY pass=%d fail=%d error=%d"
+                       (:pass totals 0)
+                       (:fail totals 0)
+                       (:error totals 0)))
+      (shutdown-agents)
+      (System/exit (if (zero? failures) 0 1)))))

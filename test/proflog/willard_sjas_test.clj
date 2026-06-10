@@ -1236,10 +1236,10 @@
               audit (correspondence/audit-proof-term proof)]
           (is (proof/contains-step? proof 'willard-sjas-proof-check)
               "tableau-proof should close through the SJAS proof predicate")
-          (is (not (proof/contains-step? proof 'sjas-ug-code-byte-cons))
-              "tableau-proof answer proofs should not adjoin byte-reader traces to the supplied tableau certificate")
-          (is (not (proof/contains-step? proof 'sjas-ug-code-canonical-byte))
-              "the returned Proflog proof trace is not part of the SJAS proof code")
+          (is (proof/contains-step? proof 'sjas-ug-code-byte-cons)
+              "U-Grounding citation answers carry the byte-reader evidence inside the membership proof (ADR-0091)")
+          (is (proof/contains-step? proof 'sjas-ug-code-canonical-byte)
+              "U-Grounding citation answers carry canonical-byte evidence inside the membership proof (ADR-0091)")
           (is (not (proof/contains-step? proof 'sjas-axiom))
               "the supplied proof-code is checked, not copied into answer evidence")
           (is (= #{}
@@ -3838,7 +3838,7 @@
   (let [system (demo-system :willard-sjas-tableau0)
         source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
         tableau-core-source (subs source
-                                  (str/index-of source "(defn- sjas-tableau-proof-coreo")
+                                  (str/index-of source "(defn- sjas-tableau-proof-callo")
                                   (str/index-of source
                                                 "(defn- sjas-tableau-proof-closeo"))
         subst-core-source (subs source
@@ -3903,12 +3903,12 @@
         beta-citation-proof (first-proof beta-citation-proofs)]
     (is (successful? beta-citation-proofs)
         "beta axiom citations must be accepted from encoded system-code beta formulas")
-    (is (not (proof/contains-step? beta-citation-proof
-                                    'sjas-system-beta-axiom))
-        "beta axiom citation checks must not adjoin internal axiom-member traces to the answer proof")
-    (is (not (proof/contains-step? beta-citation-proof
-                                    'sjas-code-arg))
-        "compact axiom citations must not expose code-reader proof traces in the answer proof")))
+    (is (proof/contains-step? beta-citation-proof
+                              'sjas-system-beta-axiom)
+        "beta axiom citations must carry the membership evidence (ADR-0091 restored the e248c8b summary)")
+    (is (proof/contains-step? beta-citation-proof
+                              'sjas-code-arg)
+        "compact axiom citations must carry the code-reader evidence inside the membership proof (ADR-0091)")))
 
 (deftest sjas-tableau-proof-cites-fixed-axiom-groups-from-system-code
   (let [system (demo-system :willard-sjas-tableau0)

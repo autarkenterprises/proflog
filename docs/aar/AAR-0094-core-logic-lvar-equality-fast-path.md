@@ -56,8 +56,13 @@ Durable logs: `test-runs/adr0094-baseline.log`,
 - The pre-change negative-exhaustion envelope continues to accrue in the
   reniced durable probe
   (`test-runs/subst-prf-negatives-uncapped-20260610T100008Z.log` in the
-  main checkout); once it completes, a post-0094 probe gives the
-  before/after pair for the multi-hour negatives.
+  main checkout). The post-0094 counterpart probe was launched 2026-06-10
+  from this ADR's worktree, niced to the same priority 19
+  (`test-runs/subst-prf-negatives-post0094-20260610T173714Z.log`, pid file
+  beside it): the pair gives the before/after envelopes for the multi-hour
+  negatives, and the post-0094 run doubles as evidence on whether the
+  negatives can complete at all — which bears on future semantic testing
+  if they cannot.
 - Candidate upstream proposal alongside the ADR-0090 fast path.
 - The deeper representational change (integer-id-keyed substitutions)
   remains shelved as upstream-divergent.

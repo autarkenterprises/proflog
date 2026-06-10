@@ -3152,18 +3152,24 @@
    `sjas-formal-code-byteso`. This keeps system, formula, proof, and
    substitution code reads inspectable in proof evidence instead of projecting
    already-ground Clojure terms to byte vectors outside the object relation."
-  [code bytes proof]
-  (fresh [kind read-proof sigma-out]
-    (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
-    (== '() sigma-out)
-    (== (list 'sjas-system-code-bytes read-proof) proof)))
+  ([code bytes proof]
+   (fresh [kind]
+     (sjas-public-code-byteso code bytes kind proof)))
+  ([code bytes kind proof]
+   (fresh [read-proof sigma-out]
+     (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
+     (== '() sigma-out)
+     (== (list 'sjas-system-code-bytes read-proof) proof))))
 
 (defn- sjas-public-code-bytes-coreo
   "Expose public code bytes without constructing auxiliary proof evidence."
-  [code bytes]
-  (fresh [kind sigma-out]
-    (sjas-formal-code-bytes-coreo code bytes '() sigma-out kind)
-    (== '() sigma-out)))
+  ([code bytes]
+   (fresh [kind]
+     (sjas-public-code-bytes-coreo code bytes kind)))
+  ([code bytes kind]
+   (fresh [sigma-out]
+     (sjas-formal-code-bytes-coreo code bytes '() sigma-out kind)
+     (== '() sigma-out))))
 
 (defn- sjas-system-code-headero
   "Recognize the common header of an encoded finite SJAS system.
@@ -3251,6 +3257,31 @@
        (== (list 'num tableau0-contradiction-u-grounding-bytes)
            contradiction-term))]))
 
+(defn- code-kind-internal-termo
+  "Relate a public code representation kind to its decoded formula-term shape.
+
+   Group-3 is a fixed-point axiom over the public system code `s`, not merely
+   over the byte string denoted by `s`. Carrying the code-reader's `kind` into
+   formula reconstruction prevents a U-Grounding system from accepting a
+   compact-code variant of its self-consistency sentence, and conversely."
+  [kind bytes term]
+  (conde
+    [(== :compact kind)
+     (== (list 'code bytes) term)]
+    [(fresh [encoded]
+       (== :u-grounding kind)
+       (append-sentinel-byteo bytes encoded)
+       (== (list 'num encoded) term))]))
+
+(defn- tableau0-group-three-code-terms-for-kindo
+  "Build Tableau-0 Group-3 code arguments in the presented public code format."
+  [kind system-bytes system-term contradiction-term]
+  (fresh []
+    (code-kind-internal-termo kind system-bytes system-term)
+    (code-kind-internal-termo kind
+                              tableau0-contradiction-formula-bytes
+                              contradiction-term)))
+
 (defn- tableau0-group-three-formulao
   "Reconstruct the Tableau-0 self-consistency axiom from a system-code byte list."
   [system-bytes formula proof]
@@ -3269,16 +3300,41 @@
         formula)
     (== '(sjas-system-tableau0-group-three-axiom) proof)))
 
+(defn- tableau0-group-three-formula-for-kindo
+  "Reconstruct the Tableau-0 Group-3 axiom in the presented code format."
+  [kind system-bytes formula proof]
+  (fresh [system-term contradiction-term]
+    (tableau0-group-three-code-terms-for-kindo kind
+                                               system-bytes
+                                               system-term
+                                               contradiction-term)
+    (== (list 'forall
+              1
+              (list 'neg
+                    (list 'app
+                          'tableau-proof
+                          (list system-term
+                                contradiction-term
+                                (list 'var 1)))))
+        formula)
+    (== '(sjas-system-tableau0-group-three-axiom) proof)))
+
 (defn- sjas-tableau0-group-three-axiom-membero
   "Cite the Tableau-0 Group-3 axiom from system-code, not generated facts."
   [prog system-code formula-code proof]
-  (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
+  (fresh [system-bytes system-kind formula-bytes system-read-proof formula-read-proof
           header-proof formula group-three-proof]
-    (sjas-public-code-byteso system-code system-bytes system-read-proof)
+    (sjas-public-code-byteso system-code
+                             system-bytes
+                             system-kind
+                             system-read-proof)
     (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
     (sjas-tableau0-system-code-headero system-bytes header-proof)
     (decode-formula-byteso prog formula-bytes '() formula)
-    (tableau0-group-three-formulao system-bytes formula group-three-proof)
+    (tableau0-group-three-formula-for-kindo system-kind
+                                            system-bytes
+                                            formula
+                                            group-three-proof)
     (== (list 'sjas-system-group-three-axiom
               system-read-proof
               formula-read-proof
@@ -3388,16 +3444,46 @@
         skeleton-formula)
     (== '(sjas-system-level1-group-three-axiom) proof)))
 
+(defn- level1-group-three-formula-for-kindo
+  "Validate Level-1 Group-3 using the public representation selected by `s`."
+  [prog kind system-bytes formula proof]
+  (fresh [system-term substitution-term skeleton-bytes skeleton-formula]
+    (code-kind-internal-termo kind system-bytes system-term)
+    (== (level1-selfcons-internal-formula system-term
+                                          substitution-term
+                                          1
+                                          2
+                                          3
+                                          4)
+        formula)
+    (internal-code-term-byteso substitution-term skeleton-bytes)
+    (decode-formula-byteso prog skeleton-bytes '() skeleton-formula)
+    (== (level1-selfcons-internal-formula system-term
+                                          (list 'var 1)
+                                          2
+                                          3
+                                          4
+                                          5)
+        skeleton-formula)
+    (== '(sjas-system-level1-group-three-axiom) proof)))
+
 (defn- sjas-level1-group-three-axiom-membero
   "Cite the Level-1 Group-3 axiom by checking its fixed-point skeleton."
   [prog system-code formula-code proof]
-  (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
+  (fresh [system-bytes system-kind formula-bytes system-read-proof formula-read-proof
           header-proof formula group-three-proof]
-    (sjas-public-code-byteso system-code system-bytes system-read-proof)
+    (sjas-public-code-byteso system-code
+                             system-bytes
+                             system-kind
+                             system-read-proof)
     (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
     (sjas-level1-system-code-headero system-bytes header-proof)
     (decode-formula-byteso prog formula-bytes '() formula)
-    (level1-group-three-formulao prog system-bytes formula group-three-proof)
+    (level1-group-three-formula-for-kindo prog
+                                          system-kind
+                                          system-bytes
+                                          formula
+                                          group-three-proof)
     (== (list 'sjas-system-group-three-axiom
               system-read-proof
               formula-read-proof
@@ -4491,74 +4577,104 @@
     (formula-list-appendo group-zero-formulas group-one-formulas formulas)))
 
 (defn- sjas-system-group-three-proof-antecedento
-  [prog profile-tag system-bytes formula]
-  (conde
-    [(fresh [decoded group-proof]
-       (== system-profile-tableau0-tag profile-tag)
-       (tableau0-group-three-formulao system-bytes decoded group-proof)
-       (sjas-proof-antecedent-formula-asto decoded formula))]
-    [(fresh [decoded group-proof]
-       (== system-profile-level1-tag profile-tag)
-       (level1-group-three-formulao prog system-bytes decoded group-proof)
-       (sjas-proof-antecedent-formula-asto decoded formula))]))
+  ([prog profile-tag system-bytes formula]
+   (fresh [system-kind]
+     (conde
+       [(== :compact system-kind)]
+       [(== :u-grounding system-kind)])
+     (sjas-system-group-three-proof-antecedento prog
+                                                profile-tag
+                                                system-kind
+                                                system-bytes
+                                                formula)))
+  ([prog profile-tag system-kind system-bytes formula]
+   (conde
+     [(fresh [decoded group-proof]
+        (== system-profile-tableau0-tag profile-tag)
+        (tableau0-group-three-formula-for-kindo system-kind
+                                                system-bytes
+                                                decoded
+                                                group-proof)
+        (sjas-proof-antecedent-formula-asto decoded formula))]
+     [(fresh [decoded group-proof]
+        (== system-profile-level1-tag profile-tag)
+        (level1-group-three-formula-for-kindo prog
+                                              system-kind
+                                              system-bytes
+                                              decoded
+                                              group-proof)
+        (sjas-proof-antecedent-formula-asto decoded formula))])))
 
 (defn- sjas-system-proof-axiom-formulao
-  [prog system-bytes axiom-formula]
-  (fresh [profile-tag beta-count beta-bytes beta-formulas after-betas
-          reflected-count reflected-bytes reflected-formulas reflected-rest
-          fixed-formulas fixed-and-beta beta-and-reflected all-but-group3
-          group-three-formula all-formulas]
-    (== (lcons system-code-tag
-                (lcons profile-tag
-                       (lcons beta-count beta-bytes)))
-        system-bytes)
-    (sjas-system-profile-tago profile-tag)
-    (or*
-      (map (fn [beta-total]
-             (fresh []
-               (== (inc beta-total) beta-count)
-               (decode-proof-antecedent-formulaso prog
-                                                  beta-total
-                                                  beta-bytes
-                                                  after-betas
-                                                  beta-formulas)
-               (== (lcons reflected-count reflected-bytes) after-betas)
-               (or*
-                 (map (fn [reflected-total]
-                        (fresh []
-                          (== (inc reflected-total) reflected-count)
-                          (decode-reflected-proof-antecedent-formulaso
-                            prog
-                            reflected-total
-                            reflected-bytes
-                            reflected-rest
-                            reflected-formulas)
-                          (== '() reflected-rest)
-                          (sjas-fixed-proof-antecedent-formulaso fixed-formulas)
-                          (formula-list-appendo fixed-formulas
-                                                beta-formulas
-                                                fixed-and-beta)
-                          (formula-list-appendo fixed-and-beta
-                                                reflected-formulas
-                                                beta-and-reflected)
-                          (sjas-system-group-three-proof-antecedento
-                            prog
-                            profile-tag
-                            system-bytes
-                            group-three-formula)
-                          (== (list group-three-formula) all-but-group3)
-                          (formula-list-appendo beta-and-reflected
-                                                all-but-group3
-                                                all-formulas)
-                          (formula-list-ando all-formulas axiom-formula)))
-                      (range sjas-code/byte-base)))))
-           (range sjas-code/byte-base)))))
+  ([prog system-bytes axiom-formula]
+   (fresh [system-kind]
+     (conde
+       [(== :compact system-kind)]
+       [(== :u-grounding system-kind)])
+     (sjas-system-proof-axiom-formulao prog
+                                       system-kind
+                                       system-bytes
+                                       axiom-formula)))
+  ([prog system-kind system-bytes axiom-formula]
+   (fresh [profile-tag beta-count beta-bytes beta-formulas after-betas
+           reflected-count reflected-bytes reflected-formulas reflected-rest
+           fixed-formulas fixed-and-beta beta-and-reflected all-but-group3
+           group-three-formula all-formulas]
+     (== (lcons system-code-tag
+                 (lcons profile-tag
+                        (lcons beta-count beta-bytes)))
+         system-bytes)
+     (sjas-system-profile-tago profile-tag)
+     (or*
+       (map (fn [beta-total]
+              (fresh []
+                (== (inc beta-total) beta-count)
+                (decode-proof-antecedent-formulaso prog
+                                                   beta-total
+                                                   beta-bytes
+                                                   after-betas
+                                                   beta-formulas)
+                (== (lcons reflected-count reflected-bytes) after-betas)
+                (or*
+                  (map (fn [reflected-total]
+                         (fresh []
+                           (== (inc reflected-total) reflected-count)
+                           (decode-reflected-proof-antecedent-formulaso
+                             prog
+                             reflected-total
+                             reflected-bytes
+                             reflected-rest
+                             reflected-formulas)
+                           (== '() reflected-rest)
+                           (sjas-fixed-proof-antecedent-formulaso fixed-formulas)
+                           (formula-list-appendo fixed-formulas
+                                                 beta-formulas
+                                                 fixed-and-beta)
+                           (formula-list-appendo fixed-and-beta
+                                                 reflected-formulas
+                                                 beta-and-reflected)
+                           (sjas-system-group-three-proof-antecedento
+                             prog
+                             profile-tag
+                             system-kind
+                             system-bytes
+                             group-three-formula)
+                           (== (list group-three-formula) all-but-group3)
+                           (formula-list-appendo beta-and-reflected
+                                                 all-but-group3
+                                                 all-formulas)
+                           (formula-list-ando all-formulas axiom-formula)))
+                       (range sjas-code/byte-base)))))
+            (range sjas-code/byte-base))))))
 
 (defn- sjas-system-axiom-formulao
   [prog system-code axiom-formula]
-  (fresh [system-bytes read-proof]
-    (sjas-public-code-byteso system-code system-bytes read-proof)
-    (sjas-system-proof-axiom-formulao prog system-bytes axiom-formula)))
+  (fresh [system-bytes system-kind read-proof]
+    (sjas-public-code-byteso system-code system-bytes system-kind read-proof)
+    (sjas-system-proof-axiom-formulao prog
+                                      system-kind
+                                      system-bytes
+                                      axiom-formula)))
 
 (defn- sjas-axiom-membero
   [prog system-code formula-code proof]
@@ -4652,12 +4768,15 @@
 (defn- sjas-tableau0-group-three-axiom-member-coreo
   "Proof-free Tableau-0 Group-3 axiom membership."
   [prog system-code formula-code]
-  (fresh [system-bytes formula-bytes formula]
-    (sjas-public-code-bytes-coreo system-code system-bytes)
+  (fresh [system-bytes system-kind formula-bytes formula group-three-proof]
+    (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
     (sjas-public-code-bytes-coreo formula-code formula-bytes)
     (sjas-tableau0-system-code-header-coreo system-bytes)
     (decode-formula-byteso prog formula-bytes '() formula)
-    (tableau0-group-three-formula-coreo system-bytes formula)))
+    (tableau0-group-three-formula-for-kindo system-kind
+                                            system-bytes
+                                            formula
+                                            group-three-proof)))
 
 (defn- sjas-level1-system-code-header-coreo
   "Proof-free Level-1 system header recognizer."
@@ -4692,12 +4811,16 @@
 (defn- sjas-level1-group-three-axiom-member-coreo
   "Proof-free Level-1 Group-3 axiom membership."
   [prog system-code formula-code]
-  (fresh [system-bytes formula-bytes formula]
-    (sjas-public-code-bytes-coreo system-code system-bytes)
+  (fresh [system-bytes system-kind formula-bytes formula group-three-proof]
+    (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
     (sjas-public-code-bytes-coreo formula-code formula-bytes)
     (sjas-level1-system-code-header-coreo system-bytes)
     (decode-formula-byteso prog formula-bytes '() formula)
-    (level1-group-three-formula-coreo prog system-bytes formula)))
+    (level1-group-three-formula-for-kindo prog
+                                          system-kind
+                                          system-bytes
+                                          formula
+                                          group-three-proof)))
 
 (defn- byte-list-neqo
   "Object-level disequality for finite byte lists."
@@ -4925,9 +5048,14 @@
      (tableau0-group-three-proof-antecedent-for-code-coreo system-code
                                                            system-bytes
                                                            formula)]
-    [(fresh [decoded]
+    [(fresh [decoded system-kind group-proof]
        (== system-profile-level1-tag profile-tag)
-       (level1-group-three-formula-coreo prog system-bytes decoded)
+       (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
+       (level1-group-three-formula-for-kindo prog
+                                             system-kind
+                                             system-bytes
+                                             decoded
+                                             group-proof)
        (sjas-proof-antecedent-formula-asto decoded formula))]))
 
 (defn- sjas-system-proof-axiom-formula-coreo
@@ -5041,11 +5169,14 @@
    Some proof-predicate branches, such as the `Subst(g,t)` axiom of
    `subst-prf/4`, do not otherwise need the reconstructed axiom conjunction.
    They still must reject an invalid `system-code`, so this relation parses
-   the complete finite system record without exposing auxiliary proof evidence."
+  the complete finite system record without exposing auxiliary proof evidence."
   [prog system-code]
   (fresh [system-bytes axiom-formula]
     (sjas-public-code-bytes-coreo system-code system-bytes)
-    (sjas-system-proof-axiom-formula-coreo prog system-bytes axiom-formula)))
+    (sjas-system-proof-axiom-formula-coreo prog
+                                          system-code
+                                          system-bytes
+                                          axiom-formula)))
 
 (defn- sjas-system-axiom-formula-coreo
   "Proof-free public-code entry for axiom-conjunction reconstruction."
@@ -5074,10 +5205,13 @@
   (fresh [system-bytes axiom-formula]
     (sjas-system-code-bytes-walked-coreo system-code
                                          sigma
-                                         sigma-out
-                                         walked-system-code
-                                         system-bytes)
-    (sjas-system-proof-axiom-formula-coreo prog system-bytes axiom-formula)))
+                                                 sigma-out
+                                                 walked-system-code
+                                                 system-bytes)
+    (sjas-system-proof-axiom-formula-coreo prog
+                                          walked-system-code
+                                          system-bytes
+                                          axiom-formula)))
 
 (defn- sjas-system-axiom-formula-walked-coreo
   "Proof-free `AxiomConj(system-code)` reconstruction through equality state."

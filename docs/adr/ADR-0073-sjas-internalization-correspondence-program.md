@@ -65,6 +65,10 @@ internalization track is therefore organized into the following logical slices:
    Group-0/Group-1 axioms, reflected Group-2b clause data, and the
    profile-determined Group-3 SelfCons sentence from the encoded finite system
    descriptor and profile relations rather than from generated host registries.
+   Reconstruction must preserve the public code representation selected by the
+   presented `system-code` term, so a U-Grounding `s` does not accept a compact
+   `code-N` variant of its fixed-point sentence merely because the byte payload
+   is the same.
 4. **Proof-code grammar:** encode and decode proof constructors and payload
    evidence as proof trees that can be inspected by the predicate.
 5. **U-Grounding arithmetic:** evaluate the arithmetic relations needed for

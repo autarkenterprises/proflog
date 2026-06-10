@@ -22,6 +22,20 @@ complete contemporaneous transcript.
 
 ## 2026-06-09
 
+- Continued ADR-0073 Track 1 in a separate worktree/branch while the main
+  directory was under audit. Group-3 reconstruction now preserves the public
+  code representation selected by the presented `system-code` term: a
+  U-Grounding `s` no longer accepts a compact `code-N` variant of its
+  fixed-point SelfCons sentence merely because the byte payload is the same.
+  The fix threads the object code-reader's representation kind through
+  Tableau-0 and Level-1 Group-3 reconstruction, axiom-member, `AxiomConj(s)`,
+  and proof-free system-code validation without adding source-registry or host
+  byte projectors. Red: the new Tableau-0 malformed-representation selector
+  failed before implementation. Green: the new Tableau-0 and Level-1 selectors,
+  the walked system-code validator selectors, affected Group-3/U-Grounding
+  focused selectors, `lein test-proflog-fast` in `10:12.39`, and `lein
+  test-proflog-extended` in `22:34.93`. See
+  [SJAS Group-3 Presented Code Representation](docs/log/2026-06-09-sjas-group3-presented-code-representation.md).
 - Completed ADR-0087, the Level-1 literature-fidelity correction from the
   directory audit. The Level-1 Group-3 matrix now opens with the
   `pi-star-1-code(x)` restriction required by Willard 2013 sentence (7), in

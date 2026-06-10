@@ -453,6 +453,11 @@
   (or (sjas-code/code-term-bytes term)
       (sjas-code/u-grounding-code-term-bytes term)))
 
+(defn- compact-code-term-for
+  "Return the compact public code term with the same byte payload as `term`."
+  [term]
+  (sjas-code/bytes->code-term (formal-code-term-bytes term)))
+
 (defn- canonical-formula-code-bytes
   [system canonical-formula]
   (sjas-code/code-term-bytes
@@ -759,6 +764,41 @@
                              neg-theorem)
       (l/== (list 'and axiom-formula neg-theorem) target))))
 
+(defn- level1-selfcons-formula
+  "Test-local copy of the Level-1 Group-3 schema used for malformed-code probes."
+  [system-code substitution-code]
+  (ast/nom x y p q
+    (ast/forall-form
+      x
+      (ast/forall-form
+        y
+        (ast/forall-form
+          p
+          (ast/forall-form
+            q
+            (ast/or-form
+              (ast/neg-lit
+                (ast/app-term 'pi-star-1-code
+                              (ast/var-term x)))
+              (ast/or-form
+                (ast/neg-lit
+                  (ast/app-term 'neg-pair
+                                (ast/var-term x)
+                                (ast/var-term y)))
+                (ast/or-form
+                  (ast/neg-lit
+                    (ast/app-term 'subst-prf
+                                  system-code
+                                  substitution-code
+                                  (ast/var-term x)
+                                  (ast/var-term p)))
+                  (ast/neg-lit
+                    (ast/app-term 'subst-prf
+                                  system-code
+                                  substitution-code
+                                  (ast/var-term y)
+                                  (ast/var-term q))))))))))))
+
 (defn- right-nested-true-chain
   [depth]
   (if (zero? depth)
@@ -796,6 +836,39 @@
           "AxiomConj(s) must include a reconstructed Tableau-0 Group-3 atom")
       (is (some #(= zero-one-code (nth % 3)) tableau-proof-atoms)
           "reconstructed Tableau-0 Group-3 must assert no proof of 0=1"))))
+
+(deftest sjas-tableau0-group-three-rejects-wrong-public-code-representation
+  (testing "Group-3 cites the presented public s term, not just equivalent bytes"
+    (ast/nom p
+      (let [system (demo-system :willard-sjas-tableau0
+                                {:code-format :u-grounding})
+            compact-system-code (compact-code-term-for (:system-code system))
+            compact-contradiction-code (compact-code-term-for
+                                         (:contradiction-code system))
+            wrong-representation-formula
+            (ast/forall-form
+              p
+              (ast/neg-lit
+                (ast/app-term 'tableau-proof
+                              compact-system-code
+                              compact-contradiction-code
+                              (ast/var-term p))))
+            wrong-representation-code (sjas/formula-code
+                                        system
+                                        wrong-representation-formula)
+            axiom-member-coreo (var-get #'sjas-profile/sjas-axiom-member-coreo)]
+        (is (sjas-numeral-term? (:system-code system))
+            "the regression must exercise the U-Grounding public code format")
+        (is (not= wrong-representation-code
+                  (:code (:group-three system)))
+            "the theorem code must differ by the embedded public code representation")
+        (is (empty?
+              (l/run 1 [q]
+                (axiom-member-coreo (:program system)
+                                    (:system-code system)
+                                    wrong-representation-code)
+                (l/== true q)))
+            "axiom-member must reject a Group-3 formula that embeds compact codes for a U-Grounding system")))))
 
 (deftest sjas-system-builder-generates-groups-and-reflected-boundary
   (testing "users supply beta/program clauses; the builder supplies codes and Group-3"
@@ -4078,6 +4151,39 @@
     (is (every? #(= (:system-code system) (nth % 2)) subst-atoms))
     (is (every? #(= skeleton-code (nth % 3)) subst-atoms))
     (is (not-any? #(= (:system-code system) (nth % 3)) subst-atoms))))
+
+(deftest sjas-level1-group-three-rejects-wrong-public-code-representation
+  (testing "Level-1 Group-3 is fixed to the presented public s term"
+    (ast/nom g
+      (let [system (demo-system :willard-sjas-level1
+                                {:code-format :u-grounding})
+            formula-code-term (var-get #'sjas/formula-code-term)
+            compact-system-code (compact-code-term-for (:system-code system))
+            compact-skeleton (level1-selfcons-formula compact-system-code
+                                                       (ast/var-term g))
+            compact-skeleton-code (formula-code-term (:coding-context system)
+                                                     compact-skeleton
+                                                     {g 'v0}
+                                                     (:code-format system))
+            wrong-representation-formula
+            (level1-selfcons-formula compact-system-code
+                                     compact-skeleton-code)
+            wrong-representation-code (sjas/formula-code
+                                        system
+                                        wrong-representation-formula)
+            axiom-member-coreo (var-get #'sjas-profile/sjas-axiom-member-coreo)]
+        (is (sjas-numeral-term? (:system-code system))
+            "the regression must exercise the U-Grounding public system code")
+        (is (not= wrong-representation-code
+                  (:code (:group-three system)))
+            "the theorem code must differ by the embedded public code representation")
+        (is (empty?
+              (l/run 1 [q]
+                (axiom-member-coreo (:program system)
+                                    (:system-code system)
+                                    wrong-representation-code)
+                (l/== true q)))
+            "Level-1 axiom-member must reject a compact-code fixed point for a U-Grounding system")))))
 
 (deftest sjas-level1-group-three-restricts-pair-to-pi-star-1
   (let [system (demo-system :willard-sjas-level1)

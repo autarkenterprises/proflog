@@ -58,6 +58,10 @@ Seth Frey, Dept. of Communication, UC Davis - https://communication.ucdavis.edu/
 
 Notes:
 
+ - Overview of Autarkic Formal Systems
+ - SJAS as paradigmatic AFS
+
+
 logic vs relational logic - permissively, a logic programming language encodes programs as logical statements, and evaluates a program by manipulates these statements. This manipulation may be via in principle any algorithm, but a stricter notion of logic programming (as a working designation, "pure logical programming") manipulates the program-encoding logical statements using the procedures prescribed by a particular system of logic (more specific than any formal system, which may includes those not explicitly presented in the form of a logic). To demonstrate this gap, consider a logic programming language that is not a pure logic programming language, because it exposes to the programmer a templating facility, allowing arbitrary string substitution over expressions. There may be a "logic of substitution" which this manipulation instantiates, but this must be demonstrated rather than assumed, and would in any case extend the underlying logical system of the language.
 
 A relational logic programming language encodes programs as relations as its preferred kind of logical statements, and a pure relational logic programming language exposes only those techniques for manipulating relations that have a correspondence to logical operations.

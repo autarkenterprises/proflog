@@ -85,10 +85,16 @@
   - `:succeeds`
   - `:fails`
   - `:unresolved`
-  - `:inconsistent` when both proofs are found within the probe budget"
+  - `:inconsistent` when both proofs are found within the probe budget
+
+  `:timeout-ms` bounds the whole probe between finite fuel slices, while
+  `:max-fuel` optionally makes the bound structural. The fuel cap is important
+  for catalog-style status checks where the next iterative-deepening slice is
+  known to be much more expensive than the evidence needed for an unresolved
+  classification."
   ([program query]
    (query-status program query {}))
-  ([program query {:keys [timeout-ms proof-limit poll-ms]
+  ([program query {:keys [timeout-ms proof-limit poll-ms max-fuel]
                    :or {timeout-ms 250
                         proof-limit 1
                         poll-ms 5}}]
@@ -110,6 +116,7 @@
              (cond
                (seq failure-proofs) :fails
                (zero? (remaining-time-ms deadline-ms)) :unresolved
+               (and max-fuel (>= fuel max-fuel)) :unresolved
                :else
                (do
                  (Thread/sleep poll-ms)

@@ -26,7 +26,8 @@
      contradiction,
    - and saved literals are rechecked after each new equality step."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [!= == all appendo conde fail fresh lcons membero run]]
+  (:require [clojure.core.logic :as logic
+             :refer [!= == all appendo conde fail fresh lcons membero run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -68,33 +69,74 @@
          close-one-guarded-alternativeo
          close-guarded-negated-call-sequenceo)
 
-(def ^:dynamic *recursive-prove-stateo*
-  "Optional recursive proof dispatcher.
+(defn- default-recursive-prove-stateo
+  [& args]
+  (apply prove-stateo args))
 
-   The ordinary kernel leaves this unbound and recurses directly through
-   `prove-stateo`. Operational layers such as ADR-0017 tabling may bind it to a
-   wrapper relation so recursive branch calls are memoized without adding table
-   management to the Fitting-style rule clauses below."
-  nil)
+(def ^:dynamic *recursive-prove-stateo*
+  "Recursive proof dispatcher relation.
+
+   The ordinary kernel uses a callable default relation that delegates to
+   `prove-stateo`. Operational layers such as ADR-0017 tabling may bind this to
+   a wrapper relation so recursive branch calls are memoized without adding
+   table management to the Fitting-style rule clauses below."
+  default-recursive-prove-stateo)
+
+(defn- default-theory-profile-closeo
+  [& _args]
+  fail)
 
 (def ^:dynamic *theory-profile-closeo*
-  "Optional theory-profile branch rule.
+  "Theory-profile branch rule relation.
 
-   Ordinary proof search leaves this unbound. A language-selected proof profile
-   may bind it to a miniKanren relation that can close or advance the currently
-   focused branch formula. This keeps theory extensions interleaved with the
-   tableau kernel instead of making them query-time preprocessors."
-  nil)
+   Ordinary proof search uses a callable default relation that fails. A
+   language-selected proof profile may bind this to a miniKanren relation that
+   can close or advance the currently focused branch formula. This keeps theory
+   extensions interleaved with the tableau kernel instead of making them
+   query-time preprocessors."
+  default-theory-profile-closeo)
 
 (defn- recursive-prove-stateo
   [& args]
-  (apply (or *recursive-prove-stateo* prove-stateo) args))
+  (apply *recursive-prove-stateo* args))
 
 (defn- theory-profile-closeo
   [& args]
-  (if-let [closeo *theory-profile-closeo*]
-    (apply closeo args)
-    fail))
+  (apply *theory-profile-closeo* args))
+
+(defn- acyclic-unifyo
+  "Unify acyclic branch terms without a deep occurs check.
+
+   Large arithmeticized code terms are ordinary first-order AST data. The generic
+   atom rules sometimes only need to peel a literal or atom root before a later
+   relation guard fails; recursively occurs-checking the whole ground code
+   payload at that point is unnecessary and can overflow the host stack."
+  [left right]
+  (fn [state]
+    (let [had-constraints? (pos? (count (:cs state)))
+          prepared-state (cond-> state
+                           had-constraints? (assoc :vs [])
+                           true (assoc :oc false))
+          unified-state (logic/unify prepared-state left right)]
+      (when unified-state
+        (let [restored-state (assoc unified-state :oc (:oc state))
+              changed-vars (when had-constraints? (:vs restored-state))]
+          (if (and had-constraints? (pos? (count changed-vars)))
+            ((logic/run-constraints* changed-vars
+                                     (:cs restored-state)
+                                     ::kernel)
+             (assoc restored-state :vs nil))
+            restored-state))))))
+
+(defn- walk-atomo
+  "Walk an atom through equality state, using identity when `sigma` is empty."
+  [atom sigma out]
+  (conde
+    [(== '() sigma)
+     (acyclic-unifyo atom out)]
+    [(fresh []
+       (!= '() sigma)
+       (equality/walk-atomo atom sigma out))]))
 
 ;; ---------------------------------------------------------------------------
 ;; Profiled branch interoperation
@@ -146,13 +188,13 @@
 (defn- nullary-atomo
   [atom active-relations]
   (fresh [relation]
-    (== (list 'app relation) atom)
+    (acyclic-unifyo (list 'app relation) atom)
     (inactive-relationo active-relations relation)))
 
 (defn- atomo
   [atom active-relations]
   (fresh [relation args]
-    (== (lcons 'app (lcons relation args)) atom)
+    (acyclic-unifyo (lcons 'app (lcons relation args)) atom)
     (inactive-relationo active-relations relation)))
 
 (declare pure-propositional-formulao
@@ -185,10 +227,10 @@
     [(== (list 'true) formula)]
     [(== (list 'false) formula)]
     [(fresh [atom]
-       (== (list 'pos atom) formula)
+       (acyclic-unifyo (list 'pos atom) formula)
        (nullary-atomo atom active-relations))]
     [(fresh [atom]
-       (== (list 'neg atom) formula)
+       (acyclic-unifyo (list 'neg atom) formula)
        (nullary-atomo atom active-relations))]
     [(fresh [left right]
        (== (list 'and left right) formula)
@@ -205,10 +247,10 @@
     [(== (list 'true) formula)]
     [(== (list 'false) formula)]
     [(fresh [atom]
-       (== (list 'pos atom) formula)
+       (acyclic-unifyo (list 'pos atom) formula)
        (atomo atom active-relations))]
     [(fresh [atom]
-       (== (list 'neg atom) formula)
+       (acyclic-unifyo (list 'neg atom) formula)
        (atomo atom active-relations))]
     [(fresh [left right]
        (== (list 'and left right) formula)
@@ -235,11 +277,11 @@
   [formula]
   (conde
     [(fresh [atom relation arg rest]
-       (== (list 'pos atom) formula)
-       (== (lcons 'app (lcons relation (lcons arg rest))) atom))]
+       (acyclic-unifyo (list 'pos atom) formula)
+       (acyclic-unifyo (lcons 'app (lcons relation (lcons arg rest))) atom))]
     [(fresh [atom relation arg rest]
-       (== (list 'neg atom) formula)
-       (== (lcons 'app (lcons relation (lcons arg rest))) atom))]
+       (acyclic-unifyo (list 'neg atom) formula)
+       (acyclic-unifyo (lcons 'app (lcons relation (lcons arg rest))) atom))]
     [(fresh [left right]
        (== (list 'and left right) formula)
        (conde
@@ -355,10 +397,10 @@
     ;; appeared.
     [(fresh [atom walked-atom relation args call-env body negated-body next-fuel subproof]
        (membero (list 'pos atom) lits)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
+       (walk-atomo atom sigma walked-atom)
+       (acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
        (program/call-clauseo prog walked-atom call-env body negated-body)
+       (support/l-ground-term*o args)
        (== (list 'eq-triggered-call subproof) proof)
        (support/step-fuelo fuel next-fuel)
        (recursive-prove-stateo body
@@ -378,10 +420,10 @@
     ;; prove the NNF negation of the clause body rather than the body itself.
     [(fresh [atom walked-atom relation args call-env body negated-body next-fuel subproof]
        (membero (list 'neg atom) lits)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
+       (walk-atomo atom sigma walked-atom)
+       (acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
        (program/call-clauseo prog walked-atom call-env body negated-body)
+       (support/l-ground-term*o args)
        (== (list 'eq-triggered-neg-call subproof) proof)
        (support/step-fuelo fuel next-fuel)
        (recursive-prove-stateo negated-body
@@ -545,9 +587,9 @@
      (== '(guard-saturation-done) proof)]
     [(fresh [guard rest lit left right sigma-mid new-bindings step-proof tail-proof]
        (== (lcons guard rest) guards)
-       (subst/subst-formulao guard env lit)
-       (== (list 'eq left right) lit)
-       (equality/unify-termo left right sigma sigma-mid step-proof)
+	       (subst/subst-formulao guard env lit)
+	       (acyclic-unifyo (list 'eq left right) lit)
+	       (equality/unify-termo left right sigma sigma-mid step-proof)
        (appendo new-bindings sigma sigma-mid)
        (support/proof-bindingso new-bindings proof-vars)
        (support/stable-neqso neqs sigma-mid)
@@ -701,10 +743,9 @@
              guarded-alternatives sigma-mid neqs-mid call-proof tail-proof]
        (== (lcons formula rest) formulas)
        (subst/subst-formulao formula env lit)
-       (== (list 'neg atom) lit)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
+       (acyclic-unifyo (list 'neg atom) lit)
+       (walk-atomo atom sigma walked-atom)
+       (acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
        (program/call-clause-with-guarded-alternativeso
          prog
          walked-atom
@@ -714,6 +755,7 @@
          alternatives
          negated-alternatives
          guarded-alternatives)
+       (support/l-ground-term*o args)
        (fresh [first-alternative second-alternative remaining-alternatives]
          (== (lcons first-alternative
                     (lcons second-alternative remaining-alternatives))
@@ -756,25 +798,25 @@
    chosen formula plus the remaining pending work."
   [agenda lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof]
   (fresh [fml unexpanded]
-    (support/selecto fml agenda unexpanded)
     (conde
-    ;; ================================================================
-    ;; Profiled branch handoff
-    ;; ================================================================
-    ;;
-    ;; Once the residual branch is isolated from active program calls and
-    ;; equality state, a specialized kernel layer may close it as a single
-    ;; proof-producing background step.
-    [(profiled-closeo fml unexpanded lits env sigma sigma-out neqs neqs-out prog gamma-terms fuel proof)]
-
-    ;; ================================================================
-    ;; Language-selected theory profile hook
-    ;; ================================================================
-    ;;
-    ;; Deduction-modulo and other theory profiles can bind a relational branch
-    ;; rule here. When unbound, this clause fails and the ordinary kernel rules
-    ;; below run unchanged.
-    [(theory-profile-closeo fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out prog gamma-terms fuel proof)]
+      [(acyclic-unifyo (lcons fml '()) agenda)
+       (== '() unexpanded)]
+      [(fresh [head tail]
+         (acyclic-unifyo (lcons head tail) agenda)
+         (!= '() tail)
+         (support/selecto fml agenda unexpanded))])
+    (letfn [(generic-close []
+              (conde
+	    ;; ================================================================
+	    ;; Profiled branch handoff
+	    ;; ================================================================
+	    ;;
+	    ;; Once the residual branch is isolated from active program calls and
+	    ;; equality state, a specialized kernel layer may close it as a single
+	    ;; proof-producing background step. Theory hooks run first because they may
+	    ;; own large object-language data, such as arithmetized proof certificates,
+	    ;; that the generic profile classifier should not inspect speculatively.
+	    [(profiled-closeo fml unexpanded lits env sigma sigma-out neqs neqs-out prog gamma-terms fuel proof)]
 
     ;; ================================================================
     ;; Alpha rule: conjunction
@@ -1015,7 +1057,7 @@
     ;; 5. otherwise continue with the updated substitution.
     [(fresh [lit left right contradiction-proof]
        (subst/subst-formulao fml env lit)
-       (== (list 'eq left right) lit)
+       (acyclic-unifyo (list 'eq left right) lit)
        (equality/eq-contradictiono left right sigma contradiction-proof)
        (== sigma sigma-out)
        (== neqs neqs-out)
@@ -1024,7 +1066,7 @@
     ;; New equality binding makes a previously saved disequality impossible.
     [(fresh [lit left right sigma-mid step-proof branch-proof]
        (subst/subst-formulao fml env lit)
-       (== (list 'eq left right) lit)
+       (acyclic-unifyo (list 'eq left right) lit)
        (equality/unify-termo left right sigma sigma-mid step-proof)
        (equality/neq-violatedo neqs sigma-mid branch-proof)
        (== sigma-mid sigma-out)
@@ -1033,7 +1075,7 @@
     ;; New equality binding makes a saved positive and negative atom unify.
     [(fresh [lit left right sigma-mid step-proof branch-proof]
        (subst/subst-formulao fml env lit)
-       (== (list 'eq left right) lit)
+       (acyclic-unifyo (list 'eq left right) lit)
        (equality/unify-termo left right sigma sigma-mid step-proof)
        (equality/contradictory-atomso lits sigma-mid sigma-out branch-proof)
        (support/prune-contradictory-neqso neqs sigma-out neqs-out)
@@ -1041,7 +1083,7 @@
     ;; New equality binding reopens a previously saved procedure call.
     [(fresh [lit left right sigma-mid step-proof branch-proof]
        (subst/subst-formulao fml env lit)
-       (== (list 'eq left right) lit)
+       (acyclic-unifyo (list 'eq left right) lit)
        (equality/unify-termo left right sigma sigma-mid step-proof)
        (saved-call-closeso lits proof-vars sigma-mid sigma-out neqs neqs-out prog gamma-terms fuel branch-proof)
        (== (list 'eq-step step-proof branch-proof) proof))]
@@ -1050,7 +1092,7 @@
     ;; remain genuinely open under the new substitution.
     [(fresh [lit left right sigma-mid step-proof next rest next-fuel prf]
        (subst/subst-formulao fml env lit)
-       (== (list 'eq left right) lit)
+       (acyclic-unifyo (list 'eq left right) lit)
        (equality/unify-termo left right sigma sigma-mid step-proof)
        (== (lcons next rest) unexpanded)
        (== (list 'eq-step step-proof prf) proof)
@@ -1080,7 +1122,7 @@
     ;; later rechecking after future equality steps.
     [(fresh [lit left right]
        (subst/subst-formulao fml env lit)
-       (== (list 'neq left right) lit)
+       (acyclic-unifyo (list 'neq left right) lit)
        (equality/same-termo left right sigma)
        (== sigma sigma-out)
        (== neqs neqs-out)
@@ -1091,7 +1133,7 @@
     ;; variables may witness the contradiction here.
     [(fresh [lit left right sigma-mid new-bindings binding rest step-proof]
        (subst/subst-formulao fml env lit)
-       (== (list 'neq left right) lit)
+       (acyclic-unifyo (list 'neq left right) lit)
        (equality/unify-termo left right sigma sigma-mid step-proof)
        (appendo new-bindings sigma sigma-mid)
        (== (lcons binding rest) new-bindings)
@@ -1104,7 +1146,7 @@
     ;; as delayed symbolic obligations.
     [(fresh [lit left right next rest next-fuel prf]
        (subst/subst-formulao fml env lit)
-       (== (list 'neq left right) lit)
+       (acyclic-unifyo (list 'neq left right) lit)
        (support/rigid-different-termo left right sigma)
        (== (lcons next rest) unexpanded)
        (== (list 'neq-rigid prf) proof)
@@ -1125,7 +1167,7 @@
     ;; Otherwise retain the disequality as a delayed symbolic obligation.
     [(fresh [lit left right next rest next-fuel prf]
        (subst/subst-formulao fml env lit)
-       (== (list 'neq left right) lit)
+       (acyclic-unifyo (list 'neq left right) lit)
        (== (lcons next rest) unexpanded)
        (== (list 'neq-store prf) proof)
        (support/step-fuelo fuel next-fuel)
@@ -1151,21 +1193,21 @@
     ;; Failing that, Fitting's Procedure Call Rule may open a subsidiary
     ;; tableau for the body of the matching clause. If neither applies yet, the
     ;; atom is saved on the branch for possible later equality-triggered use.
-    [(fresh [lit atom]
-       (subst/subst-formulao fml env lit)
-       (== (list 'pos atom) lit)
-       (support/complementary-lito lit lits sigma sigma-out proof)
-       (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
+	    [(fresh [lit atom]
+	       (subst/subst-formulao fml env lit)
+	       (acyclic-unifyo (list 'pos atom) lit)
+	       (support/complementary-lito lit lits sigma sigma-out proof)
+	       (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
     ;; Positive procedure call: only admissible once equality has walked the
     ;; arguments into the object language `L`.
-    [(fresh [lit atom walked-atom relation args call-env body negated-body next-fuel subproof]
-       (subst/subst-formulao fml env lit)
-       (== (list 'pos atom) lit)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
-       (program/call-clauseo prog walked-atom call-env body negated-body)
-       (== (list 'pos-call subproof) proof)
+	    [(fresh [lit atom walked-atom relation args call-env body negated-body next-fuel subproof]
+	       (subst/subst-formulao fml env lit)
+	       (acyclic-unifyo (list 'pos atom) lit)
+	       (walk-atomo atom sigma walked-atom)
+	       (acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+	       (program/call-clauseo prog walked-atom call-env body negated-body)
+	       (support/l-ground-term*o args)
+	       (== (list 'pos-call subproof) proof)
        (support/step-fuelo fuel next-fuel)
        (recursive-prove-stateo body
                                '()
@@ -1181,10 +1223,10 @@
                                next-fuel
                                subproof))]
     ;; Save the positive atom if it cannot close or call immediately.
-    [(fresh [lit atom next rest next-fuel prf]
-       (subst/subst-formulao fml env lit)
-       (== (list 'pos atom) lit)
-       (== (lcons next rest) unexpanded)
+	    [(fresh [lit atom next rest next-fuel prf]
+	       (subst/subst-formulao fml env lit)
+	       (acyclic-unifyo (list 'pos atom) lit)
+	       (== (lcons next rest) unexpanded)
        (== (list 'savefml prf) proof)
        (support/step-fuelo fuel next-fuel)
        (recursive-prove-stateo next
@@ -1207,21 +1249,21 @@
     ;;
     ;; Symmetric to the positive case, except that the procedure call proves
     ;; the NNF negation of the clause body.
-    [(fresh [lit atom]
-       (subst/subst-formulao fml env lit)
-       (== (list 'neg atom) lit)
-       (support/complementary-lito lit lits sigma sigma-out proof)
-       (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
+	    [(fresh [lit atom]
+	       (subst/subst-formulao fml env lit)
+	       (acyclic-unifyo (list 'neg atom) lit)
+	       (support/complementary-lito lit lits sigma sigma-out proof)
+	       (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
     ;; Negative procedure call: this is Fitting's Part 2 operationalized over
     ;; the compiled clause's precomputed `negated-body`.
-    [(fresh [lit atom walked-atom relation args call-env body negated-body alternatives negated-alternatives guarded-alternatives subproof]
-       (subst/subst-formulao fml env lit)
-       (== (list 'neg atom) lit)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
-       (program/call-clause-with-guarded-alternativeso
-         prog walked-atom call-env body negated-body alternatives negated-alternatives guarded-alternatives)
+	    [(fresh [lit atom walked-atom relation args call-env body negated-body alternatives negated-alternatives guarded-alternatives subproof]
+	       (subst/subst-formulao fml env lit)
+	       (acyclic-unifyo (list 'neg atom) lit)
+	       (walk-atomo atom sigma walked-atom)
+	       (acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+	       (program/call-clause-with-guarded-alternativeso
+	         prog walked-atom call-env body negated-body alternatives negated-alternatives guarded-alternatives)
+	       (support/l-ground-term*o args)
        (fresh [first-alternative second-alternative remaining-alternatives]
          (== (lcons first-alternative
                     (lcons second-alternative remaining-alternatives))
@@ -1238,14 +1280,14 @@
                                        gamma-terms
                                        fuel
                                        subproof))]
-    [(fresh [lit atom walked-atom relation args call-env body negated-body alternatives negated-alternatives subproof]
-       (subst/subst-formulao fml env lit)
-       (== (list 'neg atom) lit)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
-       (program/call-clause-with-alternativeso
-         prog walked-atom call-env body negated-body alternatives negated-alternatives)
+	    [(fresh [lit atom walked-atom relation args call-env body negated-body alternatives negated-alternatives subproof]
+	       (subst/subst-formulao fml env lit)
+	       (acyclic-unifyo (list 'neg atom) lit)
+	       (walk-atomo atom sigma walked-atom)
+	       (acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+	       (program/call-clause-with-alternativeso
+	         prog walked-atom call-env body negated-body alternatives negated-alternatives)
+	       (support/l-ground-term*o args)
        (fresh [first-alternative second-alternative remaining-alternatives]
          (== (lcons first-alternative
                     (lcons second-alternative remaining-alternatives))
@@ -1262,13 +1304,13 @@
                            gamma-terms
                            fuel
                            subproof))]
-    [(fresh [lit atom walked-atom relation args call-env body negated-body next-fuel subproof]
-       (subst/subst-formulao fml env lit)
-       (== (list 'neg atom) lit)
-       (equality/walk-atomo atom sigma walked-atom)
-       (== (lcons 'app (lcons relation args)) walked-atom)
-       (support/l-ground-term*o args)
-       (program/call-clauseo prog walked-atom call-env body negated-body)
+	    [(fresh [lit atom walked-atom relation args call-env body negated-body next-fuel subproof]
+	       (subst/subst-formulao fml env lit)
+	       (acyclic-unifyo (list 'neg atom) lit)
+	       (walk-atomo atom sigma walked-atom)
+	       (acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+	       (program/call-clauseo prog walked-atom call-env body negated-body)
+	       (support/l-ground-term*o args)
        (== (list 'neg-call subproof) proof)
        (support/step-fuelo fuel next-fuel)
        (recursive-prove-stateo negated-body
@@ -1285,10 +1327,10 @@
                                next-fuel
                                subproof))]
     ;; Save the negative atom if it cannot yet close or call.
-    [(fresh [lit atom next rest next-fuel prf]
-       (subst/subst-formulao fml env lit)
-       (== (list 'neg atom) lit)
-       (== (lcons next rest) unexpanded)
+	    [(fresh [lit atom next rest next-fuel prf]
+	       (subst/subst-formulao fml env lit)
+	       (acyclic-unifyo (list 'neg atom) lit)
+	       (== (lcons next rest) unexpanded)
        (== (list 'savefml prf) proof)
        (support/step-fuelo fuel next-fuel)
        (recursive-prove-stateo next
@@ -1300,10 +1342,25 @@
                                sigma-out
                                neqs
                                neqs-out
-                               prog
-                               gamma-terms
-                               next-fuel
-                               prf))])))
+	                               prog
+	                               gamma-terms
+	                               next-fuel
+	                               prf))]))]
+      (conde
+        [(theory-profile-closeo fml
+                                unexpanded
+                                lits
+                                env
+                                proof-vars
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                gamma-terms
+                                fuel
+                                proof)]
+        [(generic-close)]))))
 
 (defn prove-stateo
   "Backward-compatible current-formula wrapper over the fair agenda kernel.

@@ -44,6 +44,13 @@ lein test-proflog-sjas-slow
 ;; real 746.91 s
 ```
 
+Both full-suite runs above predate the ADR-0086 `0 = 1` SelfCons target and
+the ADR-0087 Level-1 corrections, which together add four tests to the
+namespace and enlarge the Group-3 codes; the public Tableau-0 SelfCons
+selector alone now takes about 8m30s. Re-baseline against
+[TEST_RUNTIME_BASELINE](../docs/TEST_RUNTIME_BASELINE.md) before relying on
+the totals.
+
 ## Hand-Written Intent
 
 The object language now uses binary numeral constants:
@@ -554,9 +561,8 @@ performance-oriented path.
 The compiled program intentionally leaves `:sjas/proof-targets` nil. The proof
 profile instead decodes `system-code`, `theorem-code`, and `proof-code` through
 the generated code registry and the proof byte decoder. `SelfCons0` therefore
-mentions a real contradiction code, not a magic table key; if an inconsistent
-beta basis proves `false`, the resulting certificate can be checked against
-`contradiction-code`.
+mentions a real contradiction code, not a magic table key. For ordinary
+Tableau-0, that code denotes Willard's minimal target `0 = 1`.
 
 ## Arithmetic Evaluation
 
@@ -716,7 +722,7 @@ system:
 (def inconsistent-system
   (sjas/system
     {:profile :willard-sjas-tableau0
-     :beta [(ast/false-form)]}))
+     :beta [(ast/eq-lit sjas/zero sjas/one)]}))
 
 (let [certificate (sjas/proof-certificate 'sjas-axiom)]
   (query/query-succeeds
@@ -729,10 +735,10 @@ system:
 ;; => one proof
 ```
 
-The point of the control is not to recommend false beta axioms. It demonstrates
-that the system's `:contradiction-code` denotes a real proof target: when the
-reflected basis explicitly includes `false`, the profile can check an
-object-language axiom citation for that contradiction code.
+The point of the control is not to recommend inconsistent beta axioms. It
+demonstrates that the system's `:contradiction-code` denotes a real proof
+target: when the reflected basis explicitly includes `0 = 1`, the profile can
+check an object-language axiom citation for that contradiction code.
 
 ## Substitution-Proof Predicate
 
@@ -786,6 +792,14 @@ substitution source, and rejects a malformed `refl-close` certificate for the
 beta theorem. A structural check also verifies that the generated Level-1
 Group-3 formula contains `neg-pair/2` and `subst-prf/4`, but no raw
 `tableau-proof/3`.
+
+ADR-0087 restricts the Level-1 pair to the literature class: Willard 2013
+sentence (7) requires the paired `x` to code a Pi-star-1 sentence, so the
+generated Group-3 matrix now opens with a `pi-star-1-code/1` restriction
+ahead of `neg-pair/2`, encoding Willard's `Delta*0` `Pair(x,y)` as two
+reserved vocabulary atoms. The same ADR validates at build time that every
+beta member and reflected Group-2b clause formula has a Pi-star-1 encoding,
+and closes the `Delta-star-0` classifiers under `not` and `implies`.
 
 ADR-0065 adds the fixed-point check. The generated Level-1 system exposes the
 code of the skeleton `Gamma_1(g)`:

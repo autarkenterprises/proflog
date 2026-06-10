@@ -1,7 +1,7 @@
 (ns proflog.subst-test
   (:refer-clojure :exclude [==])
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.core.logic :refer [fresh run* ==]]
+            [clojure.core.logic :refer [fresh lcons run* ==]]
             [proflog.ast :as ast]
             [proflog.subst :as subst]))
 
@@ -110,6 +110,20 @@
                    (list [binding-nom (ast/app-term 'zero)])
                    (ast/pos-lit (ast/app-term 'p (ast/app-term 'zero))))
                  (== binding-nom x))))))))
+
+(deftest lookupo-guards-skipped-nominal-key
+  (testing "relational lookup cannot skip a key that later aliases the search key"
+    (ast/nom wanted
+      (is (= [:first]
+             (run* [q]
+               (fresh [key skipped out]
+                 (subst/lookupo key
+                                (lcons [skipped :first]
+                                       (lcons [wanted :second] '()))
+                                out)
+                 (== key skipped)
+                 (== skipped wanted)
+                 (== q out))))))))
 
 (deftest subst-formulao-preserves-binder-shadowing-in-preimage-mode
   (testing "reverse substitution under binders still removes shadowed environment bindings"

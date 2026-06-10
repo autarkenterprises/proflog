@@ -150,6 +150,25 @@
                (ast/pos-lit (ast/app-term 'undef (numeral 0)))
                {:timeout-ms 1000}))))))
 
+(deftest query-status-can-stop-at-a-fuel-frontier
+  (testing "status checks can reject an expensive next slice without treating the wall clock as a hard interrupt"
+    (let [program (p2-program)
+          query (ast/pos-lit (ast/app-term 'win (numeral 1)))]
+      (is (= :unresolved
+             (query/query-status
+               program
+               query
+               {:timeout-ms 10000
+                :poll-ms 0
+                :max-fuel 4})))
+      (is (= :succeeds
+             (query/query-status
+               program
+               query
+               {:timeout-ms 10000
+                :poll-ms 0
+                :max-fuel 8}))))))
+
 (deftest query-status-can-report-inconsistent-for-unsound-compiled-program
   (testing "a validated query can still expose an inconsistent compiled-program artifact"
     (let [program (inconsistent-status-program)

@@ -59,6 +59,23 @@ timeout -k 5s 480s lein test proflog.fitting-programs-test
   0 failures, 0 errors.
 ```
 
+2026-05-28 regression-gate refresh:
+
+```text
+timeout -k 5s 900s lein test-proflog-fitting-programs
+  Ran 6 tests containing 81 assertions.
+  0 failures, 0 errors.
+  elapsed_s=72.23
+```
+
+The refresh added a structural `:max-fuel` option to `query-status` for
+bounded unresolved catalog rows and raised `append-inverse-flat` to raw answer
+limit `10`, the first current answer-stream limit that exposes all four target
+splits. Because this touched query behavior, the same work also reran
+`lein test-proflog-fast` (`159` tests / `594` assertions, `elapsed_s=98.39`)
+and `lein test-proflog-extended` (`68` tests / `203` assertions,
+`elapsed_s=247.66`) successfully.
+
 `proflog.fitting-programs-test` remains a dedicated ADR gate rather than part of
 `test-proflog-extended`, because its raw list-kernel proof-search slice is
 intentionally more expensive than routine answer/API regression tests.

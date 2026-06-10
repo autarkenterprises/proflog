@@ -5,16 +5,17 @@
 
    - U-grounding arithmetic is interpreted as relations over binary numerals
      whose object-language constants are `0` and `1`;
-   - `tableau-proof/3` checks a structural proof certificate by running the
-     existing Proflog kernel with the decoded proof term already supplied;
+   - `tableau-proof/3` checks structural proof certificates through an
+     SJAS-side proof-check relation over decoded proof constructors;
    - `subst-prf/4` exposes the Level-1 substitution-proof vocabulary by
      decoding formula codes and checking diagonal substitution structurally.
 
    The profile therefore remains a tableau extension, not a host-side evaluator:
    arithmetic constraints and proof checking are both miniKanren goals
-   interleaved at the branch rule boundary."
+  interleaved at the branch rule boundary."
   (:refer-clojure :exclude [== < <=])
-  (:require [clojure.core.logic :refer [!= == conde fail fresh lcons lvar membero or* run]]
+  (:require [clojure.core.logic :as logic
+             :refer [!= == appendo conde fail fresh lcons membero or* run]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
@@ -35,6 +36,8 @@
   [proof]
   (if (and (seq? proof)
            (= 'profiled (first proof))
+           (contains? '#{willard-sjas-tableau0 willard-sjas-level1}
+                      (second proof))
            (= 3 (count proof)))
     (nth proof 2)
     proof))
@@ -61,14 +64,14 @@
     [(fresh [tail tail-term tail-proof]
        (== (lcons 0 tail) bits)
        (arith/poso tail)
-       (bits->canonical-termo tail tail-term tail-proof)
        (== (list 'app 'dbl tail-term) term)
+       (bits->canonical-termo tail tail-term tail-proof)
        (== (list 'sjas-num-dbl tail-proof) proof))]
     [(fresh [tail tail-term tail-proof]
        (== (lcons 1 tail) bits)
        (arith/poso tail)
-       (bits->canonical-termo tail tail-term tail-proof)
        (== (list 'app 'add (list 'app 'dbl tail-term) one-term) term)
+       (bits->canonical-termo tail tail-term tail-proof)
        (== (list 'sjas-num-add-one tail-proof) proof))]))
 
 (defn- bits->internal-canonical-termo
@@ -364,6 +367,231 @@
        (sjas-pending-bindso pending-all sigma-read sigma-out bind-proof)
        (== (list 'sjas-lt left-proof right-proof bind-proof) proof))]))
 
+(defn- distinct-num-bitso
+  "Relate two canonical binary numerals that denote different numbers."
+  [left right]
+  (conde
+    [(arith/<o left right)]
+    [(arith/<o right left)]))
+
+(defn- sjas-relation-failso
+  "Proof-producing evaluator for false SJAS arithmetic relation atoms.
+
+   Tableau closure is two-sided for interpreted arithmetic atoms: `not R(args)`
+   closes when `R(args)` is true, and `R(args)` closes when the interpreted
+   relation is false. This relation is deliberately ground after equality
+   walking: all `sjas-num-inputo` calls require an empty pending-bind output, so
+   the checker cannot make a false atom close by assigning an open proof
+   variable."
+  [relation args sigma sigma-out proof]
+  (conde
+    [(fresh [left right product left-bits right-bits product-bits expected-bits
+             sigma-left sigma-right sigma-read left-proof right-proof
+             product-proof]
+       (== 'mult relation)
+       (== (lcons left (lcons right (lcons product '()))) args)
+       (sjas-num-inputo left left-bits sigma sigma-left '() '() left-proof)
+       (sjas-num-inputo right right-bits sigma-left sigma-right '() '() right-proof)
+       (sjas-num-inputo product product-bits sigma-right sigma-read '() '() product-proof)
+       (arith/*o left-bits right-bits expected-bits)
+       (distinct-num-bitso expected-bits product-bits)
+       (== sigma-read sigma-out)
+       (== (list 'sjas-not-mult left-proof right-proof product-proof) proof))]
+    [(fresh [left right left-bits right-bits sigma-left sigma-read
+             left-proof right-proof]
+       (== 'leq relation)
+       (== (lcons left (lcons right '())) args)
+       (sjas-num-inputo left left-bits sigma sigma-left '() '() left-proof)
+       (sjas-num-inputo right right-bits sigma-left sigma-read '() '() right-proof)
+       (arith/<o right-bits left-bits)
+       (== sigma-read sigma-out)
+       (== (list 'sjas-not-leq left-proof right-proof) proof))]
+    [(fresh [left right left-bits right-bits sigma-left sigma-read
+             left-proof right-proof]
+       (== 'lt relation)
+       (== (lcons left (lcons right '())) args)
+       (sjas-num-inputo left left-bits sigma sigma-left '() '() left-proof)
+       (sjas-num-inputo right right-bits sigma-left sigma-read '() '() right-proof)
+       (arith/<=o right-bits left-bits)
+       (== sigma-read sigma-out)
+       (== (list 'sjas-not-lt left-proof right-proof) proof))]))
+
+(declare sjas-num-input-coreo
+         sjas-unify-termo-coreo)
+
+(defn- bits->canonical-termo-coreo
+  "Proof-free version of `bits->canonical-termo`.
+
+   Structural tableau arithmetic needs the canonical numeral term only to bind
+   pending object variables. The proof trace explaining that numeral read is
+   not part of the formula-bearing tableau tree."
+  [bits term]
+  (conde
+    [(== '() bits)
+     (== zero-term term)]
+    [(== one-bits bits)
+     (== one-term term)]
+    [(fresh [tail tail-term]
+       (== (lcons 0 tail) bits)
+       (arith/poso tail)
+       (== (list 'app 'dbl tail-term) term)
+       (bits->canonical-termo-coreo tail tail-term))]
+    [(fresh [tail tail-term]
+       (== (lcons 1 tail) bits)
+       (arith/poso tail)
+       (== (list 'app 'add (list 'app 'dbl tail-term) one-term) term)
+       (bits->canonical-termo-coreo tail tail-term))]))
+
+(defn- sjas-pending-binds-coreo
+  "Bind delayed arithmetic variables without constructing read proofs."
+  [pending sigma sigma-out]
+  (conde
+    [(== '() pending)
+     (== sigma sigma-out)]
+    [(fresh [term bits rest canonical sigma-mid]
+       (== (lcons [term bits] rest) pending)
+       (bits->canonical-termo-coreo bits canonical)
+       (sjas-unify-termo-coreo term canonical sigma sigma-mid)
+       (sjas-pending-binds-coreo rest sigma-mid sigma-out))]))
+
+(defn- sjas-num-app-coreo
+  "Proof-free reader for public SJAS arithmetic application terms."
+  [walked bits sigma sigma-out pending pending-out]
+  (conde
+    [(== zero-term walked)
+     (== '() bits)
+     (== sigma sigma-out)
+     (== pending pending-out)]
+    [(== one-term walked)
+     (== one-bits bits)
+     (== sigma sigma-out)
+     (== pending pending-out)]
+    [(fresh [arg arg-bits]
+       (== (list 'app 'dbl arg) walked)
+       (sjas-num-input-coreo arg arg-bits sigma sigma-out pending pending-out)
+       (arith/pluso arg-bits arg-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'add left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (arith/pluso left-bits right-bits bits))]
+    [(fresh [arg arg-bits]
+       (== (list 'app 'pred arg) walked)
+       (sjas-num-input-coreo arg arg-bits sigma sigma-out pending pending-out)
+       (sjas-monuso arg-bits one-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'sub left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (sjas-monuso left-bits right-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'div left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (sjas-divo left-bits right-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'max left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (sjas-maxo left-bits right-bits bits))]
+    [(fresh [arg arg-bits]
+       (== (list 'app 'log arg) walked)
+       (sjas-num-input-coreo arg arg-bits sigma sigma-out pending pending-out)
+       (sjas-logo arg-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'root left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (sjas-rooto left-bits right-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'count left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (sjas-counto left-bits right-bits bits))]))
+
+(defn- sjas-num-input-coreo
+  "Read an SJAS arithmetic term to bits without returning proof evidence."
+  [term bits sigma sigma-out pending pending-out]
+  (fresh [walked]
+    (equality/walk*o term sigma walked)
+    (conde
+      [(fresh [nom]
+         (== (list 'var nom) walked)
+         (== sigma sigma-out)
+         (== (lcons [walked bits] pending) pending-out))]
+      [(sjas-num-app-coreo walked bits sigma sigma-out pending pending-out)])))
+
+(defn- sjas-normal-equal-coreo
+  "Proof-free arithmetic equality over SJAS numeral terms."
+  [left right sigma sigma-out]
+  (fresh [left-bits right-bits sigma-left sigma-read pending-left pending-all]
+    (sjas-num-input-coreo left left-bits sigma sigma-left '() pending-left)
+    (sjas-num-input-coreo right right-bits sigma-left sigma-read pending-left pending-all)
+    (== left-bits right-bits)
+    (sjas-pending-binds-coreo pending-all sigma-read sigma-out)))
+
+(defn- sjas-relation-holds-coreo
+  "Proof-free evaluator for SJAS arithmetic relation leaves."
+  [relation args sigma sigma-out]
+  (conde
+    [(fresh [left right product left-bits right-bits product-bits
+             sigma-left sigma-right sigma-read pending-left pending-right pending-all]
+       (== 'mult relation)
+       (== (lcons left (lcons right (lcons product '()))) args)
+       (sjas-num-input-coreo left left-bits sigma sigma-left '() pending-left)
+       (sjas-num-input-coreo right right-bits sigma-left sigma-right pending-left pending-right)
+       (sjas-num-input-coreo product product-bits sigma-right sigma-read pending-right pending-all)
+       (arith/*o left-bits right-bits product-bits)
+       (sjas-pending-binds-coreo pending-all sigma-read sigma-out))]
+    [(fresh [left right left-bits right-bits sigma-left sigma-read
+             pending-left pending-all]
+       (== 'leq relation)
+       (== (lcons left (lcons right '())) args)
+       (sjas-num-input-coreo left left-bits sigma sigma-left '() pending-left)
+       (sjas-num-input-coreo right right-bits sigma-left sigma-read pending-left pending-all)
+       (arith/<=o left-bits right-bits)
+       (sjas-pending-binds-coreo pending-all sigma-read sigma-out))]
+    [(fresh [left right left-bits right-bits sigma-left sigma-read
+             pending-left pending-all]
+       (== 'lt relation)
+       (== (lcons left (lcons right '())) args)
+       (sjas-num-input-coreo left left-bits sigma sigma-left '() pending-left)
+       (sjas-num-input-coreo right right-bits sigma-left sigma-read pending-left pending-all)
+       (arith/<o left-bits right-bits)
+       (sjas-pending-binds-coreo pending-all sigma-read sigma-out))]))
+
+(defn- sjas-relation-fails-coreo
+  "Proof-free evaluator for false SJAS arithmetic relation leaves.
+
+   The empty pending-bind arguments make this a ground-after-walk closure
+   relation, matching `sjas-relation-failso` without constructing proof traces."
+  [relation args sigma sigma-out]
+  (conde
+    [(fresh [left right product left-bits right-bits product-bits expected-bits
+             sigma-left sigma-right sigma-read]
+       (== 'mult relation)
+       (== (lcons left (lcons right (lcons product '()))) args)
+       (sjas-num-input-coreo left left-bits sigma sigma-left '() '())
+       (sjas-num-input-coreo right right-bits sigma-left sigma-right '() '())
+       (sjas-num-input-coreo product product-bits sigma-right sigma-read '() '())
+       (arith/*o left-bits right-bits expected-bits)
+       (distinct-num-bitso expected-bits product-bits)
+       (== sigma-read sigma-out))]
+    [(fresh [left right left-bits right-bits sigma-left sigma-read]
+       (== 'leq relation)
+       (== (lcons left (lcons right '())) args)
+       (sjas-num-input-coreo left left-bits sigma sigma-left '() '())
+       (sjas-num-input-coreo right right-bits sigma-left sigma-read '() '())
+       (arith/<o right-bits left-bits)
+       (== sigma-read sigma-out))]
+    [(fresh [left right left-bits right-bits sigma-left sigma-read]
+       (== 'lt relation)
+       (== (lcons left (lcons right '())) args)
+       (sjas-num-input-coreo left left-bits sigma sigma-left '() '())
+       (sjas-num-input-coreo right right-bits sigma-left sigma-read '() '())
+       (arith/<=o right-bits left-bits)
+       (== sigma-read sigma-out))]))
+
 ;; -----------------------------------------------------------------------------
 ;; Arithmetic code decoding
 ;; -----------------------------------------------------------------------------
@@ -386,10 +614,28 @@
                  byte])
               (range sjas-code/byte-base))))
 
-(def ^:private code-byte-term-entries
+(defn- compact-code-byte-term
+  "Host-build the finite source expansion for one compact byte numeral.
+
+   This is used to generate `byte-term-entries`, a 64-clause object relation
+   for the fixed base-64 digit language. It is not a semantic registry lookup:
+   every entry is just the canonical U-grounding numeral term that the recursive
+   `compact-code-byte-bits-termo` relation defines for the same byte."
+  [byte]
+  (letfn [(build [bits]
+            (cond
+              (empty? bits) zero-term
+              (= one-bits bits) one-term
+              (zero? (first bits)) (ast/app-term 'dbl (build (rest bits)))
+              :else (ast/app-term 'add
+                                   (ast/app-term 'dbl (build (rest bits)))
+                                   one-term)))]
+    (build (arith/build-num byte))))
+
+(def ^:private byte-term-entries
   (apply list
          (map (fn [byte]
-                [(nth sjas-code/byte-terms byte) byte])
+                [(compact-code-byte-term byte) byte])
               (range sjas-code/byte-base))))
 
 (def ^:private code-constructor-entries
@@ -412,17 +658,44 @@
                  sym])
               sjas-code/index->proof-symbol)))
 
+(def ^:private proof-byte-entries
+  (apply list (range sjas-code/byte-base)))
+
+(def ^:private proof-byte-decrement-entries
+  (apply list
+         (map (fn [byte] [byte (dec byte)])
+              (range 1 sjas-code/byte-base))))
+
+(def ^:private app-arity-counts
+  (range (dec sjas-code/byte-base)))
+
+(declare sjas-acyclic-unifyo)
+
+(defn- static-table-entryo
+  "Relate `entry` to one element of a fixed finite SJAS metadata table.
+
+   These tables are generated from host constants at load time. Expanding them
+   as explicit alternatives avoids recursive `membero` scheduling and uses the
+   local acyclic unifier because the candidate entries themselves cannot contain
+   cyclic logic structure."
+  [entry entries]
+  (or*
+    (map (fn [candidate]
+           (fresh []
+             (sjas-acyclic-unifyo entry candidate)))
+         entries)))
+
+(defn- proof-byte-decremento
+  [byte predecessor]
+  (static-table-entryo [byte predecessor] proof-byte-decrement-entries))
+
 (defn- byte-bitso
   [bits byte]
-  (fresh [entry]
-    (membero entry byte-bit-entries)
-    (== [bits byte] entry)))
+  (static-table-entryo [bits byte] byte-bit-entries))
 
 (defn- byte-six-bitso
   [bits byte]
-  (fresh [entry]
-    (membero entry byte-six-bit-entries)
-    (== [bits byte] entry)))
+  (static-table-entryo [bits byte] byte-six-bit-entries))
 
 (defn- bit-prefixo
   [prefix bits rest]
@@ -520,124 +793,280 @@
          (== (lcons byte tail-bytes) bytes)
          (== (list 'sjas-ug-code-cons cons-proof tail-proof) proof))])))
 
-(defn- ground-pop-bit
-  "Return `[bit tail-term]` for one ground canonical U-Grounding numeral step.
+(defn- sjas-acyclic-unifyo
+  "Unify acyclic SJAS constructor terms without a recursive occurs check.
 
-   This helper inspects only the root constructor and its immediate children.
-   It deliberately does not compute the numeral's value; the recursive decoder
-   still consumes the object-language `dbl`/`add` structure one bit at a time."
-  [term]
-  (cond
-    (= zero-term term)
-    [0 zero-term]
+   U-Grounding public codes are deeply nested first-order numerals. Ordinary
+   core.logic unification checks whether a fresh tail variable occurs anywhere
+   in the remaining numeral, which can overflow the host stack for substantive
+   proof-code numerals before the arithmeticized reader has peeled the next
+   byte. This helper is intentionally limited to constructor decomposition in
+   the code reader: it does not project bytes in host Clojure, and it restores
+   the caller's occurs-check setting after the local unifier step."
+  [left right]
+  (fn [state]
+    (let [had-constraints? (pos? (count (:cs state)))
+          prepared-state (cond-> state
+                           had-constraints? (assoc :vs [])
+                           true (assoc :oc false))
+          unified-state (logic/unify prepared-state left right)]
+      (when unified-state
+        (let [restored-state (assoc unified-state :oc (:oc state))
+              changed-vars (when had-constraints? (:vs restored-state))]
+          (if (and had-constraints? (pos? (count changed-vars)))
+            ((logic/run-constraints* changed-vars
+                                     (:cs restored-state)
+                                     ::subst)
+             (assoc restored-state :vs nil))
+            restored-state))))))
 
-    (= one-term term)
-    [1 zero-term]
+(defn- sjas-code-walko
+  "Walk a public code term through equality state without deep ground occurs checks."
+  [term sigma walked]
+  (conde
+    [(== '() sigma)
+     (sjas-acyclic-unifyo term walked)]
+    [(fresh []
+       (!= '() sigma)
+       (equality/walko term sigma walked))]))
 
-    (and (seq? term)
-         (= 'app (first term))
-         (= 'dbl (second term)))
-    [0 (nth term 2)]
+(defn- sjas-walk-termo
+  "Walk a first-order SJAS term through equality state.
 
-    (and (seq? term)
-         (= 'app (first term))
-         (= 'add (second term))
-         (= one-term (nth term 3 nil)))
-    (let [doubled (nth term 2 nil)]
-      (when (and (seq? doubled)
-                 (= 'app (first doubled))
-                 (= 'dbl (second doubled)))
-        [1 (nth doubled 2)]))
+   When there is no equality substitution, walking is the identity relation. The
+   identity case uses the same shallow acyclic binding as the public code reader
+   so a formula-bearing proof certificate can be carried as object data without
+   a host-stack-sized occurs check."
+  [term sigma walked]
+  (sjas-code-walko term sigma walked))
 
-    :else
-    nil))
+(defn- sjas-canonical-nonzero-termo
+  "Succeed when a canonical public U-Grounding numeral is structurally nonzero."
+  [term sigma]
+  (fresh [walked]
+    (sjas-code-walko term sigma walked)
+    (conde
+      [(fresh [arg]
+         (sjas-acyclic-unifyo (list 'app 'dbl arg) walked))]
+      [(fresh [arg]
+         (sjas-acyclic-unifyo (list 'app 'add arg one-term) walked))]
+      [(sjas-acyclic-unifyo one-term walked)])))
 
-(defn- ground-pop-byte
-  "Host-stack-safe byte popper for already-ground public code terms.
+(defn- sjas-subst-formulao
+  "Substitute formula variables without walking ground proof-code numerals.
 
-   This is an operational projector for the already-ground public code term. It
-   follows the same six root-constructor pops as the relation above; it does
-   not use generated code constructors, hashes, or a total object-language
-   multiplication function."
-  [term]
-  (loop [remaining 6
-         current term
-         byte 0
-         bit-index 0]
-    (if (zero? remaining)
-      [byte current]
-      (when-let [[bit tail] (ground-pop-bit current)]
-        (recur (dec remaining)
-               tail
-               (if (zero? bit)
-                 byte
-                 (bit-set byte bit-index))
-               (inc bit-index))))))
+   Public SJAS proof predicates are normally entered with an empty environment.
+   In that case substitution is the identity relation, so using ordinary
+   `subst-formulao` would only recurse through large arithmeticized code terms
+   before returning the same formula. Nonempty environments still delegate to the
+   shared substitution relation."
+  [formula env out]
+  (conde
+    [(== '() env)
+     (sjas-acyclic-unifyo formula out)]
+    [(fresh []
+       (!= '() env)
+       (subst/subst-formulao formula env out))]))
 
-(defn- ground-u-grounding-code-term-bytes
-  "Decode a ground public U-Grounding code term by repeated byte pops.
+(defn- sjas-walk-atomo
+  "Walk an atom through equality state without deep-scanning empty sigma cases."
+  [atom sigma out]
+  (conde
+    [(== '() sigma)
+     (sjas-acyclic-unifyo atom out)]
+    [(fresh []
+       (!= '() sigma)
+       (equality/walk-atomo atom sigma out))]))
 
-   The sentinel byte bounds the loop. An ill-formed term returns nil rather than
-   synthesizing bytes."
-  [term]
-  (loop [current term
-         out []
-         steps 0]
-    (when (clojure.core/<= steps sjas-code/max-code-bytes)
-      (when-let [[byte tail] (ground-pop-byte current)]
-        (if (and (= sjas-code/u-grounding-sentinel-byte byte)
-                 (= zero-term tail))
-          out
-          (recur tail
-                 (conj out byte)
-                 (inc steps)))))))
+(defn- canonical-bit-termo
+  "Peel one low bit from a canonical public U-Grounding numeral term."
+  [term bit tail sigma sigma-out proof]
+  (fresh [walked]
+    (sjas-code-walko term sigma walked)
+    (conde
+      [(fresh [arg doubled]
+         (sjas-acyclic-unifyo (list 'app 'add doubled one-term) walked)
+         (sjas-acyclic-unifyo (list 'app 'dbl arg) doubled)
+         (== 1 bit)
+         (sjas-acyclic-unifyo arg tail)
+         (== sigma sigma-out)
+         (== '(sjas-ug-code-bit-add-one) proof))]
+      [(fresh [arg]
+         (sjas-acyclic-unifyo (list 'app 'dbl arg) walked)
+         (== 0 bit)
+         (sjas-acyclic-unifyo arg tail)
+         (== sigma sigma-out)
+         (== '(sjas-ug-code-bit-dbl) proof))]
+      [(sjas-acyclic-unifyo zero-term walked)
+       (== 0 bit)
+       (sjas-acyclic-unifyo zero-term tail)
+       (== sigma sigma-out)
+       (== '(sjas-ug-code-bit-zero) proof)]
+      [(sjas-acyclic-unifyo one-term walked)
+       (== 1 bit)
+       (sjas-acyclic-unifyo zero-term tail)
+       (== sigma sigma-out)
+       (== '(sjas-ug-code-bit-one) proof)])))
 
-(defn- ground-formal-code-term
-  "Return `[bytes kind read-proof]` for an already-ground public code term.
+(defn- canonical-byte-cons-proofo
+  "Record the fixed-radix byte equation proven by six canonical bit peels."
+  [tail proof]
+  (conde
+    [(sjas-canonical-nonzero-termo tail '())
+     (== (list 'sjas-ug-code-byte-cons
+               '(sjas-ug-code-mul64-shift)
+               '(sjas-ug-code-canonical-byte))
+         proof)]
+    [(sjas-acyclic-unifyo zero-term tail)
+     (== (list 'sjas-ug-code-byte-cons
+               '(sjas-ug-code-mul64-zero)
+               '(sjas-ug-code-canonical-byte))
+         proof)]))
 
-   This is a deterministic entry shortcut, not a theorem decision procedure. It
-   keeps large U-Grounding numerals from first becoming a deep logic binding
-   that core.logic then re-walks during every formula-parser unification. The
-   formula, proof, and substitution predicates still consume the resulting byte
-   stream through their ordinary structural relations."
-  [term]
-  (if-let [bytes (ground-u-grounding-code-term-bytes term)]
-    [bytes :u-grounding '(sjas-ug-code-bytes)]
-    (when-let [bytes (sjas-code/code-term-bytes term)]
-      [bytes :compact '(sjas-code-bytes)])))
+(defn- canonical-byte-termo
+  "Peel one base-64 byte from a canonical U-Grounding numeral term.
 
-(defn- byte-list-literal
-  "Return a proper Clojure list for byte literals passed to core.logic goals."
-  [bytes]
-  (apply list bytes))
+   This is the bounded object-level decoder used for already-ground public
+   system and theorem codes. It decomposes the numeral through its public
+   `0`/`1`/`dbl`/`add(_,1)` constructors instead of computing bytes in host
+   Clojure."
+  [term byte tail sigma sigma-out proof]
+  (fresh [b0 b1 b2 b3 b4 b5
+          t1 t2 t3 t4 t5 t6
+          s1 s2 s3 s4 s5
+          p0 p1 p2 p3 p4 p5 cons-proof]
+    (canonical-bit-termo term b0 t1 sigma s1 p0)
+    (canonical-bit-termo t1 b1 t2 s1 s2 p1)
+    (canonical-bit-termo t2 b2 t3 s2 s3 p2)
+    (canonical-bit-termo t3 b3 t4 s3 s4 p3)
+    (canonical-bit-termo t4 b4 t5 s4 s5 p4)
+    (canonical-bit-termo t5 b5 t6 s5 sigma-out p5)
+    (byte-six-bitso (list b0 b1 b2 b3 b4 b5) byte)
+    (sjas-acyclic-unifyo t6 tail)
+    (canonical-byte-cons-proofo tail cons-proof)
+    (== (list 'sjas-ug-code-canonical-byte
+              byte
+              cons-proof)
+        proof)))
 
-(defn- u-grounding-byte-list-literal
-  "Return the sentinel-terminated byte list for a U-Grounding numeral code."
-  [bytes]
-  (byte-list-literal (conj (vec bytes) sjas-code/u-grounding-sentinel-byte)))
+(defn- sjas-ug-code-bytes-termo
+  [remaining term bytes sigma sigma-out proof]
+  (if (neg? remaining)
+    fail
+    (fresh [byte tail byte-proof sigma-after]
+      (canonical-byte-termo term byte tail sigma sigma-after byte-proof)
+      (conde
+        [(fresh [tail-bytes tail-proof]
+           (sjas-canonical-nonzero-termo tail sigma-after)
+           (sjas-ug-code-bytes-termo (dec remaining)
+                                     tail
+                                     tail-bytes
+                                     sigma-after
+                                     sigma-out
+                                     tail-proof)
+           (sjas-acyclic-unifyo (lcons byte tail-bytes) bytes)
+           (== (list 'sjas-ug-code-cons byte-proof) proof))]
+        [(sjas-acyclic-unifyo zero-term tail)
+         (== sjas-code/u-grounding-sentinel-byte byte)
+         (== '() bytes)
+         (== sigma-after sigma-out)
+         (== (list 'sjas-ug-code-end byte-proof) proof)]))))
+
+(declare compact-code-byte-bits-termo)
+
+(defn- compact-code-byte-bits-termo
+  "Read a compact-code byte argument through its U-Grounding numeral shape.
+
+   The parser is relational in the two modes used by the proof predicate:
+   ground public byte terms decode to byte values, and finite byte values can
+   rebuild public numeral terms for embedded code payloads. The byte value is
+   still interpreted arithmetically rather than compared against a generated
+   table of 64 canonical byte terms."
+  [term bits]
+  (conde
+    [(== '() bits)
+     (== zero-term term)]
+    [(== one-bits bits)
+     (== one-term term)]
+    [(fresh [arg arg-bits]
+       (== (lcons 0 arg-bits) bits)
+       (== (list 'app 'dbl arg) term)
+       (compact-code-byte-bits-termo arg arg-bits))]
+    [(fresh [arg doubled arg-bits]
+       (== (lcons 1 arg-bits) bits)
+       (== (list 'app 'add doubled one-term) term)
+       (== (list 'app 'dbl arg) doubled)
+       (compact-code-byte-bits-termo arg arg-bits))]))
 
 (defn- code-byte-termo
+  "Relate a compact-code byte argument to its U-Grounding numeral value.
+
+   Present public terms derive their bits through the object-level numeral
+   reader before the finite byte relation is consulted. Decoded-byte
+   reconstruction uses `code-byte-build-termo`; this relation is optimized for
+   the presented-code path. Neither mode projects a ground byte term through a
+   host decoder."
   [term byte]
-  (fresh [entry]
-    (membero entry code-byte-term-entries)
-    (== [term byte] entry)))
+  (fresh [bits]
+    (compact-code-byte-bits-termo term bits)
+    (byte-bitso bits byte)))
+
+(defn- code-byte-build-termo
+  "Build a compact-code public byte numeral from a decoded byte value.
+
+   This is the byte-first companion to `code-byte-termo`. It uses the finite
+   macro expansion of the 64 canonical byte numerals because rebuilding each
+   digit through the fully recursive arithmetic reader dominates fixed
+   formula-bearing proof checks. The relation remains first-order and
+  structural: it relates a byte to the same U-grounding numeral term accepted
+   by `compact-code-byte-bits-termo`."
+  [term byte]
+  (or*
+    (map (fn [[entry-term entry-byte]]
+           (fresh []
+             (== entry-byte byte)
+             (== entry-term term)))
+         byte-term-entries)))
 
 (defn- code-constructoro
   [constructor byte-count]
-  (fresh [entry]
-    (membero entry code-constructor-entries)
-    (== [constructor byte-count] entry)))
+  (static-table-entryo [constructor byte-count] code-constructor-entries))
+
+(defn- code-constructor-buildo
+  "Byte-count-first constructor relation for rebuilding compact code terms."
+  [constructor byte-count]
+  (or*
+    (map (fn [[entry-constructor entry-byte-count]]
+           (fresh []
+             (== entry-byte-count byte-count)
+             (== entry-constructor constructor)))
+         code-constructor-entries)))
 
 (defn- code-argso
-  [args bytes]
+  [args bytes proof]
   (conde
     [(== '() args)
-     (== '() bytes)]
-    [(fresh [arg rest byte byte-rest]
-       (== (lcons arg rest) args)
+     (== '() bytes)
+     (== '(sjas-code-args-end) proof)]
+    [(fresh [arg rest byte byte-rest rest-proof]
+       (sjas-acyclic-unifyo (lcons arg rest) args)
        (code-byte-termo arg byte)
+       (sjas-acyclic-unifyo (lcons byte byte-rest) bytes)
+       (code-argso rest byte-rest rest-proof)
+       (== (list 'sjas-code-arg byte rest-proof) proof))]))
+
+(defn- code-args-buildo
+  [args bytes proof]
+  (conde
+    [(== '() args)
+     (== '() bytes)
+     (== '(sjas-code-args-end) proof)]
+    [(fresh [arg rest byte byte-rest rest-proof]
        (== (lcons byte byte-rest) bytes)
-       (code-argso rest byte-rest))]))
+       (code-byte-build-termo arg byte)
+       (== (lcons arg rest) args)
+       (code-args-buildo rest byte-rest rest-proof)
+       (== (list 'sjas-code-arg byte rest-proof) proof))]))
 
 (defn- sjas-code-byteso
   "Decode an object-language SJAS code term into base-64 bytes.
@@ -647,47 +1076,173 @@
    to the object language without forcing proof search to walk a huge nested
    binary numeral for every sentence and proof certificate."
   [term bytes sigma sigma-out proof]
-  (fresh [walked constructor args byte-count]
-    (equality/walko term sigma walked)
-    (== (lcons 'app (lcons constructor args)) walked)
+  (fresh [walked constructor args byte-count args-proof]
+    (sjas-code-walko term sigma walked)
+    (sjas-acyclic-unifyo (lcons 'app (lcons constructor args)) walked)
     (code-constructoro constructor byte-count)
-    (code-argso args bytes)
+    (code-argso args bytes args-proof)
     (== sigma sigma-out)
-    (== '(sjas-code-bytes) proof)))
+    (== (list 'sjas-code-bytes args-proof) proof)))
 
 (defn- sjas-ug-code-byteso
   "Decode an object-language U-Grounding numeral code into base-64 bytes.
 
-   Ground public codes use a deterministic constructor-pop shortcut to avoid
-   overflowing core.logic on very large numeral towers. Bound or otherwise
-   relational entries read the canonical numeral to bits and then strip the
-   sentinel through `sjas-ug-code-bytes-bitso`, which reconstructs each byte
-   with the relation-backed `byte + 64 * tail` equation."
+   The decoder peels six canonical constructor bits per byte, proving the fixed
+   radix byte equation at each step. This deliberately avoids the earlier
+   deterministic host shortcut during predicate application without forcing
+   proof search to materialize and re-walk the complete bit list for large
+   system codes."
   [term bytes sigma sigma-out proof]
-  (if-let [ground-bytes (ground-u-grounding-code-term-bytes term)]
-    (fresh []
-      (== '() sigma)
-      (== '() sigma-out)
-      (== (apply list ground-bytes) bytes)
-      (== '(sjas-ug-code-bytes) proof))
-    (conde
-      [(fresh [bits read-proof decode-proof]
-         (sjas-canonical-num-termo term bits sigma sigma-out read-proof)
-         (sjas-ug-code-bytes-bitso bits bytes decode-proof)
-         (== (list 'sjas-ug-code-bytes read-proof decode-proof) proof))])))
+  (fresh [decode-proof]
+    (sjas-ug-code-bytes-termo sjas-code/max-code-bytes
+                              term
+                              bytes
+                              sigma
+                              sigma-out
+                              decode-proof)
+    (== (list 'sjas-ug-code-bytes decode-proof) proof)))
 
 (defn- sjas-formal-code-byteso
   "Decode either supported public SJAS code representation.
 
    `kind` is `:compact` for `code-N` terms and `:u-grounding` for the ADR-0071
-   binary numeral representation. Callers that need to know how a code should
-   be quoted during diagonal substitution inspect this value."
+  binary numeral representation. Callers that need to know how a code should
+  be quoted during diagonal substitution inspect this value."
   [term bytes sigma sigma-out kind proof]
   (conde
-    [(== :u-grounding kind)
-     (sjas-ug-code-byteso term bytes sigma sigma-out proof)]
-    [(== :compact kind)
-     (sjas-code-byteso term bytes sigma sigma-out proof)]))
+    [(sjas-code-byteso term bytes sigma sigma-out proof)
+     (== :compact kind)]
+    [(sjas-ug-code-byteso term bytes sigma sigma-out proof)
+     (== :u-grounding kind)]))
+
+(defn- mul-byte-base-coreo
+  "Proof-free fixed-radix companion to `mul-byte-baseo`."
+  [tail scaled]
+  (conde
+    [(== '() tail)
+     (== '() scaled)]
+    [(arith/poso tail)
+     (== (lcons 0
+                 (lcons 0
+                        (lcons 0
+                               (lcons 0
+                                      (lcons 0
+                                             (lcons 0 tail))))))
+         scaled)]))
+
+(defn- byte-cons-equation-coreo
+  "Proof-free byte-cons equation `bits = byte + 64 * tail`."
+  [byte-bits tail bits]
+  (fresh [scaled]
+    (mul-byte-base-coreo tail scaled)
+    (bit-prefixo byte-bits bits tail)))
+
+(defn- canonical-bit-term-coreo
+  "Proof-free companion to `canonical-bit-termo`."
+  [term bit tail sigma sigma-out]
+  (fresh [walked]
+    (sjas-code-walko term sigma walked)
+    (conde
+      [(fresh [arg doubled]
+         (sjas-acyclic-unifyo (list 'app 'add doubled one-term) walked)
+         (sjas-acyclic-unifyo (list 'app 'dbl arg) doubled)
+         (== 1 bit)
+         (sjas-acyclic-unifyo arg tail)
+         (== sigma sigma-out))]
+      [(fresh [arg]
+         (sjas-acyclic-unifyo (list 'app 'dbl arg) walked)
+         (== 0 bit)
+         (sjas-acyclic-unifyo arg tail)
+         (== sigma sigma-out))]
+      [(sjas-acyclic-unifyo zero-term walked)
+       (== 0 bit)
+       (sjas-acyclic-unifyo zero-term tail)
+       (== sigma sigma-out)]
+      [(sjas-acyclic-unifyo one-term walked)
+       (== 1 bit)
+       (sjas-acyclic-unifyo zero-term tail)
+       (== sigma sigma-out)])))
+
+(defn- canonical-byte-term-coreo
+  "Proof-free companion to `canonical-byte-termo`."
+  [term byte tail sigma sigma-out]
+  (fresh [b0 b1 b2 b3 b4 b5
+          t1 t2 t3 t4 t5 t6
+          s1 s2 s3 s4 s5]
+    (canonical-bit-term-coreo term b0 t1 sigma s1)
+    (canonical-bit-term-coreo t1 b1 t2 s1 s2)
+    (canonical-bit-term-coreo t2 b2 t3 s2 s3)
+    (canonical-bit-term-coreo t3 b3 t4 s3 s4)
+    (canonical-bit-term-coreo t4 b4 t5 s4 s5)
+    (canonical-bit-term-coreo t5 b5 t6 s5 sigma-out)
+    (byte-six-bitso (list b0 b1 b2 b3 b4 b5) byte)
+    (sjas-acyclic-unifyo t6 tail)))
+
+(defn- sjas-ug-code-bytes-term-coreo
+  "Proof-free U-Grounding public-code byte reader."
+  [remaining term bytes sigma sigma-out]
+  (if (neg? remaining)
+    fail
+    (fresh [byte tail sigma-after]
+      (canonical-byte-term-coreo term byte tail sigma sigma-after)
+      (conde
+        [(fresh [tail-bytes]
+           (sjas-canonical-nonzero-termo tail sigma-after)
+           (sjas-ug-code-bytes-term-coreo (dec remaining)
+                                          tail
+                                          tail-bytes
+                                          sigma-after
+                                          sigma-out)
+           (sjas-acyclic-unifyo (lcons byte tail-bytes) bytes))]
+        [(sjas-acyclic-unifyo zero-term tail)
+         (== sjas-code/u-grounding-sentinel-byte byte)
+         (== '() bytes)
+         (== sigma-after sigma-out)]))))
+
+(defn- code-args-coreo
+  "Proof-free compact-code argument byte reader.
+
+   Public compact `code-N` arguments are presented byte numerals, so this parses
+   each argument through the same numeral reader as the proof-producing path.
+   Byte-first reconstruction remains isolated to `code-args-buildo`."
+  [args bytes]
+  (conde
+    [(== '() args)
+     (== '() bytes)]
+    [(fresh [arg rest byte byte-rest]
+       (sjas-acyclic-unifyo (lcons arg rest) args)
+       (code-byte-termo arg byte)
+       (sjas-acyclic-unifyo (lcons byte byte-rest) bytes)
+       (code-args-coreo rest byte-rest))]))
+
+(defn- sjas-code-bytes-coreo
+  "Proof-free compact public-code byte reader."
+  [term bytes sigma sigma-out]
+  (fresh [walked constructor args byte-count]
+    (sjas-code-walko term sigma walked)
+    (sjas-acyclic-unifyo (lcons 'app (lcons constructor args)) walked)
+    (code-constructoro constructor byte-count)
+    (code-args-coreo args bytes)
+    (== sigma sigma-out)))
+
+(defn- sjas-ug-code-bytes-coreo
+  "Proof-free U-Grounding public-code byte reader."
+  [term bytes sigma sigma-out]
+  (sjas-ug-code-bytes-term-coreo sjas-code/max-code-bytes
+                                 term
+                                 bytes
+                                 sigma
+                                 sigma-out))
+
+(defn- sjas-formal-code-bytes-coreo
+  "Decode either supported public SJAS code representation without building
+   auxiliary proof-trace evidence."
+  [term bytes sigma sigma-out kind]
+  (conde
+    [(sjas-code-bytes-coreo term bytes sigma sigma-out)
+     (== :compact kind)]
+    [(sjas-ug-code-bytes-coreo term bytes sigma sigma-out)
+     (== :u-grounding kind)]))
 
 ;; -----------------------------------------------------------------------------
 ;; Formula-code byte decoding
@@ -714,6 +1269,51 @@
 (def ^:private term-app-tag 23)
 (def ^:private term-code-tag 24)
 (def ^:private term-natural-tag 25)
+(def ^:private system-code-tag 31)
+(def ^:private system-profile-tableau0-tag 32)
+(def ^:private system-profile-level1-tag 33)
+(def ^:private system-reflected-clause-tag 34)
+
+(def ^:private internal-zero-num (list 'num '()))
+(def ^:private internal-one-num (list 'num (list 1)))
+(def ^:private internal-two-num (list 'num (list 2)))
+
+(def ^:private tableau0-contradiction-formula-bytes
+  "Canonical formula-code bytes for Willard's minimal Tableau-0 target `0 = 1`."
+  (list formula-eq-tag
+        term-natural-tag 0 0
+        term-natural-tag 1 0 1))
+
+(def ^:private tableau0-contradiction-u-grounding-bytes
+  (apply list
+         (concat tableau0-contradiction-formula-bytes
+                 (list sjas-code/u-grounding-sentinel-byte))))
+
+(def ^:private group-zero-internal-formulas
+  [(list 'neq internal-one-num internal-zero-num)
+   (list 'neq internal-two-num internal-zero-num)])
+
+(def ^:private group-one-internal-formulas
+  [(list 'eq internal-zero-num internal-zero-num)
+   (list 'eq internal-two-num internal-two-num)
+   (list 'eq
+         (list 'app 'sub (list internal-two-num internal-one-num))
+         internal-one-num)])
+
+(def ^:private fixed-axiom-formula-byte-entries
+  "Canonical formula-code byte strings for fixed Group-0 and Group-1 axioms.
+
+   The proof-free axiom-citation checker can recognize these fixed formulas by
+   bytes directly. This preserves object-code checking while avoiding a full
+   formula decode and alpha-equivalence pass for the small axioms present in
+   every finite SJAS system."
+  (apply list
+         (map (fn [bytes] (apply list bytes))
+              [[6 25 1 0 1 25 0 0]
+               [6 25 1 0 2 25 0 0]
+               [5 25 0 0 25 0 0]
+               [5 25 1 0 2 25 1 0 2]
+               [5 23 19 3 25 1 0 2 25 1 0 1 25 1 0 1]])))
 
 (def ^:private positive-byte-entries
   (apply list (range 1 sjas-code/byte-base)))
@@ -721,40 +1321,90 @@
 (def ^:private positive-byte-except-one-entries
   (apply list (range 2 sjas-code/byte-base)))
 
-(def ^:private code-nom-entries
-  "Canonical noms used when decoded formula-code variables become kernel ASTs.
-
-   Formula codes store binder and variable positions as bytes. When such a code
-   is turned back into a Proflog formula for proof checking, the exact host nom
-   identity is immaterial; what matters is that each byte index maps
-   consistently to one object-language binder."
+(def ^:private positive-byte-neq-entries
   (apply list
-         (map (fn [idx]
-                [idx (nominal/nom (lvar (symbol (str "sjas-v" (dec idx)))))])
-              (range 1 sjas-code/byte-base))))
+         (for [left (range 1 sjas-code/byte-base)
+               right (range 1 sjas-code/byte-base)
+               :when (not= left right)]
+           [left right])))
+
+(def ^:private byte-neq-entries
+  (apply list
+         (for [left (range sjas-code/byte-base)
+               right (range sjas-code/byte-base)
+               :when (not= left right)]
+           [left right])))
+
+(def ^:private code-nom-entries
+  "Shared code-level noms used when decoded formula-code variables become ASTs."
+  sjas-code/code-nom-entries)
+
+(def ^:private reserved-symbol-index-entries
+  "Fixed SJAS vocabulary entries recoverable without a generated codebook."
+  (apply list
+         (map-indexed (fn [idx sym]
+                        [(inc idx) sym])
+                      sjas-code/reserved-coding-symbols)))
+
+(def ^:private user-symbol-index-entries
+  "Formula-code symbol indexes not reserved by the fixed SJAS codebook."
+  (let [reserved-indexes (set (range 1
+                                      (inc (count sjas-code/reserved-coding-symbols))))]
+    (apply list
+           (remove reserved-indexes
+                   (range 1 sjas-code/byte-base)))))
 
 (defn- positive-byteo
   [byte]
-  (membero byte positive-byte-entries))
+  (static-table-entryo byte positive-byte-entries))
 
 (defn- positive-byte-except-oneo
   [byte]
-  (membero byte positive-byte-except-one-entries))
+  (static-table-entryo byte positive-byte-except-one-entries))
 
-(defn- sjas-nom-indexo
-  [idx nom]
-  (fresh [entry]
-    (membero entry code-nom-entries)
-    (== [idx nom] entry)))
+(defn- proof-byteo
+  [byte]
+  (static-table-entryo byte proof-byte-entries))
+
+(defn- positive-byte-neqo
+  [left right]
+  (static-table-entryo [left right] positive-byte-neq-entries))
+
+(defn- byte-neqo
+  [left right]
+  (static-table-entryo [left right] byte-neq-entries))
+
+(defn- sjas-reserved-symbol-indexo
+  [idx sym]
+  (static-table-entryo [idx sym] reserved-symbol-index-entries))
+
+(defn- sjas-user-symbol-indexo
+  [idx]
+  (static-table-entryo idx user-symbol-index-entries))
 
 (defn- sjas-symbol-indexo
-  "Relate a formula-code symbol index to a declared object-language symbol."
-  [prog idx sym]
-  (fresh [entry]
-    (membero entry (or (:sjas/symbol-index-entries
-                         (or (some-> prog :sjas/registry deref) prog))
-                       '()))
-    (== [idx sym] entry)))
+  "Relate a formula-code symbol index to a declared object-language symbol.
+
+   Only the fixed U-Grounding arithmetic and SJAS profile symbols have semantic
+   names at proof-checking time. User symbols are handled by syntax decoders as
+   structural `(sym n)` ids unless reflected system-code records provide a
+   structural comparison target."
+  [_prog idx sym]
+  (sjas-reserved-symbol-indexo idx sym))
+
+(defn- sjas-object-symbol-indexo
+  "Decode a symbol index without consulting the source-language codebook.
+
+   Fixed SJAS vocabulary entries keep their semantic names because arithmetic
+   and proof-profile predicates must dispatch on those symbols. User symbols are
+   preserved as structural `(sym n)` identifiers, which is enough for reflected
+   call matching and alpha comparison while remaining independent of host names."
+  [idx sym]
+  (conde
+    [(sjas-reserved-symbol-indexo idx sym)]
+    [(sjas-user-symbol-indexo idx)
+     (== (list 'sym idx) sym)]))
+
 
 (declare decode-formula-byteso decode-term-byteso)
 
@@ -802,11 +1452,12 @@
     (map (fn [byte-count]
            (let [expected-low (mod byte-count sjas-code/byte-base)
                  expected-high (quot byte-count sjas-code/byte-base)]
-             (fresh [payload]
+             (fresh []
                (== expected-low low)
                (== expected-high high)
-               (parse-code-payload-byteso byte-count payload-bytes rest payload)
-               (== (list 'code payload) term))))
+               (fresh [payload]
+                 (parse-code-payload-byteso byte-count payload-bytes rest payload)
+                 (== (list 'code payload) term)))))
          (range (inc sjas-code/max-code-bytes)))))
 
 (defn- decode-embedded-code-termo
@@ -830,11 +1481,12 @@
     (map (fn [byte-count]
            (let [expected-low (mod byte-count sjas-code/byte-base)
                  expected-high (quot byte-count sjas-code/byte-base)]
-             (fresh [payload]
+             (fresh []
                (== expected-low low)
                (== expected-high high)
-               (parse-code-payload-byteso byte-count payload-bytes rest payload)
-               (== (list 'num payload) term))))
+               (fresh [payload]
+                 (parse-code-payload-byteso byte-count payload-bytes rest payload)
+                 (== (list 'num payload) term)))))
          (range (inc sjas-code/max-code-bytes)))))
 
 (defn- decode-natural-termo
@@ -851,20 +1503,27 @@
         bytes)
     (decode-natural-bodyo low high payload-bytes rest term)))
 
+(defn- decode-app-arityo
+  "Decode an application payload after the relation symbol has been read."
+  [prog after-symbol rest args]
+  (fresh [arity-byte arg-bytes]
+    (sjas-acyclic-unifyo (lcons arity-byte arg-bytes) after-symbol)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (parse-term-list-byteso prog arity arg-bytes rest args)))
+           app-arity-counts))))
+
 (defn- decode-app-termo
   [prog bytes rest term]
-  (fresh [symbol-index after-symbol sym]
+  (fresh [symbol-index after-symbol sym args]
     (== (lcons term-app-tag
                 (lcons symbol-index after-symbol))
         bytes)
-    (sjas-symbol-indexo prog symbol-index sym)
-    (or*
-      (map (fn [arity]
-             (fresh [arg-bytes args]
-               (== (lcons (inc arity) arg-bytes) after-symbol)
-               (parse-term-list-byteso prog arity arg-bytes rest args)
-               (== (list 'app sym args) term)))
-           (range 63)))))
+    (== (list 'app sym args) term)
+    (sjas-object-symbol-indexo symbol-index sym)
+    (decode-app-arityo prog after-symbol rest args)))
 
 (defn- decode-term-byteso
   "Parse one canonical SJAS term from a flat formula-code byte stream.
@@ -976,24 +1635,365 @@
        (decode-formula-byteso prog after-bound rest body)
        (== (list 'bounded-exists idx bound body) formula))]))
 
+(declare decode-syntax-formula-byteso decode-syntax-term-byteso)
+
+(defn- parse-syntax-term-list-byteso
+  [remaining bytes rest terms]
+  (if (zero? remaining)
+    (conde
+      [(== bytes rest)
+       (== '() terms)])
+    (fresh [head tail after-head]
+      (decode-syntax-term-byteso bytes after-head head)
+      (parse-syntax-term-list-byteso (dec remaining) after-head rest tail)
+      (== (lcons head tail) terms))))
+
+(defn- decode-syntax-app-arityo
+  "Decode an application payload for syntax predicates without symbol lookup."
+  [after-symbol rest args]
+  (fresh [arity-byte arg-bytes]
+    (sjas-acyclic-unifyo (lcons arity-byte arg-bytes) after-symbol)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (parse-syntax-term-list-byteso arity arg-bytes rest args)))
+           app-arity-counts))))
+
+(defn- decode-syntax-app-termo
+  "Decode an app term as structure only: application tag, symbol id, arity, args.
+
+   Syntax predicates such as `wff` and the formula-class checks do not need the
+   host symbol named by a formula-code symbol index. Keeping the head as a
+   structural `(sym idx)` term removes the finite source-time codebook from the
+   syntax slice while still preserving symbol identity for structural
+   complement and alpha checks."
+  [bytes rest term]
+  (fresh [symbol-index after-symbol sym args]
+    (== (lcons term-app-tag
+                (lcons symbol-index after-symbol))
+        bytes)
+    (positive-byteo symbol-index)
+    (== (list 'sym symbol-index) sym)
+    (== (list 'app sym args) term)
+    (decode-syntax-app-arityo after-symbol rest args)))
+
+(defn- decode-syntax-term-byteso
+  "Parse a syntax-check term without projecting symbol indexes to host names."
+  [bytes rest term]
+  (conde
+    [(fresh [idx after-var]
+       (== (lcons term-var-tag (lcons idx after-var)) bytes)
+       (positive-byteo idx)
+       (== after-var rest)
+       (== (list 'var idx) term))]
+    [(fresh [idx after-par]
+       (== (lcons term-par-tag (lcons idx after-par)) bytes)
+       (positive-byteo idx)
+       (== after-par rest)
+       (== (list 'par idx) term))]
+    [(decode-syntax-app-termo bytes rest term)]
+    [(decode-natural-termo bytes rest term)]
+    [(decode-embedded-code-termo bytes rest term)]))
+
+(defn- decode-syntax-formula-byteso
+  "Parse formula syntax from bytes using structural numeric symbol ids.
+
+   This relation is intentionally narrower than proof-facing formula decoding:
+   it proves that the code is a well-formed formula tree and preserves enough
+   structure for formula-class and neg-pair checks, but it does not recover
+   source-language host symbols."
+  [bytes rest formula]
+  (conde
+    [(fresh [after]
+       (== (lcons formula-true-tag after) bytes)
+       (== after rest)
+       (== (list 'true) formula))]
+    [(fresh [after]
+       (== (lcons formula-false-tag after) bytes)
+       (== after rest)
+       (== (list 'false) formula))]
+    [(fresh [term after-tag]
+       (== (lcons formula-pos-tag after-tag) bytes)
+       (decode-syntax-term-byteso after-tag rest term)
+       (== (list 'pos term) formula))]
+    [(fresh [term after-tag]
+       (== (lcons formula-neg-tag after-tag) bytes)
+       (decode-syntax-term-byteso after-tag rest term)
+       (== (list 'neg term) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-eq-tag after-tag) bytes)
+       (decode-syntax-term-byteso after-tag after-left left)
+       (decode-syntax-term-byteso after-left rest right)
+       (== (list 'eq left right) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-neq-tag after-tag) bytes)
+       (decode-syntax-term-byteso after-tag after-left left)
+       (decode-syntax-term-byteso after-left rest right)
+       (== (list 'neq left right) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-and-tag after-tag) bytes)
+       (decode-syntax-formula-byteso after-tag after-left left)
+       (decode-syntax-formula-byteso after-left rest right)
+       (== (list 'and left right) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-or-tag after-tag) bytes)
+       (decode-syntax-formula-byteso after-tag after-left left)
+       (decode-syntax-formula-byteso after-left rest right)
+       (== (list 'or left right) formula))]
+    [(fresh [body after-tag]
+       (== (lcons formula-not-tag after-tag) bytes)
+       (decode-syntax-formula-byteso after-tag rest body)
+       (== (list 'not body) formula))]
+    [(fresh [left right after-tag after-left]
+       (== (lcons formula-implies-tag after-tag) bytes)
+       (decode-syntax-formula-byteso after-tag after-left left)
+       (decode-syntax-formula-byteso after-left rest right)
+       (== (list 'implies left right) formula))]
+    [(fresh [idx body after-idx]
+       (== (lcons formula-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-syntax-formula-byteso after-idx rest body)
+       (== (list 'forall idx body) formula))]
+    [(fresh [idx body after-idx]
+       (== (lcons formula-once-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-syntax-formula-byteso after-idx rest body)
+       (== (list 'once-forall idx body) formula))]
+    [(fresh [idx body after-idx]
+       (== (lcons formula-exists-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-syntax-formula-byteso after-idx rest body)
+       (== (list 'exists idx body) formula))]
+    [(fresh [idx bound body after-idx after-bound]
+       (== (lcons formula-bounded-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-syntax-term-byteso after-idx after-bound bound)
+       (decode-syntax-formula-byteso after-bound rest body)
+       (== (list 'bounded-forall idx bound body) formula))]
+    [(fresh [idx bound body after-idx after-bound]
+       (== (lcons formula-bounded-exists-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (decode-syntax-term-byteso after-idx after-bound bound)
+       (decode-syntax-formula-byteso after-bound rest body)
+       (== (list 'bounded-exists idx bound body) formula))]))
+
+(declare skip-syntax-formula-byteso skip-syntax-term-byteso)
+
+(defn- skip-code-payload-byteso
+  [remaining bytes rest]
+  (if (zero? remaining)
+    (== bytes rest)
+    (fresh [byte after-byte]
+      (== (lcons byte after-byte) bytes)
+      (skip-code-payload-byteso (dec remaining) after-byte rest))))
+
+(defn- skip-length-prefixed-payloado
+  [low high payload-bytes rest]
+  (or*
+    (map (fn [byte-count]
+           (let [expected-low (mod byte-count sjas-code/byte-base)
+                 expected-high (quot byte-count sjas-code/byte-base)]
+             (fresh []
+               (== expected-low low)
+               (== expected-high high)
+               (skip-code-payload-byteso byte-count payload-bytes rest))))
+         (range (inc sjas-code/max-code-bytes)))))
+
+(defn- skip-syntax-term-list-byteso
+  [remaining bytes rest]
+  (if (zero? remaining)
+    (== bytes rest)
+    (fresh [after-head]
+      (skip-syntax-term-byteso bytes after-head)
+      (skip-syntax-term-list-byteso (dec remaining) after-head rest))))
+
+(defn- skip-syntax-app-arityo
+  [after-symbol rest]
+  (fresh [arity-byte arg-bytes]
+    (sjas-acyclic-unifyo (lcons arity-byte arg-bytes) after-symbol)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (skip-syntax-term-list-byteso arity arg-bytes rest)))
+           app-arity-counts))))
+
+(defn- skip-syntax-app-termo
+  [bytes rest]
+  (fresh [symbol-index after-symbol]
+    (== (lcons term-app-tag
+                (lcons symbol-index after-symbol))
+        bytes)
+    (positive-byteo symbol-index)
+    (skip-syntax-app-arityo after-symbol rest)))
+
+(defn- skip-syntax-length-prefixed-termo
+  [tag bytes rest]
+  (fresh [low high payload-bytes]
+    (== (lcons tag
+                (lcons low
+                       (lcons high payload-bytes)))
+        bytes)
+    (skip-length-prefixed-payloado low high payload-bytes rest)))
+
+(defn- skip-syntax-term-byteso
+  "Advance over one structurally well-formed encoded syntax term.
+
+   This is the non-reifying counterpart to `decode-syntax-term-byteso`. It is
+   used when axiom membership only needs to move across system-code records,
+   not materialize their decoded syntax trees."
+  [bytes rest]
+  (conde
+    [(fresh [idx after-var]
+       (== (lcons term-var-tag (lcons idx after-var)) bytes)
+       (positive-byteo idx)
+       (== after-var rest))]
+    [(fresh [idx after-par]
+       (== (lcons term-par-tag (lcons idx after-par)) bytes)
+       (positive-byteo idx)
+       (== after-par rest))]
+    [(skip-syntax-app-termo bytes rest)]
+    [(skip-syntax-length-prefixed-termo term-natural-tag bytes rest)]
+    [(skip-syntax-length-prefixed-termo term-code-tag bytes rest)]))
+
+(defn- skip-syntax-formula-byteso
+  "Advance over one structurally well-formed encoded syntax formula.
+
+   Unlike `decode-syntax-formula-byteso`, this relation does not build the
+   decoded formula tree. It preserves the same byte grammar, so beta axiom
+   scans can remain object-level while failing quickly on nonmatching records."
+  [bytes rest]
+  (conde
+    [(fresh [after]
+       (== (lcons formula-true-tag after) bytes)
+       (== after rest))]
+    [(fresh [after]
+       (== (lcons formula-false-tag after) bytes)
+       (== after rest))]
+    [(fresh [after-tag]
+       (== (lcons formula-pos-tag after-tag) bytes)
+       (skip-syntax-term-byteso after-tag rest))]
+    [(fresh [after-tag]
+       (== (lcons formula-neg-tag after-tag) bytes)
+       (skip-syntax-term-byteso after-tag rest))]
+    [(fresh [after-tag after-left]
+       (== (lcons formula-eq-tag after-tag) bytes)
+       (skip-syntax-term-byteso after-tag after-left)
+       (skip-syntax-term-byteso after-left rest))]
+    [(fresh [after-tag after-left]
+       (== (lcons formula-neq-tag after-tag) bytes)
+       (skip-syntax-term-byteso after-tag after-left)
+       (skip-syntax-term-byteso after-left rest))]
+    [(fresh [after-tag after-left]
+       (== (lcons formula-and-tag after-tag) bytes)
+       (skip-syntax-formula-byteso after-tag after-left)
+       (skip-syntax-formula-byteso after-left rest))]
+    [(fresh [after-tag after-left]
+       (== (lcons formula-or-tag after-tag) bytes)
+       (skip-syntax-formula-byteso after-tag after-left)
+       (skip-syntax-formula-byteso after-left rest))]
+    [(fresh [after-tag]
+       (== (lcons formula-not-tag after-tag) bytes)
+       (skip-syntax-formula-byteso after-tag rest))]
+    [(fresh [after-tag after-left]
+       (== (lcons formula-implies-tag after-tag) bytes)
+       (skip-syntax-formula-byteso after-tag after-left)
+       (skip-syntax-formula-byteso after-left rest))]
+    [(fresh [idx after-idx]
+       (== (lcons formula-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (skip-syntax-formula-byteso after-idx rest))]
+    [(fresh [idx after-idx]
+       (== (lcons formula-once-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (skip-syntax-formula-byteso after-idx rest))]
+    [(fresh [idx after-idx]
+       (== (lcons formula-exists-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (skip-syntax-formula-byteso after-idx rest))]
+    [(fresh [idx after-idx after-bound]
+       (== (lcons formula-bounded-forall-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (skip-syntax-term-byteso after-idx after-bound)
+       (skip-syntax-formula-byteso after-bound rest))]
+    [(fresh [idx after-idx after-bound]
+       (== (lcons formula-bounded-exists-tag
+                   (lcons idx after-idx))
+           bytes)
+       (positive-byteo idx)
+       (skip-syntax-term-byteso after-idx after-bound)
+       (skip-syntax-formula-byteso after-bound rest))]))
+
+(defn- sjas-decode-syntax-formula-code-proofo
+  [code sigma sigma-out formula read-proof]
+  (fresh [bytes rest kind]
+    (sjas-formal-code-byteso code bytes sigma sigma-out kind read-proof)
+    (decode-syntax-formula-byteso bytes rest formula)
+    (== '() rest)))
+
+(defn- sjas-decode-syntax-formula-code-coreo
+  "Proof-free syntax formula-code decoder."
+  [code sigma sigma-out formula]
+  (fresh [bytes rest kind]
+    (sjas-formal-code-bytes-coreo code bytes sigma sigma-out kind)
+    (decode-syntax-formula-byteso bytes rest formula)
+    (== '() rest)))
+
 (defn- sjas-decode-formula-code-proofo
   [prog code sigma sigma-out formula read-proof]
-  (if-let [[bytes _kind ground-read-proof] (ground-formal-code-term code)]
-    (fresh [rest]
-      (== '() sigma)
-      (== '() sigma-out)
-      (== ground-read-proof read-proof)
-      (decode-formula-byteso prog (byte-list-literal bytes) rest formula)
-      (== '() rest))
-    (fresh [bytes rest kind]
-      (sjas-formal-code-byteso code bytes sigma sigma-out kind read-proof)
-      (decode-formula-byteso prog bytes rest formula)
-      (== '() rest))))
+  (fresh [bytes rest kind]
+    (sjas-formal-code-byteso code bytes sigma sigma-out kind read-proof)
+    (decode-formula-byteso prog bytes rest formula)
+    (== '() rest)))
 
 (defn- sjas-decode-formula-codeo
   [prog code sigma sigma-out formula]
   (fresh [read-proof]
     (sjas-decode-formula-code-proofo prog code sigma sigma-out formula read-proof)))
+
+(defn- decode-proof-formula-byteso
+  "Decode a proof-predicate formula from object code.
+
+   Fixed SJAS vocabulary symbols decode to their semantic names. User symbols
+   decode to structural `(sym n)` ids, so proof checking can compare reflected
+   procedure calls by code identity without reconstructing a host source
+   signature."
+  [prog bytes rest formula]
+  (decode-formula-byteso prog bytes rest formula))
+
+(defn- sjas-decode-proof-formula-code-proofo
+  [prog code sigma sigma-out formula read-proof]
+  (fresh [bytes rest kind]
+    (sjas-formal-code-byteso code bytes sigma sigma-out kind read-proof)
+    (decode-proof-formula-byteso prog bytes rest formula)
+    (== '() rest)))
+
+(defn- sjas-decode-proof-formula-code-coreo
+  "Proof-free theorem/formula-code decoder for proof-predicate checking."
+  [prog code sigma sigma-out formula]
+  (fresh [bytes rest kind]
+    (sjas-formal-code-bytes-coreo code bytes sigma sigma-out kind)
+    (decode-proof-formula-byteso prog bytes rest formula)
+    (== '() rest)))
 
 (declare sjas-delta-star-0-formulao
          sjas-pi-star-1-formulao
@@ -1022,6 +2022,15 @@
        (sjas-delta-star-0-formulao right))]
     [(fresh [left right]
        (== (list 'or left right) formula)
+       (sjas-delta-star-0-formulao left)
+       (sjas-delta-star-0-formulao right))]
+    ;; Delta-star-0 closure under the propositional connectives mirrors the
+    ;; host classifier and the formula-code grammar tags (ADR-0087).
+    [(fresh [body]
+       (== (list 'not body) formula)
+       (sjas-delta-star-0-formulao body))]
+    [(fresh [left right]
+       (== (list 'implies left right) formula)
        (sjas-delta-star-0-formulao left)
        (sjas-delta-star-0-formulao right))]
     [(fresh [idx bound body]
@@ -1184,7 +2193,8 @@
 
 (declare sjas-subst-term-var-oneo
          sjas-subst-term-list-var-oneo
-         sjas-subst-formula-var-oneo)
+         sjas-subst-formula-var-oneo
+         sjas-byte-list-equalo)
 
 (defn- sjas-subst-term-list-var-oneo
   "Substitute in each term of an internal formula-code term list.
@@ -1212,6 +2222,16 @@
    are therefore left opaque rather than recursively decoded."
   [term replacement substituted]
   (conde
+    [(fresh [bytes substituted-bytes]
+       (== (list 'var 1) term)
+       (== (list 'num bytes) replacement)
+       (== (list 'num substituted-bytes) substituted)
+       (sjas-byte-list-equalo bytes substituted-bytes))]
+    [(fresh [bytes substituted-bytes]
+       (== (list 'var 1) term)
+       (== (list 'code bytes) replacement)
+       (== (list 'code substituted-bytes) substituted)
+       (sjas-byte-list-equalo bytes substituted-bytes))]
     [(== (list 'var 1) term)
      (== replacement substituted)]
     [(fresh [idx]
@@ -1225,12 +2245,14 @@
        (== (list 'app sym args) term)
        (== (list 'app sym substituted-args) substituted)
        (sjas-subst-term-list-var-oneo args replacement substituted-args))]
-    [(fresh [bytes]
+    [(fresh [bytes substituted-bytes]
        (== (list 'num bytes) term)
-       (== term substituted))]
-    [(fresh [bytes]
+       (== (list 'num substituted-bytes) substituted)
+       (sjas-byte-list-equalo bytes substituted-bytes))]
+    [(fresh [bytes substituted-bytes]
        (== (list 'code bytes) term)
-       (== term substituted))]))
+       (== (list 'code substituted-bytes) substituted)
+       (sjas-byte-list-equalo bytes substituted-bytes))]))
 
 (defn- sjas-subst-formula-var-oneo
   "Relate a decoded formula-code tree to its diagonal substitution result.
@@ -1353,6 +2375,23 @@
     (membero entry env)
     (== [source target] entry)))
 
+(defn- sjas-byte-list-equalo
+  "Compare decoded code-byte payloads structurally.
+
+   Large Level-1 self-reference formulas embed whole public code byte strings
+   inside `num` terms. Equating those lists through one shared logic variable
+   can overflow core.logic's occurs check; walking the lists byte by byte keeps
+   the comparison in the object relation."
+  [left right]
+  (conde
+    [(== '() left)
+     (== '() right)]
+    [(fresh [left-head left-tail right-head right-tail]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (== left-head right-head)
+       (sjas-byte-list-equalo left-tail right-tail))]))
+
 (defn- sjas-alpha-term-list-equivo
   [left right env]
   (conde
@@ -1388,12 +2427,14 @@
        (== (list 'app sym left-args) left)
        (== (list 'app sym right-args) right)
        (sjas-alpha-term-list-equivo left-args right-args env))]
-    [(fresh [bytes]
-       (== (list 'num bytes) left)
-       (== (list 'num bytes) right))]
-    [(fresh [bytes]
-       (== (list 'code bytes) left)
-       (== (list 'code bytes) right))]))
+    [(fresh [left-bytes right-bytes]
+       (== (list 'num left-bytes) left)
+       (== (list 'num right-bytes) right)
+       (sjas-byte-list-equalo left-bytes right-bytes))]
+    [(fresh [left-bytes right-bytes]
+       (== (list 'code left-bytes) left)
+       (== (list 'code right-bytes) right)
+       (sjas-byte-list-equalo left-bytes right-bytes))]))
 
 (defn- sjas-alpha-formula-equivo
   "Compare decoded formula-code trees modulo bound-variable alpha-renaming."
@@ -1473,6 +2514,187 @@
                                   right-body
                                   (lcons [left-idx right-idx] env)))]))
 
+(declare sjas-subst-alpha-term-equivo
+         sjas-subst-alpha-term-list-equivo
+         sjas-subst-alpha-formula-equivo)
+
+(defn- sjas-subst-alpha-term-list-equivo
+  [source-terms replacement target-terms env]
+  (conde
+    [(== '() source-terms)
+     (== '() target-terms)]
+    [(fresh [source-head source-tail target-head target-tail]
+       (== (lcons source-head source-tail) source-terms)
+       (== (lcons target-head target-tail) target-terms)
+       (sjas-subst-alpha-term-equivo source-head replacement target-head env)
+       (sjas-subst-alpha-term-list-equivo source-tail
+                                          replacement
+                                          target-tail
+                                          env))]))
+
+(defn- sjas-subst-alpha-term-equivo
+  "Compare a target term with the source term after diagonal substitution.
+
+   This fuses `sjas-subst-term-var-oneo` with alpha-equivalence so the Level-1
+   fixed-point check does not have to materialize a large intermediate formula
+   containing repeated quoted code payloads."
+  [source replacement target env]
+  (conde
+    [(== (list 'var 1) source)
+     (sjas-alpha-term-equivo replacement target env)]
+    [(fresh [idx]
+       (== (list 'var idx) source)
+       (positive-byte-except-oneo idx)
+       (sjas-alpha-term-equivo source target env))]
+    [(fresh [idx]
+       (== (list 'par idx) source)
+       (== (list 'par idx) target))]
+    [(fresh [sym source-args target-args]
+       (== (list 'app sym source-args) source)
+       (== (list 'app sym target-args) target)
+       (sjas-subst-alpha-term-list-equivo source-args
+                                          replacement
+                                          target-args
+                                          env))]
+    [(fresh [source-bytes target-bytes]
+       (== (list 'num source-bytes) source)
+       (== (list 'num target-bytes) target)
+       (sjas-byte-list-equalo source-bytes target-bytes))]
+    [(fresh [source-bytes target-bytes]
+       (== (list 'code source-bytes) source)
+       (== (list 'code target-bytes) target)
+       (sjas-byte-list-equalo source-bytes target-bytes))]))
+
+(defn- sjas-subst-alpha-formula-equivo
+  "Compare a target formula with the source formula after diagonal `v0` Subst."
+  [source replacement target env]
+  (conde
+    [(== (list 'true) source)
+     (== (list 'true) target)]
+    [(== (list 'false) source)
+     (== (list 'false) target)]
+    [(fresh [source-term target-term]
+       (== (list 'pos source-term) source)
+       (== (list 'pos target-term) target)
+       (sjas-subst-alpha-term-equivo source-term replacement target-term env))]
+    [(fresh [source-term target-term]
+       (== (list 'neg source-term) source)
+       (== (list 'neg target-term) target)
+       (sjas-subst-alpha-term-equivo source-term replacement target-term env))]
+    [(fresh [source-a source-b target-a target-b]
+       (== (list 'eq source-a source-b) source)
+       (== (list 'eq target-a target-b) target)
+       (sjas-subst-alpha-term-equivo source-a replacement target-a env)
+       (sjas-subst-alpha-term-equivo source-b replacement target-b env))]
+    [(fresh [source-a source-b target-a target-b]
+       (== (list 'neq source-a source-b) source)
+       (== (list 'neq target-a target-b) target)
+       (sjas-subst-alpha-term-equivo source-a replacement target-a env)
+       (sjas-subst-alpha-term-equivo source-b replacement target-b env))]
+    [(fresh [source-a source-b target-a target-b]
+       (== (list 'and source-a source-b) source)
+       (== (list 'and target-a target-b) target)
+       (sjas-subst-alpha-formula-equivo source-a replacement target-a env)
+       (sjas-subst-alpha-formula-equivo source-b replacement target-b env))]
+    [(fresh [source-a source-b target-a target-b]
+       (== (list 'or source-a source-b) source)
+       (== (list 'or target-a target-b) target)
+       (sjas-subst-alpha-formula-equivo source-a replacement target-a env)
+       (sjas-subst-alpha-formula-equivo source-b replacement target-b env))]
+    [(fresh [source-body target-body]
+       (== (list 'not source-body) source)
+       (== (list 'not target-body) target)
+       (sjas-subst-alpha-formula-equivo source-body
+                                        replacement
+                                        target-body
+                                        env))]
+    [(fresh [source-a source-b target-a target-b]
+       (== (list 'implies source-a source-b) source)
+       (== (list 'implies target-a target-b) target)
+       (sjas-subst-alpha-formula-equivo source-a replacement target-a env)
+       (sjas-subst-alpha-formula-equivo source-b replacement target-b env))]
+    [(fresh [source-body target-idx target-body]
+       (== (list 'forall 1 source-body) source)
+       (== (list 'forall target-idx target-body) target)
+       (sjas-alpha-formula-equivo source-body
+                                  target-body
+                                  (lcons [1 target-idx] env)))]
+    [(fresh [source-idx source-body target-idx target-body]
+       (== (list 'forall source-idx source-body) source)
+       (positive-byte-except-oneo source-idx)
+       (== (list 'forall target-idx target-body) target)
+       (sjas-subst-alpha-formula-equivo
+         source-body
+         replacement
+         target-body
+         (lcons [source-idx target-idx] env)))]
+    [(fresh [source-body target-idx target-body]
+       (== (list 'once-forall 1 source-body) source)
+       (== (list 'once-forall target-idx target-body) target)
+       (sjas-alpha-formula-equivo source-body
+                                  target-body
+                                  (lcons [1 target-idx] env)))]
+    [(fresh [source-idx source-body target-idx target-body]
+       (== (list 'once-forall source-idx source-body) source)
+       (positive-byte-except-oneo source-idx)
+       (== (list 'once-forall target-idx target-body) target)
+       (sjas-subst-alpha-formula-equivo
+         source-body
+         replacement
+         target-body
+         (lcons [source-idx target-idx] env)))]
+    [(fresh [source-body target-idx target-body]
+       (== (list 'exists 1 source-body) source)
+       (== (list 'exists target-idx target-body) target)
+       (sjas-alpha-formula-equivo source-body
+                                  target-body
+                                  (lcons [1 target-idx] env)))]
+    [(fresh [source-idx source-body target-idx target-body]
+       (== (list 'exists source-idx source-body) source)
+       (positive-byte-except-oneo source-idx)
+       (== (list 'exists target-idx target-body) target)
+       (sjas-subst-alpha-formula-equivo
+         source-body
+         replacement
+         target-body
+         (lcons [source-idx target-idx] env)))]
+    [(fresh [source-bound source-body target-idx target-bound target-body]
+       (== (list 'bounded-forall 1 source-bound source-body) source)
+       (== (list 'bounded-forall target-idx target-bound target-body) target)
+       (sjas-subst-alpha-term-equivo source-bound replacement target-bound env)
+       (sjas-alpha-formula-equivo source-body
+                                  target-body
+                                  (lcons [1 target-idx] env)))]
+    [(fresh [source-idx source-bound source-body
+             target-idx target-bound target-body]
+       (== (list 'bounded-forall source-idx source-bound source-body) source)
+       (positive-byte-except-oneo source-idx)
+       (== (list 'bounded-forall target-idx target-bound target-body) target)
+       (sjas-subst-alpha-term-equivo source-bound replacement target-bound env)
+       (sjas-subst-alpha-formula-equivo
+         source-body
+         replacement
+         target-body
+         (lcons [source-idx target-idx] env)))]
+    [(fresh [source-bound source-body target-idx target-bound target-body]
+       (== (list 'bounded-exists 1 source-bound source-body) source)
+       (== (list 'bounded-exists target-idx target-bound target-body) target)
+       (sjas-subst-alpha-term-equivo source-bound replacement target-bound env)
+       (sjas-alpha-formula-equivo source-body
+                                  target-body
+                                  (lcons [1 target-idx] env)))]
+    [(fresh [source-idx source-bound source-body
+             target-idx target-bound target-body]
+       (== (list 'bounded-exists source-idx source-bound source-body) source)
+       (positive-byte-except-oneo source-idx)
+       (== (list 'bounded-exists target-idx target-bound target-body) target)
+       (sjas-subst-alpha-term-equivo source-bound replacement target-bound env)
+       (sjas-subst-alpha-formula-equivo
+         source-body
+         replacement
+         target-body
+         (lcons [source-idx target-idx] env)))]))
+
 (declare sjas-internal-term-asto sjas-internal-formula-asto)
 
 (defn- byte-list-counto
@@ -1483,17 +2705,37 @@
       (== (lcons byte rest) bytes)
       (byte-list-counto (dec remaining) rest))))
 
+(defn- code-args-build-counto
+  "Build compact code arguments while exposing the decoded byte count.
+
+   Embedded code payloads are already decoded as byte lists. The older
+   reconstruction path first searched for a byte-count whose list-length proof
+   fit those bytes, then walked the same bytes again to build public code
+   arguments. Walking once avoids repeated occurs checks over large quoted code
+   payloads while preserving the fixed maximum compact-code arity."
+  [bytes args byte-count count]
+  (if (> count sjas-code/max-code-bytes)
+    fail
+    (conde
+      [(== '() bytes)
+       (== '() args)
+       (== count byte-count)]
+      [(fresh [byte byte-rest arg arg-rest]
+         (== (lcons byte byte-rest) bytes)
+         (code-byte-build-termo arg byte)
+         (== (lcons arg arg-rest) args)
+         (code-args-build-counto byte-rest
+                                 arg-rest
+                                 byte-count
+                                 (inc count)))])))
+
 (defn- sjas-internal-code-termo
   "Convert a decoded embedded code payload back to its public AST term."
   [bytes term]
-  (or*
-    (map (fn [byte-count]
-           (fresh [constructor args]
-             (byte-list-counto byte-count bytes)
-             (code-constructoro constructor byte-count)
-             (code-argso args bytes)
-             (== (lcons 'app (lcons constructor args)) term)))
-         (range (inc sjas-code/max-code-bytes)))))
+  (fresh [constructor args byte-count]
+    (code-args-build-counto bytes args byte-count 0)
+    (code-constructor-buildo constructor byte-count)
+    (== (lcons 'app (lcons constructor args)) term)))
 
 (defn- sjas-internal-term-list-asto
   [terms ast-terms]
@@ -1506,18 +2748,51 @@
        (sjas-internal-term-asto head head-ast)
        (sjas-internal-term-list-asto tail tail-ast))]))
 
+(defn- sjas-internal-nom-termo
+  "Translate an internal variable/parameter index to an AST term.
+
+   `nominal/tie` and AST constructors must receive concrete nominal values,
+   not logic variables that will only later be constrained by another goal.
+   Enumerating the fixed code-nom table builds each branch with an actual nom
+   constant while remaining a relation over the byte index."
+  [internal-tag ast-tag term ast-term]
+  (or*
+    (map (fn [[idx nom]]
+           (fresh []
+             (== (list internal-tag idx) term)
+             (== (list ast-tag nom) ast-term)))
+         code-nom-entries)))
+
+(defn- sjas-internal-quantifier-asto
+  [internal-tag ast-tag formula ast-formula]
+  (or*
+    (map (fn [[idx nom]]
+           (fresh [body body-ast]
+             (== (list internal-tag idx body) formula)
+             (== (list ast-tag (nominal/tie nom body-ast)) ast-formula)
+             (sjas-internal-formula-asto body body-ast)))
+         code-nom-entries)))
+
+(defn- sjas-internal-bounded-quantifier-asto
+  [internal-tag ast-tag formula ast-formula]
+  (or*
+    (map (fn [[idx nom]]
+           (fresh [bound body bound-ast body-ast]
+             (== (list internal-tag idx bound body) formula)
+             (== (list ast-tag
+                       (nominal/tie nom {:bound bound-ast
+                                         :body body-ast}))
+                 ast-formula)
+             (sjas-internal-term-asto bound bound-ast)
+             (sjas-internal-formula-asto body body-ast)))
+         code-nom-entries)))
+
 (defn- sjas-internal-term-asto
   "Translate the structural decoder's internal term tree into a kernel AST term."
   [term ast-term]
   (conde
-    [(fresh [idx nom]
-       (== (list 'var idx) term)
-       (sjas-nom-indexo idx nom)
-       (== (list 'var nom) ast-term))]
-    [(fresh [idx nom]
-       (== (list 'par idx) term)
-       (sjas-nom-indexo idx nom)
-       (== (list 'par nom) ast-term))]
+    [(sjas-internal-nom-termo 'var 'var term ast-term)]
+    [(sjas-internal-nom-termo 'par 'par term ast-term)]
     [(fresh [sym args ast-args]
        (== (list 'app sym args) term)
        (== (lcons 'app (lcons sym ast-args)) ast-term)
@@ -1575,60 +2850,60 @@
        (== (list 'implies left-ast right-ast) ast-formula)
        (sjas-internal-formula-asto left left-ast)
        (sjas-internal-formula-asto right right-ast))]
-    [(fresh [idx nom body body-ast]
-       (== (list 'forall idx body) formula)
-       (sjas-nom-indexo idx nom)
-       (== (list 'forall (nominal/tie nom body-ast)) ast-formula)
-       (sjas-internal-formula-asto body body-ast))]
-    [(fresh [idx nom body body-ast]
-       (== (list 'once-forall idx body) formula)
-       (sjas-nom-indexo idx nom)
-       (== (list 'once-forall (nominal/tie nom body-ast)) ast-formula)
-       (sjas-internal-formula-asto body body-ast))]
-    [(fresh [idx nom body body-ast]
-       (== (list 'exists idx body) formula)
-       (sjas-nom-indexo idx nom)
-       (== (list 'exists (nominal/tie nom body-ast)) ast-formula)
-       (sjas-internal-formula-asto body body-ast))]
-    [(fresh [idx nom bound body bound-ast body-ast]
-       (== (list 'bounded-forall idx bound body) formula)
-       (sjas-nom-indexo idx nom)
-       (== (list 'bounded-forall
-                 (nominal/tie nom {:bound bound-ast
-                                   :body body-ast}))
-           ast-formula)
-       (sjas-internal-term-asto bound bound-ast)
-       (sjas-internal-formula-asto body body-ast))]
-    [(fresh [idx nom bound body bound-ast body-ast]
-       (== (list 'bounded-exists idx bound body) formula)
-       (sjas-nom-indexo idx nom)
-       (== (list 'bounded-exists
-                 (nominal/tie nom {:bound bound-ast
-                                   :body body-ast}))
-           ast-formula)
-       (sjas-internal-term-asto bound bound-ast)
-       (sjas-internal-formula-asto body body-ast))]))
+    [(sjas-internal-quantifier-asto 'forall 'forall formula ast-formula)]
+    [(sjas-internal-quantifier-asto 'once-forall 'once-forall formula ast-formula)]
+    [(sjas-internal-quantifier-asto 'exists 'exists formula ast-formula)]
+    [(sjas-internal-bounded-quantifier-asto 'bounded-forall
+                                            'bounded-forall
+                                            formula
+                                            ast-formula)]
+    [(sjas-internal-bounded-quantifier-asto 'bounded-exists
+                                            'bounded-exists
+                                            formula
+                                            ast-formula)]))
 
-(defn- sjas-structural-negated-theoremo
+(defn- sjas-structural-negated-theorem-proofo
+  "Decode a theorem code and build the negated target formula for proof checking.
+
+   This relation is deliberately used even for generated axiom codes. The proof
+   predicate must not recover theorem targets from a host-side finite registry
+   merely because a code was generated by the current system builder. The
+   formula code is read through the same object byte relation used by syntax
+   predicates, so proof evidence exposes compact constructor bytes instead of a
+   host-projected byte vector."
+  [prog theorem-code sigma sigma-out neg-theorem theorem-read-proof]
+  (fresh [formula complement read-proof]
+    (sjas-decode-proof-formula-code-proofo prog
+                                           theorem-code
+                                           sigma
+                                           sigma-out
+                                           formula
+                                           read-proof)
+    (sjas-formula-complemento formula complement)
+    (sjas-internal-formula-asto complement neg-theorem)
+    (== (list 'willard-sjas-theorem-code read-proof) theorem-read-proof)))
+
+(defn- sjas-structural-negated-theorem-coreo
+  "Proof-free theorem-code companion for structural proof checking."
   [prog theorem-code sigma sigma-out neg-theorem]
   (fresh [formula complement]
-    (sjas-decode-formula-codeo prog theorem-code sigma sigma-out formula)
+    (sjas-decode-proof-formula-code-coreo prog
+                                          theorem-code
+                                          sigma
+                                          sigma-out
+                                          formula)
     (sjas-formula-complemento formula complement)
     (sjas-internal-formula-asto complement neg-theorem)))
 
 (defn- proof-symbol-indexo
   [idx sym]
-  (fresh [entry]
-    (membero entry proof-symbol-index-entries)
-    (== [idx sym] entry)))
+  (static-table-entryo [idx sym] proof-symbol-index-entries))
 
 (defn- proof-symbol-wide-indexo
   [high low sym]
-  (fresh [entry]
-    (membero entry proof-symbol-wide-index-entries)
-    (== [high low sym] entry)))
+  (static-table-entryo [high low sym] proof-symbol-wide-index-entries))
 
-(declare decode-proof-byteso)
+(declare decode-proof-byteso decode-structural-proof-byteso)
 
 (defn- parse-proof-items
   [remaining bytes rest proof]
@@ -1641,16 +2916,101 @@
       (parse-proof-items (dec remaining) after-head rest tail)
       (== (lcons head tail) proof))))
 
+(defn- positive-wide-proof-counto
+  [high low]
+  (conde
+    [(positive-byteo high)
+     (proof-byteo low)]
+    [(== 0 high)
+     (positive-byteo low)]))
+
+(defn- decrement-wide-proof-counto
+  [high low high-out low-out]
+  (conde
+    [(positive-byteo low)
+     (== high high-out)
+     (proof-byte-decremento low low-out)]
+    [(positive-byteo high)
+     (== 0 low)
+     (proof-byte-decremento high high-out)
+     (== (dec sjas-code/byte-base) low-out)]))
+
+(defn- parse-proof-items-wide
+  [high low bytes rest proof]
+  (conde
+    [(== 0 high)
+     (== 0 low)
+     (== bytes rest)
+     (== '() proof)]
+    [(fresh [next-high next-low head tail after-head]
+       (decrement-wide-proof-counto high low next-high next-low)
+       (decode-proof-byteso bytes after-head head)
+       (parse-proof-items-wide next-high next-low after-head rest tail)
+       (== (lcons head tail) proof))]))
+
+(defn- parse-structural-proof-items
+  [remaining bytes rest proof]
+  (if (zero? remaining)
+    (conde
+      [(== bytes rest)
+       (== '() proof)])
+    (fresh [head tail after-head]
+      (decode-structural-proof-byteso bytes after-head head)
+      (parse-structural-proof-items (dec remaining) after-head rest tail)
+      (== (lcons head tail) proof))))
+
+(defn- parse-structural-proof-items-wide
+  [high low bytes rest proof]
+  (conde
+    [(== 0 high)
+     (== 0 low)
+     (== bytes rest)
+     (== '() proof)]
+    [(fresh [next-high next-low head tail after-head]
+       (decrement-wide-proof-counto high low next-high next-low)
+       (decode-structural-proof-byteso bytes after-head head)
+       (parse-structural-proof-items-wide next-high
+                                          next-low
+                                          after-head
+                                          rest
+                                          tail)
+       (== (lcons head tail) proof))]))
+
 (defn- decode-proof-list-with-counto
   [bytes rest proof]
-  (or*
-    (map (fn [count]
-           (fresh [after-count]
-             (== (lcons sjas-code/proof-list-tag
-                         (lcons (inc count) after-count))
-                 bytes)
-             (parse-proof-items count after-count rest proof)))
-         (range 1 63))))
+  (conde
+    [(fresh [high low after-count]
+       (== (lcons sjas-code/proof-wide-list-tag
+                   (lcons high (lcons low after-count)))
+           bytes)
+       (positive-wide-proof-counto high low)
+       (parse-proof-items-wide high low after-count rest proof))]
+    [(or*
+       (map (fn [count]
+              (fresh [after-count]
+                (== (lcons sjas-code/proof-list-tag
+                            (lcons (inc count) after-count))
+                    bytes)
+                (parse-proof-items count after-count rest proof)))
+            (range 1 63)))]))
+
+(defn- decode-structural-proof-list-with-counto
+  [bytes rest proof]
+  (conde
+    [(fresh [high low after-count]
+       (== (lcons sjas-code/proof-wide-list-tag
+                   (lcons high (lcons low after-count)))
+           bytes)
+       (positive-wide-proof-counto high low)
+       (parse-structural-proof-items-wide high low after-count rest proof))]
+    [(or*
+       (map (fn [count]
+              (fresh [after-count]
+                (== (lcons sjas-code/proof-list-tag
+                            (lcons (inc count) after-count))
+                    bytes)
+                (parse-structural-proof-items count after-count rest proof)))
+            (range 1 63)))]))
 
 (defn- decode-proof-byteso
   "Relate a base-64 proof-code byte stream to a Proflog kernel proof term."
@@ -1668,7 +3028,28 @@
            bytes)
        (proof-symbol-wide-indexo high low proof)
        (== after-symbol rest))]
+    [(fresh [byte after-byte]
+       (== (lcons sjas-code/proof-byte-tag (lcons byte after-byte)) bytes)
+       (== byte proof)
+       (== after-byte rest))]
     [(decode-proof-list-with-counto bytes rest proof)]))
+
+(defn- decode-structural-proof-byteso
+  "Decode proof-code bytes for SJAS formula-bearing tableau certificates.
+
+   The proof-predicate non-axiom branch consumes tableau trees whose nodes are
+   lists of formula bytes and child nodes. Symbolic Proflog proof-rule tags are
+   deliberately excluded here; the checker infers rules from formulas and
+   branch state instead of trusting encoded kernel trace constructors."
+  [bytes rest proof]
+  (conde
+    [(== (lcons sjas-code/proof-empty-list-tag rest) bytes)
+     (== '() proof)]
+    [(fresh [byte after-byte]
+       (== (lcons sjas-code/proof-byte-tag (lcons byte after-byte)) bytes)
+       (== byte proof)
+       (== after-byte rest))]
+    [(decode-structural-proof-list-with-counto bytes rest proof)]))
 
 (defn- decode-proof-codeo
   [code sigma sigma-out proof-bytes proof proof-read-proof]
@@ -1677,91 +3058,2190 @@
     (decode-proof-byteso proof-bytes rest proof)
     (== '() rest)))
 
-(defn- decode-proof-code-kindo
-  [code sigma sigma-out proof-bytes proof kind]
-  (fresh [rest read-proof]
-    (sjas-formal-code-byteso code proof-bytes sigma sigma-out kind read-proof)
-    (decode-proof-byteso proof-bytes rest proof)
+(def ^:private sjas-axiom-proof-bytes
+  (apply list (sjas-code/proof-code-bytes 'sjas-axiom)))
+
+(defn- decode-sjas-axiom-proof-codeo
+  "Decode a public proof code as the distinguished `sjas-axiom` certificate.
+
+   The special axiom-citation certificate is a fixed proof-grammar symbol, so
+   exact proof-byte equality is enough to classify it. This keeps proof-code
+   classification inside the encoded byte relation while avoiding a
+   committed-choice split in `tableau-proof/3` or `subst-prf/4`."
+  [code sigma sigma-out proof-bytes proof-read-proof]
+  (fresh [kind]
+    (== sjas-axiom-proof-bytes proof-bytes)
+    (sjas-formal-code-byteso code proof-bytes sigma sigma-out kind proof-read-proof)))
+
+(defn- decode-sjas-axiom-proof-code-coreo
+  "Proof-free companion for the distinguished `sjas-axiom` certificate."
+  [code sigma sigma-out proof-bytes]
+  (fresh [kind]
+    (== sjas-axiom-proof-bytes proof-bytes)
+    (sjas-formal-code-bytes-coreo code proof-bytes sigma sigma-out kind)))
+
+(defn- decode-non-sjas-axiom-proof-codeo
+  "Decode a public proof code as a substantive proof tree.
+
+   Substantive tableau certificates are list-root formula-bearing proof nodes.
+   The one bare proof-symbol certificate accepted by these proof predicates is
+   the special `sjas-axiom` citation handled by
+   `decode-sjas-axiom-proof-codeo`. Non-axiom decoding uses the structural
+   proof grammar, so legacy kernel proof-rule traces such as `(false-close)`
+   are rejected before proof checking."
+  [code sigma sigma-out proof-bytes proof proof-read-proof]
+  (fresh [kind rest]
+    (sjas-formal-code-byteso code proof-bytes sigma sigma-out kind proof-read-proof)
+    (conde
+      [(fresh [item-count after-count]
+         (== (lcons sjas-code/proof-list-tag (lcons item-count after-count))
+             proof-bytes))]
+      [(fresh [high low after-count]
+         (== (lcons sjas-code/proof-wide-list-tag
+                     (lcons high (lcons low after-count)))
+             proof-bytes))])
+    (decode-structural-proof-byteso proof-bytes rest proof)
     (== '() rest)))
 
-(defn- code-read-marker-o
-  [kind proof]
+(defn- decode-non-sjas-axiom-proof-code-coreo
+  "Decode a substantive structural proof tree without code-reader proof traces."
+  [code sigma sigma-out proof-bytes proof]
+  (fresh [kind rest]
+    (sjas-formal-code-bytes-coreo code proof-bytes sigma sigma-out kind)
+    (conde
+      [(fresh [item-count after-count]
+         (== (lcons sjas-code/proof-list-tag (lcons item-count after-count))
+             proof-bytes))]
+      [(fresh [high low after-count]
+         (== (lcons sjas-code/proof-wide-list-tag
+                     (lcons high (lcons low after-count)))
+             proof-bytes))])
+    (decode-structural-proof-byteso proof-bytes rest proof)
+    (== '() rest)))
+
+(defn- structural-proof-list-rooto
+  "Require a proof-byte stream to start with a substantive proof-list tag."
+  [proof-bytes]
   (conde
-    [(== :u-grounding kind)
-     (== '(sjas-ug-code-bytes) proof)]
+    [(fresh [item-count after-count]
+       (== (lcons sjas-code/proof-list-tag (lcons item-count after-count))
+           proof-bytes))]
+    [(fresh [high low after-count]
+       (== (lcons sjas-code/proof-wide-list-tag
+                   (lcons high (lcons low after-count)))
+           proof-bytes))]))
+
+(defn- decode-structural-proof-bytes-coreo
+  "Decode an already-read structural proof-byte stream without proof traces."
+  [proof-bytes proof]
+  (fresh [rest]
+    (structural-proof-list-rooto proof-bytes)
+    (decode-structural-proof-byteso proof-bytes rest proof)
+    (== '() rest)))
+
+(defn- sjas-system-profile-tago
+  [profile-tag]
+  (conde
+    [(== system-profile-tableau0-tag profile-tag)]
+    [(== system-profile-level1-tag profile-tag)]))
+
+(defn- sjas-public-code-byteso
+  "Expose public code bytes through the SJAS object-language code relation.
+
+   Both compact `code-N` terms and U-Grounding numeral terms are read by
+   `sjas-formal-code-byteso`. This keeps system, formula, proof, and
+   substitution code reads inspectable in proof evidence instead of projecting
+   already-ground Clojure terms to byte vectors outside the object relation."
+  ([code bytes proof]
+   (fresh [kind]
+     (sjas-public-code-byteso code bytes kind proof)))
+  ([code bytes kind proof]
+   (fresh [read-proof sigma-out]
+     (sjas-formal-code-byteso code bytes '() sigma-out kind read-proof)
+     (== '() sigma-out)
+     (== (list 'sjas-system-code-bytes read-proof) proof))))
+
+(defn- sjas-public-code-bytes-coreo
+  "Expose public code bytes without constructing auxiliary proof evidence."
+  ([code bytes]
+   (fresh [kind]
+     (sjas-public-code-bytes-coreo code bytes kind)))
+  ([code bytes kind]
+   (fresh [sigma-out]
+     (sjas-formal-code-bytes-coreo code bytes '() sigma-out kind)
+     (== '() sigma-out))))
+
+(defn- sjas-system-code-headero
+  "Recognize the common header of an encoded finite SJAS system.
+
+   The fixed Group-0 and Group-1 axioms are available for every SJAS profile, so
+   citation checking only needs to know that the supplied system code has the
+   system tag and one of the known profile tags. The beta and reflected tails
+   are deliberately left opaque here; later axiom-group relations inspect them
+   when those groups are relevant."
+  [system-bytes proof]
+  (fresh [profile-tag rest]
+    (== (lcons system-code-tag (lcons profile-tag rest)) system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (== '(sjas-system-code-header) proof)))
+
+(defn- fixed-axiom-formulao
+  "Compare a decoded theorem formula with one fixed SJAS axiom group."
+  [formulas proof-step formula proof]
+  (or*
+    (map (fn [expected]
+           (fresh []
+             (sjas-alpha-formula-equivo expected formula '())
+             (== (list proof-step) proof)))
+         formulas)))
+
+(defn- sjas-fixed-axiom-formulao
+  "Recognize fixed Group-0 and Group-1 axiom formulas after formula decoding.
+
+   Formula codes canonicalize object numerals into compact `num` payloads, so
+   the first two Group-1 equations decode as numeric identities rather than as
+   literal `add`/`dbl` application terms. This relation matches the actual code
+   representation that generated axiom records use."
+  [formula proof]
+  (conde
+    [(fixed-axiom-formulao group-zero-internal-formulas
+                           'sjas-system-group-zero-axiom
+                           formula
+                           proof)]
+    [(fixed-axiom-formulao group-one-internal-formulas
+                           'sjas-system-group-one-axiom
+                           formula
+                           proof)]))
+
+(defn- sjas-fixed-axiom-membero
+  "Cite fixed SJAS axioms from the decoded system profile, not host facts."
+  [prog system-code formula-code proof]
+  (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
+          header-proof formula fixed-proof]
+    (sjas-public-code-byteso system-code system-bytes system-read-proof)
+    (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-system-code-headero system-bytes header-proof)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (sjas-fixed-axiom-formulao formula fixed-proof)
+    (== (list 'sjas-system-fixed-axiom
+              system-read-proof
+              formula-read-proof
+              header-proof
+              fixed-proof)
+        proof)))
+
+(defn- sjas-tableau0-system-code-headero
+  "Recognize the header of a Tableau-0 SJAS system code."
+  [system-bytes proof]
+  (fresh [rest]
+    (== (lcons system-code-tag
+                (lcons system-profile-tableau0-tag rest))
+        system-bytes)
+    (== '(sjas-system-tableau0-profile) proof)))
+
+(defn- tableau0-group-three-code-termso
+  "Build the embedded system/contradiction code terms used by Group-3.
+
+   Compact public codes embed as `(code bytes)`. U-Grounding public codes embed
+   as numerals whose payload is the byte string followed by the code sentinel.
+   Both representations denote the same object-level code bytes; this relation
+   accepts whichever representation the compiled system selected."
+  [system-bytes system-term contradiction-term]
+  (conde
+    [(== (list 'code system-bytes) system-term)
+     (== (list 'code tableau0-contradiction-formula-bytes)
+         contradiction-term)]
+    [(fresh [encoded-system]
+       (append-sentinel-byteo system-bytes encoded-system)
+       (== (list 'num encoded-system) system-term)
+       (== (list 'num tableau0-contradiction-u-grounding-bytes)
+           contradiction-term))]))
+
+(defn- code-kind-internal-termo
+  "Relate a public code representation kind to its decoded formula-term shape.
+
+   Group-3 is a fixed-point axiom over the public system code `s`, not merely
+   over the byte string denoted by `s`. Carrying the code-reader's `kind` into
+   formula reconstruction prevents a U-Grounding system from accepting a
+   compact-code variant of its self-consistency sentence, and conversely."
+  [kind bytes term]
+  (conde
     [(== :compact kind)
-     (== '(sjas-code-bytes) proof)]))
+     (== (list 'code bytes) term)]
+    [(fresh [encoded]
+       (== :u-grounding kind)
+       (append-sentinel-byteo bytes encoded)
+       (== (list 'num encoded) term))]))
 
-(defn- sjas-formula-codeo
-  [prog code formula]
-  (fresh [entry]
-    (membero entry (or (:sjas/formula-entries (or (some-> prog :sjas/registry deref)
-                                                   prog))
-                       '()))
-    (== [code formula] entry)))
+(defn- tableau0-group-three-code-terms-for-kindo
+  "Build Tableau-0 Group-3 code arguments in the presented public code format."
+  [kind system-bytes system-term contradiction-term]
+  (fresh []
+    (code-kind-internal-termo kind system-bytes system-term)
+    (code-kind-internal-termo kind
+                              tableau0-contradiction-formula-bytes
+                              contradiction-term)))
 
-(defn- sjas-formula-negationo
-  [prog formula negated]
-  (fresh [entry]
-    (membero entry (or (:sjas/formula-negation-entries (or (some-> prog :sjas/registry deref)
-                                                            prog))
-                       '()))
-    (== [formula negated] entry)))
+(defn- tableau0-group-three-formulao
+  "Reconstruct the Tableau-0 self-consistency axiom from a system-code byte list."
+  [system-bytes formula proof]
+  (fresh [system-term contradiction-term]
+    (tableau0-group-three-code-termso system-bytes
+                                      system-term
+                                      contradiction-term)
+    (== (list 'forall
+              1
+              (list 'neg
+                    (list 'app
+                          'tableau-proof
+                          (list system-term
+                                contradiction-term
+                                (list 'var 1)))))
+        formula)
+    (== '(sjas-system-tableau0-group-three-axiom) proof)))
 
-(defn- sjas-formula-classo
-  [prog relation code]
-  (fresh [entry]
-    (membero entry (or (:sjas/formula-class-entries (or (some-> prog :sjas/registry deref)
-                                                         prog))
-                       '()))
-    (== [relation code] entry)))
+(defn- tableau0-group-three-formula-for-kindo
+  "Reconstruct the Tableau-0 Group-3 axiom in the presented code format."
+  [kind system-bytes formula proof]
+  (fresh [system-term contradiction-term]
+    (tableau0-group-three-code-terms-for-kindo kind
+                                               system-bytes
+                                               system-term
+                                               contradiction-term)
+    (== (list 'forall
+              1
+              (list 'neg
+                    (list 'app
+                          'tableau-proof
+                          (list system-term
+                                contradiction-term
+                                (list 'var 1)))))
+        formula)
+    (== '(sjas-system-tableau0-group-three-axiom) proof)))
 
-(defn- sjas-neg-pairo
-  [prog left right]
-  (fresh [entry]
-    (membero entry (or (:sjas/neg-pair-entries (or (some-> prog :sjas/registry deref)
-                                                    prog))
-                       '()))
-    (== [left right] entry)))
+(defn- sjas-tableau0-group-three-axiom-membero
+  "Cite the Tableau-0 Group-3 axiom from system-code, not generated facts."
+  [prog system-code formula-code proof]
+  (fresh [system-bytes system-kind formula-bytes system-read-proof formula-read-proof
+          header-proof formula group-three-proof]
+    (sjas-public-code-byteso system-code
+                             system-bytes
+                             system-kind
+                             system-read-proof)
+    (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-tableau0-system-code-headero system-bytes header-proof)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (tableau0-group-three-formula-for-kindo system-kind
+                                            system-bytes
+                                            formula
+                                            group-three-proof)
+    (== (list 'sjas-system-group-three-axiom
+              system-read-proof
+              formula-read-proof
+              header-proof
+              group-three-proof)
+        proof)))
+
+(defn- sjas-level1-system-code-headero
+  "Recognize the header of a Level-1 SJAS system code."
+  [system-bytes proof]
+  (fresh [rest]
+    (== (lcons system-code-tag
+                (lcons system-profile-level1-tag rest))
+        system-bytes)
+    (== '(sjas-system-level1-profile) proof)))
+
+(defn- system-code-internal-termo
+  "Relate a system-code byte string to its embedded formula-code term shape."
+  [system-bytes term]
+  (conde
+    [(== (list 'code system-bytes) term)]
+    [(fresh [encoded-system]
+       (append-sentinel-byteo system-bytes encoded-system)
+       (== (list 'num encoded-system) term))]))
+
+(defn- internal-code-term-byteso
+  "Expose the formula-code bytes denoted by a decoded internal code term.
+
+   This is used inside the Level-1 Group-3 check. The final self-consistency
+   formula contains the code of its own skeleton. Rather than consulting the
+   source builder's stored skeleton code, the profile reads that embedded code
+   term and decodes the referenced formula bytes during predicate application."
+  [term bytes]
+  (conde
+    [(== (list 'code bytes) term)]
+    [(fresh [encoded]
+       (== (list 'num encoded) term)
+       (append-sentinel-byteo bytes encoded))]))
+
+(defn- level1-selfcons-internal-formula
+  "Build the decoded internal form of Willard's Level-1 self-consistency axiom.
+
+   `x`, `y`, `p`, and `q` are formula-code binder indexes. The final Group-3
+   axiom uses indexes 1-4. The skeleton code is generated with free `v0` already
+   present, so its binders start at indexes 2-5 and its substitution argument is
+   `(var 1)`."
+  [system-term substitution-term x y p q]
+  (let [x-term (list 'var x)
+        y-term (list 'var y)
+        p-term (list 'var p)
+        q-term (list 'var q)
+        ;; Willard 2013 (7): Pair(x,y) requires `x` to code a Pi-star-1
+        ;; sentence; the pair restriction is encoded as the pi-star-1-code
+        ;; conjunct ahead of complement pairing (ADR-0087).
+        pi-restriction (list 'neg
+                             (list 'app 'pi-star-1-code (list x-term)))
+        neg-pair (list 'neg
+                       (list 'app 'neg-pair (list x-term y-term)))
+        left-subst (list 'neg
+                         (list 'app
+                               'subst-prf
+                               (list system-term
+                                     substitution-term
+                                     x-term
+                                     p-term)))
+        right-subst (list 'neg
+                          (list 'app
+                                'subst-prf
+                                (list system-term
+                                      substitution-term
+                                      y-term
+                                      q-term)))]
+    (list 'forall
+          x
+          (list 'forall
+                y
+                (list 'forall
+                      p
+                      (list 'forall
+                            q
+                            (list 'or
+                                  pi-restriction
+                                  (list 'or
+                                        neg-pair
+                                        (list 'or left-subst right-subst)))))))))
+
+(defn- level1-group-three-formulao
+  "Validate the Level-1 fixed-point axiom and its embedded skeleton code."
+  [prog system-bytes formula proof]
+  (fresh [system-term substitution-term skeleton-bytes skeleton-formula]
+    (system-code-internal-termo system-bytes system-term)
+    (== (level1-selfcons-internal-formula system-term
+                                          substitution-term
+                                          1
+                                          2
+                                          3
+                                          4)
+        formula)
+    (internal-code-term-byteso substitution-term skeleton-bytes)
+    (decode-formula-byteso prog skeleton-bytes '() skeleton-formula)
+    (== (level1-selfcons-internal-formula system-term
+                                          (list 'var 1)
+                                          2
+                                          3
+                                          4
+                                          5)
+        skeleton-formula)
+    (== '(sjas-system-level1-group-three-axiom) proof)))
+
+(defn- level1-group-three-formula-for-kindo
+  "Validate Level-1 Group-3 using the public representation selected by `s`."
+  [prog kind system-bytes formula proof]
+  (fresh [system-term substitution-term skeleton-bytes skeleton-formula]
+    (code-kind-internal-termo kind system-bytes system-term)
+    (== (level1-selfcons-internal-formula system-term
+                                          substitution-term
+                                          1
+                                          2
+                                          3
+                                          4)
+        formula)
+    (internal-code-term-byteso substitution-term skeleton-bytes)
+    (decode-formula-byteso prog skeleton-bytes '() skeleton-formula)
+    (== (level1-selfcons-internal-formula system-term
+                                          (list 'var 1)
+                                          2
+                                          3
+                                          4
+                                          5)
+        skeleton-formula)
+    (== '(sjas-system-level1-group-three-axiom) proof)))
+
+(defn- sjas-level1-group-three-axiom-membero
+  "Cite the Level-1 Group-3 axiom by checking its fixed-point skeleton."
+  [prog system-code formula-code proof]
+  (fresh [system-bytes system-kind formula-bytes system-read-proof formula-read-proof
+          header-proof formula group-three-proof]
+    (sjas-public-code-byteso system-code
+                             system-bytes
+                             system-kind
+                             system-read-proof)
+    (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-level1-system-code-headero system-bytes header-proof)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (level1-group-three-formula-for-kindo prog
+                                          system-kind
+                                          system-bytes
+                                          formula
+                                          group-three-proof)
+    (== (list 'sjas-system-group-three-axiom
+              system-read-proof
+              formula-read-proof
+              header-proof
+              group-three-proof)
+        proof)))
+
+(defn- byte-prefixo
+  [prefix bytes rest]
+  (conde
+    [(== '() prefix)
+     (== bytes rest)]
+    [(fresh [head prefix-tail bytes-tail]
+       (== (lcons head prefix-tail) prefix)
+       (== (lcons head bytes-tail) bytes)
+       (byte-prefixo prefix-tail bytes-tail rest))]))
+
+(declare byte-list-neqo)
+
+(defn- sjas-beta-member-in-formula-byteso
+  [_prog remaining bytes formula-bytes proof]
+  (if (zero? remaining)
+    fail
+    (fresh [after-current]
+      (skip-syntax-formula-byteso bytes after-current)
+      (conde
+        [(byte-prefixo formula-bytes bytes after-current)
+         (== '(sjas-system-beta-axiom) proof)]
+        [(fresh [current-bytes]
+           (byte-prefixo current-bytes bytes after-current)
+           (byte-list-neqo formula-bytes current-bytes)
+           (sjas-beta-member-in-formula-byteso _prog
+                                               (dec remaining)
+                                               after-current
+                                               formula-bytes
+                                               proof))]))))
+
+(defn- sjas-system-beta-formula-byteso
+  [prog system-bytes formula-bytes proof]
+  (fresh [profile-tag beta-count beta-bytes]
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (sjas-beta-member-in-formula-byteso prog
+                                                   beta-total
+                                                   beta-bytes
+                                                   formula-bytes
+                                                   proof)))
+           (range sjas-code/byte-base)))))
+
+(defn- sjas-beta-axiom-membero
+  [prog system-code formula-code proof]
+  (fresh [system-bytes formula-bytes system-read-proof formula-read-proof beta-proof]
+    (sjas-public-code-byteso system-code system-bytes system-read-proof)
+    (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-system-beta-formula-byteso prog system-bytes formula-bytes beta-proof)
+    (== (list 'sjas-system-beta-axiom
+              system-read-proof
+              formula-read-proof
+              beta-proof)
+        proof)))
+
+(defn- skip-formula-byteso
+  "Advance over `remaining` encoded formulas in a system-code byte tail.
+
+   System codes store the finite Group-2 beta block first, followed by the
+   reflected Group-2b clause block. Reflected-clause lookup therefore has to
+   consume the beta formulas structurally before it can inspect the reflected
+   section. The decoded formulas are intentionally discarded here; this relation
+   only proves that the bytes form well-encoded formulas and exposes the later
+   tail."
+  [_prog remaining bytes rest]
+  (if (zero? remaining)
+    (== bytes rest)
+    (fresh [after-formula]
+      (skip-syntax-formula-byteso bytes after-formula)
+      (skip-formula-byteso _prog (dec remaining) after-formula rest))))
+
+(defn- reflected-head-argso
+  "Build the canonical head argument list for an encoded reflected clause.
+
+   A reflected clause record stores only relation name, arity, and body. Its
+   axiom formula is reconstructed as `forall x1 ... forall xn. body -> R(x1,
+   ..., xn)`, using the same one-based variable indexes that the formula-code
+   encoder writes into object codes."
+  [idx arity args]
+  (if (> idx arity)
+    (== '() args)
+    (fresh [tail]
+      (== (lcons (list 'var idx) tail) args)
+      (reflected-head-argso (inc idx) arity tail))))
+
+(defn- reflected-forall-wrapo
+  "Wrap a reconstructed reflected-clause implication in its universal binders."
+  [idx arity body formula]
+  (if (> idx arity)
+    (== body formula)
+    (fresh [inner]
+      (== (list 'forall idx inner) formula)
+      (reflected-forall-wrapo (inc idx) arity body inner))))
+
+(defn- reflected-clause-formulao
+  "Relate an encoded reflected clause's relation/arity/body to its axiom text."
+  [arity relation body formula]
+  (fresh [args head implication]
+    (reflected-head-argso 1 arity args)
+    (== (list 'pos (list 'app relation args)) head)
+    (== (list 'implies body head) implication)
+    (reflected-forall-wrapo 1 arity implication formula)))
+
+(defn- decode-reflected-clause-formulao
+  "Decode one reflected-clause record from the reflected section of system-code.
+
+   The record layout is `[34 relation-index arity+1 body-formula-bytes...]`.
+   Fixed SJAS vocabulary indexes decode to their semantic symbols, while user
+   relation indexes stay structural. No source-language symbol table is needed
+   to reconstruct the axiom tree."
+  [prog bytes rest formula]
+  (fresh [relation-index arity-byte body-bytes relation body]
+    (== (lcons system-reflected-clause-tag
+                (lcons relation-index
+                       (lcons arity-byte body-bytes)))
+        bytes)
+    (sjas-object-symbol-indexo relation-index relation)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (decode-formula-byteso prog body-bytes rest body)
+               (reflected-clause-formulao arity relation body formula)))
+           (range sjas-code/byte-base)))))
+
+(defn- decode-reflected-clause-syntax-formulao
+  "Decode a reflected-clause axiom without resolving source symbol names.
+
+   Axiom membership only needs the formula tree induced by the reflected record.
+   It does not need the host relation symbol used later by procedure-call proof
+   reconstruction, so this decoder keeps the reflected relation as `(sym idx)`
+   and decodes the body through the syntax-only formula decoder."
+  [bytes rest formula]
+  (fresh [relation-index arity-byte body-bytes relation body]
+    (== (lcons system-reflected-clause-tag
+                (lcons relation-index
+                       (lcons arity-byte body-bytes)))
+        bytes)
+    (positive-byteo relation-index)
+    (== (list 'sym relation-index) relation)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (decode-syntax-formula-byteso body-bytes rest body)
+               (reflected-clause-formulao arity relation body formula)))
+           (range sjas-code/byte-base)))))
+
+(declare sjas-negated-formula-asto
+         formula-list-appendo)
+
+(defn- reflected-call-env-argso
+  "Bind canonical reflected-clause parameters to actual call arguments.
+
+   Reflected clause records use one-based formula-code variable indexes for
+   their formal parameters. The proof checker decodes those indexes to the same
+   fixed `sjas-vN` noms used by formula-code theorem decoding, then builds the
+   ordinary branch environment expected by `subst/subst-formulao`."
+  [idx arity args env]
+  (if (> idx arity)
+    (fresh []
+      (== '() args)
+      (== '() env))
+    (fresh [arg arg-rest env-rest nom]
+      (== (lcons arg arg-rest) args)
+      (membero [idx nom] code-nom-entries)
+      (== (lcons [nom arg] env-rest) env)
+      (reflected-call-env-argso (inc idx) arity arg-rest env-rest))))
+
+(defn- term-list-exact-lengtho
+  [remaining terms]
+  (if (zero? remaining)
+    (== '() terms)
+    (fresh [head tail]
+      (== (lcons head tail) terms)
+      (term-list-exact-lengtho (dec remaining) tail))))
+
+(defn- reflected-atom-relation-indexo
+  "Relate a decoded call atom relation to the reflected system-code symbol id.
+
+   Fixed SJAS vocabulary has reserved semantic symbols. User relations decoded
+   from formula codes keep the structural `(sym idx)` form. This relation
+   recovers the same finite byte index in either case without consulting the
+   source-language symbol table."
+  [relation relation-index]
+  (conde
+    [(sjas-reserved-symbol-indexo relation-index relation)]
+    [(positive-byteo relation-index)
+     (== (list 'sym relation-index) relation)]))
+
+(defn- reflected-atom-arity-byteo
+  "Relate a focused call atom's argument list to the encoded arity byte."
+  [args arity-byte]
+  (or*
+    (map (fn [arity]
+           (fresh []
+             (== (inc arity) arity-byte)
+             (term-list-exact-lengtho arity args)))
+         (range (dec sjas-code/byte-base)))))
+
+(defn- reflected-call-header-matcho
+  "Check that one encoded reflected-clause header matches the focused call."
+  [atom relation-index arity-byte]
+  (fresh [relation args]
+    (== (lcons 'app (lcons relation args)) atom)
+    (reflected-atom-relation-indexo relation relation-index)
+    (reflected-atom-arity-byteo args arity-byte)))
+
+(defn- reflected-call-header-nonmatcho
+  "Prove that an encoded reflected-clause header cannot match the focused call.
+
+   This is the object-level replacement for using `conda` as an if-then-else
+   while collecting reflected alternatives. A clause is skipped only when its
+   relation index differs from the focused call's index, or when the relation
+   index agrees but the encoded arity byte differs from the call's arity byte."
+  [atom relation-index arity-byte]
+  (fresh [relation args atom-relation-index atom-arity-byte]
+    (== (lcons 'app (lcons relation args)) atom)
+    (reflected-atom-relation-indexo relation atom-relation-index)
+    (reflected-atom-arity-byteo args atom-arity-byte)
+    (conde
+      [(positive-byte-neqo relation-index atom-relation-index)]
+      [(== relation-index atom-relation-index)
+       (positive-byte-neqo arity-byte atom-arity-byte)])))
+
+(defn- decode-reflected-clause-callo
+  "Decode one reflected-clause record as a Procedure Call Rule target.
+
+   This is the procedure-call analogue of `decode-reflected-clause-formulao`.
+   It reads `[34 relation-index arity+1 body-formula...]` directly from the
+   reflected block of `system-code`, matches the decoded relation and arity
+   against the focused call atom, and exposes the body/negated-body formulas
+   needed by `pos-call` and `neg-call` proof constructors."
+  [prog bytes rest atom env body negated-body]
+  (fresh [relation args relation-index arity-byte body-bytes
+          decoded-body nnf-body]
+    (== (lcons 'app (lcons relation args)) atom)
+    (== (lcons system-reflected-clause-tag
+                (lcons relation-index
+                       (lcons arity-byte body-bytes)))
+        bytes)
+    (sjas-object-symbol-indexo relation-index relation)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (reflected-call-env-argso 1 arity args env)
+               (decode-formula-byteso prog body-bytes rest decoded-body)
+               (sjas-to-nnfo decoded-body nnf-body)
+               (sjas-internal-formula-asto nnf-body body)
+               (sjas-negated-formula-asto nnf-body negated-body)))
+           (range sjas-code/byte-base)))))
+
+(defn- reflected-call-in-clauseso
+  "Search encoded reflected clauses for a call-compatible procedure body."
+  [prog remaining bytes atom env body negated-body]
+  (if (zero? remaining)
+    fail
+    (fresh [after-current]
+      (conde
+        [(decode-reflected-clause-callo prog
+                                        bytes
+                                        after-current
+                                        atom
+                                        env
+                                        body
+                                        negated-body)]
+        [(fresh [current]
+           (decode-reflected-clause-syntax-formulao bytes after-current current)
+           (reflected-call-in-clauseso prog
+                                       (dec remaining)
+                                       after-current
+                                       atom
+                                       env
+                                       body
+                                       negated-body))]))))
+
+(defn- reflected-call-alternatives-in-clauseso
+  "Collect all encoded reflected clauses matching one procedure call.
+
+   The generic Proflog kernel compiles same-relation clauses into a finite list
+   of alternatives and `neg-call-alt` closes one negated alternative from that
+   list. SJAS proof-predicate checking cannot use that compiled host table, so
+   this relation reconstructs the matching negated alternatives by scanning the
+   reflected Group-2b records inside `system-code`."
+  [prog remaining bytes atom env negated-alternatives]
+  (if (zero? remaining)
+    (== '() negated-alternatives)
+    (fresh [relation-index arity-byte body-bytes after-current]
+      (== (lcons system-reflected-clause-tag
+                  (lcons relation-index
+                         (lcons arity-byte body-bytes)))
+          bytes)
+      (conde
+        [(reflected-call-header-matcho atom relation-index arity-byte)
+         (fresh [body negated-body rest]
+           (decode-reflected-clause-callo prog
+                                          bytes
+                                          after-current
+                                          atom
+                                          env
+                                          body
+                                          negated-body)
+           (== (lcons negated-body rest) negated-alternatives)
+           (reflected-call-alternatives-in-clauseso prog
+                                                    (dec remaining)
+                                                    after-current
+                                                    atom
+                                                    env
+                                                    rest))]
+        [(reflected-call-header-nonmatcho atom relation-index arity-byte)
+         (fresh [current]
+           (decode-reflected-clause-syntax-formulao bytes after-current current)
+           (reflected-call-alternatives-in-clauseso prog
+                                                    (dec remaining)
+                                                    after-current
+                                                    atom
+                                                    env
+                                                    negated-alternatives))]))))
+
+(defn- internal-non-and-formulao
+  [formula]
+  (conde
+    [(== (list 'true) formula)]
+    [(== (list 'false) formula)]
+    [(fresh [term]
+       (== (list 'pos term) formula))]
+    [(fresh [term]
+       (== (list 'neg term) formula))]
+    [(fresh [left right]
+       (== (list 'eq left right) formula))]
+    [(fresh [left right]
+       (== (list 'neq left right) formula))]
+    [(fresh [left right]
+       (== (list 'or left right) formula))]
+    [(fresh [body]
+       (== (list 'not body) formula))]
+    [(fresh [left right]
+       (== (list 'implies left right) formula))]
+    [(fresh [idx body]
+       (== (list 'forall idx body) formula))]
+    [(fresh [idx body]
+       (== (list 'once-forall idx body) formula))]
+    [(fresh [idx body]
+       (== (list 'exists idx body) formula))]
+    [(fresh [idx bound body]
+       (== (list 'bounded-forall idx bound body) formula))]
+    [(fresh [idx bound body]
+       (== (list 'bounded-exists idx bound body) formula))]))
+
+(defn- internal-formula-conjunctso
+  "Flatten a decoded internal formula's top-level conjunctions."
+  [formula conjuncts]
+  (conde
+    [(fresh [left right left-conjuncts right-conjuncts]
+       (== (list 'and left right) formula)
+       (internal-formula-conjunctso left left-conjuncts)
+       (internal-formula-conjunctso right right-conjuncts)
+       (formula-list-appendo left-conjuncts right-conjuncts conjuncts))]
+    [(internal-non-and-formulao formula)
+     (== (lcons formula '()) conjuncts)]))
+
+(defn- internal-formula-list-negated-asto
+  "Translate decoded internal formulas to their AST-level NNF negations."
+  [formulas ast-formulas]
+  (conde
+    [(== '() formulas)
+     (== '() ast-formulas)]
+    [(fresh [formula rest ast-formula ast-rest]
+       (== (lcons formula rest) formulas)
+       (== (lcons ast-formula ast-rest) ast-formulas)
+       (sjas-negated-formula-asto formula ast-formula)
+       (internal-formula-list-negated-asto rest ast-rest))]))
+
+(defn- internal-formula-list-asto
+  "Translate decoded internal formulas to ordinary AST formulas."
+  [formulas ast-formulas]
+  (conde
+    [(== '() formulas)
+     (== '() ast-formulas)]
+    [(fresh [formula rest ast-formula ast-rest]
+       (== (lcons formula rest) formulas)
+       (== (lcons ast-formula ast-rest) ast-formulas)
+       (sjas-internal-formula-asto formula ast-formula)
+       (internal-formula-list-asto rest ast-rest))]))
+
+(defn- internal-guard-formulao
+  [formula]
+  (conde
+    [(fresh [left right]
+       (== (list 'eq left right) formula))]
+    [(fresh [left right]
+       (== (list 'neq left right) formula))]))
+
+(defn- reflected-relation-index-in-clauseso
+  "True when `relation-index` names a reflected relation in system-code bytes."
+  [remaining bytes relation-index]
+  (if (zero? remaining)
+    fail
+    (fresh [current-index arity-byte body-bytes after-current current]
+      (conde
+        [(== (lcons system-reflected-clause-tag
+                    (lcons current-index
+                           (lcons arity-byte body-bytes)))
+             bytes)
+         (decode-reflected-clause-syntax-formulao bytes after-current current)
+         (== current-index relation-index)]
+        [(decode-reflected-clause-syntax-formulao bytes after-current current)
+         (reflected-relation-index-in-clauseso
+           (dec remaining)
+           after-current
+           relation-index)]))))
+
+(defn- internal-call-formulao
+  "Recognize decoded conjuncts that call a relation reflected in system-code."
+  [prog reflected-total reflected-bytes formula]
+  (fresh [atom relation args relation-index]
+    (conde
+      [(== (list 'pos atom) formula)]
+      [(== (list 'neg atom) formula)])
+    (== (list 'app relation args) atom)
+    (conde
+      [(== (list 'sym relation-index) relation)]
+      [(sjas-object-symbol-indexo relation-index relation)])
+    (reflected-relation-index-in-clauseso
+      reflected-total
+      reflected-bytes
+      relation-index)))
+
+(defn- internal-guarded-conjunct-partitiono
+  "Partition decoded conjuncts into guard, reflected call, and residual groups."
+  [prog reflected-total reflected-bytes conjuncts guards calls residuals]
+  (conde
+    [(== '() conjuncts)
+     (== '() guards)
+     (== '() calls)
+     (== '() residuals)]
+    [(fresh [conjunct rest guard-rest]
+       (== (lcons conjunct rest) conjuncts)
+       (internal-guard-formulao conjunct)
+       (== (lcons conjunct guard-rest) guards)
+       (internal-guarded-conjunct-partitiono prog
+                                             reflected-total
+                                             reflected-bytes
+                                             rest
+                                             guard-rest
+                                             calls
+                                             residuals))]
+    [(fresh [conjunct rest call-rest]
+       (== (lcons conjunct rest) conjuncts)
+       (internal-call-formulao prog reflected-total reflected-bytes conjunct)
+       (== (lcons conjunct call-rest) calls)
+       (internal-guarded-conjunct-partitiono prog
+                                             reflected-total
+                                             reflected-bytes
+                                             rest
+                                             guards
+                                             call-rest
+                                             residuals))]
+    [(fresh [conjunct rest residual-rest]
+       (== (lcons conjunct rest) conjuncts)
+       (== (lcons conjunct residual-rest) residuals)
+       (internal-guarded-conjunct-partitiono prog
+                                             reflected-total
+                                             reflected-bytes
+                                             rest
+                                             guards
+                                             calls
+                                             residual-rest))]))
+
+(defn- internal-non-exists-formulao
+  [formula]
+  (conde
+    [(== (list 'true) formula)]
+    [(== (list 'false) formula)]
+    [(fresh [term]
+       (== (list 'pos term) formula))]
+    [(fresh [term]
+       (== (list 'neg term) formula))]
+    [(fresh [left right]
+       (== (list 'eq left right) formula))]
+    [(fresh [left right]
+       (== (list 'neq left right) formula))]
+    [(fresh [left right]
+       (== (list 'and left right) formula))]
+    [(fresh [left right]
+       (== (list 'or left right) formula))]
+    [(fresh [body]
+       (== (list 'not body) formula))]
+    [(fresh [left right]
+       (== (list 'implies left right) formula))]
+    [(fresh [idx body]
+       (== (list 'forall idx body) formula))]
+    [(fresh [idx body]
+       (== (list 'once-forall idx body) formula))]
+    [(fresh [idx bound body]
+       (== (list 'bounded-forall idx bound body) formula))]
+    [(fresh [idx bound body]
+       (== (list 'bounded-exists idx bound body) formula))]))
+
+(defn- internal-leading-exists-scopeo
+  "Strip leading decoded existential binders for guarded negative-call scope."
+  [formula scope core]
+  (conde
+    [(fresh [idx body nom rest]
+       (== (list 'exists idx body) formula)
+       (membero [idx nom] code-nom-entries)
+       (== (lcons nom rest) scope)
+       (internal-leading-exists-scopeo body rest core))]
+    [(internal-non-exists-formulao formula)
+     (== '() scope)
+     (== formula core)]))
+
+(defn- internal-guarded-alternative-asto
+  "Recover guarded-negative proof data for one reflected body.
+
+   The generic guarded call path closes the negation of one alternative by
+   either proving the fallback negation of each conjunct in source order, or by
+   saturating equality guards and then proving negated residuals. For Track 1
+   proof-predicate checking, reconstruct these lists from the reflected clause
+   body decoded out of `system-code` rather than from the compiled
+   guarded-clause host table."
+  [prog reflected-total reflected-bytes formula guarded-alternative]
+  (fresh [scope core conjuncts guards calls residuals ast-guards
+          ast-negated-calls ast-negated-residuals ast-negated-conjuncts]
+    (internal-leading-exists-scopeo formula scope core)
+    (internal-formula-conjunctso core conjuncts)
+    (internal-guarded-conjunct-partitiono prog
+                                          reflected-total
+                                          reflected-bytes
+                                          conjuncts
+                                          guards
+                                          calls
+                                          residuals)
+    (internal-formula-list-asto guards ast-guards)
+    (internal-formula-list-negated-asto calls ast-negated-calls)
+    (internal-formula-list-negated-asto residuals ast-negated-residuals)
+    (internal-formula-list-negated-asto conjuncts ast-negated-conjuncts)
+    (== (list 'guarded-alternative
+              scope
+              ast-guards
+              ast-negated-calls
+              ast-negated-residuals
+              ast-negated-conjuncts)
+        guarded-alternative)))
+
+(defn- decode-reflected-clause-guarded-callo
+  "Decode one reflected-clause record as guarded negative-call data."
+  [prog reflected-total reflected-bytes bytes rest atom env guarded-alternative]
+  (fresh [relation args relation-index arity-byte body-bytes
+          decoded-body nnf-body]
+    (== (lcons 'app (lcons relation args)) atom)
+    (== (lcons system-reflected-clause-tag
+                (lcons relation-index
+                       (lcons arity-byte body-bytes)))
+        bytes)
+    (sjas-object-symbol-indexo relation-index relation)
+    (or*
+      (map (fn [arity]
+             (fresh []
+               (== (inc arity) arity-byte)
+               (reflected-call-env-argso 1 arity args env)
+               (decode-proof-formula-byteso prog body-bytes rest decoded-body)
+               (sjas-to-nnfo decoded-body nnf-body)
+               (internal-guarded-alternative-asto
+                 prog
+                 reflected-total
+                 reflected-bytes
+                 nnf-body
+                 guarded-alternative)))
+           (range sjas-code/byte-base)))))
+
+(defn- reflected-call-guarded-alternatives-in-clauseso
+  "Collect guarded negative-call alternatives from encoded reflected clauses."
+  [prog reflected-total reflected-bytes remaining bytes atom env guarded-alternatives]
+  (if (zero? remaining)
+    (== '() guarded-alternatives)
+    (fresh [relation-index arity-byte body-bytes after-current]
+      (== (lcons system-reflected-clause-tag
+                  (lcons relation-index
+                         (lcons arity-byte body-bytes)))
+          bytes)
+      (conde
+        [(reflected-call-header-matcho atom relation-index arity-byte)
+         (fresh [guarded-alternative rest]
+           (decode-reflected-clause-guarded-callo prog
+                                                  reflected-total
+                                                  reflected-bytes
+                                                  bytes
+                                                  after-current
+                                                  atom
+                                                  env
+                                                  guarded-alternative)
+           (== (lcons guarded-alternative rest) guarded-alternatives)
+           (reflected-call-guarded-alternatives-in-clauseso
+             prog
+             reflected-total
+             reflected-bytes
+             (dec remaining)
+             after-current
+             atom
+             env
+             rest))]
+        [(reflected-call-header-nonmatcho atom relation-index arity-byte)
+         (fresh [current]
+           (decode-reflected-clause-syntax-formulao bytes after-current current)
+           (reflected-call-guarded-alternatives-in-clauseso
+             prog
+             reflected-total
+             reflected-bytes
+             (dec remaining)
+             after-current
+             atom
+             env
+             guarded-alternatives))]))))
+
+(defn- sjas-system-reflected-call-clauseo
+  "Resolve a proof-predicate procedure call from encoded reflected clauses.
+
+   Unlike the generic compiled-program Procedure Call Rule, this relation does
+   not consult a compiled clause list. It decodes the active finite SJAS system
+   code, skips the beta block, and searches the reflected Group-2b clause
+   records as object-level data."
+  [prog system-code atom env body negated-body]
+  (fresh [system-bytes profile-tag beta-count beta-bytes
+          after-betas reflected-count reflected-bytes]
+    (sjas-public-code-bytes-coreo system-code system-bytes)
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (skip-formula-byteso prog beta-total beta-bytes after-betas)
+               (== (lcons reflected-count reflected-bytes) after-betas)
+               (or*
+                 (map (fn [reflected-total]
+                        (fresh []
+                          (== (inc reflected-total) reflected-count)
+                          (reflected-call-in-clauseso prog
+                                                      reflected-total
+                                                      reflected-bytes
+                                                      atom
+                                                      env
+                                                      body
+                                                      negated-body)))
+                      (range sjas-code/byte-base)))))
+           (range sjas-code/byte-base)))))
+
+(defn- sjas-system-reflected-call-alternativeso
+  "Resolve all same-relation reflected call alternatives from system-code."
+  [prog system-code atom env negated-alternatives]
+  (fresh [system-bytes profile-tag beta-count beta-bytes
+          after-betas reflected-count reflected-bytes]
+    (sjas-public-code-bytes-coreo system-code system-bytes)
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (skip-formula-byteso prog beta-total beta-bytes after-betas)
+               (== (lcons reflected-count reflected-bytes) after-betas)
+               (or*
+                 (map (fn [reflected-total]
+                        (fresh []
+                          (== (inc reflected-total) reflected-count)
+                          (reflected-call-alternatives-in-clauseso
+                            prog
+                            reflected-total
+                            reflected-bytes
+                            atom
+                            env
+                            negated-alternatives)))
+                      (range sjas-code/byte-base)))))
+           (range sjas-code/byte-base)))))
+
+(defn- sjas-system-reflected-guarded-call-alternativeso
+  "Resolve guarded reflected call alternatives from encoded system data."
+  [prog system-code atom env guarded-alternatives]
+  (fresh [system-bytes profile-tag beta-count beta-bytes
+          after-betas reflected-count reflected-bytes]
+    (sjas-public-code-bytes-coreo system-code system-bytes)
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (skip-formula-byteso prog beta-total beta-bytes after-betas)
+               (== (lcons reflected-count reflected-bytes) after-betas)
+               (or*
+                 (map (fn [reflected-total]
+                        (fresh []
+                          (== (inc reflected-total) reflected-count)
+                          (reflected-call-guarded-alternatives-in-clauseso
+                            prog
+                            reflected-total
+                            reflected-bytes
+                            reflected-total
+                            reflected-bytes
+                            atom
+                            env
+                            guarded-alternatives)))
+                      (range sjas-code/byte-base)))))
+           (range sjas-code/byte-base)))))
+
+(defn- reflected-member-in-clauseso
+  "Search the encoded reflected-clause section for a formula-equivalent axiom."
+  [_prog remaining bytes formula proof]
+  (if (zero? remaining)
+    fail
+    (fresh [current after-current]
+      (decode-reflected-clause-syntax-formulao bytes after-current current)
+      (conde
+        [(sjas-alpha-formula-equivo current formula '())
+         (== '(sjas-system-reflected-axiom) proof)]
+        [(reflected-member-in-clauseso _prog
+                                       (dec remaining)
+                                       after-current
+                                       formula
+                                       proof)]))))
+
+(defn- sjas-system-reflected-formulao
+  "Relate a system-code byte string to one of its reflected Group-2b axioms.
+
+   This is the Group-2b analogue of beta membership: it reads the reflected
+   block from the encoded finite system source instead of asking whether a
+   generated `axiom-member/2` host fact exists. Callers now obtain
+   `system-bytes` through the same object-language public-code relation used by
+   syntax and theorem-code reads."
+  [prog system-bytes formula proof]
+  (fresh [profile-tag beta-count beta-bytes after-betas reflected-count reflected-bytes]
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (skip-formula-byteso prog beta-total beta-bytes after-betas)
+               (== (lcons reflected-count reflected-bytes) after-betas)
+               (or*
+                 (map (fn [reflected-total]
+                        (fresh []
+                          (== (inc reflected-total) reflected-count)
+                          (reflected-member-in-clauseso prog
+                                                        reflected-total
+                                                        reflected-bytes
+                                                        formula
+                                                        proof)))
+                      (range sjas-code/byte-base)))))
+           (range sjas-code/byte-base)))))
+
+(defn- reflected-axiom-formula-starto
+  "Cheaply reject byte strings that cannot encode a reflected clause axiom.
+
+   A reflected clause with parameters is wrapped in one or more `forall`
+   formulas; a nullary reflected clause starts with the implication from body
+   to head. This guard prevents negative proof-predicate tests from trying to
+   parse non-formula codes, such as a whole `system-code`, as reflected axiom
+   formulas."
+  [formula-bytes]
+  (fresh [tag rest]
+    (== (lcons tag rest) formula-bytes)
+    (conde
+      [(== formula-forall-tag tag)]
+      [(== formula-implies-tag tag)])))
+
+(defn- sjas-reflected-axiom-membero
+  "Check reflected Group-2b axiom membership from encoded system data.
+
+   Both system and candidate formula codes are still read by the public
+   object-level byte relation. Their proof payloads are summarized here because
+   reflected axiom citation is a large semantic path: the relevant evidence is
+   the reconstructed reflected-clause formula and alpha comparison, while
+   reifying every byte-read step can dominate the proof search runtime."
+  [prog system-code formula-code proof]
+  (fresh [system-bytes formula-bytes system-read-proof formula-read-proof
+          decoded-formula reflected-proof]
+    (sjas-public-code-byteso system-code system-bytes system-read-proof)
+    (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
+    (reflected-axiom-formula-starto formula-bytes)
+    (decode-syntax-formula-byteso formula-bytes '() decoded-formula)
+    (sjas-system-reflected-formulao prog system-bytes decoded-formula reflected-proof)
+    (== (list 'sjas-system-reflected-axiom
+              system-read-proof
+              formula-read-proof
+              reflected-proof)
+        proof)))
+
+(declare sjas-proof-antecedent-formula-asto sjas-negated-formula-asto)
+
+(defn- sjas-proof-antecedent-quantifier-asto
+  [internal-tag ast-tag formula ast-formula]
+  (or*
+    (map (fn [[idx nom]]
+           (fresh [body body-ast]
+             (== (list internal-tag idx body) formula)
+             (== (list ast-tag (nominal/tie nom body-ast)) ast-formula)
+             (sjas-proof-antecedent-formula-asto body body-ast)))
+         code-nom-entries)))
+
+(defn- sjas-negated-quantifier-asto
+  [internal-tag ast-tag formula ast-formula]
+  (or*
+    (map (fn [[idx nom]]
+           (fresh [body body-ast]
+             (== (list internal-tag idx body) formula)
+             (== (list ast-tag (nominal/tie nom body-ast)) ast-formula)
+             (sjas-negated-formula-asto body body-ast)))
+         code-nom-entries)))
+
+(defn- leq-guard-asto
+  [polarity nom bound-ast formula]
+  (== (list polarity
+            (list 'app 'leq (list 'var nom) bound-ast))
+      formula))
+
+(defn- sjas-proof-antecedent-bounded-quantifier-asto
+  [internal-tag ast-tag connective guard-polarity formula ast-formula]
+  (or*
+    (map (fn [[idx nom]]
+           (fresh [bound body bound-ast body-ast guard combined]
+             (== (list internal-tag idx bound body) formula)
+             (sjas-internal-term-asto bound bound-ast)
+             (leq-guard-asto guard-polarity nom bound-ast guard)
+             (sjas-proof-antecedent-formula-asto body body-ast)
+             (== (list connective guard body-ast) combined)
+             (== (list ast-tag
+                       (nominal/tie nom {:bound bound-ast
+                                         :body combined}))
+                 ast-formula)))
+         code-nom-entries)))
+
+(defn- sjas-negated-bounded-quantifier-asto
+  [internal-tag ast-tag connective guard-polarity formula ast-formula]
+  (or*
+    (map (fn [[idx nom]]
+           (fresh [bound body bound-ast body-ast guard combined]
+             (== (list internal-tag idx bound body) formula)
+             (sjas-internal-term-asto bound bound-ast)
+             (leq-guard-asto guard-polarity nom bound-ast guard)
+             (sjas-negated-formula-asto body body-ast)
+             (== (list connective guard body-ast) combined)
+             (== (list ast-tag
+                       (nominal/tie nom {:bound bound-ast
+                                         :body combined}))
+                 ast-formula)))
+         code-nom-entries)))
+
+(defn- sjas-proof-antecedent-formula-asto
+  "Relate an encoded axiom formula to its double-negated proof antecedent AST.
+
+   The source theorem query proves `(axioms -> theorem)`. The tableau branch
+   checked by `tableau-proof/3` contains the double negation of the axiom basis,
+   not the surface axiom basis itself. This relation mirrors
+   `normalize/negate-formula` twice, but it runs as kernel relation over decoded
+   formula-code structure rather than recovering the antecedent from host
+   registry metadata."
+  [formula ast-formula]
+  (conde
+    [(== (list 'true) formula)
+     (== (list 'true) ast-formula)]
+    [(== (list 'false) formula)
+     (== (list 'false) ast-formula)]
+    [(fresh [term ast-term]
+       (== (list 'pos term) formula)
+       (== (list 'pos ast-term) ast-formula)
+       (sjas-internal-term-asto term ast-term))]
+    [(fresh [term ast-term]
+       (== (list 'neg term) formula)
+       (== (list 'neg ast-term) ast-formula)
+       (sjas-internal-term-asto term ast-term))]
+    [(fresh [left right left-ast right-ast]
+       (== (list 'eq left right) formula)
+       (== (list 'eq left-ast right-ast) ast-formula)
+       (sjas-internal-term-asto left left-ast)
+       (sjas-internal-term-asto right right-ast))]
+    [(fresh [left right left-ast right-ast]
+       (== (list 'neq left right) formula)
+       (== (list 'neq left-ast right-ast) ast-formula)
+       (sjas-internal-term-asto left left-ast)
+       (sjas-internal-term-asto right right-ast))]
+    [(fresh [left right left-ast right-ast]
+       (== (list 'and left right) formula)
+       (== (list 'and left-ast right-ast) ast-formula)
+       (sjas-proof-antecedent-formula-asto left left-ast)
+       (sjas-proof-antecedent-formula-asto right right-ast))]
+    [(fresh [left right left-ast right-ast]
+       (== (list 'or left right) formula)
+       (== (list 'or left-ast right-ast) ast-formula)
+       (sjas-proof-antecedent-formula-asto left left-ast)
+       (sjas-proof-antecedent-formula-asto right right-ast))]
+    [(fresh [body body-ast]
+       (== (list 'not body) formula)
+       (sjas-negated-formula-asto body body-ast)
+       (== body-ast ast-formula))]
+    [(fresh [left right left-ast right-ast]
+       (== (list 'implies left right) formula)
+       (== (list 'or left-ast right-ast) ast-formula)
+       (sjas-negated-formula-asto left left-ast)
+       (sjas-proof-antecedent-formula-asto right right-ast))]
+    [(sjas-proof-antecedent-quantifier-asto 'forall 'once-forall formula ast-formula)]
+    [(sjas-proof-antecedent-quantifier-asto 'once-forall 'once-forall formula ast-formula)]
+    [(sjas-proof-antecedent-quantifier-asto 'exists 'exists formula ast-formula)]
+    [(sjas-proof-antecedent-bounded-quantifier-asto 'bounded-forall
+                                                    'once-forall
+                                                    'or
+                                                    'neg
+                                                    formula
+                                                    ast-formula)]
+    [(sjas-proof-antecedent-bounded-quantifier-asto 'bounded-exists
+                                                    'exists
+                                                    'and
+                                                    'pos
+                                                    formula
+                                                    ast-formula)]))
+
+(defn- sjas-negated-formula-asto
+  "Relate an encoded formula to its NNF negation as an AST formula."
+  [formula ast-formula]
+  (conde
+    [(== (list 'true) formula)
+     (== (list 'false) ast-formula)]
+    [(== (list 'false) formula)
+     (== (list 'true) ast-formula)]
+    [(fresh [term ast-term]
+       (== (list 'pos term) formula)
+       (== (list 'neg ast-term) ast-formula)
+       (sjas-internal-term-asto term ast-term))]
+    [(fresh [term ast-term]
+       (== (list 'neg term) formula)
+       (== (list 'pos ast-term) ast-formula)
+       (sjas-internal-term-asto term ast-term))]
+    [(fresh [left right left-ast right-ast]
+       (== (list 'eq left right) formula)
+       (== (list 'neq left-ast right-ast) ast-formula)
+       (sjas-internal-term-asto left left-ast)
+       (sjas-internal-term-asto right right-ast))]
+    [(fresh [left right left-ast right-ast]
+       (== (list 'neq left right) formula)
+       (== (list 'eq left-ast right-ast) ast-formula)
+       (sjas-internal-term-asto left left-ast)
+       (sjas-internal-term-asto right right-ast))]
+    [(fresh [left right left-ast right-ast]
+       (== (list 'and left right) formula)
+       (== (list 'or left-ast right-ast) ast-formula)
+       (sjas-negated-formula-asto left left-ast)
+       (sjas-negated-formula-asto right right-ast))]
+    [(fresh [left right left-ast right-ast]
+       (== (list 'or left right) formula)
+       (== (list 'and left-ast right-ast) ast-formula)
+       (sjas-negated-formula-asto left left-ast)
+       (sjas-negated-formula-asto right right-ast))]
+    [(fresh [body body-ast]
+       (== (list 'not body) formula)
+       (sjas-proof-antecedent-formula-asto body body-ast)
+       (== body-ast ast-formula))]
+    [(fresh [left right left-ast right-ast]
+       (== (list 'implies left right) formula)
+       (== (list 'and left-ast right-ast) ast-formula)
+       (sjas-proof-antecedent-formula-asto left left-ast)
+       (sjas-negated-formula-asto right right-ast))]
+    [(sjas-negated-quantifier-asto 'forall 'exists formula ast-formula)]
+    [(sjas-negated-quantifier-asto 'once-forall 'exists formula ast-formula)]
+    [(sjas-negated-quantifier-asto 'exists 'once-forall formula ast-formula)]
+    [(sjas-negated-bounded-quantifier-asto 'bounded-forall
+                                           'exists
+                                           'and
+                                           'pos
+                                           formula
+                                           ast-formula)]
+    [(sjas-negated-bounded-quantifier-asto 'bounded-exists
+                                           'once-forall
+                                           'or
+                                           'neg
+                                           formula
+                                           ast-formula)]))
+
+(defn- formula-list-appendo
+  [left right out]
+  (conde
+    [(== '() left)
+     (== right out)]
+    [(fresh [head tail appended-tail]
+       (== (lcons head tail) left)
+       (== (lcons head appended-tail) out)
+       (formula-list-appendo tail right appended-tail))]))
+
+(declare formula-list-and-resto)
+
+(defn- formula-list-ando
+  [formulas formula]
+  (conde
+    [(== '() formulas)
+     (== (list 'true) formula)]
+    [(fresh [head tail]
+       (== (lcons head tail) formulas)
+       (formula-list-and-resto head tail formula))]))
+
+(defn- formula-list-and-resto
+  [acc formulas formula]
+  (conde
+    [(== '() formulas)
+     (== acc formula)]
+    [(fresh [head tail next]
+       (== (lcons head tail) formulas)
+       (== (list 'and acc head) next)
+       (formula-list-and-resto next tail formula))]))
+
+(defn- decode-proof-antecedent-formulaso
+  [prog remaining bytes rest formulas]
+  (if (zero? remaining)
+    (fresh []
+      (== bytes rest)
+      (== '() formulas))
+    (fresh [decoded ast-formula after-formula tail-formulas]
+      (decode-proof-formula-byteso prog bytes after-formula decoded)
+      (sjas-proof-antecedent-formula-asto decoded ast-formula)
+      (decode-proof-antecedent-formulaso prog
+                                         (dec remaining)
+                                         after-formula
+                                         rest
+                                         tail-formulas)
+      (== (lcons ast-formula tail-formulas) formulas))))
+
+(defn- decode-reflected-proof-antecedent-formulaso
+  [prog remaining bytes rest formulas]
+  (if (zero? remaining)
+    (fresh []
+      (== bytes rest)
+      (== '() formulas))
+    (fresh [decoded ast-formula after-record tail-formulas]
+      (decode-reflected-clause-formulao prog bytes after-record decoded)
+      (sjas-proof-antecedent-formula-asto decoded ast-formula)
+      (decode-reflected-proof-antecedent-formulaso prog
+                                                   (dec remaining)
+                                                   after-record
+                                                   rest
+                                                   tail-formulas)
+      (== (lcons ast-formula tail-formulas) formulas))))
+
+(defn- sjas-proof-antecedent-formula-listo
+  "Convert a finite fixed internal axiom list to proof antecedent formulas.
+
+   Group-0 and Group-1 are fixed finite schemata for every selected SJAS
+   profile. The relation still exposes each formula through
+   `sjas-proof-antecedent-formula-asto`; the host sequence only supplies the
+   finite fixed list being internalized."
+  [internal-formulas formulas]
+  (if (empty? internal-formulas)
+    (== '() formulas)
+    (fresh [head tail]
+      (sjas-proof-antecedent-formula-asto (first internal-formulas) head)
+      (sjas-proof-antecedent-formula-listo (rest internal-formulas) tail)
+      (== (lcons head tail) formulas))))
+
+(defn- sjas-fixed-proof-antecedent-formulaso
+  "Reconstruct the fixed Group-0 and Group-1 antecedents for `AxiomConj(s)`."
+  [formulas]
+  (fresh [group-zero-formulas group-one-formulas]
+    (sjas-proof-antecedent-formula-listo group-zero-internal-formulas
+                                         group-zero-formulas)
+    (sjas-proof-antecedent-formula-listo group-one-internal-formulas
+                                         group-one-formulas)
+    (formula-list-appendo group-zero-formulas group-one-formulas formulas)))
+
+(defn- sjas-system-group-three-proof-antecedento
+  ([prog profile-tag system-bytes formula]
+   (fresh [system-kind]
+     (conde
+       [(== :compact system-kind)]
+       [(== :u-grounding system-kind)])
+     (sjas-system-group-three-proof-antecedento prog
+                                                profile-tag
+                                                system-kind
+                                                system-bytes
+                                                formula)))
+  ([prog profile-tag system-kind system-bytes formula]
+   (conde
+     [(fresh [decoded group-proof]
+        (== system-profile-tableau0-tag profile-tag)
+        (tableau0-group-three-formula-for-kindo system-kind
+                                                system-bytes
+                                                decoded
+                                                group-proof)
+        (sjas-proof-antecedent-formula-asto decoded formula))]
+     [(fresh [decoded group-proof]
+        (== system-profile-level1-tag profile-tag)
+        (level1-group-three-formula-for-kindo prog
+                                              system-kind
+                                              system-bytes
+                                              decoded
+                                              group-proof)
+        (sjas-proof-antecedent-formula-asto decoded formula))])))
+
+(defn- sjas-system-proof-axiom-formulao
+  ([prog system-bytes axiom-formula]
+   (fresh [system-kind]
+     (conde
+       [(== :compact system-kind)]
+       [(== :u-grounding system-kind)])
+     (sjas-system-proof-axiom-formulao prog
+                                       system-kind
+                                       system-bytes
+                                       axiom-formula)))
+  ([prog system-kind system-bytes axiom-formula]
+   (fresh [profile-tag beta-count beta-bytes beta-formulas after-betas
+           reflected-count reflected-bytes reflected-formulas reflected-rest
+           fixed-formulas fixed-and-beta beta-and-reflected all-but-group3
+           group-three-formula all-formulas]
+     (== (lcons system-code-tag
+                 (lcons profile-tag
+                        (lcons beta-count beta-bytes)))
+         system-bytes)
+     (sjas-system-profile-tago profile-tag)
+     (or*
+       (map (fn [beta-total]
+              (fresh []
+                (== (inc beta-total) beta-count)
+                (decode-proof-antecedent-formulaso prog
+                                                   beta-total
+                                                   beta-bytes
+                                                   after-betas
+                                                   beta-formulas)
+                (== (lcons reflected-count reflected-bytes) after-betas)
+                (or*
+                  (map (fn [reflected-total]
+                         (fresh []
+                           (== (inc reflected-total) reflected-count)
+                           (decode-reflected-proof-antecedent-formulaso
+                             prog
+                             reflected-total
+                             reflected-bytes
+                             reflected-rest
+                             reflected-formulas)
+                           (== '() reflected-rest)
+                           (sjas-fixed-proof-antecedent-formulaso fixed-formulas)
+                           (formula-list-appendo fixed-formulas
+                                                 beta-formulas
+                                                 fixed-and-beta)
+                           (formula-list-appendo fixed-and-beta
+                                                 reflected-formulas
+                                                 beta-and-reflected)
+                           (sjas-system-group-three-proof-antecedento
+                             prog
+                             profile-tag
+                             system-kind
+                             system-bytes
+                             group-three-formula)
+                           (== (list group-three-formula) all-but-group3)
+                           (formula-list-appendo beta-and-reflected
+                                                 all-but-group3
+                                                 all-formulas)
+                           (formula-list-ando all-formulas axiom-formula)))
+                       (range sjas-code/byte-base)))))
+            (range sjas-code/byte-base))))))
 
 (defn- sjas-system-axiom-formulao
   [prog system-code axiom-formula]
-  (fresh [entry]
-    (membero entry (or (:sjas/system-entries (or (some-> prog :sjas/registry deref)
-                                                  prog))
-                       '()))
-    (== [system-code axiom-formula] entry)))
+  (fresh [system-bytes system-kind read-proof]
+    (sjas-public-code-byteso system-code system-bytes system-kind read-proof)
+    (sjas-system-proof-axiom-formulao prog
+                                      system-kind
+                                      system-bytes
+                                      axiom-formula)))
 
 (defn- sjas-axiom-membero
-  "Relate a reflected system code to one of its generated axiom formula codes.
+  [prog system-code formula-code proof]
+  (conde
+    [(sjas-fixed-axiom-membero prog system-code formula-code proof)]
+    [(sjas-beta-axiom-membero prog system-code formula-code proof)]
+    [(sjas-reflected-axiom-membero prog system-code formula-code proof)]
+    [(sjas-tableau0-group-three-axiom-membero prog system-code formula-code proof)]
+    [(sjas-level1-group-three-axiom-membero prog system-code formula-code proof)]))
 
-   The proof predicate uses this for formal axiom-citation certificates. This
-   is still an object-language check: it consumes the same generated
-   `axiom-member/2` facts that ordinary SJAS queries can inspect."
+(defn- sjas-walked-axiom-membero
+  "Check axiom membership after normalizing code terms through equality sigma.
+
+   Relational `tableau-proof` and `subst-prf` calls may reach this point with
+   `system-code` and `formula-code` bound in `sigma` rather than as immediately
+   ground host values. The structural axiom decoders still consume code terms;
+   this helper only performs the same equality walk that ordinary predicate
+   dispatch uses before handing those terms to the decoders."
+  [prog system-code formula-code sigma proof]
+  (fresh [walked-system-code walked-formula-code]
+    (equality/walk*o system-code sigma walked-system-code)
+    (equality/walk*o formula-code sigma walked-formula-code)
+    (sjas-axiom-membero prog walked-system-code walked-formula-code proof)))
+
+(defn- sjas-system-code-header-coreo
+  "Proof-free system-code header recognizer."
+  [system-bytes]
+  (fresh [profile-tag rest]
+    (== (lcons system-code-tag (lcons profile-tag rest)) system-bytes)
+    (sjas-system-profile-tago profile-tag)))
+
+(defn- fixed-axiom-formula-coreo
+  "Proof-free fixed axiom formula recognizer."
+  [formulas formula]
+  (or*
+    (map (fn [expected]
+           (fresh []
+             (sjas-alpha-formula-equivo expected formula '())))
+         formulas)))
+
+(defn- sjas-fixed-axiom-formula-coreo
+  "Proof-free fixed Group-0/Group-1 axiom recognizer."
+  [formula]
+  (conde
+    [(fixed-axiom-formula-coreo group-zero-internal-formulas formula)]
+    [(fixed-axiom-formula-coreo group-one-internal-formulas formula)]))
+
+(defn- sjas-fixed-axiom-formula-bytes-coreo
+  "Proof-free fixed Group-0/Group-1 recognizer over formula-code bytes."
+  [formula-bytes]
+  (or*
+    (map (fn [expected-bytes]
+           (fresh []
+             (sjas-acyclic-unifyo expected-bytes formula-bytes)))
+         fixed-axiom-formula-byte-entries)))
+
+(defn- sjas-fixed-axiom-member-coreo
+  "Proof-free fixed axiom membership from decoded system and formula codes."
+  [_prog system-code formula-code]
+  (fresh [system-bytes formula-bytes]
+    (sjas-public-code-bytes-coreo formula-code formula-bytes)
+    (sjas-fixed-axiom-formula-bytes-coreo formula-bytes)
+    (sjas-public-code-bytes-coreo system-code system-bytes)
+    (sjas-system-code-header-coreo system-bytes)))
+
+(defn- sjas-tableau0-system-code-header-coreo
+  "Proof-free Tableau-0 system header recognizer."
+  [system-bytes]
+  (fresh [rest]
+    (== (lcons system-code-tag
+                (lcons system-profile-tableau0-tag rest))
+        system-bytes)))
+
+(defn- tableau0-group-three-formula-coreo
+  "Proof-free Tableau-0 Group-3 axiom reconstruction."
+  [system-bytes formula]
+  (fresh [system-term contradiction-term]
+    (tableau0-group-three-code-termso system-bytes
+                                      system-term
+                                      contradiction-term)
+    (== (list 'forall
+              1
+              (list 'neg
+                    (list 'app
+                          'tableau-proof
+                          (list system-term
+                                contradiction-term
+                                (list 'var 1)))))
+        formula)))
+
+(defn- sjas-tableau0-group-three-axiom-member-coreo
+  "Proof-free Tableau-0 Group-3 axiom membership."
   [prog system-code formula-code]
-  (fresh [fact]
-    (membero fact (or (:sjas/fact-atoms (or (some-> prog :sjas/registry deref)
-                                             prog))
-                      '()))
-    (== (list 'app 'axiom-member system-code formula-code) fact)))
+  (fresh [system-bytes system-kind formula-bytes formula group-three-proof]
+    (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
+    (sjas-public-code-bytes-coreo formula-code formula-bytes)
+    (sjas-tableau0-system-code-header-coreo system-bytes)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (tableau0-group-three-formula-for-kindo system-kind
+                                            system-bytes
+                                            formula
+                                            group-three-proof)))
 
-(defn- sjas-active-systemo
+(defn- sjas-level1-system-code-header-coreo
+  "Proof-free Level-1 system header recognizer."
+  [system-bytes]
+  (fresh [rest]
+    (== (lcons system-code-tag
+                (lcons system-profile-level1-tag rest))
+        system-bytes)))
+
+(defn- level1-group-three-formula-coreo
+  "Proof-free Level-1 Group-3 axiom reconstruction."
+  [prog system-bytes formula]
+  (fresh [system-term substitution-term skeleton-bytes skeleton-formula]
+    (system-code-internal-termo system-bytes system-term)
+    (== (level1-selfcons-internal-formula system-term
+                                          substitution-term
+                                          1
+                                          2
+                                          3
+                                          4)
+        formula)
+    (internal-code-term-byteso substitution-term skeleton-bytes)
+    (decode-formula-byteso prog skeleton-bytes '() skeleton-formula)
+    (== (level1-selfcons-internal-formula system-term
+                                          (list 'var 1)
+                                          2
+                                          3
+                                          4
+                                          5)
+        skeleton-formula)))
+
+(defn- sjas-level1-group-three-axiom-member-coreo
+  "Proof-free Level-1 Group-3 axiom membership."
+  [prog system-code formula-code]
+  (fresh [system-bytes system-kind formula-bytes formula group-three-proof]
+    (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
+    (sjas-public-code-bytes-coreo formula-code formula-bytes)
+    (sjas-level1-system-code-header-coreo system-bytes)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (level1-group-three-formula-for-kindo prog
+                                          system-kind
+                                          system-bytes
+                                          formula
+                                          group-three-proof)))
+
+(defn- byte-list-neqo
+  "Object-level disequality for finite byte lists."
+  [left right]
+  (conde
+    [(== '() left)
+     (fresh [head tail]
+       (== (lcons head tail) right))]
+    [(fresh [head tail]
+       (== (lcons head tail) left)
+       (== '() right))]
+    [(fresh [left-head left-tail right-head right-tail]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (byte-neqo left-head right-head))]
+    [(fresh [left-head left-tail right-head right-tail]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (== left-head right-head)
+       (byte-list-neqo left-tail right-tail))]))
+
+(defn- sjas-beta-member-in-formula-bytes-coreo
+  "Proof-free beta block membership over encoded formula bytes."
+  [_prog remaining bytes formula-bytes]
+  (if (zero? remaining)
+    fail
+    (fresh [after-current]
+      (skip-syntax-formula-byteso bytes after-current)
+      (conde
+        [(byte-prefixo formula-bytes bytes after-current)]
+        [(fresh [current-bytes]
+           (byte-prefixo current-bytes bytes after-current)
+           (byte-list-neqo formula-bytes current-bytes)
+           (sjas-beta-member-in-formula-bytes-coreo _prog
+                                                    (dec remaining)
+                                                    after-current
+                                                    formula-bytes))]))))
+
+(defn- sjas-system-beta-formula-bytes-coreo
+  "Proof-free beta axiom membership over a decoded system byte string."
+  [prog system-bytes formula-bytes]
+  (fresh [profile-tag beta-count beta-bytes]
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (sjas-beta-member-in-formula-bytes-coreo prog
+                                                        beta-total
+                                                        beta-bytes
+                                                        formula-bytes)))
+           (range sjas-code/byte-base)))))
+
+(defn- sjas-beta-axiom-member-coreo
+  "Proof-free beta axiom membership from public system/formula codes."
+  [prog system-code formula-code]
+  (fresh [system-bytes formula-bytes]
+    (sjas-public-code-bytes-coreo system-code system-bytes)
+    (sjas-public-code-bytes-coreo formula-code formula-bytes)
+    (sjas-system-beta-formula-bytes-coreo prog system-bytes formula-bytes)))
+
+(defn- reflected-member-in-clauses-coreo
+  "Proof-free reflected-clause axiom membership."
+  [_prog remaining bytes formula]
+  (if (zero? remaining)
+    fail
+    (fresh [current after-current]
+      (decode-reflected-clause-syntax-formulao bytes after-current current)
+      (conde
+        [(sjas-alpha-formula-equivo current formula '())]
+        [(reflected-member-in-clauses-coreo _prog
+                                            (dec remaining)
+                                            after-current
+                                            formula)]))))
+
+(defn- sjas-system-reflected-formula-coreo
+  "Proof-free Group-2b reflected axiom membership over system bytes."
+  [prog system-bytes formula]
+  (fresh [profile-tag beta-count beta-bytes after-betas reflected-count reflected-bytes]
+    (== (lcons system-code-tag
+                (lcons profile-tag
+                       (lcons beta-count beta-bytes)))
+        system-bytes)
+    (sjas-system-profile-tago profile-tag)
+    (or*
+      (map (fn [beta-total]
+             (fresh []
+               (== (inc beta-total) beta-count)
+               (skip-formula-byteso prog beta-total beta-bytes after-betas)
+               (== (lcons reflected-count reflected-bytes) after-betas)
+               (or*
+                 (map (fn [reflected-total]
+                        (fresh []
+                          (== (inc reflected-total) reflected-count)
+                          (reflected-member-in-clauses-coreo prog
+                                                             reflected-total
+                                                             reflected-bytes
+                                                             formula)))
+                      (range sjas-code/byte-base)))))
+           (range sjas-code/byte-base)))))
+
+(defn- sjas-reflected-axiom-member-coreo
+  "Proof-free reflected Group-2b axiom membership."
+  [prog system-code formula-code]
+  (fresh [system-bytes formula-bytes decoded-formula]
+    (sjas-public-code-bytes-coreo system-code system-bytes)
+    (sjas-public-code-bytes-coreo formula-code formula-bytes)
+    (reflected-axiom-formula-starto formula-bytes)
+    (decode-syntax-formula-byteso formula-bytes '() decoded-formula)
+    (sjas-system-reflected-formula-coreo prog system-bytes decoded-formula)))
+
+(defn- sjas-axiom-member-coreo
+  "Proof-free finite-system axiom membership relation."
+  [prog system-code formula-code]
+  (conde
+    [(sjas-fixed-axiom-member-coreo prog system-code formula-code)]
+    [(sjas-beta-axiom-member-coreo prog system-code formula-code)]
+    [(sjas-reflected-axiom-member-coreo prog system-code formula-code)]
+    [(sjas-tableau0-group-three-axiom-member-coreo prog system-code formula-code)]
+    [(sjas-level1-group-three-axiom-member-coreo prog system-code formula-code)]))
+
+(defn- sjas-walked-axiom-member-coreo
+  "Proof-free axiom membership after equality walking."
+  [prog system-code formula-code sigma]
+  (fresh [walked-system-code walked-formula-code]
+    (equality/walk*o system-code sigma walked-system-code)
+    (equality/walk*o formula-code sigma walked-formula-code)
+    (sjas-axiom-member-coreo prog walked-system-code walked-formula-code)))
+
+(defn- tableau0-group-three-proof-antecedent-coreo
+  "Proof-free Tableau-0 Group-3 antecedent reconstruction.
+
+   This is the direct proof-side AST form of the fixed Group-3 schema. It still
+   obtains the embedded public code terms from `system-bytes` and rebuilds those
+   public terms through the same compact-code and U-Grounding relations used by
+   the generic term converter; it only avoids routing the known schema through
+   the fully generic antecedent-formula walker.
+   "
+  [system-bytes formula]
+  (let [binder-nom (sjas-code/code-nom 1)]
+    (fresh [system-ast contradiction-ast]
+      (conde
+        [(fresh []
+           (sjas-internal-code-termo system-bytes system-ast)
+           (sjas-internal-code-termo tableau0-contradiction-formula-bytes
+                                     contradiction-ast))]
+        [(fresh [encoded-system system-bits contradiction-bits
+                 system-proof contradiction-proof]
+           (append-sentinel-byteo system-bytes encoded-system)
+           (byte-list-bitso encoded-system system-bits)
+           (bits->canonical-termo system-bits system-ast system-proof)
+           (byte-list-bitso tableau0-contradiction-u-grounding-bytes
+                            contradiction-bits)
+           (bits->canonical-termo contradiction-bits
+                                  contradiction-ast
+                                  contradiction-proof))])
+      (== (list 'once-forall
+                (nominal/tie binder-nom
+                             (list 'neg
+                                   (list 'app
+                                         'tableau-proof
+                                         system-ast
+                                         contradiction-ast
+                                         (list 'var binder-nom)))))
+          formula))))
+
+(defn- tableau0-group-three-proof-antecedent-for-code-coreo
+  "Tableau-0 Group-3 antecedent reconstruction selected by public `system-code`.
+
+   `system-bytes` are still read relationally from `system-code` by the caller.
+   Keeping the public term here prevents the fixed Group-3 schema from exploring
+   both compact and U-Grounding embeddings when the presented code already
+   determines which object representation is correct.
+   "
+  [system-code system-bytes formula]
+  (let [binder-nom (sjas-code/code-nom 1)]
+    (fresh [system-ast contradiction-ast]
+      (conde
+        [(fresh []
+           (sjas-internal-code-termo system-bytes system-ast)
+           (== system-code system-ast)
+           (sjas-internal-code-termo tableau0-contradiction-formula-bytes
+                                     contradiction-ast))]
+        [(fresh [encoded-system system-bits contradiction-bits
+                 system-proof contradiction-proof]
+           (append-sentinel-byteo system-bytes encoded-system)
+           (byte-list-bitso encoded-system system-bits)
+           (bits->canonical-termo system-bits system-ast system-proof)
+           (== system-code system-ast)
+           (byte-list-bitso tableau0-contradiction-u-grounding-bytes
+                            contradiction-bits)
+           (bits->canonical-termo contradiction-bits
+                                  contradiction-ast
+                                  contradiction-proof))])
+      (== (list 'once-forall
+                (nominal/tie binder-nom
+                             (list 'neg
+                                   (list 'app
+                                         'tableau-proof
+                                         system-ast
+                                         contradiction-ast
+                                         (list 'var binder-nom)))))
+          formula))))
+
+(defn- sjas-system-group-three-proof-antecedent-coreo
+  "Proof-free Group-3 antecedent reconstruction for `AxiomConj`."
+  [prog profile-tag system-bytes formula]
+  (conde
+    [(== system-profile-tableau0-tag profile-tag)
+     (tableau0-group-three-proof-antecedent-coreo system-bytes formula)]
+    [(fresh [decoded]
+       (== system-profile-level1-tag profile-tag)
+       (level1-group-three-formula-coreo prog system-bytes decoded)
+       (sjas-proof-antecedent-formula-asto decoded formula))]))
+
+(defn- sjas-system-group-three-proof-antecedent-for-code-coreo
+  "Proof-free Group-3 antecedent reconstruction using the presented system code."
+  [prog profile-tag system-code system-bytes formula]
+  (conde
+    [(== system-profile-tableau0-tag profile-tag)
+     (tableau0-group-three-proof-antecedent-for-code-coreo system-code
+                                                           system-bytes
+                                                           formula)]
+    [(fresh [decoded system-kind group-proof]
+       (== system-profile-level1-tag profile-tag)
+       (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
+       (level1-group-three-formula-for-kindo prog
+                                             system-kind
+                                             system-bytes
+                                             decoded
+                                             group-proof)
+       (sjas-proof-antecedent-formula-asto decoded formula))]))
+
+(defn- sjas-system-proof-axiom-formula-coreo
+  "Proof-free reconstruction of the finite axiom conjunction used by
+   `tableau-proof/3` and `subst-prf/4`."
+  ([prog system-bytes axiom-formula]
+   (fresh [profile-tag beta-count beta-bytes beta-formulas after-betas
+           reflected-count reflected-bytes reflected-formulas reflected-rest
+           fixed-formulas fixed-and-beta beta-and-reflected all-but-group3
+           group-three-formula all-formulas]
+     (== (lcons system-code-tag
+                 (lcons profile-tag
+                        (lcons beta-count beta-bytes)))
+         system-bytes)
+     (sjas-system-profile-tago profile-tag)
+     (or*
+       (map (fn [beta-total]
+              (fresh []
+                (== (inc beta-total) beta-count)
+                (decode-proof-antecedent-formulaso prog
+                                                   beta-total
+                                                   beta-bytes
+                                                   after-betas
+                                                   beta-formulas)
+                (== (lcons reflected-count reflected-bytes) after-betas)
+                (or*
+                  (map (fn [reflected-total]
+                         (fresh []
+                           (== (inc reflected-total) reflected-count)
+                           (decode-reflected-proof-antecedent-formulaso
+                             prog
+                             reflected-total
+                             reflected-bytes
+                             reflected-rest
+                             reflected-formulas)
+                           (== '() reflected-rest)
+                           (sjas-fixed-proof-antecedent-formulaso fixed-formulas)
+                           (formula-list-appendo fixed-formulas
+                                                 beta-formulas
+                                                 fixed-and-beta)
+                           (formula-list-appendo fixed-and-beta
+                                                 reflected-formulas
+                                                 beta-and-reflected)
+                           (sjas-system-group-three-proof-antecedent-coreo
+                             prog
+                             profile-tag
+                             system-bytes
+                             group-three-formula)
+                           (== (list group-three-formula) all-but-group3)
+                           (formula-list-appendo beta-and-reflected
+                                                 all-but-group3
+                                                 all-formulas)
+                           (formula-list-ando all-formulas axiom-formula)))
+                       (range sjas-code/byte-base)))))
+            (range sjas-code/byte-base)))))
+  ([prog system-code system-bytes axiom-formula]
+   (fresh [profile-tag beta-count beta-bytes beta-formulas after-betas
+           reflected-count reflected-bytes reflected-formulas reflected-rest
+           fixed-formulas fixed-and-beta beta-and-reflected all-but-group3
+           group-three-formula all-formulas]
+     (== (lcons system-code-tag
+                 (lcons profile-tag
+                        (lcons beta-count beta-bytes)))
+         system-bytes)
+     (sjas-system-profile-tago profile-tag)
+     (or*
+       (map (fn [beta-total]
+              (fresh []
+                (== (inc beta-total) beta-count)
+                (decode-proof-antecedent-formulaso prog
+                                                   beta-total
+                                                   beta-bytes
+                                                   after-betas
+                                                   beta-formulas)
+                (== (lcons reflected-count reflected-bytes) after-betas)
+                (or*
+                  (map (fn [reflected-total]
+                         (fresh []
+                           (== (inc reflected-total) reflected-count)
+                           (decode-reflected-proof-antecedent-formulaso
+                             prog
+                             reflected-total
+                             reflected-bytes
+                             reflected-rest
+                             reflected-formulas)
+                           (== '() reflected-rest)
+                           (sjas-fixed-proof-antecedent-formulaso fixed-formulas)
+                           (formula-list-appendo fixed-formulas
+                                                 beta-formulas
+                                                 fixed-and-beta)
+                           (formula-list-appendo fixed-and-beta
+                                                 reflected-formulas
+                                                 beta-and-reflected)
+                           (sjas-system-group-three-proof-antecedent-for-code-coreo
+                             prog
+                             profile-tag
+                             system-code
+                             system-bytes
+                             group-three-formula)
+                           (== (list group-three-formula) all-but-group3)
+                           (formula-list-appendo beta-and-reflected
+                                                 all-but-group3
+                                                 all-formulas)
+                           (formula-list-ando all-formulas axiom-formula)))
+                       (range sjas-code/byte-base)))))
+            (range sjas-code/byte-base))))))
+
+(defn- sjas-system-code-valid-coreo
+  "Proof-free recognizer for a complete finite SJAS system code.
+
+   Some proof-predicate branches, such as the `Subst(g,t)` axiom of
+   `subst-prf/4`, do not otherwise need the reconstructed axiom conjunction.
+   They still must reject an invalid `system-code`, so this relation parses
+  the complete finite system record without exposing auxiliary proof evidence."
   [prog system-code]
-  (== system-code (:sjas/system-code (or (some-> prog :sjas/registry deref)
-                                         prog))))
+  (fresh [system-bytes axiom-formula]
+    (sjas-public-code-bytes-coreo system-code system-bytes)
+    (sjas-system-proof-axiom-formula-coreo prog
+                                          system-code
+                                          system-bytes
+                                          axiom-formula)))
 
-(defn- sjas-code-format
-  "Return the public code representation selected by the active SJAS system.
+(defn- sjas-system-axiom-formula-coreo
+  "Proof-free public-code entry for axiom-conjunction reconstruction."
+  [prog system-code axiom-formula]
+  (fresh [system-bytes]
+    (sjas-public-code-bytes-coreo system-code system-bytes)
+    (sjas-system-proof-axiom-formula-coreo prog
+                                          system-code
+                                          system-bytes
+                                          axiom-formula)))
 
-   This is profile metadata, not an object-language fact. It is used only to
-   choose a search order. U-Grounding code terms are deep binary numerals, so
-   trying generated-code table lookup first can force core.logic to compare
-   large numeral towers against every registry entry before the structural
-   decoder has a chance to run."
-  [prog]
-  (or (:sjas/code-format (or (some-> prog :sjas/registry deref)
-                             prog))
-      :compact))
+(defn- sjas-system-code-bytes-walked-coreo
+  "Read `system-code` through equality state and expose both bytes and walked term."
+  [system-code sigma sigma-out walked-system-code system-bytes]
+  (fresh [kind]
+    (sjas-formal-code-bytes-coreo system-code
+                                  system-bytes
+                                  sigma
+                                  sigma-out
+                                  kind)
+    (equality/walk*o system-code sigma-out walked-system-code)))
+
+(defn- sjas-system-code-valid-walked-coreo
+  "Proof-free system-code validator for proof predicates with branch equality state."
+  [prog system-code sigma sigma-out walked-system-code]
+  (fresh [system-bytes axiom-formula]
+    (sjas-system-code-bytes-walked-coreo system-code
+                                         sigma
+                                                 sigma-out
+                                                 walked-system-code
+                                                 system-bytes)
+    (sjas-system-proof-axiom-formula-coreo prog
+                                          walked-system-code
+                                          system-bytes
+                                          axiom-formula)))
+
+(defn- sjas-system-axiom-formula-walked-coreo
+  "Proof-free `AxiomConj(system-code)` reconstruction through equality state."
+  [prog system-code sigma sigma-out walked-system-code axiom-formula]
+  (fresh [system-bytes]
+    (sjas-system-code-bytes-walked-coreo system-code
+                                         sigma
+                                         sigma-out
+                                         walked-system-code
+                                         system-bytes)
+    (sjas-system-proof-axiom-formula-coreo prog
+                                          walked-system-code
+                                          system-bytes
+                                          axiom-formula)))
+
+(defn- sjas-substitution-formula-codeo
+  "Decode a substitution-side formula code.
+
+   Substitution is structural: it preserves application-head identity, but it
+   does not need the semantic host symbol denoted by a finite codebook index.
+   Using the syntax decoder keeps user relation/function heads as `(sym n)` and
+   therefore lets `subst-code` run without the generated source registry."
+  [_prog code sigma sigma-out formula]
+  (fresh [read-proof]
+    (sjas-decode-syntax-formula-code-proofo code sigma sigma-out formula read-proof)))
+
+(defn- sjas-substitution-formula-code-coreo
+  "Proof-free substitution-side formula-code decoder."
+  [_prog code sigma sigma-out formula]
+  (sjas-decode-syntax-formula-code-coreo code sigma sigma-out formula))
 
 (defn- sjas-subst-code-anyo
   "Relate formula codes by structural diagonal substitution.
@@ -1772,75 +5252,110 @@
    is the object-language `Subst` operation needed by Level-1 SJAS
    self-reference; it is no longer a finite table of precomputed examples."
   [prog source-code substituted-code sigma sigma-out]
-  (if-let [[source-bytes source-kind _source-read-proof]
-           (ground-formal-code-term source-code)]
-    (let [source-byte-list (byte-list-literal source-bytes)
-          replacement (case source-kind
-                        :compact (list 'code source-byte-list)
-                        :u-grounding (list 'num (u-grounding-byte-list-literal
-                                                  source-bytes)))]
-      (fresh [source-formula substituted-formula expected]
-        (== '() sigma)
-        (decode-formula-byteso prog source-byte-list '() source-formula)
-        (sjas-subst-formula-var-oneo source-formula
+  (fresh [source-bytes source-formula substituted-formula replacement
+          source-kind source-read-proof sigma-after-source]
+    (sjas-formal-code-byteso source-code
+                             source-bytes
+                             sigma
+                             sigma-after-source
+                             source-kind
+                             source-read-proof)
+    (decode-syntax-formula-byteso source-bytes '() source-formula)
+    (conde
+      [(== :compact source-kind)
+       (== (list 'code source-bytes) replacement)]
+      [(== :u-grounding source-kind)
+       (fresh [encoded-source-bytes]
+         (append-sentinel-byteo source-bytes encoded-source-bytes)
+         (== (list 'num encoded-source-bytes) replacement))])
+    (sjas-substitution-formula-codeo prog substituted-code
+                                     sigma-after-source
+                                     sigma-out
+                                     substituted-formula)
+    (sjas-subst-alpha-formula-equivo source-formula
                                      replacement
-                                     expected)
-        (sjas-decode-formula-codeo prog substituted-code
-                                   '()
-                                   sigma-out
-                                   substituted-formula)
-        (sjas-alpha-formula-equivo expected substituted-formula '())))
-    (fresh [source-bytes source-formula substituted-formula expected replacement
-            source-kind source-read-proof sigma-after-source]
-      (sjas-formal-code-byteso source-code
-                               source-bytes
-                               sigma
-                               sigma-after-source
-                               source-kind
-                               source-read-proof)
-      (decode-formula-byteso prog source-bytes '() source-formula)
-      (conde
-        [(== :compact source-kind)
-         (== (list 'code source-bytes) replacement)]
-        [(== :u-grounding source-kind)
-         (fresh [encoded-source-bytes]
-           (append-sentinel-byteo source-bytes encoded-source-bytes)
-           (== (list 'num encoded-source-bytes) replacement))])
-      (sjas-subst-formula-var-oneo source-formula
-                                   replacement
-                                   expected)
-      (sjas-decode-formula-codeo prog substituted-code
-                                 sigma-after-source
-                                 sigma-out
-                                 substituted-formula)
-      (sjas-alpha-formula-equivo expected substituted-formula '()))))
+                                     substituted-formula
+                                     '())))
 
-(defn- sjas-subst-source-codeo
-  "Check that a substitution source code is a well-formed formula code.
+(defn- sjas-subst-code-any-coreo
+  "Proof-free companion for structural diagonal substitution."
+  [prog source-code substituted-code sigma sigma-out]
+  (fresh [source-bytes source-formula substituted-formula replacement
+          source-kind sigma-after-source]
+    (sjas-formal-code-bytes-coreo source-code
+                                  source-bytes
+                                  sigma
+                                  sigma-after-source
+                                  source-kind)
+    (decode-syntax-formula-byteso source-bytes '() source-formula)
+    (conde
+      [(== :compact source-kind)
+       (== (list 'code source-bytes) replacement)]
+      [(== :u-grounding source-kind)
+       (fresh [encoded-source-bytes]
+         (append-sentinel-byteo source-bytes encoded-source-bytes)
+         (== (list 'num encoded-source-bytes) replacement))])
+    (sjas-substitution-formula-code-coreo prog
+                                          substituted-code
+                                          sigma-after-source
+                                          sigma-out
+                                          substituted-formula)
+    (sjas-subst-alpha-formula-equivo source-formula
+                                     replacement
+                                     substituted-formula
+                                     '())))
 
-   `subst-prf/4` sometimes needs only the existence of a substituted formula,
-   not the public code for that formula. Generating a fresh public code term is
-   an expensive synthesis problem. Since structural substitution is total on
-   decoded formula syntax, proof checking uses this source-only relation unless
-   it must compare against a concrete theorem code."
-  [prog source-code sigma sigma-out]
-  (if-let [[source-bytes _source-kind _source-read-proof]
-           (ground-formal-code-term source-code)]
-    (fresh [source-formula]
-      (== '() sigma)
-      (== '() sigma-out)
-      (decode-formula-byteso prog
-                             (byte-list-literal source-bytes)
-                             '()
-                             source-formula))
-    (fresh [source-bytes source-formula source-read-proof source-kind]
-      (sjas-formal-code-byteso source-code
-                               source-bytes
-                               sigma
-                               sigma-out
-                               source-kind
-                               source-read-proof)
-      (decode-formula-byteso prog source-bytes '() source-formula))))
+(defn- sjas-subst-source-result-antecedento
+  "Compute the substituted source sentence used by `SubstPrf`.
+
+   Willard's `SubstPrf(g,t,p)` factors through an existential sentence `h` such
+   that `Subst(g,h)` and `p` proves `t` from beta plus `h`. This relation
+   decodes `g`, computes the diagonal substitution result as internal formula
+   syntax, and converts that result to the proof-antecedent AST used by the
+   local tableau checker. It deliberately does not synthesize a public code term
+   for `h`; it still computes the object-level substituted sentence that the
+   proof predicate must add to its axiom basis."
+  [_prog source-code sigma sigma-out antecedent proof]
+  (fresh [source-bytes source-formula substituted-formula replacement
+          source-kind source-read-proof]
+    (sjas-formal-code-byteso source-code
+                             source-bytes
+                             sigma
+                             sigma-out
+                             source-kind
+                             source-read-proof)
+    (decode-syntax-formula-byteso source-bytes '() source-formula)
+    (conde
+      [(== :compact source-kind)
+       (== (list 'code source-bytes) replacement)]
+      [(== :u-grounding source-kind)
+       (fresh [encoded-source-bytes]
+         (append-sentinel-byteo source-bytes encoded-source-bytes)
+         (== (list 'num encoded-source-bytes) replacement))])
+    (sjas-subst-formula-var-oneo source-formula replacement substituted-formula)
+    (sjas-proof-antecedent-formula-asto substituted-formula antecedent)
+    (== (list 'willard-sjas-subst-source-result source-read-proof) proof)))
+
+(defn- sjas-subst-source-result-antecedent-coreo
+  "Proof-free substituted-source antecedent relation for `SubstPrf`."
+  [_prog source-code sigma sigma-out antecedent]
+  (fresh [source-bytes source-formula substituted-formula replacement
+          source-kind]
+    (sjas-formal-code-bytes-coreo source-code
+                                  source-bytes
+                                  sigma
+                                  sigma-out
+                                  source-kind)
+    (decode-syntax-formula-byteso source-bytes '() source-formula)
+    (conde
+      [(== :compact source-kind)
+       (== (list 'code source-bytes) replacement)]
+      [(== :u-grounding source-kind)
+       (fresh [encoded-source-bytes]
+         (append-sentinel-byteo source-bytes encoded-source-bytes)
+         (== (list 'num encoded-source-bytes) replacement))])
+    (sjas-subst-formula-var-oneo source-formula replacement substituted-formula)
+    (sjas-proof-antecedent-formula-asto substituted-formula antecedent)))
 
 (defn- sjas-class-relationo
   "Recognize the finite formula-class predicates generated for one SJAS system.
@@ -1855,68 +5370,6 @@
     [(== 'pi-star-1-code relation)]
     [(== 'sigma-star-1-code relation)]))
 
-(defn- ground-negated-subst-code-args
-  "Extract ground `subst-code/2` arguments before relation-level walking.
-
-   Querying `subst-code` over ADR-0071 U-Grounding codes places large binary
-   numerals directly inside the branch literal. When no binder environment or
-   equality substitution is active, destructuring that host-ground atom is
-   equivalent to the generic `subst-formulao`/`walk-atomo` prefix but avoids
-   forcing core.logic to occurs-check the large public code terms."
-  [fml]
-  (when (and (seq? fml)
-             (= 'neg (first fml)))
-    (let [atom (second fml)]
-      (when (and (seq? atom)
-                 (= 'app (first atom))
-                 (= 'subst-code (second atom))
-                 (= 4 (count atom)))
-        [(nth atom 2) (nth atom 3)]))))
-
-(defn- ground-negated-app-args
-  "Extract arguments from a host-ground negated relation atom."
-  [fml relation arity]
-  (when (and (seq? fml)
-             (= 'neg (first fml)))
-    (let [atom (second fml)]
-      (when (and (seq? atom)
-                 (= 'app (first atom))
-                 (= relation (second atom))
-                 (= (+ 2 arity) (count atom)))
-        (vec (drop 2 atom))))))
-
-(defn- ground-negated-relation
-  "Return the relation symbol of a host-ground negated atomic formula."
-  [fml]
-  (when (and (seq? fml)
-             (= 'neg (first fml)))
-    (let [atom (second fml)]
-      (when (and (seq? atom)
-                 (= 'app (first atom))
-                 (symbol? (second atom)))
-        (second atom)))))
-
-(def ^:private direct-negated-profile-relations
-  "Top-level SJAS atom relations that must bypass generic agenda selection.
-
-   Keep this set narrow. Syntax predicates over moderate formula codes already
-   work through the ordinary kernel path, while large `subst-code` and
-   `tableau-proof` atoms need direct focus to avoid occurs-checking their code
-   numerals during agenda selection."
-  '#{wff
-     delta-star-0-code
-     pi-star-1-code
-     sigma-star-1-code
-     neg-pair
-     subst-code
-     tableau-proof})
-
-(defn- direct-negated-profile-relation
-  [fml]
-  (let [relation (ground-negated-relation fml)]
-    (when (contains? direct-negated-profile-relations relation)
-      relation)))
-
 (def ^:private syntax-code-relations
   '#{wff delta-star-0-code pi-star-1-code sigma-star-1-code neg-pair})
 
@@ -1928,42 +5381,122 @@
 ;; Branch closing rules
 ;; -----------------------------------------------------------------------------
 
-(defn- sjas-neq-closeo
-  [fml env sigma sigma-out neqs neqs-out proof]
-  (fresh [lit left right eq-proof]
-    (subst/subst-formulao fml env lit)
+(defn- sjas-neq-close-coreo
+  [fml env sigma sigma-out neqs neqs-out eq-proof]
+  (fresh [lit left right]
+    (sjas-subst-formulao fml env lit)
     (== (list 'neq left right) lit)
     (sjas-normal-equalo left right sigma sigma-out eq-proof)
-    (== neqs neqs-out)
+    (== neqs neqs-out)))
+
+(defn- sjas-neq-close-structural-coreo
+  [fml env sigma sigma-out neqs neqs-out]
+  (fresh [lit left right]
+    (sjas-subst-formulao fml env lit)
+    (== (list 'neq left right) lit)
+    (sjas-normal-equal-coreo left right sigma sigma-out)
+    (== neqs neqs-out)))
+
+(defn- sjas-neq-closeo
+  [fml env sigma sigma-out neqs neqs-out proof]
+  (fresh [eq-proof]
+    (sjas-neq-close-coreo fml env sigma sigma-out neqs neqs-out eq-proof)
     (== (list 'profiled 'willard-sjas-arithmetic eq-proof) proof)))
+
+(defn- sjas-neg-relation-close-coreo
+  [fml env sigma sigma-out neqs neqs-out relation-proof]
+  (fresh [lit atom walked-atom relation args]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+    (sjas-relation-holdso relation args sigma sigma-out relation-proof)
+    (== neqs neqs-out)))
+
+(defn- sjas-neg-relation-close-structural-coreo
+  [fml env sigma sigma-out neqs neqs-out]
+  (fresh [lit atom walked-atom relation args]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+    (sjas-relation-holds-coreo relation args sigma sigma-out)
+    (== neqs neqs-out)))
+
+(defn- sjas-pos-relation-close-coreo
+  [fml env sigma sigma-out neqs neqs-out relation-proof]
+  (fresh [lit atom walked-atom relation args]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'pos atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+    (sjas-relation-failso relation args sigma sigma-out relation-proof)
+    (== neqs neqs-out)))
+
+(defn- sjas-pos-relation-close-structural-coreo
+  [fml env sigma sigma-out neqs neqs-out]
+  (fresh [lit atom walked-atom relation args]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'pos atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+    (sjas-relation-fails-coreo relation args sigma sigma-out)
+    (== neqs neqs-out)))
 
 (defn- sjas-neg-relation-closeo
   [fml env sigma sigma-out neqs neqs-out proof]
-  (fresh [lit atom walked-atom relation args relation-proof]
-    (subst/subst-formulao fml env lit)
-    (== (list 'neg atom) lit)
-    (equality/walk-atomo atom sigma walked-atom)
-    (== (lcons 'app (lcons relation args)) walked-atom)
-    (sjas-relation-holdso relation args sigma sigma-out relation-proof)
-    (== neqs neqs-out)
+  (fresh [relation-proof]
+    (sjas-neg-relation-close-coreo fml env sigma sigma-out neqs neqs-out relation-proof)
     (== (list 'profiled 'willard-sjas-arithmetic relation-proof) proof)))
 
-(defn- sjas-generated-fact-closeo
-  "Close negated generated coding facts directly from reflected system metadata."
+(defn- sjas-pos-relation-closeo
+  [fml env sigma sigma-out neqs neqs-out proof]
+  (fresh [relation-proof]
+    (sjas-pos-relation-close-coreo fml env sigma sigma-out neqs neqs-out relation-proof)
+    (== (list 'profiled 'willard-sjas-arithmetic relation-proof) proof)))
+
+(defn- sjas-axiom-member-walked-closeo
+  "General axiom-member close path for branch-local environments and sigmas."
   [fml env sigma sigma-out neqs neqs-out prog proof]
-  (fresh [lit atom walked-atom relation args fact]
-    (subst/subst-formulao fml env lit)
-    (== (list 'neg atom) lit)
-    (equality/walk-atomo atom sigma walked-atom)
-    (== (lcons 'app (lcons relation args)) walked-atom)
+  (fresh [lit atom walked-atom relation args system-code formula-code axiom-proof]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
     (== 'axiom-member relation)
-    (membero fact (or (:sjas/fact-atoms (or (some-> prog :sjas/registry deref)
-                                             prog))
-                      '()))
-    (== walked-atom fact)
+    (== (lcons system-code (lcons formula-code '())) args)
+    (sjas-walked-axiom-membero prog system-code formula-code sigma axiom-proof)
     (== sigma sigma-out)
     (== neqs neqs-out)
-    (== (list 'profiled 'willard-sjas-fact fact) proof)))
+    (== (list 'profiled 'willard-sjas-axiom-member axiom-proof) proof)))
+
+(defn- sjas-axiom-member-closeo
+  "Close `axiom-member(system, formula)` from decoded system-code membership.
+
+  Earlier ADR-006x stages closed this predicate by consulting generated
+  `axiom-member/2` facts. ADR-0072 requires the predicate path itself to use
+  the same structural axiom membership used by `sjas-axiom` proof certificates,
+  so injected or stale generated facts cannot become semantic evidence."
+  [fml env sigma sigma-out neqs neqs-out prog proof]
+  (sjas-axiom-member-walked-closeo fml env sigma sigma-out neqs neqs-out prog proof))
+
+(defn- sjas-axiom-member-structural-closeo
+  "Close a structural tableau leaf through decoded `axiom-member/2`.
+
+   Formula-bearing tableau proofs do not encode the ordinary Proflog answer
+   marker for this closure. They only require the object relation that reads
+   the system and formula codes and preserves the branch state."
+  [fml env sigma sigma-out neqs neqs-out prog]
+  (fresh [lit atom walked-atom relation args system-code formula-code]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+    (== 'axiom-member relation)
+    (== (lcons system-code (lcons formula-code '())) args)
+    (sjas-walked-axiom-member-coreo prog system-code formula-code sigma)
+    (== sigma sigma-out)
+    (== neqs neqs-out)))
 
 (defn- sjas-eq-progresso
   "Consume a true arithmetic equality and continue with the pending branch.
@@ -1976,8 +5509,8 @@
   [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (fresh [lit left right eq-proof next rest next-fuel sigma-mid subproof]
-    (subst/subst-formulao fml env lit)
-    (== (list 'eq left right) lit)
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'eq left right) lit)
     (sjas-normal-equalo left right sigma sigma-mid eq-proof)
     (== (lcons next rest) unexpanded)
     (support/step-fuelo fuel next-fuel)
@@ -1999,260 +5532,1901 @@
         proof)))
 
 (defn- sjas-wff-code-closeo
-  [prog code sigma sigma-out structural-first? formula branch-proof]
-  (if structural-first?
-    (sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof)
-    (conde
-      [(sjas-formula-codeo prog code formula)
-       (== sigma sigma-out)
-       (== '(sjas-code-bytes) branch-proof)]
-      [(sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof)])))
+  "Close `wff(code)` by reading the object-level formula code.
+
+   Earlier SJAS stages generated a finite host lookup table for formulas known
+   when the system was compiled. ADR-0072 removes that shortcut: the predicate
+   succeeds only by decoding the supplied code term through the relational byte
+   reader and formula grammar used for non-generated formulas."
+  [_prog code sigma sigma-out formula branch-proof]
+  (fresh []
+    ;; `prog` is intentionally ignored in this syntax slice. Application heads
+    ;; remain numeric symbol ids, because `wff` needs shape and arity, not the
+    ;; source-time host names attached to those ids.
+    (sjas-decode-syntax-formula-code-proofo code sigma sigma-out formula branch-proof)))
 
 (defn- sjas-class-code-closeo
-  [prog relation code sigma sigma-out structural-first? formula branch-proof]
-  (if structural-first?
-    (fresh []
-      (sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof)
-      (sjas-structural-formula-classo relation formula))
-    (conde
-      [(sjas-formula-classo prog relation code)
-       (== sigma sigma-out)
-       (== '(sjas-code-bytes) branch-proof)]
-      [(sjas-decode-formula-code-proofo prog code sigma sigma-out formula branch-proof)
-       (sjas-structural-formula-classo relation formula)])))
+  "Close a formula-class predicate by decoding and classifying the formula AST."
+  [_prog relation code sigma sigma-out formula branch-proof]
+  (fresh []
+    (sjas-decode-syntax-formula-code-proofo code sigma sigma-out formula branch-proof)
+    (sjas-structural-formula-classo relation formula)))
 
 (defn- sjas-neg-pair-code-closeo
-  [prog left right sigma sigma-out structural-first? formula complement branch-proof]
-  (if structural-first?
-    (fresh [sigma-mid left-proof right-proof]
-      (sjas-decode-formula-code-proofo prog left sigma sigma-mid formula left-proof)
-      (sjas-decode-formula-code-proofo prog right sigma-mid sigma-out complement right-proof)
-      (sjas-formula-complemento formula complement)
-      (== (list 'sjas-neg-pair-structural left-proof right-proof) branch-proof))
-    (conde
-      [(sjas-neg-pairo prog left right)
-       (== sigma sigma-out)
-       (== '(sjas-code-bytes) branch-proof)]
-      [(fresh [sigma-mid left-proof right-proof]
-         (sjas-decode-formula-code-proofo prog left sigma sigma-mid formula left-proof)
-         (sjas-decode-formula-code-proofo prog right sigma-mid sigma-out complement right-proof)
-         (sjas-formula-complemento formula complement)
-         (== (list 'sjas-neg-pair-structural left-proof right-proof) branch-proof))])))
+  "Close `neg-pair(left,right)` by decoding both codes and complementing ASTs."
+  [_prog left right sigma sigma-out formula complement branch-proof]
+  (fresh [sigma-mid left-proof right-proof]
+    (sjas-decode-syntax-formula-code-proofo left sigma sigma-mid formula left-proof)
+    (sjas-decode-syntax-formula-code-proofo right sigma-mid sigma-out complement right-proof)
+    (sjas-formula-complemento formula complement)
+    (== (list 'sjas-neg-pair-structural left-proof right-proof) branch-proof)))
 
 (defn- sjas-syntax-code-brancho
-  [prog relation args sigma sigma-out structural-first? branch-proof]
+  [prog relation args sigma sigma-out branch-proof]
   (fresh [code left right formula complement]
     (conde
       [(== 'wff relation)
-       (== (lcons code '()) args)
-       (sjas-wff-code-closeo prog code sigma sigma-out structural-first? formula branch-proof)]
-      [(== (lcons code '()) args)
-       (sjas-class-relationo relation)
-       (sjas-class-code-closeo prog relation code sigma sigma-out structural-first? formula branch-proof)]
+       (sjas-acyclic-unifyo (lcons code '()) args)
+       (sjas-wff-code-closeo prog code sigma sigma-out formula branch-proof)]
+      [(sjas-class-relationo relation)
+       (sjas-acyclic-unifyo (lcons code '()) args)
+       (sjas-class-code-closeo prog relation code sigma sigma-out formula branch-proof)]
       [(== 'neg-pair relation)
-       (== (lcons left (lcons right '())) args)
-       (sjas-neg-pair-code-closeo prog left right sigma sigma-out structural-first? formula complement branch-proof)])))
+       (sjas-acyclic-unifyo (lcons left (lcons right '())) args)
+       (sjas-neg-pair-code-closeo prog left right sigma sigma-out formula complement branch-proof)])))
 
 (defn- sjas-syntax-code-closeo
   "Close generated syntax-code predicates by decoding formula Godel-code terms.
 
-   These predicates are no longer emitted as generated facts. Generated entries
-   remain as a theorem-code bridge for known system formulas, while the
-   structural decoder handles well-formed formula codes that were not generated
-   as Group axioms. When a U-Grounding code arrives through a logic binding, the
-   branch proof preserves the byte-cons evidence from the relational decoder."
+   These predicates are no longer emitted as generated facts and no longer use
+   host-generated formula lookup tables. The branch closes by reading the
+  formula-code term into the kernel's internal formula syntax and then applying
+  the structural recognizer for well-formedness, class membership, or
+  complement pairs. When a U-Grounding code arrives through a logic binding,
+  the branch proof preserves the byte-cons evidence from the relational
+  decoder."
   [fml env sigma sigma-out neqs neqs-out prog proof]
-  (let [structural-first? (= :u-grounding (sjas-code-format prog))
-        ground-relation (ground-negated-relation fml)]
-    (if (syntax-code-relation? ground-relation)
-      (conde
-        [(fresh [branch-proof]
-           (== '() env)
-           (== '() sigma)
-           (sjas-syntax-code-brancho prog
-                                     ground-relation
-                                     (apply list
-                                            (ground-negated-app-args
-                                              fml
-                                              ground-relation
-                                              (if (= 'neg-pair ground-relation) 2 1)))
-                                     '()
-                                     sigma-out
-                                     structural-first?
-                                     branch-proof)
-           (== neqs neqs-out)
-           (== (list 'profiled 'willard-sjas-code
-                     (list ground-relation branch-proof))
-               proof))]
-        [(fresh [lit atom walked-atom relation args branch-proof]
-           (subst/subst-formulao fml env lit)
-           (== (list 'neg atom) lit)
-           (equality/walk-atomo atom sigma walked-atom)
-           (== (lcons 'app (lcons relation args)) walked-atom)
-           (sjas-syntax-code-brancho prog
-                                     relation
-                                     args
-                                     sigma
-                                     sigma-out
-                                     structural-first?
-                                     branch-proof)
-           (== neqs neqs-out)
-           (== (list 'profiled 'willard-sjas-code (list relation branch-proof)) proof))])
-      (fresh [lit atom walked-atom relation args branch-proof]
-        (subst/subst-formulao fml env lit)
-        (== (list 'neg atom) lit)
-        (equality/walk-atomo atom sigma walked-atom)
-        (== (lcons 'app (lcons relation args)) walked-atom)
-        (sjas-syntax-code-brancho prog
-                                  relation
-                                  args
-                                  sigma
-                                  sigma-out
-                                  structural-first?
-                                  branch-proof)
-        (== neqs neqs-out)
-        (== (list 'profiled 'willard-sjas-code (list relation branch-proof)) proof)))))
+  (fresh [lit atom walked-atom relation args branch-proof]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+    (sjas-syntax-code-brancho prog
+                              relation
+                              args
+                              sigma
+                              sigma-out
+                              branch-proof)
+    (== neqs neqs-out)
+    (== (list 'profiled 'willard-sjas-code (list relation branch-proof)) proof)))
 
 (defn- sjas-subst-code-closeo
   "Close structural `subst-code/2` goals.
 
    ADR-0066 separates Willard's `Subst(g,h)` relation from `SubstPrf(g,t,p)`.
    ADR-0069 computes the substitution itself by decoding formula-code bytes,
-   replacing the distinguished free variable, and comparing the decoded target
-   modulo bound-variable alpha-renaming."
+  replacing the distinguished free variable, and comparing the decoded target
+  modulo bound-variable alpha-renaming."
   [fml env sigma sigma-out neqs neqs-out prog proof]
-  (if-let [[source-code substituted-code] (ground-negated-subst-code-args fml)]
+  (fresh [lit atom walked-atom source-code substituted-code]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo (list 'app 'subst-code source-code substituted-code)
+                         walked-atom)
+    (sjas-subst-code-any-coreo prog source-code substituted-code sigma sigma-out)
+    (== neqs neqs-out)
+    (== '(profiled willard-sjas-subst-code) proof)))
+
+(declare sjas-proof-check-stateo
+         sjas-proof-guided-selecto
+         sjas-tableau-proof-structural-closeo
+         sjas-subst-prf-structural-closeo)
+
+(defn- proof-byte-prefixo
+  [remaining input bytes rest]
+  (if (zero? remaining)
     (fresh []
-      (== '() env)
-      (== '() sigma)
-      (sjas-subst-code-anyo prog source-code substituted-code '() sigma-out)
-      (== neqs neqs-out)
-      (== '(profiled willard-sjas-subst-code) proof))
-    (fresh [lit atom walked-atom source-code substituted-code]
-      (subst/subst-formulao fml env lit)
-      (== (list 'neg atom) lit)
-      (equality/walk-atomo atom sigma walked-atom)
-      (== (list 'app 'subst-code source-code substituted-code) walked-atom)
-      (sjas-subst-code-anyo prog source-code substituted-code sigma sigma-out)
-      (== neqs neqs-out)
-      (== '(profiled willard-sjas-subst-code) proof))))
+      (== '() bytes)
+      (== input rest))
+    (fresh [byte input-rest bytes-rest]
+      (== (lcons byte input-rest) input)
+      (== (lcons byte bytes-rest) bytes)
+      (proof-byte-prefixo (dec remaining) input-rest bytes-rest rest))))
+
+(defn- proof-byte-list-termo
+  [proof bytes]
+  (conde
+    [(== '() proof)
+     (== '() bytes)]
+    [(fresh [byte proof-rest bytes-rest]
+       (== (lcons byte proof-rest) proof)
+       (== (lcons byte bytes-rest) bytes)
+       (proof-byte-list-termo proof-rest bytes-rest))]))
+
+(defn- formula-bearing-proof-nodeo
+  "Decode one formula-bearing tableau node from proof data.
+
+   The node shape is `(byte-count byte... child...)`. It deliberately carries
+   the formula bytes and child proof nodes, not a proof-rule tag. Local
+   `Deduction` and `Closure` rules are inferred by the structural checker from
+   the decoded formula and child list."
+  [prog proof formula children]
+  (conde
+    [(fresh [formula-byte-proof formula-byte-head formula-byte-tail
+             formula-bytes decoded-formula]
+       (== (lcons formula-byte-proof children) proof)
+       (== (lcons formula-byte-head formula-byte-tail) formula-byte-proof)
+       (== formula-byte-proof formula-bytes)
+       (decode-proof-formula-byteso prog formula-bytes '() decoded-formula)
+       (sjas-internal-formula-asto decoded-formula formula))]
+    [(or*
+       (map (fn [byte-count]
+              (fresh [after-count formula-bytes decoded-formula]
+                (== (lcons byte-count after-count) proof)
+                (proof-byte-prefixo byte-count after-count formula-bytes children)
+                (decode-proof-formula-byteso prog formula-bytes '() decoded-formula)
+                (sjas-internal-formula-asto decoded-formula formula)))
+            (range 1 sjas-code/byte-base)))]))
+
+(declare sjas-ast-alpha-termo
+         sjas-ast-alpha-term-listo
+         sjas-ast-alpha-formulao)
+
+(defn- ast-alpha-unmapped-nomo
+  [nom env]
+  (conde
+    [(== '() env)]
+    [(fresh [left right tail]
+       (== (lcons [left right] tail) env)
+       (!= nom left)
+       (ast-alpha-unmapped-nomo nom tail))]))
+
+(defn- ast-alpha-bound-nomo
+  [left-nom right-nom env]
+  (fresh [mapped-left mapped-right tail]
+    (== (lcons [mapped-left mapped-right] tail) env)
+    (conde
+      [(== left-nom mapped-left)
+       (== right-nom mapped-right)]
+      [(!= left-nom mapped-left)
+       (ast-alpha-bound-nomo left-nom right-nom tail)])))
+
+(defn- sjas-ast-alpha-term-listo
+  [left right env]
+  (conde
+    [(== '() left)
+     (== '() right)]
+    [(fresh [left-head left-tail right-head right-tail]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (sjas-ast-alpha-termo left-head right-head env)
+       (sjas-ast-alpha-term-listo left-tail right-tail env))]))
+
+(defn- sjas-ast-alpha-termo
+  "Compare AST terms modulo bound-variable alpha-renaming."
+  [left right env]
+  (conde
+    [(fresh [head left-args right-args]
+       (== (lcons 'app (lcons head left-args)) left)
+       (== (lcons 'app (lcons head right-args)) right)
+       (sjas-ast-alpha-term-listo left-args right-args env))]
+    [(fresh [left-nom right-nom]
+       (== (list 'var left-nom) left)
+       (== (list 'var right-nom) right)
+       (ast-alpha-bound-nomo left-nom right-nom env))]
+    [(fresh [nom]
+       (== (list 'var nom) left)
+       (== (list 'var nom) right)
+       (ast-alpha-unmapped-nomo nom env))]
+    [(fresh [nom]
+       (== (list 'par nom) left)
+       (== (list 'par nom) right))]))
+
+(defn- sjas-ast-alpha-formulao
+  "Compare AST formulas modulo nominal binder alpha-renaming."
+  [left right env]
+  (conde
+    [(== (list 'true) left)
+     (== (list 'true) right)]
+    [(== (list 'false) left)
+     (== (list 'false) right)]
+    [(fresh [left-term right-term]
+       (== (list 'pos left-term) left)
+       (== (list 'pos right-term) right)
+       (sjas-ast-alpha-termo left-term right-term env))]
+    [(fresh [left-term right-term]
+       (== (list 'neg left-term) left)
+       (== (list 'neg right-term) right)
+       (sjas-ast-alpha-termo left-term right-term env))]
+    [(fresh [left-a left-b right-a right-b]
+       (== (list 'eq left-a left-b) left)
+       (== (list 'eq right-a right-b) right)
+       (sjas-ast-alpha-termo left-a right-a env)
+       (sjas-ast-alpha-termo left-b right-b env))]
+    [(fresh [left-a left-b right-a right-b]
+       (== (list 'neq left-a left-b) left)
+       (== (list 'neq right-a right-b) right)
+       (sjas-ast-alpha-termo left-a right-a env)
+       (sjas-ast-alpha-termo left-b right-b env))]
+    [(fresh [left-a left-b right-a right-b]
+       (== (list 'and left-a left-b) left)
+       (== (list 'and right-a right-b) right)
+       (sjas-ast-alpha-formulao left-a right-a env)
+       (sjas-ast-alpha-formulao left-b right-b env))]
+    [(fresh [left-a left-b right-a right-b]
+       (== (list 'or left-a left-b) left)
+       (== (list 'or right-a right-b) right)
+       (sjas-ast-alpha-formulao left-a right-a env)
+       (sjas-ast-alpha-formulao left-b right-b env))]
+    [(fresh [body-left body-right]
+       (== (list 'not body-left) left)
+       (== (list 'not body-right) right)
+       (sjas-ast-alpha-formulao body-left body-right env))]
+    [(fresh [left-a left-b right-a right-b]
+       (== (list 'implies left-a left-b) left)
+       (== (list 'implies right-a right-b) right)
+       (sjas-ast-alpha-formulao left-a right-a env)
+       (sjas-ast-alpha-formulao left-b right-b env))]
+    [(fresh [left-nom right-nom left-body right-body]
+       (== (list 'forall (nominal/tie left-nom left-body)) left)
+       (== (list 'forall (nominal/tie right-nom right-body)) right)
+       (sjas-ast-alpha-formulao left-body
+                                 right-body
+                                 (lcons [left-nom right-nom] env)))]
+    [(fresh [left-nom right-nom left-body right-body]
+       (== (list 'once-forall (nominal/tie left-nom left-body)) left)
+       (== (list 'once-forall (nominal/tie right-nom right-body)) right)
+       (sjas-ast-alpha-formulao left-body
+                                 right-body
+                                 (lcons [left-nom right-nom] env)))]
+    [(fresh [left-nom right-nom left-body right-body]
+       (== (list 'exists (nominal/tie left-nom left-body)) left)
+       (== (list 'exists (nominal/tie right-nom right-body)) right)
+       (sjas-ast-alpha-formulao left-body
+                                 right-body
+                                 (lcons [left-nom right-nom] env)))]
+    [(fresh [left-nom right-nom left-bound left-body right-bound right-body]
+       (== (list 'bounded-forall
+                 (nominal/tie left-nom {:bound left-bound :body left-body}))
+           left)
+       (== (list 'bounded-forall
+                 (nominal/tie right-nom {:bound right-bound :body right-body}))
+           right)
+       (sjas-ast-alpha-termo left-bound right-bound env)
+       (sjas-ast-alpha-formulao left-body
+                                 right-body
+                                 (lcons [left-nom right-nom] env)))]
+    [(fresh [left-nom right-nom left-bound left-body right-bound right-body]
+       (== (list 'bounded-exists
+                 (nominal/tie left-nom {:bound left-bound :body left-body}))
+           left)
+       (== (list 'bounded-exists
+                 (nominal/tie right-nom {:bound right-bound :body right-body}))
+           right)
+       (sjas-ast-alpha-termo left-bound right-bound env)
+       (sjas-ast-alpha-formulao left-body
+                                 right-body
+                                 (lcons [left-nom right-nom] env)))]))
+
+(defn- sjas-proof-node-binder-renaming-matcho
+  "Match one binder layer by deterministically renaming the selected formula.
+  Decoded formula-code binders use the shared `sjas-vN` noms, while source-side
+  theorem and axiom formulas often retain their original host noms. A single
+  substitution into the selected binder body avoids searching the full
+  alpha-equivalence relation over large formula-code payloads."
+  [visible-formula node-formula]
+  (conde
+    [(fresh [left-nom right-nom left-body right-body renamed-body]
+       (== (list 'forall (nominal/tie left-nom left-body)) visible-formula)
+       (== (list 'forall (nominal/tie right-nom right-body)) node-formula)
+       (subst/subst-formulao left-body
+                             (lcons [left-nom (ast/var-term right-nom)] '())
+                             renamed-body)
+       (== renamed-body right-body))]
+    [(fresh [left-nom right-nom left-body right-body renamed-body]
+       (== (list 'once-forall (nominal/tie left-nom left-body)) visible-formula)
+       (== (list 'once-forall (nominal/tie right-nom right-body)) node-formula)
+       (subst/subst-formulao left-body
+                             (lcons [left-nom (ast/var-term right-nom)] '())
+                             renamed-body)
+       (== renamed-body right-body))]
+    [(fresh [left-nom right-nom left-body right-body renamed-body]
+       (== (list 'exists (nominal/tie left-nom left-body)) visible-formula)
+       (== (list 'exists (nominal/tie right-nom right-body)) node-formula)
+       (subst/subst-formulao left-body
+                             (lcons [left-nom (ast/var-term right-nom)] '())
+                             renamed-body)
+       (== renamed-body right-body))]
+    [(fresh [left-nom right-nom left-bound left-body right-bound right-body
+             renamed-bound renamed-body]
+       (== (list 'bounded-forall
+                 (nominal/tie left-nom {:bound left-bound :body left-body}))
+           visible-formula)
+       (== (list 'bounded-forall
+                 (nominal/tie right-nom {:bound right-bound :body right-body}))
+           node-formula)
+       (subst/subst-termo left-bound
+                          (lcons [left-nom (ast/var-term right-nom)] '())
+                          renamed-bound)
+       (subst/subst-formulao left-body
+                             (lcons [left-nom (ast/var-term right-nom)] '())
+                             renamed-body)
+       (== renamed-bound right-bound)
+       (== renamed-body right-body))]
+    [(fresh [left-nom right-nom left-bound left-body right-bound right-body
+             renamed-bound renamed-body]
+       (== (list 'bounded-exists
+                 (nominal/tie left-nom {:bound left-bound :body left-body}))
+           visible-formula)
+       (== (list 'bounded-exists
+                 (nominal/tie right-nom {:bound right-bound :body right-body}))
+           node-formula)
+       (subst/subst-termo left-bound
+                          (lcons [left-nom (ast/var-term right-nom)] '())
+                          renamed-bound)
+       (subst/subst-formulao left-body
+                             (lcons [left-nom (ast/var-term right-nom)] '())
+                             renamed-body)
+       (== renamed-bound right-bound)
+       (== renamed-body right-body))]))
+
+(declare sjas-proof-node-formula-matcho)
+
+(defn- sjas-proof-node-compound-renaming-matcho
+  "Match compound formulas whose subformulas may need binder renaming."
+  [visible-formula node-formula]
+  (conde
+    [(fresh [visible-left visible-right node-left node-right]
+       (== (list 'and visible-left visible-right) visible-formula)
+       (== (list 'and node-left node-right) node-formula)
+       (sjas-proof-node-formula-matcho visible-left node-left)
+       (sjas-proof-node-formula-matcho visible-right node-right))]
+    [(fresh [visible-left visible-right node-left node-right]
+       (== (list 'or visible-left visible-right) visible-formula)
+       (== (list 'or node-left node-right) node-formula)
+       (sjas-proof-node-formula-matcho visible-left node-left)
+       (sjas-proof-node-formula-matcho visible-right node-right))]
+    [(fresh [visible-body node-body]
+       (== (list 'not visible-body) visible-formula)
+       (== (list 'not node-body) node-formula)
+       (sjas-proof-node-formula-matcho visible-body node-body))]
+    [(fresh [visible-left visible-right node-left node-right]
+       (== (list 'implies visible-left visible-right) visible-formula)
+       (== (list 'implies node-left node-right) node-formula)
+       (sjas-proof-node-formula-matcho visible-left node-left)
+       (sjas-proof-node-formula-matcho visible-right node-right))]))
+
+(defn- sjas-proof-node-formula-matcho
+  "Match a visible branch formula against the formula decoded from a proof node.
+  Formula-bearing proof certificates usually contain the exact formula after the
+  enclosing quantifier step has introduced canonical SJAS names. Match binder
+  and compound roots before exact equality so sibling quantifier nodes do not
+  pay for a deep failed exact scan when only the canonical binder name differs.
+  Use ordinary backtracking choice because the proof-node formula is often still
+  constrained by its byte decoder; committed choice can bind it to the wrong
+  branch formula before the decoder has forced the actual node contents."
+  [visible-formula node-formula]
+  (conde
+    [(sjas-proof-node-binder-renaming-matcho visible-formula node-formula)]
+    [(sjas-proof-node-compound-renaming-matcho visible-formula node-formula)]
+    [(sjas-acyclic-unifyo visible-formula node-formula)]
+    [(sjas-ast-alpha-formulao visible-formula node-formula '())]))
+
+(declare sjas-atom-unify-coreo
+         sjas-unify-termo-coreo
+         sjas-unify-term*o-coreo
+         sjas-eq-contradiction-coreo
+         sjas-eq-contradiction-term*o-coreo)
+
+(defn- sjas-complementary-atom-in-lit-listo
+  [polarity atom lits sigma sigma-out]
+  (fresh [head tail]
+    (== (lcons head tail) lits)
+    (conde
+      [(fresh [opposite]
+         (conde
+           [(== 'pos polarity)
+            (sjas-acyclic-unifyo (list 'neg opposite) head)]
+           [(== 'neg polarity)
+            (sjas-acyclic-unifyo (list 'pos opposite) head)])
+         (sjas-atom-unify-coreo atom opposite sigma sigma-out))]
+      [(sjas-complementary-atom-in-lit-listo
+         polarity
+         atom
+         tail
+         sigma
+         sigma-out)])))
+
+(defn- sjas-complementary-lit-close-coreo
+  [lit lits sigma sigma-out]
+  (conde
+    [(fresh [atom]
+       (sjas-acyclic-unifyo (list 'pos atom) lit)
+       (sjas-complementary-atom-in-lit-listo
+         'pos
+         atom
+         lits
+         sigma
+         sigma-out))]
+    [(fresh [atom]
+       (sjas-acyclic-unifyo (list 'neg atom) lit)
+       (sjas-complementary-atom-in-lit-listo
+         'neg
+         atom
+         lits
+         sigma
+         sigma-out))]))
+
+(defn- sjas-unify-termo-coreo
+  "Proof-free term unification for structural SJAS tableau checks.
+
+   The ordinary equality helper returns kernel proof trace constructors such as
+   `eq-bind` and `decompose`. Formula-bearing SJAS tableau nodes should not
+   carry or require that trace payload, so this relation preserves the same
+   branch-state effect while exposing only `sigma` and `sigma-out`."
+  [left right sigma sigma-out]
+  (fresh [left-root right-root]
+    (sjas-walk-termo left sigma left-root)
+    (sjas-walk-termo right sigma right-root)
+    (conde
+      [(equality/same-termo left-root right-root sigma)
+       (== sigma sigma-out)]
+      [(fresh [binding-nom]
+         (sjas-acyclic-unifyo (list 'var binding-nom) left-root)
+         (equality/absent-termo binding-nom right-root sigma)
+         (== (lcons [binding-nom right-root] sigma) sigma-out))]
+      [(fresh [binding-nom]
+         (sjas-acyclic-unifyo (list 'var binding-nom) right-root)
+         (equality/absent-termo binding-nom left-root sigma)
+         (== (lcons [binding-nom left-root] sigma) sigma-out))]
+      [(fresh [binding-nom]
+         (sjas-acyclic-unifyo (list 'par binding-nom) left-root)
+         (equality/absent-paro binding-nom right-root sigma)
+         (== (lcons [binding-nom right-root] sigma) sigma-out))]
+      [(fresh [binding-nom]
+         (sjas-acyclic-unifyo (list 'par binding-nom) right-root)
+         (equality/absent-paro binding-nom left-root sigma)
+         (== (lcons [binding-nom left-root] sigma) sigma-out))]
+      [(fresh [head left-args right-args]
+         (sjas-acyclic-unifyo (lcons 'app (lcons head left-args)) left-root)
+         (sjas-acyclic-unifyo (lcons 'app (lcons head right-args)) right-root)
+         (sjas-unify-term*o-coreo left-args right-args sigma sigma-out))])))
+
+(defn- sjas-unify-term*o-coreo
+  "Pairwise proof-free companion for `sjas-unify-termo-coreo`."
+  [left right sigma sigma-out]
+  (conde
+    [(== '() left)
+     (== '() right)
+     (== sigma sigma-out)]
+    [(fresh [left-head left-tail right-head right-tail sigma-mid]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (sjas-unify-termo-coreo left-head right-head sigma sigma-mid)
+       (sjas-unify-term*o-coreo left-tail right-tail sigma-mid sigma-out))]))
+
+(defn- sjas-atom-unify-coreo
+  "Unify complementary atom arguments without producing proof trace evidence."
+  [left right sigma sigma-out]
+  (fresh [head left-args right-args]
+    (sjas-acyclic-unifyo (lcons 'app (lcons head left-args)) left)
+    (sjas-acyclic-unifyo (lcons 'app (lcons head right-args)) right)
+    (sjas-unify-term*o-coreo left-args right-args sigma sigma-out)))
+
+(defn- sjas-eq-contradiction-coreo
+  "Succeed when an equality literal is impossible, without proof trace tags.
+
+   This is the structural SJAS closure analogue of the kernel's
+   `eq-contradictiono`: occurs failures, distinct constructor heads, argument
+   arity mismatch, and recursive same-head contradictions close a branch. The
+   relation intentionally returns no `free-close`, `occurs-close`, or
+   `decompose` payload."
+  [left right sigma]
+  (fresh [left-root right-root]
+    (sjas-walk-termo left sigma left-root)
+    (sjas-walk-termo right sigma right-root)
+    (conde
+      [(fresh [binding-nom]
+         (sjas-acyclic-unifyo (list 'var binding-nom) left-root)
+         (equality/occurs-termo binding-nom right-root sigma))]
+      [(fresh [binding-nom]
+         (sjas-acyclic-unifyo (list 'var binding-nom) right-root)
+         (equality/occurs-termo binding-nom left-root sigma))]
+      [(fresh [left-head left-args right-head right-args]
+         (sjas-acyclic-unifyo (lcons 'app (lcons left-head left-args)) left-root)
+         (sjas-acyclic-unifyo (lcons 'app (lcons right-head right-args)) right-root)
+         (!= left-head right-head))]
+      [(fresh [head left-args right-args]
+         (sjas-acyclic-unifyo (lcons 'app (lcons head left-args)) left-root)
+         (sjas-acyclic-unifyo (lcons 'app (lcons head right-args)) right-root)
+         (sjas-eq-contradiction-term*o-coreo left-args right-args sigma))])))
+
+(defn- sjas-eq-contradiction-term*o-coreo
+  "Find a proof-free contradiction inside application argument lists."
+  [left right sigma]
+  (conde
+    [(fresh [head tail]
+       (== (lcons head tail) left)
+       (== '() right))]
+    [(fresh [head tail]
+       (== '() left)
+       (== (lcons head tail) right))]
+    [(fresh [left-head left-tail right-head right-tail]
+       (== (lcons left-head left-tail) left)
+       (== (lcons right-head right-tail) right)
+       (conde
+         [(sjas-eq-contradiction-coreo left-head right-head sigma)]
+         [(fresh [sigma-mid]
+            (sjas-unify-termo-coreo left-head right-head sigma sigma-mid)
+            (sjas-eq-contradiction-term*o-coreo left-tail right-tail sigma-mid))]))]))
+
+(defn- sjas-neq-violated-coreo
+  "Succeed when a stored disequality has become false under `sigma`."
+  [neqs sigma]
+  (fresh [left right rest]
+    (conde
+      [(== (lcons [left right] rest) neqs)
+       (equality/same-termo left right sigma)]
+      [(== (lcons [left right] rest) neqs)
+       (sjas-neq-violated-coreo rest sigma)])))
+
+(defn- sjas-contradictory-atoms-coreo
+  "Succeed when saved positive and negative literals unify without proof trace."
+  [lits sigma sigma-out]
+  (fresh [left-atom right-atom]
+    (conde
+      [(membero (list 'pos left-atom) lits)
+       (membero (list 'neg right-atom) lits)]
+      [(membero (list 'neg left-atom) lits)
+       (membero (list 'pos right-atom) lits)])
+    (sjas-atom-unify-coreo left-atom right-atom sigma sigma-out)))
+
+(defn- branch-env-lengtho
+  "Succeed when the structural branch environment contains `expected` binders."
+  [env expected]
+  (if (zero? expected)
+    (== '() env)
+    (fresh [binding term tail]
+      (== (lcons [binding term] tail) env)
+      (branch-env-lengtho tail (dec expected)))))
+
+(defn- sjas-next-branch-nomo
+  "Select the canonical code nom for the next structural branch binder.
+
+   Formula-bearing child nodes encode introduced variables and parameters as
+   `v0`, `v1`, ... rather than as host nominal identities. The structural
+   checker keys that canonical name to the branch environment depth so nested
+   binders receive distinct payloads even when multiple existential parameters
+   appear at the same proof-variable depth."
+  [env next-nom]
+  (letfn [(nexto [entries branch-env]
+            (if (seq entries)
+              (let [[_idx nom] (first entries)]
+                (conde
+                  [(== '() branch-env)
+                   (== nom next-nom)]
+                  [(fresh [head tail]
+                     (== (lcons head tail) branch-env)
+                     (nexto (rest entries) tail))]))
+              fail))]
+    (nexto code-nom-entries env)))
+
+(defn- sjas-proof-tree-next-fuelo
+  "Preserve runtime fuel while validating a fixed SJAS proof tree.
+
+   The formula-bearing proof predicate is a relation over decoded system,
+   theorem, and proof codes. Its recursion is driven by child proof nodes, so
+   accepting a fixed certificate must not depend on an external evaluator fuel
+   counter."
+  [fuel next-fuel]
+  (== fuel next-fuel))
+
+(defn- sjas-agenda-entryo
+  "Relate an agenda entry to its formula and saved branch environment.
+
+   New structural proof-checker entries are `[formula env]` pairs so a sibling
+   formula is later selected under the environment that was in scope when it was
+   enqueued. Raw formulas are still accepted for older focused tests and for the
+   initial selected formula.
+   "
+  [current-env entry formula entry-env]
+  (conde
+    [(== [formula entry-env] entry)]
+    [(== formula entry)
+     (== current-env entry-env)]))
+
+(defn- sjas-agenda-cons-coreo
+  "Cons `formula` onto an agenda with an explicit environment snapshot."
+  [formula env rest out]
+  (== (lcons [formula env] rest) out))
+
+(defn- sjas-agenda-heado
+  "Pop the next agenda formula with the environment saved for that formula."
+  [current-env agenda formula formula-env rest]
+  (fresh [entry]
+    (== (lcons entry rest) agenda)
+    (sjas-agenda-entryo current-env entry formula formula-env)))
+
+(defn- sjas-structural-proof-check-state-decodedo
+  "Validate the first formula-bearing tableau proof fragment.
+
+   This relation is the Track 1 route away from Proflog proof-trace evidence:
+   the proof object supplies formula nodes, and this checker infers the local
+   tableau rule from parent formula, child formula, and branch state. The
+   current fragment covers conjunction, disjunction, true-skip, false closure,
+   double negation, implication, negated atomic/equality duals, negated
+   conjunction/disjunction/implication, negated quantifier duals, literal
+   continuation, complementary literal closure, and structural/bounded
+   quantifier expansion,
+   reflexive disequality closure, axiom-membership closure, recursive
+   proof-predicate closure, arithmetic/profile closure, equality progression,
+   and rigid disequality progression."
+  [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel node-formula children]
+  (fresh [visible-formula]
+    (sjas-subst-formulao fml env visible-formula)
+    (sjas-proof-node-formula-matcho visible-formula node-formula)
+    (conde
+      [(fresh [lit atom child child-formula child-children next next-env rest
+               next-fuel]
+         (== (lcons child '()) children)
+         (sjas-acyclic-unifyo visible-formula lit)
+         (conde
+           [(sjas-acyclic-unifyo (list 'pos atom) lit)]
+           [(sjas-acyclic-unifyo (list 'neg atom) lit)])
+         (formula-bearing-proof-nodeo prog child child-formula child-children)
+         (sjas-proof-guided-selecto child-formula
+                                    env
+                                    unexpanded
+                                    next
+                                    next-env
+                                    rest)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-structural-proof-check-state-decodedo system-code
+                                                     next
+                                                     rest
+                                                     (lcons lit lits)
+                                                     next-env
+                                                     proof-vars
+                                                     sigma
+                                                     sigma-out
+                                                     neqs
+                                                     neqs-out
+                                                     prog
+                                                     gamma-terms
+                                                     next-fuel
+                                                     child-formula
+                                                     child-children))]
+      [(fresh [lit atom]
+         (== '() children)
+         (sjas-acyclic-unifyo visible-formula lit)
+         (conde
+           [(sjas-acyclic-unifyo (list 'pos atom) lit)]
+           [(sjas-acyclic-unifyo (list 'neg atom) lit)])
+         (sjas-complementary-lit-close-coreo lit lits sigma sigma-out)
+         (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
+      [(fresh [left right child next-unexpanded next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'and left right) fml)
+         (sjas-agenda-cons-coreo right env unexpanded next-unexpanded)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  left
+                                  next-unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(nominal/fresh [binding-nom]
+         (fresh [free-var-nom body child next-fuel]
+           (== (lcons child '()) children)
+           (== '() env)
+           (conde
+             [(== (list 'forall (nominal/tie binding-nom body)) fml)]
+             [(== (list 'once-forall (nominal/tie binding-nom body)) fml)])
+           (sjas-next-branch-nomo env free-var-nom)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    body
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [free-var-nom body instantiated-body narrowed-env
+                 child child-formula child-children next-fuel]
+           (== (lcons child '()) children)
+           (conde
+             [(== (list 'forall (nominal/tie binding-nom body)) fml)]
+             [(== (list 'once-forall (nominal/tie binding-nom body)) fml)])
+           (sjas-next-branch-nomo env free-var-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao
+             body
+             (lcons [binding-nom (ast/var-term free-var-nom)] narrowed-env)
+             instantiated-body)
+           (formula-bearing-proof-nodeo prog child child-formula child-children)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-structural-proof-check-state-decodedo system-code
+                                                       instantiated-body
+                                                       unexpanded
+                                                       lits
+                                                       env
+                                                       (lcons free-var-nom proof-vars)
+                                                       sigma
+                                                       sigma-out
+                                                       neqs
+                                                       neqs-out
+                                                       prog
+                                                       gamma-terms
+                                                       next-fuel
+                                                       child-formula
+                                                       child-children)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [free-var-nom body body-subst narrowed-env child next-fuel]
+           (== (lcons child '()) children)
+           (conde
+             [(== (list 'forall (nominal/tie binding-nom body)) fml)]
+             [(== (list 'once-forall (nominal/tie binding-nom body)) fml)])
+           (sjas-next-branch-nomo env free-var-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    body-subst
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [parameter-nom body body-subst narrowed-env child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'exists (nominal/tie binding-nom body)) fml)
+           (sjas-next-branch-nomo env parameter-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    body-subst
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/par-term parameter-nom)] env)
+                                    proof-vars
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [parameter-nom body instantiated-body narrowed-env
+                 child child-formula child-children next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'exists (nominal/tie binding-nom body)) fml)
+           (sjas-next-branch-nomo env parameter-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao
+             body
+             (lcons [binding-nom (ast/par-term parameter-nom)] narrowed-env)
+             instantiated-body)
+           (formula-bearing-proof-nodeo prog child child-formula child-children)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-structural-proof-check-state-decodedo system-code
+                                                       instantiated-body
+                                                       unexpanded
+                                                       lits
+                                                       env
+                                                       proof-vars
+                                                       sigma
+                                                       sigma-out
+                                                       neqs
+                                                       neqs-out
+                                                       prog
+                                                       gamma-terms
+                                                       next-fuel
+                                                       child-formula
+                                                       child-children)))]
+      [(fresh []
+         (== '() children)
+         (== (list 'false) fml)
+         (== sigma sigma-out)
+         (== neqs neqs-out))]
+      [(fresh []
+         (== '() children)
+         (== (list 'not (list 'true)) fml)
+         (== sigma sigma-out)
+         (== neqs neqs-out))]
+      [(fresh [child next next-env rest next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'false)) fml)
+         (sjas-agenda-heado env unexpanded next next-env rest)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  next
+                                  rest
+                                  lits
+                                  next-env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [body child next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'not body)) fml)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  body
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [atom child next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'pos atom)) fml)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  (list 'neg atom)
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [atom child next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'neg atom)) fml)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  (list 'pos atom)
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [left right child next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'eq left right)) fml)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  (list 'neq left right)
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [left right child next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'neq left right)) fml)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  (list 'eq left right)
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [left right left-child right-child next-fuel
+               left-sigma-out right-sigma-out left-neqs-out right-neqs-out]
+         (== (lcons left-child (lcons right-child '())) children)
+         (== (list 'not (list 'and left right)) fml)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  (list 'not left)
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  left-sigma-out
+                                  neqs
+                                  left-neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  left-child)
+         (sjas-proof-check-stateo system-code
+                                  (list 'not right)
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  right-sigma-out
+                                  neqs
+                                  right-neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  right-child)
+         (== sigma sigma-out)
+         (== neqs neqs-out))]
+      [(fresh [left right child next-unexpanded next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'or left right)) fml)
+         (sjas-agenda-cons-coreo (list 'not right)
+                                 env
+                                 unexpanded
+                                 next-unexpanded)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  (list 'not left)
+                                  next-unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [left right left-child right-child next-fuel
+               left-sigma-out right-sigma-out left-neqs-out right-neqs-out]
+         (== (lcons left-child (lcons right-child '())) children)
+         (== (list 'implies left right) fml)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  (list 'not left)
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  left-sigma-out
+                                  neqs
+                                  left-neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  left-child)
+         (sjas-proof-check-stateo system-code
+                                  right
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  right-sigma-out
+                                  neqs
+                                  right-neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  right-child)
+         (== sigma sigma-out)
+         (== neqs neqs-out))]
+      [(fresh [left right child next-unexpanded next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'not (list 'implies left right)) fml)
+         (sjas-agenda-cons-coreo (list 'not right)
+                                 env
+                                 unexpanded
+                                 next-unexpanded)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  left
+                                  next-unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(nominal/fresh [binding-nom]
+         (fresh [quant parameter-nom body body-subst narrowed-env
+                 child next-fuel]
+           (== (lcons child '()) children)
+           (conde
+             [(== 'forall quant)]
+             [(== 'once-forall quant)])
+           (== (list 'not (list quant (nominal/tie binding-nom body))) fml)
+           (sjas-next-branch-nomo env parameter-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    (list 'not body-subst)
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/par-term parameter-nom)] env)
+                                    proof-vars
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [free-var-nom body body-subst narrowed-env child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'not (list 'exists (nominal/tie binding-nom body))) fml)
+           (sjas-next-branch-nomo env free-var-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    (list 'not body-subst)
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [parameter-nom bound body bound-subst body-subst narrowed-env
+                 guard guarded-body child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'not
+                     (list 'bounded-forall
+                           (nominal/tie binding-nom {:bound bound :body body})))
+               fml)
+           (sjas-next-branch-nomo env parameter-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-termo bound narrowed-env bound-subst)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (== (list 'pos
+                     (list 'app 'leq (list 'var binding-nom) bound-subst))
+               guard)
+           (== (list 'and guard (list 'not body-subst)) guarded-body)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    guarded-body
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/par-term parameter-nom)] env)
+                                    proof-vars
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [free-var-nom bound body bound-subst body-subst narrowed-env
+                 guard guarded-body child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'not
+                     (list 'bounded-exists
+                           (nominal/tie binding-nom {:bound bound :body body})))
+               fml)
+           (sjas-next-branch-nomo env free-var-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-termo bound narrowed-env bound-subst)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (== (list 'neg
+                     (list 'app 'leq (list 'var binding-nom) bound-subst))
+               guard)
+           (== (list 'or guard (list 'not body-subst)) guarded-body)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    guarded-body
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(fresh [lit left right]
+         (== '() children)
+         (sjas-subst-formulao fml env lit)
+         (sjas-acyclic-unifyo (list 'neq left right) lit)
+         (equality/same-termo left right sigma)
+         (== sigma sigma-out)
+         (== neqs neqs-out))]
+      [(fresh [lit left right child next next-env rest next-fuel]
+         (== (lcons child '()) children)
+         (sjas-subst-formulao fml env lit)
+         (sjas-acyclic-unifyo (list 'neq left right) lit)
+         (support/rigid-different-termo left right sigma)
+         (sjas-agenda-heado env unexpanded next next-env rest)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  next
+                                  rest
+                                  lits
+                                  next-env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [lit left right child next next-env rest next-fuel]
+         (== (lcons child '()) children)
+         (sjas-subst-formulao fml env lit)
+         (sjas-acyclic-unifyo (list 'neq left right) lit)
+         (sjas-agenda-heado env unexpanded next next-env rest)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  next
+                                  rest
+                                  lits
+                                  next-env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  (lcons [left right] neqs)
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh []
+         (== '() children)
+         (conde
+           [(sjas-axiom-member-structural-closeo fml
+                                                 env
+                                                 sigma
+                                                 sigma-out
+                                                 neqs
+                                                 neqs-out
+                                                 prog)]
+           [(sjas-tableau-proof-structural-closeo fml
+                                                  env
+                                                  sigma
+                                                  sigma-out
+                                                  neqs
+                                                  neqs-out
+                                                  prog
+                                                  fuel)]
+           [(sjas-subst-prf-structural-closeo fml
+                                              env
+                                              sigma
+                                              sigma-out
+                                              neqs
+                                              neqs-out
+                                              prog
+                                              fuel)]
+           [(sjas-neq-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
+           [(sjas-neg-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
+           [(sjas-pos-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]))]
+      [(fresh [lit left right]
+         (== '() children)
+         (sjas-subst-formulao fml env lit)
+         (sjas-acyclic-unifyo (list 'eq left right) lit)
+         (sjas-eq-contradiction-coreo left right sigma)
+         (== sigma sigma-out)
+         (== neqs neqs-out))]
+      [(fresh [lit left right sigma-mid]
+         (== '() children)
+         (sjas-subst-formulao fml env lit)
+         (sjas-acyclic-unifyo (list 'eq left right) lit)
+         (sjas-unify-termo-coreo left right sigma sigma-mid)
+         (sjas-neq-violated-coreo neqs sigma-mid)
+         (== sigma-mid sigma-out)
+         (support/prune-contradictory-neqso neqs sigma-mid neqs-out))]
+      [(fresh [lit left right sigma-mid]
+         (== '() children)
+         (sjas-subst-formulao fml env lit)
+         (sjas-acyclic-unifyo (list 'eq left right) lit)
+         (sjas-unify-termo-coreo left right sigma sigma-mid)
+         (sjas-contradictory-atoms-coreo lits sigma-mid sigma-out)
+         (support/prune-contradictory-neqso neqs sigma-out neqs-out))]
+      [(fresh [lit left right sigma-mid atom walked-atom relation args
+               call-env body negated-body child next-fuel]
+         (== (lcons child '()) children)
+         (sjas-subst-formulao fml env lit)
+         (sjas-acyclic-unifyo (list 'eq left right) lit)
+         (sjas-unify-termo-coreo left right sigma sigma-mid)
+         (membero (list 'pos atom) lits)
+         (sjas-walk-atomo atom sigma-mid walked-atom)
+         (sjas-acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+         (support/l-ground-term*o args)
+         (sjas-system-reflected-call-clauseo prog
+                                             system-code
+                                             walked-atom
+                                             call-env
+                                             body
+                                             negated-body)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  body
+                                  '()
+                                  '()
+                                  call-env
+                                  proof-vars
+                                  sigma-mid
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [lit left right sigma-mid atom walked-atom relation args
+               call-env body negated-body child next-fuel]
+         (== (lcons child '()) children)
+         (sjas-subst-formulao fml env lit)
+         (sjas-acyclic-unifyo (list 'eq left right) lit)
+         (sjas-unify-termo-coreo left right sigma sigma-mid)
+         (membero (list 'neg atom) lits)
+         (sjas-walk-atomo atom sigma-mid walked-atom)
+         (sjas-acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+         (support/l-ground-term*o args)
+         (sjas-system-reflected-call-clauseo prog
+                                             system-code
+                                             walked-atom
+                                             call-env
+                                             body
+                                             negated-body)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  negated-body
+                                  '()
+                                  '()
+                                  call-env
+                                  proof-vars
+                                  sigma-mid
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [lit left right sigma-mid child next next-env rest next-fuel]
+         (== (lcons child '()) children)
+         (sjas-subst-formulao fml env lit)
+         (sjas-acyclic-unifyo (list 'eq left right) lit)
+         (sjas-unify-termo-coreo left right sigma sigma-mid)
+         (sjas-agenda-heado env unexpanded next next-env rest)
+         (support/stable-neqso neqs sigma-mid)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  next
+                                  rest
+                                  lits
+                                  next-env
+                                  proof-vars
+                                  sigma-mid
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [left right left-child right-child next-fuel
+               left-sigma-out right-sigma-out left-neqs-out right-neqs-out]
+         (== (lcons left-child (lcons right-child '())) children)
+         (== (list 'or left right) fml)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         ;; Structural tableau siblings share the incoming branch state. Any
+         ;; equality or disequality evidence produced while closing one child
+         ;; remains local to that child.
+         (sjas-proof-check-stateo system-code
+                                  left
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  left-sigma-out
+                                  neqs
+                                  left-neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  left-child)
+         (sjas-proof-check-stateo system-code
+                                  right
+                                  unexpanded
+                                  lits
+                                  env
+                                  proof-vars
+                                  sigma
+                                  right-sigma-out
+                                  neqs
+                                  right-neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  right-child)
+         (== sigma sigma-out)
+         (== neqs neqs-out))]
+      [(fresh [lit atom walked-atom relation args call-env body negated-body
+               child next-fuel]
+         (== (lcons child '()) children)
+         (sjas-subst-formulao fml env lit)
+         (sjas-acyclic-unifyo (list 'pos atom) lit)
+         (sjas-walk-atomo atom sigma walked-atom)
+         (sjas-acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+         (support/l-ground-term*o args)
+         (sjas-system-reflected-call-clauseo prog
+                                             system-code
+                                             walked-atom
+                                             call-env
+                                             body
+                                             negated-body)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  body
+                                  '()
+                                  '()
+                                  call-env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(fresh [lit atom walked-atom relation args call-env body negated-body
+               child next-fuel]
+         (== (lcons child '()) children)
+         (sjas-subst-formulao fml env lit)
+         (sjas-acyclic-unifyo (list 'neg atom) lit)
+         (sjas-walk-atomo atom sigma walked-atom)
+         (sjas-acyclic-unifyo (lcons 'app (lcons relation args)) walked-atom)
+         (support/l-ground-term*o args)
+         (sjas-system-reflected-call-clauseo prog
+                                             system-code
+                                             walked-atom
+                                             call-env
+                                             body
+                                             negated-body)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  negated-body
+                                  '()
+                                  '()
+                                  call-env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))]
+      [(nominal/fresh [binding-nom]
+         (fresh [free-var-nom body body-subst narrowed-env child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'forall (nominal/tie binding-nom body)) fml)
+           (sjas-next-branch-nomo env free-var-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    body-subst
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [free-var-nom body body-subst narrowed-env child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'once-forall (nominal/tie binding-nom body)) fml)
+           (sjas-next-branch-nomo env free-var-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    body-subst
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [parameter-nom body body-subst narrowed-env child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'exists (nominal/tie binding-nom body)) fml)
+           (sjas-next-branch-nomo env parameter-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    body-subst
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/par-term parameter-nom)] env)
+                                    proof-vars
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [free-var-nom bound body bound-subst body-subst narrowed-env
+                 guard guarded-body child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'bounded-forall
+                     (nominal/tie binding-nom {:bound bound :body body}))
+               fml)
+           (sjas-next-branch-nomo env free-var-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-termo bound narrowed-env bound-subst)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (== (list 'neg
+                     (list 'app 'leq (list 'var binding-nom) bound-subst))
+               guard)
+           (== (list 'or guard body-subst) guarded-body)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    guarded-body
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/var-term free-var-nom)] env)
+                                    (lcons free-var-nom proof-vars)
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(nominal/fresh [binding-nom]
+         (fresh [parameter-nom bound body bound-subst body-subst narrowed-env
+                 guard guarded-body child next-fuel]
+           (== (lcons child '()) children)
+           (== (list 'bounded-exists
+                     (nominal/tie binding-nom {:bound bound :body body}))
+               fml)
+           (sjas-next-branch-nomo env parameter-nom)
+           (subst/remove-bindo binding-nom env narrowed-env)
+           (subst/subst-termo bound narrowed-env bound-subst)
+           (subst/subst-formulao body narrowed-env body-subst)
+           (== (list 'pos
+                     (list 'app 'leq (list 'var binding-nom) bound-subst))
+               guard)
+           (== (list 'and guard body-subst) guarded-body)
+           (sjas-proof-tree-next-fuelo fuel next-fuel)
+           (sjas-proof-check-stateo system-code
+                                    guarded-body
+                                    unexpanded
+                                    lits
+                                    (lcons [binding-nom (ast/par-term parameter-nom)] env)
+                                    proof-vars
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    gamma-terms
+                                    next-fuel
+                                    child)))]
+      [(fresh [child next next-env rest next-fuel]
+         (== (lcons child '()) children)
+         (== (list 'true) fml)
+         (sjas-agenda-heado env unexpanded next next-env rest)
+         (sjas-proof-tree-next-fuelo fuel next-fuel)
+         (sjas-proof-check-stateo system-code
+                                  next
+                                  rest
+                                  lits
+                                  next-env
+                                  proof-vars
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  gamma-terms
+                                  next-fuel
+                                  child))])))
+
+(defn- sjas-structural-proof-check-stateo
+  [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (fresh [node-formula children]
+    (formula-bearing-proof-nodeo prog proof node-formula children)
+    (sjas-structural-proof-check-state-decodedo system-code
+                                                fml
+                                                unexpanded
+                                                lits
+                                                env
+                                                proof-vars
+                                                sigma
+                                                sigma-out
+                                                neqs
+                                                neqs-out
+                                                prog
+                                                gamma-terms
+                                                fuel
+                                                node-formula
+                                                children)))
+
+(defn- sjas-proof-guided-selecto
+  "Select a branch formula candidate with its saved branch environment.
+
+   The structural checker immediately validates the selected formula against the
+   decoded proof-node formula. Keeping selection proof-node-blind avoids repeating
+   the same large formula substitution and match before every decoded rule check,
+   while remaining an ordinary relational list selection.
+   "
+  [_node-formula env formulas selected selected-env remaining]
+  (fresh [head tail head-formula head-env]
+    (== (lcons head tail) formulas)
+    (sjas-agenda-entryo env head head-formula head-env)
+    (conde
+      [(== head-formula selected)
+       (== head-env selected-env)
+       (== tail remaining)]
+      [(fresh [tail-selected tail-selected-env tail-remaining]
+         (sjas-proof-guided-selecto _node-formula
+                                    env
+                                    tail
+                                    tail-selected
+                                    tail-selected-env
+                                    tail-remaining)
+         (== tail-selected selected)
+         (== tail-selected-env selected-env)
+         (== (lcons head tail-remaining) remaining))])))
+
+(defn- sjas-proof-check-stateo
+  [system-code fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
+   prog gamma-terms fuel proof]
+  (fresh [node-formula children selected selected-env remaining]
+    ;; Decode the proof-node formula before selecting from the branch. The
+    ;; ordinary tableau relation still permits any branch formula to be chosen,
+    ;; but a fixed certificate already tells us which visible formula it is
+    ;; attempting to justify; using that fact avoids exploring irrelevant
+    ;; branch selections before `sjas-structural-proof-check-stateo` rejects
+    ;; them.
+    (formula-bearing-proof-nodeo prog proof node-formula children)
+    (sjas-proof-guided-selecto node-formula
+                               env
+                               (lcons fml unexpanded)
+                               selected
+                               selected-env
+                               remaining)
+    (sjas-structural-proof-check-state-decodedo system-code
+                                                selected
+                                                remaining
+                                                lits
+                                                selected-env
+                                                proof-vars
+                                                sigma
+                                                sigma-out
+                                                neqs
+                                                neqs-out
+                                                prog
+                                                gamma-terms
+                                                fuel
+                                                node-formula
+                                                children)))
+
+(defn- sjas-proof-check-programo
+  "Validate `proof` for `target` through the SJAS-side proof checker.
+
+   The target is already the proof-predicate tableau branch,
+   `(and system-axioms negated-theorem)`. This wrapper preserves the ordinary
+   kernel's empty initial branch state but deliberately does not call
+   `kernel/prove-programo`; all accepted evidence must be consumed by
+   `sjas-proof-check-stateo` above."
+  [prog system-code target fuel proof]
+  (fresh [sigma-out neqs-out]
+    (sjas-proof-check-stateo system-code
+                             target
+                             '()
+                             '()
+                             '()
+                             '()
+                             '()
+                             sigma-out
+                             '()
+                             neqs-out
+                             prog
+                             '()
+                             fuel
+                             proof)))
+
+(defn- sjas-tableau-proof-coreo
+  "Proof-free `tableau-proof/3` predicate relation.
+
+   This is the object relation used both by the ordinary SJAS theory wrapper
+   and by formula-bearing structural tableau leaves. It decodes the supplied
+   proof code, theorem code, and finite system code, then validates either an
+   axiom citation or a structural tableau tree without constructing a separate
+   Proflog answer-proof payload."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (fresh [lit atom walked-atom system-code theorem-code proof-code
+          decoded-proof proof-bytes proof-kind axiom-formula neg-theorem
+          target sigma-proof sigma-theorem walked-system-code]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo (list 'app 'tableau-proof system-code theorem-code proof-code)
+                         walked-atom)
+    (sjas-formal-code-bytes-coreo proof-code
+                                  proof-bytes
+                                  sigma
+                                  sigma-proof
+                                  proof-kind)
+    (conde
+      [(== sjas-axiom-proof-bytes proof-bytes)
+       (== 'sjas-axiom decoded-proof)
+       (fresh []
+         (sjas-walked-axiom-member-coreo prog
+                                          system-code
+                                          theorem-code
+                                          sigma-proof)
+         (== sigma-proof sigma-out))]
+      [(decode-structural-proof-bytes-coreo proof-bytes decoded-proof)
+       (sjas-structural-negated-theorem-coreo prog
+                                              theorem-code
+                                              sigma-proof
+                                              sigma-theorem
+                                              neg-theorem)
+       (sjas-system-axiom-formula-walked-coreo prog
+                                               system-code
+                                               sigma-theorem
+                                               sigma-out
+                                               walked-system-code
+                                               axiom-formula)
+       (sjas-acyclic-unifyo (list 'and axiom-formula neg-theorem) target)
+       (sjas-proof-check-programo prog
+                                  walked-system-code
+                                  target
+                                  fuel
+                                  decoded-proof)])
+    (== neqs neqs-out)))
 
 (defn- sjas-tableau-proof-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
-  (let [ground-args (ground-negated-app-args fml 'tableau-proof 3)]
-    (if ground-args
-      (let [[system-code theorem-code proof-code] ground-args]
-        (fresh [decoded-proof proof-bytes axiom-formula theorem-formula neg-theorem
-                target sigma-proof proof-kind proof-read-proof]
-          (== '() env)
-          (== '() sigma)
-          (decode-proof-code-kindo proof-code '() sigma-proof proof-bytes decoded-proof proof-kind)
-          (code-read-marker-o proof-kind proof-read-proof)
-          (conde
-            [(== 'sjas-axiom decoded-proof)
-             (sjas-axiom-membero prog system-code theorem-code)
-             (== sigma-proof sigma-out)]
-            [(sjas-system-axiom-formulao prog system-code axiom-formula)
-             (sjas-formula-codeo prog theorem-code theorem-formula)
-             (sjas-formula-negationo prog theorem-formula neg-theorem)
-             (== (list 'and axiom-formula neg-theorem) target)
-             (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
-             (== sigma-proof sigma-out)]
-            [(sjas-system-axiom-formulao prog system-code axiom-formula)
-             (sjas-structural-negated-theoremo prog
-                                               theorem-code
+  (fresh []
+    (sjas-tableau-proof-coreo fml
+                              env
+                              sigma
+                              sigma-out
+                              neqs
+                              neqs-out
+                              prog
+                              fuel)
+    (== '(profiled willard-sjas-proof-check) proof)))
+
+(defn- sjas-subst-prf-coreo
+  "Proof-free `subst-prf/4` predicate relation.
+
+   `SubstPrf` first validates the substitution-side formula relation, then
+   checks the supplied theorem proof against beta plus the substituted source
+   sentence. The relation intentionally returns only branch state effects; the
+   ordinary public answer marker is layered on by `sjas-subst-prf-closeo`."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (fresh [lit atom walked-atom system-code substitution-code theorem-code proof-code
+          decoded-proof proof-bytes proof-kind axiom-formula subst-axiom-formula
+          extended-axiom-formula neg-theorem target sigma-valid sigma-proof
+          sigma-system walked-system-code walked-valid-system-code]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo
+      (list 'app 'subst-prf system-code substitution-code theorem-code proof-code)
+      walked-atom)
+    (sjas-formal-code-bytes-coreo proof-code
+                                  proof-bytes
+                                  sigma
+                                  sigma-proof
+                                  proof-kind)
+    (conde
+      [(== sjas-axiom-proof-bytes proof-bytes)
+       (== 'sjas-axiom decoded-proof)
+       (conde
+         [(fresh []
+            (sjas-walked-axiom-member-coreo prog
+                                             system-code
+                                             theorem-code
+                                             sigma-proof)
+            (sjas-subst-source-result-antecedent-coreo prog
+                                                        substitution-code
+                                                        sigma-proof
+                                                        sigma-out
+                                                        subst-axiom-formula))]
+         [(fresh []
+            (sjas-system-code-valid-walked-coreo prog
+                                                 system-code
+                                                 sigma-proof
+                                                 sigma-system
+                                                 walked-valid-system-code)
+            (sjas-subst-code-any-coreo prog
+                                       substitution-code
+                                       theorem-code
+                                       sigma-system
+                                       sigma-out))])]
+      [(decode-structural-proof-bytes-coreo proof-bytes decoded-proof)
+       (sjas-system-axiom-formula-walked-coreo prog
+                                               system-code
                                                sigma-proof
+                                               sigma-system
+                                               walked-system-code
+                                               axiom-formula)
+       (sjas-subst-source-result-antecedent-coreo prog
+                                                   substitution-code
+                                                   sigma-system
+                                                   sigma-valid
+                                                   subst-axiom-formula)
+       (sjas-structural-negated-theorem-coreo prog
+                                               theorem-code
+                                               sigma-valid
                                                sigma-out
                                                neg-theorem)
-             (== (list 'and axiom-formula neg-theorem) target)
-             (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
-          (== neqs neqs-out)
-          (== (list 'profiled 'willard-sjas-proof-check proof-read-proof decoded-proof) proof)))
-      (fresh [lit atom walked-atom system-code theorem-code proof-code
-              decoded-proof proof-bytes axiom-formula theorem-formula neg-theorem
-              target sigma-proof proof-kind proof-read-proof]
-        (subst/subst-formulao fml env lit)
-        (== (list 'neg atom) lit)
-        (equality/walk-atomo atom sigma walked-atom)
-        (== (list 'app 'tableau-proof system-code theorem-code proof-code) walked-atom)
-        (decode-proof-code-kindo proof-code sigma sigma-proof proof-bytes decoded-proof proof-kind)
-        (code-read-marker-o proof-kind proof-read-proof)
-        (conde
-          [(== 'sjas-axiom decoded-proof)
-           (sjas-axiom-membero prog system-code theorem-code)
-           (== sigma-proof sigma-out)]
-          [(sjas-system-axiom-formulao prog system-code axiom-formula)
-           (sjas-formula-codeo prog theorem-code theorem-formula)
-           (sjas-formula-negationo prog theorem-formula neg-theorem)
-           (== (list 'and axiom-formula neg-theorem) target)
-           (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
-           (== sigma-proof sigma-out)]
-          [(sjas-system-axiom-formulao prog system-code axiom-formula)
-           (sjas-structural-negated-theoremo prog
-                                             theorem-code
-                                             sigma-proof
-                                             sigma-out
-                                             neg-theorem)
-           (== (list 'and axiom-formula neg-theorem) target)
-           (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
-        (== neqs neqs-out)
-        (== (list 'profiled 'willard-sjas-proof-check proof-read-proof decoded-proof) proof)))))
+       (sjas-acyclic-unifyo (list 'and axiom-formula subst-axiom-formula)
+                            extended-axiom-formula)
+       (sjas-acyclic-unifyo (list 'and extended-axiom-formula neg-theorem) target)
+       (sjas-proof-check-programo prog
+                                  walked-system-code
+                                  target
+                                  fuel
+                                  decoded-proof)])
+    (== neqs neqs-out)))
 
 (defn- sjas-subst-prf-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]
-  (fresh [lit atom walked-atom system-code substitution-code theorem-code proof-code
-          decoded-proof proof-bytes axiom-formula theorem-formula neg-theorem
-          target sigma-valid sigma-proof proof-kind proof-read-proof]
-    (subst/subst-formulao fml env lit)
-    (== (list 'neg atom) lit)
-    (equality/walk-atomo atom sigma walked-atom)
-    (== (list 'app 'subst-prf system-code substitution-code theorem-code proof-code)
-        walked-atom)
-    (sjas-active-systemo prog system-code)
-    (decode-proof-code-kindo proof-code sigma sigma-proof proof-bytes decoded-proof proof-kind)
-    (code-read-marker-o proof-kind proof-read-proof)
-    (conde
-      [(== 'sjas-axiom decoded-proof)
-       (conde
-         [(sjas-axiom-membero prog system-code theorem-code)
-          (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-out)]
-         [(sjas-subst-code-anyo prog substitution-code theorem-code sigma-proof sigma-out)])]
-      [(sjas-system-axiom-formulao prog system-code axiom-formula)
-       (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-valid)
-       (sjas-formula-codeo prog theorem-code theorem-formula)
-       (sjas-formula-negationo prog theorem-formula neg-theorem)
-       (== (list 'and axiom-formula neg-theorem) target)
-       (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)
-       (== sigma-valid sigma-out)]
-      [(sjas-system-axiom-formulao prog system-code axiom-formula)
-       (sjas-subst-source-codeo prog substitution-code sigma-proof sigma-valid)
-       (sjas-structural-negated-theoremo prog
-                                         theorem-code
-                                         sigma-valid
-                                         sigma-out
-                                         neg-theorem)
-       (== (list 'and axiom-formula neg-theorem) target)
-       (kernel/prove-programo target '() '() '() prog '() fuel decoded-proof)])
-    (== neqs neqs-out)
-    (== (list 'profiled 'willard-sjas-subst-proof-check
-              proof-read-proof
-              decoded-proof)
-        proof)))
+  (fresh []
+    (sjas-subst-prf-coreo fml
+                          env
+                          sigma
+                          sigma-out
+                          neqs
+                          neqs-out
+                          prog
+                          fuel)
+    (== '(profiled willard-sjas-subst-proof-check) proof)))
+
+(defn- sjas-tableau-proof-structural-closeo
+  "Close a structural tableau leaf through `tableau-proof/3`.
+
+   The formula-bearing proof tree already supplies the relevant local evidence,
+   so this relation keeps only the object-level predicate success and branch
+   state effects. The ordinary answer proof marker is not part of the SJAS
+   tableau proof code."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (sjas-tableau-proof-coreo fml
+                            env
+                            sigma
+                            sigma-out
+                            neqs
+                            neqs-out
+                            prog
+                            fuel))
+
+(defn- sjas-subst-prf-structural-closeo
+  "Close a structural tableau leaf through `subst-prf/4`.
+
+   This is the substitution-proof analogue of
+   `sjas-tableau-proof-structural-closeo`: it invokes the arithmeticized
+   substitution and proof-predicate relations but does not require or encode a
+   separate Proflog proof trace in the formula-bearing tableau node."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (sjas-subst-prf-coreo fml
+                        env
+                        sigma
+                        sigma-out
+                        neqs
+                        neqs-out
+                        prog
+                        fuel))
 
 (defn willard-sjas-theory-closeo
   "SJAS theory branch rule bound into the ordinary proof kernel."
   [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (conde
-    [(sjas-eq-progresso fml unexpanded lits env proof-vars sigma sigma-out
-                        neqs neqs-out prog gamma-terms fuel proof)]
+    [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
+    [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
     [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]
+    [(sjas-pos-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]
+    [(sjas-eq-progresso fml unexpanded lits env proof-vars sigma sigma-out
+                        neqs neqs-out prog gamma-terms fuel proof)]
     [(sjas-syntax-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
     [(sjas-subst-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
-    [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
-    [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
-    [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]))
+    [(sjas-axiom-member-closeo fml env sigma sigma-out neqs neqs-out prog proof)]))
 
 (defn willard-sjas-answer-theory-closeo
   "SJAS theory branch rule for the answer overlay.
@@ -2265,72 +7439,22 @@
    residuals residuals-out prog _gamma-terms fuel _call-depth _existentials-as-vars?
   proof]
   (conde
+    [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
+     (== residuals residuals-out)]
+    [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
+     (== residuals residuals-out)]
     [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)
      (== residuals residuals-out)]
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)
+     (== residuals residuals-out)]
+    [(sjas-pos-relation-closeo fml env sigma sigma-out neqs neqs-out proof)
      (== residuals residuals-out)]
     [(sjas-syntax-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]
     [(sjas-subst-code-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]
-    [(sjas-generated-fact-closeo fml env sigma sigma-out neqs neqs-out prog proof)
-     (== residuals residuals-out)]
-    [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
-     (== residuals residuals-out)]
-    [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
+    [(sjas-axiom-member-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]))
-
-(defn- direct-negated-profile-closeo
-  "Close a single already-focused negated SJAS atom.
-
-   The ordinary kernel reaches these same relations through `close-agendao`.
-   ADR-0071 U-Grounding code terms can be large enough that merely selecting
-   the focused formula through a fresh logic variable overflows core.logic's
-   occurs check. For top-level profile predicate queries, this shortcut keeps
-   the focus as a host-ground value and delegates immediately to the same SJAS
-   close relation."
-  [fml prog fuel proof]
-  (if-let [relation (ground-negated-relation fml)]
-    (fresh [sigma-out neqs-out]
-      (case relation
-        subst-code
-        (sjas-subst-code-closeo fml '() '() sigma-out '() neqs-out prog proof)
-
-        wff
-        (sjas-syntax-code-closeo fml '() '() sigma-out '() neqs-out prog proof)
-
-        delta-star-0-code
-        (sjas-syntax-code-closeo fml '() '() sigma-out '() neqs-out prog proof)
-
-        pi-star-1-code
-        (sjas-syntax-code-closeo fml '() '() sigma-out '() neqs-out prog proof)
-
-        sigma-star-1-code
-        (sjas-syntax-code-closeo fml '() '() sigma-out '() neqs-out prog proof)
-
-        neg-pair
-        (sjas-syntax-code-closeo fml '() '() sigma-out '() neqs-out prog proof)
-
-        axiom-member
-        (sjas-generated-fact-closeo fml '() '() sigma-out '() neqs-out prog proof)
-
-        tableau-proof
-        (sjas-tableau-proof-closeo fml '() '() sigma-out '() neqs-out prog fuel proof)
-
-        subst-prf
-        (sjas-subst-prf-closeo fml '() '() sigma-out '() neqs-out prog fuel proof)
-
-        mult
-        (sjas-neg-relation-closeo fml '() '() sigma-out '() neqs-out proof)
-
-        leq
-        (sjas-neg-relation-closeo fml '() '() sigma-out '() neqs-out proof)
-
-        lt
-        (sjas-neg-relation-closeo fml '() '() sigma-out '() neqs-out proof)
-
-        fail))
-    fail))
 
 ;; -----------------------------------------------------------------------------
 ;; Public proof-profile entrypoint
@@ -2341,19 +7465,6 @@
   [profile]
   (symbol (name profile)))
 
-(defn- hide-sjas-clauses-from-generic-sidecars
-  "Disable generic sidecar classification for one SJAS proof run.
-
-   `proflog.kernel/active-program-relations` inspects the host `:clauses` map
-   to decide whether propositional/first-order sidecars may treat an atom as
-   inert. SJAS profile predicates carry very large arithmetic code numerals, so
-   those generic classifiers can exhaust core.logic's structural walk before
-   the SJAS rule runs. The relational clause lists remain in the program, so
-   ordinary procedure calls still work; only the host-side sidecar eligibility
-   shortcut is hidden from the kernel during SJAS proof search."
-  [program]
-  (assoc program :clauses nil))
-
 (defn- wrap-proof
   "Attach an explicit SJAS profile marker to an ordinary kernel proof term."
   [profile proof]
@@ -2362,15 +7473,11 @@
 (defn prove-program
   "Prove with SJAS arithmetic and certificate rules interleaved into the kernel."
   [profile program formula proof-limit fuel]
-  (let [program (hide-sjas-clauses-from-generic-sidecars program)
-        proofs (binding [kernel/*theory-profile-closeo* willard-sjas-theory-closeo]
+  (let [proofs (binding [kernel/*theory-profile-closeo* willard-sjas-theory-closeo]
                  (doall
-                   (if (direct-negated-profile-relation formula)
+                   (if (nil? fuel)
                      (run proof-limit [proof]
-                       (direct-negated-profile-closeo formula program fuel proof))
-                     (if (nil? fuel)
-                       (run proof-limit [proof]
-                         (kernel/prove-programo formula '() '() '() program '() nil proof))
-                       (run proof-limit [proof]
-                         (kernel/prove-programo formula '() '() '() program '() fuel proof))))))]
+                       (kernel/prove-programo formula '() '() '() program '() nil proof))
+                     (run proof-limit [proof]
+                       (kernel/prove-programo formula '() '() '() program '() fuel proof)))))]
     (map #(wrap-proof profile %) proofs)))

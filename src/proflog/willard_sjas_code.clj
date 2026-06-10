@@ -16,9 +16,32 @@
    See docs/log/2026-05-20-willard-tableau-proof-encoding.md for the
    Willard source trail and the boundary between the conventional encoding
    requirement and Proflog's selected proof-term byte layout."
-  (:require [proflog.ast :as ast]))
+  (:require [clojure.core.logic :refer [lvar]]
+            [clojure.core.logic.nominal :as nominal]
+            [proflog.ast :as ast]))
 
 (def byte-base 64)
+
+(def code-nom-entries
+  "Canonical host noms used when formula-code variable indexes become AST noms.
+
+   Core.logic nominal values are identity-bearing. Source-side theorem queries
+   and kernel-side structural code decoding must therefore share these exact
+   nom objects; recreating a nom with the same printed name is not enough for a
+   decoded proof certificate to match the proof target it was generated from."
+  (apply list
+         (map (fn [idx]
+                [idx (nominal/nom (lvar (symbol (str "sjas-v" (dec idx)))))])
+              (range 1 byte-base))))
+
+(def ^:private code-nom-by-index
+  (into {} code-nom-entries))
+
+(defn code-nom
+  "Return the shared host nom for one-based formula-code variable index `idx`."
+  [idx]
+  (get code-nom-by-index idx))
+
 (def u-grounding-sentinel-byte
   "Terminating byte used when a byte string is represented as one natural.
 
@@ -65,6 +88,47 @@
     code 24
     num 25})
 
+(def reserved-coding-symbols
+  "Fixed SJAS vocabulary indexes recoverable without a source registry.
+
+   User symbols are conventional finite codebook entries, but the U-Grounding
+   functions and SJAS profile relations are semantic primitives of the selected
+   object language. Their indexes must therefore be stable enough for
+   proof-facing arithmetic and profile predicates to interpret an encoded
+   formula after the generated source symbol table has been removed."
+  [zero-symbol
+   one-symbol
+   'add
+   'axiom-member
+   'count
+   'dbl
+   'delta-star-0-code
+   'div
+   'leq
+   'log
+   'lt
+   'max
+   'mult
+   'neg-pair
+   'pi-star-1-code
+   'pred
+   'root
+   'sigma-star-1-code
+   'sub
+   'subst-code
+   'subst-prf
+   'tableau-proof
+   'wff])
+
+(def reserved-symbol->index
+  "One-based indexes for `reserved-coding-symbols`."
+  (into {} (map-indexed (fn [idx sym] [sym (inc idx)])
+                        reserved-coding-symbols)))
+
+(def index->reserved-symbol
+  "Inverse of `reserved-symbol->index`."
+  (into {} (map (fn [[sym idx]] [idx sym]) reserved-symbol->index)))
+
 (def ^:private system-tag 31)
 (def ^:private profile-tableau0-tag 32)
 (def ^:private profile-level1-tag 33)
@@ -73,6 +137,8 @@
 (def proof-list-tag 42)
 (def proof-empty-list-tag 43)
 (def proof-wide-symbol-tag 44)
+(def proof-byte-tag 45)
+(def proof-wide-list-tag 46)
 
 (def proof-symbols
   "Kernel proof atoms that may appear in encoded SJAS certificates."
@@ -90,6 +156,7 @@
     refl-close
     savefml
     false-close
+    arith-close
     close
     pos-call
     neg-call
@@ -117,17 +184,34 @@
     willard-sjas-tableau0
     willard-sjas-level1
     willard-sjas-arithmetic
+    willard-sjas-code
     willard-sjas-fact
+    willard-sjas-axiom-member
+    willard-sjas-theorem-code
     willard-sjas-proof-check
     willard-sjas-subst-code
+    willard-sjas-subst-source-result
+    willard-sjas-subst-exprf
     willard-sjas-subst-proof-check
     sjas-bind-done
     sjas-bind-num
+    sjas-generated-axiom-member
+    sjas-system-beta-axiom
+    sjas-system-code-bytes
+    sjas-system-reflected-axiom
+    sjas-system-group-zero-axiom
+    sjas-system-group-one-axiom
+    sjas-system-code-header
+    sjas-system-fixed-axiom
+    sjas-system-group-three-axiom
+    sjas-system-tableau0-group-three-axiom
+    sjas-system-level1-group-three-axiom
     sjas-code-bytes
     sjas-ug-code-bytes
     sjas-ug-code-byte-cons
     sjas-ug-code-cons
     sjas-ug-code-end
+    sjas-ug-code-canonical-byte
     sjas-ug-code-mul64-shift
     sjas-ug-code-mul64-zero
     sjas-equal
@@ -151,7 +235,30 @@
     sjas-read-sub
     sjas-read-var
     sjas-read-zero
-    sjas-axiom])
+    sjas-axiom
+    wff
+    delta-star-0-code
+    pi-star-1-code
+    sigma-star-1-code
+    neg-pair
+    sjas-code-arg
+    sjas-code-args-end
+    sjas-neg-pair-structural
+    free-close
+    decompose
+    args
+    par-bind
+    eq-bind
+    atom-close
+    eq-refl
+    occurs-close
+    alt
+    guarded-scope-done
+    guarded-seq-done
+    guarded-call-seq-done
+    guarded-residual-seq-done
+    guard-saturation-done
+    guard-eq])
 
 (def proof-symbol->index
   (into {} (map-indexed (fn [idx sym] [sym (inc idx)]) proof-symbols)))
@@ -383,15 +490,24 @@
 (defn context
   "Build the symbol table used while encoding one SJAS system.
 
-   The table is deterministic: symbols are ordered by printed name. Willard's
-   presentations fix a coding for the language before coding formulas; this
-   table is Proflog's finite-language counterpart."
+   The table is deterministic. SJAS primitive arithmetic/profile symbols keep
+   reserved indexes; additional user symbols are ordered by printed name after
+   that fixed prefix. Willard's presentations fix a coding for the language
+   before coding formulas; this table is Proflog's finite-language
+   counterpart."
   [symbols]
-  (let [ordered (->> symbols
-                     (filter symbol?)
-                     distinct
-                     (sort-by (juxt namespace name))
-                     vec)
+  (let [declared (->> symbols
+                      (filter symbol?)
+                      distinct
+                      set)
+        reserved (filterv declared reserved-coding-symbols)
+        extra (->> symbols
+                   (filter symbol?)
+                   distinct
+                   (remove (set reserved-coding-symbols))
+                   (sort-by (juxt namespace name))
+                   vec)
+        ordered (vec (concat reserved extra))
         symbol->index (into {} (map-indexed (fn [idx sym] [sym (inc idx)])
                                             ordered))]
     {:symbols ordered
@@ -579,16 +695,124 @@
     (symbol? proof)
     (proof-symbol-index-bytes (proof-symbol-index proof))
 
+    (integer? proof)
+    [proof-byte-tag (checked-byte :proof-byte proof)]
+
     (sequential? proof)
     (if (empty? proof)
       [proof-empty-list-tag]
-      (into [proof-list-tag (one-byte-count :proof-list-count (count proof))]
-            (mapcat proof-code-bytes proof)))
+      (let [item-count (count proof)]
+        (if (< item-count (dec byte-base))
+          (into [proof-list-tag (one-byte-count :proof-list-count item-count)]
+                (mapcat proof-code-bytes proof))
+          (let [high (quot item-count byte-base)
+                low (mod item-count byte-base)]
+            (when (>= item-count (* byte-base byte-base))
+              (throw (ex-info "SJAS proof list count out of range"
+                              {:count item-count
+                               :byte-base byte-base})))
+            (into [proof-wide-list-tag
+                   (checked-byte :proof-list-count-high high)
+                   (checked-byte :proof-list-count-low low)]
+                  (mapcat proof-code-bytes proof))))))
 
     :else
     (throw (ex-info "Unsupported proof payload in SJAS certificate"
                     {:value proof
                      :class (some-> proof class .getName)}))))
+
+(declare decode-proof-bytes)
+
+(defn- decode-proof-list-items
+  [remaining bytes]
+  (loop [remaining remaining
+         input (seq bytes)
+         output []]
+    (if (zero? remaining)
+      [output input]
+      (when-let [[item rest] (decode-proof-bytes input)]
+        (recur (dec remaining) rest (conj output item))))))
+
+(defn- decode-proof-bytes
+  [bytes]
+  (let [bytes (seq bytes)
+        tag (first bytes)
+        tail (next bytes)]
+    (cond
+      (nil? tag)
+      nil
+
+      (= proof-empty-list-tag tag)
+      ['() tail]
+
+      (= proof-symbol-tag tag)
+      (let [idx (first tail)]
+        (when-let [sym (get index->proof-symbol idx)]
+          [sym (next tail)]))
+
+      (= proof-wide-symbol-tag tag)
+      (let [high (first tail)
+            low (second tail)]
+        (when (and (integer? high)
+                   (integer? low)
+                   (<= 0 high)
+                   (< high byte-base)
+                   (<= 0 low)
+                   (< low byte-base))
+          (when-let [sym (get index->proof-symbol
+                               (+' (*' high byte-base) low))]
+            [sym (nnext tail)])))
+
+      (= proof-byte-tag tag)
+      (let [byte (first tail)]
+        (when (and (integer? byte)
+                   (<= 0 byte)
+                   (< byte byte-base))
+          [byte (next tail)]))
+
+      (= proof-list-tag tag)
+      (let [encoded-count (first tail)
+            item-count (when (integer? encoded-count)
+                         (dec encoded-count))]
+        (when (and item-count
+                   (< 1 encoded-count)
+                   (< encoded-count byte-base))
+          (decode-proof-list-items item-count (next tail))))
+
+      (= proof-wide-list-tag tag)
+      (let [high (first tail)
+            low (second tail)
+            item-count (when (and (integer? high)
+                                  (integer? low)
+                                  (<= 0 high)
+                                  (< high byte-base)
+                                  (<= 0 low)
+                                  (< low byte-base))
+                         (+' (*' high byte-base) low))]
+        (when (and item-count
+                   (pos? item-count))
+          (decode-proof-list-items item-count (nnext tail))))
+
+      :else
+      nil)))
+
+(defn proof-bytes->term
+  "Decode a complete SJAS proof-code byte string to its proof term, or nil."
+  [bytes]
+  (when-let [[proof rest] (decode-proof-bytes bytes)]
+    (when (empty? rest)
+      proof)))
+
+(defn proof-formal-code-term->proof
+  "Decode either public SJAS proof-code representation to a proof term.
+
+   This is a reporting-side inverse for `proof-formal-code-term`. Semantic
+   proof-predicate acceptance remains the responsibility of the SJAS profile's
+   object-level proof-check relation."
+  [term]
+  (when-let [bytes (or (code-term-bytes term)
+                       (u-grounding-code-term-bytes term))]
+    (proof-bytes->term bytes)))
 
 (defn proof-code-value
   [proof]

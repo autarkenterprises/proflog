@@ -64,8 +64,11 @@ elapsed 4:37.84
 
 - Compact `code-N` terms preserve the object-language code boundary while
   avoiding deep numeral-spine stack overflows.
-- `wff/1`, formula-class predicates, and `neg-pair/2` now operate from generated
-  decode relations keyed by Godel-code terms rather than syntax fact atoms.
+- `wff/1`, formula-class predicates, and `neg-pair/2` initially operated from
+  generated decode relations keyed by Godel-code terms rather than syntax fact
+  atoms. ADR-0072 later removed those generated formula registries as a
+  host-side shortcut; the predicates now structurally decode formula-code terms,
+  although ground byte extraction remains a temporary operational boundary.
 - `tableau-proof/3` rejects the wrong theorem code and malformed certificates,
   accepts real beta and Group-3 certificates, and accepts a real contradiction
   certificate for an intentionally inconsistent beta control.

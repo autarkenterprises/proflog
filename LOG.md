@@ -20,6 +20,1745 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-10
+
+- Resolved the parallel-agent ADR numbering collision found by scanning
+  worktrees and remote branches: branch
+  `adr-0087-sjas-selfcons-fixedpoint-basis` carried one slice built on the
+  audit's ADR-0087 commit, with no competing ADR document. Reviewed its
+  red/green and gate evidence, merged it into
+  `adr-0073-sjas-correspondence-program`, assigned it
+  [ADR-0089](docs/adr/ADR-0089-sjas-group3-presented-code-representation.md)
+  with [AAR-0089](docs/aar/AAR-0089-sjas-group3-presented-code-representation.md)
+  (0087 and 0088 were already taken), merged the consolidated program
+  branch to `main`, and pushed. The source branch is left in place for its
+  agent; its name predates the renumbering.
+- Logged the audit's research-question assessment and the
+  `project_landscape.txt` (Autarkic Systems) commentary as
+  [Computational Self-Justification: Assessment Against The Artifact](docs/log/2026-06-10-computational-self-justification-assessment.md).
+- Recorded the user's performance doctrine in
+  [ADR-0088](docs/adr/ADR-0088-sjas-whole-program-query-runtime.md): very
+  long-running tests are acceptable when they evidence correct semantics;
+  prefer optimizing at the core.logic layer (ADR-0075 occurs-check
+  precedent) over complexifying SJAS/Proflog, while preserving miniKanren's
+  clean semantics.
+- Attributed the ADR-0087 slow-probe grind via differential runs: both
+  `sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile`
+  and `sjas-subst-prf-checks-selfcons-fixed-point-certificate` exceed
+  40/45-minute timeouts at `1fa3e53`, before ADR-0087, so the opaque SJAS
+  namespace gate has not been runtime-green since ADR-0086. The positive
+  fixed-point checks pass on the corrected shape; the cost concentrates in
+  whole-program `AxiomConj` decomposition and negative exhaustive searches.
+  Recorded follow-ups in AAR-0086 and AAR-0087, runtime rows in
+  `TEST_RUNTIME_BASELINE.md`, re-ran the 128-assertion profile source audit
+  green on the ADR-0087 code, and proposed
+  [ADR-0088](docs/adr/ADR-0088-sjas-whole-program-query-runtime.md) for the
+  re-baseline and scheduling investigation.
+
+## 2026-06-09
+
+- Continued ADR-0073 Track 1 in a separate worktree/branch while the main
+  directory was under audit. Group-3 reconstruction now preserves the public
+  code representation selected by the presented `system-code` term: a
+  U-Grounding `s` no longer accepts a compact `code-N` variant of its
+  fixed-point SelfCons sentence merely because the byte payload is the same.
+  The fix threads the object code-reader's representation kind through
+  Tableau-0 and Level-1 Group-3 reconstruction, axiom-member, `AxiomConj(s)`,
+  and proof-free system-code validation without adding source-registry or host
+  byte projectors. Red: the new Tableau-0 malformed-representation selector
+  failed before implementation. Green: the new Tableau-0 and Level-1 selectors,
+  the walked system-code validator selectors, affected Group-3/U-Grounding
+  focused selectors, `lein test-proflog-fast` in `10:12.39`, and `lein
+  test-proflog-extended` in `22:34.93`. See
+  [SJAS Group-3 Presented Code Representation](docs/log/2026-06-09-sjas-group3-presented-code-representation.md).
+- Completed ADR-0087, the Level-1 literature-fidelity correction from the
+  directory audit. The Level-1 Group-3 matrix now opens with the
+  `pi-star-1-code(x)` restriction required by Willard 2013 sentence (7), in
+  both the builder and the profile reconstruction template; `Delta-star-0`
+  classification is closed under `not`/`implies` on both the host and
+  relational sides; and `system` rejects reflected basis formulas without
+  `Pi*1` encodings. Red evidence: 8 failures across the four new selectors.
+  Green: the same four selectors (11 assertions), the affected Level-1 and
+  tableau0 regressions including
+  `sjas-tableau-proof-cites-level1-group-three-from-system-code`, and both
+  broad gates. The slow `subst-prf` fixed-point certificate selectors and a
+  supplementary Level-1 coverage batch run as durable detached probes whose
+  logs, stack-sample interpretation, and expected envelope are recorded in
+  [AAR-0087](docs/aar/AAR-0087-sjas-level1-pi-star-1-pair-restriction.md),
+  to be updated with final numbers.
+- Performed a user-requested motivation-alignment and correctness audit of
+  the whole directory against the local Willard corpus and AGENTS.md
+  methodology. Findings and dispositions, including the tableau0/level1
+  naming clarification, the Track 2a apparatus-extension obligations
+  (Willard 2005 closes branches only on complementary sentence pairs), the
+  refreshed SelfCons Godel code
+  `1895911909320248794237471524907560082878513227` for the `0 = 1` target,
+  six restorative slice commits for previously uncommitted completed work,
+  termination of the superseded 22-CPU-hour SelfCons probe, and working-tree
+  hygiene, are recorded in
+  [Motivation Alignment And Correctness Audit](docs/log/2026-06-09-motivation-alignment-and-correctness-audit.md).
+- Completed ADR-0086. The ordinary-tableau Group-3 target is now the code of
+  `0 = 1`, not primitive `false`; the builder, axiom-member path, and
+  `AxiomConj(s)` reconstruction agree on the revised target. The public
+  formula-bearing SelfCons selector passed in `8:29.61`, `lein
+  test-proflog-fast` passed in `6:07.70`, and `lein test-proflog-extended`
+  passed in `14:02.94`. `s` remains a finite descriptor whose `AxiomConj(s)`
+  reconstruction includes Group-3 by fixed-point/profile semantics. Follow-up
+  clarification: accurate formation of this fixed-point axiom basis is a Track
+  1 obligation; Track 2 is for explicitly modified deductive apparatuses or
+  variants, not for excusing an incomplete literature proof predicate. See
+  [SJAS Tableau-0 Zero-One SelfCons Target](docs/log/2026-06-09-sjas-tableau0-zero-one-selfcons-target.md).
+- Completed ADR-0081 as a Track 1 relational proof-dispatch cleanup, not a
+  SelfCons optimization pass. The generic kernel and SJAS proof profile no
+  longer use committed-choice `conda` dispatch in proof-facing paths; branch
+  classification is now expressed through structural `conde` alternatives.
+  Focused red/green evidence and the post-change fast/extended gates are
+  recorded in
+  [SJAS Relational Proof Dispatch](docs/log/2026-06-09-sjas-relational-proof-dispatch.md).
+- Completed ADR-0082 as the follow-on Track 1 proof-hook cleanup. Generic
+  kernel recursive and theory-profile hooks now have callable default
+  relations instead of host optional nil dispatch, and `close-agendao` tries the
+  profile hook and ordinary closure as ordinary `conde` alternatives. Focused
+  hook, tabling, Robinson-Q, and SJAS selectors passed, followed by the fast and
+  extended gates. See
+  [Kernel Callable Proof Hooks](docs/log/2026-06-09-kernel-callable-proof-hooks.md).
+- Completed ADR-0083 as a Track 1 public compact-code reader repair. Public
+  compact-code readers now parse presented byte numerals with `code-byte-termo`
+  instead of using byte-first reconstruction; embedded payload reconstruction
+  keeps the byte-first builder. Focused selectors passed, followed by
+  `lein test-proflog-fast` in `3:41.77` and `lein test-proflog-extended` in
+  `8:40.19`. See
+  [SJAS Public Compact Byte Reader](docs/log/2026-06-09-sjas-public-compact-byte-reader.md).
+- Started a current-source durable Track 1 MVP probe for the public
+  `tableau-proof/3` SelfCons certificate:
+  `test-runs/selfcons-public-track1-current-20260609T014154Z.log`, wrapper PID
+  `34144`. The selector is
+  `proflog.willard-sjas-test/sjas-tableau-proof-accepts-formula-bearing-selfcons-certificate`;
+  it had emitted the namespace header and was live at launch verification. See
+  [ADR-0073 Track 1 Audit](docs/log/2026-06-09-adr0073-track1-audit.md).
+- Recorded that public SelfCons Track 1 MVP probe after it exceeded the
+  requested 15-minute milestone. At `2026-06-09T01:59:31Z`, wrapper PID `34144`
+  was still live at `17:36` elapsed with only the namespace header emitted and
+  no exit file; it was not killed. See
+  [ADR-0073 Track 1 Audit](docs/log/2026-06-09-adr0073-track1-audit.md).
+- Added a requirement-by-requirement ADR-0073 Track 1 completion audit. At that
+  point, current source and focused evidence supported the arithmeticized
+  object-relation implementation slices, but the audit deliberately kept Track
+  1 incomplete until the live public SelfCons `tableau-proof/3(s,t,p)` probe
+  produced endpoint evidence. See
+  [ADR-0073 Track 1 Completion Audit](docs/log/2026-06-09-adr0073-track1-completion-audit.md).
+- Completed ADR-0084 as a Track 1 relationality repair. Structural
+  `tableau-proof/3` and `subst-prf/4` branches now read `system-code` through
+  branch equality state before reconstructing `AxiomConj` or validating the
+  system record, and nested structural proof checking receives the walked
+  system-code term. Focused red/green evidence is recorded in
+  [SJAS Walked System-Code Reconstruction](docs/log/2026-06-09-sjas-walked-system-code-reconstruction.md).
+  The post-change `lein test-proflog-fast` gate passed in `3:38.29`, and
+  `lein test-proflog-extended` passed in `8:46.17`.
+- Monitored the current public SelfCons Track 1 MVP probe without killing it.
+  At `2026-06-09T06:28:49Z`, wrapper PID `34144` was still live at `4:45:03`
+  elapsed, with only the namespace header emitted and no exit file. The older
+  post-ADR-0079 core SelfCons probe
+  `test-runs/selfcons-core-post-adr79-20260609T002713Z.log` exited `1` after
+  `2:08:37` with `Java heap space` `OutOfMemoryError`, max RSS `4447844KB`.
+  A follow-up audit found no additional proof-code reader correctness gap: the
+  remaining empty-state public-code byte readers are top-level entries or are
+  reached after walked-code wrappers. See
+  [ADR-0073 Track 1 Audit](docs/log/2026-06-09-adr0073-track1-audit.md).
+- Saved a live JVM diagnostic for the same public SelfCons Track 1 probe in
+  `test-runs/selfcons-public-track1-current-20260609T063029Z-diagnostic.log`.
+  At `2026-06-09T06:30:47Z`, the test JVM PID `34205` was active at `94.6%`
+  CPU with RSS `351216KB`; the classpath used
+  `vendor/core.logic-1.0.1/src` before the core.logic jar, heap use was
+  `182163K` of `243712K`, and the main stack was in repeated core.logic
+  `walk*` traversal. This records that the live public probe is using the
+  revised core.logic path and is currently search/traversal bound rather than
+  heap-exhausted.
+- Accepted [ADR-0085](docs/adr/ADR-0085-sjas-structural-quantifier-sibling-scheduling.md)
+  to complete ADR-0073 Track 1 by repairing structural proof-checker
+  quantifier scheduling. Red evidence: the core, in-memory, and decoded
+  SelfCons selectors each exceeded a `timeout 180s` focused run. The concrete
+  core proof is small (`77` target bytes, `471` proof-code bytes), so the
+  remaining issue is branch scheduling rather than input size.
+- Completed ADR-0085 and ADR-0073 Track 1. The structural checker now preserves
+  delayed agenda sibling environments, avoids duplicate proof-node formula
+  matching before decoded rule validation, and reconstructs Tableau-0 Group-3
+  proof antecedents with the walked public `system-code` term still available.
+  The current-source public
+  `sjas-tableau-proof-accepts-formula-bearing-selfcons-certificate` selector
+  passed with 8 assertions in `2:17.71`. The focused core, in-memory, and
+  decoded SelfCons selectors also passed (`1:08.67`, `2:23.34`, `2:20.39`),
+  followed by the SJAS source audit, `lein test-proflog-fast` in `1:56.85`,
+  `lein test-proflog-extended` in `4:34.15`, and clean `git diff --check`.
+  See [AAR-0085](docs/aar/AAR-0085-sjas-structural-quantifier-sibling-scheduling.md)
+  and
+  [ADR-0073 Track 1 Completion Audit](docs/log/2026-06-09-adr0073-track1-completion-audit.md).
+
+## 2026-06-08
+
+- Closed two host-stack blockers for ADR-0073 Track 1 large U-Grounding proof
+  terms. ADR-0075 vendors core.logic 1.0.1 by default and makes the occurs check
+  worklist-based; ADR-0076 makes `proflog.language/validate-term`
+  worklist-based. Focused red/green failures, the successful public
+  U-Grounding proof selector, host audit, AARs, and final fast/extended gate
+  evidence are recorded in
+  [Stack-Safe Large Proof Terms](docs/log/2026-06-08-stack-safe-large-proof-terms.md).
+- Recorded the long SelfCons core proof-check milestone requested during the
+  stack-safety investigation. The durable `setsid` run
+  `test-runs/selfcons-core-no-timeout-20260608T213315Z.log` was still alive at
+  `2026-06-08T21:49:15Z` with wrapper PID `224039` at `15:59` elapsed; it was
+  not killed. A JVM stack sample showed the remaining hot path in
+  `core.logic/occurs-check-worklist` via `membero`, motivating ADR-0078's
+  finite-table scheduling cleanup.
+- Completed ADR-0077 and ADR-0078 scheduling cleanups for formula-bearing SJAS
+  proof checking. ADR-0077 removes duplicate/subsumed structural alternatives;
+  ADR-0078 replaces fixed `membero` table scans with explicit finite
+  alternatives. Focused red/green selectors, semantic proof-check selectors,
+  and the loaded fast/extended gate results are recorded in
+  [Stack-Safe Large Proof Terms](docs/log/2026-06-08-stack-safe-large-proof-terms.md).
+- Completed ADR-0079 after the latest-source SelfCons stack sample moved the
+  hot path to embedded payload length decoding. Embedded code and natural
+  payload decoders now reject mismatched low/high length headers before
+  allocating `payload` state. Clean post-change gates passed:
+  `lein test-proflog-fast` in `1:34.24` and `lein test-proflog-extended` in
+  `3:48.10`.
+- Recorded the post-ADR-0079 SelfCons core proof-check probe once it exceeded
+  the requested 15-minute milestone. The durable run
+  `test-runs/selfcons-core-post-adr79-20260609T002713Z.log` was still alive at
+  `2026-06-09T00:42:45Z` with wrapper PID `12980` at `15:20` elapsed; it was
+  not killed and had not yet produced pass/fail or `/usr/bin/time` output.
+- Completed ADR-0080, the final optimization opened during the stack-safety
+  thread. Application-term decoders now destructure the encoded arity byte once
+  before dispatching over finite argument counts. Focused selectors and the
+  post-change fast/extended gates are recorded in
+  [Stack-Safe Large Proof Terms](docs/log/2026-06-08-stack-safe-large-proof-terms.md);
+  follow-on work returns to ADR-0073 Track 1 arithmeticization before any more
+  proof-predicate optimization.
+- Arithmeticized the public formula-bearing proof path for `tableau-proof/3`.
+  Substantive structural proof certificates now decode from U-Grounding
+  numerals through the SJAS object-code relation, while compact code handling
+  and fixed axiom membership remain relational and source-registry-free.
+  Focused red/green evidence, kernel scheduling notes, and broad gate results
+  are recorded in
+  [SJAS U-Grounding Formula-Bearing Proof Path](docs/log/2026-06-08-sjas-u-grounding-proof-path.md).
+- Advanced ADR-0073 Track 1 from a core SelfCons tableau closure to a public
+  formula-bearing `tableau-proof/3` certificate for the Tableau-0 Group-3
+  self-consistency statement. The proof checker now accepts formula-bearing
+  branch nodes through exact, binder-renamed, compound, and alpha-equivalent
+  formula matching, and the SelfCons fixture mirrors the proof-antecedent
+  shape reconstructed from public system code. Focused red/green evidence,
+  public selector timings, source-audit repair, and the residual focused-SJAS
+  beta axiom-member timeout are recorded in
+  [SJAS SelfCons Formula-Bearing Proof](docs/log/2026-06-08-sjas-selfcons-formula-bearing-proof.md).
+
+## 2026-06-06
+
+- Added the ADR-0073 Track 1 self-consistency code output path. The public
+  SJAS builder now reports and prints the concrete ordinary-tableau Group-3
+  self-consistency Godel code by decoding the generated formal formula-code
+  term to its byte string, not by consulting proof-predicate shortcuts. Focused
+  red/green evidence and the printed decimal value are recorded in
+  [SJAS SelfCons Godel Code Output](docs/log/2026-06-06-sjas-selfcons-godel-code-output.md).
+- Repaired the SJAS source audit after the embedded-code reconstruction helper
+  was renamed to the counted byte-first builder. The audit now explicitly
+  requires `code-args-build-counto` and rejects the public code-reader relation
+  in that path; the focused source-audit selector passed.
+
+## 2026-06-05
+
+- Clarified ADR-0073 Track 1's MVP: the public arithmeticized proof predicate
+  must accept the concrete `IS#_D(beta)` system code, the code of the Group-3
+  consistency statement, and a formula-bearing semantic-tableau proof code for
+  that statement, without `sjas-axiom` citation standing in for the full
+  tableau evidence. Added structural proof-code scaffolding for that SelfCons
+  certificate; an initial foreground focused selector exceeded the short-run
+  envelope and was stopped so future runs can use durable `test-runs/` logging.
+- Added the missing positive-false arithmetic closure direction to the SJAS
+  structural proof checker. Formula-bearing tableau leaves now close positive
+  `leq`, `lt`, and `mult` atoms when the interpreted arithmetic relation is
+  false, using proof-free structural closure inside proof codes and preserving
+  proof-producing wrappers only on the public answer path. Focused red/green
+  selectors passed under niceness.
+- Repaired fixed axiom-basis reconstruction for the SJAS proof predicate.
+  `AxiomConj(s)` now reconstructs all fixed Group-0 and Group-1 antecedents
+  through the proof-predicate relation instead of hard-coding only the two
+  Group-0 formulas, and the generated theorem antecedent no longer filters out
+  Group-1. Focused red/green selectors passed; broader gates were run under
+  niceness to reduce machine pressure.
+
+## 2026-06-04
+
+- Removed host runtime fuel consumption from local formula-bearing SJAS tableau
+  proof-tree validation. Fixed proof-code checking now descends through the
+  supplied finite proof tree without charging `support/step-fuelo`, so valid
+  structural certificates are not rejected merely because the external Proflog
+  evaluator fuel is zero. Focused regressions and the fast/extended gates
+  passed.
+
+- Added proof-free finite-system-code validation to the `subst-prf/4`
+  substitution-result axiom branch. Even when `Subst(g,t)` supplies the
+  temporary added axiom, the proof predicate now requires the supplied
+  `system-code` to parse as a complete SJAS system record before accepting the
+  branch. Focused `subst-prf` regressions and the fast/extended gates passed.
+
+- Split recursive `tableau-proof/3` and `subst-prf/4` SJAS predicate checking
+  into proof-free core relations plus thin public answer wrappers. Structural
+  formula-bearing tableau leaves now call the core relations directly, so the
+  SJAS-side tableau proof predicate does not materialize an extra Proflog
+  answer-proof marker around recursive proof-predicate leaves. Focused
+  regressions and the fast/extended gates passed.
+
+- Added structural leaf closures for `axiom-member/2`, `tableau-proof/3`, and
+  `subst-prf/4` inside the SJAS formula-bearing tableau checker. These leaves
+  now route through decoded system-code membership, the arithmeticized proof
+  predicate, and the arithmeticized substitution proof relation rather than
+  falling through to generic arithmetic closure or the Proflog kernel. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
+- Added negated atomic and equality dual rules to the SJAS structural proof
+  checker. Formula-bearing proof nodes now validate surface negation over
+  positive/negative atoms and equality/disequality by local tableau dualization,
+  without host normalization or proof-rule tags. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
+- Added negated quantifier dual rules to the SJAS structural proof checker.
+  Formula-bearing proof nodes now validate negated universal, existential,
+  once-universal, and bounded quantifier expansions through decoded branch
+  environments and guard formulas. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
+- Added implication and negated-implication local tableau rules to the SJAS
+  structural proof checker. Formula-bearing proof nodes now validate implication
+  branching and negated-implication same-branch expansion from decoded formula
+  structure, without host normalization or proof-rule tags. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
+- Added bounded-quantifier expansion to the SJAS structural proof checker.
+  Formula-bearing proof nodes now expand bounded existential and universal
+  formulas through their decoded `leq` guard formulas, with binder-aware
+  substitution support for bounded forms. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
+- Added ordinary semantic-tableau negation cases to the SJAS structural proof
+  checker. Formula-bearing proof nodes now validate double-negation removal,
+  negated-conjunction branching, and negated-disjunction same-branch expansion
+  directly from decoded formula structure, without proof-rule trace tags. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
+- Split compact-code byte handling in the SJAS proof predicate. Presented
+  public code terms now parse their numeral bits before finite byte lookup,
+  while embedded decoded-code payload reconstruction uses a separate byte-first
+  builder path. This preserves the object-level arithmetic reader for public
+  proof-predicate inputs without reintroducing generated formula registries or
+  host byte decoders. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
+- Removed committed-choice search control from the remaining SJAS proof
+  machinery relations. Syntax skipping, beta axiom scans, guarded conjunction
+  flattening, and guarded existential scope stripping now use ordinary
+  structural relations with explicit nonmatching cases. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
+- Removed remaining proof-evidence and materialization overhead from the
+  reflected-call portion of the SJAS proof predicate path. Application arity
+  parsing no longer uses committed-choice recursion, compact byte decoding no
+  longer builds unused canonical numeral proof evidence, beta-block scans skip
+  structurally instead of decoding discarded formulas, and reflected procedure
+  call resolvers read system-code bytes through proof-free object relations.
+  See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
+- Removed auxiliary proof-trace evidence from the SJAS `tableau-proof/3` and
+  `subst-prf/4` proof-predicate path. The predicates now use proof-free core
+  relations for public code reading, proof-code decoding, theorem-code
+  negation, finite-system axiom membership, axiom-conjunction reconstruction,
+  and substitution antecedent recovery, while the returned Proflog proof is only
+  the proof-predicate closure marker. This keeps the supplied formula-bearing
+  tableau proof code as the relevant SJAS evidence rather than adjoining a
+  second proof trace. See
+  [SJAS Proof Predicate Core Evidence Removal](docs/log/2026-06-04-sjas-proof-predicate-core-evidence-removal.md).
+
+## 2026-06-03
+
+- Narrowed the SJAS proof-predicate non-axiom proof-code decoder to
+  formula-bearing structural tableau trees. Legacy symbolic proof-rule traces
+  such as `(false-close)` no longer decode as substantive non-axiom SJAS proof
+  certificates; only the dedicated `sjas-axiom` citation remains a bare symbol
+  path. See
+  [SJAS Structural-Only Non-Axiom Proof-Code Decoder](docs/log/2026-06-03-sjas-structural-only-proof-code-decoder.md).
+
+- Removed the legacy SJAS proof-trace checker from the Track 1 proof-predicate
+  path. `sjas-proof-check-stateo` now preserves tableau agenda selection while
+  delegating only to formula-bearing structural proof checking; generated
+  kernel trace reinjection tests were removed or rewritten to structural
+  certificates. See
+  [SJAS Structural-Only Proof Predicate](docs/log/2026-06-03-sjas-structural-only-proof-predicate.md).
+
+- Added wide formula-bearing SJAS proof nodes. Proof-code lists now support a
+  wide count tag, and structural nodes can carry formula bytes as a proof
+  byte-list payload, removing the one-byte formula-length ceiling from the
+  initial formula-bearing proof-node fragment. See
+  [SJAS Wide Formula-Bearing Proof Nodes](docs/log/2026-06-03-sjas-wide-formula-bearing-proof-nodes.md).
+
+- Recorded the remaining public legacy certificate boundary for SJAS proof
+  internalization. The structural checker is decoded and isolated from proof
+  tags, but `tableau-proof/3`/`subst-prf/4` still accept legacy non-axiom
+  certificate shapes until a positive public structural theorem proof supports
+  narrowing that surface. See
+  [SJAS Public Legacy Certificate Boundary](docs/log/2026-06-03-sjas-public-legacy-certificate-boundary.md).
+
+- Added a source audit proving the formula-bearing SJAS structural checker does
+  not match legacy proof-rule tags. The broader compatibility checker still
+  accepts old certificate shapes, but `sjas-structural-proof-check-stateo` now
+  has a regression preventing `conj`, `witness`, `eq-step`, procedure-call, and
+  guarded-call proof tags from re-entering the structural path. See
+  [SJAS Structural Checker Proof-Rule Tag Audit](docs/log/2026-06-03-sjas-structural-no-proof-rule-tags.md).
+
+- Added focused public-boundary coverage for formula-bearing SJAS proof-code
+  decoding. Compact structural proof certificates now have a regression showing
+  they decode through the proof-code relation and are consumed by the SJAS proof
+  checker without symbolic proof-rule tags. See
+  [SJAS Structural Proof-Code Decoding](docs/log/2026-06-03-sjas-structural-proof-code-decoding.md).
+
+- Fixed formula-bearing SJAS structural binder naming for nested branch
+  quantifiers. Structural `forall`, `once-forall`, and `exists` payloads now use
+  branch-environment depth rather than proof-variable depth, so nested
+  existential parameters receive distinct canonical names such as `par v0` and
+  `par v1`. See
+  [SJAS Structural Branch Binder Names](docs/log/2026-06-03-sjas-structural-branch-binder-names.md).
+
+- Added formula-bearing SJAS coverage for guarded-shaped reflected negative
+  bodies without guarded proof constructors. The structural path now explicitly
+  closes decoded negated reflected bodies with ordinary disjunction and
+  quantifier rules instead of `neg-call-guarded-alt`, guarded sequence, or
+  `guarded-scope-exists` tags for these fragments. See
+  [SJAS Structural Guarded Reflected Bodies](docs/log/2026-06-03-sjas-structural-guarded-reflected-bodies.md).
+
+- Extended formula-bearing SJAS equality nodes to reflected calls triggered by
+  unification. Saved positive and negative calls now open reflected bodies from
+  encoded `system-code` using proof-free structural equality progression, with
+  the reflected body represented as a child formula-bearing node rather than an
+  `eq-triggered-call` or `eq-triggered-neg-call` proof constructor. See
+  [SJAS Structural Equality-Triggered Reflected Calls](docs/log/2026-06-03-sjas-structural-equality-triggered-reflected-calls.md).
+
+- Added focused coverage showing formula-bearing SJAS negative reflected-call
+  alternatives do not require `neg-call-alt` or `alt` proof constructors. The
+  structural reflected-call relation ranges over encoded matching clauses, and
+  the child formula code selects the negated reflected body. See
+  [SJAS Structural Negative Reflected Alternatives](docs/log/2026-06-03-sjas-structural-negative-reflected-alternatives.md).
+
+- Extended formula-bearing SJAS negative reflected calls to structural
+  procedure expansion. Single-clause negative calls now recover reflected
+  clause bodies from encoded `system-code` and check the child formula-bearing
+  subtree without a `neg-call` proof constructor. See
+  [SJAS Structural Negative Reflected Calls](docs/log/2026-06-03-sjas-structural-negative-reflected-call.md).
+
+- Extended formula-bearing SJAS positive reflected calls to structural
+  procedure expansion. Positive calls now recover reflected clause bodies from
+  encoded `system-code` and check the child formula-bearing subtree without a
+  `pos-call` proof constructor. See
+  [SJAS Structural Positive Reflected Calls](docs/log/2026-06-03-sjas-structural-positive-reflected-call.md).
+
+- Extended formula-bearing SJAS equality leaves to saved-literal closure after
+  equality. Equality now closes structurally when proof-free unification makes
+  saved positive and negative literals complementary, without `savefml`,
+  `eq-step`, or `close` proof constructors. See
+  [SJAS Structural Equality-Triggered Literal Closure](docs/log/2026-06-03-sjas-structural-equality-triggered-literal-closure.md).
+
+- Extended formula-bearing SJAS equality leaves to stored-disequality closure.
+  Equality now closes structurally when proof-free unification makes a stored
+  disequality false, without `eq-step` or `neq-close` proof constructors. See
+  [SJAS Structural Stored Disequality Closure](docs/log/2026-06-03-sjas-structural-stored-disequality-closure.md).
+
+- Extended formula-bearing SJAS disequality nodes to unresolved disequality
+  storage. Structural `exists` expansion can now use a canonical parameter
+  payload, and a formula-bearing disequality node can store unresolved
+  parameter constraints and continue without a `neq-store` proof-rule tag. See
+  [SJAS Structural Disequality Storage](docs/log/2026-06-03-sjas-structural-disequality-storage.md).
+
+- Extended formula-bearing SJAS quantifier nodes to canonical child payloads
+  that mention introduced proof variables. Structural node comparison now uses
+  the branch-visible formula after applying the quantifier environment, and
+  `forall`/`once-forall` expansion chooses canonical `v0`, `v1`, ... noms so
+  child proof nodes have stable formula-code bytes. See
+  [SJAS Canonical Quantifier Child Nodes](docs/log/2026-06-03-sjas-canonical-quantifier-children.md).
+
+## 2026-06-02
+
+- Switched formula-bearing SJAS structural arithmetic closure to proof-free
+  arithmetic readers and relation checks. Structural arithmetic leaves now
+  close through dedicated proof-free cores rather than returning local
+  arithmetic read/relation proof payloads. See
+  [SJAS Proof-Free Structural Arithmetic Closure](docs/log/2026-06-02-sjas-proof-free-structural-arithmetic.md).
+
+- Switched formula-bearing SJAS complementary literal closure to proof-free
+  atom unification. The structural checker now closes complementary saved
+  literals through `sjas-atom-unify-coreo` rather than the kernel's
+  proof-producing `equality/atom-unifyo`. See
+  [SJAS Proof-Free Complementary Literal Closure](docs/log/2026-06-02-sjas-proof-free-complementary-literals.md).
+
+- Switched formula-bearing SJAS equality progression to proof-free unification.
+  The structural checker now computes equality branch substitutions with
+  `sjas-unify-termo-coreo` rather than the kernel's proof-producing
+  `equality/unify-termo`, closing another local proof-trace boundary in Track
+  1. See
+  [SJAS Proof-Free Equality Progression](docs/log/2026-06-02-sjas-proof-free-equality-progression.md).
+
+- Extended formula-bearing SJAS tableau proof leaves to equality contradiction
+  closure. The checker now closes impossible equality leaves such as `0 = 1`
+  by structural branch-state analysis, without requiring `free-close`,
+  `occurs-close`, or `decompose` proof-trace constructors in the encoded proof
+  term. See
+  [SJAS Structural Equality Contradiction Closure](docs/log/2026-06-02-sjas-structural-equality-contradiction.md).
+
+- Extended formula-bearing SJAS tableau proof nodes to rigid disequality
+  progression. The checker now continues structurally when a disequality's
+  terms are rigidly different under the branch state, without a `neq-rigid`
+  proof-rule tag. See
+  [SJAS Structural Rigid Disequality Progression](docs/log/2026-06-02-sjas-structural-rigid-disequality.md).
+
+- Extended formula-bearing SJAS tableau proof nodes to equality progression.
+  Equality nodes now update branch substitution and continue structurally,
+  without an `eq-step` proof-rule tag in the proof certificate for the covered
+  fragment. See
+  [SJAS Structural Equality Progression](docs/log/2026-06-02-sjas-structural-equality-progression.md).
+
+- Extended formula-bearing SJAS tableau proof leaves to arithmetic/profile
+  closure. The checker can now close structural arithmetic leaves by evaluating
+  the SJAS arithmeticized closure cores internally, without requiring either
+  `(arith-close)` or a profiled arithmetic proof trace in the proof certificate.
+  See
+  [SJAS Structural Arithmetic Closure](docs/log/2026-06-02-sjas-structural-arithmetic-closure.md).
+
+- Extended formula-bearing SJAS tableau proof leaves to reflexive disequality
+  closure. The checker now closes structural disequality leaves when both sides
+  are equal in the branch state, without requiring a `refl-close` proof-rule
+  tag. See
+  [SJAS Structural Reflexive Disequality Closure](docs/log/2026-06-02-sjas-structural-reflexive-disequality.md).
+
+- Extended formula-bearing SJAS tableau proof nodes to structural quantifier
+  expansion for `exists`, `forall`, and `once-forall`. The checker now infers
+  quantifier expansion from decoded formula nodes and branch state without
+  `witness`, `univ`, or `once-univ` proof-rule tags for the covered fragment.
+  See
+  [SJAS Structural Quantifier Tableau Nodes](docs/log/2026-06-02-sjas-structural-quantifier-tableau.md).
+
+- Extended formula-bearing SJAS tableau proof nodes to literal continuation
+  and complementary literal closure. Literal nodes can now save branch context
+  and close against saved complementary literals without `savefml` or `close`
+  proof-rule tags; formula-bearing node decoding now converts decoded SJAS
+  formula-code syntax into AST form before branch-state comparison. See
+  [SJAS Structural Literal Closure](docs/log/2026-06-02-sjas-structural-literal-closure.md).
+
+- Extended formula-bearing SJAS tableau proof nodes to structural disjunction.
+  The checker now infers the `or` branching rule from the decoded formula node
+  and validates two child branches without a Proflog `split` proof-rule tag,
+  while preserving sibling-local equality and disequality state. See
+  [SJAS Structural Disjunction Tableau Nodes](docs/log/2026-06-02-sjas-structural-disjunction-tableau.md).
+
+- Added the first formula-bearing SJAS tableau proof-node fragment. Proof nodes
+  can now carry encoded formula bytes and children, while the checker infers
+  `and`, `true`, and `false` tableau behavior from formula/tree structure
+  rather than from Proflog proof-rule tags. This records the design objection
+  that trace evidence is an additional Godel-encoded structure whose
+  arithmeticized manipulation should be avoided unless correctness requires it.
+  See
+  [SJAS Formula-Bearing Tableau Nodes](docs/log/2026-06-02-sjas-formula-bearing-tableau-nodes.md).
+
+- Added a minimal SJAS `(arith-close)` tableau leaf certificate so arithmetic
+  branch closure need not be encoded as a full Proflog-style arithmetic proof
+  trace. The checker now evaluates the arithmetic closure relation internally
+  for this leaf, while the correspondence audit classifies the new proof symbol.
+  See
+  [SJAS Minimal Arithmetic Close Certificate](docs/log/2026-06-02-sjas-minimal-arithmetic-close.md).
+
+- Replaced the proof-facing committed-choice `sjas-axiom-membero` dispatcher
+  with ordinary relational disjunction across the finite encoded-system axiom
+  classes. The source audit now rejects `conda` in that dispatcher. Additional
+  focused axiom/proof-predicate selectors are still running as proof-search
+  evidence. See
+  [SJAS Axiom-Member Relational Dispatch](docs/log/2026-06-02-sjas-axiom-member-relational-dispatch.md).
+
+- Replaced committed-choice reflected negative-call alternative collection with
+  explicit encoded-clause match/nonmatch relations. Reflected alternatives are
+  now included when relation index and arity byte match the focused call, and
+  skipped only when a finite nonmatch relation proves the header differs. See
+  [SJAS Reflected Alternative Explicit Nonmatch](docs/log/2026-06-02-sjas-reflected-alternative-explicit-nonmatch.md).
+
+- Removed the source-only `subst-prf/4` substitution witness shortcut from the
+  SJAS proof predicate path. `subst-prf` now computes the diagonal substituted
+  source sentence as an explicit proof antecedent and includes that sentence in
+  the non-axiom proof-check target. Current-source long `subst-prf` selectors
+  are running durably under `test-runs/` with timestamp `20260602T230615Z`. See
+  [SJAS SubstPrf Explicit Source Result](docs/log/2026-06-02-sjas-substprf-explicit-source-result.md).
+
+- Fixed a Track 1 semantic-tableau proof-predicate bug in the SJAS `split`
+  rule. The local checker no longer threads equality substitutions or
+  disequality stores from the left disjunct into the right disjunct; sibling
+  branches now close from the same incoming branch state, so one branch cannot
+  close by borrowing a unification produced only in its sibling. Added a
+  focused red/green regression for the invalid proof and updated the checker
+  documentation to state the complete NNF tableau fragment it implements. See
+  [SJAS Split Branch Independence](docs/log/2026-06-02-sjas-split-branch-independence.md).
+
+- Tightened equality walking for bound rigid parameters while investigating
+  the long SJAS self-consistency proof run. `walko` now leaves `(par p)` rigid
+  only when `p` is unbound in the equality substitution, matching proof-variable
+  walking and removing an unsound extra search alternative where a bound
+  parameter could ignore its binding. See
+  [Equality Bound Parameter Walk](docs/log/2026-06-02-equality-bound-parameter-walk.md).
+
+- Removed a redundant empty-substitution equality walk from the SJAS compact
+  byte reader while the long self-consistency validation continued running.
+  Compact code bytes still decode through the object-level U-Grounding numeral
+  relation and finite byte relation, but the parser no longer calls the full
+  equality walker where no substitution state can affect the result; canonical
+  byte generation also rejects mismatched public roots before recursive numeral
+  construction. See
+  [SJAS Compact Byte Empty Walk Removal](docs/log/2026-06-02-sjas-compact-byte-empty-walk-removal.md).
+
+- Recorded that multi-hour SJAS proof probes must use durable `test-runs/`
+  logs, saved PIDs, and detachable runners (`nohup`/`tmux`) so pass/fail output
+  survives session boundaries. The same requirement is now in
+  [AGENTS.md](AGENTS.md).
+
+- Replaced the committed-choice `tableau-proof/3` split between `sjas-axiom`
+  and substantive proof certificates with a proof-code byte discriminator shared
+  by `tableau-proof/3` and `subst-prf/4`. The source audit now rejects `conda`
+  in `sjas-tableau-proof-closeo`. See
+  [SJAS Proof-Code Relational Split](docs/log/2026-06-02-sjas-proof-code-relational-split.md).
+
+## 2026-06-01
+
+- Removed proof-facing marker evidence, direct host-ground SJAS profile
+  entrypoints, generic sidecar hiding, and compact-code reader host scheduling
+  from the Track 1 proof predicate path. `tableau-proof/3` and `subst-prf/4`
+  now carry full object-level code-reader evidence, public proof search routes
+  through the ordinary kernel with the SJAS theory rule bound, and compact code
+  bytes use the finite constructor/byte relations in all modes. See
+  [SJAS Proof Predicate Shortcut Excision](docs/log/2026-06-01-sjas-proof-predicate-shortcut-excision.md).
+
+- Removed the remaining `project`/`lvar?` compact-code reader bridge from the
+  SJAS proof profile. Compact byte terms now decode through the object-level
+  U-grounding numeral reader and finite byte relation; generated embedded code
+  bytes still use canonical numeral generation with a noncanonical fallback.
+  Focused tests show the expected tractability cost in deep system-code proof
+  checks, but fast and extended gates passed. See
+  [SJAS Compact Code Projector Removal](docs/log/2026-06-01-sjas-compact-code-projector-removal.md).
+
+- Reframed large public system/formula code evidence as uniform code-reader
+  marker evidence. The old `sjas-public-code-bytes-summaryo` name is gone;
+  system-code and large formula-code proof paths still check
+  `sjas-formal-code-byteso`, but public evidence now makes explicit that it is
+  recording the checked code-reader kind rather than a separate semantic
+  summary relation. See
+  [SJAS Public Code Marker Evidence](docs/log/2026-06-01-sjas-public-code-marker-evidence.md).
+
+- Removed the size-dependent theorem-code decoder inside SJAS proof
+  predicates. `tableau-proof/3` and `subst-prf/4` theorem-code reads now always
+  consume public codes through `sjas-formal-code-byteso` and return a uniform
+  code-reader marker (`sjas-code-bytes` or `sjas-ug-code-bytes`) rather than
+  switching at a host byte-count threshold. See
+  [SJAS Theorem-Code Uniform Reader Marker](docs/log/2026-06-01-sjas-theorem-code-uniform-reader-marker.md).
+
+- Removed the proof-facing source-signature codebook bridge from the SJAS
+  profile. The decoder now maps fixed SJAS vocabulary indexes to semantic
+  symbols and user indexes to structural `(sym n)` ids, so reflected
+  procedure-call proof checking matches calls by encoded symbol index rather
+  than reconstructed host relation names. See
+  [SJAS Proof Decoder Structural Symbols](docs/log/2026-06-01-sjas-proof-decoder-structural-symbols.md).
+
+- Removed the large `tableau-proof/3` public proof-report shortcut from the
+  SJAS profile. Large direct proof-predicate queries now have to reify the
+  proof evidence produced by `direct-negated-profile-closeo` itself instead of
+  first checking truth and then returning a synthetic compact report. This
+  favors Track 1 correctness and full proof-evidence internalization over the
+  earlier runtime escape hatch. See
+  [SJAS Large Proof Report Shortcut Removal](docs/log/2026-06-01-sjas-large-proof-report-shortcut-removal.md).
+
+- Refocused ADR-0073 Track 1 on the paper-grade semantic target rather than
+  further small checker fixes. Added a normative in-principle arithmeticization
+  specification for `TabPrf_beta(system-code,theorem-code,proof-code)` as a
+  bounded object-language relation over decoded finite systems, theorem codes,
+  proof trees, tableau local rules, branch closure, substitution, and reflected
+  clause expansion. The LOPSTR/PPDP system-description paper now summarizes
+  this specification as the semantic basis for `IS#_D(beta)` internalization.
+  See [SJAS Tableau Arithmeticization Specification](docs/log/2026-06-01-sjas-tableau-arithmeticization-spec.md).
+
+- Closed the stale unresolved bucket for implemented SJAS profile/code proof
+  evidence. The executable correspondence audit now classifies `profiled`,
+  Willard profile markers, arithmetic/code/axiom/theorem/proof-check markers,
+  and substitution proof markers as relevant SJAS proof evidence, while
+  obsolete generated-host markers such as `willard-sjas-fact` and
+  `sjas-generated-axiom-member` are explicitly excluded. See
+  [SJAS Profile Marker Audit Closure](docs/log/2026-06-01-sjas-profile-marker-audit-closure.md).
+  The proof-symbol status probe now reports no unresolved encoded proof symbols;
+  `lein test-proflog-fast` passed 653 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
+- Resolved the remaining raw large proof-evidence materialization timeout for
+  direct SJAS `tableau-proof/3` checks. The public proof path already completed,
+  but forcing the private `direct-negated-profile-closeo` proof stream still
+  timed out because a logic-valued empty sigma made the theorem-code decoder
+  select detailed per-byte evidence instead of the compact large-code marker.
+  The ground direct branch now requires empty proof-code sigma before decoding
+  large theorem codes with compact read evidence, preserving object-level byte
+  decoding and proof checking while making raw evidence reifiable. See
+  [SJAS Large Proof Raw Evidence Materialization](docs/log/2026-06-01-sjas-large-proof-raw-evidence-materialization.md).
+  The new regression passed in 1:11.81 after timing out red at 180s; `lein
+  test-proflog-fast`, `lein test-proflog-extended`, and the focused SJAS runner
+  all passed.
+
+- Aligned the executable correspondence audit with implemented Track 1
+  proof-checker constructors. Equality, equality-triggered saved calls,
+  reflected procedure calls, guarded alternatives, guarded scope, guarded call
+  sequences, residual sequences, and equality guard saturation constructors
+  that the SJAS checker now consumes object-level are classified as relevant
+  proof-checker structure rather than stale unresolved gaps. See
+  [SJAS Implemented Constructor Classification](docs/log/2026-06-01-sjas-implemented-constructor-classification.md).
+  `lein test-proflog-fast` passed 638 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
+- Closed the answer-overlay proof-constructor boundary for SJAS theorem proof
+  predicates by explicit exclusion. `query-pos-call`, `query-neg-call`,
+  `query-neg-call-guarded-alt`, and `guarded-call-seq-defer` remain encodable
+  proof evidence for answer export, but the correspondence audit marks them
+  excluded from SJAS proof-predicate certificates and `tableau-proof/3` rejects
+  query-entry certificates rather than treating them as theorem proofs. See
+  [SJAS Answer Overlay Exclusion](docs/log/2026-06-01-sjas-answer-overlay-exclusion.md).
+  `lein test-proflog-fast` passed 610 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
+- Closed the generic optimized sidecar boundary for SJAS proof predicates by
+  explicit exclusion. `sjas/proof-certificate` now erases only outer
+  `willard-sjas-tableau0` and `willard-sjas-level1` annotations, preserving
+  generic `(profiled propositional ...)` and `(profiled first-order ...)`
+  wrappers in proof-code trees so `tableau-proof/3` rejects them rather than
+  silently accepting the wrapped subproof. The correspondence audit now marks
+  `lem-close`, `skolemized`, `propositional`, and `first-order` as excluded
+  from SJAS proof-predicate certificates. See
+  [SJAS Generic Sidecar Exclusion](docs/log/2026-06-01-sjas-generic-sidecar-exclusion.md).
+  `lein test-proflog-fast` passed 604 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
+- Replaced the large `tableau-proof/3` public report's host proof-code inverse
+  with the SJAS proof-code decoding relation. Large proof reports still run
+  only after the SJAS checker accepts the proof-predicate query, but the decoded
+  certificate tree returned in compact public evidence is now produced through
+  `decode-proof-code-kindo` and `code-read-marker-o`, not
+  `proof-formal-code-term->proof`. See
+  [SJAS Large Proof Report Decoder Internalization](docs/log/2026-06-01-sjas-large-proof-report-decoder-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
+- Internalized recursive guarded-call sequence checking for saturated reflected
+  negative-call alternatives. Guarded alternatives reconstructed from
+  `system-code` now preserve decoded guard, recursive-call, residual, and
+  fallback partitions; the proof checker consumes `guarded-call-seq-step` by
+  resolving the nested negated call from encoded reflected Group-2b records
+  rather than compiled guarded-clause tables. `guarded-call-seq-defer`,
+  answer-overlay query constructors, non-equality guard saturation, and generic
+  optimized layer/profile wrappers remain Track 1 gaps. See
+  [SJAS Recursive Guarded Call Sequence Internalization](docs/log/2026-06-01-sjas-recursive-guarded-call-sequence-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
+## 2026-05-31
+
+- Reassessed the large SJAS proof-materialization timeout after the guarded
+  proof-checking slices. The current public `tableau-proof/3` path no longer
+  reproduces the timeout: the substantive self-consistency selector completed in
+  1:10.65 with 6 assertions, and the adjacent structural theorem-code selector
+  completed in 0:41.11 with 4 assertions. The remaining timeout diagnosis is the
+  same boundary as before: raw miniKanren proof-state reification is much larger
+  than SJAS proof-predicate acceptance and public checked certificate evidence.
+  See
+  [SJAS Proof Materialization Current Assessment](docs/log/2026-05-31-sjas-proof-materialization-current-assessment.md).
+
+- Internalized leading existential guarded scope for reflected guarded
+  negative-call proof checking. Guarded alternatives reconstructed from
+  `system-code` now preserve decoded scope, and the SJAS checker consumes
+  `guarded-scope-exists` evidence to extend the branch environment before
+  checking fallback or saturated guarded paths. Other leading quantifier forms,
+  recursive guarded call sequences, non-equality guards, and answer-overlay
+  guarded/query constructors remain Track 1 gaps. See
+  [SJAS Existential Guarded Scope Internalization](docs/log/2026-05-31-sjas-existential-guarded-scope-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
+- Internalized non-empty equality guard saturation for saturated guarded
+  negative-call proof checking. Reflected guarded alternatives reconstructed
+  from `system-code` now preserve guard and residual partitions, and the SJAS
+  checker consumes explicit `guard-eq` evidence before closing the residual
+  sequence, without consulting compiled guarded-clause tables. Non-empty
+  guarded call sequences, existential guarded scope, non-equality guards, and
+  answer-overlay guarded/query constructors remain Track 1 gaps. See
+  [SJAS Guard Equality Saturation Internalization](docs/log/2026-05-31-sjas-guard-equality-saturation-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
+- Internalized the no-scope/no-guard/no-recursive-call saturated guarded
+  negative-call proof path. The SJAS checker now accepts
+  `guarded-neg-alt-saturated` certificates whose guard saturation and guarded
+  call sequence are empty and whose residual sequence closes the decoded
+  reflected body reconstructed from `system-code`. Recursive guarded
+  call-sequence, non-empty guard saturation, existential guarded scope, and
+  answer-overlay guarded variants remain Track 1 gaps. See
+  [SJAS Saturated Guarded Negative Call Internalization](docs/log/2026-05-31-sjas-saturated-guarded-negative-call-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
+- Internalized the fallback guarded negative-call proof path for reflected
+  multi-clause procedure calls. The SJAS proof-code alphabet now includes the
+  guarded terminal markers needed by kernel evidence, and the SJAS proof
+  checker validates encoded `neg-call-guarded-alt` certificates by
+  reconstructing guarded alternatives from reflected Group-2b records in
+  `system-code`, with compiled clause tables stripped in the public regression.
+  The saturated guard-first and answer-overlay guarded variants remain future
+  Track 1 slices. See
+  [SJAS Guarded Negative Call Internalization](docs/log/2026-05-31-sjas-guarded-negative-call-internalization.md).
+  `lein test-proflog-fast` passed 598 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
+## 2026-05-30
+
+- Reassessed the large SJAS proof-materialization timeout. The public
+  self-consistency selector now completes under a 1200s envelope, while a raw
+  direct-relation probe still times out when forcing the miniKanren proof
+  stream, confirming the issue is evidence reification rather than SJAS
+  proof-predicate acceptance. Added a focused red/green regression proving
+  large `tableau-proof/3` queries with `proof-limit 0` do not materialize the
+  reporting-side proof decoder, and moved report construction behind the
+  proof-limit and acceptance gate. See
+  [SJAS Proof Materialization Timeout Assessment](docs/log/2026-05-30-sjas-proof-materialization-timeout-assessment.md).
+  `lein test-proflog-fast` passed 596 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+
+- Internalized `neg-call-alt` proof checking for multi-clause reflected
+  negative calls. The SJAS proof-code alphabet now includes the inner `alt`
+  constructor, the proof checker reconstructs matching negated alternatives
+  from encoded reflected Group-2b records in `system-code`, and public
+  `tableau-proof/3` validates an encoded `neg-call-alt` certificate with
+  compiled clause tables stripped. `lein test-proflog-fast` passed 596
+  assertions and `lein test-proflog-extended` passed 203 assertions. See
+  [SJAS Reflected Negative Call Alternatives](docs/log/2026-05-30-sjas-reflected-negative-call-alternatives.md).
+
+- Internalized the ordinary semantic-tableau truth/falsehood proof
+  constructors in the SJAS proof checker. `false-close` now closes an explicit
+  falsehood branch, `skip-true` advances past a truth formula, public
+  `tableau-proof/3` accepts encoded `false-close` certificates without
+  reaching `kernel/prove-programo`, and the correspondence audit now classifies
+  `skip-true` as relevant tableau structure. `lein test-proflog-fast` passed
+  595 assertions and `lein test-proflog-extended` passed 203 assertions. See
+  [SJAS Truth and Falsehood Proof Constructors](docs/log/2026-05-30-sjas-truth-falsehood-proof-constructors.md).
+
+- Resolved the large Group-3 `tableau-proof/3` public proof-materialization
+  timeout. The root cause was not certificate generation or semantic proof
+  acceptance: focused probes showed the SJAS relation accepting the certificate
+  in truth mode, while `core.logic` did not finish reifying the public proof
+  term inside a 900s envelope. The profile now gates the large direct
+  `tableau-proof/3` report with the same SJAS proof-check relation in truth
+  mode, then builds the returned report from the checked proof-code bytes so
+  the public evidence still contains the decoded certificate constructors. The
+  self-consistency selector now passes with proof-shape assertions for
+  `witness` and `once-univ`; the source audit remains green. `lein
+  test-proflog-fast` passed 594 assertions and `lein test-proflog-extended`
+  passed 203 assertions. See [SJAS Large Tableau Proof Evidence](docs/log/2026-05-30-sjas-large-tableau-proof-evidence.md).
+
+- Removed the large non-axiom `tableau-proof/3` proof-output summary shortcut.
+  Large theorem-code proofs now report the decoded proof tree instead of a
+  synthetic `(profiled willard-sjas-proof-check)` marker. The source audit
+  passed 32 assertions and the structural non-generated theorem-code selector
+  passed with full proof evidence; this exposed the later Group-3 public proof
+  materialization boundary recorded above. `lein test-proflog-fast` passed 594
+  assertions and `lein test-proflog-extended` passed 203 assertions. See
+  [SJAS Large Tableau Proof Evidence](docs/log/2026-05-30-sjas-large-tableau-proof-evidence.md).
+
+## 2026-05-29
+
+- Removed the compact public-code host argument deconstructor and addressed
+  the resulting large semantic boundary. Compact `code-N` terms now bind their
+  constructor arity without enumerating the full signature, byte terms still
+  pass through the object byte relation, embedded `code(...)` payloads can
+  regenerate canonical byte numerals, reflected host-AST call checks use a
+  narrow signature-isomorphism bridge, and, at that stage, large non-axiom
+  Group-3 tableau-proof reports used compact proof summaries after the SJAS
+  close relation succeeded. The negative `false` axiom-citation case now fails through
+  the SJAS axiom branch itself, with structural non-reifying beta-record skips,
+  rather than falling through to non-axiom proof-tree checking. The 1500s SJAS
+  focused-suite envelope advanced to the final alphabetic block with no
+  reported failures; the exact remaining tail then passed 110 assertions in one
+  JVM. `lein test-proflog-fast` passed 594 assertions and `lein
+  test-proflog-extended` passed 203 assertions.
+  See
+  [SJAS Compact Code Without Host Argument Projection](docs/log/2026-05-29-sjas-compact-code-no-host-args.md).
+- Replaced the compact public-code byte-term host lookup table with an
+  arithmetic U-Grounding numeral decoder. `code-1(add(dbl(0),1))` now decodes
+  as the one-byte formula code for `true`, while the source audit rejects the
+  old 64-entry generated byte-term table. See
+  [SJAS Compact Byte Arithmetic Decoder](docs/log/2026-05-29-sjas-compact-byte-arithmetic-decoder.md).
+- Removed the generated finite symbol table from compiled SJAS program
+  registries and from proof-profile formula-code decoding. Semantic SJAS
+  primitives are now recovered only through reserved numeric ids; user symbols
+  are compared structurally as numeric `(sym n)` ids in the proof predicate.
+  See
+  [SJAS Symbol-Table Registry Removal](docs/log/2026-05-29-sjas-symbol-table-registry-removal.md).
+- Removed source symbol-registry dependence from `subst-code/2` over
+  user-symbol formulas. Substitution now decodes source and target formula
+  codes through the syntax/numeric-symbol decoder, so `demo(v0)` structurally
+  substitutes to `demo(code(demo(v0)))` with `:sjas/registry` removed while the
+  unsubstituted open formula is still rejected. See
+  [SJAS Subst-Code Symbol-ID Decoder](docs/log/2026-05-29-sjas-subst-code-symbol-id-decoder.md).
+- Reserved fixed numeric symbol ids for the SJAS semantic vocabulary and taught
+  proof-facing formula decoding to recover those symbols without the generated
+  source registry. `tableau-proof/3` and `subst-prf/4` now validate the
+  non-generated arithmetic theorem `lt(1, 2)` with `:sjas/registry` removed,
+  so branch closure for fixed U-Grounding/profile relations no longer depends
+  on host-side symbol-table lookup. User symbols remain conventional codebook
+  entries justified up to signature isomorphism. The attempted removal of the
+  compact ground code reader was recorded as a tractability boundary after
+  focused selectors exceeded their timeouts. See
+  [SJAS Reserved Semantic Symbols](docs/log/2026-05-29-sjas-reserved-semantic-symbols.md).
+- Removed source symbol-table lookup from reflected procedure-call proof
+  reconstruction. `tableau-proof/3` now validates the demo reflected
+  `neg-call` certificate with runtime clause tables and `:sjas/registry`
+  removed, by decoding theorem and reflected-clause application heads as
+  structural numeric `(sym n)` ids and comparing those ids against the
+  reflected records in `system-code`. The user-facing caveat remains that
+  system-code byte reading is only fully satisfactory when backed by
+  `sjas-formal-code-byteso` rather than a host byte projection; this slice
+  removes the symbol-codebook lookup from reflected calls, not every remaining
+  proof-predicate shortcut. See
+  [SJAS Reflected Call Symbol-ID Recovery](docs/log/2026-05-29-sjas-reflected-call-symbol-id-recovery.md).
+- Removed source symbol-table lookup from reflected Group-2b axiom membership.
+  Reflected clause axiom citation now reconstructs and compares formula trees
+  using structural numeric `(sym n)` relation heads, while reflected
+  procedure-call recovery remains on the proof-facing symbol path. See
+  [SJAS Reflected Axiom Symbol-ID Membership](docs/log/2026-05-29-sjas-reflected-axiom-symbol-id-membership.md).
+- Removed source symbol-table lookup from Group-2 beta axiom membership.
+  `axiom-member(system, formula)` now scans beta formula byte boundaries with
+  the syntax-only decoder, so application-bearing beta formulas such as
+  `lt(1, 2)` can be cited with `:sjas/registry` removed. Reflected clauses and
+  proof-facing AST conversion still remain as symbol-code boundaries. See
+  [SJAS Beta Byte Membership Without Symbol Registry](docs/log/2026-05-29-sjas-beta-byte-membership-without-symbol-registry.md).
+- Added a syntax-only formula-code decoder that keeps application heads as
+  structural numeric `(sym n)` terms instead of resolving symbol indexes
+  through `:sjas/symbol-index-entries`. `wff` now succeeds for an
+  application-bearing formula code with `:sjas/registry` removed, while the
+  remaining proof-facing symbol table boundary is left explicit. See
+  [SJAS Syntax Symbol-ID Decoder](docs/log/2026-05-29-sjas-syntax-symbol-id-decoder.md).
+- Removed the remaining `:sjas/code-format` source-registry read from SJAS
+  syntax-code predicate closure. The proof profile now lets the object-level
+  code reader infer compact versus U-Grounding representation from the supplied
+  code term. This narrows the remaining source-preprocessing boundary to the
+  finite symbol-index table. See
+  [SJAS Code-Format Registry Removal](docs/log/2026-05-29-sjas-code-format-registry-removal.md).
+- Removed the active source-registry authorization guard from SJAS proof
+  predicates as an ADR-0073 Track 1 system-code reconstruction slice.
+  `tableau-proof/3` now validates a fixed Group-0 axiom certificate with
+  `:sjas/registry` absent, `subst-prf/4` validates the corresponding identity
+  certificate the same way, and the focused regression audits that
+  `sjas-active-systemo` is not reintroduced. `lein test-proflog-fast` and
+  `lein test-proflog-extended` passed; `lein test-proflog-sjas-focused` was
+  stopped for exact-selector investigation after the composite reflected/beta
+  example exceeded the focused-run envelope. The broader finite symbol-table
+  boundary remains a Track 1 internalization target. See
+  [SJAS Active Registry Proof-Predicate Removal](docs/log/2026-05-29-sjas-active-registry-proof-predicate-removal.md).
+
+## 2026-05-28
+
+- Repaired the `test-proflog-fitting-programs` gate after the LOPSTR+PPDP
+  artifact run exposed two stale assumptions. `query-status` now accepts an
+  optional structural `:max-fuel` bound so unresolved catalog rows can stop
+  before a known expensive next slice, and the finite-domain
+  `fd-unknown-total-unresolved` row uses that bound at fuel `1`. The
+  `append-inverse-flat` list matrix row now uses raw answer limit `10`, the
+  first current core.logic answer limit that exposes all four closed split
+  targets. Parent verification: `lein test-proflog-fitting-programs` passed 6
+  tests / 81 assertions in `72.23 s`, `lein test-proflog-fast` passed 159
+  tests / 594 assertions in `98.39 s`, and `lein test-proflog-extended` passed
+  68 tests / 203 assertions in `247.66 s`.
+- Logged the current ADR-0073 proof-machinery internalization process as eight
+  logical slices: code format, syntax, system-code reconstruction, proof-code
+  grammar, U-Grounding arithmetic, substitution/fixed-point machinery, tableau
+  proof checking, and reflected procedure-call recovery. The goal is not merely
+	  to construct Godel codes for dependencies of `tableau-proof/3`; each
+	  dependency must become an object-language relation over those codes. The
+	  then-open idea of moving a missing dependency into correspondence work was
+	  later narrowed by the ADR-0086 clarification: for the literature predicate,
+	  a missing dependency is Track 1 incomplete; Track 2 is for modified
+	  deductive apparatuses or variants. Updated ADR-0073 to make these
+	  subelements explicit. See
+	  [SJAS Proof-Machinery Internalization Slices](docs/log/2026-05-28-sjas-proof-machinery-internalization-slices.md).
+- Added SJAS proof-code support for occurs-check equality closure.
+  `occurs-close` is now an encodable and decoded proof symbol, classified as
+  relevant closure evidence, and public `tableau-proof/3` validates the
+  certificate for `exists x. x != f(x)` without calling the host proof
+  validator. See
+  [SJAS Occurs-Check Proof Code](docs/log/2026-05-28-sjas-occurs-check-proof-code.md).
+- Added SJAS-local proof checking for equality-triggered negative reflected
+  calls. `(eq-step step-proof (eq-triggered-neg-call subproof))` now wakes saved
+  negative atoms after equality makes them object-language ground, decodes the
+  matching reflected clause from `system-code`, and checks the NNF negation of
+  the reflected body without using `kernel/prove-programo` or runtime clause
+  lookup. See
+  [SJAS Equality-Triggered Negative Call Proof Check](docs/log/2026-05-28-sjas-equality-triggered-negative-call-proof-check.md).
+- Added SJAS-local proof checking for equality-triggered positive reflected
+  calls. `(eq-step step-proof (eq-triggered-call subproof))` now wakes saved
+  positive atoms after equality makes them object-language ground, resolves the
+  procedure body from reflected clauses decoded from `system-code`, and checks
+  the subproof without consulting the runtime clause table or
+  `kernel/prove-programo`. See
+  [SJAS Equality-Triggered Positive Call Proof Check](docs/log/2026-05-28-sjas-equality-triggered-positive-call-proof-check.md).
+- Added SJAS-local proof checking for equality-triggered saved atom closure.
+  `(eq-step step-proof (atom-close arg-proof))` now closes saved complementary
+  atoms through the local proof checker, and `atom-close`/`eq-refl` are now
+  encodable proof-code symbols. The focused checker regression saves
+  `color(x)` and `not color(0)`, then closes them after `x = 0`, with
+  `kernel/prove-programo` disabled. See
+  [SJAS Equality-Triggered Atom Closure Proof Check](docs/log/2026-05-28-sjas-equality-triggered-atom-closure-proof-check.md).
+- Added SJAS-local proof checking for stored disequality closure. `(neq-store
+  subproof)` now records a delayed branch disequality, and the saved-disequality
+  form of `(eq-step step branch-proof)` closes when relational equality
+  progress collapses that stored obligation to `(neq-close)`. The public
+  `tableau-proof/3` regression validates the encoded certificate for
+  `forall x. x = 0 or x != 0` without calling the host proof validator. See
+  [SJAS Stored Disequality Proof Check](docs/log/2026-05-28-sjas-stored-disequality-proof-check.md).
+- Added SJAS-local proof checking for proof-variable disequality closure.
+  `(neq-close step-proof)` now closes selected negative equalities when
+  relational unification binds only gamma-introduced proof variables, and
+  `eq-bind` is now part of the proof-code alphabet. The public regression uses
+  an inert `f/1` symbol to validate `exists x. f(x) = f(0)` without routing the
+  branch through U-grounding arithmetic. See
+  [SJAS Proof-Variable Disequality Proof Check](docs/log/2026-05-28-sjas-proof-variable-disequality-proof-check.md).
+
+## 2026-05-27
+
+- Advanced ADR-0073 Track 1 proof-predicate internalization by teaching the
+  SJAS-local proof checker to consume decoded free-constructor equality closure
+  evidence. `tableau-proof/3` now validates an encoded `(conj (free-close))`
+  certificate for the SJAS theorem `neq(0,1)` without delegating to
+  `kernel/prove-programo`, and the executable correspondence audit now treats
+  `free-close` as relevant closure evidence while leaving richer equality
+  constructors unresolved. See
+  [SJAS Free Equality Proof-Check Closure](docs/log/2026-05-27-sjas-free-equality-proof-check.md).
+- Extended the SJAS proof-code grammar for nested free-constructor equality
+  closure evidence by appending `decompose` and `args` to the stable proof
+  alphabet. `tableau-proof/3` now validates a nested encoded equality
+  certificate over preserved `code-2` constructor terms, and the audit
+  classifies these tags as relevant closure/tree evidence. See
+  [SJAS Nested Equality Proof-Code Coverage](docs/log/2026-05-27-sjas-nested-equality-proof-code.md).
+- Advanced the SJAS-local proof checker through positive equality progress.
+  `par-bind` is now encodable in proof certificates, and `(eq-step step
+  subproof)` can update the branch equality substitution through
+  `equality/unify-termo` and continue inside the SJAS checker. The public
+  `tableau-proof/3` regression validates the theorem
+  `forall x. x != 0 or x != 1` with an encoded witness/equality-step
+  certificate without calling the host proof validator. See
+  [SJAS Positive Equality-Step Proof Check](docs/log/2026-05-27-sjas-positive-equality-step-proof-check.md).
+- Added SJAS-local proof checking for reflexive disequality closure.
+  `(refl-close)` now closes selected `neq` formulas whose terms are already
+  identical under the branch equality substitution, and `tableau-proof/3`
+  validates the encoded certificate for `eq(code-1(0), code-1(0))` without
+  delegating to the host kernel. See
+  [SJAS Reflexive Disequality Proof Check](docs/log/2026-05-27-sjas-reflexive-disequality-proof-check.md).
+- Added SJAS-local proof checking for rigid disequality progress.
+  `(neq-rigid subproof)` now discharges constructor disequalities that are
+  already true in the free term algebra and continues with the remaining branch
+  work. The public proof-predicate path also gained an object-level
+  top-conjunction focus check so certificates that close the negated theorem do
+  not have to explore the reconstructed axiom basis first. See
+  [SJAS Rigid Disequality Proof Check](docs/log/2026-05-27-sjas-rigid-disequality-proof-check.md).
+- Fixed the nominal lookup/hash guard bug in the legacy αleanTAP and
+  greenfield nominal environment lookup relations. Core.logic's current
+  `nom/hash` behavior passed the delayed-aliasing regression under the default
+  1.0.1 dependency, the 1.1.1 profile, and the vendored source overlay; the
+  local bug was missing use of that freshness guard when recursing past nominal
+  environment keys. See [ADR-0074](docs/adr/ADR-0074-nominal-lookup-hash-guard.md),
+  [AAR-0074](docs/aar/AAR-0074-nominal-lookup-hash-guard.md), and
+  [Nominal Lookup Hash Guard](docs/log/2026-05-27-nominal-lookup-hash-guard.md).
+- Added IULS 2026 Proflog talk materials under `iuls2026/`: the reviewed
+  intent note, the sample ODP style source, a generated ODP slide deck, a
+  Markdown slide source, lecture notes, and a small generator that preserves
+  the sample deck's visual frame while replacing the content with a talk on
+  Fitting tableaus, Procedure Call, the current Clojure/core.logic
+  implementation, P1/P2 demonstrations, SJAS motivation, and future work.
+  Revised the demo section into worked examples with paper-equivalent P1/P2
+  Proflog snippets, concrete `evaluate-case` outputs, and proof-step traces
+  captured from the current fitting-program catalog.
+- Removed the remaining deterministic public-code byte projectors from the SJAS
+  profile. Compact and U-Grounding public code reads now pass through
+  `sjas-formal-code-byteso`; long system/Group-3 proof evidence is summarized
+  only after that relation succeeds. Fixed U-Grounding sentinel handling so
+  byte `63` is accepted inside payloads, and replaced the last U-Grounding
+  substitution-side byte shortcut with relation-backed decoding plus fused
+  substitution/alpha comparison. The minimal Level-1 U-Grounding fixed-point
+  check now succeeds without the old host projector; the larger reflected demo
+  path remains a core.logic runtime tractability boundary. See
+  [SJAS Public Code Byte Internalization](docs/log/2026-05-27-sjas-public-code-byte-internalization.md).
+- Logged the Track 2 clarification that Proflog may be studied both as a
+  candidate implementation bridge for Willard's semantic-tableau `D` and,
+  speculatively, as a formally specified deductive apparatus `D_Proflog` for
+  `IS#_{D_Proflog}(beta)`. Added Track 2c to the ADR-0073 goal prompt:
+  formalize the Proflog kernel sufficiently to determine whether Willard-style
+  SJAS results can be adapted to it. Recorded why theorem-level equivalence is
+  too weak and which proof-object, tree, closure, encoding, size, substitution,
+  quantifier, equality, procedure-call, and axiom-basis invariants must be
+  conserved or explicitly proved irrelevant. See
+  [Proflog as a Candidate SJAS Deductive Apparatus](docs/log/2026-05-27-proflog-as-sjas-deductive-apparatus.md).
+- Closed a proof-certificate alphabet gap for reachable SJAS proof evidence.
+  Proof codes now have an explicit byte-payload tag, so evidence such as
+  `(sjas-code-arg 1 sjas-code-args-end)` can be encoded and decoded without
+  escaping the certificate grammar. Added `sjas-code-arg`,
+  `sjas-code-args-end`, `sjas-ug-code-canonical-byte`, and `free-close` to the
+  declared proof-symbol alphabet. The correspondence audit classifies the
+  compact and U-Grounding code-reader tags as relevant inspectable code
+  evidence and classifies `free-close` as encodable but still unresolved
+  pending an equality/free-constructor closure proof, macro expansion,
+  reachability exclusion, or fragment exclusion. See
+  [SJAS Proof-Code Byte Payloads](docs/log/2026-05-27-sjas-proof-code-byte-payloads.md).
+- Closed the corresponding syntax-predicate proof-evidence alphabet gap.
+  `willard-sjas-code`, `wff`, the formula-class predicate tags, `neg-pair`, and
+  `sjas-neg-pair-structural` are now encoded and classified as relevant
+  code/syntax evidence. The existing syntax predicate regression now also
+  audits representative `wff`, `delta-star-0-code`, and `neg-pair` proofs for
+  unencodable/unclassified symbols and verifies proof-certificate encoding for
+  successful syntax evidence. See
+  [SJAS Syntax Proof Evidence Alphabet](docs/log/2026-05-27-sjas-syntax-proof-evidence-alphabet.md).
+
+## 2026-05-26
+
+- Adopted focused, progress-visible testing as the default practice for SJAS
+  and other resource-heavy semantic suites. Added `proflog.focused-test-runner`,
+  `lein test-vars <namespace>`, and `lein test-proflog-sjas-focused`, and
+  documented the workflow in `AGENTS.md`, `README.md`, and
+  [Focused Testing Practice for Resource-Heavy Suites](docs/log/2026-05-26-focused-testing-practice.md).
+  The full opaque `lein test-proflog-sjas` namespace gate remains available,
+  but the default active-development path is exact selectors followed by
+  var-by-var timing so slow tests are visible and debuggable.
+- Removed the staged compact theorem-code reader from SJAS proof-predicate
+  validation. `tableau-proof/3` and `subst-prf/4` now expose compact
+  theorem-code constructor-byte reads as `sjas-code-arg` evidence, and compact
+  substitution source/target codes use object byte decoding instead of the old
+  staged helper. The direct U-Grounding Level-1 substitution attempt failed at
+  fuels 240, 500, 1000, and 2000, and then overflowed core.logic's occurs check
+  on the large substituted theorem numeral, so an isolated U-Grounding
+  substitution-side byte projection remains documented as a tractability
+  boundary. Recorded the related finite symbol-table boundary: current codes
+  still rely on source-preprocessing symbol indexes unless a later proof shows
+  nominal identity is irrelevant up to fixed injective coding. Added
+  [SJAS Symbol-Table Isomorphism Justification](docs/log/2026-05-26-sjas-symbol-table-isomorphism-justification.md)
+  and updated
+  [SJAS Proof-Predicate Arithmeticized Checker](docs/log/2026-05-26-sjas-proof-predicate-arithmeticized-checker.md).
+- Removed the remaining reflected compiled-program side table from SJAS
+  proof-predicate validation. Reflected `pos-call`/`neg-call` proof steps now
+  decode the active `system-code` reflected-clause bytes, bind canonical
+  reflected parameters to the focused call arguments, and expose body/negated
+  body formulas to the local proof checker. Added a regression that strips the
+  compiled clause lists and `:sjas/reflected-program` registry entry before
+  validating a reflected `neg-call` certificate, plus source/registry audits
+  rejecting the stale bridge. Updated
+  [SJAS Proof-Predicate Arithmeticized Checker](docs/log/2026-05-26-sjas-proof-predicate-arithmeticized-checker.md).
+- Replaced the non-`sjas-axiom` SJAS proof-predicate shortcut through
+  `kernel/prove-programo` with a local proof-directed checker over decoded
+  proof constructors. `tableau-proof/3` and `subst-prf/4` now validate the
+  currently generated arithmetic, reflected `neg-call`/`pos-call`, quantifier,
+  literal-saving, and literal-closure certificate shapes without delegating
+  decoded proof trees back to the host proof kernel. Added no-kernel
+  regressions with `kernel/prove-programo` redefined to throw, and a source
+  audit rejecting the old `kernel/prove-programo target` route. See
+  [SJAS Proof-Predicate Arithmeticized Checker](docs/log/2026-05-26-sjas-proof-predicate-arithmeticized-checker.md).
+- Completed executable regressions for the SJAS external-clause separation and
+  self-consistency negating witness. `tableau-proof/3` and `subst-prf/4` now
+  validate non-`sjas-axiom` decoded certificates against a reflected-only
+  compiled program, so runtime-only `external` clauses remain queryable by the
+  host but cannot count as SJAS proof-predicate evidence. Added a Tableau-0
+  self-consistency witness showing that the generated SJAS system rejects
+  `tableau-proof(S,false-code,P0)` while ordinary Proflog accepts the same atom
+  if `tableau-proof/3` is supplied as an external runtime procedure. Added a
+  Level-1 complement-certificate rejection probe for
+  `subst-prf(S,skeleton-code,code(not Group3),sjas-axiom)`. See
+  [SJAS Self-Consistency Negating Witness Regressions](docs/log/2026-05-26-sjas-selfcons-negating-witness-regressions.md).
+- Recorded a concrete SJAS/Proflog separation witness. The formula
+  `external-demo(0)` is definable in an SJAS language that declares
+  `external-demo/1`, but the corresponding `system-code` contains no beta axiom
+  or reflected Group-2b clause for it. Proper SJAS deduction should therefore
+  leave the branch open. Direct Proflog closes it with an external runtime
+  clause `external-demo(x) :- x = 0`, and the current `tableau-proof/3`
+  shortcut accepts the theorem certificate because `kernel/prove-programo` sees
+  that full runtime program. The stronger SJAS-base formula is
+  `tableau-proof(S0, code(external-demo(0)), P0)`, where `P0` is the proof code
+  for `(conj (neg-call ...))`; it should fail under proper SJAS proof checking
+  but currently closes through the shortcut. See
+  [SJAS/Proflog Separation Witness](docs/log/2026-05-26-sjas-proflog-separation-witness.md).
+- Attempted an informal proof, grounded in Willard's SJAS/analytic-tableaux
+  papers and Fitting's Proflog/tableaux-for-logic-programming paper, of whether
+  the current Proflog kernel can serve as an SJAS proof-predicate shortcut. The
+  proof attempt gives a restricted positive result for ordinary tableau-shaped
+  kernel derivations, and a full-domain negative result for the current SJAS
+  shortcut: `kernel/prove-programo` is operationally defensible and probably
+  sound over a bounded fragment, but it does not yet preserve all requisite
+  SJAS invariants because skeletal certificates lack a proved formula-bearing
+  expansion and proof-size lower bound, and because procedure-call, generic
+  equality, guarded/profile, unencodable-tag, and quantifier-witness obligations
+  remain open. See
+  [Proflog Kernel as an SJAS Proof-Predicate Shortcut: Proof Attempt](docs/log/2026-05-26-proflog-kernel-sjas-shortcut-proof-attempt.md).
+- Logged explicit completion criteria for ADR-0073 Track 2b. A correspondence
+  proof is complete only after fixing the covered domain, formalizing compatible
+  Proflog and SJAS tableau semantics, defining the proof-object translation,
+  proving soundness and completeness, preserving every Track 2a relevant
+  invariant, proving proof-size lower-bound/anti-compression, supplying
+  irrelevance lemmas, and backing the result with operational tests. The same
+  note records that full Track 2b is not currently complete: unencodable
+  reachable proof tags, unresolved equality/procedure/profile constructors,
+  skeletal quantifier certificates, the remaining `kernel/prove-programo`
+  bridge, and the absence of a common formal semantics block a truthful
+  completion claim. See
+  [SJAS Correspondence Proof Criteria](docs/log/2026-05-26-sjas-correspondence-proof-criteria.md).
+- Continued ADR-0073 Track 2a in single-threaded mode after parking the Track 1
+  and Track 2b subagent worktrees in `MEMORY.md`. The new proof-size note
+  refines the relevance classification for Willard's Conventional Tableaux
+  Encoding Requirement: proof-size growth and byte-string inspectability are
+  relevant, exact curly-brace byte layout is irrelevant under a bounded
+  injective translation, and Proflog's current `proof-code-bytes` sanity check
+  is not yet a full size proof because it encodes proof skeletons rather than
+  formula-bearing tableau trees. Track 2b must either expand skeletal
+  certificates into formula-bearing trees with preserved size accounting, prove
+  the skeleton grammar is itself an admissible non-compressing tableau encoding,
+  or treat the kernel certificate path as an implementation-stage shortcut. See
+  [SJAS Proof-Size Relevance](docs/log/2026-05-26-sjas-proof-size-relevance.md).
+- Refined ADR-0073 Track 2a classification for procedure-call proof
+  constructors after the reflected-clause reachability probe exposed `neg-call`
+  in an SJAS certificate. Procedure calls are now classified as a relevant macro
+  layer whose primitive status remains unresolved: Track 2b must either name
+  Fitting/Proflog procedure calls as part of the selected SJAS deduction
+  apparatus, prove bounded expansion over reflected Group-2b axiom applications
+  and ordinary tableau rules, or exclude reflected-clause proofs using
+  `pos-call`, `neg-call`, guarded-call, or equality-triggered call constructors
+  from the correspondence fragment. See
+  [SJAS Procedure-Call Relevance](docs/log/2026-05-26-sjas-procedure-call-relevance.md).
+- Refined ADR-0073 Track 2a equality classification. SJAS arithmetic equality
+  proof symbols `sjas-equal` and `sjas-eq-progress` are now classified as
+  relevant object-language arithmetic evidence, while generic Proflog
+  free-constructor equality and disequality constructors remain unresolved
+  proof-system extensions. The focused audit test first failed with
+  `sjas-equal` still classified as unresolved; the green change moves SJAS
+  arithmetic equality into the relevant code/arithmetic classification without
+  changing `eq-step`, `neq-close`, `neq-rigid`, `neq-store`, `refl-close`, or
+  equality-triggered calls. See
+  [SJAS Equality and Disequality Relevance](docs/log/2026-05-26-sjas-equality-relevance.md).
+- Probed generic equality/disequality reachability in current SJAS theorem
+  proofs. The non-arithmetic reflexive equality theorem `mark(1)=mark(1)`
+  reaches `refl-close`, confirming generic equality is not merely an encodable
+  possibility. The constructor-clash disequality theorem
+  `mark(1)!=other(1)` reaches `free-close`, which the current SJAS proof-code
+  encoder rejects as an unsupported certificate symbol. This exposes a
+  proof-certificate grammar gap: Track 2b must not claim correspondence over
+  all current SJAS theorem proofs until reachable generic equality tags are
+  encoded and classified, represented by existing certificate constructors, or
+  excluded by a stated fragment boundary. See
+  [SJAS Equality Constructor Reachability](docs/log/2026-05-26-sjas-equality-reachability.md).
+- Inventoried current proof-producing tags against the SJAS certificate
+  alphabet. The gap is broader than `free-close`: equality internals,
+  guarded-call helper tags, compact/U-Grounding code-reader evidence such as
+  `sjas-code-arg`, and profile-header proof tags can be emitted by kernel or
+  SJAS profile code without being listed in `proof-symbols`. The executable
+  correspondence audit now reports `:unencodable-symbols` separately from
+  `:unclassified-symbols`; the red test first showed that
+  `(sjas-code-arg 1 sjas-code-args-end)` and `(free-close)` had no explicit
+  unencodable report. See
+  [SJAS Proof-Tag Inventory](docs/log/2026-05-26-sjas-proof-tag-inventory.md).
+- Recorded the lower-bound orientation for Track 2b macro-expansion proofs.
+  The correspondence proof does not need byte-for-byte or size equality between
+  Proflog and SJAS proof objects; it must show Proflog does not accept a more
+  compressed proof object than the SJAS semantic-tableau proof predicate would
+  allow under Willard's anti-compression requirement. This makes bounded macro
+  expansion preferable to fragment exclusion where viable: equality or
+  procedure-call constructors that expand to ordinary tableau work, increase
+  tree size, or act only at branch tips may be adequate if they preserve the
+  relevant lower bound. See
+  [SJAS Macro Expansion and Lower-Bound Adequacy](docs/log/2026-05-26-sjas-macro-expansion-lower-bound.md).
+- Classified ADR-0073 Track 2a quantifier and witness policy. Quantifier child
+  formulas, existential fresh-parameter witnesses, universal instantiated
+  parameter terms, bounded-quantifier side conditions, and ordinary gamma
+  repeatability are relevant. Runtime ordering of admissible instantiations is
+  probably irrelevant only under a proof that accepted certificates and size
+  accounting are unchanged. Current `univ`, `once-univ`, and `witness` proof
+  nodes are skeletal because their witness terms live in branch state rather
+  than proof-code payloads, so Track 2b must reconstruct formula-bearing
+  quantifier steps or enrich/canonicalize certificates. See
+  [SJAS Quantifier and Witness Relevance](docs/log/2026-05-26-sjas-quantifier-witness-relevance.md).
+- Inventoried ADR-0073 Track 2a profile-specific SJAS branch rules. Arithmetic
+  equality/relation closure, syntax-code predicates, substitution-code, and
+  axiom membership are relevant object-language predicate work that may be
+  admitted as bounded macros or internalized directly. `tableau-proof/3` and
+  `subst-prf/4` wrappers remain high-risk bridges because their non-`sjas-axiom`
+  paths still call `kernel/prove-programo`; they need direct object-level
+  checking or the full Track 2b proof-and-test correspondence. See
+  [SJAS Profile Theory Rule Inventory](docs/log/2026-05-26-sjas-profile-theory-rule-inventory.md).
+- Summarized ADR-0073 Track 2a coverage after the single-threaded relevance
+  slices. The status note consolidates the relevant, probably irrelevant, and
+  macro-expandable aspects; records evidence-backed risks such as reachable
+  `neg-call`, `refl-close`, `free-close`, missing code-reader proof tags, and
+  skeletal quantifier witnesses; and narrows the remaining Track 2a gaps to
+  full reachability coverage, generic sidecar exclusion/expansion, Level-1
+  `subst-prf`, axiom-basis boundaries, beta validity, and Track 2b proof-medium
+  selection. See
+  [SJAS Track 2a Coverage Status](docs/log/2026-05-26-sjas-track2a-coverage-status.md).
+
+## 2026-05-25
+
+- Logged the refined ADR-0072 internalization/correspondence program after the
+  discussion of whether `kernel/prove-programo` necessarily violates the SJAS
+  self-justification invariant. The note records the exchange verbatim,
+  summarizes the distinction between direct arithmeticization and theorem-backed
+  correspondence, and preserves a future goal prompt for the three coordinated
+  tracks: arithmeticization, relevance analysis for tableau intensional
+  features, and correspondence between the SJAS-specified deductive apparatus
+  and the Proflog kernel. See
+  [SJAS Internalization and Proflog Correspondence Program](docs/log/2026-05-25-sjas-internalization-correspondence-program.md).
+- Started [ADR-0073](docs/adr/ADR-0073-sjas-internalization-correspondence-program.md)
+  on branch `adr-0073-sjas-correspondence-program` to coordinate the refined
+  three-track program. Track 1 continues direct arithmeticization of SJAS proof
+  machinery; Track 2a classifies the tableau intensional measures relevant to
+  self-justification; Track 2b requires both a proper correspondence proof and
+  operational tests. The initial Track 2a matrix classifies tableau tree
+  structure, rule-induced branching, branch closure, inspectable code encoding,
+  and proof-size discipline as relevant; rule scheduling and runtime mechanics
+  as probably irrelevant subject to proof; and equality, procedure-call/profile
+  rules, quantifier policy, and Proflog proof-certificate layout as unresolved.
+  See
+  [SJAS Tableau Relevance Matrix](docs/log/2026-05-25-sjas-tableau-relevance-matrix.md).
+- Continued ADR-0073 by adding an executable proof-symbol classification audit
+  for the encoded SJAS certificate alphabet. The red test first failed because
+  the audit namespace did not exist; the green implementation classifies every
+  symbol that `proflog.willard-sjas-code` can encode as relevant or unresolved
+  under the current Track 2a matrix, and reports unresolved obligations for
+  equality, procedure-call/profile, and optimized-layer constructors appearing
+  in actual proof terms. The ADR and relevance matrix now also specify that
+  Track 2b's "proper proof" requires compatible formal semantics for both the
+  Proflog kernel and the SJAS tableau apparatus, or a third-party/common
+  intermediate formalization capable of rigorous equivalence checking.
+  Verification: focused `proflog.sjas-correspondence-test` passed 3 tests /
+  9 assertions; `lein test-proflog-fast` passed 149 tests / 562 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions.
+- Deepened ADR-0073 Track 2a relevance analysis on branch
+  `adr-0073-track2a-relevance`. The follow-up note corroborates the user
+  hypothesis conditionally: tableau tree shape, rule-induced child structure,
+  closure, inspectable coding, substitution vocabulary, axiom basis, and proof
+  size growth are relevant, while rule scheduling and runtime mechanics are
+  irrelevant only after proving they preserve accepted proof trees and size
+  bounds. It leaves equality, procedure calls, profiled closure, quantifier
+  witness policy, beta validation, and proof-certificate constructor layout as
+  explicit Track 2b proof obligations. See
+  [SJAS Tableau Relevance Deep Dive](docs/log/2026-05-25-sjas-tableau-relevance-deep-dive.md).
+- Added a Track 2a runtime reachability audit for representative
+  non-`sjas-axiom` SJAS certificates. The probe shows the current Tableau-0
+  beta, arithmetic theorem, and Group-3 certificates use a smaller constructor
+  set than the full encodable alphabet, but `profiled`,
+  `willard-sjas-tableau0`, `willard-sjas-arithmetic`, and `sjas-equal` are
+  actually reachable, not merely theoretical. Procedure-call and general
+  equality/disequality constructors were not reached by this probe. See
+  [SJAS Proof-Constructor Reachability Audit](docs/log/2026-05-25-sjas-proof-constructor-reachability-audit.md).
+- Refined the ADR-0073 Track 2a classification of `profiled` proof wrappers.
+  The outer `(profiled willard-sjas-tableau0 p)` and
+  `(profiled willard-sjas-level1 p)` wrappers are probably irrelevant
+  annotations if wrapper erasure and profile selection are proven. By contrast,
+  `willard-sjas-arithmetic`, code, proof-check, and subst-proof-check wrappers
+  mark relevant object-language or bridge work. Generic `(profiled
+  propositional p)` and `(profiled first-order p)` sidecars appear excluded
+  from ordinary SJAS profile proofs because the profile hides `:clauses` before
+  kernel search. See
+  [SJAS Profile Wrapper Relevance](docs/log/2026-05-25-sjas-profile-wrapper-relevance.md).
+- Continued the profile-wrapper refinement by making the executable
+  `proflog.sjas-correspondence` audit path-sensitive for concrete
+  `(profiled kind subproof)` forms. The red test first failed because
+  `classify-profile-form` did not exist; the green implementation classifies
+  outer SJAS profile annotations as probably irrelevant, arithmetic/code/proof
+  wrappers as relevant, and generic propositional/first-order sidecars as
+  probably excluded. Verification: focused
+  `profile-wrapper-audit-is-path-sensitive` passed 1 test / 3 assertions;
+  `proflog.sjas-correspondence-test` passed 4 tests / 12 assertions;
+  `lein test-proflog-fast` passed 150 tests / 565 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions.
+- Probed Level-1 proof-constructor reachability for Track 2a and did not
+  retain it as a verifier. The broad command attempted to synthesize Level-1
+  beta and Group-3 theorem proofs through `sjas/query-succeeds`, then audit
+  their proof terms; it produced no constructor inventory after several
+  minutes. The follow-up note records this as an impractical evidence path and
+  narrows the next requirement to auditing supplied Level-1 certificates or
+  adding an explicit slow reachability test, rather than conflating constructor
+  reachability with expensive theorem search. See
+  [SJAS Level-1 Proof-Constructor Reachability Probe Boundary](docs/log/2026-05-25-sjas-level1-reachability-probe-boundary.md).
+- Followed the narrowed Level-1 path by auditing a supplied `sjas-axiom`
+  `subst-prf/4` validation proof under a `240s` shell timeout. The direct
+  validation probe returned one proof containing `(profiled
+  willard-sjas-level1 (profiled willard-sjas-subst-proof-check
+  (sjas-code-bytes) (willard-sjas-subst-code) sjas-axiom))`, confirming that
+  Level-1 substitution proof-check and substitution-code wrappers are reachable
+  in proof-predicate validation. The executable profile-form classifier now
+  accepts relation-specific profiled payload arities after a red test exposed
+  that the earlier three-element wrapper assumption missed
+  `willard-sjas-subst-proof-check`. Verification:
+  `proflog.sjas-correspondence-test` passed 5 tests / 14 assertions; `lein
+  test-proflog-fast` passed 151 tests / 567 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions.
+- Ran a bounded reflected-clause reachability probe for Track 2a. Proving
+  `demo(1)` in the Tableau-0 demo system returned a certificate containing
+  `neg-call`, so procedure-call constructors are reachable in current SJAS
+  proof certificates covering reflected clauses. This converts procedure-call
+  treatment from a speculative Track 2b risk into a concrete obligation:
+  either primitive SJAS rule status, bounded macro expansion through reflected
+  Group-2b axioms, or an explicit fragment exclusion. The result is recorded in
+  [SJAS Proof-Constructor Reachability Audit](docs/log/2026-05-25-sjas-proof-constructor-reachability-audit.md).
+- Classified finite `fuel` for ADR-0073 Track 2a. Fuel is not a Willard
+  proof-object feature, but it is an operational Proflog evaluator bound that
+  can affect whether a supplied certificate validates at a particular finite
+  bound. Track 2b must therefore state either an unbounded/existentially
+  sufficient-fuel correspondence theorem, or an explicit bounded-search theorem
+  with its own size relation. See
+  [SJAS Fuel Relevance](docs/log/2026-05-25-sjas-fuel-relevance.md).
+
+## 2026-05-23
+
+- Continued [ADR-0072](docs/adr/ADR-0072-sjas-object-level-proof-machinery.md)
+  by removing the generated proof-antecedent registry. The red tests required
+  the SJAS registry to omit `:sjas/system-entries` and required
+  `tableau-proof/3` and `subst-prf/4` non-`sjas-axiom` certificates to keep
+  working after that key was removed manually. The green implementation makes
+  theorem-query antecedents use canonical code-nom binders at source
+  compilation, decodes `system-code` during proof-predicate application, maps
+  the decoded theorem axioms to the double-negated antecedent shape used by the
+  kernel refutation, and left-conjoins the reconstructed list in builder order.
+  The direct proof-predicate paths now reject active `system-code` terms as
+  ill-typed theorem/source formula codes before expensive certificate decoding
+  or antecedent reconstruction. Deferred boundary: arbitrary bad decoded kernel
+  proof terms and Level-1 beta-style proof-mismatch checks still need the
+  planned proof-code tree checker instead of `kernel/prove-programo`.
+  The bounded contradiction timing probe now uses an `sjas-axiom` contradiction
+  citation so it records the same not-found timing shape without entering that
+  deferred generic proof-term checker path. Verification: focused no-registry
+  tableau/subst regressions, generated theorem-code proof checks, structural
+  non-generated theorem-code checks, the source audit, and the contradiction
+  timing probe passed under 600 second bounds; `lein test-proflog-fast` passed
+  145 tests / 548 assertions; `lein test-proflog-extended` passed 68 tests /
+  203 assertions; and `lein test-proflog-sjas` passed 44 tests / 251 assertions.
+- Continued ADR-0072 by making compact formula-code syntax predicates expose
+  constructor-byte proof evidence. The red test required successful `wff/1`
+  proofs over compact codes to contain `sjas-code-arg` rather than only the
+  bare staged `sjas-code-bytes` marker. The green implementation threads proof
+  evidence through the compact code-argument relation and removes the
+  `ground-formal-code-term` shortcut from the syntax predicate decoder. The
+  earlier failed attempt showed that applying the same compact relational reader
+  to generic non-`sjas-axiom` proof-certificate theorem targets makes the
+  substantive self-consistency demonstration impractical, so that path now has
+  an explicit compact-only staged decoder and substitution target decoding keeps
+  its existing ground-code staging. Verification: focused syntax, structural
+  non-generated syntax, U-Grounding byte-reader, substitution, and substantive
+  self-consistency regressions passed under 600 second bounds; `lein
+  test-proflog-fast` passed 145 tests / 548 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions; and `lein
+  test-proflog-sjas` passed 44 tests / 253 assertions.
+- Continued ADR-0072 by exposing compact beta axiom theorem-code bytes through
+  the object code-byte relation. The red test required the beta
+  `sjas-axiom` proof branch to include `sjas-code-arg`; before the change it
+  returned only `(sjas-system-code-bytes (sjas-code-bytes))` for both system and
+  formula code reads. Reading both compact `system-code` and theorem code
+  relationally exceeded the 600 second focused bound, so the green
+  implementation keeps compact `system-code` staged and routes the smaller beta
+  theorem-code argument through `sjas-object-code-byteso`. Focused verification:
+  `sjas-tableau-proof-accepts-axiom-citation-certificates` passed 1 test /
+  4 assertions under the 600 second bound. Full verification: `lein
+  test-proflog-fast` passed 145 tests / 548 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions; and `lein
+  test-proflog-sjas` passed 44 tests / 254 assertions.
+- Continued ADR-0072 by exposing compact fixed-axiom theorem-code bytes through
+  the object code-byte relation. The red test required Group-0 and Group-1
+  `sjas-axiom` citation proofs to contain `sjas-code-arg`; before the change
+  both formula-code reads used the staged `(sjas-code-bytes)` marker. The green
+  implementation keeps compact `system-code` staged but routes the cited fixed
+  axiom formula code through `sjas-object-code-byteso`. Focused verification:
+  `sjas-tableau-proof-cites-fixed-axiom-groups-from-system-code` passed 1 test /
+  8 assertions under the 600 second bound. Full verification: `lein
+  test-proflog-fast` passed 145 tests / 548 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions; and `lein
+  test-proflog-sjas` passed 44 tests / 256 assertions.
+- Probed three additional ADR-0072 internalization moves and did not retain
+  their code. Reading reflected axiom theorem-code bytes through the object
+  compact-code relation exceeded the focused reflected citation bound. Replacing
+  the compact byte-term lookup with constructor-bit peeling made focused syntax
+  and citation tests green, but the full SJAS suite stalled in the structural
+  non-generated theorem-code negative check. Returning even a bounded
+  proof-code byte-read summary made focused proof checks green, but the full
+  SJAS suite stalled in the compact kernel-certificate proof check. These
+  remain real ADR-0072 boundaries: reflected formula-code reads, compact byte
+  argument arithmetic, and proof-code read evidence need a different
+  proof-search strategy rather than simply returning larger relational proof
+  trees.
+- Continued ADR-0072 by removing stale side-table placeholders from compiled
+  SJAS program maps. The red tests required generated SJAS programs to omit
+  top-level `:sjas/system-code`, `:sjas/fact-atoms`, and `:sjas/proof-targets`
+  keys, and required the generic procedure-call relation to keep resolving
+  clauses for a registry-only profile-bearing compiled program. The green
+  implementation leaves live source-preprocessing metadata under
+  `:sjas/registry` and removes the old nil/empty top-level compatibility slots
+  from both the SJAS builder and the program-view relation. Focused
+  verification: `call-clauseo-accepts-registry-only-profile-metadata` passed 1
+  test / 5 assertions, and `sjas-formal-codes-are-godel-byte-terms` passed 1
+  test / 11 assertions. Full verification: `lein test-proflog-fast` passed 146
+  tests / 553 assertions; `lein test-proflog-extended` passed 68 tests / 203
+  assertions; and `lein test-proflog-sjas` passed 44 tests / 256 assertions.
+- Continued ADR-0072 by removing the matching top-level source-metadata
+  fallbacks from the SJAS kernel profile. The red test manually dropped
+  `:sjas/registry`, reintroduced `:sjas/system-code`, `:sjas/code-format`, and
+  `:sjas/symbol-index-entries` on the compiled program map, and showed that a
+  Group-0 `sjas-axiom` citation still succeeded. The green implementation makes
+  active-system, code-format, and symbol-index lookup ignore stale top-level
+  program keys, leaving the source-preprocessing registry as the only accepted
+  host metadata path. Focused verification: the new registry-requirement
+  regression passed 1 test / 2 assertions; fixed-axiom citation passed 1 test /
+  8 assertions; beta citation passed 1 test / 4 assertions; the
+  beta/reflected composite check passed 1 test / 9 assertions; and syntax-code
+  decoding passed 1 test / 8 assertions. Full verification: `lein
+  test-proflog-fast` passed 146 tests / 553 assertions; `lein
+  test-proflog-extended` passed 68 tests / 203 assertions; and `lein
+  test-proflog-sjas` passed 45 tests / 258 assertions.
+- Probed the next possible ADR-0072 byte-reader slice for `subst-code/2` source
+  formula codes and did not retain it. The red test required the
+  `subst-code(selfcons-skeleton-code, group3-code)` proof to expose
+  `sjas-code-arg` evidence instead of the bare `(profiled
+  willard-sjas-subst-code)` marker. Removing the source-side
+  `ground-formal-code-term` branch and threading the object byte-read proof made
+  the focused Level-1 substitution regression run for roughly eight minutes
+  without completing, so the code and test changes were backed out. This remains
+  a real boundary, but it needs a bounded source-code reader or a proof shape
+  that avoids re-walking the compact skeleton before it can be made green.
+
+## 2026-05-21
+
+- Completed OCR, assessment, and organization of Dan Willard's collected
+  nachlass scans in the nested `sjas/` repo:
+  [`collected_dew_materials/README.md`](sjas/nachlass/collected_dew_materials/README.md).
+  Eighteen unique PDF witnesses (225 pages) now have merged OCR text under
+  `ocr/text/`, a `manifest.tsv` inventory, topic indexes, and reproducible
+  scripts. One exact duplicate alias was skipped. Quality is mostly
+  `needs_review` (ocrad fallback on typewriter/fax scans); the 2020
+  incompleteness lecture notes and 2008 ZCF/ZF drafts are grep-searchable but
+  not formula-authoritative. Dec 2025 scans include additional incompleteness
+  and Hilbert-program drafts plus a Trivers-Willard biology article. See
+  [`sjas/nachlass/LOG.md`](sjas/nachlass/LOG.md).
+- Started [ADR-0072](docs/adr/ADR-0072-sjas-object-level-proof-machinery.md)
+  on branch `adr-0072-sjas-object-proof-machinery`. The active goal is to
+  internalize SJAS proof machinery so that arithmetic coding and decoding
+  needed while applying predicates such as `tableau-proof/3` and `subst-prf/4`
+  happens at the kernel/object-code level. The first implementation slice
+  targets theorem-code decoding inside proof predicates; later slices must
+  remove generated system/axiom registries and eventually replace decoded
+  Proflog proof-term validation with code-level tableau proof-tree checking.
+- During the first ADR-0072 slice, rejected a ground host-side theorem-code
+  decoder as insufficient: it decoded actual bytes rather than using the
+  formula registry, but still materialized proof targets in Clojure during
+  `tableau-proof/3`. The pure relational fix was to make structural code-to-AST
+  translation construct variable and quantifier nodes with concrete shared
+  code-nom constants instead of calling nominal constructors on logic variables.
+- ADR-0072 first-slice verification before commit `b8615cf`: focused
+  theorem-code proof checks passed (`sjas-tableau-proof-checks-kernel-certificates`,
+  `sjas-subst-prf-checks-identity-substitution-certificates`,
+  `sjas-tableau-proof-checks-structural-non-generated-theorem-codes`,
+  `sjas-subst-prf-checks-structural-non-generated-theorem-codes`, plus the
+  self-consistency certificate regression). `lein test-proflog-fast` passed
+  145 tests / 548 assertions; `lein test-proflog-extended` passed 68 tests /
+  203 assertions; `lein test-proflog-sjas` passed 35 tests / 223 assertions.
+  The full SJAS namespace run was approximately 29 minutes after removing the
+  theorem-target registry shortcut.
+- Continued ADR-0072 by removing generated formula syntax registries from
+  SJAS predicate application. The red test first asserted that the active SJAS
+  registry no longer carries `:sjas/formula-entries`,
+  `:sjas/formula-negation-entries`, `:sjas/formula-class-entries`, or
+  `:sjas/neg-pair-entries`; it failed while those tables were still generated.
+  The green implementation makes `wff/1`, formula-class predicates, and
+  `neg-pair/2` use structural formula-code decoding rather than finite formula
+  lookup tables. Focused verification: `sjas-syntax-predicates-decode-formula-godel-codes`
+  passed 1 test / 7 assertions, and
+  `sjas-structural-code-predicates-accept-non-generated-formula-codes` passed
+  1 test / 5 assertions. Isolated fresh-JVM timings for the smallest
+  `true/false` code path were approximately 10.2s for `wff/1`, 10.5s for
+  `delta-star-0-code/1`, and 29.4s for `neg-pair/2`. This removes the generated
+  formula registry but does not yet eliminate `ground-formal-code-term`; that
+  deterministic byte extractor is host-side computation and remains an
+  ADR-0072 boundary to remove or strictly isolate from the semantic
+  proof-predicate path. Regression verification after the change:
+  `lein test-proflog-fast` passed 145 tests / 548 assertions,
+  `lein test-proflog-extended` passed 68 tests / 203 assertions, and
+  `lein test-proflog-sjas` passed 35 tests / 224 assertions in approximately
+  30.5 minutes.
+- Attempted the next ADR-0072 slice: removing compact `code-N` terms from the
+  deterministic formula/substitution-code byte extractor. A red test required
+  `wff/1` proof evidence to include `sjas-code-arg`, distinguishing relational
+  byte-argument parsing from host byte-vector extraction. The focused syntax,
+  tableau-proof, substitution-proof, general substitution, and fixed-point
+  certificate probes could be made green, but the substantive self-consistency
+  demonstration did not complete after roughly 30 minutes in isolation, and the
+  full SJAS namespace was stopped twice at roughly 56-58 minutes. The attempted
+  code change was not retained; compact and U-Grounding ground byte extraction
+  remain an explicit ADR-0072 boundary pending a better object-level code
+  reader.
+- Continued ADR-0072 by moving Group-2 beta axiom citation off generated
+  `axiom-member/2` metadata. The red test required
+  `sjas-tableau-proof-accepts-axiom-citation-certificates` to include
+  `sjas-system-beta-axiom` evidence; before the change it returned only
+  `(willard-sjas-axiom-member (sjas-generated-axiom-member))`. The green
+  implementation decodes the beta formula byte section of `system-code` and
+  compares it to the theorem-code bytes before falling back to generated
+  metadata for non-beta axiom groups. This is progress but not completion:
+  Group-0, Group-1, reflected Group-2b, and Group-3 membership still fall back
+  to generated facts, and the beta path still uses `ground-formal-code-term` to
+  expose already-ground byte strings. Verification: focused axiom-citation,
+  kernel-certificate, substitution-certificate, and substantive self-consistency
+  tests passed; `lein test-proflog-fast` passed 145 tests / 548 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions; and
+  `lein test-proflog-sjas` passed 35 tests / 225 assertions in approximately
+  37 minutes.
+- Continued ADR-0072 by moving reflected Group-2b axiom citation off generated
+  `axiom-member/2` metadata. The red test used a `composite/1` reflected clause
+  and required the `tableau-proof(system-code, reflected-clause-code,
+  sjas-axiom-code)` proof to contain `sjas-system-reflected-axiom` evidence;
+  before the change it closed through the generated axiom-member fallback. The
+  green implementation reads the reflected-clause section of `system-code`,
+  reconstructs `forall x1 ... forall xn. body -> R(x1, ..., xn)`, and compares
+  that formula against the theorem code modulo alpha-equivalence. This is
+  progress but not completion: Group-0, Group-1, and Group-3 membership still
+  fall back to generated facts, and the reflected path still uses
+  `ground-formal-code-term` to expose already-ground byte strings. Verification:
+  `lein test-proflog-sjas` passed 35 tests / 227 assertions in approximately
+  44 minutes.
+- Continued ADR-0072 by moving fixed Group-0 and Group-1 axiom citation off the
+  generated `axiom-member/2` fallback. The red test required `sjas-axiom`
+  certificates for representative Group-0 and Group-1 records to contain
+  `sjas-system-group-zero-axiom` or `sjas-system-group-one-axiom`, and to omit
+  `sjas-generated-axiom-member`; before the change both closed through the
+  generated fallback. The green implementation validates the encoded system
+  header, decodes the theorem formula code, and matches fixed axiom formulas in
+  the compact decoded representation. This is progress but not completion:
+  Group-3 membership still falls back to generated facts, the fixed path still
+  uses `ground-formal-code-term`, and proof predicates still validate decoded
+  proof terms by invoking the kernel. Verification: focused fixed-axiom,
+  beta-axiom, reflected-clause, and substantive self-consistency tests passed;
+  `lein test-proflog-fast` passed 145 tests / 548 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions; and
+  `lein test-proflog-sjas` passed 36 tests / 233 assertions in approximately
+  41 minutes.
+- Continued ADR-0072 by moving Tableau-0 Group-3 axiom citation off generated
+  `axiom-member/2` metadata. The red test required a `sjas-axiom` certificate
+  for the Tableau-0 self-consistency axiom to contain
+  `sjas-system-group-three-axiom` and omit `sjas-generated-axiom-member`; before
+  the change it used the generated fallback. The green implementation validates
+  the Tableau-0 system-code header, decodes the theorem formula, and reconstructs
+  `forall p. not tableau-proof(system-code, false-code, p)` using either compact
+  embedded code terms or U-Grounding sentinel numerals. This is progress but not
+  completion: Level-1 Group-3 still falls back to generated facts, all current
+  axiom-group decoders still use `ground-formal-code-term`, and proof predicates
+  still validate decoded proof terms by invoking the kernel. Verification:
+  focused Tableau-0 Group-3, fixed-axiom, beta-axiom, reflected-clause, and
+  substantive self-consistency tests passed; `lein test-proflog-fast` passed
+  145 tests / 548 assertions; `lein test-proflog-extended` passed 68 tests /
+  203 assertions; and `lein test-proflog-sjas` passed 37 tests / 236 assertions
+  in approximately 50 minutes.
+- Continued ADR-0072 by moving Level-1 Group-3 axiom citation off generated
+  `axiom-member/2` metadata. The red test required a `sjas-axiom` certificate
+  for the Level-1 self-consistency axiom to contain
+  `sjas-system-level1-group-three-axiom` and omit
+  `sjas-generated-axiom-member`; before the change it used the generated
+  fallback. The green implementation validates the Level-1 system-code header,
+  decodes the final Group-3 formula, extracts and decodes the embedded
+  substitution-code term, and checks that the embedded code denotes the expected
+  fixed-point skeleton over the same system-code term. This is progress but not
+  completion: standard axiom citations no longer require generated facts, but
+  the generated fallback branch remains, all current axiom-group decoders still
+  use `ground-formal-code-term`, and proof predicates still validate decoded
+  proof terms by invoking the kernel. Verification: focused Level-1 Group-3,
+  Tableau-0 Group-3, fixed-axiom, beta-axiom, reflected-clause, and substantive
+  self-consistency tests passed; `lein test-proflog-fast` passed 145 tests /
+  548 assertions; `lein test-proflog-extended` passed 68 tests / 203 assertions;
+  and `lein test-proflog-sjas` passed 38 tests / 239 assertions in
+  approximately 49 minutes.
+- Continued ADR-0072 by removing the generated `axiom-member/2` fallback from
+  `sjas-axiom` proof-certificate checking. The red test injected a bogus
+  generated membership fact for the contradiction code and showed that
+  `tableau-proof(system-code, false-code, sjas-axiom-code)` incorrectly trusted
+  it. Removing the fallback exposed a legitimate relational `subst-prf` path
+  where code terms are bound by core.logic rather than immediately visible to
+  host ground extraction; the fix walks code terms through equality sigma before
+  structural axiom membership, preserves sigma in ground substitution-source
+  checks, and lets the staged byte reader fall back to the structural code
+  relation when host extraction fails. This is progress but not completion:
+  ordinary `axiom-member/2` queries still close from generated facts,
+  `ground-formal-code-term` remains as the fast path for already-ground codes,
+  and proof predicates still validate decoded proof terms by invoking the
+  kernel. Verification: the injected-fact test, all focused axiom-citation
+  tests, substantive self-consistency, and the subst-prf independence regression
+  passed; `lein test-proflog-fast` passed 145 tests / 548 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions; and
+  `lein test-proflog-sjas` passed 39 tests / 240 assertions in approximately
+  56 minutes.
+- Continued ADR-0072 by removing the generated `axiom-member/2` fact path from
+  ordinary SJAS predicate evaluation. The red test injected a bogus generated
+  membership fact for the contradiction code and required
+  `axiom-member(system-code, false-code)` to keep failing. The green
+  implementation routes ordinary `axiom-member/2` closure through the same
+  decoded system-code membership relation used by `sjas-axiom` proof
+  certificates, and adds `axiom-member/2` to the direct SJAS profile route so
+  ground code queries avoid generic agenda walking before structural decoding.
+  This is progress but not completion: builder-generated `axiom-member/2`
+  clauses and registry fact metadata still exist as artifacts, current
+  membership decoders still use `ground-formal-code-term` for already-ground
+  public codes, and proof predicates still validate decoded proof terms by
+  invoking the kernel. Verification so far: the injected ordinary-query test
+  passed in 19 seconds; focused positive builder, composite beta/reflected,
+  cross-profile generated-axiom, axiom-citation, fixed-axiom, Tableau-0
+  Group-3, Level-1 Group-3, and injected proof-certificate tests passed;
+  `lein test-proflog-fast` passed 145 tests / 548 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions; and
+  `lein test-proflog-sjas` passed 40 tests / 241 assertions in approximately
+  63 minutes.
+- Continued ADR-0072 by removing the stale generated `axiom-member/2` builder
+  metadata. The red test required the SJAS registry to omit `:sjas/fact-atoms`
+  and the compiled program to omit generated `axiom-member` clauses; it failed
+  while the registry still stored the finite generated fact table. The green
+  implementation removes the old fact-table builder and leaves
+  `axiom-member/2` membership solely to decoded system-code membership in the
+  proof profile. Also tightened `sjas-axiom` proof-certificate dispatch so a
+  failed axiom citation cannot fall through into generic kernel proof search.
+  An inherited full-SJAS process from the interrupted session was stopped after
+  more than two hours; its stack was in a slow `subst-prf` path that later
+  passed as a focused test. Verification: the artifact-removal test passed; the
+  injected ordinary-query and proof-certificate regressions passed after
+  manually injecting stale registry facts; the axiom-citation no-fallthrough
+  regression passed; `sjas-subst-prf-uses-substitution-code-independently-of-theorem-code`
+  passed in about 150 seconds; `lein test-proflog-fast` passed 145 tests / 548
+  assertions; `lein test-proflog-extended` passed 68 tests / 203 assertions;
+  and a clean `lein test-proflog-sjas` passed 41 tests / 243 assertions in
+  about 35 minutes.
+- Continued ADR-0072 by isolating the U-Grounding axiom-citation byte decoder
+  from the deterministic host shortcut. The red test required a ground
+  U-Grounding `tableau-proof/3` citation to include `sjas-ug-code-byte-cons`
+  evidence for system/theorem code decoding; before the change it succeeded
+  with only `sjas-system-code-bytes (sjas-ug-code-bytes)`. A blunt removal of
+  the shortcut timed out after materializing the complete bit list for a large
+  system numeral, so the green implementation uses a bounded kernel relation
+  that peels six canonical `0`/`1`/`dbl`/`add(_,1)` bits per byte and records a
+  summarized fixed-radix byte-cons proof. Compact `code-N` constructor decoding
+  remains on the legacy shortcut path for now, and other
+  `ground-formal-code-term` uses remain in formula/substitution decoding.
+  Verification: the red U-Grounding proof-predicate test passed after the
+  object decoder in about 45 seconds; U-Grounding syntax, bound-code, and
+  subst-code focused tests passed; compact axiom-citation and ordinary
+  `axiom-member/2` regressions passed after restoring the compact-only shortcut;
+  `lein test-proflog-fast` passed 145 tests / 548 assertions;
+  `lein test-proflog-extended` passed 68 tests / 203 assertions; and a clean
+  `lein test-proflog-sjas` passed 41 tests / 246 assertions in about 33
+  minutes.
+
 ## 2026-05-20
 
 - Logged Willard's semantic-tableaux proof-encoding requirements and linked

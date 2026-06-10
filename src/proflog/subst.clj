@@ -6,7 +6,8 @@
    program compiler straightforward; the relational helpers preserve the data
    flow shape the later tableau kernel will need."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [!= == conde fresh lcons]]
+  (:require [clojure.core.logic :as logic
+             :refer [!= == conde fresh lcons]]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]))
 
@@ -79,6 +80,22 @@
                    narrowed-env (remove-binding env (:binding-nom tied))]
                (ast/exists-form (:binding-nom tied)
                                 (subst-formula (:body tied) narrowed-env)))
+      bounded-forall (let [tied (second formula)
+                           binding-nom (:binding-nom tied)
+                           {:keys [bound body]} (:body tied)
+                           narrowed-env (remove-binding env binding-nom)]
+                       (list 'bounded-forall
+                             (nominal/tie binding-nom
+                                          {:bound (subst-term bound narrowed-env)
+                                           :body (subst-formula body narrowed-env)})))
+      bounded-exists (let [tied (second formula)
+                           binding-nom (:binding-nom tied)
+                           {:keys [bound body]} (:body tied)
+                           narrowed-env (remove-binding env binding-nom)]
+                       (list 'bounded-exists
+                             (nominal/tie binding-nom
+                                          {:bound (subst-term bound narrowed-env)
+                                           :body (subst-formula body narrowed-env)})))
       formula)))
 
 ;; -----------------------------------------------------------------------------
@@ -91,8 +108,9 @@
   (fresh [rest]
     (conde
       [(== (lcons [binding-nom value] rest) env)]
-      [(fresh [pair]
-         (== (lcons pair rest) env)
+      [(fresh [skipped-key skipped-value]
+         (== (lcons [skipped-key skipped-value] rest) env)
+         (nominal/hash binding-nom skipped-key)
          (lookupo binding-nom rest value))])))
 
 (defn unboundo
@@ -120,6 +138,31 @@
        (remove-bindo binding-nom rest out-rest))]))
 
 (declare subst-termo subst-term*o subst-formulao)
+
+(defn- acyclic-unifyo
+  "Unify acyclic AST terms without recursively occurs-checking ground structure.
+
+   The empty-environment substitution case is the identity relation, but ordinary
+   `==` still scans the whole formula when it binds the output variable. Large
+   arithmetized code numerals can be thousands of constructors deep, so the
+   identity path uses core.logic unification with the occurs check disabled only
+   for that single first-order AST binding step."
+  [left right]
+  (fn [state]
+    (let [had-constraints? (pos? (count (:cs state)))
+          prepared-state (cond-> state
+                           had-constraints? (assoc :vs [])
+                           true (assoc :oc false))
+          unified-state (logic/unify prepared-state left right)]
+      (when unified-state
+        (let [restored-state (assoc unified-state :oc (:oc state))
+              changed-vars (when had-constraints? (:vs restored-state))]
+          (if (and had-constraints? (pos? (count changed-vars)))
+            ((logic/run-constraints* changed-vars
+                                     (:cs restored-state)
+                                     ::subst)
+             (assoc restored-state :vs nil))
+            restored-state))))))
 
 (defn subst-termo
   "Relational term substitution.
@@ -157,62 +200,89 @@
   "Relational formula substitution with binder-aware environment shadowing."
   [formula env out]
   (conde
-    [(== (list 'true) formula)
-     (== (list 'true) out)]
-    [(== (list 'false) formula)
-     (== (list 'false) out)]
-    [(fresh [atom atom-out]
-       (== (list 'pos atom) formula)
-       (== (list 'pos atom-out) out)
-       (subst-termo atom env atom-out))]
-    [(fresh [atom atom-out]
-       (== (list 'neg atom) formula)
-       (== (list 'neg atom-out) out)
-       (subst-termo atom env atom-out))]
-    [(fresh [left right left-out right-out]
-       (== (list 'eq left right) formula)
-       (== (list 'eq left-out right-out) out)
-       (subst-termo left env left-out)
-       (subst-termo right env right-out))]
-    [(fresh [left right left-out right-out]
-       (== (list 'neq left right) formula)
-       (== (list 'neq left-out right-out) out)
-       (subst-termo left env left-out)
-       (subst-termo right env right-out))]
-    [(fresh [left right left-out right-out]
-       (== (list 'and left right) formula)
-       (== (list 'and left-out right-out) out)
-       (subst-formulao left env left-out)
-       (subst-formulao right env right-out))]
-    [(fresh [left right left-out right-out]
-       (== (list 'or left right) formula)
-       (== (list 'or left-out right-out) out)
-       (subst-formulao left env left-out)
-       (subst-formulao right env right-out))]
-    [(fresh [body body-out]
-       (== (list 'not body) formula)
-       (== (list 'not body-out) out)
-       (subst-formulao body env body-out))]
-    [(fresh [left right left-out right-out]
-       (== (list 'implies left right) formula)
-       (== (list 'implies left-out right-out) out)
-       (subst-formulao left env left-out)
-       (subst-formulao right env right-out))]
-    [(nominal/fresh [binding-nom]
-       (fresh [body body-out narrowed-env]
-         (== (list 'forall (nominal/tie binding-nom body)) formula)
-         (== (list 'forall (nominal/tie binding-nom body-out)) out)
-         (remove-bindo binding-nom env narrowed-env)
-         (subst-formulao body narrowed-env body-out)))]
-    [(nominal/fresh [binding-nom]
-       (fresh [body body-out narrowed-env]
-         (== (list 'once-forall (nominal/tie binding-nom body)) formula)
-         (== (list 'once-forall (nominal/tie binding-nom body-out)) out)
-         (remove-bindo binding-nom env narrowed-env)
-         (subst-formulao body narrowed-env body-out)))]
-    [(nominal/fresh [binding-nom]
-       (fresh [body body-out narrowed-env]
-         (== (list 'exists (nominal/tie binding-nom body)) formula)
-         (== (list 'exists (nominal/tie binding-nom body-out)) out)
-         (remove-bindo binding-nom env narrowed-env)
-         (subst-formulao body narrowed-env body-out)))]))
+    [(== '() env)
+     (acyclic-unifyo formula out)]
+    [(fresh []
+       (!= '() env)
+       (conde
+         [(== (list 'true) formula)
+          (== (list 'true) out)]
+         [(== (list 'false) formula)
+          (== (list 'false) out)]
+         [(fresh [atom atom-out]
+            (== (list 'pos atom) formula)
+            (== (list 'pos atom-out) out)
+            (subst-termo atom env atom-out))]
+         [(fresh [atom atom-out]
+            (== (list 'neg atom) formula)
+            (== (list 'neg atom-out) out)
+            (subst-termo atom env atom-out))]
+         [(fresh [left right left-out right-out]
+            (== (list 'eq left right) formula)
+            (== (list 'eq left-out right-out) out)
+            (subst-termo left env left-out)
+            (subst-termo right env right-out))]
+         [(fresh [left right left-out right-out]
+            (== (list 'neq left right) formula)
+            (== (list 'neq left-out right-out) out)
+            (subst-termo left env left-out)
+            (subst-termo right env right-out))]
+         [(fresh [left right left-out right-out]
+            (== (list 'and left right) formula)
+            (== (list 'and left-out right-out) out)
+            (subst-formulao left env left-out)
+            (subst-formulao right env right-out))]
+         [(fresh [left right left-out right-out]
+            (== (list 'or left right) formula)
+            (== (list 'or left-out right-out) out)
+            (subst-formulao left env left-out)
+            (subst-formulao right env right-out))]
+         [(fresh [body body-out]
+            (== (list 'not body) formula)
+            (== (list 'not body-out) out)
+            (subst-formulao body env body-out))]
+         [(fresh [left right left-out right-out]
+            (== (list 'implies left right) formula)
+            (== (list 'implies left-out right-out) out)
+            (subst-formulao left env left-out)
+            (subst-formulao right env right-out))]
+         [(nominal/fresh [binding-nom]
+            (fresh [body body-out narrowed-env]
+              (== (list 'forall (nominal/tie binding-nom body)) formula)
+              (== (list 'forall (nominal/tie binding-nom body-out)) out)
+              (remove-bindo binding-nom env narrowed-env)
+              (subst-formulao body narrowed-env body-out)))]
+         [(nominal/fresh [binding-nom]
+            (fresh [body body-out narrowed-env]
+              (== (list 'once-forall (nominal/tie binding-nom body)) formula)
+              (== (list 'once-forall (nominal/tie binding-nom body-out)) out)
+              (remove-bindo binding-nom env narrowed-env)
+              (subst-formulao body narrowed-env body-out)))]
+         [(nominal/fresh [binding-nom]
+            (fresh [body body-out narrowed-env]
+              (== (list 'exists (nominal/tie binding-nom body)) formula)
+              (== (list 'exists (nominal/tie binding-nom body-out)) out)
+              (remove-bindo binding-nom env narrowed-env)
+              (subst-formulao body narrowed-env body-out)))]
+         [(nominal/fresh [binding-nom]
+            (fresh [bound body bound-out body-out narrowed-env]
+              (== (list 'bounded-forall
+                        (nominal/tie binding-nom {:bound bound :body body}))
+                  formula)
+              (== (list 'bounded-forall
+                        (nominal/tie binding-nom {:bound bound-out :body body-out}))
+                  out)
+              (remove-bindo binding-nom env narrowed-env)
+              (subst-termo bound narrowed-env bound-out)
+              (subst-formulao body narrowed-env body-out)))]
+         [(nominal/fresh [binding-nom]
+            (fresh [bound body bound-out body-out narrowed-env]
+              (== (list 'bounded-exists
+                        (nominal/tie binding-nom {:bound bound :body body}))
+                  formula)
+              (== (list 'bounded-exists
+                        (nominal/tie binding-nom {:bound bound-out :body body-out}))
+                  out)
+              (remove-bindo binding-nom env narrowed-env)
+              (subst-termo bound narrowed-env bound-out)
+              (subst-formulao body narrowed-env body-out)))]))]))

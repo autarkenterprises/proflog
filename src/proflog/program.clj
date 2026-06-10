@@ -16,24 +16,23 @@
   (:require [clojure.core.logic :refer [== conde fresh lcons membero]]))
 
 (defn- compiled-program-viewo
-  "Expose the standard compiled-program views, allowing profile metadata.
+  "Expose the standard compiled-program views, allowing registry metadata.
 
    `proflog.language/compile-program` returns the core map shape used by the
    procedure-call rules. Profiles may attach finite metadata at the top level
-   of that map, but the ordinary Procedure Call Rule must still see the same
-   clause views. Keeping these accepted shapes explicit preserves the relational
-   lookup contract while allowing SJAS-style profile annotations."
+   of that map, but SJAS now keeps that payload behind a registry so the
+   ordinary Procedure Call Rule still sees the same clause views without stale
+   proof-target or fact-table slots. Keeping these accepted shapes explicit
+   preserves the relational lookup contract while allowing SJAS-style profile
+   annotations."
   [program language clauses clause-list alternative-clause-list guarded-clause-list]
   (conde
-    [(fresh [system-code fact-atoms proof-targets registry]
+    [(fresh [registry]
        (== {:language language
             :clauses clauses
             :clause-list clause-list
             :alternative-clause-list alternative-clause-list
             :guarded-clause-list guarded-clause-list
-            :sjas/system-code system-code
-            :sjas/fact-atoms fact-atoms
-            :sjas/proof-targets proof-targets
             :sjas/registry registry}
            program))]
     [(== {:language language

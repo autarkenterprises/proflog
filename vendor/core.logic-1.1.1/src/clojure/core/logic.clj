@@ -224,11 +224,36 @@
 ;; =============================================================================
 ;; Substitutions
 
-(declare empty-s choice lvar lvar? pair lcons run-constraints*)
+(declare empty-s choice lvar lvar? pair lcons lcons? run-constraints*)
+
+(defn- occurs-check-worklist
+  "Return true when `u` occurs in any walked term reachable from `work`.
+  The upstream occurs check already loops across siblings, but it recurses when
+  descending into the first child. This worklist keeps child and sibling descent
+  in one host-stack frame while preserving the same term cases."
+  [s u work]
+  (loop [work work]
+    (if (seq work)
+      (let [v (walk s (first work))
+            work (next work)]
+        (cond
+          (lvar? v)
+          (if (= (walk s v) u)
+            true
+            (recur work))
+
+          (lcons? v)
+          (recur (conj (conj work (lnext v)) (lfirst v)))
+
+          (instance? clojure.lang.IPersistentCollection v)
+          (recur (reduce conj work v))
+
+          :else
+          (recur work)))
+      false)))
 
 (defn occurs-check [s u v]
-  (let [v (walk s v)]
-    (occurs-check-term v u s)))
+  (occurs-check-worklist s u (list v)))
 
 (defn ext [s u v]
   (if (and (:oc s) (occurs-check s u (if (subst-val? v) (:v v) v)))
@@ -862,11 +887,7 @@
 
   IOccursCheckTerm
   (occurs-check-term [v x s]
-    (loop [v v x x s s]
-      (if (lcons? v)
-        (or (occurs-check s x (lfirst v))
-            (recur (lnext v) x s))
-        (occurs-check s x v))))
+    (occurs-check-worklist s x (list v)))
 
   IBuildTerm
   (build-term [u s]
@@ -1040,11 +1061,7 @@
 
   clojure.lang.IPersistentCollection
   (occurs-check-term [v x s]
-    (loop [v v x x s s]
-      (if (seq v)
-        (or (occurs-check s x (first v))
-            (recur (next v) x s))
-        false))))
+    (occurs-check-worklist s x (list v))))
 
 ;; =============================================================================
 ;; Build Term

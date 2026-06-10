@@ -1,7 +1,9 @@
 (ns proflog.equality-test
   (:refer-clojure :exclude [==])
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.core.logic :as logic]
+            [clojure.test :refer [deftest is testing]]
             [proflog.ast :as ast]
+            [proflog.equality :as equality]
             [proflog.kernel :as kernel]
             [proflog.proof :as proof]))
 
@@ -15,6 +17,30 @@
   ([formula] (not-provable? formula 1))
   ([formula n]
    (empty? (kernel/prove formula n))))
+
+(deftest lookupo-guards-skipped-nominal-key
+  (testing "relational lookup cannot skip a key that later aliases the search key"
+    (ast/nom wanted
+      (is (= [:first]
+             (logic/run* [q]
+               (logic/fresh [key skipped out]
+                 (equality/lookupo key
+                                  (logic/lcons [skipped :first]
+                                               (logic/lcons [wanted :second] '()))
+                                  out)
+                 (logic/== key skipped)
+                 (logic/== skipped wanted)
+                 (logic/== q out))))))))
+
+(deftest bound-parameter-walk-is-deterministic
+  (testing "a parameter already bound by equality must walk to its binding only"
+    (ast/nom p
+      (let [bound (ast/app-term 'zero)]
+        (is (= [bound]
+               (logic/run* [q]
+                 (equality/walko (ast/par-term p)
+                                 (list [p bound])
+                                 q))))))))
 
 (deftest free-constructor-clash-closes-equality
   (testing "distinct constructors cannot be equal in the free-constructor theory"

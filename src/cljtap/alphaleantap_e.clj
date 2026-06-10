@@ -110,8 +110,9 @@
   (fresh [rest]
     (conde
       [(== (lcons [a out] rest) env)]
-      [(fresh [pair]
-         (== (lcons pair rest) env)
+      [(fresh [skipped-key skipped-value]
+         (== (lcons [skipped-key skipped-value] rest) env)
+         (hash a skipped-key)
          (lookupo a rest out))])))
 
 (declare subst-term*o)

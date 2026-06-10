@@ -1,5 +1,109 @@
 # Memory
 
+## 2026-06-09 Audit And ADR-0087 Level-1 Literature Fidelity
+
+- The Level-1 Group-3 matrix opens with `pi-star-1-code(x)` ahead of
+  `neg-pair(x,y)`: Willard 2013 sentence (7) restricts the pair to Pi-star-1
+  sentence/complement pairs, and Definition 5.1 carries that Group-3 into
+  `IS#_D(beta)`. Asserting the unrestricted complement-pair sentence is
+  strictly stronger than the literature licenses (ADR-0087).
+- Naming discipline: `:willard-sjas-tableau0` is the finite-basis
+  IS(A)-style instance (Willard 2001, Group-3 = no tableau proof of
+  `0 = 1`); `IS#_D(beta)` proper is `:willard-sjas-level1`. Do not call the
+  tableau0 MVP "the IS#_D(beta) instance" without that qualification.
+- `system` now rejects beta members and reflected Group-2b clause formulas
+  without `Pi*1` encodings; `Delta-star-0` classifiers (host and relational)
+  are closed under `not`/`implies`. Truth of beta in the standard model
+  remains an external premise.
+- Track 2a relevance matrix opens with: Willard 2005 closes branches only on
+  complementary sentence pairs, while the implemented checker also closes
+  through arithmeticized profile relations, equality machinery, and
+  recursive proof-predicate atoms; Group-1's prove-all-true-Delta-star-0
+  role is absorbed into the apparatus; the >= 5J-bit proof-size discipline
+  has no regression test.
+- Post-ADR-0086 SelfCons Godel code for the default ordinary-tableau
+  instance: `1895911909320248794237471524907560082878513227` (the 2026-06-06
+  recorded value predates the `0 = 1` target).
+- The `lopstr-ppdp26/` and `mk2026/` artifact snapshots predate
+  ADR-0086/0087; refresh before submission.
+
+## 2026-06-08 ADR-0073 Large Proof-Term Stack Safety
+
+- Default Proflog test/runtime classpath now loads the vendored core.logic
+  1.0.1 source overlay from `vendor/core.logic-1.0.1/src` before `src`.
+- The overlay marker reported by `lein probe-core-logic-host` is
+  `vendor/core.logic-1.0.1/src stack-safe-occurs-check`.
+- `clojure.core.logic/occurs-check` and `proflog.language/validate-term` are
+  worklist-based for deeply nested acyclic proof terms; formula validation is
+  still recursive and should get its own focused regression if deep formulas
+  become a host-stack problem.
+- ADR-0073 Track 1 executable proof machinery is complete as of 2026-06-09.
+  ADR-0086 later corrected ordinary Tableau-0 SelfCons from primitive `false`
+  to Willard's minimal target `0 = 1`; the current-source public Group-3
+  `tableau-proof/3(s,t,p)` selector passed with 8 assertions, 0 failures,
+  elapsed `8:29.61`, maxrss `1961424KB`.
+- Track 1 includes accurate executable formation of the literature
+  `IS#_D(beta)` axiom basis and SelfCons fixed point. Track 2 is for explicitly
+  modified deductive apparatuses or variants; it must not be used to excuse an
+  incomplete literature proof predicate.
+- Pre-ADR-0086 SelfCons timings for the old `false` target were: core proof
+  check `1:08.67`, in-memory target plus proof check `2:23.34`, decoded
+  proof-code path `2:20.39`, public path `2:17.71`. Do not use those as
+  expected durations for the literature-compliant `0 = 1` target.
+- Older durable SelfCons probes that were launched before the ADR-0085 repair
+  may still be running or may have stale timing behavior; do not use them as
+  current-source completion evidence.
+- ADR-0077/ADR-0078 remove duplicate/subsumed structural checker alternatives
+  and static `membero` table scans. ADR-0085 later completed the remaining
+  Track 1 SelfCons proof-predicate scheduling and reconstruction repairs.
+- ADR-0080 completes the optimization chain opened during the stack-safety
+  thread by dispatching SJAS app-arity decoding from the encoded byte once. The
+  next work must return to ADR-0073 Track 1 arithmeticization before further
+  proof-predicate optimization.
+- ADR-0081/ADR-0082 are Track 1 dispatch cleanups: proof-facing SJAS/generic
+  kernel dispatch no longer uses `conda`, and generic kernel proof hooks now
+  use callable default relations rather than optional nil selection.
+- ADR-0083 closes a public compact-code reader gap: `code-argso` and
+  `code-args-coreo` parse presented public byte numerals through
+  `code-byte-termo`; byte-first reconstruction remains isolated to embedded
+  payload builders.
+- ADR-0084 closes a recursive proof-predicate relationality gap:
+  `tableau-proof/3` and `subst-prf/4` now reconstruct or validate
+  `system-code` through branch equality state before nested proof checking.
+- The old durable public probe PID `34144` was left running as requested; a
+  newer current-source foreground public selector is the authoritative green
+  Track 1 MVP evidence.
+
+## 2026-06-05 ADR-0073 Track 1 MVP
+
+- Current active focus is Track 1: arithmetically internalize the necessary
+  proof machinery for ordinary-tableau `IS#_D(beta)`.
+- Minimum viable evidence is public `TabPrf_beta(s,t,p)` acceptance for the
+  concrete system code `s`, the code `t` of the system's own Group-3
+  consistency statement, and a formula-bearing semantic-tableau proof code `p`.
+- `sjas-axiom` citation is useful axiom-membership coverage but is not
+  sufficient evidence for the MVP; the proof code must be a tableau tree checked
+  by the arithmeticized proof predicate without host registries or
+  `kernel/prove-programo` proof-validation shortcuts.
+- Long SJAS proof predicates must run nicened and durably under `test-runs/`
+  with PID/log files when they exceed focused-selector runtime envelopes.
+
+## 2026-05-25 ADR-0073 SJAS Track State
+
+- Single-threaded focus is now Track 2a relevance analysis for ADR-0073.
+- Parked Track 1 arithmeticization worktree:
+  `/home/jpt4/code/proflog-worktrees/adr-0073-track1-arithmeticization`,
+  branch `adr-0073-track1-arithmeticization`.
+- Track 2a relevance worktree completed local commit
+  `797e8b63e0eeaa8c3ee6eef275342ae428aff286`
+  (`Deepen SJAS tableau relevance analysis`) in
+  `/home/jpt4/code/proflog-worktrees/adr-0073-track2a-relevance`.
+- Parked Track 2b formal-correspondence worktree:
+  `/home/jpt4/code/proflog-worktrees/adr-0073-track2b-formal-correspondence`,
+  branch `adr-0073-track2b-formal-correspondence`.
+- Subagent handles from the interrupted session are no longer available in the
+  runtime; use the worktrees and commits above as authoritative state.
+
 ## 2026-05-08 ADR-0047 SKI Quine
 
 - ADR-0047 branch: `adr-0047-ski-quine`.

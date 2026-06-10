@@ -1,10 +1,26 @@
 (ns proflog.kernel.first-order-test
-  (:require [clojure.core.logic :refer [lcons run]]
+  (:require [clojure.core.logic :as logic
+             :refer [lcons run]]
             [clojure.test :refer [deftest is testing]]
             [proflog.ast :as ast]
             [proflog.kernel.first-order :as first-order]
             [proflog.pelletier-test :as pelletier]
             [proflog.proof :as proof]))
+
+(deftest lookupo-guards-skipped-nominal-key
+  (testing "relational lookup cannot skip a key that later aliases the search key"
+    (ast/nom wanted
+      (is (= [:first]
+             (logic/run* [q]
+               (logic/fresh [key skipped out]
+                 (#'proflog.kernel.first-order/lookupo
+                  key
+                  (logic/lcons [skipped :first]
+                               (logic/lcons [wanted :second] '()))
+                  out)
+                 (logic/== key skipped)
+                 (logic/== skipped wanted)
+                 (logic/== q out))))))))
 
 (deftest first-order-component-closes-existing-quantified-passing-pelletier-problems
   (testing "existing quantified passers stay within the generic first-order path"

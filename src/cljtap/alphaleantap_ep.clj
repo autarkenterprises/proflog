@@ -112,11 +112,13 @@
 (defn lookupo
   "Look up the value associated with nom `a` in environment `env`."
   [a env out]
-  (fresh [first rest]
+  (fresh [rest]
     (conde
       [(== (lcons [a out] rest) env)]
-      [(== (lcons first rest) env)
-       (lookupo a rest out)])))
+      [(fresh [skipped-key skipped-value]
+         (== (lcons [skipped-key skipped-value] rest) env)
+         (hash a skipped-key)
+         (lookupo a rest out))])))
 
 (defn appendo
   "Relational list append."

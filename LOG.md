@@ -22,6 +22,23 @@ complete contemporaneous transcript.
 
 ## 2026-06-10
 
+- Started [ADR-0093](docs/adr/ADR-0093-core-logic-canonical-regression-suite.md)
+  on `adr-0093-core-logic-canonical-regressions` after reviewing the
+  ADR-0090 ground-term fast path. The objective is a canonical core.logic
+  regression suite, derived from the miniKanren/core.logic literature, that
+  checks core miniKanren semantics, cKanren-style constraints, alphaKanren
+  nominal behavior, tabling, CLP(FD), and modest performance canaries before
+  future core.logic changes can perturb SJAS proof machinery. Survey note:
+  [Core.logic Canonical Regression Suite Survey](docs/log/2026-06-10-core-logic-canonical-regression-suite.md).
+  Completed it with [AAR-0093](docs/aar/AAR-0093-core-logic-canonical-regression-suite.md):
+  the new fast-gate namespace covers core miniKanren semantics, classic list
+  relations, cKanren-style constraints, alphaKanren nominal behavior, tabling,
+  CLP(FD), a tagged-ground walk performance canary, and a tiny
+  literature-derived relational interpreter/quine example. Evidence: all eight
+  vars green individually; default and 1.1.1-overlay namespace runs green
+  (`8` tests, `53` assertions); `lein test-proflog-fast` green (`179` tests,
+  `732` assertions, `5:33.00`); `lein test-proflog-extended` green (`68`
+  tests, `203` assertions, `15:02.76`).
 - Executed ADR-0088 to completion on `adr-0088-sjas-runtime-rebaseline`.
   The bisect probe attributed the whole-program grind to `axiom-member`
   citations (beta queries run in seconds); stack samples placed the cost in

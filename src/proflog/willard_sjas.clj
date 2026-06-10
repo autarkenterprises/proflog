@@ -59,8 +59,8 @@
 (def five (numeral 5))
 (def six (numeral 6))
 (def contradiction-code
-  "Base-64 Godel-code term for the contradictory theorem `false`."
-  (sjas-code/bytes->code-term [2]))
+  "Base-64 Godel-code term for the contradictory theorem `0 = 1`."
+  (sjas-code/bytes->code-term [5 25 0 0 25 1 0 1]))
 
 (def base-constants
   "Base constants used by the SJAS signature.
@@ -473,6 +473,57 @@
                      {}
                      (:code-format system :compact)))
 
+(defn- formal-code-term-bytes
+  "Decode one public formula/system/proof code term back to its exact bytes."
+  [code-term]
+  (or (sjas-code/code-term-bytes code-term)
+      (sjas-code/u-grounding-code-term-bytes code-term)
+      (throw (ex-info "Expected an SJAS formal code term"
+                      {:code-term code-term}))))
+
+(defn selfcons-godel-code-report
+  "Return the concrete Group-3 self-consistency Godel code for `system`.
+
+   This is a reporting boundary for ADR-0073 Track 1. It reads the generated
+   Group-3 formula code term through the same formal code bytes used by the
+   object proof predicate, then exposes the ordinary base-64 natural-number
+   view. The exact byte sequence is included because compact public code terms
+   are byte strings and may not be reconstructed by lossy natural round-trips
+   when trailing zero bytes matter."
+  [system]
+  (let [{:keys [group formula code]} (:group-three system)
+        bytes (formal-code-term-bytes code)]
+    {:profile (:profile system)
+     :code-format (:code-format system :compact)
+     :group group
+     :formula formula
+     :code-term code
+     :bytes bytes
+     :byte-count (count bytes)
+     :godel-number (sjas-code/bytes->natural bytes)
+     :u-grounding-number (sjas-code/bytes->u-grounding-code-value bytes)}))
+
+(defn selfcons-godel-code
+  "Return the decimal natural Godel code for `system`'s Group-3 formula."
+  [system]
+  (:godel-number (selfcons-godel-code-report system)))
+
+(declare system)
+
+(defn print-selfcons-godel-code
+  "Print the concrete ordinary-tableau Group-3 self-consistency Godel code.
+
+   With no argument, print the code for the default ordinary-tableau
+   `IS#_D(beta)` instance. With `system`, print that system's Group-3 code.
+   The printed representation is plain decimal digits rather than Clojure's
+   readable bigint syntax."
+  ([]
+   (print-selfcons-godel-code (system {:profile :willard-sjas-tableau0})))
+  ([system]
+   (let [value (selfcons-godel-code system)]
+     (println (str value))
+     value)))
+
 ;; -----------------------------------------------------------------------------
 ;; Generated formulas and program clauses
 ;; -----------------------------------------------------------------------------
@@ -659,7 +710,7 @@
                                                        code-format)
         contradiction-code (sjas-code/canonical-formula-formal-code-term
                              coding-context
-                             (canonical-formula (ast/false-form) {})
+                             (canonical-formula (ast/eq-lit zero one) {})
                              code-format)
         axioms (axiom-records profile
                               coding-context
@@ -874,3 +925,8 @@
      :fuel fuel
      :proof-limit proof-limit
      :duration-ms duration-ms}))
+
+(defn -main
+  "Print the default ordinary-tableau SJAS self-consistency Godel code."
+  [& _args]
+  (print-selfcons-godel-code))

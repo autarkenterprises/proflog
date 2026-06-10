@@ -554,9 +554,8 @@ performance-oriented path.
 The compiled program intentionally leaves `:sjas/proof-targets` nil. The proof
 profile instead decodes `system-code`, `theorem-code`, and `proof-code` through
 the generated code registry and the proof byte decoder. `SelfCons0` therefore
-mentions a real contradiction code, not a magic table key; if an inconsistent
-beta basis proves `false`, the resulting certificate can be checked against
-`contradiction-code`.
+mentions a real contradiction code, not a magic table key. For ordinary
+Tableau-0, that code denotes Willard's minimal target `0 = 1`.
 
 ## Arithmetic Evaluation
 
@@ -716,7 +715,7 @@ system:
 (def inconsistent-system
   (sjas/system
     {:profile :willard-sjas-tableau0
-     :beta [(ast/false-form)]}))
+     :beta [(ast/eq-lit sjas/zero sjas/one)]}))
 
 (let [certificate (sjas/proof-certificate 'sjas-axiom)]
   (query/query-succeeds
@@ -729,10 +728,10 @@ system:
 ;; => one proof
 ```
 
-The point of the control is not to recommend false beta axioms. It demonstrates
-that the system's `:contradiction-code` denotes a real proof target: when the
-reflected basis explicitly includes `false`, the profile can check an
-object-language axiom citation for that contradiction code.
+The point of the control is not to recommend inconsistent beta axioms. It
+demonstrates that the system's `:contradiction-code` denotes a real proof
+target: when the reflected basis explicitly includes `0 = 1`, the profile can
+check an object-language axiom citation for that contradiction code.
 
 ## Substitution-Proof Predicate
 

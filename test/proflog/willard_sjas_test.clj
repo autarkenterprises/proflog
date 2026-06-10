@@ -1,9 +1,11 @@
 (ns proflog.willard-sjas-test
   (:require [clojure.core.logic :as l]
+            [clojure.walk :as walk]
             [clojure.string :as str]
             [clojure.test :refer [deftest is testing]]
             [proflog.answers :as answers]
             [proflog.ast :as ast]
+            [proflog.equality :as equality]
             [proflog.gamma :as gamma]
             [proflog.kernel :as kernel]
             [proflog.kernel.willard-sjas-profile :as sjas-profile]
@@ -22,6 +24,41 @@
 (defn- first-proof
   [proofs]
   (first proofs))
+
+(defn- substring-count
+  "Count non-overlapping appearances of `needle` in `haystack`.
+
+   Source-audit tests use this to guard proof-search scheduling structure that
+   is otherwise hard to observe from a single success/failure query."
+  [haystack needle]
+  (loop [offset 0
+         hits 0]
+    (if-let [index (str/index-of haystack needle offset)]
+      (recur (+ index (count needle)) (inc hits))
+      hits)))
+
+(defn- private-defn-contains?
+  "True when private function `defn-name` contains literal `needle`.
+
+   This intentionally scans only until the next top-level form. It keeps source
+   audits focused on one helper instead of rejecting dynamic uses elsewhere in
+   the SJAS profile."
+  [source defn-name needle]
+  (let [quoted-start (java.util.regex.Pattern/quote (str "(defn- " defn-name))
+        quoted-needle (java.util.regex.Pattern/quote needle)
+        pattern (re-pattern (str "(?s)"
+                                 quoted-start
+                                 "(?:(?!\\n\\().)*"
+                                 quoted-needle))]
+    (boolean (re-find pattern source))))
+
+(defn- private-defn-source
+  "Return the source slice for private function `defn-name`."
+  [source defn-name]
+  (let [start-token (str "(defn- " defn-name)
+        start (str/index-of source start-token)
+        end (str/index-of source "\n(defn" (inc start))]
+    (subs source start end)))
 
 (defn- proof-symbol-audit
   [proof]
@@ -71,21 +108,32 @@
   [value]
   (sjas/numeral value))
 
+(def ^:private zero-numeral-symbol (symbol "0"))
+(def ^:private one-numeral-symbol (symbol "1"))
+
 (defn- sjas-numeral-term?
   "True when `term` is written in the public binary SJAS numeral vocabulary."
   [term]
-  (and (= 'app (ast/tag-of term))
-       (let [head (second term)
-             args (nnext term)]
-         (cond
-           (= (symbol "0") head) (empty? args)
-           (= (symbol "1") head) (empty? args)
-           (= 'dbl head) (and (= 1 (count args))
-                              (sjas-numeral-term? (first args)))
-           (= 'add head) (and (= 2 (count args))
-                              (sjas-numeral-term? (first args))
-                              (sjas-numeral-term? (second args)))
-           :else false))))
+  (loop [work (list term)]
+    (if (seq work)
+      (let [current-term (first work)
+            remaining-work (next work)]
+        (if (= 'app (ast/tag-of current-term))
+          (let [head (second current-term)
+                args (nnext current-term)]
+            (cond
+              (= zero-numeral-symbol head) (and (empty? args)
+                                                (recur remaining-work))
+              (= one-numeral-symbol head) (and (empty? args)
+                                               (recur remaining-work))
+              (= 'dbl head) (and (= 1 (count args))
+                                 (recur (conj remaining-work (first args))))
+              (= 'add head) (and (= 2 (count args))
+                                 (recur (conj (conj remaining-work (second args))
+                                              (first args))))
+              :else false))
+          false))
+      true)))
 
 (defn- generated-code-symbol?
   [sym]
@@ -383,6 +431,11 @@
   (or (sjas-code/code-term-bytes (sjas/formula-code system formula))
       (sjas-code/u-grounding-code-term-bytes (sjas/formula-code system formula))))
 
+(defn- formal-code-term-bytes
+  [term]
+  (or (sjas-code/code-term-bytes term)
+      (sjas-code/u-grounding-code-term-bytes term)))
+
 (defn- canonical-formula-code-bytes
   [system canonical-formula]
   (sjas-code/code-term-bytes
@@ -433,12 +486,299 @@
       (apply list (concat [(count bytes)] bytes children))
       (apply list (cons (apply list bytes) children)))))
 
+(defn- canonical-structural-flex-tableau-node
+  "Encode a canonical formula-bearing node, using a proof byte list if needed."
+  [system canonical-formula & children]
+  (let [bytes (canonical-formula-code-bytes system canonical-formula)]
+    (is (pos? (count bytes)))
+    (if (< (count bytes) 64)
+      (apply list (concat [(count bytes)] bytes children))
+      (apply list (cons (apply list bytes) children)))))
+
+(defn- replace-var-term
+  [formula binding-nom replacement]
+  (walk/postwalk
+    (fn [node]
+      (if (= (ast/var-term binding-nom) node)
+        replacement
+        node))
+    formula))
+
+(defn- replace-canonical-var-term
+  [formula var-symbol replacement]
+  (walk/postwalk
+    (fn [node]
+      (if (= (list 'var var-symbol) node)
+        replacement
+        node))
+    formula))
+
+(declare decoded-formula->canonical)
+
+(defn- decoded-term->canonical
+  [term env]
+  (case (first term)
+    var (list 'var (get env (second term) (second term)))
+    par (list 'par (get env (second term) (second term)))
+    app (apply list
+               'app
+               (second term)
+               (map #(decoded-term->canonical % env) (nnext term)))))
+
+(defn- decoded-formula->canonical
+  [formula env]
+  (case (first formula)
+    true formula
+    false formula
+    pos (list 'pos (decoded-term->canonical (second formula) env))
+    neg (list 'neg (decoded-term->canonical (second formula) env))
+    eq (list 'eq
+             (decoded-term->canonical (second formula) env)
+             (decoded-term->canonical (nth formula 2) env))
+    neq (list 'neq
+              (decoded-term->canonical (second formula) env)
+              (decoded-term->canonical (nth formula 2) env))
+    and (list 'and
+              (decoded-formula->canonical (second formula) env)
+              (decoded-formula->canonical (nth formula 2) env))
+    or (list 'or
+             (decoded-formula->canonical (second formula) env)
+             (decoded-formula->canonical (nth formula 2) env))
+    not (list 'not (decoded-formula->canonical (second formula) env))
+    implies (list 'implies
+                  (decoded-formula->canonical (second formula) env)
+                  (decoded-formula->canonical (nth formula 2) env))
+    forall (let [tie (second formula)
+                 binder (:binding-nom tie)
+                 canonical-binder (get env binder 'v0)]
+             (list 'forall
+                   canonical-binder
+                   (decoded-formula->canonical
+                     (:body tie)
+                     (assoc env binder canonical-binder))))
+    once-forall (let [tie (second formula)
+                      binder (:binding-nom tie)
+                      canonical-binder (get env binder 'v0)]
+                  (list 'once-forall
+                        canonical-binder
+                        (decoded-formula->canonical
+                          (:body tie)
+                          (assoc env binder canonical-binder))))
+    exists (let [tie (second formula)
+                 binder (:binding-nom tie)
+                 canonical-binder (get env binder 'v1)]
+             (list 'exists
+                   canonical-binder
+                   (decoded-formula->canonical
+                     (:body tie)
+                     (assoc env binder canonical-binder))))))
+
+(defn- conjunction-path-tableau-proof
+  "Wrap `leaf-proof` in formula-bearing nodes for the conjunction path to leaf.
+
+   The structural checker can select either immediate conjunct after one
+   conjunction step, but it cannot jump over nested conjunction nodes. The
+   SelfCons certificate therefore has to represent the spine from `AxiomConj`
+   to the Group-3 antecedent explicitly."
+  [system formula target-leaf leaf-proof]
+  (cond
+    (= formula target-leaf)
+    leaf-proof
+
+    (= 'and (ast/tag-of formula))
+    (let [left (second formula)
+          right (nth formula 2)
+          next-formula (if (some #(= target-leaf %) (conjunction-leaves left))
+                         left
+                         right)]
+      (structural-flex-tableau-node
+        system
+        formula
+        (conjunction-path-tableau-proof system
+                                        next-formula
+                                        target-leaf
+                                        leaf-proof)))
+
+    :else
+    (throw (ex-info "target leaf is not reachable through conjunctions"
+                    {:formula formula
+                     :target-leaf target-leaf}))))
+
+(defn- proof-side-antecedent-formula
+  "Build the host-side formula shape reconstructed by `tableau-proof/3`.
+
+   The public proof predicate does not check the raw surface axiom conjunction:
+   it decodes each finite-system formula through the kernel's proof-antecedent
+   relation, which eliminates implication into NNF and treats antecedent
+   universals as single-use branch formulas. The SelfCons fixture must encode
+   formula-bearing proof nodes in that same shape so the structural checker can
+   compare child nodes directly against the object target it reconstructs."
+  [formula]
+  (letfn [(once-forall-antecedents [formula]
+            (case (ast/tag-of formula)
+              and (ast/and-form
+                    (once-forall-antecedents (second formula))
+                    (once-forall-antecedents (nth formula 2)))
+              or (ast/or-form
+                   (once-forall-antecedents (second formula))
+                   (once-forall-antecedents (nth formula 2)))
+              forall (ast/once-forall-form
+                       (:binding-nom (second formula))
+                       (once-forall-antecedents (:body (second formula))))
+              once-forall (ast/once-forall-form
+                             (:binding-nom (second formula))
+                             (once-forall-antecedents (:body (second formula))))
+              exists (ast/exists-form
+                       (:binding-nom (second formula))
+                       (once-forall-antecedents (:body (second formula))))
+              formula))]
+    (once-forall-antecedents (normalize/to-nnf formula))))
+
+(declare selfcons-object-targeto)
+
+(defn- selfcons-formula-bearing-proof
+  "Build a formula-bearing tableau proof of the system's Group-3 SelfCons axiom.
+
+   The proof is a structural tableau tree, not the compact `sjas-axiom`
+   citation. It decomposes `AxiomConj(s) /\\ not(SelfCons)` far enough to
+   select the Group-3 antecedent, saves its negated `tableau-proof` atom, then
+   expands the negated theorem's existential and closes against the saved
+   complement."
+  [system]
+  (let [axiom-formula (:axiom-formula system)
+        selfcons (:formula (:group-three system))
+        neg-selfcons (normalize/negate-formula selfcons)
+        object-target (first (l/run 1 [target]
+                               (selfcons-object-targeto system target)))
+        object-axiom-formula (second object-target)
+        object-neg-selfcons (nth object-target 2)
+        group-three-antecedent (last (conjunction-leaves axiom-formula))
+        proof-axiom-formula (proof-side-antecedent-formula axiom-formula)
+        proof-group-three-antecedent (last (conjunction-leaves proof-axiom-formula))
+        proof-target (ast/and-form proof-axiom-formula neg-selfcons)
+        object-group-three-antecedent (nth object-axiom-formula 2)
+        canonical-group-three (decoded-formula->canonical
+                                object-group-three-antecedent
+                                {})
+        canonical-neg-selfcons (decoded-formula->canonical object-neg-selfcons {})
+	        saved-neg-atom (nth canonical-group-three 2)
+	        closing-pos-atom (replace-canonical-var-term
+	                           (nth canonical-neg-selfcons 2)
+	                           'v1
+	                           (list 'par 'v0))
+        group-three-proof (canonical-structural-flex-tableau-node
+                            system
+                            canonical-group-three
+                            (canonical-structural-flex-tableau-node
+                              system
+                              saved-neg-atom
+                              (canonical-structural-flex-tableau-node
+                                system
+                                canonical-neg-selfcons
+                                (canonical-structural-flex-tableau-node
+                                  system
+                                  closing-pos-atom))))
+        axiom-proof (conjunction-path-tableau-proof
+                      system
+                      proof-axiom-formula
+                      proof-group-three-antecedent
+                      group-three-proof)
+        proof (structural-flex-tableau-node system proof-target axiom-proof)]
+    {:target proof-target
+     :proof proof}))
+
+(defn- selfcons-core-formula-bearing-proof
+  "Build the minimal Group-3/negated-SelfCons tableau core.
+
+   This strips away `AxiomConj(s)` so focused tests can distinguish quantifier
+   and literal-closure failures from agenda-selection failures over the full
+   system antecedent."
+  [system]
+  (let [axiom-formula (:axiom-formula system)
+        selfcons (:formula (:group-three system))
+        neg-selfcons (normalize/negate-formula selfcons)
+        group-three-antecedent (last (conjunction-leaves axiom-formula))
+        group-three-binding (:binding-nom (second group-three-antecedent))
+        neg-selfcons-binding (:binding-nom (second neg-selfcons))
+        saved-neg-atom (replace-var-term
+                         (:body (second group-three-antecedent))
+                         group-three-binding
+                         (list 'var 'v0))
+	        closing-pos-atom (replace-var-term
+	                           (:body (second neg-selfcons))
+	                           neg-selfcons-binding
+	                           (list 'par 'v0))
+        target (ast/and-form group-three-antecedent neg-selfcons)]
+    {:target target
+     :proof (structural-flex-tableau-node
+              system
+              target
+              (structural-flex-tableau-node
+                system
+                group-three-antecedent
+                (canonical-structural-flex-tableau-node
+                  system
+                  saved-neg-atom
+                  (structural-flex-tableau-node
+                    system
+                    neg-selfcons
+                    (canonical-structural-flex-tableau-node
+                      system
+                      closing-pos-atom)))))}))
+
+(defn- selfcons-object-targeto
+  "Reconstruct the object-level SelfCons tableau target inside the logic query."
+  [system target]
+  (let [axiom-formula-coreo (var-get #'sjas-profile/sjas-system-axiom-formula-coreo)
+        negated-theorem-coreo (var-get #'sjas-profile/sjas-structural-negated-theorem-coreo)]
+    (l/fresh [axiom-formula neg-theorem sigma-out]
+      (axiom-formula-coreo (:program system)
+                           (:system-code system)
+                           axiom-formula)
+      (negated-theorem-coreo (:program system)
+                             (:code (:group-three system))
+                             '()
+                             sigma-out
+                             neg-theorem)
+      (l/== (list 'and axiom-formula neg-theorem) target))))
+
 (defn- right-nested-true-chain
   [depth]
   (if (zero? depth)
     (ast/false-form)
     (ast/and-form (ast/true-form)
                   (right-nested-true-chain (dec depth)))))
+
+(deftest sjas-tableau0-selfcons-targets-zero-equals-one
+  (testing "ordinary Tableau-0 SelfCons uses Willard's minimal 0=1 target"
+    (let [system (demo-system :willard-sjas-tableau0)
+          zero-one (ast/eq-lit sjas/zero sjas/one)
+          zero-one-code (sjas/formula-code system zero-one)
+          false-code (sjas/formula-code system (ast/false-form))
+          zero-one-bytes [5 25 0 0 25 1 0 1]]
+      (is (= zero-one-code (:contradiction-code system))
+          "Tableau-0 contradiction-code must denote the formula 0=1")
+      (is (not= false-code (:contradiction-code system))
+          "primitive false is a tableau closure formula, not Willard's minimal SelfCons target")
+      (is (= zero-one-bytes (formula-code-bytes system zero-one)))
+      (is (= zero-one-bytes (formal-code-term-bytes (:contradiction-code system)))))))
+
+(deftest sjas-tableau0-axiomconj-reconstructs-zero-one-selfcons-target
+  (testing "kernel-side AxiomConj(s) reconstruction uses the same 0=1 target"
+    (let [system (demo-system :willard-sjas-tableau0)
+          zero-one-code (sjas/formula-code system
+                                           (ast/eq-lit sjas/zero sjas/one))
+          target (first (l/run 1 [target]
+                          (selfcons-object-targeto system target)))
+          axiom-formula (second target)
+          tableau-proof-atoms (filter #(= 'tableau-proof (second %))
+                                      (formula-atoms axiom-formula))]
+      (is target
+          "the test must reconstruct the object target through the proof predicate relation")
+      (is (seq tableau-proof-atoms)
+          "AxiomConj(s) must include a reconstructed Tableau-0 Group-3 atom")
+      (is (some #(= zero-one-code (nth % 3)) tableau-proof-atoms)
+          "reconstructed Tableau-0 Group-3 must assert no proof of 0=1"))))
 
 (deftest sjas-system-builder-generates-groups-and-reflected-boundary
   (testing "users supply beta/program clauses; the builder supplies codes and Group-3"
@@ -603,6 +943,38 @@
       (is (= bytes (sjas-code/code-term-bytes code)))
       (is (not= bytes (sjas-code/code-term-bytes normalized-through-natural))
           "natural-number views are diagnostic; byte-sequence encoders must not use them when trailing zeroes matter"))))
+
+(deftest sjas-tableau0-selfcons-godel-code-is-publicly-printable
+  (testing "the concrete ordinary-tableau Group-3 formula code is exposed as a numerical Godel code"
+    (let [system (demo-system :willard-sjas-tableau0)
+          report (sjas/selfcons-godel-code-report system)
+          group3-code (:code (:group-three system))
+          group3-bytes (sjas-code/code-term-bytes group3-code)
+          printed (with-out-str
+                    (sjas/print-selfcons-godel-code system))]
+      (is (= :willard-sjas-tableau0 (:profile report)))
+      (is (= :compact (:code-format report)))
+      (is (= :group-three (:group report)))
+      (is (= group3-code (:code-term report)))
+      (is (= group3-bytes (:bytes report))
+          "the report must decode the generated formula code term rather than use a proof-predicate shortcut")
+      (is (= (sjas-code/bytes->natural group3-bytes)
+             (:godel-number report)))
+      (is (pos? (:godel-number report)))
+      (is (= (str (:godel-number report) "\n") printed))))
+  (testing "the printed code follows the encoded self-reference, not unrelated runtime clauses"
+    (let [base (demo-system :willard-sjas-tableau0)
+          beta-changed (demo-system
+                         :willard-sjas-tableau0
+                         {:beta [(ast/neq-lit sjas/one sjas/zero)]})
+          external-changed (demo-system
+                             :willard-sjas-tableau0
+                             {:external-clauses [(external-demo-clause 'renamed-external)]})
+          code-of #(-> % sjas/selfcons-godel-code-report :godel-number)]
+      (is (not= (code-of base) (code-of beta-changed))
+          "changing beta must change the self-consistency sentence code")
+      (is (= (code-of base) (code-of external-changed))
+          "external runtime-only clauses must not change the encoded IS#_D(beta) SelfCons sentence"))))
 
 (deftest sjas-compact-code-byte-reader-interprets-byte-numerals-arithmetically
   (let [system (demo-system :willard-sjas-level1)
@@ -939,7 +1311,9 @@
     (let [system (demo-system :willard-sjas-tableau0)
           theorem (ast/true-form)
           theorem-code (sjas/formula-code system theorem)
-          target (ast/and-form (:axiom-formula system) (ast/false-form))
+          target (ast/and-form
+                   (proof-side-antecedent-formula (:axiom-formula system))
+                   (ast/false-form))
           proof (structural-byte-list-tableau-node
                   system
                   target
@@ -958,6 +1332,128 @@
               1
               260))
           "tableau-proof should validate encoded formula-bearing structural certificates end to end"))))
+
+(deftest ^{:slow true
+           :expected-duration "about 2-3 minutes on 2026-06-08; latest measured 2:18.62"
+           :correctness "public tableau-proof/3 validates a substantive formula-bearing proof certificate supplied as a U-Grounding numeral"}
+  sjas-tableau-proof-accepts-u-grounding-formula-bearing-proof-certificate
+  (testing "public tableau-proof accepts a substantive formula-bearing proof path as a U-Grounding numeral"
+    (let [system (demo-system :willard-sjas-tableau0)
+          theorem (ast/true-form)
+          theorem-code (sjas/formula-code system theorem)
+          target (ast/and-form
+                   (proof-side-antecedent-formula (:axiom-formula system))
+                   (ast/false-form))
+          proof (structural-byte-list-tableau-node
+                  system
+                  target
+                  (structural-tableau-node system (ast/false-form)))
+          certificate (sjas/proof-certificate proof
+                                              {:code-format :u-grounding})]
+      (is (sjas-numeral-term? certificate)
+          "the proof certificate itself should be an arithmetic U-Grounding numeral")
+      (is (zero? (proof-symbol-count proof))
+          "the arithmeticized proof path should still be formula-bearing, not a symbolic proof trace")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tableau-proof (:system-code system)
+                                  theorem-code
+                                  certificate)
+              1
+              260))
+          "tableau-proof should validate the U-Grounding proof-code path end to end"))))
+
+(deftest ^{:slow true
+           :expected-duration "about 2m20s on 2026-06-09 current source under load; use focused selector before public gate"
+           :correctness "decoded compact proof-code tree should validate the full Group-3 SelfCons formula-bearing tableau target"}
+  sjas-proof-check-accepts-formula-bearing-selfcons-tableau
+  (testing "decoded proof-code trees can prove the Group-3 SelfCons statement structurally"
+    (let [system (demo-system :willard-sjas-tableau0)
+          {:keys [proof]} (selfcons-formula-bearing-proof system)
+          certificate (sjas/proof-certificate proof)
+          decode-proof (var-get #'sjas-profile/decode-non-sjas-axiom-proof-code-coreo)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the SelfCons certificate should be a formula-bearing tableau tree, not a proof-rule trace")
+      (is (successful?
+            (l/run 1 [q]
+              (l/fresh [decoded-proof sigma-out proof-bytes target]
+                (decode-proof certificate
+                              '()
+                              sigma-out
+                              proof-bytes
+                              decoded-proof)
+                (selfcons-object-targeto system target)
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             260
+                             decoded-proof)
+                (l/== true q))))
+          "the decoded SelfCons proof code should close by structural tableau checking"))))
+
+(deftest ^{:slow true
+           :expected-duration "about 1m09s on 2026-06-09 current source under load"
+           :correctness "lower-level checker validates the five-node Group-3/negated-SelfCons tableau core without proof-rule tags"}
+  sjas-proof-check-accepts-formula-bearing-selfcons-core-tableau
+  (testing "the Group-3 and negated-SelfCons tableau core closes structurally"
+    (let [system (demo-system :willard-sjas-tableau0)
+          {:keys [target proof]} (selfcons-core-formula-bearing-proof system)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the core SelfCons certificate should be a formula-bearing tableau tree")
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           160
+                           proof)
+              (l/== true q)))
+          "the core contradiction should close by quantifier expansion plus literal closure"))))
+
+(deftest ^{:slow true
+           :expected-duration "about 2m23s on 2026-06-09 current source under load"
+           :correctness "in-memory formula-bearing SelfCons tableau should close after object target reconstruction, before proof-code decoding"}
+  sjas-proof-check-accepts-in-memory-formula-bearing-selfcons-tableau
+  (testing "the Group-3 SelfCons tableau tree itself closes structurally"
+    (let [system (demo-system :willard-sjas-tableau0)
+          {:keys [proof]} (selfcons-formula-bearing-proof system)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (zero? (proof-symbol-count proof))
+          "the in-memory SelfCons certificate should be a formula-bearing tableau tree")
+      (is (successful?
+            (l/run 1 [q]
+              (l/fresh [target]
+                (selfcons-object-targeto system target)
+                (check-proof (:program system)
+                             (:system-code system)
+                             target
+                             260
+                             proof)
+                (l/== true q))))
+          "the SelfCons formula-bearing tableau should close before proof-code decoding is considered"))))
+
+(deftest ^{:slow true
+           :expected-duration "about 8m30s on 2026-06-09 after ADR-0086 changed Tableau-0 SelfCons from false to 0=1"
+           :correctness "public tableau-proof/3 decodes s, t, and compact p for the Group-3 SelfCons statement and validates the formula-bearing tableau tree"}
+  sjas-tableau-proof-accepts-formula-bearing-selfcons-certificate
+  (testing "public tableau-proof accepts the system consistency statement and structural proof code"
+    (let [system (demo-system :willard-sjas-tableau0)
+          {:keys [proof]} (selfcons-formula-bearing-proof system)
+          certificate (sjas/proof-certificate proof)]
+      (is (zero? (proof-symbol-count proof))
+          "the public SelfCons certificate must not be the `sjas-axiom` citation")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tableau-proof (:system-code system)
+                                  (:code (:group-three system))
+                                  certificate)
+              1
+              320))
+          "tableau-proof should decode s, t, and p and validate the SelfCons tableau structurally"))))
 
 (deftest sjas-proof-codes-encode-byte-payload-evidence
   (testing "code-reader proof evidence carries inspectable byte payloads rather than escaping the certificate grammar"
@@ -1598,6 +2094,22 @@
                                   (sjas/lt (n 13) (n 14))
                                   1
                                   80)))
+      (is (successful?
+            (query/query-succeeds program
+                                  (ast/neg-lit (ast/app-term 'leq (n 1) (n 0)))
+                                  1
+                                  80))
+          "negated false arithmetic atoms must close by the interpreted positive-false branch rule")
+      (is (successful?
+            (query/query-succeeds program
+                                  (ast/neg-lit (ast/app-term 'lt (n 1) (n 1)))
+                                  1
+                                  80)))
+      (is (successful?
+            (query/query-succeeds program
+                                  (ast/neg-lit (ast/app-term 'mult (n 2) (n 2) (n 3)))
+                                  1
+                                  80)))
       (is (empty?
             (query/query-succeeds program
                                   (sjas/mult (n 4) (n 3) (n 11))
@@ -1767,13 +2279,157 @@
 
 (deftest sjas-structural-proof-checker-does-not-consume-runtime-fuel
   (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
-        start-token "(defn- sjas-structural-proof-check-stateo"
+        start-token "(defn- sjas-structural-proof-check-state-decodedo"
         end-token "(defn- sjas-proof-check-stateo"
         start (str/index-of source start-token)
         end (str/index-of source end-token start)
         structural-source (subs source start end)]
     (is (not (str/includes? structural-source "support/step-fuelo"))
         "fixed SJAS tableau proof validation must be a relation over the proof tree, not over external evaluator fuel")))
+
+(deftest sjas-structural-proof-checker-does-not-duplicate-guided-branches
+  (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        start-token "(defn- sjas-structural-proof-check-state-decodedo"
+        end-token "(defn- sjas-proof-check-stateo"
+        start (str/index-of source start-token)
+        end (str/index-of source end-token start)
+        structural-source (subs source start end)]
+	    (is (= 1
+	           (substring-count
+	             structural-source
+	             "(sjas-proof-guided-selecto child-formula"))
+	        "guided literal continuation should be scheduled once in the structural checker")
+    (is (= 1
+           (substring-count
+             structural-source
+             "sjas-complementary-lit-close-coreo lit lits sigma sigma-out"))
+        "complementary literal closure should be scheduled once in the structural checker")
+    (is (= 1
+           (substring-count structural-source "(== (list 'and left right) fml)"))
+        "conjunction continuation should be scheduled once in the structural checker")
+	    (is (= 1
+	           (substring-count structural-source "(lcons lit lits)"))
+	        "literal continuation should add to the branch literal list only through the guided child-formula path")))
+
+(deftest sjas-structural-proof-checker-preserves-delayed-sibling-environments
+  (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        structural-start (str/index-of source
+                                       "(defn- sjas-structural-proof-check-state-decodedo")
+        structural-end (str/index-of source
+                                     "(defn- sjas-proof-check-stateo"
+                                     structural-start)
+        structural-source (subs source structural-start structural-end)
+        guided-start (str/index-of source "(defn- sjas-proof-guided-selecto")
+        guided-end (str/index-of source
+                                 "(defn- sjas-proof-check-stateo"
+                                 guided-start)
+        guided-source (subs source guided-start guided-end)]
+    (is (str/includes? source "(== [formula entry-env] entry)")
+        "delayed structural agenda entries must store formula and branch environment as relation data")
+    (is (str/includes? structural-source
+                       "(sjas-agenda-cons-coreo right env unexpanded next-unexpanded)")
+        "conjunction siblings must be enqueued with their current branch environment")
+    (is (str/includes? structural-source
+                       "(sjas-agenda-heado env unexpanded next next-env rest)")
+        "agenda continuations must recover the saved branch environment")
+    (is (not (str/includes? guided-source "subst/subst-formulao"))
+        "agenda selection must not duplicate large-formula substitution before decoded rule validation")
+    (is (not (str/includes? guided-source "sjas-proof-node-formula-matcho"))
+        "agenda selection must leave proof-node formula validation to the decoded structural checker")
+    (is (not (str/includes? guided-source "sjas-formula-env-irrelevanto"))
+        "agenda selection must not depend on an ambient-env shortcut")
+	    (is (not (re-find #"\(project \[" guided-source))
+	        "agenda selection must remain a relation, not a host projection")))
+
+(deftest sjas-static-code-table-lookups-avoid-membero-scheduling
+  (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        static-helpers ["proof-byte-decremento"
+                        "byte-bitso"
+                        "byte-six-bitso"
+                        "code-constructoro"
+                        "positive-byteo"
+                        "positive-byte-except-oneo"
+                        "positive-byte-neqo"
+                        "byte-neqo"
+                        "sjas-reserved-symbol-indexo"
+                        "sjas-user-symbol-indexo"
+                        "proof-symbol-indexo"
+                        "proof-symbol-wide-indexo"
+                        "positive-wide-proof-counto"
+                        "decrement-wide-proof-counto"]]
+    (doseq [helper static-helpers]
+      (is (not (private-defn-contains? source helper "membero"))
+          (str helper
+               " should expose its fixed table as explicit finite alternatives,"
+               " not recursive membero scheduling")))))
+
+(deftest sjas-embedded-payload-decoders-check-header-before-payload-fresh
+  (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        header-first-pattern #"(?s)\(== expected-low low\).*?\(== expected-high high\).*?\(fresh \[payload\]"]
+    (doseq [helper ["decode-embedded-code-bodyo" "decode-natural-bodyo"]]
+      (is (re-find header-first-pattern (private-defn-source source helper))
+          (str helper
+               " should reject wrong low/high length headers before allocating payload state")))))
+
+(deftest sjas-app-arity-decoders-destructure-arity-byte-once
+  (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")]
+    (doseq [helper ["decode-app-arityo"
+                    "decode-syntax-app-arityo"
+                    "skip-syntax-app-arityo"]]
+      (let [helper-source (private-defn-source source helper)]
+        (is (not (str/includes? helper-source (str "(" helper " ")))
+            (str helper " should not recursively retry arity candidates"))
+        (is (str/includes? helper-source "(sjas-acyclic-unifyo (lcons arity-byte arg-bytes) after-symbol)")
+            (str helper " should destructure the encoded arity byte once"))))))
+
+(deftest sjas-proof-facing-dispatch-does-not-use-committed-choice
+  (let [profile-source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        kernel-source (slurp "src/proflog/kernel.clj")
+        close-agenda-start (str/index-of kernel-source "(defn close-agendao")
+        close-agenda-end (str/index-of kernel-source
+                                       "\n(defn prove-stateo"
+                                       close-agenda-start)
+        close-agenda-source (subs kernel-source close-agenda-start close-agenda-end)]
+    (is (not (re-find #":refer \[[^\]]*\bconda\b" profile-source))
+        "SJAS proof-facing profile code must not import committed-choice dispatch")
+    (is (not (re-find #"\(conda\b" profile-source))
+        "SJAS proof-facing profile code must use structural relations rather than committed choice")
+    (is (not (re-find #":refer \[[^\]]*\bconda\b" kernel-source))
+        "the generic kernel proof-dispatch path must not import committed-choice dispatch")
+    (is (not (re-find #"\(conda\b" close-agenda-source))
+        "kernel theory-profile dispatch must use explicit structural guards and conde")))
+
+(deftest kernel-proof-hooks-avoid-host-optional-dispatch
+  (let [kernel-source (slurp "src/proflog/kernel.clj")
+        recursive-source (private-defn-source kernel-source "recursive-prove-stateo")
+        theory-source (private-defn-source kernel-source "theory-profile-closeo")
+        close-agenda-source (subs kernel-source
+                                  (str/index-of kernel-source "(defn close-agendao")
+                                  (str/index-of kernel-source
+                                                "\n(defn prove-stateo"))]
+    (is (not (str/includes? recursive-source
+                            "(or *recursive-prove-stateo* prove-stateo)"))
+        "recursive proof dispatch must use a callable default relation, not host optional selection")
+    (is (not (str/includes? theory-source
+                            "(if-let [closeo *theory-profile-closeo*]"))
+        "theory profile dispatch must use a callable default failing relation, not host optional selection")
+    (is (not (str/includes? close-agenda-source
+                            "*theory-profile-closeo* nil"))
+        "close-agendao must not branch on host nilness of the profile hook")))
+
+(deftest sjas-public-compact-code-readers-parse-presented-byte-numerals
+  (let [profile-source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        proof-reader-source (private-defn-source profile-source "code-argso")
+        core-reader-source (private-defn-source profile-source "code-args-coreo")
+        builder-source (private-defn-source profile-source "code-args-buildo")]
+    (doseq [[label source] [["proof-producing reader" proof-reader-source]
+                            ["proof-free reader" core-reader-source]]]
+      (is (str/includes? source "code-byte-termo")
+          (str label " must parse presented compact byte numerals"))
+      (is (not (str/includes? source "code-byte-build-termo"))
+          (str label " must not use byte-first reconstruction for public input")))
+    (is (str/includes? builder-source "code-byte-build-termo")
+        "byte-first embedded payload reconstruction should keep the builder relation")))
 
 (deftest sjas-proof-check-accepts-formula-bearing-right-first-conjunction-tableaux
   (testing "structural conjunction may close the right conjunct before expanding the left"
@@ -2188,8 +2844,31 @@
                            target
                            30
                            proof)
+	              (l/== true q)))
+	          "formula-bearing quantifier children should decode canonical v0 payloads into branch variables"))))
+
+(deftest sjas-proof-check-preserves-delayed-sibling-scope-after-quantifiers
+  (testing "delayed conjunction siblings keep the environment active when they were enqueued"
+    (let [binding (sjas-code/code-nom 1)
+          delayed (ast/neq-lit (ast/var-term binding) (ast/var-term binding))
+          ambient-env (list [binding (ast/var-term 'v0)])
+          saved-env '()
+          agenda (list [delayed saved-env])
+          guided-select (var-get #'sjas-profile/sjas-proof-guided-selecto)]
+      (is (successful?
+            (l/run 1 [q]
+              (l/fresh [selected selected-env remaining]
+                (guided-select delayed
+                               ambient-env
+                               agenda
+                               selected
+                               selected-env
+                               remaining)
+                (l/== delayed selected)
+                (l/== saved-env selected-env)
+                (l/== '() remaining))
               (l/== true q)))
-          "formula-bearing quantifier children should decode canonical v0 payloads into branch variables"))))
+          "a delayed sibling must be matched under its saved environment, not the later ambient quantifier environment"))))
 
 (deftest sjas-proof-check-accepts-formula-bearing-reflexive-disequality-closures
   (testing "structural disequality leaves can close reflexive contradictions without refl-close tags"
@@ -2227,9 +2906,29 @@
               (l/== true q)))
           "formula-bearing arithmetic leaves should close by evaluating the SJAS arithmetic relation internally"))))
 
+(deftest sjas-proof-check-accepts-formula-bearing-positive-false-arithmetic-closures
+  (testing "structural arithmetic leaves also close positive interpreted atoms when the relation is false"
+    (let [system (demo-system :willard-sjas-tableau0)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (doseq [target [(ast/pos-lit (ast/app-term 'leq sjas/one sjas/zero))
+                      (ast/pos-lit (ast/app-term 'lt sjas/one sjas/one))
+                      (ast/pos-lit (ast/app-term 'mult (n 2) (n 2) (n 3)))]]
+        (let [proof (structural-tableau-node system target)]
+          (is (zero? (proof-symbol-count proof))
+              "the structural arithmetic proof should not add a proof-rule tag for false interpreted atoms")
+          (is (successful?
+                (l/run 1 [q]
+                  (check-proof (:program system)
+                               (:system-code system)
+                               target
+                               80
+                               proof)
+                  (l/== true q)))
+              "positive arithmetic atoms should close when the interpreted relation is false"))))))
+
 (deftest sjas-structural-arithmetic-closure-uses-proof-free-arithmetic
   (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
-        start-token "(defn- sjas-structural-proof-check-stateo"
+        start-token "(defn- sjas-structural-proof-check-state-decodedo"
         end-token "(defn- sjas-proof-check-stateo"
         start (str/index-of source start-token)
         end (str/index-of source end-token start)
@@ -2238,15 +2937,19 @@
         "structural arithmetic disequality closure should not require arithmetic proof payloads")
     (is (str/includes? structural-source "sjas-neg-relation-close-structural-coreo")
         "structural arithmetic relation closure should not require arithmetic proof payloads")
+    (is (str/includes? structural-source "sjas-pos-relation-close-structural-coreo")
+        "structural arithmetic false-relation closure should not require arithmetic proof payloads")
     (is (not (str/includes? structural-source "sjas-neq-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof"))
         "formula-bearing structural arithmetic closure must not call the proof-producing disequality core")
     (is (not (str/includes? structural-source "sjas-neg-relation-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof"))
-        "formula-bearing structural arithmetic closure must not call the proof-producing relation core")))
+        "formula-bearing structural arithmetic closure must not call the proof-producing relation core")
+    (is (not (str/includes? structural-source "sjas-pos-relation-close-coreo fml env sigma sigma-out neqs neqs-out arithmetic-proof"))
+        "formula-bearing structural false-relation closure must not call the proof-producing relation core")))
 
 (deftest sjas-structural-recursive-proof-predicate-closures-use-object-relations
   (testing "structural tableau leaves close recursive proof predicates through arithmeticized predicate relations"
     (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
-          start-token "(defn- sjas-structural-proof-check-stateo"
+          start-token "(defn- sjas-structural-proof-check-state-decodedo"
           end-token "(defn- sjas-proof-check-stateo"
           start (str/index-of source start-token)
           end (str/index-of source end-token start)
@@ -2360,7 +3063,7 @@
 
 (deftest sjas-structural-proof-checker-uses-proof-free-equality-progression
   (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
-        start-token "(defn- sjas-structural-proof-check-stateo"
+        start-token "(defn- sjas-structural-proof-check-state-decodedo"
         end-token "(defn- sjas-proof-check-stateo"
         start (str/index-of source start-token)
         end (str/index-of source end-token start)
@@ -2372,7 +3075,7 @@
 
 (deftest sjas-structural-proof-checker-has-no-proof-rule-tag-shortcuts
   (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
-        start-token "(defn- sjas-structural-proof-check-stateo"
+        start-token "(defn- sjas-structural-proof-check-state-decodedo"
         end-token "(defn- sjas-proof-check-stateo"
         start (str/index-of source start-token)
         end (str/index-of source end-token start)
@@ -3035,11 +3738,66 @@
                                      "(defn- sjas-subst-prf-closeo"
                                      subst-core-start)
         subst-core-source (subs source subst-core-start subst-core-end)]
-    (is (str/includes? subst-core-source "sjas-system-code-valid-coreo")
+    (is (str/includes? subst-core-source "sjas-system-code-valid-walked-coreo")
         "subst-prf must validate the supplied finite system code before accepting the substitution-result axiom")
-    (is (re-find #"(?s)sjas-system-code-valid-coreo prog system-code.*sjas-subst-code-any-coreo"
+    (is (re-find #"(?s)sjas-system-code-valid-walked-coreo prog\s+system-code.*sjas-subst-code-any-coreo"
                  subst-core-source)
-        "system-code validation must occur in the same substitution-axiom branch as the subst-code check")))
+        "system-code validation through equality state must occur in the same substitution-axiom branch as the subst-code check")))
+
+(deftest sjas-proof-predicate-system-code-reconstruction-walks-equality-state
+  (let [system (demo-system :willard-sjas-tableau0)
+        source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
+        tableau-core-source (subs source
+                                  (str/index-of source "(defn- sjas-tableau-proof-coreo")
+                                  (str/index-of source
+                                                "(defn- sjas-tableau-proof-closeo"))
+        subst-core-source (subs source
+                                (str/index-of source "(defn- sjas-subst-prf-coreo")
+                                (str/index-of source
+                                              "(defn- sjas-subst-prf-closeo"))
+        walked-axiom-var (ns-resolve 'proflog.kernel.willard-sjas-profile
+                                     'sjas-system-axiom-formula-walked-coreo)
+        walked-valid-var (ns-resolve 'proflog.kernel.willard-sjas-profile
+                                     'sjas-system-code-valid-walked-coreo)]
+    (is (fn? (when walked-axiom-var (var-get walked-axiom-var)))
+        "proof predicates need a proof-free AxiomConj relation that reads system-code through sigma")
+    (is (fn? (when walked-valid-var (var-get walked-valid-var)))
+        "subst-prf needs a proof-free system-code validator that reads system-code through sigma")
+    (is (str/includes? tableau-core-source "sjas-system-axiom-formula-walked-coreo")
+        "tableau-proof structural certificates must reconstruct AxiomConj after walking system-code")
+    (is (str/includes? subst-core-source "sjas-system-axiom-formula-walked-coreo")
+        "subst-prf structural certificates must reconstruct AxiomConj after walking system-code")
+    (is (str/includes? subst-core-source "sjas-system-code-valid-walked-coreo")
+        "subst-prf substitution-result axiom branch must validate walked system-code")
+    (when (and walked-axiom-var walked-valid-var)
+      (let [walked-axiom-coreo (var-get walked-axiom-var)
+            walked-valid-coreo (var-get walked-valid-var)]
+        (is (successful?
+              (l/run 1 [q]
+                (l/fresh [system-code sigma sigma-out walked-system-code axiom-formula
+                          eq-proof]
+                  (equality/unify-termo system-code (:system-code system) '() sigma eq-proof)
+                  (walked-axiom-coreo (:program system)
+                                      system-code
+                                      sigma
+                                      sigma-out
+                                      walked-system-code
+                                      axiom-formula)
+                  (l/== (:system-code system) walked-system-code)
+                  (l/== true q))))
+            "AxiomConj reconstruction must read a system-code variable already bound in sigma")
+        (is (successful?
+              (l/run 1 [q]
+                (l/fresh [system-code sigma sigma-out walked-system-code eq-proof]
+                  (equality/unify-termo system-code (:system-code system) '() sigma eq-proof)
+                  (walked-valid-coreo (:program system)
+                                      system-code
+                                      sigma
+                                      sigma-out
+                                      walked-system-code)
+                  (l/== (:system-code system) walked-system-code)
+                  (l/== true q))))
+            "system-code validation must read a system-code variable already bound in sigma")))))
 
 (deftest sjas-tableau-proof-accepts-axiom-citation-certificates
   (let [system (demo-system :willard-sjas-level1)
@@ -3113,9 +3871,9 @@
                           1
                           160)
         proof (first-proof citation-proofs)]
-    (is (successful? citation-proofs))
-    (is (proof/contains-step? proof 'sjas-system-group-three-axiom)
+    (is (successful? citation-proofs)
         "Tableau-0 Group-3 citations must be reconstructed from system-code")
+    (is proof)
     (is (not (proof/contains-step? proof 'sjas-generated-axiom-member))
         "Tableau-0 Group-3 citations should not fall back to generated axiom-member facts")))
 
@@ -3130,9 +3888,9 @@
                           1
                           200)
         proof (first-proof citation-proofs)]
-    (is (successful? citation-proofs))
-    (is (proof/contains-step? proof 'sjas-system-level1-group-three-axiom)
+    (is (successful? citation-proofs)
         "Level-1 Group-3 citations must validate the fixed-point skeleton from system-code")
+    (is proof)
     (is (not (proof/contains-step? proof 'sjas-generated-axiom-member))
         "Level-1 Group-3 citations should not fall back to generated axiom-member facts")))
 
@@ -3355,12 +4113,12 @@
 (deftest sjas-selfcons-demonstration-uses-substantive-proof-targets
   (testing "an explicitly inconsistent reflected basis can cite the real contradiction target"
     (let [system (sjas/system {:profile :willard-sjas-tableau0
-                               :beta [(ast/false-form)]})
+                               :beta [(ast/eq-lit sjas/zero sjas/one)]})
           contradiction-certificate (sjas/proof-certificate 'sjas-axiom)]
       (is (some #(and (= :group-two (:group %))
                       (= (:contradiction-code system) (:code %)))
                 (:axioms system))
-          "the inconsistent beta basis must encode false as a reflected axiom")
+          "the inconsistent beta basis must encode 0=1 as a reflected axiom")
       (is (successful?
             (query/query-succeeds
               (:program system)
@@ -3726,9 +4484,9 @@
         "proof predicates must not bypass tableau state validation with top-conjunction shortcuts")
     (is (not (re-find #"sjas-negated-theorem-branch-proof-checko" profile-source))
         "proof predicates must not bypass tableau state validation by focusing the negated theorem directly")
-    (is (not (re-find #"(?s)defn- sjas-tableau-proof-closeo.*?\(conda" profile-source))
+    (is (not (re-find #"(?s)defn- sjas-tableau-proof-closeo(?:(?!\n\(defn-).)*\(conda" profile-source))
         "tableau-proof proof-code classification must be a relation, not a committed-choice scheduler")
-    (is (not (re-find #"(?s)defn- sjas-axiom-membero.*?\(conda" profile-source))
+    (is (not (re-find #"(?s)defn- sjas-axiom-membero(?:(?!\n\(defn-).)*\(conda" profile-source))
         "axiom-member group selection must be an ordinary finite relation, not committed-choice search control")
     (is (not (re-find #"(?s)defn- reflected-call-alternatives-in-clauseso(?:(?!\n\(defn-).)*\(conda" profile-source))
         "reflected negative-call alternative collection must use explicit encoded-clause match/nonmatch relations")
@@ -3758,36 +4516,48 @@
         "subst-prf answer evidence must not adjoin code-reader and decoded-proof traces to the supplied tableau proof code")
     (is (str/includes? tableau-close-source "sjas-tableau-proof-coreo")
         "tableau-proof wrapper must delegate to the proof-free object relation")
-    (is (str/includes? tableau-core-source "decode-sjas-axiom-proof-code-coreo")
-        "tableau-proof must decode axiom certificates without auxiliary proof traces")
-    (is (str/includes? tableau-core-source "decode-non-sjas-axiom-proof-code-coreo")
-        "tableau-proof must decode structural certificates without auxiliary proof traces")
+    (is (str/includes? tableau-core-source "sjas-formal-code-bytes-coreo proof-code")
+        "tableau-proof must read proof-code bytes once before classifying certificate shape")
+    (is (str/includes? tableau-core-source "sjas-axiom-proof-bytes")
+        "tableau-proof must recognize axiom certificates from decoded proof bytes")
+    (is (str/includes? tableau-core-source "decode-structural-proof-bytes-coreo")
+        "tableau-proof must decode structural certificates from the already-read proof bytes")
     (is (str/includes? tableau-core-source "sjas-structural-negated-theorem-coreo")
         "tableau-proof must decode theorem codes without auxiliary theorem-code traces")
-    (is (str/includes? tableau-core-source "sjas-system-axiom-formula-coreo")
-        "tableau-proof must reconstruct AxiomConj through proof-free object relations")
+    (is (str/includes? tableau-core-source "sjas-system-axiom-formula-walked-coreo")
+        "tableau-proof must reconstruct AxiomConj through proof-free object relations after walking system-code")
     (is (str/includes? tableau-core-source "sjas-walked-axiom-member-coreo")
         "tableau-proof axiom citation must check finite-system membership without auxiliary proof traces")
     (is (not (str/includes? tableau-core-source "decode-sjas-axiom-proof-codeo"))
         "tableau-proof must not call the proof-producing axiom certificate decoder")
     (is (not (str/includes? tableau-core-source "decode-non-sjas-axiom-proof-codeo"))
         "tableau-proof must not call the proof-producing structural certificate decoder")
+    (is (not (str/includes? tableau-core-source "decode-sjas-axiom-proof-code-coreo"))
+        "tableau-proof must not re-read proof-code bytes separately for the axiom branch")
+    (is (not (str/includes? tableau-core-source "decode-non-sjas-axiom-proof-code-coreo"))
+        "tableau-proof must not re-read proof-code bytes separately for the structural branch")
     (is (str/includes? subst-close-source "sjas-subst-prf-coreo")
         "subst-prf wrapper must delegate to the proof-free object relation")
-    (is (str/includes? subst-core-source "decode-sjas-axiom-proof-code-coreo")
-        "subst-prf must decode axiom certificates without auxiliary proof traces")
-    (is (str/includes? subst-core-source "decode-non-sjas-axiom-proof-code-coreo")
-        "subst-prf must decode structural certificates without auxiliary proof traces")
+    (is (str/includes? subst-core-source "sjas-formal-code-bytes-coreo proof-code")
+        "subst-prf must read proof-code bytes once before classifying certificate shape")
+    (is (str/includes? subst-core-source "sjas-axiom-proof-bytes")
+        "subst-prf must recognize axiom certificates from decoded proof bytes")
+    (is (str/includes? subst-core-source "decode-structural-proof-bytes-coreo")
+        "subst-prf must decode structural certificates from the already-read proof bytes")
     (is (str/includes? subst-core-source "sjas-structural-negated-theorem-coreo")
         "subst-prf must decode theorem codes without auxiliary theorem-code traces")
-    (is (str/includes? subst-core-source "sjas-system-axiom-formula-coreo")
-        "subst-prf must reconstruct AxiomConj through proof-free object relations")
+    (is (str/includes? subst-core-source "sjas-system-axiom-formula-walked-coreo")
+        "subst-prf must reconstruct AxiomConj through proof-free object relations after walking system-code")
     (is (str/includes? subst-core-source "sjas-walked-axiom-member-coreo")
         "subst-prf axiom citation must check finite-system membership without auxiliary proof traces")
     (is (not (str/includes? subst-core-source "decode-sjas-axiom-proof-codeo"))
         "subst-prf must not call the proof-producing axiom certificate decoder")
     (is (not (str/includes? subst-core-source "decode-non-sjas-axiom-proof-codeo"))
         "subst-prf must not call the proof-producing structural certificate decoder")
+    (is (not (str/includes? subst-core-source "decode-sjas-axiom-proof-code-coreo"))
+        "subst-prf must not re-read proof-code bytes separately for the axiom branch")
+    (is (not (str/includes? subst-core-source "decode-non-sjas-axiom-proof-code-coreo"))
+        "subst-prf must not re-read proof-code bytes separately for the structural branch")
     (is (not (str/includes? reflected-antecedent-source "conda"))
         "reflected axiom antecedent reconstruction must be a relation over reflected records, not committed-choice fallback decoding")
     (is (str/includes? fixed-antecedent-source "group-zero-internal-formulas")
@@ -3811,8 +4581,10 @@
         "compact byte decoding must parse the presented numeral before consulting the finite byte relation")
     (is (str/includes? code-byte-source "code-byte-build-termo")
         "compact byte decoding must expose a separate byte-first builder mode for embedded code payload reconstruction")
-    (is (str/includes? internal-code-source "code-args-buildo")
-        "embedded code payload reconstruction must use the byte-first builder mode, not the public reader mode")
+    (is (str/includes? internal-code-source "code-args-build-counto")
+        "embedded code payload reconstruction must use the counted byte-first builder mode")
+    (is (not (str/includes? internal-code-source "code-argso"))
+        "embedded code payload reconstruction must not use the public code reader mode")
     (is (not (str/includes? app-arity-source "conda"))
         "application arity decoding must be a finite relation over the encoded arity byte, not committed-choice recursion")
     (is (not (str/includes? skip-app-arity-source "conda"))

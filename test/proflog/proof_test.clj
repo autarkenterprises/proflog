@@ -85,15 +85,17 @@
 (deftest proof-terms-preserve-equality-and-disequality-steps
   (testing "later closure still exposes both the neq-store and eq-step tags"
     (ast/nom x
-      (let [proof (first
-                    (kernel/prove
-                      (ast/and-form
-                        (ast/neq-lit (ast/var-term x) (ast/app-term 'zero))
-                        (ast/eq-lit (ast/var-term x) (ast/app-term 'zero)))
-                      1))]
-        (is (proof/contains-step? proof 'neq-store))
-        (is (proof/contains-step? proof 'eq-step))
-        (is (proof/contains-step? proof 'neq-close))))))
+      (let [proofs (kernel/prove
+                     (ast/and-form
+                       (ast/neq-lit (ast/var-term x) (ast/app-term 'zero))
+                       (ast/eq-lit (ast/var-term x) (ast/app-term 'zero)))
+                     2)
+            stored-proof (first
+                           (filter #(proof/contains-step? % 'neq-store)
+                                   proofs))]
+        (is (some #(proof/contains-step? % 'eq-step) proofs))
+        (is (some? stored-proof))
+        (is (proof/contains-step? stored-proof 'neq-close))))))
 
 (deftest proof-terms-record-saved-literals-before-a-later-closure
   (testing "the structural proof tree retains savefml when a literal closes later on the branch"

@@ -1,9 +1,9 @@
 # ADR-0094: Core.logic LVar Equality Fast Path
 
-- Status: in progress
+- Status: completed
 - Date: 2026-06-10
 - Branch: `adr-0094-core-logic-lvar-equality`
-- AAR: pending
+- AAR: [AAR-0094](../aar/AAR-0094-core-logic-lvar-equality-fast-path.md)
 
 ## Context
 

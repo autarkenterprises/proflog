@@ -31,6 +31,16 @@ complete contemporaneous transcript.
   and opened [ADR-0094](docs/adr/ADR-0094-core-logic-lvar-equality-fast-path.md)
   (ADR-0093 is claimed by the parallel core.logic canonical-regression-suite
   agent). The durable probe continues in parallel, reniced to priority 19.
+- Completed ADR-0094. Both overlays carry the type-hinted LVar-vs-LVar
+  equality fast path with the IVar keyword branch kept verbatim; the
+  equality contract is pinned by `proflog.core-logic-lvar-equality-test`
+  (green on original and patched code, as the change is equivalence-
+  preserving) and red/green takes the performance-evidence form:
+  back-to-back baseline/patched passes under identical load show 1.23x to
+  2.05x on the bisect probes and three whole-program vars, with proofs and
+  assertions identical; fast gate `3:28.73` and extended gate `8:32.50`,
+  both 0 failures and faster than their predecessors. See
+  [AAR-0094](docs/aar/AAR-0094-core-logic-lvar-equality-fast-path.md).
 
 - Executed ADR-0088 to completion on `adr-0088-sjas-runtime-rebaseline`.
   The bisect probe attributed the whole-program grind to `axiom-member`

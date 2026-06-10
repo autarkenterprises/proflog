@@ -746,12 +746,23 @@
   Object
   (toString [_] (str "<lvar:" name ">"))
 
+  ;; ADR-0094: LVar equality is the engine's innermost comparison (every
+  ;; substitution find, occurs-check node visit, and var-var unification).
+  ;; The LVar-vs-LVar fast path reads fields directly instead of through
+  ;; the keyword-lookup callsite; the IVar fallback is kept verbatim for
+  ;; non-LVar implementors (the nominal subsystem), so all results are
+  ;; identical by the valAt case table.
   (equals [this o]
-    (if (instance? IVar o)
-      (if unique
-        (identical? id (:id o))
-        (identical? name (:name o)))
-      false))
+    (if (instance? LVar o)
+      (let [o ^LVar o]
+        (if unique
+          (identical? id (.-id o))
+          (identical? name (.-name o))))
+      (if (instance? IVar o)
+        (if unique
+          (identical? id (:id o))
+          (identical? name (:name o)))
+        false)))
 
   (hashCode [_] hash)
 

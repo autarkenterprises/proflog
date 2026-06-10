@@ -111,6 +111,19 @@ The three strands are coherently aimed at the stated motivation.
   The pre-greenfield deep-research reports moved to `docs/research/`.
   `.gitignore` now covers build output, session state, `test-runs/`, editor
   droppings, and the nested conference repositories.
+- **The opaque SJAS namespace gate has not been runtime-green since
+  ADR-0086** (found 2026-06-10 while verifying ADR-0087's slow selectors):
+  `sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile`
+  and `sjas-subst-prf-checks-selfcons-fixed-point-certificate` each exceed
+  40-45 minute timeouts at commit `1fa3e53`, before ADR-0087, and were
+  stopped past two CPU-hours each at `e18f7b7`. The positive fixed-point
+  checks pass; the cost concentrates in whole-program queries (every query
+  decomposes the full `AxiomConj`, gamma-instantiating against the enlarged
+  Group-3 codes) and in negative exhaustive searches. These vars were not in
+  AAR-0086's focused selector list, and the fast/extended gates do not cover
+  the SJAS namespace. Disposition: AAR-0086/0087 follow-ups recorded,
+  runtime rows added to `TEST_RUNTIME_BASELINE.md`, and the re-baseline and
+  scheduling investigation proposed as ADR-0088.
 - **Remaining manual items**: `node_modules/@openai` is root-owned (npm run
   as root on 2026-04-26) and needs `sudo rm -rf node_modules`; the git
   remote URL embeds a GitHub PAT in plaintext (`.git/config`) — move it to a

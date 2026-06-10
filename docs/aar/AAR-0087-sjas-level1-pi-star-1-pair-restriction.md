@@ -93,14 +93,38 @@ test-runs/adr0087-subst-prf-fixed-point-20260610T003800Z.log
 test-runs/adr0087-level1-supplement-20260610T004505Z.log
 ```
 
-At commit time both were live and CPU-bound. A JVM stack sample showed the
-fixed-point run already past both positive `subst-prf` checks and inside the
-negative exhaustive search (system-code as substitution source must yield no
-proof) in the prove-program stream loop. For scale, the 2026-06-04 durable
-core `subst-prf` selector took `8:32.36` alone, before the ADR-0086 `0 = 1`
-target and this ADR enlarged the Group-3 codes, so multi-hour negative
-exhaustion is within the expected envelope. This AAR will be updated with
-the final probe numbers when they complete, per the AAR update discipline.
+Probe outcome (2026-06-10 update). Both probes were stopped for differential
+attribution after each exceeded two CPU-hours on a single test var:
+
+- the fixed-point run had passed both positive `subst-prf` checks (stack
+  evidence: execution inside the third, negative query) and was stopped at
+  `137:53` CPU during that negative exhaustive search;
+- the supplementary batch had completed
+  `sjas-u-grounding-subst-code-computes-level1-fixed-point`,
+  `sjas-level1-bounded-contradiction-probe-records-timing`, and
+  `sjas-subst-code-relates-structural-substitution-codes` without failure
+  output — including the direct Level-1 fixed-point computation over the
+  revised skeleton — and was stopped at `128:59` CPU inside
+  `sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile`.
+
+Differential runs of both grinding vars at commit `1fa3e53` (the state
+immediately before this ADR) timed out at `40:00` and `45:00` respectively.
+The runtime regression therefore predates ADR-0087 and entered with the
+ADR-0086-era state; it had gone unnoticed because these vars belong to the
+SJAS namespace, which the fast/extended gates do not cover and which was not
+re-run in full after ADR-0086. The semantic correction of this ADR stands;
+runtime re-baselining and scheduling work is proposed as
+[ADR-0088](../adr/ADR-0088-sjas-whole-program-query-runtime.md).
+
+The profile source audit was re-run on this ADR's code after the probes were
+stopped:
+
+```text
+sjas-profile-source-audit-rejects-host-proof-checker-route
+Ran 1 tests containing 128 assertions.
+0 failures, 0 errors.
+elapsed 1:29.21 maxrss 243580KB
+```
 
 ## Follow-up
 

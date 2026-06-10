@@ -109,3 +109,19 @@ finds that the executable relation does not accurately form the literature
 axiom basis and SelfCons sentence for the selected `IS#_D(beta)` apparatus, that
 is a Track 1 defect. Track 2 is for explicitly modified deductive apparatuses
 or variants and the proof that they define a different acceptable SJAS.
+
+## Follow-Up (2026-06-10)
+
+The motivation/correctness audit found that the runtime cost of this change
+extends beyond the public SelfCons selector. Differential runs at commit
+`1fa3e53` (this ADR's state, before ADR-0087) showed
+`sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile`
+exceeding a 40-minute timeout and
+`sjas-subst-prf-checks-selfcons-fixed-point-certificate` exceeding a
+45-minute timeout, so the opaque `lein test-proflog-sjas` gate has not been
+runtime-green since this change. Neither var was in this AAR's focused
+selector list, and the fast/extended gates do not cover the SJAS namespace.
+The `0 = 1` target stands per the original rationale above; the runtime
+re-baseline and whole-program query scheduling work is proposed as
+[ADR-0088](../adr/ADR-0088-sjas-whole-program-query-runtime.md). ADR-0087's
+Level-1 correction was differentially exonerated for both regressions.

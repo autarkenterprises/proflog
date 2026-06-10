@@ -20,6 +20,21 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-10
+
+- Attributed the ADR-0087 slow-probe grind via differential runs: both
+  `sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile`
+  and `sjas-subst-prf-checks-selfcons-fixed-point-certificate` exceed
+  40/45-minute timeouts at `1fa3e53`, before ADR-0087, so the opaque SJAS
+  namespace gate has not been runtime-green since ADR-0086. The positive
+  fixed-point checks pass on the corrected shape; the cost concentrates in
+  whole-program `AxiomConj` decomposition and negative exhaustive searches.
+  Recorded follow-ups in AAR-0086 and AAR-0087, runtime rows in
+  `TEST_RUNTIME_BASELINE.md`, re-ran the 128-assertion profile source audit
+  green on the ADR-0087 code, and proposed
+  [ADR-0088](docs/adr/ADR-0088-sjas-whole-program-query-runtime.md) for the
+  re-baseline and scheduling investigation.
+
 ## 2026-06-09
 
 - Completed ADR-0087, the Level-1 literature-fidelity correction from the

@@ -857,3 +857,22 @@ residual continuation.
 | `test-Y12-append-inverse-synth-all-splits` | `28.02 s` | `append(A, B, [a,b,c])` returned all 4 splits. |
 | `test-Y15-append-nested-inverse-all-splits` | `17.76 s` | `append(A, B, [[a],[b]])` returned all 3 nested splits. |
 | `test-Z04-append-depth3-combined-three-levels` | `17.06 s` | Combined level-0/1/3 depth-3 append synthesis succeeded. |
+
+## Post-ADR-0086 SJAS Whole-Program Query Regressions
+
+Recorded 2026-06-10 during the ADR-0087 audit follow-up. These are not gate
+timings; they document that the opaque `lein test-proflog-sjas` namespace has
+not been runtime-green since ADR-0086, and motivate
+[ADR-0088](adr/ADR-0088-sjas-whole-program-query-runtime.md). Durable logs:
+`test-runs/adr0087-subst-prf-fixed-point-20260610T003800Z.log`,
+`test-runs/adr0087-level1-supplement-20260610T004505Z.log`.
+
+| Selector | State | Result |
+|---|---|---|
+| `sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile` | `1fa3e53` (pre-ADR-0087) | `timeout 2400` exceeded at `40:00` |
+| same | `e18f7b7` (post-ADR-0087) | stopped at `128:59` CPU mid-test |
+| `sjas-subst-prf-checks-selfcons-fixed-point-certificate` | `1fa3e53` | `timeout 2700` exceeded at `45:00` |
+| same | `e18f7b7` | both positive checks passed; stopped at `137:53` CPU during the negative query |
+| `sjas-subst-prf-rejects-selfcons-complement-axiom-certificate` | `e18f7b7` | not reached before the stop |
+| `sjas-u-grounding-subst-code-computes-level1-fixed-point`, `sjas-level1-bounded-contradiction-probe-records-timing`, `sjas-subst-code-relates-structural-substitution-codes` | `e18f7b7` | completed without failure output before the stop |
+| `sjas-profile-source-audit-rejects-host-proof-checker-route` | `e18f7b7` | `0` failures in `1:29.21` |

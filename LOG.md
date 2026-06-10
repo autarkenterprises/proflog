@@ -22,6 +22,26 @@ complete contemporaneous transcript.
 
 ## 2026-06-10
 
+- Stack-analyzed the running `subst-prf` negative-exhaustion durable probe
+  at the user's request: three samples localized the cost to
+  `occurs-check-worklist` substitution lookups whose `LVar.equals` reads
+  fields through keyword-lookup indirection. Logged the question, the
+  original-code walkthrough, and the proposed type-hinted fast path in
+  [LVar Equality Fast Path: Stack Analysis And Proposal](docs/log/2026-06-10-lvar-equality-fast-path-analysis.md),
+  and opened [ADR-0094](docs/adr/ADR-0094-core-logic-lvar-equality-fast-path.md)
+  (ADR-0093 is claimed by the parallel core.logic canonical-regression-suite
+  agent). The durable probe continues in parallel, reniced to priority 19.
+- Completed ADR-0094. Both overlays carry the type-hinted LVar-vs-LVar
+  equality fast path with the IVar keyword branch kept verbatim; the
+  equality contract is pinned by `proflog.core-logic-lvar-equality-test`
+  (green on original and patched code, as the change is equivalence-
+  preserving) and red/green takes the performance-evidence form:
+  back-to-back baseline/patched passes under identical load show 1.23x to
+  2.05x on the bisect probes and three whole-program vars, with proofs and
+  assertions identical; fast gate `3:28.73` and extended gate `8:32.50`,
+  both 0 failures and faster than their predecessors. See
+  [AAR-0094](docs/aar/AAR-0094-core-logic-lvar-equality-fast-path.md).
+
 - Executed ADR-0088 to completion on `adr-0088-sjas-runtime-rebaseline`.
   The bisect probe attributed the whole-program grind to `axiom-member`
   citations (beta queries run in seconds); stack samples placed the cost in

@@ -93,3 +93,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0091](AAR-0091-sjas-citation-evidence-restoration.md) | [ADR-0091](../adr/ADR-0091-sjas-citation-evidence-restoration.md) | completed |
 | [AAR-0092](AAR-0092-sjas-nnf-pi-star-1-encodability.md) | [ADR-0092](../adr/ADR-0092-sjas-nnf-pi-star-1-encodability.md) | completed |
 | [AAR-0088](AAR-0088-sjas-whole-program-query-runtime.md) | [ADR-0088](../adr/ADR-0088-sjas-whole-program-query-runtime.md) | completed |
+| [AAR-0094](AAR-0094-core-logic-lvar-equality-fast-path.md) | [ADR-0094](../adr/ADR-0094-core-logic-lvar-equality-fast-path.md) | completed |

@@ -73,6 +73,7 @@
                                     "proflog.core-logic-nominal-hash-test"
                                     "proflog.core-logic-occurs-check-test"
                                     "proflog.core-logic-ground-walk-test"
+                                    "proflog.core-logic-lvar-equality-test"
                                     "proflog.frontend-test"
                                     "proflog.formula-profile-test"
                                     "proflog.robinson-q-test"

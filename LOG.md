@@ -22,6 +22,24 @@ complete contemporaneous transcript.
 
 ## 2026-06-10
 
+- Logged verbatim the SelfCons execution discussion — whether the artifact
+  has executed self-verification, the concrete 27/60/180-byte fixed-point
+  sentences, the exact reconstruction relations and rules, and the
+  synthesis-mode elaboration — as
+  [SelfCons Execution Discussion](docs/log/2026-06-10-selfcons-execution-discussion.md).
+- Reviewed the dual subst-prf probes at 9h07m (pre-0094) and 1h30m
+  (post-0094) elapsed, 84 stack samples each: keyword-lookup frames fell
+  from 58/84 samples to 0 and `LVar.equals` from 20 to 0 (ADR-0094
+  confirmed at scale); the ADR-0090 scanner's deep descent appears in only
+  2/84 samples, so its speculative lazy-worklist refinement is not
+  justified; the residual profile is walk/occurs over variable-dense terms
+  — structural search width, with constant-factor levers exhausted. Both
+  probes still running, logs durable.
+- Opened [ADR-0095](docs/adr/ADR-0095-sjas-proof-synthesis.md): citation
+  proof synthesis via fresh-variable `tableau-proof/3` queries (the
+  runtime generating the Henkin proof of its own consistency rather than
+  checking it), plus a structural-synthesis behavior probe.
+
 - Stack-analyzed the running `subst-prf` negative-exhaustion durable probe
   at the user's request: three samples localized the cost to
   `occurs-check-worklist` substitution lookups whose `LVar.equals` reads

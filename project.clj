@@ -71,6 +71,7 @@
                                     "proflog.closed-term-gamma-test"
                                     "proflog.core-logic-nominal-hash-test"
                                     "proflog.core-logic-occurs-check-test"
+                                    "proflog.core-logic-ground-walk-test"
                                     "proflog.frontend-test"
                                     "proflog.formula-profile-test"
                                     "proflog.robinson-q-test"

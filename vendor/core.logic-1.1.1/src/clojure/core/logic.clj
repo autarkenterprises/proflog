@@ -226,17 +226,73 @@
 
 (declare empty-s choice lvar lvar? pair lcons lcons? run-constraints*)
 
+(def ^:private ground-meta-key
+  "Metadata key marking a term proven ground (ADR-0090). A ground term is a
+  fixed point of walk* under every substitution and can never come to
+  contain a variable, so tagged terms may skip walking and occurs checking.
+  Metadata does not participate in equality or hashing, so the tag cannot
+  affect unification, disequality, or reification results."
+  :clojure.core.logic/ground)
+
+(defn- ground-tagged? [v]
+  (and (instance? clojure.lang.IMeta v)
+       (true? (ground-meta-key (meta v)))))
+
+(defn- ground-leaf? [v]
+  (or (nil? v)
+      (instance? Boolean v)
+      (number? v)
+      (string? v)
+      (keyword? v)
+      (char? v)
+      (symbol? v)))
+
+(defn- ground-tree?
+  "Conservative groundness for walked terms (ADR-0090). True only for
+  structures built from sequences, lcons cells, vectors, and atomic leaves
+  with no logic variable anywhere. Maps, sets, records, and nominal
+  structures are deliberately treated as non-ground so they are never
+  tagged or skipped. Already-tagged subtrees are accepted without descent.
+  Distinct from the upstream substitution-relative `ground-term?`."
+  [v]
+  (loop [work (list v)]
+    (if (seq work)
+      (let [x (first work)
+            work (next work)]
+        (cond
+          (lvar? x) false
+          (ground-tagged? x) (recur work)
+          (ground-leaf? x) (recur work)
+          (lcons? x) (recur (conj (conj work (lnext x)) (lfirst x)))
+          (vector? x) (recur (into work x))
+          (seq? x) (recur (into work x))
+          :else false))
+      true)))
+
+(defn- ground-tag
+  "Tag `v` as ground when it provably is and can carry metadata."
+  [v]
+  (if (and (instance? clojure.lang.IObj v)
+           (not (ground-tagged? v))
+           (ground-tree? v))
+    (vary-meta v assoc ground-meta-key true)
+    v))
+
 (defn- occurs-check-worklist
   "Return true when `u` occurs in any walked term reachable from `work`.
   The upstream occurs check already loops across siblings, but it recurses when
   descending into the first child. This worklist keeps child and sibling descent
-  in one host-stack frame while preserving the same term cases."
+  in one host-stack frame while preserving the same term cases. Subtrees tagged
+  ground (ADR-0090) are skipped: a ground term cannot contain a variable."
   [s u work]
   (loop [work work]
     (if (seq work)
       (let [v (walk s (first work))
             work (next work)]
         (cond
+          (ground-tagged? v)
+          (recur work)
+
           (lvar? v)
           (if (= (walk s v) u)
             true
@@ -256,20 +312,33 @@
   (occurs-check-worklist s u (list v)))
 
 (defn ext [s u v]
-  (if (and (:oc s) (occurs-check s u (if (subst-val? v) (:v v) v)))
-    nil
-    (ext-no-check s u v)))
+  ;; ADR-0090: tag ground values before the occurs check and extension. The
+  ;; one groundness scan (which aborts on the first variable) makes the
+  ;; occurs-check scan of the same value unnecessary, and every later walk
+  ;; of this binding returns the tagged object in constant time.
+  (let [v (if (subst-val? v) v (ground-tag v))]
+    (if (and (:oc s) (occurs-check s u (if (subst-val? v) (:v v) v)))
+      nil
+      (ext-no-check s u v))))
 
 (declare tree-term?)
 
 (defn walk* [s v]
   (let [v (walk s v)]
-    (walk-term v
-      (fn [x]
-        (let [x (walk s x)]
-         (if (tree-term? x)
-           (walk* s x)
-           x))))))
+    (if (ground-tagged? v)
+      v
+      ;; ADR-0090: tag ground walk results so terms that flow forward into
+      ;; later states, bindings, and walks short-circuit from then on. The
+      ;; groundness scan aborts on the first variable, and already-tagged
+      ;; subtrees are accepted without descent, so repeated tagging of the
+      ;; same propagated object is constant after the first scan.
+      (ground-tag
+        (walk-term v
+          (fn [x]
+            (let [x (walk s x)]
+             (if (tree-term? x)
+               (walk* s x)
+               x))))))))
 
 (defn unify [s u v]
   (if (identical? u v)
@@ -882,8 +951,14 @@
   ;; we could use continuation passing style and trampoline
   IWalkTerm
   (walk-term [v f]
-    (lcons (f (lfirst v))
-           (f (lnext v))))
+    ;; ADR-0090 copy-on-write: share the original cell when neither field
+    ;; walks to a new object.
+    (let [a (f (lfirst v))
+          d (f (lnext v))]
+      (if (and (identical? a (lfirst v))
+               (identical? d (lnext v)))
+        v
+        (lcons a d))))
 
   IOccursCheckTerm
   (occurs-check-term [v x s]
@@ -1019,18 +1094,36 @@
 
   clojure.lang.ISeq
    (walk-term [v f]
-     (with-meta
-       (doall (map #(walk-term (f %) f) v))
-       (meta v)))
+     ;; ADR-0090 copy-on-write: rebuild only when some element walks to a
+     ;; new object; otherwise return the original sequence unchanged.
+     (let [[walked same]
+           (loop [s (seq v) acc (transient []) same true]
+             (if s
+               (let [x (first s)
+                     w (walk-term (f x) f)]
+                 (recur (next s)
+                        (conj! acc w)
+                        (and same (identical? x w))))
+               [(persistent! acc) same]))]
+       (if same
+         v
+         (with-meta (apply list walked) (meta v)))))
 
   clojure.lang.IPersistentVector
   (walk-term [v f]
-    (with-meta
-      (loop [v v r (transient [])]
-        (if (seq v)
-          (recur (next v) (conj! r (walk-term (f (first v)) f)))
-          (persistent! r)))
-      (meta v)))
+    ;; ADR-0090 copy-on-write, as for ISeq.
+    (let [[walked same]
+          (loop [s (seq v) acc (transient []) same true]
+            (if s
+              (let [x (first s)
+                    w (walk-term (f x) f)]
+                (recur (next s)
+                       (conj! acc w)
+                       (and same (identical? x w))))
+              [(persistent! acc) same]))]
+      (if same
+        v
+        (with-meta walked (meta v)))))
 
   clojure.lang.IPersistentMap
   (walk-term [v f]

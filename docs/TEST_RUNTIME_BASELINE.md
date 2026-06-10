@@ -876,3 +876,19 @@ not been runtime-green since ADR-0086, and motivate
 | `sjas-subst-prf-rejects-selfcons-complement-axiom-certificate` | `e18f7b7` | not reached before the stop |
 | `sjas-u-grounding-subst-code-computes-level1-fixed-point`, `sjas-level1-bounded-contradiction-probe-records-timing`, `sjas-subst-code-relates-structural-substitution-codes` | `e18f7b7` | completed without failure output before the stop |
 | `sjas-profile-source-audit-rejects-host-proof-checker-route` | `e18f7b7` | `0` failures in `1:29.21` |
+
+## ADR-0088 SJAS Re-Baseline (2026-06-10)
+
+The ADR-0090 core.logic ground-term walk fast path resolved the
+post-ADR-0086 regressions recorded above: the bisect probe's
+`axiom-member` cases fell from exceeding 15-minute caps to `21.4 s` /
+`34.7 s`, the 137-var bulk lane of `proflog.willard-sjas-test` completed
+in `13:35.26` wall in one JVM, and the formerly multi-hour
+`query-generated-axioms` regression now passes in `1:03.39`. The complete
+per-var envelope tables are in
+[SJAS_RUNTIME_BASELINE_2026-06-10](SJAS_RUNTIME_BASELINE_2026-06-10.md).
+The default `lein test-proflog-sjas` gate now runs the `:not-slow`
+namespace through the focused runner; the `^:slow` probes stay in
+`lein test-proflog-sjas-slow`, with the two `subst-prf`
+negative-exhaustion probes marked exceeds-envelope (25-minute cap) pending
+the uncapped durable run.

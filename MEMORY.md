@@ -1,5 +1,32 @@
 # Memory
 
+## 2026-06-10 ADR-0088/0090 Runtime Re-Baseline
+
+- The vendored core.logic overlays carry the ADR-0090 ground-term fast
+  path: ground values are tagged `:clojure.core.logic/ground` at `ext` and
+  on ground `walk*` results; `walk*` and the occurs worklist short-circuit
+  on the tag; ISeq/vector/LCons `walk-term` rebuild copy-on-write. The
+  scanner is conservative (never tags maps/sets/records/nominal terms).
+  Result-tagging was the decisive half: bind-only tagging left the
+  citation grind untouched.
+- SJAS namespace envelopes post-ADR-0090: 137-var bulk in `13:35.26` (one
+  JVM, slowest var ~3 min); `axiom-member` probe cases `21.4 s`/`34.7 s`;
+  only the two `subst-prf` negative-exhaustion probes exceed 25 minutes
+  (`^:slow`, durable uncapped probe pending). Tables in
+  `docs/SJAS_RUNTIME_BASELINE_2026-06-10.md`.
+- `lein test` cannot scope a selector keyword to a single namespace
+  (namespace arguments become selector arguments, and selectors must stay
+  variadic for lein's two-arity namespace-filter calls). The default
+  `test-proflog-sjas` gate therefore runs through
+  `proflog.focused-test-runner :not-slow <ns>`.
+- ADR-0091 reversed the e248c8b marker summary: public `tableau-proof/3`
+  citation answers nest proof-bearing membership evidence again
+  (`sjas-system-reflected-axiom` etc.). ADR-0092: `pi-star-1-encodable?`
+  classifies on NNF (no positive unbounded existential; the
+  guard-desugared bounded existential recognized); a clause body's
+  quantifiers sit negatively, so antecedent existentials are admissible
+  and universal bodies are the rejectable case.
+
 ## 2026-06-09 Audit And ADR-0087 Level-1 Literature Fidelity
 
 - The Level-1 Group-3 matrix opens with `pi-star-1-code(x)` ahead of

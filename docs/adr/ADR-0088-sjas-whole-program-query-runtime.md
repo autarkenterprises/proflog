@@ -1,9 +1,9 @@
 # ADR-0088: SJAS Whole-Program Query Runtime Re-Baseline
 
-- Status: proposed
+- Status: completed
 - Date: 2026-06-10
-- Branch: `adr-0073-sjas-correspondence-program` (or a dedicated successor)
-- AAR: pending
+- Branch: `adr-0088-sjas-runtime-rebaseline`
+- AAR: [AAR-0088](../aar/AAR-0088-sjas-whole-program-query-runtime.md)
 
 ## Context
 

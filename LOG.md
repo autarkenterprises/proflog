@@ -22,6 +22,29 @@ complete contemporaneous transcript.
 
 ## 2026-06-10
 
+- Executed ADR-0088 to completion on `adr-0088-sjas-runtime-rebaseline`.
+  The bisect probe attributed the whole-program grind to `axiom-member`
+  citations (beta queries run in seconds); stack samples placed the cost in
+  core.logic `walk-term` rebuild churn and occurs rescans over large ground
+  code terms. [ADR-0090](docs/adr/ADR-0090-core-logic-ground-term-walk-fast-path.md)
+  added a ground-term fast path to both vendored overlays (tag-on-bind,
+  tagged walk*/occurs short-circuits, copy-on-write rebuilds): the probe
+  cases fell from 15-minute caps to `21.4 s`/`34.7 s`, the 137-var bulk
+  sweep ran in `13:35.26`, the formerly multi-CPU-hour
+  `query-generated-axioms` passes in `1:03.39`, and both broad gates got
+  faster. The sweep — the first full SJAS namespace run since ADR-0086 —
+  surfaced two latent defects, repaired red/green as
+  [ADR-0091](docs/adr/ADR-0091-sjas-citation-evidence-restoration.md)
+  (e248c8b marker summaries dropped citation evidence; the public
+  tableau-proof closure now nests proof-bearing membership evidence) and
+  [ADR-0092](docs/adr/ADR-0092-sjas-nnf-pi-star-1-encodability.md)
+  (Pi*1-encodability now classified on NNF so antecedent existentials
+  prenex as Definition 5.1 permits). The default `test-proflog-sjas` gate
+  is partitioned to the not-slow namespace via the focused runner (lein
+  cannot scope a selector keyword to one namespace); the two `subst-prf`
+  negative-exhaustion probes remain `^:slow` with an uncapped durable run
+  establishing their true envelopes. Per-var tables:
+  [SJAS_RUNTIME_BASELINE_2026-06-10](docs/SJAS_RUNTIME_BASELINE_2026-06-10.md).
 - Resolved the parallel-agent ADR numbering collision found by scanning
   worktrees and remote branches: branch
   `adr-0087-sjas-selfcons-fixedpoint-basis` carried one slice built on the

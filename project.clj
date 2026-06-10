@@ -54,6 +54,7 @@
    :pelletier-exploratory (fn [m & _] (:pelletier-exploratory m))
    :pelletier-comparison (fn [m & _] (:pelletier-comparison m))
    :slow (fn [m & _] (:slow m))
+   :not-slow (fn [m & _] (not (:slow m)))
    :constructor-recursive (fn [m & _] (:constructor-recursive m))}
   :aliases {"test-section"         ["run" "-m" "cljtap.run-section"]
             "test-all-timed"       ["run" "-m" "cljtap.run-section" "--all"]
@@ -71,6 +72,7 @@
                                     "proflog.closed-term-gamma-test"
                                     "proflog.core-logic-nominal-hash-test"
                                     "proflog.core-logic-occurs-check-test"
+                                    "proflog.core-logic-ground-walk-test"
                                     "proflog.frontend-test"
                                     "proflog.formula-profile-test"
                                     "proflog.robinson-q-test"
@@ -129,7 +131,14 @@
                                                     "proflog.kernel-finite-verifiers-test"]
             "test-proflog-relational-equality-fragment" ["test"
                                                          "proflog.kernel.relational-equality-fragment-test"]
-            "test-proflog-sjas" ["test"
+            ;; ADR-0088 partition: the default SJAS gate runs the not-slow
+            ;; namespace through the focused runner (lein test cannot scope a
+            ;; selector to one namespace: namespace arguments become selector
+            ;; arguments); ^:slow semantic probes stay in
+            ;; test-proflog-sjas-slow with envelopes recorded in
+            ;; TEST_RUNTIME_BASELINE.md.
+            "test-proflog-sjas" ["run" "-m" "proflog.focused-test-runner"
+                                 ":not-slow"
                                  "proflog.willard-sjas-test"]
             "test-proflog-sjas-focused" ["run" "-m" "proflog.focused-test-runner"
                                          "proflog.willard-sjas-test"]

@@ -58,7 +58,7 @@ Durable logs: `test-runs/adr0094-baseline.log`,
   (`test-runs/subst-prf-negatives-uncapped-20260610T100008Z.log` in the
   main checkout). The post-0094 counterpart probe was launched 2026-06-10
   from this ADR's worktree, niced to the same priority 19
-  (`test-runs/subst-prf-negatives-post0094-20260610T180416Z.log`, pid file
+  (`test-runs/subst-prf-negatives-post0094-20260610T173714Z.log`, pid file
   beside it): the pair gives the before/after envelopes for the multi-hour
   negatives, and the post-0094 run doubles as evidence on whether the
   negatives can complete at all — which bears on future semantic testing

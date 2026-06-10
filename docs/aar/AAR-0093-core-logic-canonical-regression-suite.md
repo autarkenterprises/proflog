@@ -23,13 +23,14 @@ literature-derived examples that other miniKanren implementers can recognize:
 classic `appendo`/`membero`/`member1o`/`rembero` behavior, Peano natural
 generation, and a tiny attributed relational interpreter that evaluates the
 standard self-quoting quine from the "miniKanren, Live and Untagged" line of
-work. The extended suite now adds the paper's first twine shape, a relational
-twine-shape check, SEND+MORE=MONEY, all 92 8-queens FD solutions, and backward
-binary multiplication factorization for 30. A direct raw
-`(run 1 [q] (evalo q '() q))` probe against the tiny interpreter did not finish
-within a 90-second bounded run, so the committed regression uses the exact
-generated quine/twine shapes rather than making a nonterminating raw search part
-of the suite.
+work. The extended suite now adds a paper-faithful raw
+`(run 1 [q] (evalo q '() q))` quine-generation test, the paper's first twine
+shape, a relational twine-shape check, SEND+MORE=MONEY, all 92 8-queens FD
+solutions, and backward binary multiplication factorization for 30. The first
+raw probe against the tiny fast-suite interpreter exceeded a 90-second bounded
+run; adapting the paper's extended `eval-expo` with `absento closure` and
+relational `proper-listo` made the raw query complete and promoted it into the
+extended suite.
 
 Review of ADR-0090 found no correctness regression in the patched surface. The
 implementation remains conservative: maps, sets, records, and nominal records
@@ -61,19 +62,30 @@ Ran 8 tests containing 53 assertions.
 0 failures, 0 errors.
 
 lein test :only proflog.core-logic-canonical-extended-test
-Ran 4 tests containing 10 assertions.
+Ran 5 tests containing 16 assertions.
 0 failures, 0 errors.
 
 lein with-profile +core-logic-source-overlay test :only proflog.core-logic-canonical-extended-test
-Ran 4 tests containing 10 assertions.
+Ran 5 tests containing 16 assertions.
 0 failures, 0 errors.
 ```
 
 Extended vars also passed individually:
 `live-untagged-quine-and-twine-pearls` (6 assertions),
+`raw-evalo-quine-generation-completes` (6 assertions),
 `send-more-money-cryptarithmetic` (1 assertion),
 `eight-queens-fd-counts-all-solutions` (2 assertions), and
 `pure-relational-binary-arithmetic-factorization` (1 assertion).
+
+Raw quine experiment, recorded durably in
+`test-runs/raw-evalo-quine-faithful-20260610T191619Z.log`:
+
+```text
+:raw-evalo-quine-answers ((((lambda (_0) (list _0 (list (quote quote) _0)))
+  (quote (lambda (_0) (list _0 (list (quote quote) _0)))))
+  :- (!= (_0 list)) (!= (_0 quote)) symbolo (absento closure _0))
+elapsed 0:53.53 maxrss 217532KB
+```
 
 Broad gates:
 
@@ -88,26 +100,32 @@ Ran 68 tests containing 203 assertions.
 0 failures, 0 errors.
 elapsed 15:02.76 maxrss 565364KB
 
-After adding proflog.core-logic-canonical-extended-test:
+After adding `proflog.core-logic-canonical-extended-test` and promoting the
+raw `evalo` quine regression:
 
 /usr/bin/time -f "elapsed %E maxrss %MKB" lein test-proflog-fast
 Ran 179 tests containing 732 assertions.
 0 failures, 0 errors.
-elapsed 9:46.96 maxrss 427008KB
+elapsed 8:01.09 maxrss 421256KB
 
 /usr/bin/time -f "elapsed %E maxrss %MKB" lein test-proflog-extended
-Ran 72 tests containing 213 assertions.
+Ran 73 tests containing 219 assertions.
 0 failures, 0 errors.
-elapsed 22:46.99 maxrss 623292KB
+elapsed 3:04.35 maxrss 531468KB
+
+/usr/bin/time -f "elapsed %E maxrss %MKB" lein with-profile +core-logic-source-overlay test-proflog-fast
+Ran 179 tests containing 732 assertions.
+0 failures, 0 errors.
+elapsed 1:05.68 maxrss 387740KB
+
+/usr/bin/time -f "elapsed %E maxrss %MKB" lein with-profile +core-logic-source-overlay test-proflog-extended
+Ran 73 tests containing 219 assertions.
+0 failures, 0 errors.
+elapsed 3:11.65 maxrss 557292KB
 ```
 
 ## Follow-up
 
-- A raw, unconstrained `evalo q q` quine-generation regression still needs a
-  more literature-faithful interpreter/ordering than the tiny fast-suite
-  interpreter; the tiny interpreter's raw query exceeded a 90-second bounded
-  probe. The committed suite covers exact generated quine/twine behavior and
-  relational twine-shape checking instead.
 - Further extended conformance candidates remain: larger relational
   interpreters from the 2012 appendix code, twine-cycle synthesis beyond the
   first documented pair, Zebra, Sudoku, and additional pure relational

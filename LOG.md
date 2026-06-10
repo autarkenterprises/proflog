@@ -52,6 +52,20 @@ complete contemporaneous transcript.
   `(run 1 [q] (evalo q '() q))` probe against the tiny interpreter exceeded a
   90-second bounded run, so the committed test uses exact generated quine/twine
   shapes rather than a nonterminating raw search.
+- Ran the raw `evalo` quine experiment to completion by adapting the paper's
+  extended `eval-expo` (`absento closure` plus relational `proper-listo`) rather
+  than the tiny fast-suite interpreter. The durable run
+  `test-runs/raw-evalo-quine-faithful-20260610T191619Z.log` returned the
+  canonical quine with residual `(!= (_0 list))`, `(!= (_0 quote))`,
+  `symbolo`, and `(absento closure _0)` in `0:53.53` maxrss `217532KB`. The raw
+  query is now promoted into `proflog.core-logic-canonical-extended-test` as
+  `raw-evalo-quine-generation-completes`. Post-promotion gates passed:
+  `lein test-proflog-fast` (`179` tests, `732` assertions, `8:01.09`),
+  `lein test-proflog-extended` (`73` tests, `219` assertions, `3:04.35`),
+  `lein with-profile +core-logic-source-overlay test-proflog-fast` (`179`
+  tests, `732` assertions, `1:05.68`), and `lein with-profile
+  +core-logic-source-overlay test-proflog-extended` (`73` tests, `219`
+  assertions, `3:11.65`).
 - Executed ADR-0088 to completion on `adr-0088-sjas-runtime-rebaseline`.
   The bisect probe attributed the whole-program grind to `axiom-member`
   citations (beta queries run in seconds); stack samples placed the cost in

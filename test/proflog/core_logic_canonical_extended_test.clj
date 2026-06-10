@@ -11,7 +11,68 @@
             [clojure.core.logic.fd :as fd]
             [clojure.test :refer [deftest is testing]]
             [proflog.core-logic-canonical-test :as canonical]
+            [proflog.minikanren-constraints :as mkc]
             [proflog.relational-arithmetic :as arith]))
+
+(declare paper-eval-expo paper-proper-listo)
+
+(defn- paper-proper-listo
+  "Relationally evaluate a proper list of expressions, adapted from
+   `proper-listo` in the 2012 quine paper's `interp-helpers.scm`."
+  [exp env val]
+  (l/conde
+    [(== '() exp)
+     (== '() val)]
+    [(fresh [a d v-a v-d]
+       (== (l/lcons a d) exp)
+       (== (l/lcons v-a v-d) val)
+       (paper-eval-expo a env v-a)
+       (paper-proper-listo d env v-d))]))
+
+(defn- paper-eval-expo
+  "Clojure adaptation of the paper's extended `eval-expo`, including quote,
+   variadic list, lambda, application, symbol lookup, and the `absento closure`
+   guards that make raw quine generation productive."
+  [exp env val]
+  (l/conde
+    [(fresh [v]
+       (== (list 'quote v) exp)
+       (canonical/not-in-envo 'quote env)
+       (mkc/absento 'closure v)
+       (== v val))]
+    [(fresh [args]
+       (== (l/lcons 'list args) exp)
+       (canonical/not-in-envo 'list env)
+       (mkc/absento 'closure args)
+       (paper-proper-listo args env val))]
+    [(mkc/symbolo exp)
+     (canonical/lookupo exp env val)]
+    [(fresh [rator rand x body env* a]
+       (== (list rator rand) exp)
+       (paper-eval-expo rator env (list 'closure x body env*))
+       (paper-eval-expo rand env a)
+       (paper-eval-expo body (l/lcons (l/lcons x a) env*) val))]
+    [(fresh [x body]
+       (== (list 'lambda (list x) body) exp)
+       (mkc/symbolo x)
+       (canonical/not-in-envo 'lambda env)
+       (== (list 'closure x body env) val))]))
+
+(defn- raw-quine-shape?
+  [expr]
+  (and (seq? expr)
+       (= 2 (count expr))
+       (let [[rator rand] expr]
+         (and (seq? rator)
+              (= 3 (count rator))
+              (= 'lambda (first rator))
+              (let [[_ params body] rator
+                    binder (first params)]
+                (and (= 1 (count params))
+                     (= (list 'list binder
+                              (list 'list (list 'quote 'quote) binder))
+                        body)
+                     (= (list 'quote rator) rand)))))))
 
 (defn- paper-twine-programs
   "The first twine shape reported in Byrd/Holk/Friedman's
@@ -134,6 +195,25 @@
                        (== [p q] out)))]
       (is (seq answer))
       (is (not= (first answer) (second answer))))))
+
+(deftest ^{:slow true
+           :expected-duration-ms 75000}
+  raw-evalo-quine-generation-completes
+  (testing "the paper-faithful raw evalo quine query completes"
+    (let [[answer :as answers] (doall
+                                 (run 1 [q]
+                                   (paper-eval-expo q '() q)))
+          expr (first answer)
+          residuals (rest (rest answer))]
+      (is (= 1 (count answers)))
+      (is (raw-quine-shape? expr))
+      (is (some #{'symbolo} residuals))
+      (is (some #(and (seq? %)
+                      (= 'absento (first %))
+                      (= 'closure (second %)))
+                residuals))
+      (is (some #{'list} (flatten residuals)))
+      (is (some #{'quote} (flatten residuals))))))
 
 (deftest ^{:slow true
            :expected-duration-ms 5000}

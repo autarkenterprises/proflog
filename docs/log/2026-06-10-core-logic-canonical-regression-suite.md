@@ -45,9 +45,10 @@ canonical miniKanren/core.logic surface, not only the single SJAS workload shape
 - Classic programs: `rembero` and a tiny relational interpreter that evaluates
   the standard self-quoting quine and can synthesize the quine binder with
   residual symbol/disequality constraints.
-- Extended classic programs: the first documented quine/twine pair from
-  "miniKanren, Live and Untagged"; the relation checks both concrete evaluation
-  directions and a symbolic twine shape.
+- Extended classic programs: a paper-faithful raw `evalo q q` quine query and
+  the first documented quine/twine pair from "miniKanren, Live and Untagged";
+  the relation checks both concrete evaluation directions and a symbolic twine
+  shape.
 - Nominal: nominal/fresh, nominal/hash, and nominal/tie unification across
   alpha-renaming, with ground payloads present inside nominal bodies.
 - Tabling: answer reuse over repeated tabled calls, partially open arguments,
@@ -70,6 +71,5 @@ canonical miniKanren/core.logic surface, not only the single SJAS workload shape
   every full relational interpreter, or every nominal theorem-prover use. It is
   a canonical canary layer below the existing Proflog/SJAS semantic tests. A
   direct raw `(run 1 [q] (evalo q '() q))` probe against the tiny interpreter
-  exceeded a 90-second bounded run, so exact generated quine/twine behavior is
-  committed while raw quine synthesis remains a future interpreter/search-order
-  task.
+  exceeded a 90-second bounded run; the paper-faithful extended interpreter
+  completes the raw query and is now committed as the slow regression.

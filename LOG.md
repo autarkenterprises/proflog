@@ -20,8 +20,190 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-09
+
+- Completed ADR-0086. The ordinary-tableau Group-3 target is now the code of
+  `0 = 1`, not primitive `false`; the builder, axiom-member path, and
+  `AxiomConj(s)` reconstruction agree on the revised target. The public
+  formula-bearing SelfCons selector passed in `8:29.61`, `lein
+  test-proflog-fast` passed in `6:07.70`, and `lein test-proflog-extended`
+  passed in `14:02.94`. `s` remains a finite descriptor whose `AxiomConj(s)`
+  reconstruction includes Group-3 by fixed-point/profile semantics. Follow-up
+  clarification: accurate formation of this fixed-point axiom basis is a Track
+  1 obligation; Track 2 is for explicitly modified deductive apparatuses or
+  variants, not for excusing an incomplete literature proof predicate. See
+  [SJAS Tableau-0 Zero-One SelfCons Target](docs/log/2026-06-09-sjas-tableau0-zero-one-selfcons-target.md).
+- Completed ADR-0081 as a Track 1 relational proof-dispatch cleanup, not a
+  SelfCons optimization pass. The generic kernel and SJAS proof profile no
+  longer use committed-choice `conda` dispatch in proof-facing paths; branch
+  classification is now expressed through structural `conde` alternatives.
+  Focused red/green evidence and the post-change fast/extended gates are
+  recorded in
+  [SJAS Relational Proof Dispatch](docs/log/2026-06-09-sjas-relational-proof-dispatch.md).
+- Completed ADR-0082 as the follow-on Track 1 proof-hook cleanup. Generic
+  kernel recursive and theory-profile hooks now have callable default
+  relations instead of host optional nil dispatch, and `close-agendao` tries the
+  profile hook and ordinary closure as ordinary `conde` alternatives. Focused
+  hook, tabling, Robinson-Q, and SJAS selectors passed, followed by the fast and
+  extended gates. See
+  [Kernel Callable Proof Hooks](docs/log/2026-06-09-kernel-callable-proof-hooks.md).
+- Completed ADR-0083 as a Track 1 public compact-code reader repair. Public
+  compact-code readers now parse presented byte numerals with `code-byte-termo`
+  instead of using byte-first reconstruction; embedded payload reconstruction
+  keeps the byte-first builder. Focused selectors passed, followed by
+  `lein test-proflog-fast` in `3:41.77` and `lein test-proflog-extended` in
+  `8:40.19`. See
+  [SJAS Public Compact Byte Reader](docs/log/2026-06-09-sjas-public-compact-byte-reader.md).
+- Started a current-source durable Track 1 MVP probe for the public
+  `tableau-proof/3` SelfCons certificate:
+  `test-runs/selfcons-public-track1-current-20260609T014154Z.log`, wrapper PID
+  `34144`. The selector is
+  `proflog.willard-sjas-test/sjas-tableau-proof-accepts-formula-bearing-selfcons-certificate`;
+  it had emitted the namespace header and was live at launch verification. See
+  [ADR-0073 Track 1 Audit](docs/log/2026-06-09-adr0073-track1-audit.md).
+- Recorded that public SelfCons Track 1 MVP probe after it exceeded the
+  requested 15-minute milestone. At `2026-06-09T01:59:31Z`, wrapper PID `34144`
+  was still live at `17:36` elapsed with only the namespace header emitted and
+  no exit file; it was not killed. See
+  [ADR-0073 Track 1 Audit](docs/log/2026-06-09-adr0073-track1-audit.md).
+- Added a requirement-by-requirement ADR-0073 Track 1 completion audit. At that
+  point, current source and focused evidence supported the arithmeticized
+  object-relation implementation slices, but the audit deliberately kept Track
+  1 incomplete until the live public SelfCons `tableau-proof/3(s,t,p)` probe
+  produced endpoint evidence. See
+  [ADR-0073 Track 1 Completion Audit](docs/log/2026-06-09-adr0073-track1-completion-audit.md).
+- Completed ADR-0084 as a Track 1 relationality repair. Structural
+  `tableau-proof/3` and `subst-prf/4` branches now read `system-code` through
+  branch equality state before reconstructing `AxiomConj` or validating the
+  system record, and nested structural proof checking receives the walked
+  system-code term. Focused red/green evidence is recorded in
+  [SJAS Walked System-Code Reconstruction](docs/log/2026-06-09-sjas-walked-system-code-reconstruction.md).
+  The post-change `lein test-proflog-fast` gate passed in `3:38.29`, and
+  `lein test-proflog-extended` passed in `8:46.17`.
+- Monitored the current public SelfCons Track 1 MVP probe without killing it.
+  At `2026-06-09T06:28:49Z`, wrapper PID `34144` was still live at `4:45:03`
+  elapsed, with only the namespace header emitted and no exit file. The older
+  post-ADR-0079 core SelfCons probe
+  `test-runs/selfcons-core-post-adr79-20260609T002713Z.log` exited `1` after
+  `2:08:37` with `Java heap space` `OutOfMemoryError`, max RSS `4447844KB`.
+  A follow-up audit found no additional proof-code reader correctness gap: the
+  remaining empty-state public-code byte readers are top-level entries or are
+  reached after walked-code wrappers. See
+  [ADR-0073 Track 1 Audit](docs/log/2026-06-09-adr0073-track1-audit.md).
+- Saved a live JVM diagnostic for the same public SelfCons Track 1 probe in
+  `test-runs/selfcons-public-track1-current-20260609T063029Z-diagnostic.log`.
+  At `2026-06-09T06:30:47Z`, the test JVM PID `34205` was active at `94.6%`
+  CPU with RSS `351216KB`; the classpath used
+  `vendor/core.logic-1.0.1/src` before the core.logic jar, heap use was
+  `182163K` of `243712K`, and the main stack was in repeated core.logic
+  `walk*` traversal. This records that the live public probe is using the
+  revised core.logic path and is currently search/traversal bound rather than
+  heap-exhausted.
+- Accepted [ADR-0085](docs/adr/ADR-0085-sjas-structural-quantifier-sibling-scheduling.md)
+  to complete ADR-0073 Track 1 by repairing structural proof-checker
+  quantifier scheduling. Red evidence: the core, in-memory, and decoded
+  SelfCons selectors each exceeded a `timeout 180s` focused run. The concrete
+  core proof is small (`77` target bytes, `471` proof-code bytes), so the
+  remaining issue is branch scheduling rather than input size.
+- Completed ADR-0085 and ADR-0073 Track 1. The structural checker now preserves
+  delayed agenda sibling environments, avoids duplicate proof-node formula
+  matching before decoded rule validation, and reconstructs Tableau-0 Group-3
+  proof antecedents with the walked public `system-code` term still available.
+  The current-source public
+  `sjas-tableau-proof-accepts-formula-bearing-selfcons-certificate` selector
+  passed with 8 assertions in `2:17.71`. The focused core, in-memory, and
+  decoded SelfCons selectors also passed (`1:08.67`, `2:23.34`, `2:20.39`),
+  followed by the SJAS source audit, `lein test-proflog-fast` in `1:56.85`,
+  `lein test-proflog-extended` in `4:34.15`, and clean `git diff --check`.
+  See [AAR-0085](docs/aar/AAR-0085-sjas-structural-quantifier-sibling-scheduling.md)
+  and
+  [ADR-0073 Track 1 Completion Audit](docs/log/2026-06-09-adr0073-track1-completion-audit.md).
+
+## 2026-06-08
+
+- Closed two host-stack blockers for ADR-0073 Track 1 large U-Grounding proof
+  terms. ADR-0075 vendors core.logic 1.0.1 by default and makes the occurs check
+  worklist-based; ADR-0076 makes `proflog.language/validate-term`
+  worklist-based. Focused red/green failures, the successful public
+  U-Grounding proof selector, host audit, AARs, and final fast/extended gate
+  evidence are recorded in
+  [Stack-Safe Large Proof Terms](docs/log/2026-06-08-stack-safe-large-proof-terms.md).
+- Recorded the long SelfCons core proof-check milestone requested during the
+  stack-safety investigation. The durable `setsid` run
+  `test-runs/selfcons-core-no-timeout-20260608T213315Z.log` was still alive at
+  `2026-06-08T21:49:15Z` with wrapper PID `224039` at `15:59` elapsed; it was
+  not killed. A JVM stack sample showed the remaining hot path in
+  `core.logic/occurs-check-worklist` via `membero`, motivating ADR-0078's
+  finite-table scheduling cleanup.
+- Completed ADR-0077 and ADR-0078 scheduling cleanups for formula-bearing SJAS
+  proof checking. ADR-0077 removes duplicate/subsumed structural alternatives;
+  ADR-0078 replaces fixed `membero` table scans with explicit finite
+  alternatives. Focused red/green selectors, semantic proof-check selectors,
+  and the loaded fast/extended gate results are recorded in
+  [Stack-Safe Large Proof Terms](docs/log/2026-06-08-stack-safe-large-proof-terms.md).
+- Completed ADR-0079 after the latest-source SelfCons stack sample moved the
+  hot path to embedded payload length decoding. Embedded code and natural
+  payload decoders now reject mismatched low/high length headers before
+  allocating `payload` state. Clean post-change gates passed:
+  `lein test-proflog-fast` in `1:34.24` and `lein test-proflog-extended` in
+  `3:48.10`.
+- Recorded the post-ADR-0079 SelfCons core proof-check probe once it exceeded
+  the requested 15-minute milestone. The durable run
+  `test-runs/selfcons-core-post-adr79-20260609T002713Z.log` was still alive at
+  `2026-06-09T00:42:45Z` with wrapper PID `12980` at `15:20` elapsed; it was
+  not killed and had not yet produced pass/fail or `/usr/bin/time` output.
+- Completed ADR-0080, the final optimization opened during the stack-safety
+  thread. Application-term decoders now destructure the encoded arity byte once
+  before dispatching over finite argument counts. Focused selectors and the
+  post-change fast/extended gates are recorded in
+  [Stack-Safe Large Proof Terms](docs/log/2026-06-08-stack-safe-large-proof-terms.md);
+  follow-on work returns to ADR-0073 Track 1 arithmeticization before any more
+  proof-predicate optimization.
+- Arithmeticized the public formula-bearing proof path for `tableau-proof/3`.
+  Substantive structural proof certificates now decode from U-Grounding
+  numerals through the SJAS object-code relation, while compact code handling
+  and fixed axiom membership remain relational and source-registry-free.
+  Focused red/green evidence, kernel scheduling notes, and broad gate results
+  are recorded in
+  [SJAS U-Grounding Formula-Bearing Proof Path](docs/log/2026-06-08-sjas-u-grounding-proof-path.md).
+- Advanced ADR-0073 Track 1 from a core SelfCons tableau closure to a public
+  formula-bearing `tableau-proof/3` certificate for the Tableau-0 Group-3
+  self-consistency statement. The proof checker now accepts formula-bearing
+  branch nodes through exact, binder-renamed, compound, and alpha-equivalent
+  formula matching, and the SelfCons fixture mirrors the proof-antecedent
+  shape reconstructed from public system code. Focused red/green evidence,
+  public selector timings, source-audit repair, and the residual focused-SJAS
+  beta axiom-member timeout are recorded in
+  [SJAS SelfCons Formula-Bearing Proof](docs/log/2026-06-08-sjas-selfcons-formula-bearing-proof.md).
+
+## 2026-06-06
+
+- Added the ADR-0073 Track 1 self-consistency code output path. The public
+  SJAS builder now reports and prints the concrete ordinary-tableau Group-3
+  self-consistency Godel code by decoding the generated formal formula-code
+  term to its byte string, not by consulting proof-predicate shortcuts. Focused
+  red/green evidence and the printed decimal value are recorded in
+  [SJAS SelfCons Godel Code Output](docs/log/2026-06-06-sjas-selfcons-godel-code-output.md).
+- Repaired the SJAS source audit after the embedded-code reconstruction helper
+  was renamed to the counted byte-first builder. The audit now explicitly
+  requires `code-args-build-counto` and rejects the public code-reader relation
+  in that path; the focused source-audit selector passed.
+
 ## 2026-06-05
 
+- Clarified ADR-0073 Track 1's MVP: the public arithmeticized proof predicate
+  must accept the concrete `IS#_D(beta)` system code, the code of the Group-3
+  consistency statement, and a formula-bearing semantic-tableau proof code for
+  that statement, without `sjas-axiom` citation standing in for the full
+  tableau evidence. Added structural proof-code scaffolding for that SelfCons
+  certificate; an initial foreground focused selector exceeded the short-run
+  envelope and was stopped so future runs can use durable `test-runs/` logging.
+- Added the missing positive-false arithmetic closure direction to the SJAS
+  structural proof checker. Formula-bearing tableau leaves now close positive
+  `leq`, `lt`, and `mult` atoms when the interpreted arithmetic relation is
+  false, using proof-free structural closure inside proof codes and preserving
+  proof-producing wrappers only on the public answer path. Focused red/green
+  selectors passed under niceness.
 - Repaired fixed axiom-basis reconstruction for the SJAS proof predicate.
   `AxiomConj(s)` now reconstructs all fixed Group-0 and Group-1 antecedents
   through the proof-predicate relation instead of hard-coding only the two
@@ -725,11 +907,14 @@ complete contemporaneous transcript.
   logical slices: code format, syntax, system-code reconstruction, proof-code
   grammar, U-Grounding arithmetic, substitution/fixed-point machinery, tableau
   proof checking, and reflected procedure-call recovery. The goal is not merely
-  to construct Godel codes for dependencies of `tableau-proof/3`; each
-  dependency must become an object-language relation over those codes or be
-  justified by the Track 2 correspondence proof. Updated ADR-0073 to make these
-  subelements explicit. See
-  [SJAS Proof-Machinery Internalization Slices](docs/log/2026-05-28-sjas-proof-machinery-internalization-slices.md).
+	  to construct Godel codes for dependencies of `tableau-proof/3`; each
+	  dependency must become an object-language relation over those codes. The
+	  then-open idea of moving a missing dependency into correspondence work was
+	  later narrowed by the ADR-0086 clarification: for the literature predicate,
+	  a missing dependency is Track 1 incomplete; Track 2 is for modified
+	  deductive apparatuses or variants. Updated ADR-0073 to make these
+	  subelements explicit. See
+	  [SJAS Proof-Machinery Internalization Slices](docs/log/2026-05-28-sjas-proof-machinery-internalization-slices.md).
 - Added SJAS proof-code support for occurs-check equality closure.
   `occurs-close` is now an encodable and decoded proof symbol, classified as
   relevant closure evidence, and public `tableau-proof/3` validates the
@@ -1276,6 +1461,17 @@ complete contemporaneous transcript.
 
 ## 2026-05-21
 
+- Completed OCR, assessment, and organization of Dan Willard's collected
+  nachlass scans in the nested `sjas/` repo:
+  [`collected_dew_materials/README.md`](sjas/nachlass/collected_dew_materials/README.md).
+  Eighteen unique PDF witnesses (225 pages) now have merged OCR text under
+  `ocr/text/`, a `manifest.tsv` inventory, topic indexes, and reproducible
+  scripts. One exact duplicate alias was skipped. Quality is mostly
+  `needs_review` (ocrad fallback on typewriter/fax scans); the 2020
+  incompleteness lecture notes and 2008 ZCF/ZF drafts are grep-searchable but
+  not formula-authoritative. Dec 2025 scans include additional incompleteness
+  and Hilbert-program drafts plus a Trivers-Willard biology article. See
+  [`sjas/nachlass/LOG.md`](sjas/nachlass/LOG.md).
 - Started [ADR-0072](docs/adr/ADR-0072-sjas-object-level-proof-machinery.md)
   on branch `adr-0072-sjas-object-proof-machinery`. The active goal is to
   internalize SJAS proof machinery so that arithmetic coding and decoding

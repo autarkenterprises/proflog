@@ -75,3 +75,15 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0070](AAR-0070-sjas-byte-sequence-coding-audit.md) | [ADR-0070](../adr/ADR-0070-sjas-byte-sequence-coding-audit.md) | completed |
 | [AAR-0071](AAR-0071-sjas-u-grounding-syntax-coding.md) | [ADR-0071](../adr/ADR-0071-sjas-u-grounding-syntax-coding.md) | completed |
 | [AAR-0074](AAR-0074-nominal-lookup-hash-guard.md) | [ADR-0074](../adr/ADR-0074-nominal-lookup-hash-guard.md) | completed |
+| [AAR-0075](AAR-0075-core-logic-stack-safe-occurs-check.md) | [ADR-0075](../adr/ADR-0075-core-logic-stack-safe-occurs-check.md) | completed |
+| [AAR-0076](AAR-0076-stack-safe-language-term-validation.md) | [ADR-0076](../adr/ADR-0076-stack-safe-language-term-validation.md) | completed |
+| [AAR-0077](AAR-0077-sjas-structural-proof-checker-deduplication.md) | [ADR-0077](../adr/ADR-0077-sjas-structural-proof-checker-deduplication.md) | completed |
+| [AAR-0078](AAR-0078-sjas-finite-table-lookup-scheduling.md) | [ADR-0078](../adr/ADR-0078-sjas-finite-table-lookup-scheduling.md) | completed |
+| [AAR-0079](AAR-0079-sjas-embedded-payload-header-first-dispatch.md) | [ADR-0079](../adr/ADR-0079-sjas-embedded-payload-header-first-dispatch.md) | completed |
+| [AAR-0080](AAR-0080-sjas-app-arity-byte-dispatch.md) | [ADR-0080](../adr/ADR-0080-sjas-app-arity-byte-dispatch.md) | completed |
+| [AAR-0081](AAR-0081-sjas-relational-proof-dispatch.md) | [ADR-0081](../adr/ADR-0081-sjas-relational-proof-dispatch.md) | completed |
+| [AAR-0082](AAR-0082-kernel-callable-proof-hooks.md) | [ADR-0082](../adr/ADR-0082-kernel-callable-proof-hooks.md) | completed |
+| [AAR-0083](AAR-0083-sjas-public-compact-byte-reader.md) | [ADR-0083](../adr/ADR-0083-sjas-public-compact-byte-reader.md) | completed |
+| [AAR-0084](AAR-0084-sjas-walked-system-code-reconstruction.md) | [ADR-0084](../adr/ADR-0084-sjas-walked-system-code-reconstruction.md) | completed |
+| [AAR-0085](AAR-0085-sjas-structural-quantifier-sibling-scheduling.md) | [ADR-0085](../adr/ADR-0085-sjas-structural-quantifier-sibling-scheduling.md) | completed |
+| [AAR-0086](AAR-0086-sjas-tableau0-zero-one-selfcons-target.md) | [ADR-0086](../adr/ADR-0086-sjas-tableau0-zero-one-selfcons-target.md) | completed |

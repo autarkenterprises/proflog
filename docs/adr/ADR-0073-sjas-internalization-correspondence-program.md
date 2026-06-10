@@ -11,10 +11,11 @@ ADR-0072 moved the SJAS implementation away from generated formula, axiom, and
 proof-target registries. Later ADR-0073/Track-1 work also replaced the
 non-`sjas-axiom` `tableau-proof/3` and `subst-prf/4` shortcut through
 `kernel/prove-programo` with a local proof-directed checker for the currently
-generated certificate shapes. The stronger proof-machinery goal is still not
-finished: the checker must either become a complete arithmetic/formal
-semantic-tableau predicate, or every remaining bridge and compact proof
-constructor must be justified by the correspondence proof required below.
+generated certificate shapes. The stronger proof-machinery goal is not satisfied
+by theorem-level agreement: for the literature route, the checker must become an
+executable arithmetic/formal semantic-tableau predicate for the selected
+`IS#_D(beta)` apparatus. A remaining bridge in that predicate is a Track 1
+incompleteness, not a Track 2 escape hatch.
 
 The refined concern is not simply that the call is host-side. The concern is
 whether the call collapses distinctions that SJAS self-reference needs to
@@ -40,11 +41,14 @@ adapted to `IS#_{D_Proflog}(beta)`.
 Continue the ADR-0072 arithmeticization work, but treat it as one track of a
 larger program rather than the only possible route to a justified SJAS claim.
 
-Track 1 is direct arithmeticization. The implementation will continue replacing
-host-side staged readers, source registries, decoded proof-term validation, and
-other predicate-application shortcuts with object-language relations over
-encoded formulas, systems, substitutions, proof trees, axiom membership, and
-branch closure. This remains the strongest implementation endpoint.
+Track 1 is direct arithmeticization of the literature predicate. The
+implementation will continue replacing host-side staged readers, source
+registries, decoded proof-term validation, and other predicate-application
+shortcuts with object-language relations over encoded formulas, systems,
+substitutions, proof trees, axiom membership, and branch closure. It also
+includes the fixed-point formation of SelfCons with respect to the axiom basis
+and deductive apparatus of the selected `IS#_D(beta)` instance. This remains the
+strongest implementation endpoint.
 
 Track 1 is not merely a project of assigning Godel codes to every dependency of
 the proof predicate. Codes are necessary but inert unless the relations that
@@ -56,9 +60,11 @@ internalization track is therefore organized into the following logical slices:
    opaque host labels.
 2. **Syntax:** define object-level predicates such as `wff`, formula-class
    predicates, and `neg-pair` over encoded formulas.
-3. **System-code reconstruction:** derive `axiom-member(system-code,
-   formula-code)` and reflected Group-2b clause data from the encoded finite
-   system rather than from generated host registries.
+3. **System-code and fixed-point axiom reconstruction:** derive
+   `axiom-member(system-code, formula-code)`, `AxiomConj(system-code)`, fixed
+   Group-0/Group-1 axioms, reflected Group-2b clause data, and the
+   profile-determined Group-3 SelfCons sentence from the encoded finite system
+   descriptor and profile relations rather than from generated host registries.
 4. **Proof-code grammar:** encode and decode proof constructors and payload
    evidence as proof trees that can be inspected by the predicate.
 5. **U-Grounding arithmetic:** evaluate the arithmetic relations needed for
@@ -84,17 +90,32 @@ system axioms plus the negated theorem. Performance shortcuts and proof-directed
 entry points are acceptable only insofar as they instantiate that relation over
 the accepted proof-code fragment.
 
+The Track 1 minimum viable endpoint is correspondingly concrete: for the
+selected ordinary-tableau `IS#_D(beta)` instance, the public proof predicate must
+accept the decoded system code `s`, the decoded code `t` of the system's own
+Group-3 consistency statement, and the decoded proof code `p` of a semantic
+tableau proving that statement from `AxiomConj(s)`. This acceptance must proceed
+by reading `s`, `t`, and `p`, reconstructing `AxiomConj(s) /\ not(Formula(t))`,
+and validating the proof tree through the arithmeticized tableau relation. The
+`sjas-axiom` citation path is useful coverage for axiom membership, but by
+itself it is not the MVP evidence for full proof-machinery internalization.
+
 These slices cannot be collapsed into one monolithic implementation step
 without losing diagnostic clarity. A failed monolithic proof predicate may fail
 because of code injectivity, symbol-table reconstruction, syntax decoding,
 arithmetic normalization, substitution, axiom membership, equality closure,
 procedure-call recovery, or the tableau rule itself. Each slice must therefore
 name the host shortcut being removed, provide focused red/green evidence, and
-record whether the result is fully internalized, remains a runtime tractability
-boundary, or is deferred to Track 2b correspondence proof.
+record whether the result is fully internalized or remains a runtime
+tractability boundary. If a dependency cannot be implemented without modifying
+the deductive apparatus, that is a Track 1 gap until the project explicitly
+chooses a different apparatus under Track 2.
 
-Track 2a is relevance analysis. Before a Proflog correspondence can justify any
-remaining bridge, the project must determine which intensional aspects of the
+Track 2a is relevance analysis for modifications and alternative apparatuses.
+It does not justify leaving the literature `IS#_D(beta)` proof predicate
+partially implemented in Track 1. Before any Proflog-derived or otherwise
+modified apparatus can be treated as an SJAS deductive apparatus in its own
+right, the project must determine which intensional aspects of the
 semantic-tableau apparatus are necessary for SJAS self-justification. The
 working hypothesis is that the tableau-induced tree structure, rule-induced
 branching, closure discipline, proof-object inspectability, and lower-bound
@@ -104,8 +125,13 @@ proof shows that they do not alter the accepted proof objects or the relevant
 size/tree measures. Ambiguous extensions, including equality and
 procedure-call/profile rules, remain unresolved until classified.
 
-Track 2b is Proflog correspondence. This track depends on Track 2a. The project
-must prove and test a bidirectional correspondence of the following shape:
+Track 2b is Proflog or variant-apparatus correspondence. This track depends on
+Track 2a. It applies when the project studies a modified deductive apparatus,
+or compares Proflog acceptance with the literature tableau predicate as a
+separate theorem. It cannot be used to declare the literature predicate
+implemented while one of its proof-machinery dependencies is still missing. The
+project must prove and test a bidirectional correspondence of the following
+shape:
 
 ```text
 ProflogAccepts(P, S, F)
@@ -148,10 +174,10 @@ using "whatever the implementation currently accepts" as `D`.
 - A theorem-level "Proflog proves exactly what SJAS proves" result is
   insufficient if it loses proof-tree, closure, encoding, or proof-size facts
   relevant to SJAS self-reference.
-- Some implementation work should wait for the relevance matrix. Code that
-  would preserve irrelevant details only for their own sake is not required,
-  while code that hides relevant structure must be replaced or justified by a
-  bridge theorem.
+- Some variant work should wait for the relevance matrix. Code that would
+  preserve irrelevant details only for their own sake is not required for a
+  modified apparatus, while code that hides structure relevant to the literature
+  predicate must be replaced before Track 1 is complete.
 - The correspondence work may identify Proflog implementation details that need
   explicit proof-term instrumentation or tests even when no user-visible theorem
   result changes.
@@ -168,11 +194,12 @@ Documentation-only slices must still pass `git diff --check` before commit.
   that the relevant predicate still succeeds or fails through object-level
   relations after the shortcut is gone.
 - Track 1 implementation slices must identify which proof-predicate dependency
-  is being internalized: code format, syntax, system-code reconstruction,
-  proof-code grammar, U-Grounding arithmetic, substitution/fixed points,
-  tableau proof checking, or reflected procedure-call recovery. Each slice
-  must leave behind a focused regression or source audit that would fail if the
-  prior host shortcut or nominal registry path were reintroduced.
+  is being internalized: code format, syntax, system-code and fixed-point
+  `AxiomConj` reconstruction, proof-code grammar, U-Grounding arithmetic,
+  substitution/fixed points, tableau proof checking, or reflected procedure-call
+  recovery. Each slice must leave behind a focused regression or source audit
+  that would fail if the prior host shortcut or nominal registry path were
+  reintroduced.
 - Track 2a must maintain a relevance matrix that names each intensional aspect,
   classifies it as relevant, irrelevant, or unresolved, cites the project or
   Willard source for that classification when available, and records the proof
@@ -199,8 +226,9 @@ Documentation-only slices must still pass `git diff --check` before commit.
 
 ## Exit Criteria
 
-- The remaining ADR-0072 host paths are audited and either internalized or
-  justified by the Track 2b correspondence proof.
+- The remaining ADR-0072 host paths in the literature predicate are audited and
+  internalized. Paths that require a modified deductive apparatus are moved out
+  of Track 1 and recorded as Track 2 variant work.
 - The Track 2a relevance matrix is complete enough to classify every proof
   object, rule, encoding, closure, search, and size feature relied on by the
   current Proflog SJAS implementation.
@@ -220,7 +248,6 @@ Documentation-only slices must still pass `git diff --check` before commit.
   `IS#_D(beta)` instance. This must be computed from the fully internalized
   system/formula coding path, not from a transitional host-side proof-predicate
   shortcut.
-- The AAR records which route justified each remaining bridge: direct
-  arithmeticization, proved-and-tested correspondence, adopted
-  Proflog-as-D formalization, or explicitly deferred future work approved by
-  the user.
+- The AAR records which route justified each implementation boundary: direct
+  arithmeticization for the literature predicate, or explicit relocation into a
+  modified Track 2 apparatus approved by the user.

@@ -133,11 +133,13 @@ Current ADR-0062 note:
   code. The targeted red run was
   `lein test :only proflog.willard-sjas-test/sjas-system-builder-generates-groups-and-reflected-boundary`,
   with `real 11.36 s`.
-- After mapping `contradiction-code` to the theorem target for `false`, adding
-  complement targets for `not-code(c)`, and extending proof-certificate encoding
-  for nested generic kernel profile tags, `lein test-proflog-sjas` passed with
-  `Ran 13 tests containing 125 assertions`, `0 failures`, `0 errors`, and
-  `real 33.95 s`.
+- At ADR-0062 time, mapping `contradiction-code` to the theorem target for
+  `false`, adding complement targets for `not-code(c)`, and extending
+  proof-certificate encoding for nested generic kernel profile tags made
+  `lein test-proflog-sjas` pass with `Ran 13 tests containing 125 assertions`,
+  `0 failures`, `0 errors`, and `real 33.95 s`. ADR-0086 later superseded the
+  Tableau-0 contradiction target: current ordinary Tableau-0 systems use the
+  code of `0 = 1`, not primitive `false`.
 - The ADR-0062 regression gates passed with `lein test-proflog-fast`,
   `Ran 145 tests containing 548 assertions`, `0 failures`, `0 errors`,
   `real 100.47 s`, and `lein test-proflog-extended`, `Ran 68 tests containing

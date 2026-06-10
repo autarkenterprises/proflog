@@ -1,5 +1,66 @@
 # Memory
 
+## 2026-06-08 ADR-0073 Large Proof-Term Stack Safety
+
+- Default Proflog test/runtime classpath now loads the vendored core.logic
+  1.0.1 source overlay from `vendor/core.logic-1.0.1/src` before `src`.
+- The overlay marker reported by `lein probe-core-logic-host` is
+  `vendor/core.logic-1.0.1/src stack-safe-occurs-check`.
+- `clojure.core.logic/occurs-check` and `proflog.language/validate-term` are
+  worklist-based for deeply nested acyclic proof terms; formula validation is
+  still recursive and should get its own focused regression if deep formulas
+  become a host-stack problem.
+- ADR-0073 Track 1 executable proof machinery is complete as of 2026-06-09.
+  ADR-0086 later corrected ordinary Tableau-0 SelfCons from primitive `false`
+  to Willard's minimal target `0 = 1`; the current-source public Group-3
+  `tableau-proof/3(s,t,p)` selector passed with 8 assertions, 0 failures,
+  elapsed `8:29.61`, maxrss `1961424KB`.
+- Track 1 includes accurate executable formation of the literature
+  `IS#_D(beta)` axiom basis and SelfCons fixed point. Track 2 is for explicitly
+  modified deductive apparatuses or variants; it must not be used to excuse an
+  incomplete literature proof predicate.
+- Pre-ADR-0086 SelfCons timings for the old `false` target were: core proof
+  check `1:08.67`, in-memory target plus proof check `2:23.34`, decoded
+  proof-code path `2:20.39`, public path `2:17.71`. Do not use those as
+  expected durations for the literature-compliant `0 = 1` target.
+- Older durable SelfCons probes that were launched before the ADR-0085 repair
+  may still be running or may have stale timing behavior; do not use them as
+  current-source completion evidence.
+- ADR-0077/ADR-0078 remove duplicate/subsumed structural checker alternatives
+  and static `membero` table scans. ADR-0085 later completed the remaining
+  Track 1 SelfCons proof-predicate scheduling and reconstruction repairs.
+- ADR-0080 completes the optimization chain opened during the stack-safety
+  thread by dispatching SJAS app-arity decoding from the encoded byte once. The
+  next work must return to ADR-0073 Track 1 arithmeticization before further
+  proof-predicate optimization.
+- ADR-0081/ADR-0082 are Track 1 dispatch cleanups: proof-facing SJAS/generic
+  kernel dispatch no longer uses `conda`, and generic kernel proof hooks now
+  use callable default relations rather than optional nil selection.
+- ADR-0083 closes a public compact-code reader gap: `code-argso` and
+  `code-args-coreo` parse presented public byte numerals through
+  `code-byte-termo`; byte-first reconstruction remains isolated to embedded
+  payload builders.
+- ADR-0084 closes a recursive proof-predicate relationality gap:
+  `tableau-proof/3` and `subst-prf/4` now reconstruct or validate
+  `system-code` through branch equality state before nested proof checking.
+- The old durable public probe PID `34144` was left running as requested; a
+  newer current-source foreground public selector is the authoritative green
+  Track 1 MVP evidence.
+
+## 2026-06-05 ADR-0073 Track 1 MVP
+
+- Current active focus is Track 1: arithmetically internalize the necessary
+  proof machinery for ordinary-tableau `IS#_D(beta)`.
+- Minimum viable evidence is public `TabPrf_beta(s,t,p)` acceptance for the
+  concrete system code `s`, the code `t` of the system's own Group-3
+  consistency statement, and a formula-bearing semantic-tableau proof code `p`.
+- `sjas-axiom` citation is useful axiom-membership coverage but is not
+  sufficient evidence for the MVP; the proof code must be a tableau tree checked
+  by the arithmeticized proof predicate without host registries or
+  `kernel/prove-programo` proof-validation shortcuts.
+- Long SJAS proof predicates must run nicened and durably under `test-runs/`
+  with PID/log files when they exceed focused-selector runtime envelopes.
+
 ## 2026-05-25 ADR-0073 SJAS Track State
 
 - Single-threaded focus is now Track 2a relevance analysis for ADR-0073.

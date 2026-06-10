@@ -556,11 +556,12 @@ builders generate a finite reflected axiom basis, stable formula codes,
 numbers are composed with `dbl` and `add`. U-grounding arithmetic and
 `tableau-proof/3`, `subst-code/2`, and `subst-prf/4` are handled by the SJAS
 profile rather than by finite `mult/3` tables or miniature certificate predicates.
-`contradiction-code` maps to the concrete theorem target for `false`, and the
-Level-1 profile generates a `SelfCons` skeleton code used by the fixed-point
-substitution entry. Reflected user clauses are part of the self-referenced
-system; external clauses are ordinary Proflog code outside that `SelfCons`
-claim.
+For ordinary Tableau-0, `contradiction-code` maps to Willard's minimal
+self-consistency target `0 = 1`; primitive `false` remains only an ordinary
+tableau closure formula. The Level-1 profile generates a `SelfCons` skeleton
+code used by the fixed-point substitution entry. Reflected user clauses are part
+of the self-referenced system; external clauses are ordinary Proflog code
+outside that `SelfCons` claim.
 
 ## 11. Worked Program Families
 

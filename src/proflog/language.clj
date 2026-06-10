@@ -122,28 +122,33 @@
    Surface terms are not allowed to mention `par`; those are internal proof-time
    constants and must never appear in user-authored programs or queries."
   [lang term]
-  (let [tag (ast/tag-of term)]
-    (case tag
-      var term
-      par (throw (ex-info "Internal parameter terms are not admissible in surface programs"
-                          {:term term}))
-      app (let [sym (second term)
-                args (nnext term)
-                expected-arity (declared-function-arity lang sym)
-                actual-arity (count args)]
-            (when (nil? expected-arity)
-              (throw (ex-info (str "Undeclared function symbol: " sym)
-                              {:term term :symbol sym})))
-            (when (not= expected-arity actual-arity)
-              (throw (ex-info (str "Arity mismatch for function symbol " sym)
-                              {:term term
-                               :symbol sym
-                               :expected-arity expected-arity
-                               :actual-arity actual-arity})))
-            (doseq [arg args]
-              (validate-term lang arg))
-            term)
-      (throw (ex-info "Malformed term" {:term term})))))
+  (loop [work (list term)]
+    (if (seq work)
+      (let [current-term (first work)
+            remaining-work (next work)
+            tag (ast/tag-of current-term)]
+        (case tag
+          var (recur remaining-work)
+          par (throw (ex-info "Internal parameter terms are not admissible in surface programs"
+                              {:term current-term}))
+          app (let [sym (second current-term)
+                    args (nnext current-term)
+                    expected-arity (declared-function-arity lang sym)
+                    actual-arity (count args)]
+                (when (nil? expected-arity)
+                  (throw (ex-info (str "Undeclared function symbol: " sym)
+                                  {:term current-term :symbol sym})))
+                (when (not= expected-arity actual-arity)
+                  (throw (ex-info (str "Arity mismatch for function symbol " sym)
+                                  {:term current-term
+                                   :symbol sym
+                                   :expected-arity expected-arity
+                                   :actual-arity actual-arity})))
+                ;; Push right-to-left so the explicit stack validates arguments
+                ;; in the same left-to-right order as the previous recursion.
+                (recur (reduce conj remaining-work (reverse args))))
+          (throw (ex-info "Malformed term" {:term current-term}))))
+      term)))
 
 (defn validate-atom
   "Validate an atomic application against the declared relation signature."

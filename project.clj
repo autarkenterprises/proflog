@@ -2,7 +2,7 @@
   :description "αleanTAP-EP: Fitting's Proflog implemented in core.logic"
   :dependencies [[org.clojure/clojure "1.11.1"]
                  [org.clojure/core.logic "1.0.1"]]
-  :source-paths ["src"]
+  :source-paths ["vendor/core.logic-1.0.1/src" "src"]
   :test-paths ["test"]
   :test-selectors
   {:A    (fn [m] (re-find #"^test-A\d" (str (:name m))))
@@ -70,6 +70,7 @@
                                     "proflog.gamma-test"
                                     "proflog.closed-term-gamma-test"
                                     "proflog.core-logic-nominal-hash-test"
+                                    "proflog.core-logic-occurs-check-test"
                                     "proflog.frontend-test"
                                     "proflog.formula-profile-test"
                                     "proflog.robinson-q-test"
@@ -153,6 +154,7 @@
             "probe-proflog-turing-completeness" ["run" "-m" "proflog.turing-completeness-long-probe"]
             "probe-proflog-robinson-q" ["run" "-m" "proflog.robinson-q-probe"]
             "probe-proflog-relational-equality-fragment" ["run" "-m" "proflog.relational-equality-fragment-probe"]
+            "print-sjas-selfcons-godel-code" ["run" "-m" "proflog.willard-sjas"]
             "probe-core-logic-host" ["run" "-m" "proflog.core-logic-host-probe"]
             "probe-core-logic-tabling" ["run" "-m" "proflog.core-logic-tabling-probe"]
             "probe-core-logic-count" ["run" "-m" "proflog.core-logic-count-probe"]

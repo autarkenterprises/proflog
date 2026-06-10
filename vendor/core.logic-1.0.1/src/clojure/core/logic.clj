@@ -27,9 +27,9 @@
 (def fk (Exception.))
 
 (def proflog-adr32-host-marker
-  "Runtime marker proving Proflog loaded the ADR-32 vendored core.logic source
-  overlay instead of only the Maven artifact."
-  "vendor/core.logic-1.1.1/src")
+  "Runtime marker proving Proflog loaded the vendored core.logic source overlay
+  instead of only the Maven artifact."
+  "vendor/core.logic-1.0.1/src stack-safe-occurs-check")
 
 ;; =============================================================================
 ;; Utilities

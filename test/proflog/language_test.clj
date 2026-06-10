@@ -11,6 +11,21 @@
                  'odd 1
                  'value 1}}))
 
+(def deep-validation-depth
+  "A depth high enough to expose host-stack recursion in recursive term
+  validation while staying cheap after the validator uses an explicit worklist."
+  20000)
+
+(defn- deep-successor-term
+  "Build a declared unary successor term iteratively so the regression measures
+  validator stack behavior, not fixture construction."
+  [depth]
+  (loop [remaining depth
+         term (ast/app-term 'zero)]
+    (if (zero? remaining)
+      term
+      (recur (dec remaining) (ast/app-term 'succ term)))))
+
 (deftest language-rejects-undeclared-and-mismatched-symbols
   (testing "queries using undeclared relations, undeclared functions, or wrong arities are rejected"
     (ast/nom x
@@ -30,8 +45,14 @@
             clojure.lang.ExceptionInfo
             #"Arity mismatch for relation symbol even"
             (language/validate-query
-              simple-language
-              (ast/pos-lit (ast/app-term 'even (ast/var-term x) (ast/app-term 'zero)))))))))
+	              simple-language
+	              (ast/pos-lit (ast/app-term 'even (ast/var-term x) (ast/app-term 'zero)))))))))
+
+(deftest validate-term-accepts-deep-declared-unary-terms
+  (testing "large arithmeticized terms validate without consuming one JVM stack frame per constructor"
+    (let [term (deep-successor-term deep-validation-depth)]
+      (is (= term
+             (language/validate-term simple-language term))))))
 
 (deftest compile-program-desugars-multiple-clauses-into-one-core-clause
   (testing "multiple surface clauses for the same relation become one compiled clause with an OR body"

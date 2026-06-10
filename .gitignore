@@ -1,1 +1,31 @@
 sjas/
+
+# Build and dependency output
+target/
+META-INF/
+node_modules/
+package.json
+package-lock.json
+
+# Leiningen / REPL session state
+.lein-failures
+.lein-repl-history
+.nrepl-port
+
+# Durable local test-run logs (AGENTS.md practice 17); evidence is quoted in
+# AAR/log records, the raw logs stay machine-local.
+test-runs/
+
+# Editor and office droppings
+*~
+\#*\#
+.\#*
+.~lock.*
+__pycache__/
+
+# Agent CLI session state
+.codex
+
+# Nested independent git repositories (conference artifacts with own history)
+lopstr-ppdp26/
+mk2026/

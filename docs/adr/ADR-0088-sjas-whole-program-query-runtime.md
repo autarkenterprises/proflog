@@ -37,23 +37,42 @@ negative exhaustive searches over the enlarged codes.
 Both broad gates remain green; the regression is confined to the SJAS
 namespace, which the gates do not cover.
 
+Doctrine (user guidance, 2026-06-10). Very long-running tests are
+acceptable so long as they ultimately provide evidence of correct
+semantics: the goal of this ADR is attribution, envelopes, and visible
+partitioning, not making every var fast. Where optimization is undertaken,
+prefer deepening core.logic — in the spirit of the ADR-0075 stack-safe
+occurs-check — over introducing more complex code at the SJAS or Proflog
+layers to translate logical operations into tractable procedure
+executions. Core.logic changes must themselves be as elegant as possible,
+preserving miniKanren's relatively clean and comprehensible semantics, and
+remain subject to the existing rule that any core.logic patch requires its
+own ADR and AAR.
+
 ## Decision (proposed)
 
 1. Re-baseline the SJAS namespace var by var through
    `lein test-proflog-sjas-focused` with durable `test-runs/` logs, and
    record an expected-duration envelope (or an explicit
    exceeds-envelope marker) for every var in `TEST_RUNTIME_BASELINE.md`.
+   Vars with multi-hour envelopes are retained as durable detached probes
+   per AGENTS.md practice 17 when they evidence semantics that no cheaper
+   selector covers.
 2. Investigate the scheduling of profile-atom closure under gamma
    instantiation in whole-program queries, and the failure-path cost of
-   code-decode attempts on enumerated terms. Any change must be
-   semantics-preserving with respect to the arithmeticized proof predicate
-   (AAR-0086 discipline: performance work is subordinate to the predicate),
-   and any change to closure behavior must be coordinated with the ADR-0073
-   Track 2a relevance matrix, since closure discipline is exactly the
+   code-decode attempts on enumerated terms. Candidate remedies are sought
+   first at the core.logic level (stream/walk/occurs-check-style
+   improvements benefiting all layers), and only then at the
+   profile/kernel level. Any change must be semantics-preserving with
+   respect to the arithmeticized proof predicate (AAR-0086 discipline:
+   performance work is subordinate to the predicate), and any change to
+   closure behavior must be coordinated with the ADR-0073 Track 2a
+   relevance matrix, since closure discipline is exactly the
    apparatus-extension question that matrix must classify.
 3. Partition vars that remain legitimately expensive after investigation
    into explicitly slow-marked selectors with documented envelopes, so the
-   opaque gate is either runtime-green or visibly partitioned.
+   opaque gate is either runtime-green or visibly partitioned into
+   gate-speed and probe-speed evidence.
 
 ## Test Obligations
 

@@ -88,3 +88,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0085](AAR-0085-sjas-structural-quantifier-sibling-scheduling.md) | [ADR-0085](../adr/ADR-0085-sjas-structural-quantifier-sibling-scheduling.md) | completed |
 | [AAR-0086](AAR-0086-sjas-tableau0-zero-one-selfcons-target.md) | [ADR-0086](../adr/ADR-0086-sjas-tableau0-zero-one-selfcons-target.md) | completed |
 | [AAR-0087](AAR-0087-sjas-level1-pi-star-1-pair-restriction.md) | [ADR-0087](../adr/ADR-0087-sjas-level1-pi-star-1-pair-restriction.md) | completed |
+| [AAR-0089](AAR-0089-sjas-group3-presented-code-representation.md) | [ADR-0089](../adr/ADR-0089-sjas-group3-presented-code-representation.md) | completed |

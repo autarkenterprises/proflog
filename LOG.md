@@ -22,6 +22,26 @@ complete contemporaneous transcript.
 
 ## 2026-06-10
 
+- Resolved the parallel-agent ADR numbering collision found by scanning
+  worktrees and remote branches: branch
+  `adr-0087-sjas-selfcons-fixedpoint-basis` carried one slice built on the
+  audit's ADR-0087 commit, with no competing ADR document. Reviewed its
+  red/green and gate evidence, merged it into
+  `adr-0073-sjas-correspondence-program`, assigned it
+  [ADR-0089](docs/adr/ADR-0089-sjas-group3-presented-code-representation.md)
+  with [AAR-0089](docs/aar/AAR-0089-sjas-group3-presented-code-representation.md)
+  (0087 and 0088 were already taken), merged the consolidated program
+  branch to `main`, and pushed. The source branch is left in place for its
+  agent; its name predates the renumbering.
+- Logged the audit's research-question assessment and the
+  `project_landscape.txt` (Autarkic Systems) commentary as
+  [Computational Self-Justification: Assessment Against The Artifact](docs/log/2026-06-10-computational-self-justification-assessment.md).
+- Recorded the user's performance doctrine in
+  [ADR-0088](docs/adr/ADR-0088-sjas-whole-program-query-runtime.md): very
+  long-running tests are acceptable when they evidence correct semantics;
+  prefer optimizing at the core.logic layer (ADR-0075 occurs-check
+  precedent) over complexifying SJAS/Proflog, while preserving miniKanren's
+  clean semantics.
 - Attributed the ADR-0087 slow-probe grind via differential runs: both
   `sjas-tableau0-and-level1-query-generated-axioms-through-selected-profile`
   and `sjas-subst-prf-checks-selfcons-fixed-point-certificate` exceed

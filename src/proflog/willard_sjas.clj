@@ -270,6 +270,13 @@
              (delta-star-0? (nth formula 2)))
     or (and (delta-star-0? (second formula))
             (delta-star-0? (nth formula 2)))
+    ;; Delta-star-0 is closed under the propositional connectives, and both
+    ;; tags are first-class formula-code grammar entries, so the classifier
+    ;; must accept them or reflected Group-2b clause formulas could never
+    ;; classify (ADR-0087).
+    not (delta-star-0? (second formula))
+    implies (and (delta-star-0? (second formula))
+                 (delta-star-0? (nth formula 2)))
     bounded-forall (let [{:keys [body]} (:body (second formula))]
                      (delta-star-0? body))
     bounded-exists (let [{:keys [body]} (:body (second formula))]
@@ -296,6 +303,15 @@
   [formula]
   (let [[stripped? matrix] (strip-prefix formula 'exists)]
     (and stripped? (delta-star-0? matrix))))
+
+(defn pi-star-1-encodable?
+  "Return true when `formula` has a Pi-star-1 encoding.
+
+   Willard 2013 Definition 5.1 admits any axiom with a Pi-star-1 encoding into
+   the finite reflected basis. A Delta-star-0 sentence is the degenerate
+   universal closure of itself, so the reflected basis accepts either shape."
+  [formula]
+  (or (delta-star-0? formula) (pi-star-1? formula)))
 
 ;; -----------------------------------------------------------------------------
 ;; Stable source coding
@@ -545,6 +561,26 @@
             implication
             (reverse params))))
 
+(defn- validate-reflected-basis!
+  "Reject reflected basis formulas without Pi*1 encodings.
+
+   Group-2 beta members and reflected Group-2b clause formulas become proper
+   axioms cited by the self-referential Group-3 sentence, so Willard 2013
+   Definition 5.1's formula-class precondition is enforced at the source
+   boundary. External clauses stay outside the reflected basis and are not
+   constrained. Truth of beta in the standard model remains Willard's external
+   consistency-preservation premise; the builder checks only the class."
+  [beta reflected-clauses]
+  (doseq [[group formula] (concat
+                            (map vector (repeat :group-two) beta)
+                            (map vector (repeat :group-two-b)
+                                 (map clause->formula reflected-clauses)))]
+    (when-not (pi-star-1-encodable? formula)
+      (throw (ex-info
+               "SJAS reflected basis formula lacks a Pi*1 encoding (Willard 2013 Definition 5.1)"
+               {:group group
+                :formula (canonical-formula formula {})})))))
+
 (defn- group-zero-formulas
   []
   [(ast/neq-lit one zero)
@@ -568,6 +604,9 @@
                       (ast/var-term p))))))
 
 (defn- selfcons1-formula
+  "Willard 2013 sentence (7) with `Pair(x,y)` encoded as the conjunction of
+   the reserved atoms `pi-star-1-code(x)` and `neg-pair(x,y)`: the Level-1
+   declaration covers only Pi-star-1 sentence/complement pairs (ADR-0087)."
   [system-code substitution-code]
   (let [x (nominal/nom (lvar 'x))
         y (nominal/nom (lvar 'y))
@@ -583,22 +622,26 @@
             q
             (ast/or-form
               (ast/neg-lit
-                (ast/app-term 'neg-pair
-                              (ast/var-term x)
-                              (ast/var-term y)))
+                (ast/app-term 'pi-star-1-code
+                              (ast/var-term x)))
               (ast/or-form
                 (ast/neg-lit
-                  (ast/app-term 'subst-prf
-                                system-code
-                                substitution-code
+                  (ast/app-term 'neg-pair
                                 (ast/var-term x)
-                                (ast/var-term p)))
-                (ast/neg-lit
-                  (ast/app-term 'subst-prf
-                                system-code
-                                substitution-code
-                                (ast/var-term y)
-                                (ast/var-term q)))))))))))
+                                (ast/var-term y)))
+                (ast/or-form
+                  (ast/neg-lit
+                    (ast/app-term 'subst-prf
+                                  system-code
+                                  substitution-code
+                                  (ast/var-term x)
+                                  (ast/var-term p)))
+                  (ast/neg-lit
+                    (ast/app-term 'subst-prf
+                                  system-code
+                                  substitution-code
+                                  (ast/var-term y)
+                                  (ast/var-term q))))))))))))
 
 (defn- selfcons1-record
   "Build Willard's fixed-point shaped Level-1 Group-3 record.
@@ -691,6 +734,7 @@
   (let [reflected-clauses (vec reflected-clauses)
         external-clauses (vec external-clauses)
         beta (vec beta)
+        _ (validate-reflected-basis! beta reflected-clauses)
         source {:profile profile
                 :beta beta
                 :reflected-clauses reflected-clauses}

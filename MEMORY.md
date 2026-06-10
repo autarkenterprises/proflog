@@ -1,5 +1,32 @@
 # Memory
 
+## 2026-06-09 Audit And ADR-0087 Level-1 Literature Fidelity
+
+- The Level-1 Group-3 matrix opens with `pi-star-1-code(x)` ahead of
+  `neg-pair(x,y)`: Willard 2013 sentence (7) restricts the pair to Pi-star-1
+  sentence/complement pairs, and Definition 5.1 carries that Group-3 into
+  `IS#_D(beta)`. Asserting the unrestricted complement-pair sentence is
+  strictly stronger than the literature licenses (ADR-0087).
+- Naming discipline: `:willard-sjas-tableau0` is the finite-basis
+  IS(A)-style instance (Willard 2001, Group-3 = no tableau proof of
+  `0 = 1`); `IS#_D(beta)` proper is `:willard-sjas-level1`. Do not call the
+  tableau0 MVP "the IS#_D(beta) instance" without that qualification.
+- `system` now rejects beta members and reflected Group-2b clause formulas
+  without `Pi*1` encodings; `Delta-star-0` classifiers (host and relational)
+  are closed under `not`/`implies`. Truth of beta in the standard model
+  remains an external premise.
+- Track 2a relevance matrix opens with: Willard 2005 closes branches only on
+  complementary sentence pairs, while the implemented checker also closes
+  through arithmeticized profile relations, equality machinery, and
+  recursive proof-predicate atoms; Group-1's prove-all-true-Delta-star-0
+  role is absorbed into the apparatus; the >= 5J-bit proof-size discipline
+  has no regression test.
+- Post-ADR-0086 SelfCons Godel code for the default ordinary-tableau
+  instance: `1895911909320248794237471524907560082878513227` (the 2026-06-06
+  recorded value predates the `0 = 1` target).
+- The `lopstr-ppdp26/` and `mk2026/` artifact snapshots predate
+  ADR-0086/0087; refresh before submission.
+
 ## 2026-06-08 ADR-0073 Large Proof-Term Stack Safety
 
 - Default Proflog test/runtime classpath now loads the vendored core.logic

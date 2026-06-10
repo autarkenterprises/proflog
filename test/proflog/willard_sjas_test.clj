@@ -307,6 +307,23 @@
         (is (not (sjas/delta-star-0? (ast/exists-form y (sjas/lt y-term x-term)))))
         (is (not (sjas/pi-star-1? not-pi)))))))
 
+(deftest sjas-formula-classifiers-close-delta-star-0-under-connectives
+  (testing "Delta-star-0 is closed under not and implies like the code grammar"
+    (ast/nom x y
+      (let [x-term (ast/var-term x)
+            y-term (ast/var-term y)
+            implies-matrix (ast/implies-form
+                             (ast/eq-lit x-term sjas/one)
+                             (sjas/leq x-term sjas/two))
+            not-matrix (ast/not-form (sjas/lt x-term sjas/three))]
+        (is (sjas/delta-star-0? implies-matrix))
+        (is (sjas/delta-star-0? not-matrix))
+        (is (sjas/pi-star-1? (ast/forall-form x implies-matrix)))
+        (is (not (sjas/delta-star-0?
+                   (ast/implies-form
+                     (ast/exists-form y (sjas/lt y-term x-term))
+                     (ast/eq-lit x-term sjas/one)))))))))
+
 (defn- demo-beta
   []
   (ast/eq-lit sjas/one sjas/one))
@@ -4061,6 +4078,57 @@
     (is (every? #(= (:system-code system) (nth % 2)) subst-atoms))
     (is (every? #(= skeleton-code (nth % 3)) subst-atoms))
     (is (not-any? #(= (:system-code system) (nth % 3)) subst-atoms))))
+
+(deftest sjas-level1-group-three-restricts-pair-to-pi-star-1
+  (let [system (demo-system :willard-sjas-level1)
+        group3-relations (set (formula-relation-symbols
+                                (:formula (:group-three system))))
+        skeleton-relations (set (formula-relation-symbols
+                                  (:selfcons-skeleton-formula system)))]
+    (is (contains? group3-relations 'pi-star-1-code)
+        "Willard 2013 sentence (7): Pair(x,y) requires x to code a Pi-star-1 sentence")
+    (is (contains? group3-relations 'neg-pair))
+    (is (contains? skeleton-relations 'pi-star-1-code)
+        "the fixed-point skeleton must carry the same Pi-star-1 restriction")))
+
+(deftest sjas-system-rejects-non-pi-star-1-reflected-basis
+  (testing "Definition 5.1 requires the reflected basis to have Pi*1 encodings"
+    (ast/nom x y
+      (let [unbounded (ast/exists-form x
+                        (sjas/lt (ast/var-term x) sjas/two))]
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Pi\*1"
+              (sjas/system {:profile :willard-sjas-level1
+                            :beta [unbounded]})))
+        (is (thrown-with-msg? clojure.lang.ExceptionInfo #"Pi\*1"
+              (sjas/system {:profile :willard-sjas-tableau0
+                            :relations {'bad 1}
+                            :reflected-clauses
+                            [(ast/clause 'bad [y]
+                               (ast/exists-form x
+                                 (sjas/lt (ast/var-term x)
+                                          (ast/var-term y))))]})))
+        (is (map? (sjas/system {:profile :willard-sjas-tableau0
+                                :relations {'demo 1}
+                                :beta [(ast/eq-lit sjas/one sjas/one)]
+                                :reflected-clauses
+                                [(ast/clause 'demo [y]
+                                   (ast/eq-lit (ast/var-term y) sjas/one))]}))
+            "worked-example shapes must remain buildable")))))
+
+(deftest sjas-syntax-class-predicates-accept-implies-codes
+  (testing "object-language Delta-star-0 classification covers implies codes"
+    (ast/nom x
+      (let [system (demo-system :willard-sjas-tableau0)
+            formula (ast/forall-form x
+                      (ast/implies-form
+                        (ast/eq-lit (ast/var-term x) sjas/one)
+                        (sjas/leq (ast/var-term x) sjas/two)))
+            code (sjas/formula-code system formula)]
+        (is (successful?
+              (query/query-succeeds (:program system)
+                                    (sjas/pi-star-1-code code)
+                                    1
+                                    160)))))))
 
 (deftest ^:slow sjas-subst-prf-checks-selfcons-fixed-point-certificate
   (let [system (demo-system :willard-sjas-level1)

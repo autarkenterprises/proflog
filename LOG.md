@@ -22,6 +22,32 @@ complete contemporaneous transcript.
 
 ## 2026-06-09
 
+- Completed ADR-0087, the Level-1 literature-fidelity correction from the
+  directory audit. The Level-1 Group-3 matrix now opens with the
+  `pi-star-1-code(x)` restriction required by Willard 2013 sentence (7), in
+  both the builder and the profile reconstruction template; `Delta-star-0`
+  classification is closed under `not`/`implies` on both the host and
+  relational sides; and `system` rejects reflected basis formulas without
+  `Pi*1` encodings. Red evidence: 8 failures across the four new selectors.
+  Green: the same four selectors (11 assertions), the affected Level-1 and
+  tableau0 regressions including
+  `sjas-tableau-proof-cites-level1-group-three-from-system-code`, and both
+  broad gates. The slow `subst-prf` fixed-point certificate selectors and a
+  supplementary Level-1 coverage batch run as durable detached probes whose
+  logs, stack-sample interpretation, and expected envelope are recorded in
+  [AAR-0087](docs/aar/AAR-0087-sjas-level1-pi-star-1-pair-restriction.md),
+  to be updated with final numbers.
+- Performed a user-requested motivation-alignment and correctness audit of
+  the whole directory against the local Willard corpus and AGENTS.md
+  methodology. Findings and dispositions, including the tableau0/level1
+  naming clarification, the Track 2a apparatus-extension obligations
+  (Willard 2005 closes branches only on complementary sentence pairs), the
+  refreshed SelfCons Godel code
+  `1895911909320248794237471524907560082878513227` for the `0 = 1` target,
+  six restorative slice commits for previously uncommitted completed work,
+  termination of the superseded 22-CPU-hour SelfCons probe, and working-tree
+  hygiene, are recorded in
+  [Motivation Alignment And Correctness Audit](docs/log/2026-06-09-motivation-alignment-and-correctness-audit.md).
 - Completed ADR-0086. The ordinary-tableau Group-3 target is now the code of
   `0 = 1`, not primitive `false`; the builder, axiom-member path, and
   `AxiomConj(s)` reconstruction agree on the revised target. The public

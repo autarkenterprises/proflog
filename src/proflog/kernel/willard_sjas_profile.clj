@@ -2024,6 +2024,15 @@
        (== (list 'or left right) formula)
        (sjas-delta-star-0-formulao left)
        (sjas-delta-star-0-formulao right))]
+    ;; Delta-star-0 closure under the propositional connectives mirrors the
+    ;; host classifier and the formula-code grammar tags (ADR-0087).
+    [(fresh [body]
+       (== (list 'not body) formula)
+       (sjas-delta-star-0-formulao body))]
+    [(fresh [left right]
+       (== (list 'implies left right) formula)
+       (sjas-delta-star-0-formulao left)
+       (sjas-delta-star-0-formulao right))]
     [(fresh [idx bound body]
        (== (list 'bounded-forall idx bound body) formula)
        (sjas-delta-star-0-formulao body))]
@@ -3321,6 +3330,11 @@
         y-term (list 'var y)
         p-term (list 'var p)
         q-term (list 'var q)
+        ;; Willard 2013 (7): Pair(x,y) requires `x` to code a Pi-star-1
+        ;; sentence; the pair restriction is encoded as the pi-star-1-code
+        ;; conjunct ahead of complement pairing (ADR-0087).
+        pi-restriction (list 'neg
+                             (list 'app 'pi-star-1-code (list x-term)))
         neg-pair (list 'neg
                        (list 'app 'neg-pair (list x-term y-term)))
         left-subst (list 'neg
@@ -3346,8 +3360,10 @@
                       (list 'forall
                             q
                             (list 'or
-                                  neg-pair
-                                  (list 'or left-subst right-subst))))))))
+                                  pi-restriction
+                                  (list 'or
+                                        neg-pair
+                                        (list 'or left-subst right-subst)))))))))
 
 (defn- level1-group-three-formulao
   "Validate the Level-1 fixed-point axiom and its embedded skeleton code."

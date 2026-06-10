@@ -44,6 +44,13 @@ lein test-proflog-sjas-slow
 ;; real 746.91 s
 ```
 
+Both full-suite runs above predate the ADR-0086 `0 = 1` SelfCons target and
+the ADR-0087 Level-1 corrections, which together add four tests to the
+namespace and enlarge the Group-3 codes; the public Tableau-0 SelfCons
+selector alone now takes about 8m30s. Re-baseline against
+[TEST_RUNTIME_BASELINE](../docs/TEST_RUNTIME_BASELINE.md) before relying on
+the totals.
+
 ## Hand-Written Intent
 
 The object language now uses binary numeral constants:
@@ -785,6 +792,14 @@ substitution source, and rejects a malformed `refl-close` certificate for the
 beta theorem. A structural check also verifies that the generated Level-1
 Group-3 formula contains `neg-pair/2` and `subst-prf/4`, but no raw
 `tableau-proof/3`.
+
+ADR-0087 restricts the Level-1 pair to the literature class: Willard 2013
+sentence (7) requires the paired `x` to code a Pi-star-1 sentence, so the
+generated Group-3 matrix now opens with a `pi-star-1-code/1` restriction
+ahead of `neg-pair/2`, encoding Willard's `Delta*0` `Pair(x,y)` as two
+reserved vocabulary atoms. The same ADR validates at build time that every
+beta member and reflected Group-2b clause formula has a Pi-star-1 encoding,
+and closes the `Delta-star-0` classifiers under `not` and `implies`.
 
 ADR-0065 adds the fixed-point check. The generated Level-1 system exposes the
 code of the skeleton `Gamma_1(g)`:

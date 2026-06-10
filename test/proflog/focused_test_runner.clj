@@ -19,6 +19,25 @@
        (filter (comp :test meta))
        (sort-by (comp str :name meta))))
 
+(defn- selected-vars
+  "Resolve one runner argument to its test vars.
+
+   A plain namespace argument selects every test var in that namespace. A
+   `namespace/var` argument selects that single test var, so expensive vars
+   can be excluded from a bulk run and measured separately (ADR-0088
+   re-baselining)."
+  [arg]
+  (if (str/includes? arg "/")
+    (let [[ns-name var-name] (str/split arg #"/" 2)
+          ns-sym (symbol ns-name)]
+      (require ns-sym)
+      (let [var (ns-resolve ns-sym (symbol var-name))]
+        (when-not (and var (:test (meta var)))
+          (println (str ":MISSING " arg))
+          (flush))
+        (if (and var (:test (meta var))) [var] [])))
+    (test-vars (symbol arg))))
+
 (defn- update-counter
   "Accumulate assertion outcomes while preserving normal clojure.test output."
   [counter event]
@@ -52,24 +71,24 @@
       (println (format ":DONE %s %.3f ms" name-str elapsed-ms))
       (flush))))
 
-(defn- run-namespace
-  "Run all tests in one namespace and return assertion counters."
-  [ns-sym]
-  (let [vars (test-vars ns-sym)
+(defn- run-selection
+  "Run the test vars selected by one runner argument, returning counters."
+  [arg]
+  (let [vars (selected-vars arg)
         counter (atom {:pass 0 :fail 0 :error 0})]
-    (println (str ":NAMESPACE " ns-sym " " (count vars) " tests"))
+    (println (str ":SELECTION " arg " " (count vars) " tests"))
     (flush)
     (doseq [var vars]
       (run-test-var counter var))
     @counter))
 
 (defn -main
-  "Entry point for `lein test-vars <ns>...`."
+  "Entry point for `lein test-vars <test.namespace|test.namespace/var>...`."
   [& args]
   (when (empty? args)
-    (println "Usage: lein test-vars <test.namespace>...")
+    (println "Usage: lein test-vars <test.namespace|test.namespace/var>...")
     (System/exit 2))
-  (let [results (map (comp run-namespace symbol) args)
+  (let [results (mapv run-selection args)
         totals (apply merge-with + results)
         failures (+ (:fail totals 0) (:error totals 0))]
     (println (format ":SUMMARY pass=%d fail=%d error=%d"

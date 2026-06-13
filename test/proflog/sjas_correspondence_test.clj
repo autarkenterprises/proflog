@@ -342,6 +342,44 @@
              (:equality-symbols-present tagged)))
       (is (true? (:equality-reachable? tagged))))))
 
+(deftest fragment-reachability-audit-covers-the-high-risk-aspects
+  (testing "ADR-0099: the per-aspect audit covers exactly the three high-risk relevance-matrix rows with encodable :relevant constructors"
+    (is (= #{:equality-extension :procedure-call-expansion :quantifier-instantiation}
+           (set (keys correspondence/fragment-reachability-constructor-sets))))
+    (doseq [[aspect syms] correspondence/fragment-reachability-constructor-sets]
+      (is (seq syms) (str aspect " must name at least one constructor"))
+      (is (= #{} (set/difference syms (set sjas-code/proof-symbols)))
+          (str aspect " constructors must all be encodable proof symbols"))
+      (is (every? #(= :relevant (:status (correspondence/classify-proof-symbol %))) syms)
+          (str aspect " constructors must be Track 2a :relevant")))))
+
+(deftest fragment-reachability-audit-flags-tags-and-clears-formula-bearing-certificates
+  (testing "ADR-0099: per-aspect tags are reported; formula-bearing and axiom certificates clear all aspects"
+    (let [absorbed (correspondence/audit-fragment-reachability '(2 12 7 (1 4)))]
+      (is (false? (:reachable? absorbed)))
+      (is (every? empty? (vals (:reachable-by-aspect absorbed)))))
+    (is (false? (:reachable?
+                  (correspondence/audit-fragment-reachability 'sjas-axiom))))
+    (let [eq (correspondence/audit-fragment-reachability '(eq-step (refl-close)))
+          call (correspondence/audit-fragment-reachability '(neg-call (alt)))
+          quant (correspondence/audit-fragment-reachability '(univ (witness)))]
+      (is (true? (:reachable? call)))
+      (is (= #{'eq-step 'refl-close}
+             (:equality-extension (:reachable-by-aspect eq))))
+      (is (contains? (:procedure-call-expansion (:reachable-by-aspect call)) 'neg-call))
+      (is (contains? (:procedure-call-expansion (:reachable-by-aspect call)) 'alt))
+      (is (= #{'univ 'witness}
+             (:quantifier-instantiation (:reachable-by-aspect quant)))))))
+
+(deftest track-2a-relevance-matrix-has-no-unresolved-symbols
+  (testing "ADR-0099 completion: every classified proof symbol has a resolved Track 2a status, none :unresolved"
+    (is (= #{}
+           (into #{}
+                 (filter #(= :unresolved
+                             (:status (correspondence/classify-proof-symbol %))))
+                 (keys correspondence/proof-symbol-classifications)))
+        "no proof symbol remains :unresolved after the Track 2a completion")))
+
 (deftest structural-proof-tree-audit-reports-flat-node-size-and-shape
   (testing "flat formula-byte nodes expose finite tree and byte-size metrics"
     (let [audit (correspondence/audit-structural-proof-tree

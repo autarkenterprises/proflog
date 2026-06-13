@@ -572,3 +572,44 @@
         present (into #{} (filter equality-disequality-constructor-symbols) steps)]
     {:equality-symbols-present present
      :equality-reachable? (boolean (seq present))}))
+
+(def quantifier-instantiation-constructor-symbols
+  "Quantifier-instantiation proof constructors (ADR-0099).
+
+   The SJAS structural proof checker expands universal, once-universal, and
+   existential nodes into formula-bearing children: a quantifier node introduces
+   a `par-term` parameter (or a gamma witness) and continues with the
+   instantiated body, whose code is carried explicitly in the child node. The
+   instantiation is therefore size-accounted by the ADR-0097 structural tree
+   audit, and these tags are unreachable in first-fragment certificates."
+  '#{univ once-univ witness})
+
+(def fragment-reachability-constructor-sets
+  "Per Track 2a aspect, the generic proof constructors whose first-fragment
+   reachability the Track 2a completion resolves (ADR-0098/0099).
+
+   An accepted first-fragment certificate is formula-bearing and contains none
+   of them: the equality/disequality calculus, the reflected procedure-call
+   expansion, and the quantifier instantiation are each absorbed into
+   formula-bearing structural closure rather than admitted as compact
+   proof-rule tags."
+  {:equality-extension equality-disequality-constructor-symbols
+   :procedure-call-expansion relevant-procedure-symbols
+   :quantifier-instantiation quantifier-instantiation-constructor-symbols})
+
+(defn audit-fragment-reachability
+  "Report, per Track 2a aspect, which generic proof constructors occur in a
+   decoded proof term (ADR-0099).
+
+   `:reachable-by-aspect` maps each high-risk aspect to the constructors
+   present; an all-empty map is positive evidence that the apparatus is absorbed
+   into formula-bearing closure for this certificate rather than admitted as
+   compact proof-rule tags. `:reachable?` is true when any aspect is non-empty."
+  [proof-term]
+  (let [steps (set (proof/collect-steps proof-term))
+        by-aspect (into {}
+                        (map (fn [[aspect syms]]
+                               [aspect (into #{} (filter syms) steps)]))
+                        fragment-reachability-constructor-sets)]
+    {:reachable-by-aspect by-aspect
+     :reachable? (boolean (some seq (vals by-aspect)))}))

@@ -3653,6 +3653,72 @@
               (l/== true q)))
           "formula-bearing negative calls should recover negated reflected bodies from encoded system-code"))))
 
+(deftest sjas-procedure-call-expansion-is-formula-bearing-and-tag-free
+  (testing "ADR-0099: reflected procedure-call closure goes through a formula-bearing, call-tag-free first-fragment certificate"
+    (let [system (sjas/system
+                   {:profile :willard-sjas-tableau0
+                    :relations {'positive-demo 0}
+                    :beta []
+                    :reflected-clauses [(ast/clause 'positive-demo
+                                                    []
+                                                    (ast/false-form))]})
+          target (structural-pos-lit system 'positive-demo)
+          canonical-target (list 'pos (list 'app 'positive-demo))
+          proof (canonical-structural-tableau-node
+                  system
+                  canonical-target
+                  (structural-tableau-node system (ast/false-form)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           60
+                           proof)
+              (l/== true q)))
+          "the structural checker recovers the reflected body without a call tag")
+      (is (= #{}
+             (:procedure-call-expansion
+               (:reachable-by-aspect
+                 (correspondence/audit-fragment-reachability proof))))
+          "no procedure-call constructor is reachable in the accepted certificate")
+      (is (false? (:reachable? (correspondence/audit-fragment-reachability proof))))
+      (is (= :formula-bearing-tableau
+             (:fragment-status
+               (correspondence/audit-first-correspondence-fragment proof)))
+          "the reflected-call certificate is inside the first correspondence fragment"))))
+
+(deftest sjas-quantifier-instantiation-is-formula-bearing-and-tag-free
+  (testing "ADR-0099: quantifier instantiation goes through formula-bearing children with no univ/once-univ/witness tags"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          target (ast/exists-form binding (ast/false-form))
+          proof (structural-tableau-node
+                  system
+                  target
+                  (structural-tableau-node system (ast/false-form)))
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           proof)
+              (l/== true q)))
+          "the structural checker expands the quantifier into a formula-bearing child")
+      (is (= #{}
+             (:quantifier-instantiation
+               (:reachable-by-aspect
+                 (correspondence/audit-fragment-reachability proof))))
+          "no quantifier-instantiation constructor is reachable in the accepted certificate")
+      (is (false? (:reachable? (correspondence/audit-fragment-reachability proof))))
+      (is (= :formula-bearing-tableau
+             (:fragment-status
+               (correspondence/audit-first-correspondence-fragment proof)))
+          "the quantifier certificate is inside the first correspondence fragment"))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-negative-reflected-alternatives
   (testing "structural negative calls select encoded reflected alternatives without neg-call-alt tags"
     (ast/nom x

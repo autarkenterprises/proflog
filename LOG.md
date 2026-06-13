@@ -22,6 +22,24 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0099](docs/adr/ADR-0099-sjas-track2a-completion.md) on
+  `adr-0099-sjas-track2a-completion`, closing Track 2a of ADR-0073. Resolved the
+  two remaining high-risk relevance-matrix rows via the same unreachability
+  route as ADR-0098: reflected procedure-call expansion is a formula-bearing
+  clause-body child (no `pos-call`/`neg-call`/`alt`/guarded tags), and
+  quantifier instantiation introduces a `par-term`/witness formula-bearing child
+  (no `univ`/`once-univ`/`witness` tags) carrying the instantiation explicitly so
+  its size is accounted by ADR-0097. Generalized the audit to
+  `audit-fragment-reachability` + `fragment-reachability-constructor-sets`
+  (equality / procedure-call / quantifier) in `proflog.sjas-correspondence`;
+  added a reflected-call probe, a quantifier probe, per-aspect audit unit tests,
+  and a capstone asserting no proof symbol remains `:unresolved`. The
+  [relevance-matrix completion note](docs/log/2026-06-13-sjas-track2a-relevance-matrix-completion.md)
+  records every row's final disposition. Audit only. Red→green;
+  `lein test-proflog-fast` (`196`/`1035`), SJAS not-slow (`1016` assertions),
+  focused (`4`/`34`). Residual correspondence-theorem + proof-medium obligations
+  handed to Track 2b (parallel agent). See
+  [AAR-0099](docs/aar/AAR-0099-sjas-track2a-completion.md).
 - Completed [ADR-0098](docs/adr/ADR-0098-sjas-equality-fragment-reachability.md)
   on `adr-0098-sjas-equality-relevance`, the first Track 2a relevance-matrix
   slice: resolved the high-risk "equality and disequality profile rules" row via

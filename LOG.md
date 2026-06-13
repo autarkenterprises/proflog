@@ -20,8 +20,63 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-13
+
+- Merged ADR-0093's canonical miniKanren/core.logic regression suite into
+  `main` after ADR-0094 had already landed. The conflict resolution preserved
+  both fast-gate additions, `proflog.core-logic-lvar-equality-test` and
+  `proflog.core-logic-canonical-test`, plus the extended
+  `proflog.core-logic-canonical-extended-test`. Combined verification passed:
+  `lein test-proflog-fast` (`183` tests, `744` assertions, `2:03.07`) and
+  `lein test-proflog-extended` (`73` tests, `219` assertions, `5:19.35`).
+  The separate ADR-0095 worktree remains in-progress/red and was not merged.
+
 ## 2026-06-10
 
+- Started [ADR-0093](docs/adr/ADR-0093-core-logic-canonical-regression-suite.md)
+  on `adr-0093-core-logic-canonical-regressions` after reviewing the
+  ADR-0090 ground-term fast path. The objective is a canonical core.logic
+  regression suite, derived from the miniKanren/core.logic literature, that
+  checks core miniKanren semantics, cKanren-style constraints, alphaKanren
+  nominal behavior, tabling, CLP(FD), and modest performance canaries before
+  future core.logic changes can perturb SJAS proof machinery. Survey note:
+  [Core.logic Canonical Regression Suite Survey](docs/log/2026-06-10-core-logic-canonical-regression-suite.md).
+  Completed it with [AAR-0093](docs/aar/AAR-0093-core-logic-canonical-regression-suite.md):
+  the new fast-gate namespace covers core miniKanren semantics, classic list
+  relations, cKanren-style constraints, alphaKanren nominal behavior, tabling,
+  CLP(FD), a tagged-ground walk performance canary, and a tiny
+  literature-derived relational interpreter/quine example. Evidence: all eight
+  vars green individually; default and 1.1.1-overlay namespace runs green
+  (`8` tests, `53` assertions); `lein test-proflog-fast` green (`179` tests,
+  `732` assertions, `5:33.00`); `lein test-proflog-extended` green (`68`
+  tests, `203` assertions, `15:02.76`).
+- Extended ADR-0093 after user review clarified that the follow-up suite itself
+  needed to be written and run inside the same ADR. Added
+  `proflog.core-logic-canonical-extended-test` to `lein test-proflog-extended`
+  with quine/twine relational-interpreter pearls, SEND+MORE=MONEY, all 92
+  8-queens FD solutions, and backward binary multiplication factorization of
+  30. Evidence: the extended namespace passed focused (`4` tests, `10`
+  assertions), all four vars passed individually, the 1.1.1 source-overlay run
+  passed, `lein test-proflog-fast` passed (`179` tests, `732` assertions,
+  `9:46.96` while run concurrently), and `lein test-proflog-extended` passed
+  (`72` tests, `213` assertions, `22:46.99`). A direct raw
+  `(run 1 [q] (evalo q '() q))` probe against the tiny interpreter exceeded a
+  90-second bounded run, so the committed test uses exact generated quine/twine
+  shapes rather than a nonterminating raw search.
+- Ran the raw `evalo` quine experiment to completion by adapting the paper's
+  extended `eval-expo` (`absento closure` plus relational `proper-listo`) rather
+  than the tiny fast-suite interpreter. The durable run
+  `test-runs/raw-evalo-quine-faithful-20260610T191619Z.log` returned the
+  canonical quine with residual `(!= (_0 list))`, `(!= (_0 quote))`,
+  `symbolo`, and `(absento closure _0)` in `0:53.53` maxrss `217532KB`. The raw
+  query is now promoted into `proflog.core-logic-canonical-extended-test` as
+  `raw-evalo-quine-generation-completes`. Post-promotion gates passed:
+  `lein test-proflog-fast` (`179` tests, `732` assertions, `8:01.09`),
+  `lein test-proflog-extended` (`73` tests, `219` assertions, `3:04.35`),
+  `lein with-profile +core-logic-source-overlay test-proflog-fast` (`179`
+  tests, `732` assertions, `1:05.68`), and `lein with-profile
+  +core-logic-source-overlay test-proflog-extended` (`73` tests, `219`
+  assertions, `3:11.65`).
 - Stack-analyzed the running `subst-prf` negative-exhaustion durable probe
   at the user's request: three samples localized the cost to
   `occurs-check-worklist` substitution lookups whose `LVar.equals` reads
@@ -41,7 +96,6 @@ complete contemporaneous transcript.
   assertions identical; fast gate `3:28.73` and extended gate `8:32.50`,
   both 0 failures and faster than their predecessors. See
   [AAR-0094](docs/aar/AAR-0094-core-logic-lvar-equality-fast-path.md).
-
 - Executed ADR-0088 to completion on `adr-0088-sjas-runtime-rebaseline`.
   The bisect probe attributed the whole-program grind to `axiom-member`
   citations (beta queries run in seconds); stack samples placed the cost in

@@ -101,3 +101,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0098](AAR-0098-sjas-equality-fragment-reachability.md) | [ADR-0098](../adr/ADR-0098-sjas-equality-fragment-reachability.md) | completed |
 | [AAR-0099](AAR-0099-sjas-track2a-completion.md) | [ADR-0099](../adr/ADR-0099-sjas-track2a-completion.md) | completed |
 | [AAR-0100](AAR-0100-sjas-correspondence-proof.md) | [ADR-0100](../adr/ADR-0100-sjas-correspondence-proof.md) | completed |
+| [AAR-0106](AAR-0106-sjas-search-width-reduction.md) | [ADR-0106](../adr/ADR-0106-sjas-search-width-reduction.md) | completed |

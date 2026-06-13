@@ -22,6 +22,28 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0106](docs/adr/ADR-0106-sjas-search-width-reduction.md) on
+  `adr-0106-sjas-width-reduction`, successor to ADR-0105. Researched the
+  miniKanren parallelism literature: implicit OR-parallelism
+  ([concurrentKanren, 2025](https://arxiv.org/html/2510.04994)) is sound (immutable
+  substitutions, bounded worker pool) but ≤#cores and modest/variable, with
+  constraints unaddressed; interleaving-search scheduling is itself a cost
+  ([Rozplokhas & Boulytchev, FLOPS 2022](https://arxiv.org/abs/2202.08511)). So
+  parallelism is a constant factor, wrong for the critical path. **Corrected the
+  diagnosis:** ground decode is ~1 ms (not ~7.5 s) and the both-ground
+  `subst-code-any` check fails fast; a direct jstack of the full grind puts the
+  time in proof-facing formula/embedded-code decoding + static-table enumeration
+  over **variable-dense intermediate terms** (the original 84-sample finding) —
+  correcting ADR-0105's per-op-cost inference (its re-derivation verdict stands).
+  Elaborated the width-reduction design space, highest-leverage = mode-directed
+  ground-before-decode evaluation (make codes ground at decode time so the ~1 ms
+  ground path + O(1) table lookups apply), plus static-table determinisation on
+  ground keys (ADR-0078 line), goal ordering / early failure, relevance prefilter,
+  and decision-engine offload. Diagnosis experiments were scratch evals over
+  existing relations (no kernel change), removed after measuring; methodology
+  documented for reproducibility. Successor implementation ADR (forward-mode
+  decode reformulation, measured) named in the AAR. 0101-0105 are sibling
+  branches. See [AAR-0106](docs/aar/AAR-0106-sjas-search-width-reduction.md).
 - Completed [ADR-0100](docs/adr/ADR-0100-sjas-correspondence-proof.md) on
   `adr-0100-sjas-correspondence-proof`: proved the Track 2b correspondence
   theorem over the first fragment —

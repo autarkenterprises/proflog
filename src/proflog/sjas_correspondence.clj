@@ -545,3 +545,30 @@
            :structural-proof-summary structural-summary
            :fragment-boundaries (select-keys proof-symbol-fragment-boundaries
                                              symbols))))
+
+(def equality-disequality-constructor-symbols
+  "Generic equality and disequality proof constructors (ADR-0098).
+
+   The Track 2a `:equality-extension` tags plus the disequality-closure tags
+   carried in the tableau-closure set. ADR-0098 records that the SJAS structural
+   proof checker closes equality and disequality branches by formula-bearing
+   recognition -- reflexive same-term closure, rigid-different progression, and
+   disequality storage with later recheck -- rather than by consuming these
+   tags. They are therefore unreachable in accepted first-fragment certificates:
+   the equality calculus is absorbed into formula-bearing closure (already
+   admitted by ADR-0096), not admitted as separate proof-rule tags."
+  (into relevant-equality-symbols
+        '#{refl-close neq-rigid neq-store neq-close}))
+
+(defn audit-equality-reachability
+  "Report which generic equality/disequality constructors occur in a decoded
+   proof term (ADR-0098).
+
+   An empty `:equality-symbols-present` is positive reachability evidence that
+   the equality calculus is absorbed into formula-bearing structural closure for
+   this certificate rather than admitted as separate equality/disequality tags."
+  [proof-term]
+  (let [steps (set (proof/collect-steps proof-term))
+        present (into #{} (filter equality-disequality-constructor-symbols) steps)]
+    {:equality-symbols-present present
+     :equality-reachable? (boolean (seq present))}))

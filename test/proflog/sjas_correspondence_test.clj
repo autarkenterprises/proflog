@@ -320,6 +320,28 @@
       (is (contains? (:excluded-symbols query-audit) 'query-neg-call-guarded-alt))
       (is (contains? (:excluded-symbols query-audit) 'guarded-call-seq-defer)))))
 
+(deftest equality-reachability-audit-covers-the-equality-disequality-alphabet
+  (testing "ADR-0098: the audited constructor set is exactly the encoded equality/disequality tags"
+    (is (= #{} (set/difference correspondence/equality-disequality-constructor-symbols
+                               (set sjas-code/proof-symbols)))
+        "every audited equality/disequality constructor is an encodable proof symbol")
+    (is (every? #(= :relevant (:status (correspondence/classify-proof-symbol %)))
+                correspondence/equality-disequality-constructor-symbols)
+        "the equality/disequality constructors are Track 2a :relevant")))
+
+(deftest equality-reachability-audit-flags-tags-and-clears-formula-bearing-certificates
+  (testing "ADR-0098: equality/disequality tags are reported; formula-bearing and axiom certificates are clear"
+    (let [absorbed (correspondence/audit-equality-reachability '(2 12 7 (1 4)))]
+      (is (= #{} (:equality-symbols-present absorbed)))
+      (is (false? (:equality-reachable? absorbed))))
+    (is (false? (:equality-reachable?
+                  (correspondence/audit-equality-reachability 'sjas-axiom))))
+    (let [tagged (correspondence/audit-equality-reachability
+                   '(eq-step (neq-close (refl-close))))]
+      (is (= #{'eq-step 'neq-close 'refl-close}
+             (:equality-symbols-present tagged)))
+      (is (true? (:equality-reachable? tagged))))))
+
 (deftest structural-proof-tree-audit-reports-flat-node-size-and-shape
   (testing "flat formula-byte nodes expose finite tree and byte-size metrics"
     (let [audit (correspondence/audit-structural-proof-tree

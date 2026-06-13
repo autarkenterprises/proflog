@@ -3719,6 +3719,74 @@
                (correspondence/audit-first-correspondence-fragment proof)))
           "the quantifier certificate is inside the first correspondence fragment"))))
 
+(deftest sjas-correspondence-per-rule-witnesses
+  (testing "ADR-0100: each Willard D connective/branching rule is witnessed by an accepted formula-bearing, tag-free, in-fragment certificate"
+    (let [system (demo-system :willard-sjas-tableau0)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)
+          node (fn [& args] (apply structural-tableau-node system args))
+          accepts? (fn [target proof]
+                     (successful?
+                       (l/run 1 [q]
+                         (check-proof (:program system)
+                                      (:system-code system)
+                                      target
+                                      20
+                                      proof)
+                         (l/== true q))))
+          in-fragment? (fn [proof]
+                         (and (zero? (proof-symbol-count proof))
+                              (false? (:reachable?
+                                        (correspondence/audit-fragment-reachability proof)))
+                              (= :formula-bearing-tableau
+                                 (:fragment-status
+                                   (correspondence/audit-first-correspondence-fragment proof)))))
+          and-target (ast/and-form (ast/true-form) (ast/false-form))
+          or-target (ast/or-form (ast/false-form) (ast/false-form))
+          notnot-target (ast/not-form (ast/not-form (ast/false-form)))
+          notand-target (ast/not-form (ast/and-form (ast/true-form) (ast/true-form)))
+          implies-target (ast/implies-form (ast/true-form) (ast/false-form))
+          cases [["rule 1 (alpha)" and-target
+                  (node and-target (node (ast/false-form)))]
+                 ["rule 3 (beta)" or-target
+                  (node or-target (node (ast/false-form)) (node (ast/false-form)))]
+                 ["rule 2 (double negation)" notnot-target
+                  (node notnot-target (node (ast/false-form)))]
+                 ["rule 2 (de Morgan + beta)" notand-target
+                  (node notand-target
+                        (node (ast/not-form (ast/true-form)))
+                        (node (ast/not-form (ast/true-form))))]
+                 ["rule 4 (implication)" implies-target
+                  (node implies-target
+                        (node (ast/not-form (ast/true-form)))
+                        (node (ast/false-form)))]]]
+      (doseq [[rule target proof] cases]
+        (is (accepts? target proof)
+            (str rule " witness must be accepted by the structural checker"))
+        (is (in-fragment? proof)
+            (str rule " witness must be a tag-free, in-fragment formula-bearing certificate"))))))
+
+(deftest sjas-correspondence-anti-compression-rejects-skeletal-certificate
+  (testing "ADR-0100: a skeletal certificate cannot validate a formula-bearing tree that requires expansion (5J lower bound)"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/and-form (ast/false-form) (ast/false-form))
+          full (structural-tableau-node system target
+                                        (structural-tableau-node system (ast/false-form)))
+          skeletal (structural-tableau-node system target)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)
+          accepts? (fn [proof]
+                     (successful?
+                       (l/run 1 [q]
+                         (check-proof (:program system)
+                                      (:system-code system)
+                                      target
+                                      20
+                                      proof)
+                         (l/== true q))))]
+      (is (accepts? full)
+          "the full formula-bearing certificate, carrying the expansion subtree, validates")
+      (is (not (accepts? skeletal))
+          "a skeletal root-only certificate cannot validate an expansion-requiring target: the formula-bearing subtree cannot be compressed away"))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-negative-reflected-alternatives
   (testing "structural negative calls select encoded reflected alternatives without neg-call-alt tags"
     (ast/nom x

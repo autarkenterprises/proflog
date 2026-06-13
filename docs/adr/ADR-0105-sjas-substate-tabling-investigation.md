@@ -74,21 +74,38 @@ fired, confirming the negative subst-prf bypasses the structural checker via the
 | probe (relation) | total calls (90 s) | distinct keys | revisit ratio |
 |---|---:|---:|---:|
 | `:decode` — `sjas-formal-code-bytes-coreo` (top-level code read) | 13 | 3 | 4.33× |
-| `:formula-decode` — `decode-syntax-formula-byteso` (hotspot path) | 12 | 12 | **1.00×** |
+| `:formula-decode` — `decode-syntax-formula-byteso` (a probed decoder) | 12 | 12 | **1.00×** |
 
-The key is the core.logic reifier hashed (conservative: never over-merges).
-jstack of the same grind shows the time is in the core.logic search trampoline +
-unification driving `parse-code-payload-byteso`, i.e. *inside* the ~12 distinct,
-~7.5 s-each formula decodes.
+The key is the core.logic reifier hashed (conservative: never over-merges). The
+distinct-vs-total *counts* above are accurate and are the basis of the verdict
+below.
+
+> **Correction (2026-06-13, [ADR-0106](ADR-0106-sjas-search-width-reduction.md)).**
+> An earlier version of this note added the inference that each formula decode
+> costs ~7.5 s (90 s ÷ 12) and that the wall is "intrinsically expensive
+> distinct decodes." **That inference is wrong.** Follow-up component
+> experiments show ground decode is **~1 ms**, and a direct jstack of the full
+> grind puts the time in *different* relations — `decode_formula_byteso` /
+> `decode_embedded_code_bodyo` (proof-facing decode of embedded codes) plus
+> `static_table_entryo` *enumeration* — over **variable-dense (non-ground)
+> intermediate terms**, i.e. the original "walk/occurs over variable-dense
+> terms = search width" finding. The `:formula-decode` probe was on
+> `decode-syntax-formula-byteso`, which is **not** the dominant hot relation, so
+> the 90 s was spent during, not inside, those 12 probed decodes. The
+> re-derivation verdict (1.00×, tabling not the fix) is **unaffected** by this
+> correction; only the per-op-cost characterisation was wrong. See ADR-0106 for
+> the corrected diagnosis.
 
 ## Conclusion: tabling is **not** the systemic fix here
 
-The hot relation has **1.00× re-derivation** — every expensive formula-decode is
-on a *distinct* byte sequence, because the substitution search genuinely produces
-*distinct* candidate formulas. Tabling only removes re-derivation, so it buys
-essentially nothing on the hot path; even the cheap top-level reads repeat only
-4.33×. The "high re-derivation ⇒ tabling transforms it" hypothesis is **refuted
-by measurement**.
+The probed relation has **1.00× re-derivation** — every formula-decode is on a
+*distinct* byte sequence, because the search genuinely produces *distinct*
+intermediate terms. Tabling only removes re-derivation, so it buys essentially
+nothing on the hot path; even the cheap top-level reads repeat only 4.33×. The
+"high re-derivation ⇒ tabling transforms it" hypothesis is **refuted by
+measurement**. (Per the correction above, the *cost* of that distinct work is
+variable-dense decode + static-table enumeration, not expensive ground decodes;
+this does not change the no-re-derivation verdict.)
 
 - **Option A (canonical-state tabling)** — not justified: the search does not
   re-derive substates at a rate that would pay for the tabling overhead.
@@ -96,9 +113,11 @@ by measurement**.
   but a bounded ≤4.33× on the *cheap* reads and 1× on the expensive path; not a
   tractability change. Not worth the hot-path complexity on this evidence.
 - **Option C (reduce search width)** — the real lever: the negative exhausts a
-  search that generates *many distinct, intrinsically expensive* formula decodes.
-  Tractability requires cutting *how many distinct candidates are decoded* — a
-  relevance/structural prefilter on the substitution candidates before the deep
+  wide search over *distinct* intermediate terms, whose cost is decode +
+  static-table enumeration over *variable-dense* (non-ground) terms (ADR-0106).
+  Tractability requires cutting that work — making terms ground before decode
+  (mode-directed eval), and a relevance/structural prefilter on candidates before
+  the deep
   decode + alpha-equivalence, or a non-provability decision that avoids the
   exhaustion — not memoization. Absent that, these `subst-prf` negatives remain
   the documented `^:slow` envelope-exceeders.

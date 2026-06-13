@@ -14,12 +14,16 @@ measurement rather than plausibility.
   core.logic search trampoline (`_inc`/`eval2364`) + unification driving the
   relational decoder `parse-code-payload-byteso`. Constant-factor levers
   (ADR-0090/0094) are exhausted.
-- **Re-derivation (measured):** with a conservative reify-keyed probe, the hot
-  relation `decode-syntax-formula-byteso` shows **1.00× re-derivation** (12 calls,
-  12 distinct, ~7.5 s each); the cheap top-level code reader shows 4.33× (13/3).
-  The search explores *distinct* substituted candidates, each intrinsically
-  expensive to decode. Tabling removes only re-derivation, so it buys ~nothing
-  here.
+- **Re-derivation (measured):** with a conservative reify-keyed probe, the probed
+  decoder `decode-syntax-formula-byteso` shows **1.00× re-derivation** (12 calls,
+  12 distinct); the cheap top-level code reader shows 4.33× (13/3). The search
+  explores *distinct* intermediate terms. Tabling removes only re-derivation, so
+  it buys ~nothing here.
+  - **Correction (ADR-0106):** an earlier draft inferred "~7.5 s each /
+    intrinsically expensive decodes." That is wrong — ground decode is ~1 ms, and
+    the grind is variable-dense decode + static-table enumeration in
+    `decode_formula_byteso` / `decode_embedded_code_bodyo` (not the probed
+    `decode-syntax-formula-byteso`). The re-derivation verdict is unaffected.
 - **Tabling facilities surveyed:** core.logic `l/tabled` (reify-keyed,
   constraint-store-unaware → sound only constraint-free, guarded by ADR-0093) and
   `proflog.tabling` (ADR-0017 canonical-state keys capturing `sigma`/`neqs`,

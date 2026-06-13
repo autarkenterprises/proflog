@@ -3910,6 +3910,68 @@
                               'sjas-code-arg)
         "compact axiom citations must carry the code-reader evidence inside the membership proof (ADR-0091)")))
 
+(deftest sjas-internal-code-builder-yields-canonical-axiom-certificate
+  (testing "reverse construction from the fixed axiom proof bytes is the canonical compact certificate (ADR-0095)"
+    (let [builder (var-get #'sjas-profile/sjas-internal-code-termo)
+          bytes (var-get #'sjas-profile/sjas-axiom-proof-bytes)
+          built (l/run 2 [term] (builder bytes term))]
+      (is (= 1 (count built))
+          "the canonical builder must produce exactly one compact certificate term")
+      (is (= (sjas/proof-certificate 'sjas-axiom) (first built))
+          "the synthesized certificate must equal the host-encoded sjas-axiom certificate"))))
+
+(deftest sjas-compact-code-reader-rejects-arity-mismatched-terms
+  (testing "a code-N constructor whose declared arity differs from its argument count is not a readable public code (ADR-0095 reader hardening)"
+    (let [proof-reader (var-get #'sjas-profile/sjas-public-code-byteso)
+          core-reader (var-get #'sjas-profile/sjas-public-code-bytes-coreo)
+          canonical (sjas/proof-certificate 'sjas-axiom)
+          args (drop 2 canonical)
+          malformed (apply ast/app-term (sjas-code/code-symbol 2) args)]
+      (is (= 3 (count args))
+          "the canonical axiom certificate must carry three byte arguments for this regression")
+      (is (empty? (l/run 1 [bytes] (l/fresh [proof] (proof-reader malformed bytes proof))))
+          "the proof-producing reader must reject a code-2 term carrying three byte arguments")
+      (is (empty? (l/run 1 [bytes] (core-reader malformed bytes)))
+          "the proof-free reader must reject a code-2 term carrying three byte arguments"))))
+
+(deftest ^:slow sjas-tableau-proof-synthesizes-beta-axiom-citation
+  (testing "a fresh proof variable is bound to the citation certificate (ADR-0095)"
+    (ast/nom p
+      (let [system (demo-system :willard-sjas-tableau0)
+            beta-record (first (filter #(= :group-two (:group %))
+                                       (:axioms system)))
+            records (sjas/query-answers
+                      system
+                      (sjas/tableau-proof (:system-code system)
+                                          (:code beta-record)
+                                          (ast/var-term p))
+                      [p]
+                      {:proof-limit 1
+                       :fuel 96
+                       :defer-calls? false})]
+        (is (seq records) "synthesis must produce an answer")
+        (is (= (sjas/proof-certificate 'sjas-axiom)
+               (binding-for records p))
+            "the synthesized proof code must be the axiom citation certificate")))))
+
+(deftest ^:slow sjas-tableau-proof-synthesizes-selfcons-citation
+  (testing "the runtime generates the Henkin proof of its own consistency (ADR-0095)"
+    (ast/nom p
+      (let [system (demo-system :willard-sjas-tableau0)
+            records (sjas/query-answers
+                      system
+                      (sjas/tableau-proof (:system-code system)
+                                          (:code (:group-three system))
+                                          (ast/var-term p))
+                      [p]
+                      {:proof-limit 1
+                       :fuel 96
+                       :defer-calls? false})]
+        (is (seq records) "synthesis must produce an answer")
+        (is (= (sjas/proof-certificate 'sjas-axiom)
+               (binding-for records p))
+            "the synthesized proof of SelfCons must be the Group-3 citation certificate")))))
+
 (deftest sjas-tableau-proof-cites-fixed-axiom-groups-from-system-code
   (let [system (demo-system :willard-sjas-tableau0)
         axiom-certificate (sjas/proof-certificate 'sjas-axiom)]

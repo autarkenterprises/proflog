@@ -1,9 +1,9 @@
 # ADR-0095: SJAS Proof Synthesis
 
-- Status: in progress
+- Status: accepted
 - Date: 2026-06-10
 - Branch: `adr-0095-sjas-proof-synthesis`
-- AAR: pending
+- AAR: [AAR-0095](../aar/AAR-0095-sjas-proof-synthesis.md)
 
 ## Context
 
@@ -55,7 +55,30 @@ relations inside this ADR.
    behavior data per the 2026-06-10 doctrine, ahead of any structural-
    synthesis attempt.
 3. Repair relational mode gaps surfaced by the tests, red/green, without
-   weakening the checking direction or the source audit.
+   weakening the checking direction or the source audit. The localized
+   repairs (see the [interdev review](../interdev/2026-06-13-adr-0095-proof-synthesis-review.md),
+   with which this ADR concurs) are:
+   a. **Construct, do not read backward.** The synthesis branch builds the
+      `sjas-axiom` certificate from its fixed bytes through the canonical
+      compact builder `sjas-internal-code-termo`, not by running the
+      presented-code reader `sjas-public-code-byteso` backward. The reader
+      accepts non-canonical byte numerals (`code-byte-termo` reads numerals
+      arithmetically), so it is deliberately many-to-one and not a bijection;
+      run backward it yields a non-canonical, non-admissible term that answer
+      export silently drops. The builder uses `code-byte-build-termo` (the
+      canonical 64-entry table) and is verified to reproduce
+      `(sjas/proof-certificate 'sjas-axiom)` exactly and deterministically.
+   b. **Harden the reader's forward direction.** `code-argso` /
+      `code-args-coreo` decoded a `code-N` term without relating the declared
+      constructor `byte-count` to the actual argument count, so a malformed
+      `(app code-2 b0 b1 b2)` read as valid. The count is now threaded through
+      the single decoding walk (perf-neutral on the forward path), so
+      arity-mismatched terms are rejected.
+   c. **Share the destructure preamble.** Extract
+      `sjas-tableau-proof-destructureo` (the negated-atom walk to the three
+      code arguments) from `sjas-tableau-proof-callo` and reuse it in the
+      synthesis branch, so the single proof-code position does not drift
+      between the checking and synthesizing branches.
 
 ## Test Obligations
 

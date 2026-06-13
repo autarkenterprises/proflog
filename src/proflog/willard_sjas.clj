@@ -980,15 +980,24 @@
      fuel)))
 
 (defn query-answers
-  "Export answer bindings for an SJAS query under the SJAS theory profile."
+  "Export answer bindings for an SJAS query under the SJAS theory profile.
+
+   `:defer-calls? false` makes residual deferral unavailable, so theory atoms
+   must close through the profile hook (binding any synthesized values) or
+   the answer fails — the ADR-0095 synthesis mode."
   ([system formula answer-vars]
    (query-answers system formula answer-vars {}))
   ([system formula answer-vars opts]
    (binding [answer-overlay/*theory-profile-closeo*
              willard-sjas-profile/willard-sjas-answer-theory-closeo
+             answer-overlay/*defer-residual-calls*
+             (get opts :defer-calls? true)
              gamma/*closed-term-depth-cap* 0
              gamma/*closed-term-count-cap* 0]
-     (answers/query-answers (:program system) formula answer-vars opts))))
+     (answers/query-answers (:program system)
+                            formula
+                            answer-vars
+                            (dissoc opts :defer-calls?)))))
 
 (defn bounded-contradiction-probe
   "Run a bounded Level-1 complement-proof probe and record wall-clock duration."

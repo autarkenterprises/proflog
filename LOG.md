@@ -22,6 +22,21 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0102](docs/adr/ADR-0102-sjas-counterexample-proof-targets.md)
+  on `adr-0102-sjas-counterexample-proof-targets`: wrote an executable
+  counterexample to ADR-0100 as stated. The focused test constructs a Tableau-0
+  system with beta axiom `(= (f^8 1) (f^8 1))`, proves `tableau-proof(s,f,p)`
+  with the fixed compact `sjas-axiom` certificate, and verifies the certificate
+  has 3 base-64 proof bytes = 18 bits while `J=18`, so the claimed `>=5J`
+  requirement is 90 bits. This refutes ADR-0100's proof-size claim over its
+  own covered domain. Also pursued the two corrected tracks: Path A narrows to
+  a literal-Willard structural fragment excluding SJAS extensions, while Path B
+  defines the candidate extended `D_SJAS` apparatus needed for full
+  self-reference. See the
+  [counterexample](docs/log/2026-06-13-adr0100-axiom-citation-counterexample.md),
+  [Path A](docs/log/2026-06-13-sjas-path-a-narrow-willard-fragment.md),
+  [Path B](docs/log/2026-06-13-sjas-path-b-extended-dsjas.md), and
+  [AAR-0102](docs/aar/AAR-0102-sjas-counterexample-proof-targets.md).
 - Completed [ADR-0101](docs/adr/ADR-0101-sjas-correspondence-proof-attempt.md)
   on `adr-0101-sjas-correspondence-proof-audit`: independently attempted to
   prove ADR-0100's Track 2b correspondence claim against the actual structural

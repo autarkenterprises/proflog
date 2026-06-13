@@ -56,6 +56,9 @@ ADR-0100 should be treated as a useful proof scaffold and partial
 corroboration, not a completed Track 2b proof. Its AAR now has an erratum
 pointing to this result.
 
+ADR-0102 strengthens this from "not demonstrated" to "refuted as stated" by
+adding an executable fixed-size `sjas-axiom` citation counterexample.
+
 ## Follow-up
 
 - Choose the revised proof target: narrowed literal-Willard fragment, extended

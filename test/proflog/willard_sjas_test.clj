@@ -443,6 +443,23 @@
     (sequential? proof) (reduce + 0 (map proof-symbol-count proof))
     :else 0))
 
+(defn- app-occurrence-count
+  "Count explicit function/relation application nodes in a decoded formula.
+
+   ADR-0102 uses this as a concrete lower-bound witness for Willard's `J`
+   measure. It deliberately counts syntax-tree occurrences, not distinct
+   function symbols, because the Conventional Tableaux Encoding Requirement is
+   occurrence-sensitive."
+  [formula]
+  (count
+    (filter #(and (sequential? %) (= 'app (first %)))
+            (tree-seq sequential? seq formula))))
+
+(defn- repeated-unary-app-term
+  "Build `depth` nested applications of `function-symbol` around `base-term`."
+  [function-symbol depth base-term]
+  (nth (iterate #(ast/app-term function-symbol %) base-term) depth))
+
 (defn- formula-code-bytes
   [system formula]
   (or (sjas-code/code-term-bytes (sjas/formula-code system formula))
@@ -4072,6 +4089,39 @@
     (is (proof/contains-step? beta-citation-proof
                               'sjas-code-arg)
         "compact axiom citations must carry the code-reader evidence inside the membership proof (ADR-0091)")))
+
+(deftest sjas-axiom-citation-counterexamples-adr-0100-size-claim
+  (testing "ADR-0102: fixed-size sjas-axiom certificates can cite beta formulas whose J measure exceeds the certificate-size bound"
+    (let [depth 8
+          large-term (repeated-unary-app-term 'f depth sjas/one)
+          large-beta (ast/eq-lit large-term large-term)
+          system (sjas/system
+                   {:profile :willard-sjas-tableau0
+                    :functions {'f 1}
+                    :beta [large-beta]})
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          proof-byte-count (count (formal-code-term-bytes axiom-certificate))
+          proof-bit-count (* 6 proof-byte-count)
+          j (app-occurrence-count large-beta)
+          required-bit-count (* 5 j)
+          citation-proofs (query/query-succeeds
+                            (:program system)
+                            (sjas/tableau-proof (:system-code system)
+                                                (:code beta-record)
+                                                axiom-certificate)
+                            1
+                            160)]
+      (is (successful? citation-proofs)
+          "the fixed sjas-axiom certificate is accepted for the large beta axiom")
+      (is (= (inc depth) (/ j 2))
+          "the witness should have the expected copied unary-app occurrences on both sides of equality, including the base numeral application")
+      (is (< proof-bit-count required-bit-count)
+          (str "ADR-0100's size(P) >= 5J claim fails for the accepted citation: "
+               {:proof-byte-count proof-byte-count
+                :proof-bit-count proof-bit-count
+                :J j
+                :required-bit-count required-bit-count})))))
 
 (deftest sjas-internal-code-builder-yields-canonical-axiom-certificate
   (testing "reverse construction from the fixed axiom proof bytes is the canonical compact certificate (ADR-0095)"

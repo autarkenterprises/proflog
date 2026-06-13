@@ -15,6 +15,10 @@ blocking issues are the non-literal-`D` checker branches and the fixed-size bare
 lower bound for arbitrarily large cited axiom formulas. See
 [ADR-0101](../adr/ADR-0101-sjas-correspondence-proof-attempt.md) and
 [AAR-0101](AAR-0101-sjas-correspondence-proof-attempt.md).
+ADR-0102 then made this refutation executable with a concrete accepted
+`sjas-axiom` citation whose fixed proof code has 18 bits while the cited formula
+requires 90 bits under the stated `5J` measure; see
+[ADR-0102](../adr/ADR-0102-sjas-counterexample-proof-targets.md).
 
 Track 2b's correspondence theorem is **proved over the first correspondence
 fragment**: for covered `(S,F)` and a first-fragment certificate `P`,

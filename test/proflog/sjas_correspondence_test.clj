@@ -574,15 +574,35 @@
 (deftest dsjas-track2c-literature-admissibility-is-explicitly-audited
   (testing "ADR-0104 Track 2c: literature admissibility is tracked per selected rule family"
     (let [audit (correspondence/audit-dsjas-literature-admissibility)]
-      (is (= :in-progress (:status audit)))
+      (is (= :proved-for-selected-dsjas-variant (:status audit)))
+      (is (= :IS#_D_SJAS_beta (:apparatus-label audit)))
+      (is (true? (:not-literal-willard-d? audit)))
       (is (set/subset?
             #{:natural-tree-coding
               :bounded-object-relations
               :semantic-tableau-shape
-              :selected-apparatus-labeling}
+              :selected-apparatus-labeling
+              :combined-proof-size-discipline
+              :recursive-proof-well-foundedness
+              :d-parametric-proof-predicate
+              :system-code-reconstruction
+              :primitive-or-bounded-macro-rules}
             (:discharged-criteria audit)))
-      (is (contains? (:open-criteria audit)
-                     :willard-style-self-verification-transfer)))))
+      (is (= #{}
+             (:open-criteria audit)))
+      (is (= #{}
+             (:inadmissible-rule-families audit)))
+      (is (= #{:base-tableau
+               :branch-bookkeeping
+               :truth-normalization
+               :quantifier
+               :equality-theory
+               :arithmetic-profile
+               :axiom-membership
+               :reflected-call
+               :recursive-proof
+               :substitution-proof}
+             (set (keys (:rule-family-admissibility audit))))))))
 
 (deftest structural-proof-tree-audit-reports-flat-node-size-and-shape
   (testing "flat formula-byte nodes expose finite tree and byte-size metrics"

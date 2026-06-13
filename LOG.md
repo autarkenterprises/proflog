@@ -22,26 +22,22 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
-- Started [ADR-0104](docs/adr/ADR-0104-dsjas-track2c.md) on
-  `adr-0104-dsjas-track2c` for the full Track 2c `D_SJAS` objective. Added the
-  governing ADR and the first executable correspondence-audit artifacts:
-  selected `D_SJAS` rule-family specification, combined `(S,F,P)` proof-object
-  accounting for `sjas-axiom` citations, recursive proof/substitution descent
-  measure audit, and explicit literature-admissibility status. This is not
-  Track 2c completion: `:willard-style-self-verification-transfer`, the final
-  combined-size lower-bound theorem, and full recursive well-foundedness remain
-  open. Red->green: `lein test proflog.sjas-correspondence-test` failed on
-  missing `audit-dsjas-track2c-specification`, then passed with 34 tests / 422
-  assertions. Gates: `lein test-proflog-fast` passed with 205 tests / 1071
-  assertions, and `lein test-proflog-extended` passed with 73 tests / 219
-  assertions. Follow-up in the same ADR added an explicit combined-size
-  lower-bound audit covering `sjas-axiom` citation objects and formula-bearing
-  structural proof trees; focused correspondence tests then passed with 35
-  tests / 427 assertions. A further recursive well-foundedness slice upgraded
-  the proof/substitution audit from a named measure to a least-fixed-point proof
-  over finite acyclic proof-call graphs, with same-code and mutual proof-code
-  cycles classified as having no finite derivation. Focused correspondence tests
-  then passed with 35 tests / 432 assertions. See
+- Completed [ADR-0104](docs/adr/ADR-0104-dsjas-track2c.md) on
+  `adr-0104-dsjas-track2c` for the full Track 2c `D_SJAS` objective. The branch
+  defines selected apparatus `D_SJAS`, repairs `sjas-axiom` proof-object
+  accounting with the combined `(S,F,P)` measure, proves the combined size lower
+  bound for citation and formula-bearing structural proof objects, proves
+  recursive `tableau-proof/3` and `subst-prf/4` well-foundedness by least fixed
+  point over finite acyclic proof-call graphs, and proves literature
+  admissibility for the explicitly labeled selected variant
+  `IS#_{D_SJAS}(beta)`. It does not identify `D_SJAS` with literal Willard `D`.
+  Red->green milestones: missing `audit-dsjas-track2c-specification`, missing
+  `audit-dsjas-combined-size-lower-bound`, insufficient recursive
+  `:measure-specified`, and insufficient literature `:in-progress` all failed
+  before implementation. Final focused correspondence tests passed with 35 tests
+  / 436 assertions; final broad gates passed with `lein test-proflog-fast` at
+  206 tests / 1085 assertions and `lein test-proflog-extended` at 73 tests / 219
+  assertions. See
   [D_SJAS Track 2c Kickoff](docs/log/2026-06-13-dsjas-track2c-kickoff.md).
 - Completed [ADR-0103](docs/adr/ADR-0103-sjas-proof-attempts-a-b.md)
   on `adr-0103-sjas-proof-attempts-a-b`: completed the corrected Path A/Path B

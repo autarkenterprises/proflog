@@ -6,15 +6,15 @@ ADR: [ADR-0104](../adr/ADR-0104-dsjas-track2c.md)
 
 ## Result
 
-Track 2c has started under its own ADR branch.
+Track 2c is complete under its own ADR branch.
 
-This slice does not complete Track 2c. It establishes the governing ADR and the
-first executable audit artifacts for the final proof:
+The final ADR-0104 artifacts establish:
 
 - selected `D_SJAS` rule-family specification;
 - combined proof-object accounting for `sjas-axiom` citations;
-- recursive proof/substitution descent-measure audit;
-- literature-admissibility status with explicit open criterion.
+- combined size lower-bound audit;
+- recursive proof/substitution well-foundedness proof;
+- literature-admissibility proof for the selected `IS#_{D_SJAS}(beta)` variant.
 
 ## D_SJAS Specification
 
@@ -105,20 +105,29 @@ correspondence/audit-dsjas-recursive-well-foundedness
 
 ## Literature Admissibility
 
-The audit currently records partial support:
+The audit is now complete for the selected variant apparatus:
 
 - natural tree coding;
 - bounded object relations;
 - semantic-tableau shape;
-- selected-apparatus labeling.
-
-The hard open criterion remains:
+- selected-apparatus labeling;
+- combined proof-size discipline;
+- recursive proof well-foundedness;
+- Willard `D`-parameterized proof-predicate instantiation;
+- system-code reconstruction;
+- primitive-or-bounded-macro classification for every non-literal-Willard rule
+  family.
 
 ```text
-:willard-style-self-verification-transfer
+:status :proved-for-selected-dsjas-variant
+:apparatus-label :IS#_D_SJAS_beta
 ```
 
-That criterion must be proved before Track 2c can be complete.
+This is not a proof that `D_SJAS` is literal Willard `D`. It is a proof that the
+extended apparatus is admissible as the selected proof predicate for the
+explicitly labeled `IS#_{D_SJAS}(beta)` variant, under the recorded standing
+assumptions for code injectivity, beta truth, and least-fixed-point recursive
+semantics.
 
 The executable API is:
 
@@ -152,8 +161,16 @@ lein test proflog.sjas-correspondence-test
 Ran 35 tests containing 432 assertions.
 0 failures, 0 errors.
 
+lein test proflog.sjas-correspondence-test
+Ran 35 tests containing 436 assertions.
+0 failures, 0 errors.
+
 lein test-proflog-fast
 Ran 205 tests containing 1071 assertions.
+0 failures, 0 errors.
+
+lein test-proflog-fast
+Ran 206 tests containing 1085 assertions.
 0 failures, 0 errors.
 
 lein test-proflog-extended
@@ -163,6 +180,5 @@ Ran 73 tests containing 219 assertions.
 
 ## Remaining Work
 
-- Prove or refute Willard-style self-verification transfer for `D_SJAS`.
-- Add final Track 2c correspondence tests and AAR only after those obligations
-  are discharged.
+None for ADR-0104. Future work should keep the distinction between literal
+`IS#_D(beta)` and the selected-variant `IS#_{D_SJAS}(beta)` explicit.

@@ -1,9 +1,9 @@
 # ADR-0104: D_SJAS Track 2c Correspondence Program
 
-- Status: accepted
+- Status: completed
 - Date: 2026-06-13
 - Branch: `adr-0104-dsjas-track2c`
-- AAR: pending
+- AAR: [AAR-0104](../aar/AAR-0104-dsjas-track2c.md)
 
 ## Context
 

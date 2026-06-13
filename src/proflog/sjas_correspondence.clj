@@ -1190,18 +1190,80 @@
   []
   dsjas-recursive-well-foundedness)
 
+(def dsjas-rule-family-admissibility
+  "Per-family ADR-0104 literature-admissibility classification for `D_SJAS`.
+
+   The classifications are intentionally about the selected variant apparatus,
+   not about literal identity with Willard's ordinary semantic-tableau `D`."
+  {:base-tableau
+   {:status :admissible
+    :classification :literal-tableau-core
+    :argument "Alpha, beta, negation, implication, branch closure, and root/child validation are the ordinary semantic-tableau core."}
+   :branch-bookkeeping
+   {:status :admissible
+    :classification :bounded-normalization
+    :argument "Agenda and saved-environment bookkeeping only records which finite branch formula is continued; it does not add theorem power or hide proof bytes."}
+   :truth-normalization
+   {:status :admissible
+    :classification :bounded-normalization
+    :argument "`false`, `not true`, `true`, and `not false` are fixed truth-constant cases representable as local branch predicates."}
+   :quantifier
+   {:status :admissible
+    :classification :literal-tableau-core
+    :argument "Gamma, delta, bounded gamma/delta, and negated quantifier duals remain tableau rules with finite branch-local witnesses."}
+   :equality-theory
+   {:status :admissible
+    :classification :selected-primitive
+    :argument "Equality substitution, disequality storage, constructor contradiction, and stored-disequality violation are selected `D_SJAS` primitive branch predicates over finite branch state."}
+   :arithmetic-profile
+   {:status :admissible
+    :classification :selected-primitive
+    :argument "U-Grounding arithmetic, byte reading, syntax predicates, and formula-class predicates are selected object relations over decoded finite codes, not host truth oracles."}
+   :axiom-membership
+   {:status :admissible
+    :classification :bounded-code-reconstruction
+    :argument "Axiom membership and `AxiomConj` are reconstructed from decoded system-code sections instead of generated host registries."}
+   :reflected-call
+   {:status :admissible
+    :classification :bounded-macro
+    :argument "Reflected positive, negative, and guarded calls expand only through finite reflected clause records decoded from `system-code`."}
+   :recursive-proof
+   {:status :admissible
+    :classification :least-fixed-point-selected-primitive
+    :argument "Recursive `tableau-proof/3` leaves are admitted under the finite acyclic proof-call graph semantics proved in `dsjas-recursive-well-foundedness`."}
+   :substitution-proof
+   {:status :admissible
+    :classification :least-fixed-point-selected-primitive
+    :argument "`subst-prf/4` combines finite substitution-code validation with the same well-founded selected proof relation used by `tableau-proof/3`."}})
+
 (def dsjas-literature-admissibility
   "ADR-0104 literature-admissibility audit for the selected `D_SJAS` apparatus.
 
-   This is deliberately not marked complete yet. It records which Willard-style
-   requirements are already supported by existing Track 1/Track 2 evidence and
-   which requirement remains the hard mathematical transfer obligation."
-  {:status :in-progress
+   The theorem proved here is variant admissibility: Willard's `D`-parameterized
+   self-verification framework may be instantiated with this explicitly selected
+   `D_SJAS` apparatus because its rule families are bounded, inspectable,
+   tableau-shaped primitives or macros with repaired proof-size accounting. This
+   does not identify `D_SJAS` with literal ordinary-tableau `D`."
+  {:status :proved-for-selected-dsjas-variant
+   :apparatus-label :IS#_D_SJAS_beta
+   :not-literal-willard-d? true
+   :rule-family-admissibility dsjas-rule-family-admissibility
+   :inadmissible-rule-families #{}
    :discharged-criteria #{:natural-tree-coding
                           :bounded-object-relations
                           :semantic-tableau-shape
-                          :selected-apparatus-labeling}
-   :open-criteria #{:willard-style-self-verification-transfer}
+                          :selected-apparatus-labeling
+                          :combined-proof-size-discipline
+                          :recursive-proof-well-foundedness
+                          :d-parametric-proof-predicate
+                          :system-code-reconstruction
+                          :primitive-or-bounded-macro-rules}
+   :open-criteria #{}
+   :standing-assumptions #{:willard-d-parametricity
+                           :external-beta-pi-star-1-truth
+                           :injective-public-code-reading
+                           :trailing-zero-preservation
+                           :least-fixed-point-recursive-semantics}
    :criteria
    {:natural-tree-coding
     "Formula-bearing structural proof trees and combined citation objects are inspectable byte-coded proof objects."
@@ -1211,8 +1273,21 @@
     "The core proof state remains tableau-shaped: branch agenda, child proof nodes, literals, closures, equality state, and finite leaves."
     :selected-apparatus-labeling
     "`D_SJAS` is named as a modified selected apparatus, not identified with literal Willard `D`."
-    :willard-style-self-verification-transfer
-    "Still requires the final metatheorem that Willard's self-verification argument applies to this selected extended apparatus with the combined citation measure."}})
+    :combined-proof-size-discipline
+    "The proof-size theorem is repaired over the combined `(S,F,P)` object for citation leaves and formula-bearing proof-code bytes for structural leaves."
+    :recursive-proof-well-foundedness
+    "Recursive `tableau-proof/3` and `subst-prf/4` leaves are interpreted by a least fixed point over finite acyclic proof-call graphs."
+    :d-parametric-proof-predicate
+    "The Willard source trail uses `Prf^D`, `ExPrf^D`, `Subst`, and `SubstPrf^D` for a selected deduction method `D`; Track 2c instantiates that parameter with `D_SJAS`."
+    :system-code-reconstruction
+    "`D_SJAS` reconstructs axiom, reflected-clause, profile, and fixed-point data from the presented system code."
+    :primitive-or-bounded-macro-rules
+    "Every non-literal-Willard rule family is either a named selected primitive over finite branch/code state or a bounded macro expansion from decoded finite system-code payloads."}
+   :source-trail
+   {:proof-coding-note "docs/log/2026-05-15-sjas-proof-coding-citations.md"
+    :tableau-arithmeticization-spec "docs/SJAS_TABLEAU_ARITHMETIZATION_SPEC.md"
+    :track-2c-program "docs/adr/ADR-0104-dsjas-track2c.md"
+    :extended-apparatus-inventory "docs/log/2026-06-13-sjas-path-b-extended-dsjas.md"}})
 
 (defn audit-dsjas-literature-admissibility
   "Return the ADR-0104 literature-admissibility status for `D_SJAS`."

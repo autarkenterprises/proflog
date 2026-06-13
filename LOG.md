@@ -22,22 +22,41 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0106](docs/adr/ADR-0106-sjas-search-width-reduction.md) on
+  `adr-0106-sjas-width-reduction`, successor to ADR-0105. Researched the
+  miniKanren parallelism literature: implicit OR-parallelism
+  ([concurrentKanren, 2025](https://arxiv.org/html/2510.04994)) is sound (immutable
+  substitutions, bounded worker pool) but ≤#cores and modest/variable, with
+  constraints unaddressed; interleaving-search scheduling is itself a cost
+  ([Rozplokhas & Boulytchev, FLOPS 2022](https://arxiv.org/abs/2202.08511)). So
+  parallelism is a constant factor, wrong for the critical path. **Corrected the
+  diagnosis:** ground decode is ~1 ms (not ~7.5 s) and the both-ground
+  `subst-code-any` check fails fast; a direct jstack of the full grind puts the
+  time in proof-facing formula/embedded-code decoding + static-table enumeration
+  over **variable-dense intermediate terms** (the original 84-sample finding) —
+  correcting ADR-0105's per-op-cost inference (its re-derivation verdict stands).
+  Elaborated the width-reduction design space, highest-leverage = mode-directed
+  ground-before-decode evaluation (make codes ground at decode time so the ~1 ms
+  ground path + O(1) table lookups apply), plus static-table determinisation on
+  ground keys (ADR-0078 line), goal ordering / early failure, relevance prefilter,
+  and decision-engine offload, **under a binding purity constraint** (no
+  project/conda/host cuts; richer structure added inside core.logic).
+  Diagnosis experiments were scratch evals over existing relations (no kernel
+  change), removed after measuring; methodology documented for reproducibility.
+  See [AAR-0106](docs/aar/AAR-0106-sjas-search-width-reduction.md).
 - Completed [ADR-0105](docs/adr/ADR-0105-sjas-substate-tabling-investigation.md)
   on `adr-0105-sjas-substate-tabling`, a tractability investigation into tabling
-  for the subst-prf negative-exhaustion wall. JVM hotspot: search-width-bound
-  (core.logic trampoline + unification driving `parse-code-payload-byteso`).
-  Surveyed both tabling facilities (core.logic `l/tabled`, constraint-store-unaware;
-  `proflog.tabling`, ADR-0017 canonical-state, kernel-only); the SJAS profile
-  search is untabled. Measured re-derivation with a conservative reify-keyed probe:
-  the hot relation `decode-syntax-formula-byteso` is **1.00×** (12 calls, 12
-  distinct, ~7.5 s each over distinct substituted candidates); the cheap
+  for the subst-prf negative-exhaustion wall. Surveyed both tabling facilities
+  (core.logic `l/tabled`, constraint-store-unaware; `proflog.tabling`, ADR-0017
+  canonical-state, kernel-only); the SJAS profile search is untabled. Measured
+  re-derivation with a conservative reify-keyed probe: the probed relation
+  `decode-syntax-formula-byteso` is **1.00×** (12 calls, 12 distinct); the
   top-level code reader is 4.33× (13/3). **Verdict: tabling is not the systemic
-  fix** — the wall is a wide search over distinct, intrinsically expensive
-  decodes; the lever is search-width reduction (a relevance/structural prefilter
-  or a non-provability decision), not memoization. The measurement scaffolding
-  was reverted (no kernel change retained); methodology documented for
-  reproducibility. Decided *before* building, per the ADR-0100 lesson. ADRs
-  0101-0104 are the parallel agent's. See
+  fix** — the wall is a wide search over distinct intermediate terms; the lever
+  is search-width reduction, not memoization. (Per-op cost corrected in ADR-0106:
+  the work is variable-dense decode + table enumeration, ground decode ~1 ms —
+  not "expensive decodes"; the re-derivation verdict is unaffected.) Decided
+  *before* building, per the ADR-0100 lesson. See
   [measurement note](docs/log/2026-06-13-sjas-substate-tabling-measurement.md)
   and [AAR-0105](docs/aar/AAR-0105-sjas-substate-tabling-investigation.md).
 - Completed [ADR-0100](docs/adr/ADR-0100-sjas-correspondence-proof.md) on

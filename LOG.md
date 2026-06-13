@@ -22,6 +22,19 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0097](docs/adr/ADR-0097-sjas-structural-proof-tree-audit.md)
+  on `adr-0097-sjas-structural-proof-tree-audit` as the next Track 2 proof-
+  object audit. `proflog.sjas-correspondence` now parses first-fragment
+  formula-bearing structural tableau proof terms, validates flat and wide
+  formula-byte payloads, rejects malformed symbol-free lists, and reports
+  node/leaf/depth/formula-byte metrics needed by Track 2b tree and
+  anti-compression obligations. Red: the first selector failed on missing
+  `audit-structural-proof-tree`. Green: all four new focused selectors, full
+  `proflog.sjas-correspondence-test` (`20` tests, `360` assertions), and
+  `lein test-proflog-fast` (`191` tests, `1009` assertions); the extended gate
+  also passed (`73` tests, `219` assertions). See
+  [SJAS Structural Proof-Tree Audit](docs/log/2026-06-13-sjas-structural-proof-tree-audit.md)
+  and [AAR-0097](docs/aar/AAR-0097-sjas-structural-proof-tree-audit.md).
 - Completed [ADR-0096](docs/adr/ADR-0096-sjas-correspondence-fragment-audit.md)
   on `adr-0096-sjas-correspondence-fragment-audit` as an independent Track 2
   slice while ADR-0095 remains with the other agent. The correspondence audit

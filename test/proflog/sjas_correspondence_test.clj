@@ -277,11 +277,11 @@
     (is (= :formula-bearing-tableau
            (:fragment-status
              (correspondence/audit-first-correspondence-fragment
-               '(3 12 7 (2 4))))))
+               '(2 12 7 (1 4))))))
     (is (= #{}
            (:blocking-symbols
              (correspondence/audit-first-correspondence-fragment
-               '(3 12 7 (2 4))))))
+               '(2 12 7 (1 4))))))
     (is (= :sjas-axiom-citation
            (:fragment-status
              (correspondence/audit-first-correspondence-fragment 'sjas-axiom))))
@@ -319,3 +319,69 @@
       (is (contains? (:excluded-symbols sidecar-audit) 'propositional))
       (is (contains? (:excluded-symbols query-audit) 'query-neg-call-guarded-alt))
       (is (contains? (:excluded-symbols query-audit) 'guarded-call-seq-defer)))))
+
+(deftest structural-proof-tree-audit-reports-flat-node-size-and-shape
+  (testing "flat formula-byte nodes expose finite tree and byte-size metrics"
+    (let [audit (correspondence/audit-structural-proof-tree
+                  '(3 10 11 12
+                      (2 20 21)
+                      (1 7)))]
+      (is (:valid? audit))
+      (is (= {:node-count 3
+              :leaf-count 2
+              :max-depth 2
+              :formula-byte-count 6
+              :child-counts [2 0 0]}
+             (select-keys audit [:node-count
+                                 :leaf-count
+                                 :max-depth
+                                 :formula-byte-count
+                                 :child-counts])))
+      (is (= [[10 11 12] [20 21] [7]]
+             (:formula-byte-payloads audit))))))
+
+(deftest structural-proof-tree-audit-reports-wide-node-size-and-shape
+  (testing "wide formula-byte nodes use a non-empty byte list payload"
+    (let [audit (correspondence/audit-structural-proof-tree
+                  '((10 11 12 13)
+                    (1 7)))]
+      (is (:valid? audit))
+      (is (= {:node-count 2
+              :leaf-count 1
+              :max-depth 2
+              :formula-byte-count 5
+              :child-counts [1 0]}
+             (select-keys audit [:node-count
+                                 :leaf-count
+                                 :max-depth
+                                 :formula-byte-count
+                                 :child-counts])))
+      (is (= [[10 11 12 13] [7]]
+             (:formula-byte-payloads audit))))))
+
+(deftest structural-proof-tree-audit-rejects-malformed-symbol-free-terms
+  (testing "symbol-free is not enough: structural tableaux must have valid byte payloads and children"
+    (let [short-flat (correspondence/audit-structural-proof-tree '(3 10 11))
+          bad-byte (correspondence/audit-structural-proof-tree '(1 64))
+          bad-child (correspondence/audit-structural-proof-tree '(1 7 (1 64)))]
+      (is (false? (:valid? short-flat)))
+      (is (contains? (:error-reasons short-flat) :flat-byte-count-mismatch))
+      (is (false? (:valid? bad-byte)))
+      (is (contains? (:error-reasons bad-byte) :invalid-byte))
+      (is (false? (:valid? bad-child)))
+      (is (contains? (:error-reasons bad-child) :invalid-byte)))))
+
+(deftest first-correspondence-fragment-requires-valid-structural-tableaux
+  (testing "the first-fragment audit distinguishes valid structural trees from malformed symbol-free lists"
+    (let [valid-audit (correspondence/audit-first-correspondence-fragment
+                        '(2 10 11 (1 7)))
+          malformed-audit (correspondence/audit-first-correspondence-fragment
+                            '(2 10))]
+      (is (= :formula-bearing-tableau
+             (:fragment-status valid-audit)))
+      (is (:valid? (:structural-proof-summary valid-audit)))
+      (is (= :malformed-structural-tableau
+             (:fragment-status malformed-audit)))
+      (is (false? (:valid? (:structural-proof-summary malformed-audit))))
+      (is (contains? (:error-reasons (:structural-proof-summary malformed-audit))
+                     :flat-byte-count-mismatch)))))

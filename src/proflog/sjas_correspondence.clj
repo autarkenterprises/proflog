@@ -271,11 +271,60 @@
     :aspect :generic-sidecar
     :obligation "Reject generic sidecar closure from SJAS proof-predicate validation paths."}})
 
+(defn- proof-symbol-fragment-boundary
+  "Return the first-fragment boundary record for one encoded proof symbol.
+
+   ADR-0096 keeps this separate from Track 2a relevance classification. A
+   symbol may be encoded and relevant for audit purposes while still being
+   outside the first Track 2b correspondence fragment. The first fragment admits
+   formula-bearing structural tableau nodes, which have no proof-symbol tags,
+   plus the bare `sjas-axiom` citation certificate."
+  [sym]
+  (let [classification (get proof-symbol-classifications sym)]
+    (cond
+      (= 'sjas-axiom sym)
+      {:fragment-status :sjas-axiom-citation
+       :classification-status (:status classification)
+       :classification-aspect (:aspect classification)
+       :fragment-obligation
+       "Admit only as the bare axiom-citation certificate, with axiom membership checked separately."}
+
+      (= :excluded (:status classification))
+      {:fragment-status :excluded
+       :classification-status (:status classification)
+       :classification-aspect (:aspect classification)
+       :fragment-obligation
+       "Keep encoded for inspection, but reject from SJAS proof-predicate certificates."}
+
+      :else
+      {:fragment-status :outside-first-fragment
+       :classification-status (:status classification)
+       :classification-aspect (:aspect classification)
+       :fragment-obligation
+       "Do not admit to the first formula-bearing tableau fragment until Track 2b proves primitive status, bounded macro expansion, wrapper erasure, or unreachability."})))
+
+(def proof-symbol-fragment-boundaries
+  "First Track 2b fragment boundary for each encoded proof symbol.
+
+   `proof-symbol-classifications` answers whether a symbol is relevant,
+   excluded, or unresolved for correspondence analysis. This map answers the
+   different question of whether a decoded proof term containing that symbol is
+   already inside the first proof-object fragment selected for the
+   correspondence theorem."
+  (into {}
+        (map (fn [sym] [sym (proof-symbol-fragment-boundary sym)]))
+        sjas-code/proof-symbols))
+
 (defn classify-proof-symbol
   "Return the Track 2a classification for a proof symbol, or nil when the symbol
    is not part of the current SJAS proof-certificate alphabet."
   [sym]
   (get proof-symbol-classifications sym))
+
+(defn classify-proof-symbol-fragment
+  "Return the first-fragment boundary for one encoded proof symbol."
+  [sym]
+  (get proof-symbol-fragment-boundaries sym))
 
 (defn classify-profile-form
   "Return the path-sensitive Track 2a classification for a concrete profiled
@@ -330,3 +379,31 @@
      :probably-excluded-profile-forms (profile-by-status :probably-excluded)
      :unencodable-symbols (into #{} (remove encodable?) steps)
      :unclassified-symbols (into #{} (remove known?) steps)}))
+
+(defn audit-first-correspondence-fragment
+  "Classify a decoded proof term against the first Track 2b fragment.
+
+   The first fragment is intentionally narrower than the encoded proof alphabet:
+   formula-bearing structural tableau nodes contain no proof-symbol tags, while
+   the bare `sjas-axiom` symbol is the one admitted citation certificate. Any
+   other symbol-bearing proof term remains outside this fragment until a later
+   correspondence slice proves how to admit or erase the involved symbols."
+  [proof-term]
+  (let [audit (audit-proof-term proof-term)
+        symbols (:symbols audit)
+        fragment-status (cond
+                          (= 'sjas-axiom proof-term) :sjas-axiom-citation
+                          (empty? symbols) :formula-bearing-tableau
+                          :else :outside-first-fragment)
+        blocking-symbols (if (= :outside-first-fragment fragment-status)
+                           symbols
+                           #{})
+        admitted-symbols (if (= :sjas-axiom-citation fragment-status)
+                           #{'sjas-axiom}
+                           #{})]
+    (assoc audit
+           :fragment-status fragment-status
+           :admitted-symbols admitted-symbols
+           :blocking-symbols blocking-symbols
+           :fragment-boundaries (select-keys proof-symbol-fragment-boundaries
+                                             symbols))))

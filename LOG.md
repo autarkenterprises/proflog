@@ -22,6 +22,21 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0096](docs/adr/ADR-0096-sjas-correspondence-fragment-audit.md)
+  on `adr-0096-sjas-correspondence-fragment-audit` as an independent Track 2
+  slice while ADR-0095 remains with the other agent. The correspondence audit
+  now distinguishes encoded/classified SJAS proof symbols from admission into
+  the first Track 2b correspondence fragment: formula-bearing structural
+  tableau proof terms and bare `sjas-axiom` citations are admitted, while
+  legacy proof-rule traces, sidecars, and answer-overlay evidence stay outside
+  pending a primitive/macro/erasure/unreachability proof. Red:
+  `proof-symbol-fragment-boundary-covers-every-encoded-symbol` failed on the
+  missing audit var. Green: all four new focused selectors, full
+  `proflog.sjas-correspondence-test` (`16` tests, `343` assertions),
+  `lein test-proflog-fast` (`187` tests, `992` assertions), and
+  `lein test-proflog-extended` (`73` tests, `219` assertions). See
+  [SJAS Correspondence Fragment Audit](docs/log/2026-06-13-sjas-correspondence-fragment-audit.md)
+  and [AAR-0096](docs/aar/AAR-0096-sjas-correspondence-fragment-audit.md).
 - Merged ADR-0093's canonical miniKanren/core.logic regression suite into
   `main` after ADR-0094 had already landed. The conflict resolution preserved
   both fast-gate additions, `proflog.core-logic-lvar-equality-test` and

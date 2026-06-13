@@ -257,3 +257,65 @@
                   (willard-sjas-subst-code)
                   sjas-axiom)}
              (:relevant-profile-forms audit))))))
+
+(deftest proof-symbol-fragment-boundary-covers-every-encoded-symbol
+  (testing "Track 2b fragment admission is explicit for the whole proof-symbol alphabet"
+    (is (= #{}
+           (set/difference (set sjas-code/proof-symbols)
+                           (set (keys correspondence/proof-symbol-fragment-boundaries)))))
+    (doseq [[sym boundary] correspondence/proof-symbol-fragment-boundaries]
+      (is (contains? #{:sjas-axiom-citation
+                       :outside-first-fragment
+                       :excluded}
+                     (:fragment-status boundary))
+          (str sym " must have a recognized fragment status"))
+      (is (seq (:fragment-obligation boundary))
+          (str sym " must describe its Track 2b obligation")))))
+
+(deftest first-correspondence-fragment-admits-structural-tableaux-and-axiom-citations
+  (testing "formula-bearing tableau nodes and bare axiom citations are distinct admitted fragments"
+    (is (= :formula-bearing-tableau
+           (:fragment-status
+             (correspondence/audit-first-correspondence-fragment
+               '(3 12 7 (2 4))))))
+    (is (= #{}
+           (:blocking-symbols
+             (correspondence/audit-first-correspondence-fragment
+               '(3 12 7 (2 4))))))
+    (is (= :sjas-axiom-citation
+           (:fragment-status
+             (correspondence/audit-first-correspondence-fragment 'sjas-axiom))))
+    (is (= #{'sjas-axiom}
+           (:admitted-symbols
+             (correspondence/audit-first-correspondence-fragment 'sjas-axiom))))))
+
+(deftest legacy-proof-rule-tags-are-classified-but-not-admitted-to-first-fragment
+  (testing "encoded legacy proof traces remain outside the formula-bearing correspondence fragment"
+    (let [audit (correspondence/audit-first-correspondence-fragment
+                  '(conj (false-close)))]
+      (is (= :outside-first-fragment
+             (:fragment-status audit)))
+      (is (= #{'conj 'false-close}
+             (:blocking-symbols audit)))
+      (is (= :outside-first-fragment
+             (:fragment-status
+               (correspondence/classify-proof-symbol-fragment 'conj))))
+      (is (= :outside-first-fragment
+             (:fragment-status
+               (correspondence/classify-proof-symbol-fragment 'false-close)))))))
+
+(deftest sidecar-and-answer-overlay-evidence-remain-outside-first-fragment
+  (testing "explicitly excluded encoded evidence does not enter the first correspondence fragment"
+    (let [sidecar-audit (correspondence/audit-first-correspondence-fragment
+                          '(profiled propositional (conj (false-close))))
+          query-audit (correspondence/audit-first-correspondence-fragment
+                        '(query-neg-call-guarded-alt
+                           (guarded-call-seq-defer
+                             (guarded-call-seq-done))))]
+      (is (= :outside-first-fragment
+             (:fragment-status sidecar-audit)))
+      (is (= :outside-first-fragment
+             (:fragment-status query-audit)))
+      (is (contains? (:excluded-symbols sidecar-audit) 'propositional))
+      (is (contains? (:excluded-symbols query-audit) 'query-neg-call-guarded-alt))
+      (is (contains? (:excluded-symbols query-audit) 'guarded-call-seq-defer)))))

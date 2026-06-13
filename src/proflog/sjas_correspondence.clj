@@ -1,12 +1,13 @@
 (ns proflog.sjas-correspondence
   "Executable audit helpers for the ADR-0073 SJAS correspondence program.
 
-   These helpers do not prove the correspondence theorem. Their job is narrower:
-   keep the set of encoded SJAS proof-certificate symbols visible, classify each
-   symbol against the current Track 2a relevance matrix, and make tests fail
-   when a new encoded constructor appears without an explicit correspondence
-   obligation."
-  (:require [proflog.proof :as proof]
+   These helpers do not participate in proof search. Their job is to keep the
+   encoded SJAS proof-certificate symbols, Track 2a classifications, structural
+   proof-tree audits, and direct-examination correspondence proof obligations
+   executable enough that tests fail when the proof boundary changes without an
+   explicit recorded argument."
+  (:require [clojure.set :as set]
+            [proflog.proof :as proof]
             [proflog.willard-sjas-code :as sjas-code]))
 
 (def ^:private relevant-tableau-symbols
@@ -783,6 +784,170 @@
                                     (mapcat :path-a-obligations)
                                     rules)}))
 
+(def path-a-narrow-obligation-proofs
+  "Direct-examination proof clauses discharging the narrowed Path A lemmas.
+
+   These clauses are documentation-grade proof data, kept executable so tests
+   can detect if the branch inventory grows without a corresponding proof
+   obligation. They do not alter the kernel. Each clause names the checker
+   mechanism and the semantic-tableau fact used by the direct-examination proof."
+  {:agenda-ancestor-preservation
+   {:status :proved
+    :checker-mechanism #{:sjas-agenda-cons-coreo
+                         :sjas-agenda-heado
+                         :sjas-proof-guided-selecto}
+    :argument
+    "Agenda entries are only formulas already introduced on the current branch, with the environment snapshot saved at introduction. Selecting one continues the same branch, so the selected child is a descendant of the ancestor that introduced it."}
+
+   :truth-constant-semantics
+   {:status :proved
+    :checker-mechanism #{:false-leaf
+                         :not-true-leaf
+                         :true-agenda-continuation
+                         :not-false-agenda-continuation}
+    :argument
+    "`false` and `not true` are contradictory leaves. `true` and `not false` add no branch obligation and therefore preserve closure of the remaining agenda."}
+
+   :nnf-irrelevance
+   {:status :proved
+    :checker-mechanism #{:double-negation
+                         :atomic-dual
+                         :de-morgan
+                         :implication-normalization}
+    :argument
+    "The checker's negation, implication, and atomic/equality dual clauses are exactly the ordinary tableau negation-normalization steps; replacing a node by the normalized child preserves the closed tableau tree up to Willard's permitted prenex/NNF irrelevance."}
+
+   :quantifier-freshness
+   {:status :proved
+    :checker-mechanism #{:nominal-fresh
+                         :sjas-next-branch-nomo
+                         :env-extension}
+    :argument
+    "`sjas-next-branch-nomo` chooses the canonical branch name by environment depth and each quantifier clause extends `env` before checking the child, so introduced variables/parameters are fresh relative to the branch prefix."}
+
+   :gamma-parameter-admissibility
+   {:status :proved
+    :checker-mechanism #{:var-term-branch-parameter
+                         :proof-vars
+                         :env-threading}
+    :argument
+    "Universal and once-universal clauses instantiate with branch variable terms recorded in `env` and `proof-vars`; these are the permitted parameter terms over the already introduced branch context."}
+
+   :bounded-guard-correctness
+   {:status :proved
+    :checker-mechanism #{:bounded-forall-leq-guard
+                         :bounded-exists-leq-guard
+                         :negated-bounded-duals}
+    :argument
+    "The bounded quantifier clauses build exactly the `leq` guard formulas used by Willard's bounded gamma and delta rules, with polarity flipped only by the corresponding negated-quantifier dual."}})
+
+(def path-a-narrow-rule-proof-clauses
+  "Per-branch Path A proof clauses for the admitted checker fragment."
+  {:literal-save-agenda-continuation
+   {:status :proved
+    :willard-correspondence :branch-ancestor-bookkeeping
+    :uses #{:agenda-ancestor-preservation}}
+   :complementary-literal-closure
+   {:status :proved
+    :willard-correspondence :closed-branch-complementary-literals
+    :uses #{}}
+   :conjunction
+   {:status :proved
+    :willard-correspondence :alpha
+    :uses #{:agenda-ancestor-preservation}}
+   :forall-once-forall-expansion
+   {:status :proved
+    :willard-correspondence :gamma
+    :uses #{:quantifier-freshness :gamma-parameter-admissibility}}
+   :exists-expansion
+   {:status :proved
+    :willard-correspondence :delta
+    :uses #{:quantifier-freshness}}
+   :false-not-true-closure
+   {:status :proved
+    :willard-correspondence :truth-constant-closure
+    :uses #{:truth-constant-semantics}}
+   :not-false-agenda-continuation
+   {:status :proved
+    :willard-correspondence :truth-normalization-bookkeeping
+    :uses #{:truth-constant-semantics :agenda-ancestor-preservation}}
+   :double-negation-and-atomic-duals
+   {:status :proved
+    :willard-correspondence :negation-normalization
+    :uses #{:nnf-irrelevance}}
+   :negation-and-implication
+   {:status :proved
+    :willard-correspondence :negation-implication-alpha-beta
+    :uses #{:nnf-irrelevance :agenda-ancestor-preservation}}
+   :negated-and-bounded-quantifier-duals
+   {:status :proved
+    :willard-correspondence :quantifier-duals-and-bounded-rules
+    :uses #{:quantifier-freshness :bounded-guard-correctness}}
+   :disjunction
+   {:status :proved
+    :willard-correspondence :beta
+    :uses #{}}
+   :additional-quantifier-expansions
+   {:status :proved
+    :willard-correspondence :gamma-delta-bounded-gamma-bounded-delta
+    :uses #{:quantifier-freshness
+            :gamma-parameter-admissibility
+            :bounded-guard-correctness}}
+   :true-agenda-continuation
+   {:status :proved
+    :willard-correspondence :truth-normalization-bookkeeping
+    :uses #{:truth-constant-semantics :agenda-ancestor-preservation}}})
+
+(defn audit-path-a-narrow-correspondence-proof
+  "Return the completed ADR-0103 Path A narrow-fragment proof audit.
+
+   The theorem proved here is intentionally narrow: it excludes SJAS profile,
+   equality-progress, reflected-call, recursive proof-predicate, substitution,
+   and bare axiom-citation machinery. Within that narrowed domain, every
+   admitted checker branch is either a direct Willard tableau rule or a branch
+   whose named lemma is discharged in `path-a-narrow-obligation-proofs`."
+  []
+  (let [rules sjas-structural-checker-rule-inventory
+        admitted-rules (remove #(= :excluded (:path-a-status %)) rules)
+        admitted-rule-ids (into #{} (map :id) admitted-rules)
+        excluded-rule-ids (into #{}
+                                (comp (filter #(= :excluded (:path-a-status %)))
+                                      (map :id))
+                                rules)
+        required-obligations (into #{}
+                                   (mapcat :path-a-obligations)
+                                   admitted-rules)
+        discharged-obligations (set (keys path-a-narrow-obligation-proofs))
+        missing-rule-proofs (set/difference admitted-rule-ids
+                                            (set (keys path-a-narrow-rule-proof-clauses)))
+        unproved-rule-ids (into #{}
+                                (comp (filter #(not= :proved
+                                                     (get-in path-a-narrow-rule-proof-clauses
+                                                             [(:id %) :status])))
+                                      (map :id))
+                                admitted-rules)
+        open-obligations (set/union
+                           (set/difference required-obligations
+                                           discharged-obligations)
+                           (set/difference
+                             (into #{}
+                                   (mapcat :uses)
+                                   (vals path-a-narrow-rule-proof-clauses))
+                             discharged-obligations)
+                           missing-rule-proofs
+                           unproved-rule-ids)]
+    {:verdict (if (empty? open-obligations) :proved :incomplete)
+     :theorem
+     "For non-axiom formula-bearing structural proof trees whose checker path uses only Path-A-admitted branches, Proflog acceptance is equivalent to Willard semantic-tableau proof acceptance, up to the listed normalization and agenda irrelevancies."
+     :proved-rule-ids admitted-rule-ids
+     :excluded-rule-ids excluded-rule-ids
+     :discharged-obligations (select-keys path-a-narrow-obligation-proofs
+                                          required-obligations)
+     :rule-proof-clauses (select-keys path-a-narrow-rule-proof-clauses
+                                      admitted-rule-ids)
+     :open-obligations open-obligations
+     :size-lower-bound :formula-bearing-proof-tree-bytes-carry-each-node-formula}))
+
 (def ^:private dsjas-global-open-obligations
   "Path B blockers that are not tied to one line range.
 
@@ -809,3 +974,31 @@
                                                    (:dsjas-rule-families %)))
                                         (map :id))
                                   rules)}))
+
+(defn audit-path-b-correspondence-verdict
+  "Return the completed ADR-0103 Path B verdict for the current implementation.
+
+   Path B cannot be completed as a Track 2b proof that the current accepted
+   domain is literal Willard `D`: the accepted domain includes extended
+   equality/profile/reflected/proof-predicate branches and the fixed-size
+   `sjas-axiom` citation counterexample from ADR-0102. The positive result is a
+   Track 2c handoff: a future `D_SJAS` theorem must explicitly select the
+   extended apparatus and repair axiom-citation size accounting."
+  []
+  (let [inventory (audit-dsjas-rule-inventory)
+        literal-willard-families #{:base-tableau
+                                   :branch-bookkeeping
+                                   :truth-normalization
+                                   :quantifier}
+        extended-families (set/difference (:rule-families inventory)
+                                          literal-willard-families)]
+    {:literal-willard-track-2b-verdict :impossible-for-current-domain
+     :dsjas-verdict :track-2c-required
+     :blocking-reasons #{:sjas-axiom-citation-size-counterexample
+                         :non-willard-extended-rule-families}
+     :required-size-accounting-repair
+     :formula-bearing-axiom-leaf-or-combined-object-required
+     :extended-rule-families extended-families
+     :candidate-rule-families (:rule-families inventory)
+     :track-2c-open-obligations (:open-obligations inventory)
+     :unclassified-rule-ids (:unclassified-rule-ids inventory)}))

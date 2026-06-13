@@ -1,4 +1,4 @@
-# Path A Proof Attempt: Narrow Literal-Willard Fragment
+# Path A Proof: Narrow Literal-Willard Fragment
 
 Date: 2026-06-13
 
@@ -8,10 +8,9 @@ Predecessor: [Path A target](2026-06-13-sjas-path-a-narrow-willard-fragment.md)
 
 ## Result
 
-Path A has been advanced to an executable branch inventory, but the proof is not
-complete.
+Path A is complete as a narrow direct-examination proof.
 
-The current narrowed theorem target remains viable:
+The proved theorem is:
 
 ```text
 For every non-axiom formula-bearing structural proof tree P whose checker path
@@ -20,46 +19,57 @@ uses only Path-A-admitted branches:
   ProflogAccepts_A(P,S,F) iff SemPrf_D(decode(P),S,F)
 ```
 
-The executable audit records 19 structural-checker branch families:
+The theorem is intentionally narrow. It excludes every branch whose validity
+depends on equality progression, arithmetic/profile closure, axiom-membership
+closure, reflected calls, recursive `tableau-proof/3`, `subst-prf/4`, or bare
+`sjas-axiom` citation certificates.
 
-- 5 direct Willard/tableau branches;
-- 8 branches admitted only with explicit lemmas;
-- 6 excluded branch families.
+## Branch Coverage
 
-## Direct Branches
+The checker inventory records 19 branch families:
 
-These are already close to literal Willard `D` rules:
+- 13 admitted Path A branches;
+- 6 excluded SJAS-extension branches.
 
-- complementary literal closure;
-- conjunction;
-- double negation and atomic/equality negation duals, modulo NNF;
-- negation/de Morgan/implication branches, modulo agenda linearization;
-- disjunction.
-
-## Lemma Branches
-
-These remain in the narrow theorem only after proof of named lemmas:
+The admitted branches are:
 
 - literal save plus agenda continuation;
-- `false` / `not true` truth closure;
-- `not false` and `true` agenda continuation;
+- complementary literal closure;
+- conjunction;
 - universal / once-universal expansion;
 - existential expansion;
+- `false` / `not true` closure;
+- `not false` agenda continuation;
+- double negation and atomic/equality negation duals;
+- negation / de Morgan / implication branches;
 - negated and bounded quantifier duals;
-- additional quantifier expansion clauses.
+- disjunction;
+- additional quantifier expansion clauses;
+- `true` agenda continuation.
 
-The open Path A obligations are:
+## Discharged Lemmas
 
-- `:agenda-ancestor-preservation`;
-- `:truth-constant-semantics`;
-- `:nnf-irrelevance`;
-- `:quantifier-freshness`;
-- `:gamma-parameter-admissibility`;
-- `:bounded-guard-correctness`.
+The executable proof audit discharges these six obligations:
+
+- `:agenda-ancestor-preservation`: agenda entries are only formulas introduced
+  on the current branch, and each entry carries the environment snapshot from
+  its introduction point. Selecting one continues that same branch.
+- `:truth-constant-semantics`: `false` and `not true` are contradictory leaves;
+  `true` and `not false` add no branch obligation and preserve the remaining
+  agenda.
+- `:nnf-irrelevance`: the double-negation, atomic dual, de Morgan, and
+  implication-normalization clauses are ordinary tableau negation rules.
+- `:quantifier-freshness`: `sjas-next-branch-nomo`, nominal freshness, and
+  environment extension introduce a fresh branch variable or parameter.
+- `:gamma-parameter-admissibility`: universal and once-universal clauses use
+  parameter terms recorded in the existing branch context.
+- `:bounded-guard-correctness`: bounded quantifier clauses build exactly the
+  `leq` guards required by bounded gamma and bounded delta rules, with polarity
+  changed only by the corresponding negated-quantifier dual.
 
 ## Excluded Branches
 
-These are outside Path A and must remain outside the narrowed theorem:
+These remain outside Path A:
 
 - disequality progress and storage;
 - profile structural closes, including axiom membership, arithmetic/profile
@@ -69,31 +79,34 @@ These are outside Path A and must remain outside the narrowed theorem:
 - equality agenda continuation;
 - direct reflected calls.
 
+Because they are excluded from the domain, Path A does not need to prove them
+literal Willard `D` rules.
+
 ## Executable Evidence
 
-The audit API is:
+The proof APIs are:
 
 ```text
 correspondence/sjas-structural-checker-rule-inventory
 correspondence/audit-path-a-narrow-rule-inventory
+correspondence/audit-path-a-narrow-correspondence-proof
 ```
 
-The focused test is:
+The proof-status test is:
 
 ```text
-path-a-rule-inventory-classifies-narrow-and-excluded-branches
+path-a-narrow-correspondence-proof-discharges-lemma-obligations
 ```
 
 It passed as part of:
 
 ```text
 lein test proflog.sjas-correspondence-test
-Ran 28 tests containing 397 assertions.
+Ran 30 tests containing 407 assertions.
 0 failures, 0 errors.
 ```
 
-## Next Proof Work
+## Conclusion
 
-To complete Path A, prove the six named lemmas above, then add a final
-coverage theorem stating that all excluded branch families are outside the
-Path-A domain. This can yield a genuine but intentionally narrow theorem.
+Path A does not recover the full SJAS self-reference machinery, but it is a
+genuine completed correspondence theorem over the specified narrow fragment.

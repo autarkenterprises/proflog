@@ -1,4 +1,4 @@
-# Path B Proof Attempt: Extended `D_SJAS` Apparatus
+# Path B Verdict: Extended `D_SJAS` Apparatus
 
 Date: 2026-06-13
 
@@ -8,18 +8,26 @@ Predecessor: [Path B target](2026-06-13-sjas-path-b-extended-dsjas.md)
 
 ## Result
 
-Path B has been advanced to an executable candidate apparatus inventory, but the
-proof is not complete.
+Path B is complete as a negative Track 2b result for the current accepted
+domain.
 
-The inventory records every structural checker branch under candidate
-`D_SJAS` rule families. This is necessary but not sufficient: Path B still must
-show that the selected apparatus is admissible for Willard-style
-self-verification, and must repair the `sjas-axiom` proof-size issue exposed by
-ADR-0102.
+The current implementation cannot be honestly claimed to correspond to literal
+Willard `D`. The branch inventory contains rule families that are not literal
+Willard semantic-tableau rules, and ADR-0102 supplies a concrete accepted
+fixed-size `sjas-axiom` citation that violates the stated proof-size bound when
+the proof object is only `P`.
 
-## Candidate Rule Families
+Therefore:
 
-The executable inventory currently covers these families:
+```text
+CurrentProflogAccepts(P,S,F) iff SemPrf_D(decode(P),S,F)
+```
+
+is impossible over the current accepted domain.
+
+## Extended Rule Families
+
+The executable inventory still records a plausible future `D_SJAS` apparatus:
 
 - `:base-tableau`;
 - `:branch-bookkeeping`;
@@ -32,55 +40,59 @@ The executable inventory currently covers these families:
 - `:recursive-proof`;
 - `:substitution-proof`.
 
-This is the current best candidate for `D_SJAS`: literal tableau rules plus
-explicit SJAS theory/profile proof steps.
+The last six families go beyond literal Willard `D` and must be selected as
+part of a different apparatus before a positive proof can be stated.
 
-## Open Obligations
+## Blocking Reasons
 
-The audit deliberately keeps the main blockers visible:
+The conclusive blockers for literal Track 2b are:
 
-- `:sjas-axiom-size-accounting`;
-- `:recursive-proof-well-foundedness`;
-- `:literature-admissibility`;
-- `:equality-theory-admissibility`;
-- `:reflected-call-admissibility`.
+- `:non-willard-extended-rule-families`: equality theory, arithmetic/profile
+  closure, axiom membership, reflected calls, recursive proof, and substitution
+  proof are not literal Willard `D` rules.
+- `:sjas-axiom-citation-size-counterexample`: ADR-0102's accepted citation has
+  fixed proof-code size while the cited formula grows through `S` and `F`.
 
-The first three are global blockers. Equality and reflected calls are local
-apparatus blockers: they may be admitted as selected primitives or bounded
-macros, but that choice still needs a proof.
+The required proof-object accounting repair is:
+
+```text
+:formula-bearing-axiom-leaf-or-combined-object-required
+```
+
+That is, a future positive theorem must either replace bare citations with
+formula-bearing axiom leaves or explicitly count a combined proof object
+containing the required theorem/system payload.
 
 ## Executable Evidence
 
-The audit API is:
+The verdict API is:
 
 ```text
-correspondence/audit-dsjas-rule-inventory
+correspondence/audit-path-b-correspondence-verdict
 ```
 
 The focused test is:
 
 ```text
-path-b-dsjas-rule-inventory-covers-extended-apparatus
+path-b-extended-apparatus-proof-has-conclusive-track-2b-verdict
 ```
 
 It passed as part of:
 
 ```text
 lein test proflog.sjas-correspondence-test
-Ran 28 tests containing 397 assertions.
+Ran 30 tests containing 407 assertions.
 0 failures, 0 errors.
 ```
 
-## Next Proof Work
+## Track 2c Handoff
 
-Path B now needs a mathematical definition of `D_SJAS` matching the inventory,
-not merely an implementation table. The next non-negotiable choice is the
-proof-object accounting for bare `sjas-axiom` citations:
+A positive `D_SJAS` result is still possible, but it is a different theorem:
 
-1. exclude citations from the `5J` size theorem;
-2. replace citations with formula-bearing axiom leaves;
-3. count a combined proof object containing the necessary theorem/system
-   payload.
+```text
+CurrentProflogAccepts(P,S,F) iff SemPrf_D_SJAS(translate(P,S,F),S,F)
+```
 
-Only after that choice can the recursive `tableau-proof/3` and `subst-prf/4`
-well-foundedness proof be stated cleanly.
+That theorem requires a new ADR that defines `D_SJAS` mathematically, chooses
+the citation size-accounting repair, and proves literature admissibility for
+the selected apparatus.

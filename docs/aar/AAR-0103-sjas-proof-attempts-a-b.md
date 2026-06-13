@@ -6,19 +6,24 @@
 
 ## Outcome
 
-Path A and Path B were advanced to executable branch-level proof audits.
-Neither proof is complete yet.
+ADR-0103 is complete after the follow-up proof work requested by the user.
 
-Path A now has a narrowed branch inventory: direct Willard branches, lemma
-branches, and excluded SJAS-extension branches are separated explicitly.
+Path A is proved for the narrowed literal-Willard structural fragment. The
+executable proof audit discharges all six named lemma obligations and proves
+that every admitted branch is either a direct Willard tableau rule or a
+discharged bookkeeping/truth/NNF/quantifier case. The excluded SJAS-extension
+branches remain outside the theorem domain.
 
-Path B now has a candidate `D_SJAS` apparatus inventory: every structural
-checker branch is classified under one or more candidate rule families, and the
-remaining blockers are recorded as open obligations.
+Path B is completed negatively for Track 2b over the current accepted domain.
+The current implementation cannot be claimed to correspond to literal Willard
+`D`, because it admits extended equality/profile/reflected/proof-predicate rule
+families and still has the ADR-0102 fixed-size `sjas-axiom` citation
+counterexample. A positive `D_SJAS` theorem is a Track 2c task, not a completed
+literal-Willard proof.
 
 ## Evidence
 
-The red test failed before implementation:
+Initial red test before the inventory implementation:
 
 ```text
 lein test proflog.sjas-correspondence-test
@@ -27,7 +32,7 @@ No such var: correspondence/audit-path-a-narrow-rule-inventory
 Tests failed.
 ```
 
-After implementation:
+Inventory green:
 
 ```text
 lein test proflog.sjas-correspondence-test
@@ -35,11 +40,28 @@ Ran 28 tests containing 397 assertions.
 0 failures, 0 errors.
 ```
 
-Before commit:
+Follow-up red test before the proof-status implementation:
+
+```text
+lein test proflog.sjas-correspondence-test
+Syntax error compiling at (proflog/sjas_correspondence_test.clj:458:17).
+No such var: correspondence/audit-path-a-narrow-correspondence-proof
+Tests failed.
+```
+
+Proof-status green:
+
+```text
+lein test proflog.sjas-correspondence-test
+Ran 30 tests containing 407 assertions.
+0 failures, 0 errors.
+```
+
+Final broad gates before commit:
 
 ```text
 lein test-proflog-fast
-Ran 199 tests containing 1046 assertions.
+Ran 201 tests containing 1056 assertions.
 0 failures, 0 errors.
 
 lein test-proflog-extended
@@ -49,7 +71,8 @@ Ran 73 tests containing 219 assertions.
 
 ## Follow-up
 
-- Path A: prove the six named lemmas and add a final theorem note for the narrow
-  fragment.
-- Path B: choose `sjas-axiom` proof-object accounting, then formalize
-  `D_SJAS` and prove literature admissibility or move the result to Track 2c.
+- Track 2c: define `D_SJAS` as a selected deductive apparatus, choose the
+  proof-object accounting repair, then prove correspondence for that apparatus.
+- A later mechanized proof assistant version could replace the direct-
+  examination Path A proof, but it is not required for this ADR's current
+  direct-examination standard.

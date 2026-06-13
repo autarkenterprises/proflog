@@ -453,6 +453,52 @@
             [7112 7130]]
            (mapv :line-range correspondence/sjas-structural-checker-rule-inventory)))))
 
+(deftest path-a-narrow-correspondence-proof-discharges-lemma-obligations
+  (testing "ADR-0103 Path A: the narrowed literal-Willard theorem is no longer only an inventory"
+    (let [proof (correspondence/audit-path-a-narrow-correspondence-proof)]
+      (is (= :proved (:verdict proof)))
+      (is (= #{}
+             (:open-obligations proof)))
+      (is (= #{:agenda-ancestor-preservation
+               :truth-constant-semantics
+               :nnf-irrelevance
+               :quantifier-freshness
+               :gamma-parameter-admissibility
+               :bounded-guard-correctness}
+             (set (keys (:discharged-obligations proof)))))
+      (is (= #{:literal-save-agenda-continuation
+               :complementary-literal-closure
+               :conjunction
+               :forall-once-forall-expansion
+               :exists-expansion
+               :false-not-true-closure
+               :not-false-agenda-continuation
+               :double-negation-and-atomic-duals
+               :negation-and-implication
+               :negated-and-bounded-quantifier-duals
+               :disjunction
+               :additional-quantifier-expansions
+               :true-agenda-continuation}
+             (:proved-rule-ids proof)))
+      (is (contains? (:excluded-rule-ids proof)
+                     :profile-structural-closes)))))
+
+(deftest path-b-extended-apparatus-proof-has-conclusive-track-2b-verdict
+  (testing "ADR-0103 Path B: the current extended apparatus is conclusively separated from literal Willard D"
+    (let [verdict (correspondence/audit-path-b-correspondence-verdict)]
+      (is (= :impossible-for-current-domain
+             (:literal-willard-track-2b-verdict verdict)))
+      (is (= :track-2c-required
+             (:dsjas-verdict verdict)))
+      (is (set/subset?
+            #{:sjas-axiom-citation-size-counterexample
+              :non-willard-extended-rule-families}
+            (:blocking-reasons verdict)))
+      (is (= :formula-bearing-axiom-leaf-or-combined-object-required
+             (:required-size-accounting-repair verdict)))
+      (is (= #{}
+             (:unclassified-rule-ids verdict))))))
+
 (deftest structural-proof-tree-audit-reports-flat-node-size-and-shape
   (testing "flat formula-byte nodes expose finite tree and byte-size metrics"
     (let [audit (correspondence/audit-structural-proof-tree

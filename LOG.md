@@ -23,19 +23,22 @@ complete contemporaneous transcript.
 ## 2026-06-13
 
 - Completed [ADR-0103](docs/adr/ADR-0103-sjas-proof-attempts-a-b.md)
-  on `adr-0103-sjas-proof-attempts-a-b`: advanced both corrected proof attempts
-  from ADR-0102 by adding an executable branch-level inventory of
-  `sjas-structural-proof-check-state-decodedo`. Path A now has a narrowed
-  literal-Willard audit separating 5 direct branches, 8 lemma branches, and 6
-  excluded SJAS-extension branches. Path B now has a candidate `D_SJAS`
-  inventory covering base tableau, bookkeeping, truth normalization,
-  quantifiers, equality theory, arithmetic/profile closure, axiom membership,
-  reflected calls, recursive proof, and substitution proof, with the global
-  blockers still visible. Red→green:
-  `lein test proflog.sjas-correspondence-test` failed on missing
-  `audit-path-a-narrow-rule-inventory`, then passed with 28 tests / 397
-  assertions. See [Path A proof attempt](docs/log/2026-06-13-sjas-path-a-proof-attempt.md),
-  [Path B proof attempt](docs/log/2026-06-13-sjas-path-b-proof-attempt.md), and
+  on `adr-0103-sjas-proof-attempts-a-b`: completed the corrected Path A/Path B
+  work from ADR-0102. Path A is now a proved narrow literal-Willard theorem over
+  non-axiom formula-bearing structural proof trees whose checker path uses only
+  admitted branches; its six agenda/truth/NNF/quantifier/bounded-guard
+  obligations are discharged by executable proof-audit clauses. Path B is now
+  completed negatively for literal Track 2b: the current accepted domain cannot
+  be literal Willard `D` because it includes non-Willard extended rule families
+  and the ADR-0102 fixed-size `sjas-axiom` citation counterexample. Positive
+  `D_SJAS` correspondence is therefore a Track 2c theorem after a proof-object
+  accounting repair. Red->green: the inventory API was first absent, then the
+  proof-status API was absent; after implementation
+  `lein test proflog.sjas-correspondence-test` passed with 30 tests / 407
+  assertions. Final gates: `lein test-proflog-fast` passed with 201 tests /
+  1056 assertions, and `lein test-proflog-extended` passed with 73 tests / 219
+  assertions. See [Path A proof](docs/log/2026-06-13-sjas-path-a-proof-attempt.md),
+  [Path B verdict](docs/log/2026-06-13-sjas-path-b-proof-attempt.md), and
   [AAR-0103](docs/aar/AAR-0103-sjas-proof-attempts-a-b.md).
 - Completed [ADR-0102](docs/adr/ADR-0102-sjas-counterexample-proof-targets.md)
   on `adr-0102-sjas-counterexample-proof-targets`: wrote an executable

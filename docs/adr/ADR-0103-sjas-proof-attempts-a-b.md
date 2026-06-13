@@ -13,49 +13,69 @@ corrected proof targets:
 - Path A: a narrowed literal-Willard structural fragment.
 - Path B: an extended selected `D_SJAS` apparatus.
 
-Both paths need the same missing foundation: an executable inventory of every
-structural checker branch, classified by whether it is a literal Willard rule,
-bookkeeping lemma, truth/NNF lemma, quantifier lemma, or an excluded/extended
-SJAS rule family.
+The user clarified that this ADR is not complete merely because an inventory
+exists. The proof obligations must be discharged or conclusively shown
+impossible.
 
 ## Decision
 
-Add an executable branch-level proof audit to `proflog.sjas-correspondence`.
-This audit will not change proof search or the kernel. It will expose:
+Add executable proof-audit artifacts to `proflog.sjas-correspondence`.
 
-- every `sjas-structural-proof-check-state-decodedo` branch by line range;
-- Path A status for each branch;
-- candidate `D_SJAS` rule family or families for each branch;
-- open proof obligations for Path A and Path B.
+For Path A, prove the narrowed theorem by direct examination over the admitted
+structural checker branches. The executable proof audit records:
 
-Use this to advance both proof attempts:
+- every admitted branch;
+- every excluded SJAS-extension branch;
+- the six named lemma obligations;
+- the proof clause discharging each obligation;
+- the final no-open-obligations verdict.
 
-- Path A can be pursued as a narrowed theorem over only direct/lemma branches.
-- Path B can be pursued as a candidate extended apparatus, while retaining the
-  unresolved obligations for `sjas-axiom` size accounting, recursive proof
-  well-foundedness, and literature admissibility.
+For Path B, do not erase blockers by relabeling the current implementation as
+literal Willard `D`. Instead, record the conclusive Track 2b verdict: the
+current accepted domain cannot be a literal-Willard correspondence theorem
+because it includes non-Willard extended rule families and the fixed-size
+`sjas-axiom` citation counterexample. A full `D_SJAS` theorem is therefore a
+Track 2c task with a different selected apparatus and repaired proof-object
+accounting.
 
 ## Consequences
 
-The audit makes proof status executable and reviewable. It does not, by itself,
-complete either proof. A future ADR must still discharge the listed lemmas or
-choose the Path B proof-object accounting.
+Path A is complete as a narrow theorem:
 
-After implementation, Path A is reduced to six named lemmas over the narrowed
-fragment, and Path B is reduced to a candidate `D_SJAS` inventory plus the
-global blockers for `sjas-axiom` size accounting, recursive proof
-well-foundedness, and literature admissibility.
+```text
+For non-axiom formula-bearing structural proof trees whose checker path uses
+only Path-A-admitted branches,
+
+  ProflogAccepts_A(P,S,F) iff SemPrf_D(decode(P),S,F)
+
+up to the recorded agenda, truth, NNF, quantifier, and bounded-guard
+irrelevance lemmas.
+```
+
+This theorem intentionally excludes equality progression, arithmetic/profile
+closure, axiom-membership closure, reflected calls, recursive `tableau-proof/3`,
+`subst-prf/4`, and bare `sjas-axiom` citation certificates.
+
+Path B is complete as a negative Track 2b result for the current accepted
+domain. The extended `D_SJAS` apparatus remains viable only as a future Track 2c
+theorem after choosing a proof-object accounting repair:
+
+- replace bare citations with formula-bearing axiom leaves; or
+- count a combined proof object carrying the needed theorem/system payload.
 
 ## Test Obligations
 
-- Red tests must require the new Path A branch audit API.
-- Red tests must require the new Path B `D_SJAS` apparatus audit API.
-- The tests must verify branch coverage, excluded Path A branches, Path B
-  candidate rule families, and open blockers.
+- Red tests must require the Path A proof-status API, not only the branch
+  inventory.
+- Red tests must require the Path B conclusive verdict API, not only open
+  blockers.
+- The tests must verify Path A has no open obligations and Path B is separated
+  from literal Willard `D`.
 
 ## Exit Criteria
 
 - Focused correspondence audit tests pass.
-- ADR-0103 proof-attempt notes record the Path A and Path B status after the
-  executable inventory is added.
+- Path A proof notes record the completed narrow theorem.
+- Path B proof notes record the negative literal-Willard verdict and the Track
+  2c handoff.
 - Broad fast/extended regression gates remain green before commit.

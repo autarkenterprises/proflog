@@ -22,6 +22,20 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Started [ADR-0104](docs/adr/ADR-0104-dsjas-track2c.md) on
+  `adr-0104-dsjas-track2c` for the full Track 2c `D_SJAS` objective. Added the
+  governing ADR and the first executable correspondence-audit artifacts:
+  selected `D_SJAS` rule-family specification, combined `(S,F,P)` proof-object
+  accounting for `sjas-axiom` citations, recursive proof/substitution descent
+  measure audit, and explicit literature-admissibility status. This is not
+  Track 2c completion: `:willard-style-self-verification-transfer`, the final
+  combined-size lower-bound theorem, and full recursive well-foundedness remain
+  open. Red->green: `lein test proflog.sjas-correspondence-test` failed on
+  missing `audit-dsjas-track2c-specification`, then passed with 34 tests / 422
+  assertions. Gates: `lein test-proflog-fast` passed with 205 tests / 1071
+  assertions, and `lein test-proflog-extended` passed with 73 tests / 219
+  assertions. See
+  [D_SJAS Track 2c Kickoff](docs/log/2026-06-13-dsjas-track2c-kickoff.md).
 - Completed [ADR-0103](docs/adr/ADR-0103-sjas-proof-attempts-a-b.md)
   on `adr-0103-sjas-proof-attempts-a-b`: completed the corrected Path A/Path B
   work from ADR-0102. Path A is now a proved narrow literal-Willard theorem over

@@ -1002,3 +1002,144 @@
      :candidate-rule-families (:rule-families inventory)
      :track-2c-open-obligations (:open-obligations inventory)
      :unclassified-rule-ids (:unclassified-rule-ids inventory)}))
+
+(def dsjas-track2c-rule-specification
+  "ADR-0104 selected rule-family specification for `D_SJAS`.
+
+   This is the first executable Track 2c artifact. It names the selected
+   apparatus independently of the implementation's current branch order. Each
+   family is either a direct semantic-tableau family, a bounded bookkeeping
+   normalization, or a selected object-language extension whose relation is
+   already implemented over decoded codes and branch state."
+  {:base-tableau
+   {:status :selected
+    :kind :semantic-tableau
+    :rule "Alpha, beta, implication, negation, branch closure, and root/child tree validation."}
+   :branch-bookkeeping
+   {:status :selected
+    :kind :bounded-normalization
+    :rule "Agenda continuation and saved branch-environment snapshots preserve tableau ancestry."}
+   :truth-normalization
+   {:status :selected
+    :kind :bounded-normalization
+    :rule "`false`, `not true`, `true`, and `not false` are fixed truth-constant closures/skips."}
+   :quantifier
+   {:status :selected
+    :kind :semantic-tableau
+    :rule "Gamma, delta, bounded gamma, bounded delta, and negated quantifier duals with branch-local freshness."}
+   :equality-theory
+   {:status :selected
+    :kind :selected-extension
+    :rule "Branch-local equality substitution, disequality storage, contradiction, and constructor-theory closure."}
+   :arithmetic-profile
+   {:status :selected
+    :kind :selected-extension
+    :rule "U-Grounding arithmetic, byte reading, syntax-code predicates, and formula-class predicates as object relations."}
+   :axiom-membership
+   {:status :selected
+    :kind :selected-extension
+    :rule "Finite axiom membership and AxiomConj reconstruction from decoded system-code."}
+   :reflected-call
+   {:status :selected
+    :kind :selected-extension
+    :rule "Positive, negative, and guarded reflected calls expand only from reflected records decoded from system-code."}
+   :recursive-proof
+   {:status :selected
+    :kind :selected-extension
+    :rule "`tableau-proof/3` leaves decode theorem/proof/system code and validate the supplied proof payload."}
+   :substitution-proof
+   {:status :selected
+    :kind :selected-extension
+    :rule "`subst-prf/4` leaves validate substitution-code/source-result conditions and the supplied theorem proof payload."}})
+
+(defn audit-dsjas-track2c-specification
+  "Summarize the ADR-0104 selected `D_SJAS` apparatus."
+  []
+  (let [inventory (audit-dsjas-rule-inventory)
+        selected-families (set (keys dsjas-track2c-rule-specification))]
+    {:apparatus :D_SJAS
+     :status :selected-apparatus
+     :rule-families selected-families
+     :rule-family-count (count selected-families)
+     :rules dsjas-track2c-rule-specification
+     :unclassified-rule-ids (:unclassified-rule-ids inventory)
+     :inventory-families-without-spec (set/difference (:rule-families inventory)
+                                                      selected-families)
+     :spec-families-without-inventory (set/difference selected-families
+                                                      (:rule-families inventory))}))
+
+(def dsjas-proof-object-accounting
+  "ADR-0104 proof-size accounting repair for `D_SJAS`.
+
+   The ADR-0102 counterexample refutes measuring a bare `sjas-axiom` citation by
+   `P` alone. Track 2c repairs this by measuring citation leaves as the
+   combined, inspectable object `(S,F,P)`: the system code supplies the axiom
+   basis, the theorem code supplies the cited formula, and the proof code
+   supplies the citation marker. Structural proof trees keep the ordinary
+   formula-bearing proof-code measure."
+  {:selected-repair :combined-proof-object
+   :citation-measured-components #{:system-code :theorem-code :proof-code}
+   :structural-measured-components #{:proof-code}
+   :citation-size-source
+   {:system-code "Decoded finite axiom basis and profile/fixed-point payload."
+    :theorem-code "Decoded cited theorem/axiom formula payload."
+    :proof-code "Decoded `sjas-axiom` citation marker."}
+   :adr-0102-counterexample-repaired? true})
+
+(defn audit-dsjas-proof-object-accounting
+  "Return the selected ADR-0104 proof-object accounting repair."
+  []
+  dsjas-proof-object-accounting)
+
+(def dsjas-recursive-well-foundedness
+  "Current ADR-0104 recursive descent measure audit.
+
+   This records the first proof obligation for recursive proof-predicate leaves:
+   both structural recursive branches read the object proof-code argument once,
+   decode finite proof bytes, and invoke the structural checker on that decoded
+   payload. That specifies the finite measure still to be fully discharged in
+   the final Track 2c proof."
+  {:status :measure-specified
+   :primary-measure :decoded-proof-code-payload
+   :secondary-measures #{:decoded-formula-size
+                         :finite-system-code-size
+                         :branch-state-size}
+   :recursive-branches #{:tableau-proof-structural-core
+                         :subst-prf-structural-core}
+   :unmeasured-recursive-branches #{}
+   :argument
+   "Recursive structural closes may only recurse through proof bytes decoded from the object proof-code argument; citation leaves terminate in axiom membership or substitution-code validation."})
+
+(defn audit-dsjas-recursive-well-foundedness
+  "Return the ADR-0104 recursive proof/substitution well-foundedness audit."
+  []
+  dsjas-recursive-well-foundedness)
+
+(def dsjas-literature-admissibility
+  "ADR-0104 literature-admissibility audit for the selected `D_SJAS` apparatus.
+
+   This is deliberately not marked complete yet. It records which Willard-style
+   requirements are already supported by existing Track 1/Track 2 evidence and
+   which requirement remains the hard mathematical transfer obligation."
+  {:status :in-progress
+   :discharged-criteria #{:natural-tree-coding
+                          :bounded-object-relations
+                          :semantic-tableau-shape
+                          :selected-apparatus-labeling}
+   :open-criteria #{:willard-style-self-verification-transfer}
+   :criteria
+   {:natural-tree-coding
+    "Formula-bearing structural proof trees and combined citation objects are inspectable byte-coded proof objects."
+    :bounded-object-relations
+    "Code reading, axiom membership, arithmetic/profile closure, reflected calls, substitution, and proof checks are represented as object relations over finite codes."
+    :semantic-tableau-shape
+    "The core proof state remains tableau-shaped: branch agenda, child proof nodes, literals, closures, equality state, and finite leaves."
+    :selected-apparatus-labeling
+    "`D_SJAS` is named as a modified selected apparatus, not identified with literal Willard `D`."
+    :willard-style-self-verification-transfer
+    "Still requires the final metatheorem that Willard's self-verification argument applies to this selected extended apparatus with the combined citation measure."}})
+
+(defn audit-dsjas-literature-admissibility
+  "Return the ADR-0104 literature-admissibility status for `D_SJAS`."
+  []
+  dsjas-literature-admissibility)

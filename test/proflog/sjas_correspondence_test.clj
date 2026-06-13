@@ -499,6 +499,62 @@
       (is (= #{}
              (:unclassified-rule-ids verdict))))))
 
+(deftest dsjas-track2c-specification-selects-every-extended-rule-family
+  (testing "ADR-0104 Track 2c: D_SJAS is an explicit selected apparatus, not implementation drift"
+    (let [spec (correspondence/audit-dsjas-track2c-specification)]
+      (is (= :D_SJAS (:apparatus spec)))
+      (is (= :selected-apparatus (:status spec)))
+      (is (set/subset?
+            #{:base-tableau
+              :branch-bookkeeping
+              :truth-normalization
+              :quantifier
+              :equality-theory
+              :arithmetic-profile
+              :axiom-membership
+              :reflected-call
+              :recursive-proof
+              :substitution-proof}
+            (:rule-families spec)))
+      (is (= #{}
+             (:unclassified-rule-ids spec))))))
+
+(deftest dsjas-track2c-combined-proof-object-repairs-axiom-citation-accounting
+  (testing "ADR-0104 Track 2c: sjas-axiom citations are measured as combined (S,F,P) proof objects"
+    (let [accounting (correspondence/audit-dsjas-proof-object-accounting)]
+      (is (= :combined-proof-object
+             (:selected-repair accounting)))
+      (is (= #{:system-code :theorem-code :proof-code}
+             (:citation-measured-components accounting)))
+      (is (= #{:proof-code}
+             (:structural-measured-components accounting)))
+      (is (true? (:adr-0102-counterexample-repaired? accounting))))))
+
+(deftest dsjas-track2c-recursive-proof-and-subst-measure-is-explicit
+  (testing "ADR-0104 Track 2c: recursive proof predicates have a named finite descent measure"
+    (let [audit (correspondence/audit-dsjas-recursive-well-foundedness)]
+      (is (= :measure-specified (:status audit)))
+      (is (= :decoded-proof-code-payload
+             (:primary-measure audit)))
+      (is (= #{:tableau-proof-structural-core
+               :subst-prf-structural-core}
+             (:recursive-branches audit)))
+      (is (= #{}
+             (:unmeasured-recursive-branches audit))))))
+
+(deftest dsjas-track2c-literature-admissibility-is-explicitly-audited
+  (testing "ADR-0104 Track 2c: literature admissibility is tracked per selected rule family"
+    (let [audit (correspondence/audit-dsjas-literature-admissibility)]
+      (is (= :in-progress (:status audit)))
+      (is (set/subset?
+            #{:natural-tree-coding
+              :bounded-object-relations
+              :semantic-tableau-shape
+              :selected-apparatus-labeling}
+            (:discharged-criteria audit)))
+      (is (contains? (:open-criteria audit)
+                     :willard-style-self-verification-transfer)))))
+
 (deftest structural-proof-tree-audit-reports-flat-node-size-and-shape
   (testing "flat formula-byte nodes expose finite tree and byte-size metrics"
     (let [audit (correspondence/audit-structural-proof-tree

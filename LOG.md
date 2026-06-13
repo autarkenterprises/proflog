@@ -22,6 +22,25 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0098](docs/adr/ADR-0098-sjas-equality-fragment-reachability.md)
+  on `adr-0098-sjas-equality-relevance`, the first Track 2a relevance-matrix
+  slice: resolved the high-risk "equality and disequality profile rules" row via
+  the unreachability route. The SJAS structural proof checker closes every
+  equality/disequality case formula-bearing (reflexive same-term, rigid-different
+  progression, disequality storage + neq-violated recheck, positive-equality
+  unification, and the highest-risk equality-triggered positive/negative calls),
+  driven by the `(eq …)`/`(neq …)` formulas and branch state, with the decoded
+  proof being the tree shape — it never consumes the equality-extension or
+  disequality-closure tags, so they are unreachable in accepted first-fragment
+  certificates. Added `audit-equality-reachability` +
+  `equality-disequality-constructor-symbols` to `proflog.sjas-correspondence`,
+  audit unit tests, and an end-to-end probe closing `(neq one one)` through the
+  structural checker with a formula-bearing, tag-free, `:formula-bearing-tableau`
+  certificate. Audit only. Red→green; `lein test-proflog-fast` (`193`/`1016`),
+  SJAS not-slow (`1000` assertions), focused (`3`/`14`). Non-colliding with the
+  parallel agent's Track 2b (ADR-0096/0097). See
+  [equality fragment reachability](docs/log/2026-06-13-sjas-equality-fragment-reachability.md)
+  and [AAR-0098](docs/aar/AAR-0098-sjas-equality-fragment-reachability.md).
 - Completed [ADR-0095](docs/adr/ADR-0095-sjas-proof-synthesis.md) on
   `adr-0095-sjas-proof-synthesis`: citation synthesis works — a fresh-variable
   `tableau-proof/3` query through `query-answers` (deferral disabled) binds the

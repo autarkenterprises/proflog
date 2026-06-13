@@ -2564,6 +2564,35 @@
               (l/== true q)))
           "formula-bearing disjunction nodes should validate by child branch structure"))))
 
+(deftest sjas-equality-closure-is-formula-bearing-and-tag-free
+  (testing "ADR-0098: reflexive-disequality closure goes through a formula-bearing, equality-tag-free first-fragment certificate"
+    (let [system (demo-system :willard-sjas-tableau0)
+          target (ast/neq-lit sjas/one sjas/one)
+          proof (structural-tableau-node system target)
+          check-proof (var-get #'sjas-profile/sjas-proof-check-programo)]
+      (is (successful?
+            (l/run 1 [q]
+              (check-proof (:program system)
+                           (:system-code system)
+                           target
+                           20
+                           proof)
+              (l/== true q)))
+          "the structural checker closes (neq one one) by reflexive same-term recognition")
+      (is (zero? (proof-symbol-count proof))
+          "the closing certificate is formula-bearing: it carries no proof-symbol tags")
+      (is (= #{}
+             (:equality-symbols-present
+               (correspondence/audit-equality-reachability proof)))
+          "no equality/disequality constructor tag is reachable in the accepted certificate")
+      (is (false?
+            (:equality-reachable?
+              (correspondence/audit-equality-reachability proof))))
+      (is (= :formula-bearing-tableau
+             (:fragment-status
+               (correspondence/audit-first-correspondence-fragment proof)))
+          "the equality-closing certificate is inside the first correspondence fragment"))))
+
 (deftest sjas-proof-check-accepts-formula-bearing-double-negation-tableaux
   (testing "structural double negation removes both negations without proof-rule tags"
     (let [system (demo-system :willard-sjas-tableau0)

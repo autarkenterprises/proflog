@@ -52,9 +52,11 @@ negative wall.
   decoded code/formula is ground before decode (forward functional mode), and
   measure whether the negative's variable-dense grind collapses toward the 1 ms
   ground-decode regime. Gate with the ADR-0093 suite + a with/without answer-set
-  agreement test.
-- Determinise `static_table_entryo` on ground keys (indexed lookup) as a second
-  step.
+  agreement test, **and the ADR-0106 §D purity constraint** (pure
+  relational/structural only — no `project`/`conda`/host cuts).
+- Determinise `static_table_entryo` on ground keys via a **pure relational
+  trie / indexed lookup** (core.logic.pldb indexed facts, or a vendored
+  core.logic indexed-relation primitive) — structural determinism, not a cut.
 - Parallelism (concurrentKanren-style bounded OR-parallel disjunction) remains a
   recorded, sound ≤#cores complement for any residual search, not a critical-path
   fix.

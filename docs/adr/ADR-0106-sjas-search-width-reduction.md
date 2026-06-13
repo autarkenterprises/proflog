@@ -99,14 +99,58 @@ relational-search literature:
 Parallelism (Part A) is a complementary ≤#cores trim on whatever search remains
 *after* width reduction — not a substitute for it.
 
+## D. Purity constraint on the implementation (binding)
+
+Width reduction must **not** be bought with extra-logical / committed-choice /
+host-side procedures (`project`, `conda`, `condu`, host hash-map lookups behind
+`project`, etc.). Such cuts would impair the relational purity the kernel
+depends on. The governing principle: **replace implicit pruning (which tempts
+cuts) with structural determinism** — the relation must be deterministic *by its
+structure* when its key inputs are ground, so there is no choice point to prune
+and therefore no cut is ever needed. Per option-by-option:
+
+- **#1 mode-directed eval — pure by conjunction ordering.** core.logic's `bind`
+  (conjunction) is sequential per answer: in `(fresh [] g₁ g₂)`, `g₂` sees `g₁`'s
+  bindings (only `mplus`/disjunction interleaves). So sequencing a *pure*
+  structural forward substitution (which builds a **ground** result from a ground
+  source, like `sjas-internal-code-termo` builds a ground term from ground bytes)
+  *before* the decode goal makes the decode run on a ground term — the ~1 ms
+  ground path — with **no `project` to test groundness and no `conda` to commit**.
+  The "forward functional" speed is an emergent property of ground inputs in a
+  pure relation, not an operational cut.
+
+- **#2 table determinisation — the one place to extend core.logic's data
+  structure (purely).** `static-table-entryo` is a linear `(or* …)` disjunction,
+  so a ground key still opens a choice point per entry. The pure fix is a
+  **relational trie / indexed lookup** so a ground key descends *deterministically
+  by unification* (structural determinism, sound in both directions, no cut) —
+  realised either via `clojure.core.logic.pldb` indexed facts (already in the
+  core.logic jar) or by extending the vendored core.logic with an indexed
+  relational-lookup primitive. **Not** `conda`/`condu` to commit to the matching
+  entry, and **not** a host map behind `project`.
+
+- **#3 ordering / early failure — pure by unification.** Goal reordering is pure
+  (sequential `bind`). Early failure is achieved by **unifying the target's
+  structure into the candidate** so incompatible candidates fail *soundly* via
+  `==`, and prefilters are **relational invariants** (e.g. a relational
+  length/symbol-count goal shared between candidate and target), never a
+  host-side check behind `project`.
+
+If more expressive structure is genuinely needed, it is added *inside*
+core.logic as a pure relational primitive/data structure (the standing doctrine:
+complexify core.logic elegantly, preserving miniKanren semantics), not as an
+impurity in the SJAS/Proflog layer.
+
 ## Decision
 
 Pursue **width reduction**, led by mode-directed/ground-before-decode evaluation
 (#1) and static-table determinisation on ground keys (#2), with goal-ordering /
 early-failure (#3) as supporting. Parallelism is recorded as a sound but
 constant-factor complement, not the critical-path fix. Each implementation step
-is a successor ADR, gated by the ADR-0093 regression suite plus a behaviour
-(answer-set) preservation test.
+is a successor ADR, gated by the ADR-0093 regression suite, a behaviour
+(answer-set) preservation test, and the **§D purity constraint** (pure
+relational/structural only — no `project`/`conda`/host cuts; richer structure is
+added inside core.logic).
 
 ## Test Obligations
 

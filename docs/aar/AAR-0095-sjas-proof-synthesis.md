@@ -105,6 +105,14 @@ variable to the `sjas-axiom` certificate (`certificate-match=true`):
 | `willard-sjas-tableau0` | 1 | true | 4908.3 |
 | `willard-sjas-level1` | 1 | true | 11878.8 |
 
+After merging current `main` (ADR-0093/0096/0097), re-validated on the merged
+tree: `lein test-proflog-fast` (Ran 191 tests containing 1009 assertions, 0
+failures — the +16 over the pre-merge count are ADR-0093's canonical
+core.logic regressions, which run against this branch's ADR-0090/0094 vendored
+overlay and `proflog.sjas-correspondence-test`, exercising the SJAS profile the
+reader change touches), `lein test-proflog-extended` (Ran 73 tests containing
+219 assertions, 0 failures), and both synthesis selectors (4/4 assertions).
+
 ### Pre-existing intractable negatives (unchanged by ADR-0095)
 
 The two `subst-prf` negative selectors remain envelope-exceeders, as recorded

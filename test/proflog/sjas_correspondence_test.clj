@@ -530,6 +530,20 @@
              (:structural-measured-components accounting)))
       (is (true? (:adr-0102-counterexample-repaired? accounting))))))
 
+(deftest dsjas-track2c-size-lower-bound-covers-citation-and-structural-objects
+  (testing "ADR-0104 Track 2c: the combined size repair has an explicit lower-bound argument"
+    (let [audit (correspondence/audit-dsjas-combined-size-lower-bound)]
+      (is (= :proved-under-code-injectivity
+             (:status audit)))
+      (is (= #{:sjas-axiom-citation :formula-bearing-structural-tree}
+             (:covered-proof-object-kinds audit)))
+      (is (= #{}
+             (:uncovered-proof-object-kinds audit)))
+      (is (= :theorem-code-payload
+             (get-in audit [:kind-arguments :sjas-axiom-citation :j-source])))
+      (is (= :proof-code-formula-node-payloads
+             (get-in audit [:kind-arguments :formula-bearing-structural-tree :j-source]))))))
+
 (deftest dsjas-track2c-recursive-proof-and-subst-measure-is-explicit
   (testing "ADR-0104 Track 2c: recursive proof predicates have a named finite descent measure"
     (let [audit (correspondence/audit-dsjas-recursive-well-foundedness)]

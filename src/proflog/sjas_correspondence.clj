@@ -1091,6 +1091,40 @@
   []
   dsjas-proof-object-accounting)
 
+(def dsjas-combined-size-lower-bound
+  "ADR-0104 lower-bound audit for the selected proof-object accounting.
+
+   The result is stated under the same code-injectivity and byte-inspectability
+   assumptions already used by the SJAS coding ADRs. Citation objects now count
+   theorem and system payloads, so the ADR-0102 fixed-size `P` counterexample no
+   longer hides the formula occurrences being measured. Structural objects keep
+   the ADR-0097 formula-bearing proof-tree argument."
+  {:status :proved-under-code-injectivity
+   :covered-proof-object-kinds #{:sjas-axiom-citation
+                                 :formula-bearing-structural-tree}
+   :uncovered-proof-object-kinds #{}
+   :kind-arguments
+   {:sjas-axiom-citation
+    {:measure :combined-proof-object
+     :measured-components #{:system-code :theorem-code :proof-code}
+     :j-source :theorem-code-payload
+     :argument
+     "Every function/application occurrence of the cited formula is in the measured theorem-code payload, while system-code bytes account for the finite axiom basis that made the citation legal."}
+    :formula-bearing-structural-tree
+    {:measure :proof-code
+     :measured-components #{:proof-code}
+     :j-source :proof-code-formula-node-payloads
+     :argument
+     "Every node in the accepted structural proof tree carries formula bytes in the proof code, so application occurrences are not hidden outside the proof object."}}
+   :assumptions #{:injective-public-code-reading
+                  :trailing-zero-preservation
+                  :fixed-symbol-codebook-or-decoded-signature}})
+
+(defn audit-dsjas-combined-size-lower-bound
+  "Return the ADR-0104 proof-size lower-bound audit for `D_SJAS` proof objects."
+  []
+  dsjas-combined-size-lower-bound)
+
 (def dsjas-recursive-well-foundedness
   "Current ADR-0104 recursive descent measure audit.
 

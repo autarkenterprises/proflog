@@ -57,6 +57,26 @@ The executable API is:
 correspondence/audit-dsjas-proof-object-accounting
 ```
 
+## Combined Size Lower Bound
+
+The first lower-bound audit is now explicit:
+
+```text
+correspondence/audit-dsjas-combined-size-lower-bound
+```
+
+It covers both currently selected proof-object kinds:
+
+- `:sjas-axiom-citation`;
+- `:formula-bearing-structural-tree`.
+
+For citation objects, the measured object is the combined `(S,F,P)` tuple, so
+the source of the `J` measure is the theorem-code payload rather than only the
+fixed citation marker. For formula-bearing structural trees, the source remains
+the proof-code formula-node payloads. The theorem is recorded as proved under
+the existing code-injectivity and byte-inspectability assumptions from the
+coding ADRs.
+
 ## Recursive Measure
 
 The first recursive well-foundedness audit names the primary descent measure as
@@ -117,6 +137,10 @@ lein test proflog.sjas-correspondence-test
 Ran 34 tests containing 422 assertions.
 0 failures, 0 errors.
 
+lein test proflog.sjas-correspondence-test
+Ran 35 tests containing 427 assertions.
+0 failures, 0 errors.
+
 lein test-proflog-fast
 Ran 205 tests containing 1071 assertions.
 0 failures, 0 errors.
@@ -128,7 +152,6 @@ Ran 73 tests containing 219 assertions.
 
 ## Remaining Work
 
-- Strengthen the combined size measure into a concrete lower-bound theorem.
 - Prove recursive `tableau-proof/3` and `subst-prf/4` well-foundedness, not
   merely the measure shape.
 - Prove or refute Willard-style self-verification transfer for `D_SJAS`.

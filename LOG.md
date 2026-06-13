@@ -34,7 +34,10 @@ complete contemporaneous transcript.
   missing `audit-dsjas-track2c-specification`, then passed with 34 tests / 422
   assertions. Gates: `lein test-proflog-fast` passed with 205 tests / 1071
   assertions, and `lein test-proflog-extended` passed with 73 tests / 219
-  assertions. See
+  assertions. Follow-up in the same ADR added an explicit combined-size
+  lower-bound audit covering `sjas-axiom` citation objects and formula-bearing
+  structural proof trees; focused correspondence tests then passed with 35
+  tests / 427 assertions. See
   [D_SJAS Track 2c Kickoff](docs/log/2026-06-13-dsjas-track2c-kickoff.md).
 - Completed [ADR-0103](docs/adr/ADR-0103-sjas-proof-attempts-a-b.md)
   on `adr-0103-sjas-proof-attempts-a-b`: completed the corrected Path A/Path B

@@ -43,6 +43,15 @@
     (apply closeo args)
     fail))
 
+(def ^:dynamic *defer-residual-calls*
+  "When true (the default), open-answer execution may export unresolved call
+   atoms as residual obligations. Binding this to false makes residual
+   deferral unavailable, so atoms must close through descent or the theory
+   hook or the answer fails — the mode used for theory-atom synthesis
+   (ADR-0095), where a deferred residual would always win the interleaving
+   race against a substantive closure."
+  true)
+
 ;; Reading guide
 ;; -------------
 ;;
@@ -94,7 +103,7 @@
         ;; Deferral is only meaningful in answer mode with symbolic existential
         ;; export and an actual program to call. In pure theorem-proving mode
         ;; there is nothing to export as a residual frontier.
-        defer-calls? (and existentials-as-vars? prog)]
+        defer-calls? (and existentials-as-vars? prog *defer-residual-calls*)]
     (conde
       ;; Saved positive call: equality has now walked the atom into a callable
       ;; L-ground shape, so consume one unit of recursive descendant budget and
@@ -471,7 +480,7 @@
    prog gamma-terms fuel call-depth existentials-as-vars? proof]
   (let [can-descend? (or (nil? call-depth) (pos? call-depth))
         next-call-depth (support/next-call-depth call-depth)
-        defer-calls? (and existentials-as-vars? prog)]
+        defer-calls? (and existentials-as-vars? prog *defer-residual-calls*)]
     (conde
       [(== '() formulas)
        (== sigma sigma-out)
@@ -577,7 +586,7 @@
           next-call-depth (support/next-call-depth call-depth)
           ;; Only open-query / answer-mode execution wants residual deferred
           ;; calls. Ordinary proof search should either descend or fail.
-          defer-calls? (and existentials-as-vars? prog)]
+          defer-calls? (and existentials-as-vars? prog *defer-residual-calls*)]
       (conde
       ;; Profile-specific theory closure comes first, just as it does in the
       ;; ordinary kernel. A successful hook closes the current branch and may

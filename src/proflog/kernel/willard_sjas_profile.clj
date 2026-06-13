@@ -1043,16 +1043,23 @@
          code-constructor-entries)))
 
 (defn- code-argso
-  [args bytes proof]
+  "Read compact-code byte arguments while tying the argument count to the
+   declared constructor `byte-count` (ADR-0095).
+
+   The running `count` is threaded through the single decoding walk, so a
+   `code-N` term whose argument list is not exactly N bytes long is rejected in
+   the forward direction without a second traversal of large code payloads."
+  [args bytes byte-count count proof]
   (conde
     [(== '() args)
      (== '() bytes)
+     (== count byte-count)
      (== '(sjas-code-args-end) proof)]
     [(fresh [arg rest byte byte-rest rest-proof]
        (sjas-acyclic-unifyo (lcons arg rest) args)
        (code-byte-termo arg byte)
        (sjas-acyclic-unifyo (lcons byte byte-rest) bytes)
-       (code-argso rest byte-rest rest-proof)
+       (code-argso rest byte-rest byte-count (inc count) rest-proof)
        (== (list 'sjas-code-arg byte rest-proof) proof))]))
 
 (defn- code-args-buildo
@@ -1080,7 +1087,7 @@
     (sjas-code-walko term sigma walked)
     (sjas-acyclic-unifyo (lcons 'app (lcons constructor args)) walked)
     (code-constructoro constructor byte-count)
-    (code-argso args bytes args-proof)
+    (code-argso args bytes byte-count 0 args-proof)
     (== sigma sigma-out)
     (== (list 'sjas-code-bytes args-proof) proof)))
 
@@ -1203,17 +1210,19 @@
   "Proof-free compact-code argument byte reader.
 
    Public compact `code-N` arguments are presented byte numerals, so this parses
-   each argument through the same numeral reader as the proof-producing path.
+   each argument through the same numeral reader as the proof-producing path,
+   tying the argument count to the declared constructor `byte-count` (ADR-0095).
    Byte-first reconstruction remains isolated to `code-args-buildo`."
-  [args bytes]
+  [args bytes byte-count count]
   (conde
     [(== '() args)
-     (== '() bytes)]
+     (== '() bytes)
+     (== count byte-count)]
     [(fresh [arg rest byte byte-rest]
        (sjas-acyclic-unifyo (lcons arg rest) args)
        (code-byte-termo arg byte)
        (sjas-acyclic-unifyo (lcons byte byte-rest) bytes)
-       (code-args-coreo rest byte-rest))]))
+       (code-args-coreo rest byte-rest byte-count (inc count)))]))
 
 (defn- sjas-code-bytes-coreo
   "Proof-free compact public-code byte reader."
@@ -1222,7 +1231,7 @@
     (sjas-code-walko term sigma walked)
     (sjas-acyclic-unifyo (lcons 'app (lcons constructor args)) walked)
     (code-constructoro constructor byte-count)
-    (code-args-coreo args bytes)
+    (code-args-coreo args bytes byte-count 0)
     (== sigma sigma-out)))
 
 (defn- sjas-ug-code-bytes-coreo
@@ -7226,16 +7235,28 @@
                              fuel
                              proof)))
 
-(defn- sjas-tableau-proof-callo
-  "Destructure a negated `tableau-proof/3` branch literal into its code
-   arguments and decoded proof bytes (ADR-0091 shared preamble)."
-  [fml env sigma system-code theorem-code proof-bytes sigma-proof proof-kind]
-  (fresh [lit atom walked-atom proof-code]
+(defn- sjas-tableau-proof-destructureo
+  "Walk a negated `tableau-proof/3` branch literal into its three code
+   arguments (ADR-0091 shared preamble).
+
+   The ADR-0095 synthesis branch reuses this so the negated-atom destructuring
+   and the single proof-code position stay defined in one place rather than
+   drifting between the checking and synthesizing branches."
+  [fml env sigma system-code theorem-code proof-code]
+  (fresh [lit atom walked-atom]
     (sjas-subst-formulao fml env lit)
     (sjas-acyclic-unifyo (list 'neg atom) lit)
     (sjas-walk-atomo atom sigma walked-atom)
     (sjas-acyclic-unifyo (list 'app 'tableau-proof system-code theorem-code proof-code)
-                         walked-atom)
+                         walked-atom)))
+
+(defn- sjas-tableau-proof-callo
+  "Destructure a negated `tableau-proof/3` branch literal into its code
+   arguments and decoded proof bytes (ADR-0091 shared preamble)."
+  [fml env sigma system-code theorem-code proof-bytes sigma-proof proof-kind]
+  (fresh [proof-code]
+    (sjas-tableau-proof-destructureo fml env sigma
+                                     system-code theorem-code proof-code)
     (sjas-formal-code-bytes-coreo proof-code
                                   proof-bytes
                                   sigma
@@ -7319,6 +7340,33 @@
        (== sigma-proof sigma-out)
        (== neqs neqs-out)
        (== (list 'profiled 'willard-sjas-proof-check member-proof) proof))]
+    ;; ADR-0095 synthesis: when the proof-code position walks to an unbound
+    ;; object variable, construct the canonical `sjas-axiom` citation
+    ;; certificate from its fixed proof bytes, bind it through the branch
+    ;; equality state, then validate membership exactly as for a presented
+    ;; certificate. Disjoint from the branch above: a presented code never
+    ;; walks to a `var`-headed term. Construction goes through the canonical
+    ;; compact builder rather than running the presented-code reader backward,
+    ;; because that reader accepts non-canonical numerals and so is not a
+    ;; bijection (ADR-0095 review).
+    [(fresh [system-code theorem-code proof-code binding-nom
+             certificate sigma-bound bind-proof member-proof]
+       (sjas-tableau-proof-destructureo fml env sigma
+                                        system-code theorem-code proof-code)
+       (== (list 'var binding-nom) proof-code)
+       (sjas-internal-code-termo sjas-axiom-proof-bytes certificate)
+       (equality/unify-termo proof-code certificate sigma sigma-bound
+                             bind-proof)
+       (sjas-walked-axiom-membero prog
+                                  system-code
+                                  theorem-code
+                                  sigma-bound
+                                  member-proof)
+       (== sigma-bound sigma-out)
+       (== neqs neqs-out)
+       (== (list 'profiled 'willard-sjas-proof-check
+                 (list 'sjas-synthesized-citation bind-proof member-proof))
+           proof))]
     ;; Structural certificates keep the plain wrapper; their inspectable
     ;; evidence is the decoded proof tree the checker validates node by node.
     [(sjas-tableau-proof-structural-coreo fml env sigma sigma-out neqs neqs-out prog fuel)

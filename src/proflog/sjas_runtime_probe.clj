@@ -33,26 +33,62 @@
                           (ast/clause 'external-demo [x]
                                       (ast/eq-lit (ast/var-term x) sjas/zero)))]}))
 
+(defn- run-synthesis-case
+  "ADR-0095 behavior probe: synthesize a proof code for the system's own
+   Group-3 sentence by running `tableau-proof/3` with a fresh proof
+   variable, reporting whether the binding is the citation certificate."
+  [profile]
+  (ast/nom p
+    (let [build-start (System/nanoTime)
+          system (demo-system profile)
+          build-ms (/ (- (System/nanoTime) build-start) 1000000.0)
+          _ (println (format ":BUILD %s elapsed-ms=%.1f" (name profile) build-ms))
+          _ (flush)
+          query-start (System/nanoTime)
+          records (sjas/query-answers
+                    system
+                    (sjas/tableau-proof (:system-code system)
+                                        (:code (:group-three system))
+                                        (ast/var-term p))
+                    [p]
+                    {:proof-limit 1
+                     :fuel 96
+                     :defer-calls? false})
+          query-ms (/ (- (System/nanoTime) query-start) 1000000.0)
+          synthesized (some (fn [record]
+                              (some (fn [[record-nom value]]
+                                      (when (= p record-nom) value))
+                                    (:bindings record)))
+                            records)]
+      (println (format ":CASE %s synthesis records=%d certificate-match=%s elapsed-ms=%.1f"
+                       (name profile)
+                       (count records)
+                       (= (sjas/proof-certificate 'sjas-axiom) synthesized)
+                       query-ms))
+      (flush))))
+
 (defn- run-case
   [profile query-kind]
-  (let [build-start (System/nanoTime)
-        system (demo-system profile)
-        build-ms (/ (- (System/nanoTime) build-start) 1000000.0)
-        goal (case query-kind
-               :beta (ast/eq-lit sjas/one sjas/one)
-               :axiom-member (sjas/axiom-member (:system-code system)
-                                                (:code (:group-three system))))
-        _ (println (format ":BUILD %s elapsed-ms=%.1f" (name profile) build-ms))
-        _ (flush)
-        query-start (System/nanoTime)
-        result (query/query-succeeds (:program system) goal 1 64)
-        query-ms (/ (- (System/nanoTime) query-start) 1000000.0)]
-    (println (format ":CASE %s %s proofs=%d elapsed-ms=%.1f"
-                     (name profile)
-                     (name query-kind)
-                     (count result)
-                     query-ms))
-    (flush)))
+  (if (= :synthesis query-kind)
+    (run-synthesis-case profile)
+    (let [build-start (System/nanoTime)
+          system (demo-system profile)
+          build-ms (/ (- (System/nanoTime) build-start) 1000000.0)
+          goal (case query-kind
+                 :beta (ast/eq-lit sjas/one sjas/one)
+                 :axiom-member (sjas/axiom-member (:system-code system)
+                                                  (:code (:group-three system))))
+          _ (println (format ":BUILD %s elapsed-ms=%.1f" (name profile) build-ms))
+          _ (flush)
+          query-start (System/nanoTime)
+          result (query/query-succeeds (:program system) goal 1 64)
+          query-ms (/ (- (System/nanoTime) query-start) 1000000.0)]
+      (println (format ":CASE %s %s proofs=%d elapsed-ms=%.1f"
+                       (name profile)
+                       (name query-kind)
+                       (count result)
+                       query-ms))
+      (flush))))
 
 (defn -main
   [& [profile-arg kind-arg]]

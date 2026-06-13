@@ -95,5 +95,6 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0092](AAR-0092-sjas-nnf-pi-star-1-encodability.md) | [ADR-0092](../adr/ADR-0092-sjas-nnf-pi-star-1-encodability.md) | completed |
 | [AAR-0093](AAR-0093-core-logic-canonical-regression-suite.md) | [ADR-0093](../adr/ADR-0093-core-logic-canonical-regression-suite.md) | completed |
 | [AAR-0094](AAR-0094-core-logic-lvar-equality-fast-path.md) | [ADR-0094](../adr/ADR-0094-core-logic-lvar-equality-fast-path.md) | completed |
+| [AAR-0095](AAR-0095-sjas-proof-synthesis.md) | [ADR-0095](../adr/ADR-0095-sjas-proof-synthesis.md) | completed |
 | [AAR-0096](AAR-0096-sjas-correspondence-fragment-audit.md) | [ADR-0096](../adr/ADR-0096-sjas-correspondence-fragment-audit.md) | completed |
 | [AAR-0097](AAR-0097-sjas-structural-proof-tree-audit.md) | [ADR-0097](../adr/ADR-0097-sjas-structural-proof-tree-audit.md) | completed |

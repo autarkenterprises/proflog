@@ -22,6 +22,28 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0095](docs/adr/ADR-0095-sjas-proof-synthesis.md) on
+  `adr-0095-sjas-proof-synthesis`: citation synthesis works — a fresh-variable
+  `tableau-proof/3` query through `query-answers` (deferral disabled) binds the
+  proof code to the canonical `sjas-axiom` certificate, generating the Henkin
+  proof of the system's own SelfCons sentence rather than checking it.
+  Concurring with the [interdev review](docs/interdev/2026-06-13-adr-0095-proof-synthesis-review.md),
+  three localized repairs: construct via the canonical builder
+  `sjas-internal-code-termo` rather than the presented-code reader run backward
+  (the reader reads numerals arithmetically and is deliberately not a
+  bijection — see [the discussion](docs/log/2026-06-13-arithmetic-numeral-reader-and-bijection.md));
+  harden the compact reader's forward direction by tying the `code-N`
+  argument count to the declared byte-count; extract
+  `sjas-tableau-proof-destructureo` for reuse across the checking and
+  synthesizing branches. Red/green: reader-rejection unit test red→green,
+  plus a canonical-builder contract test and two `^:slow` end-to-end synthesis
+  selectors (beta + SelfCons). Gates: `lein test-proflog-fast` (`175`/`691`),
+  SJAS not-slow (`140` vars, `993` assertions), slow lane one-JVM-per-var all
+  green; probe synthesis case `certificate-match=true` for both profiles
+  (`tableau0` 4.9 s, `level1` 11.9 s). The two `subst-prf` negative selectors
+  remain pre-existing envelope-exceeders, unchanged by this ADR; their
+  tractability (subgoal tabling / Track 2a relevance prefilter) is a successor
+  concern. See [AAR-0095](docs/aar/AAR-0095-sjas-proof-synthesis.md).
 - Completed [ADR-0097](docs/adr/ADR-0097-sjas-structural-proof-tree-audit.md)
   on `adr-0097-sjas-structural-proof-tree-audit` as the next Track 2 proof-
   object audit. `proflog.sjas-correspondence` now parses first-fragment
@@ -61,6 +83,23 @@ complete contemporaneous transcript.
 
 ## 2026-06-10
 
+- Logged verbatim the SelfCons execution discussion — whether the artifact
+  has executed self-verification, the concrete 27/60/180-byte fixed-point
+  sentences, the exact reconstruction relations and rules, and the
+  synthesis-mode elaboration — as
+  [SelfCons Execution Discussion](docs/log/2026-06-10-selfcons-execution-discussion.md).
+- Reviewed the dual subst-prf probes at 9h07m (pre-0094) and 1h30m
+  (post-0094) elapsed, 84 stack samples each: keyword-lookup frames fell
+  from 58/84 samples to 0 and `LVar.equals` from 20 to 0 (ADR-0094
+  confirmed at scale); the ADR-0090 scanner's deep descent appears in only
+  2/84 samples, so its speculative lazy-worklist refinement is not
+  justified; the residual profile is walk/occurs over variable-dense terms
+  — structural search width, with constant-factor levers exhausted. Both
+  probes still running, logs durable.
+- Opened [ADR-0095](docs/adr/ADR-0095-sjas-proof-synthesis.md): citation
+  proof synthesis via fresh-variable `tableau-proof/3` queries (the
+  runtime generating the Henkin proof of its own consistency rather than
+  checking it), plus a structural-synthesis behavior probe.
 - Started [ADR-0093](docs/adr/ADR-0093-core-logic-canonical-regression-suite.md)
   on `adr-0093-core-logic-canonical-regressions` after reviewing the
   ADR-0090 ground-term fast path. The objective is a canonical core.logic

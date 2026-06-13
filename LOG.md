@@ -22,6 +22,19 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0101](docs/adr/ADR-0101-sjas-correspondence-proof-attempt.md)
+  on `adr-0101-sjas-correspondence-proof-audit`: independently attempted to
+  prove ADR-0100's Track 2b correspondence claim against the actual structural
+  checker and proof-code grammar. The proof does **not** close as written.
+  Ordinary non-axiom formula-bearing structural proof trees still have a
+  credible Willard-tableau correspondence and a repairable size lower bound,
+  but the full ADR-0100 domain includes non-literal-`D` checker branches
+  (equality/arithmetic/profile/reflected/proof-predicate closure) and the bare
+  fixed-size `sjas-axiom` citation. The latter cannot satisfy `size(P) >= 5J`
+  as a property of `P` alone when the cited axiom formula grows via `S` and
+  `F`. Updated AAR-0100 with an erratum. See the
+  [proof attempt](docs/log/2026-06-13-sjas-correspondence-proof-attempt.md) and
+  [AAR-0101](docs/aar/AAR-0101-sjas-correspondence-proof-attempt.md).
 - Completed [ADR-0100](docs/adr/ADR-0100-sjas-correspondence-proof.md) on
   `adr-0100-sjas-correspondence-proof`: proved the Track 2b correspondence
   theorem over the first fragment —

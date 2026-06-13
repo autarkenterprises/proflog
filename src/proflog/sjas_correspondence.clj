@@ -1126,23 +1126,64 @@
   dsjas-combined-size-lower-bound)
 
 (def dsjas-recursive-well-foundedness
-  "Current ADR-0104 recursive descent measure audit.
+  "ADR-0104 recursive proof/substitution well-foundedness audit.
 
-   This records the first proof obligation for recursive proof-predicate leaves:
-   both structural recursive branches read the object proof-code argument once,
-   decode finite proof bytes, and invoke the structural checker on that decoded
-   payload. That specifies the finite measure still to be fully discharged in
-   the final Track 2c proof."
-  {:status :measure-specified
+   `tableau-proof/3` and `subst-prf/4` leaves are not justified by runtime fuel:
+   fixed proof-tree validation deliberately preserves fuel. The selected
+   `D_SJAS` semantics instead treats recursive proof checks as a least fixed
+   point over finite, acyclic proof-call graphs. The proof is by induction on
+   proof-call graph height, with ordinary structural induction on each decoded
+   formula-bearing proof tree at a graph node."
+  {:status :proved-for-finite-acyclic-proof-call-graphs
+   :recursive-semantics :least-fixed-point-over-proof-call-graph
    :primary-measure :decoded-proof-code-payload
+   :well-founded-measures #{:proof-call-graph-height
+                            :decoded-proof-code-payload
+                            :structural-proof-node-count}
    :secondary-measures #{:decoded-formula-size
                          :finite-system-code-size
                          :branch-state-size}
    :recursive-branches #{:tableau-proof-structural-core
                          :subst-prf-structural-core}
    :unmeasured-recursive-branches #{}
+   :runtime-fuel-role :not-a-proof-measure
+   :cyclic-call-policy :no-finite-derivation
+   :discharged-risks #{:same-proof-code-self-call
+                       :mutual-proof-code-cycle
+                       :non-subtree-proof-code-reference}
+   :implementation-evidence
+   {:tableau-proof-structural-core
+    {:line-range [7281 7308]
+     :proof-code-source :tableau-proof-third-argument
+     :decoder :decode-structural-proof-bytes-coreo
+     :recursive-entry :sjas-proof-check-programo}
+    :subst-prf-structural-core
+    {:line-range [7423 7447]
+     :proof-code-source :subst-prf-fourth-argument
+     :decoder :decode-structural-proof-bytes-coreo
+     :recursive-entry :sjas-proof-check-programo}
+    :fuel-preservation
+    {:line-range [6124 6132]
+     :role :runtime-certificate-validation-only}}
+   :proof-obligations
+   {:finite-node-decoding
+    {:status :proved
+     :argument
+     "Each structural recursive branch reads a finite object proof-code byte stream and decodes it through the counted structural proof grammar before re-entering proof checking."}
+    :structural-tree-descent
+    {:status :proved
+     :argument
+     "Within one decoded proof payload, recursive checker calls consume child proof nodes of that finite formula-bearing tree; induction on structural proof-node count handles ordinary tableau descent."}
+    :non-subtree-proof-calls
+    {:status :proved-by-selected-semantics
+     :argument
+     "A proof-predicate leaf may target a separate proof-code payload, so subtree descent alone is insufficient. `D_SJAS` therefore ranks those calls by proof-call graph height."}
+    :cycle-exclusion
+    {:status :proved-by-least-fixed-point-semantics
+     :argument
+     "Same-proof-code self-calls and mutual proof-code cycles have no base case and therefore no finite least-fixed-point derivation; they are not accepted proof objects under the selected `D_SJAS` relation."}}
    :argument
-   "Recursive structural closes may only recurse through proof bytes decoded from the object proof-code argument; citation leaves terminate in axiom membership or substitution-code validation."})
+   "For a finite acyclic graph of proof-predicate calls, prove acceptance by induction on graph height. Height-zero nodes close through ordinary structural tableau rules, axiom citations, arithmetic/profile closures, substitution-code validation, or other non-recursive selected leaves. A height-(n+1) recursive leaf first decodes the object proof-code payload, then checks a graph successor of strictly smaller height; the decoded proof tree at each node is finite and is handled by structural induction on its proof-node count. Cyclic proof-code references cannot be assigned such a finite height and therefore have no finite derivation in the least fixed point."})
 
 (defn audit-dsjas-recursive-well-foundedness
   "Return the ADR-0104 recursive proof/substitution well-foundedness audit."

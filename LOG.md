@@ -37,7 +37,11 @@ complete contemporaneous transcript.
   assertions. Follow-up in the same ADR added an explicit combined-size
   lower-bound audit covering `sjas-axiom` citation objects and formula-bearing
   structural proof trees; focused correspondence tests then passed with 35
-  tests / 427 assertions. See
+  tests / 427 assertions. A further recursive well-foundedness slice upgraded
+  the proof/substitution audit from a named measure to a least-fixed-point proof
+  over finite acyclic proof-call graphs, with same-code and mutual proof-code
+  cycles classified as having no finite derivation. Focused correspondence tests
+  then passed with 35 tests / 432 assertions. See
   [D_SJAS Track 2c Kickoff](docs/log/2026-06-13-dsjas-track2c-kickoff.md).
 - Completed [ADR-0103](docs/adr/ADR-0103-sjas-proof-attempts-a-b.md)
   on `adr-0103-sjas-proof-attempts-a-b`: completed the corrected Path A/Path B

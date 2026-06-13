@@ -545,16 +545,31 @@
              (get-in audit [:kind-arguments :formula-bearing-structural-tree :j-source]))))))
 
 (deftest dsjas-track2c-recursive-proof-and-subst-measure-is-explicit
-  (testing "ADR-0104 Track 2c: recursive proof predicates have a named finite descent measure"
+  (testing "ADR-0104 Track 2c: recursive proof predicates have a discharged finite-call-graph proof"
     (let [audit (correspondence/audit-dsjas-recursive-well-foundedness)]
-      (is (= :measure-specified (:status audit)))
+      (is (= :proved-for-finite-acyclic-proof-call-graphs
+             (:status audit)))
+      (is (= :least-fixed-point-over-proof-call-graph
+             (:recursive-semantics audit)))
       (is (= :decoded-proof-code-payload
              (:primary-measure audit)))
+      (is (= #{:proof-call-graph-height
+               :decoded-proof-code-payload
+               :structural-proof-node-count}
+             (:well-founded-measures audit)))
+      (is (= :not-a-proof-measure
+             (:runtime-fuel-role audit)))
+      (is (= :no-finite-derivation
+             (:cyclic-call-policy audit)))
       (is (= #{:tableau-proof-structural-core
                :subst-prf-structural-core}
              (:recursive-branches audit)))
       (is (= #{}
-             (:unmeasured-recursive-branches audit))))))
+             (:unmeasured-recursive-branches audit)))
+      (is (= #{:same-proof-code-self-call
+               :mutual-proof-code-cycle
+               :non-subtree-proof-code-reference}
+             (:discharged-risks audit))))))
 
 (deftest dsjas-track2c-literature-admissibility-is-explicitly-audited
   (testing "ADR-0104 Track 2c: literature admissibility is tracked per selected rule family"

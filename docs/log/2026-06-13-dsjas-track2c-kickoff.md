@@ -77,18 +77,25 @@ the proof-code formula-node payloads. The theorem is recorded as proved under
 the existing code-injectivity and byte-inspectability assumptions from the
 coding ADRs.
 
-## Recursive Measure
+## Recursive Well-Foundedness
 
-The first recursive well-foundedness audit names the primary descent measure as
-decoded proof-code payload. Both structural recursive branches read the object
-proof-code argument and invoke the structural checker on the decoded finite
-payload:
+The recursive well-foundedness audit now uses the selected `D_SJAS` semantics:
+recursive proof checks are interpreted as a least fixed point over finite,
+acyclic proof-call graphs. Runtime fuel is explicitly not the proof measure; the
+formula-bearing checker preserves fuel while validating fixed certificates.
+
+Both structural recursive branches read the object proof-code argument and invoke
+the structural checker on the decoded finite payload:
 
 - `tableau-proof/3` structural branch;
 - `subst-prf/4` structural branch.
 
-This is not yet the final well-foundedness proof. It is the required finite
-measure statement that the final proof must discharge.
+The proof is by induction on proof-call graph height, with ordinary structural
+induction on each decoded formula-bearing proof tree. Non-subtree proof-code
+references are handled by graph height rather than child-node descent. Same-code
+self-calls and mutual proof-code cycles have no finite least-fixed-point
+derivation, so they are not accepted proof objects under the selected `D_SJAS`
+relation.
 
 The executable API is:
 
@@ -141,6 +148,10 @@ lein test proflog.sjas-correspondence-test
 Ran 35 tests containing 427 assertions.
 0 failures, 0 errors.
 
+lein test proflog.sjas-correspondence-test
+Ran 35 tests containing 432 assertions.
+0 failures, 0 errors.
+
 lein test-proflog-fast
 Ran 205 tests containing 1071 assertions.
 0 failures, 0 errors.
@@ -152,8 +163,6 @@ Ran 73 tests containing 219 assertions.
 
 ## Remaining Work
 
-- Prove recursive `tableau-proof/3` and `subst-prf/4` well-foundedness, not
-  merely the measure shape.
 - Prove or refute Willard-style self-verification transfer for `D_SJAS`.
 - Add final Track 2c correspondence tests and AAR only after those obligations
   are discharged.

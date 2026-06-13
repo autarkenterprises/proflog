@@ -257,3 +257,131 @@
                   (willard-sjas-subst-code)
                   sjas-axiom)}
              (:relevant-profile-forms audit))))))
+
+(deftest proof-symbol-fragment-boundary-covers-every-encoded-symbol
+  (testing "Track 2b fragment admission is explicit for the whole proof-symbol alphabet"
+    (is (= #{}
+           (set/difference (set sjas-code/proof-symbols)
+                           (set (keys correspondence/proof-symbol-fragment-boundaries)))))
+    (doseq [[sym boundary] correspondence/proof-symbol-fragment-boundaries]
+      (is (contains? #{:sjas-axiom-citation
+                       :outside-first-fragment
+                       :excluded}
+                     (:fragment-status boundary))
+          (str sym " must have a recognized fragment status"))
+      (is (seq (:fragment-obligation boundary))
+          (str sym " must describe its Track 2b obligation")))))
+
+(deftest first-correspondence-fragment-admits-structural-tableaux-and-axiom-citations
+  (testing "formula-bearing tableau nodes and bare axiom citations are distinct admitted fragments"
+    (is (= :formula-bearing-tableau
+           (:fragment-status
+             (correspondence/audit-first-correspondence-fragment
+               '(2 12 7 (1 4))))))
+    (is (= #{}
+           (:blocking-symbols
+             (correspondence/audit-first-correspondence-fragment
+               '(2 12 7 (1 4))))))
+    (is (= :sjas-axiom-citation
+           (:fragment-status
+             (correspondence/audit-first-correspondence-fragment 'sjas-axiom))))
+    (is (= #{'sjas-axiom}
+           (:admitted-symbols
+             (correspondence/audit-first-correspondence-fragment 'sjas-axiom))))))
+
+(deftest legacy-proof-rule-tags-are-classified-but-not-admitted-to-first-fragment
+  (testing "encoded legacy proof traces remain outside the formula-bearing correspondence fragment"
+    (let [audit (correspondence/audit-first-correspondence-fragment
+                  '(conj (false-close)))]
+      (is (= :outside-first-fragment
+             (:fragment-status audit)))
+      (is (= #{'conj 'false-close}
+             (:blocking-symbols audit)))
+      (is (= :outside-first-fragment
+             (:fragment-status
+               (correspondence/classify-proof-symbol-fragment 'conj))))
+      (is (= :outside-first-fragment
+             (:fragment-status
+               (correspondence/classify-proof-symbol-fragment 'false-close)))))))
+
+(deftest sidecar-and-answer-overlay-evidence-remain-outside-first-fragment
+  (testing "explicitly excluded encoded evidence does not enter the first correspondence fragment"
+    (let [sidecar-audit (correspondence/audit-first-correspondence-fragment
+                          '(profiled propositional (conj (false-close))))
+          query-audit (correspondence/audit-first-correspondence-fragment
+                        '(query-neg-call-guarded-alt
+                           (guarded-call-seq-defer
+                             (guarded-call-seq-done))))]
+      (is (= :outside-first-fragment
+             (:fragment-status sidecar-audit)))
+      (is (= :outside-first-fragment
+             (:fragment-status query-audit)))
+      (is (contains? (:excluded-symbols sidecar-audit) 'propositional))
+      (is (contains? (:excluded-symbols query-audit) 'query-neg-call-guarded-alt))
+      (is (contains? (:excluded-symbols query-audit) 'guarded-call-seq-defer)))))
+
+(deftest structural-proof-tree-audit-reports-flat-node-size-and-shape
+  (testing "flat formula-byte nodes expose finite tree and byte-size metrics"
+    (let [audit (correspondence/audit-structural-proof-tree
+                  '(3 10 11 12
+                      (2 20 21)
+                      (1 7)))]
+      (is (:valid? audit))
+      (is (= {:node-count 3
+              :leaf-count 2
+              :max-depth 2
+              :formula-byte-count 6
+              :child-counts [2 0 0]}
+             (select-keys audit [:node-count
+                                 :leaf-count
+                                 :max-depth
+                                 :formula-byte-count
+                                 :child-counts])))
+      (is (= [[10 11 12] [20 21] [7]]
+             (:formula-byte-payloads audit))))))
+
+(deftest structural-proof-tree-audit-reports-wide-node-size-and-shape
+  (testing "wide formula-byte nodes use a non-empty byte list payload"
+    (let [audit (correspondence/audit-structural-proof-tree
+                  '((10 11 12 13)
+                    (1 7)))]
+      (is (:valid? audit))
+      (is (= {:node-count 2
+              :leaf-count 1
+              :max-depth 2
+              :formula-byte-count 5
+              :child-counts [1 0]}
+             (select-keys audit [:node-count
+                                 :leaf-count
+                                 :max-depth
+                                 :formula-byte-count
+                                 :child-counts])))
+      (is (= [[10 11 12 13] [7]]
+             (:formula-byte-payloads audit))))))
+
+(deftest structural-proof-tree-audit-rejects-malformed-symbol-free-terms
+  (testing "symbol-free is not enough: structural tableaux must have valid byte payloads and children"
+    (let [short-flat (correspondence/audit-structural-proof-tree '(3 10 11))
+          bad-byte (correspondence/audit-structural-proof-tree '(1 64))
+          bad-child (correspondence/audit-structural-proof-tree '(1 7 (1 64)))]
+      (is (false? (:valid? short-flat)))
+      (is (contains? (:error-reasons short-flat) :flat-byte-count-mismatch))
+      (is (false? (:valid? bad-byte)))
+      (is (contains? (:error-reasons bad-byte) :invalid-byte))
+      (is (false? (:valid? bad-child)))
+      (is (contains? (:error-reasons bad-child) :invalid-byte)))))
+
+(deftest first-correspondence-fragment-requires-valid-structural-tableaux
+  (testing "the first-fragment audit distinguishes valid structural trees from malformed symbol-free lists"
+    (let [valid-audit (correspondence/audit-first-correspondence-fragment
+                        '(2 10 11 (1 7)))
+          malformed-audit (correspondence/audit-first-correspondence-fragment
+                            '(2 10))]
+      (is (= :formula-bearing-tableau
+             (:fragment-status valid-audit)))
+      (is (:valid? (:structural-proof-summary valid-audit)))
+      (is (= :malformed-structural-tableau
+             (:fragment-status malformed-audit)))
+      (is (false? (:valid? (:structural-proof-summary malformed-audit))))
+      (is (contains? (:error-reasons (:structural-proof-summary malformed-audit))
+                     :flat-byte-count-mismatch)))))

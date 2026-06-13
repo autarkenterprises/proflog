@@ -88,9 +88,13 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0085](AAR-0085-sjas-structural-quantifier-sibling-scheduling.md) | [ADR-0085](../adr/ADR-0085-sjas-structural-quantifier-sibling-scheduling.md) | completed |
 | [AAR-0086](AAR-0086-sjas-tableau0-zero-one-selfcons-target.md) | [ADR-0086](../adr/ADR-0086-sjas-tableau0-zero-one-selfcons-target.md) | completed |
 | [AAR-0087](AAR-0087-sjas-level1-pi-star-1-pair-restriction.md) | [ADR-0087](../adr/ADR-0087-sjas-level1-pi-star-1-pair-restriction.md) | completed |
+| [AAR-0088](AAR-0088-sjas-whole-program-query-runtime.md) | [ADR-0088](../adr/ADR-0088-sjas-whole-program-query-runtime.md) | completed |
 | [AAR-0089](AAR-0089-sjas-group3-presented-code-representation.md) | [ADR-0089](../adr/ADR-0089-sjas-group3-presented-code-representation.md) | completed |
 | [AAR-0090](AAR-0090-core-logic-ground-term-walk-fast-path.md) | [ADR-0090](../adr/ADR-0090-core-logic-ground-term-walk-fast-path.md) | completed |
 | [AAR-0091](AAR-0091-sjas-citation-evidence-restoration.md) | [ADR-0091](../adr/ADR-0091-sjas-citation-evidence-restoration.md) | completed |
 | [AAR-0092](AAR-0092-sjas-nnf-pi-star-1-encodability.md) | [ADR-0092](../adr/ADR-0092-sjas-nnf-pi-star-1-encodability.md) | completed |
-| [AAR-0088](AAR-0088-sjas-whole-program-query-runtime.md) | [ADR-0088](../adr/ADR-0088-sjas-whole-program-query-runtime.md) | completed |
+| [AAR-0093](AAR-0093-core-logic-canonical-regression-suite.md) | [ADR-0093](../adr/ADR-0093-core-logic-canonical-regression-suite.md) | completed |
 | [AAR-0094](AAR-0094-core-logic-lvar-equality-fast-path.md) | [ADR-0094](../adr/ADR-0094-core-logic-lvar-equality-fast-path.md) | completed |
+| [AAR-0095](AAR-0095-sjas-proof-synthesis.md) | [ADR-0095](../adr/ADR-0095-sjas-proof-synthesis.md) | completed |
+| [AAR-0096](AAR-0096-sjas-correspondence-fragment-audit.md) | [ADR-0096](../adr/ADR-0096-sjas-correspondence-fragment-audit.md) | completed |
+| [AAR-0097](AAR-0097-sjas-structural-proof-tree-audit.md) | [ADR-0097](../adr/ADR-0097-sjas-structural-proof-tree-audit.md) | completed |

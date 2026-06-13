@@ -271,11 +271,60 @@
     :aspect :generic-sidecar
     :obligation "Reject generic sidecar closure from SJAS proof-predicate validation paths."}})
 
+(defn- proof-symbol-fragment-boundary
+  "Return the first-fragment boundary record for one encoded proof symbol.
+
+   ADR-0096 keeps this separate from Track 2a relevance classification. A
+   symbol may be encoded and relevant for audit purposes while still being
+   outside the first Track 2b correspondence fragment. The first fragment admits
+   formula-bearing structural tableau nodes, which have no proof-symbol tags,
+   plus the bare `sjas-axiom` citation certificate."
+  [sym]
+  (let [classification (get proof-symbol-classifications sym)]
+    (cond
+      (= 'sjas-axiom sym)
+      {:fragment-status :sjas-axiom-citation
+       :classification-status (:status classification)
+       :classification-aspect (:aspect classification)
+       :fragment-obligation
+       "Admit only as the bare axiom-citation certificate, with axiom membership checked separately."}
+
+      (= :excluded (:status classification))
+      {:fragment-status :excluded
+       :classification-status (:status classification)
+       :classification-aspect (:aspect classification)
+       :fragment-obligation
+       "Keep encoded for inspection, but reject from SJAS proof-predicate certificates."}
+
+      :else
+      {:fragment-status :outside-first-fragment
+       :classification-status (:status classification)
+       :classification-aspect (:aspect classification)
+       :fragment-obligation
+       "Do not admit to the first formula-bearing tableau fragment until Track 2b proves primitive status, bounded macro expansion, wrapper erasure, or unreachability."})))
+
+(def proof-symbol-fragment-boundaries
+  "First Track 2b fragment boundary for each encoded proof symbol.
+
+   `proof-symbol-classifications` answers whether a symbol is relevant,
+   excluded, or unresolved for correspondence analysis. This map answers the
+   different question of whether a decoded proof term containing that symbol is
+   already inside the first proof-object fragment selected for the
+   correspondence theorem."
+  (into {}
+        (map (fn [sym] [sym (proof-symbol-fragment-boundary sym)]))
+        sjas-code/proof-symbols))
+
 (defn classify-proof-symbol
   "Return the Track 2a classification for a proof symbol, or nil when the symbol
    is not part of the current SJAS proof-certificate alphabet."
   [sym]
   (get proof-symbol-classifications sym))
+
+(defn classify-proof-symbol-fragment
+  "Return the first-fragment boundary for one encoded proof symbol."
+  [sym]
+  (get proof-symbol-fragment-boundaries sym))
 
 (defn classify-profile-form
   "Return the path-sensitive Track 2a classification for a concrete profiled
@@ -294,6 +343,137 @@
 (defn- profile-form?
   [form]
   (boolean (classify-profile-form form)))
+
+(defn- proof-byte?
+  [value]
+  (and (integer? value)
+       (<= 0 value)
+       (< value sjas-code/byte-base)))
+
+(defn- structural-error
+  [path reason details]
+  (merge {:path path
+          :reason reason}
+         details))
+
+(defn- structural-proof-summary
+  [node path depth]
+  (letfn [(invalid [errors]
+            {:valid? false
+             :node-count 0
+             :leaf-count 0
+             :max-depth depth
+             :formula-byte-count 0
+             :child-counts []
+             :formula-byte-payloads []
+             :errors errors})
+          (combine [formula-bytes children child-summaries local-errors]
+            (let [all-errors (into (vec local-errors)
+                                   (mapcat :errors child-summaries))]
+              {:valid? (empty? all-errors)
+               :node-count (inc (reduce + 0 (map :node-count child-summaries)))
+               :leaf-count (if (seq children)
+                             (reduce + 0 (map :leaf-count child-summaries))
+                             1)
+               :max-depth (reduce max depth (map :max-depth child-summaries))
+               :formula-byte-count (+ (count formula-bytes)
+                                      (reduce + 0
+                                              (map :formula-byte-count
+                                                   child-summaries)))
+               :child-counts (into [(count children)]
+                                   (mapcat :child-counts child-summaries))
+               :formula-byte-payloads (into [(vec formula-bytes)]
+                                            (mapcat :formula-byte-payloads
+                                                    child-summaries))
+               :errors all-errors}))
+          (summarize-children [children]
+            (map-indexed (fn [idx child]
+                           (structural-proof-summary child
+                                                     (conj path :children idx)
+                                                     (inc depth)))
+                         children))]
+    (cond
+      (not (sequential? node))
+      (invalid [(structural-error path
+                                  :non-list-node
+                                  {:value node})])
+
+      (empty? node)
+      (invalid [(structural-error path :empty-node {})])
+
+      (sequential? (first node))
+      (let [formula-bytes (vec (first node))
+            children (rest node)
+            local-errors (cond-> []
+                           (empty? formula-bytes)
+                           (conj (structural-error (conj path :formula-bytes)
+                                                   :empty-wide-byte-payload
+                                                   {}))
+                           true
+                           (into (keep-indexed
+                                   (fn [idx byte]
+                                     (when-not (proof-byte? byte)
+                                       (structural-error
+                                         (conj path :formula-bytes idx)
+                                         :invalid-byte
+                                         {:value byte})))
+                                   formula-bytes)))]
+        (combine formula-bytes
+                 children
+                 (summarize-children children)
+                 local-errors))
+
+      (integer? (first node))
+      (let [byte-count (first node)
+            after-count (rest node)
+            available-byte-count (count after-count)
+            enough-bytes? (<= byte-count available-byte-count)
+            formula-bytes (if enough-bytes?
+                            (take byte-count after-count)
+                            after-count)
+            children (if enough-bytes?
+                       (drop byte-count after-count)
+                       '())
+            local-errors (cond-> []
+                           (not (and (pos? byte-count)
+                                     (< byte-count sjas-code/byte-base)))
+                           (conj (structural-error (conj path :byte-count)
+                                                   :invalid-flat-byte-count
+                                                   {:value byte-count}))
+                           (not enough-bytes?)
+                           (conj (structural-error path
+                                                   :flat-byte-count-mismatch
+                                                   {:expected byte-count
+                                                    :actual available-byte-count}))
+                           true
+                           (into (keep-indexed
+                                   (fn [idx byte]
+                                     (when-not (proof-byte? byte)
+                                       (structural-error
+                                         (conj path :formula-bytes idx)
+                                         :invalid-byte
+                                         {:value byte})))
+                                   formula-bytes)))]
+        (combine formula-bytes
+                 children
+                 (summarize-children children)
+                 local-errors))
+
+      :else
+      (invalid [(structural-error (conj path :head)
+                                  :invalid-node-head
+                                  {:value (first node)})]))))
+
+(defn audit-structural-proof-tree
+  "Summarize a formula-bearing structural tableau proof term.
+
+   This is a Track 2 audit helper, not a semantic proof checker. It validates
+   the proof object shape consumed by the SJAS structural checker and exposes
+   finite tree and byte-size metrics needed by the correspondence proof work."
+  [proof-term]
+  (let [summary (structural-proof-summary proof-term [] 1)
+        reasons (into #{} (map :reason (:errors summary)))]
+    (assoc summary :error-reasons reasons)))
 
 (defn audit-proof-term
   "Summarize the correspondence obligations present in a decoded proof term.
@@ -330,3 +510,38 @@
      :probably-excluded-profile-forms (profile-by-status :probably-excluded)
      :unencodable-symbols (into #{} (remove encodable?) steps)
      :unclassified-symbols (into #{} (remove known?) steps)}))
+
+(defn audit-first-correspondence-fragment
+  "Classify a decoded proof term against the first Track 2b fragment.
+
+   The first fragment is intentionally narrower than the encoded proof alphabet:
+   formula-bearing structural tableau nodes contain no proof-symbol tags, while
+   the bare `sjas-axiom` symbol is the one admitted citation certificate. Any
+   other symbol-bearing proof term remains outside this fragment until a later
+   correspondence slice proves how to admit or erase the involved symbols."
+  [proof-term]
+  (let [audit (audit-proof-term proof-term)
+        symbols (:symbols audit)
+        structural-summary (when (and (not= 'sjas-axiom proof-term)
+                                      (empty? symbols))
+                             (audit-structural-proof-tree proof-term))
+        fragment-status (cond
+                          (= 'sjas-axiom proof-term) :sjas-axiom-citation
+                          (and structural-summary
+                               (:valid? structural-summary))
+                          :formula-bearing-tableau
+                          structural-summary :malformed-structural-tableau
+                          :else :outside-first-fragment)
+        blocking-symbols (if (= :outside-first-fragment fragment-status)
+                           symbols
+                           #{})
+        admitted-symbols (if (= :sjas-axiom-citation fragment-status)
+                           #{'sjas-axiom}
+                           #{})]
+    (assoc audit
+           :fragment-status fragment-status
+           :admitted-symbols admitted-symbols
+           :blocking-symbols blocking-symbols
+           :structural-proof-summary structural-summary
+           :fragment-boundaries (select-keys proof-symbol-fragment-boundaries
+                                             symbols))))

@@ -100,3 +100,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0097](AAR-0097-sjas-structural-proof-tree-audit.md) | [ADR-0097](../adr/ADR-0097-sjas-structural-proof-tree-audit.md) | completed |
 | [AAR-0098](AAR-0098-sjas-equality-fragment-reachability.md) | [ADR-0098](../adr/ADR-0098-sjas-equality-fragment-reachability.md) | completed |
 | [AAR-0099](AAR-0099-sjas-track2a-completion.md) | [ADR-0099](../adr/ADR-0099-sjas-track2a-completion.md) | completed |
+| [AAR-0100](AAR-0100-sjas-correspondence-proof.md) | [ADR-0100](../adr/ADR-0100-sjas-correspondence-proof.md) | completed |

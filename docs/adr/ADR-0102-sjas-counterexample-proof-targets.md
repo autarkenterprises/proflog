@@ -28,6 +28,31 @@ S = Tableau-0 system whose beta block contains a large formula F
 F = (= (f^8 1) (f^8 1))
 ```
 
+Written as the object formula used by the test:
+
+```text
+F =
+(eq
+  (app f
+    (app f
+      (app f
+        (app f
+          (app f
+            (app f
+              (app f
+                (app f
+                  (app 1)))))))))
+  (app f
+    (app f
+      (app f
+        (app f
+          (app f
+            (app f
+              (app f
+                (app f
+                  (app 1))))))))))
+```
+
 The proof predicate accepts `(P,S,F)` by axiom membership, but `P` has only
 three base-64 proof bytes, i.e. 18 bits, while the formula has `J = 18`
 application/function-symbol occurrences and therefore requires at least

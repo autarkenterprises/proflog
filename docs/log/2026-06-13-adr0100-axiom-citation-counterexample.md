@@ -35,6 +35,31 @@ t(n+1)  = (app f t(n))
 F       = (eq t8 t8)
 ```
 
+Equivalently, with the formula fully expanded:
+
+```text
+F =
+(eq
+  (app f
+    (app f
+      (app f
+        (app f
+          (app f
+            (app f
+              (app f
+                (app f
+                  (app 1)))))))))
+  (app f
+    (app f
+      (app f
+        (app f
+          (app f
+            (app f
+              (app f
+                (app f
+                  (app 1))))))))))
+```
+
 The accepted public proof code is:
 
 ```text

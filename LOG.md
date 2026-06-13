@@ -22,6 +22,24 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0105](docs/adr/ADR-0105-sjas-substate-tabling-investigation.md)
+  on `adr-0105-sjas-substate-tabling`, a tractability investigation into tabling
+  for the subst-prf negative-exhaustion wall. JVM hotspot: search-width-bound
+  (core.logic trampoline + unification driving `parse-code-payload-byteso`).
+  Surveyed both tabling facilities (core.logic `l/tabled`, constraint-store-unaware;
+  `proflog.tabling`, ADR-0017 canonical-state, kernel-only); the SJAS profile
+  search is untabled. Measured re-derivation with a conservative reify-keyed probe:
+  the hot relation `decode-syntax-formula-byteso` is **1.00×** (12 calls, 12
+  distinct, ~7.5 s each over distinct substituted candidates); the cheap
+  top-level code reader is 4.33× (13/3). **Verdict: tabling is not the systemic
+  fix** — the wall is a wide search over distinct, intrinsically expensive
+  decodes; the lever is search-width reduction (a relevance/structural prefilter
+  or a non-provability decision), not memoization. The measurement scaffolding
+  was reverted (no kernel change retained); methodology documented for
+  reproducibility. Decided *before* building, per the ADR-0100 lesson. ADRs
+  0101-0104 are the parallel agent's. See
+  [measurement note](docs/log/2026-06-13-sjas-substate-tabling-measurement.md)
+  and [AAR-0105](docs/aar/AAR-0105-sjas-substate-tabling-investigation.md).
 - Completed [ADR-0100](docs/adr/ADR-0100-sjas-correspondence-proof.md) on
   `adr-0100-sjas-correspondence-proof`: proved the Track 2b correspondence
   theorem over the first fragment —

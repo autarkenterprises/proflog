@@ -22,6 +22,26 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0100](docs/adr/ADR-0100-sjas-correspondence-proof.md) on
+  `adr-0100-sjas-correspondence-proof`: proved the Track 2b correspondence
+  theorem over the first fragment —
+  `ProflogAccepts(P,S,F) ⟺ SemPrf_D(decode(P),S,F)` with the ≥5J-bit
+  anti-compression bound. Stated Willard's `D` verbatim from willard2001 (8
+  deduction rules + branch closure + prenex* root), defined the Proflog side as
+  the inductive structural checker, and matched every checker clause to a `D`
+  rule (near 1:1, because Track 2a made the first fragment the formula-bearing
+  tree and proved all other constructors unreachable — the criteria doc's route
+  1). Proof by direct examination, honestly bounded: first fragment only, not
+  machine-checked, beta validity a stated trust boundary; unbounded-domain,
+  U-Grounding, and mechanization are named follow-ups. Added the
+  [proof document](docs/log/2026-06-13-sjas-tableau-correspondence-proof.md)
+  (discharging all 9 completion criteria for the fragment), per-rule
+  correspondence-witness tests, and an anti-compression regression. Audit/proof/
+  tests only. `lein test-proflog-fast` (`196`/`1035`), SJAS not-slow (`1060`
+  assertions), focused (`2`/`44`). Track 2b is the parallel agent's track
+  (ADR-0096/0097); taken on at the user's direction with an
+  [interdev handoff](docs/interdev/2026-06-13-adr-0100-correspondence-proof-handoff.md).
+  See [AAR-0100](docs/aar/AAR-0100-sjas-correspondence-proof.md).
 - Completed [ADR-0099](docs/adr/ADR-0099-sjas-track2a-completion.md) on
   `adr-0099-sjas-track2a-completion`, closing Track 2a of ADR-0073. Resolved the
   two remaining high-risk relevance-matrix rows via the same unreachability

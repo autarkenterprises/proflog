@@ -613,3 +613,199 @@
                         fragment-reachability-constructor-sets)]
     {:reachable-by-aspect by-aspect
      :reachable? (boolean (some seq (vals by-aspect)))}))
+
+(def sjas-structural-checker-rule-inventory
+  "Branch-level audit of `sjas-structural-proof-check-state-decodedo` (ADR-0103).
+
+   This is static proof-audit data keyed to the checker line ranges reviewed in
+   ADR-0101. It deliberately does not participate in proof search. Path A uses
+   `:path-a-status` to define the narrowed literal-Willard fragment; Path B uses
+   `:dsjas-rule-families` to name the candidate extended apparatus that would
+   be needed for full correspondence."
+  [{:id :literal-save-agenda-continuation
+    :line-range [6179 6209]
+    :path-a-status :bookkeeping-lemma
+    :path-a-obligations #{:agenda-ancestor-preservation}
+    :dsjas-rule-families #{:branch-bookkeeping}
+    :dsjas-open-obligations #{}}
+   {:id :complementary-literal-closure
+    :line-range [6210 6217]
+    :path-a-status :direct-willard
+    :path-a-obligations #{}
+    :dsjas-rule-families #{:base-tableau}
+    :dsjas-open-obligations #{}}
+   {:id :conjunction
+    :line-range [6218 6236]
+    :path-a-status :direct-willard
+    :path-a-obligations #{}
+    :dsjas-rule-families #{:base-tableau :branch-bookkeeping}
+    :dsjas-open-obligations #{}}
+   {:id :forall-once-forall-expansion
+    :line-range [6237 6313]
+    :path-a-status :quantifier-lemma
+    :path-a-obligations #{:quantifier-freshness :gamma-parameter-admissibility}
+    :dsjas-rule-families #{:base-tableau :quantifier}
+    :dsjas-open-obligations #{}}
+   {:id :exists-expansion
+    :line-range [6314 6363]
+    :path-a-status :quantifier-lemma
+    :path-a-obligations #{:quantifier-freshness}
+    :dsjas-rule-families #{:base-tableau :quantifier}
+    :dsjas-open-obligations #{}}
+   {:id :false-not-true-closure
+    :line-range [6364 6373]
+    :path-a-status :truth-lemma
+    :path-a-obligations #{:truth-constant-semantics}
+    :dsjas-rule-families #{:truth-normalization}
+    :dsjas-open-obligations #{}}
+   {:id :not-false-agenda-continuation
+    :line-range [6374 6392]
+    :path-a-status :truth-lemma
+    :path-a-obligations #{:truth-constant-semantics :agenda-ancestor-preservation}
+    :dsjas-rule-families #{:truth-normalization :branch-bookkeeping}
+    :dsjas-open-obligations #{}}
+   {:id :double-negation-and-atomic-duals
+    :line-range [6393 6482]
+    :path-a-status :direct-willard
+    :path-a-obligations #{:nnf-irrelevance}
+    :dsjas-rule-families #{:base-tableau :truth-normalization}
+    :dsjas-open-obligations #{}}
+   {:id :negation-and-implication
+    :line-range [6483 6596]
+    :path-a-status :direct-willard
+    :path-a-obligations #{:agenda-ancestor-preservation :nnf-irrelevance}
+    :dsjas-rule-families #{:base-tableau :branch-bookkeeping}
+    :dsjas-open-obligations #{}}
+   {:id :negated-and-bounded-quantifier-duals
+    :line-range [6597 6706]
+    :path-a-status :quantifier-lemma
+    :path-a-obligations #{:quantifier-freshness :bounded-guard-correctness}
+    :dsjas-rule-families #{:base-tableau :quantifier}
+    :dsjas-open-obligations #{}}
+   {:id :disequality-progress-and-storage
+    :line-range [6707 6754]
+    :path-a-status :excluded
+    :path-a-obligations #{:path-a-excluded-equality-theory}
+    :dsjas-rule-families #{:equality-theory}
+    :dsjas-open-obligations #{:equality-theory-admissibility}}
+   {:id :profile-structural-closes
+    :line-range [6755 6783]
+    :path-a-status :excluded
+    :path-a-obligations #{:path-a-excluded-profile-closures}
+    :dsjas-rule-families #{:axiom-membership
+                           :recursive-proof
+                           :substitution-proof
+                           :arithmetic-profile}
+    :dsjas-open-obligations #{:sjas-axiom-size-accounting
+                              :recursive-proof-well-foundedness
+                              :literature-admissibility}}
+   {:id :positive-equality-closures
+    :line-range [6784 6805]
+    :path-a-status :excluded
+    :path-a-obligations #{:path-a-excluded-equality-theory}
+    :dsjas-rule-families #{:equality-theory}
+    :dsjas-open-obligations #{:equality-theory-admissibility}}
+   {:id :equality-triggered-reflected-calls
+    :line-range [6806 6867]
+    :path-a-status :excluded
+    :path-a-obligations #{:path-a-excluded-equality-theory
+                          :path-a-excluded-reflected-calls}
+    :dsjas-rule-families #{:equality-theory :reflected-call}
+    :dsjas-open-obligations #{:reflected-call-admissibility
+                              :literature-admissibility}}
+   {:id :equality-agenda-continuation
+    :line-range [6868 6889]
+    :path-a-status :excluded
+    :path-a-obligations #{:path-a-excluded-equality-theory}
+    :dsjas-rule-families #{:equality-theory :branch-bookkeeping}
+    :dsjas-open-obligations #{:equality-theory-admissibility}}
+   {:id :disjunction
+    :line-range [6890 6927]
+    :path-a-status :direct-willard
+    :path-a-obligations #{}
+    :dsjas-rule-families #{:base-tableau}
+    :dsjas-open-obligations #{}}
+   {:id :direct-reflected-calls
+    :line-range [6928 6985]
+    :path-a-status :excluded
+    :path-a-obligations #{:path-a-excluded-reflected-calls}
+    :dsjas-rule-families #{:reflected-call}
+    :dsjas-open-obligations #{:reflected-call-admissibility
+                              :literature-admissibility}}
+   {:id :additional-quantifier-expansions
+    :line-range [6986 7111]
+    :path-a-status :quantifier-lemma
+    :path-a-obligations #{:quantifier-freshness :bounded-guard-correctness}
+    :dsjas-rule-families #{:base-tableau :quantifier}
+    :dsjas-open-obligations #{}}
+   {:id :true-agenda-continuation
+    :line-range [7112 7130]
+    :path-a-status :truth-lemma
+    :path-a-obligations #{:truth-constant-semantics :agenda-ancestor-preservation}
+    :dsjas-rule-families #{:truth-normalization :branch-bookkeeping}
+    :dsjas-open-obligations #{}}])
+
+(def ^:private path-a-lemma-statuses
+  "Path A statuses that remain in the narrowed theorem but require lemmas."
+  #{:bookkeeping-lemma :truth-lemma :quantifier-lemma})
+
+(defn audit-path-a-narrow-rule-inventory
+  "Summarize the ADR-0103 Path A branch inventory.
+
+   Path A keeps direct Willard branches plus branches that are allowed only after
+   explicit bookkeeping/truth/quantifier lemmas. Equality, arithmetic/profile,
+   reflected-call, and recursive proof-predicate branches are classified as
+   excluded from this narrowed theorem."
+  []
+  (let [rules sjas-structural-checker-rule-inventory
+        ids-by-status (fn [status]
+                        (into #{}
+                              (comp (filter #(= status (:path-a-status %)))
+                                    (map :id))
+                              rules))
+        known-status? #(contains? (conj path-a-lemma-statuses
+                                        :direct-willard
+                                        :excluded)
+                                  (:path-a-status %))]
+    {:rule-count (count rules)
+     :direct-willard-rule-ids (ids-by-status :direct-willard)
+     :lemma-rule-ids (into #{}
+                           (comp (filter #(path-a-lemma-statuses
+                                            (:path-a-status %)))
+                                 (map :id))
+                           rules)
+     :excluded-rule-ids (ids-by-status :excluded)
+     :unclassified-rule-ids (into #{}
+                                  (comp (remove known-status?)
+                                        (map :id))
+                                  rules)
+     :path-a-open-obligations (into #{}
+                                    (mapcat :path-a-obligations)
+                                    rules)}))
+
+(def ^:private dsjas-global-open-obligations
+  "Path B blockers that are not tied to one line range.
+
+   The branch inventory can name candidate rule families, but the full extended
+   apparatus still needs a literature-admissibility argument and a chosen
+   proof-object size accounting for bare `sjas-axiom` citations."
+  #{:sjas-axiom-size-accounting
+    :recursive-proof-well-foundedness
+    :literature-admissibility})
+
+(defn audit-dsjas-rule-inventory
+  "Summarize the ADR-0103 Path B candidate `D_SJAS` branch inventory."
+  []
+  (let [rules sjas-structural-checker-rule-inventory]
+    {:rule-count (count rules)
+     :rule-families (into #{}
+                          (mapcat :dsjas-rule-families)
+                          rules)
+     :open-obligations (into dsjas-global-open-obligations
+                             (mapcat :dsjas-open-obligations)
+                             rules)
+     :unclassified-rule-ids (into #{}
+                                  (comp (filter #(empty?
+                                                   (:dsjas-rule-families %)))
+                                        (map :id))
+                                  rules)}))

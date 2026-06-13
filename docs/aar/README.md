@@ -103,3 +103,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0100](AAR-0100-sjas-correspondence-proof.md) | [ADR-0100](../adr/ADR-0100-sjas-correspondence-proof.md) | completed |
 | [AAR-0101](AAR-0101-sjas-correspondence-proof-attempt.md) | [ADR-0101](../adr/ADR-0101-sjas-correspondence-proof-attempt.md) | completed |
 | [AAR-0102](AAR-0102-sjas-counterexample-proof-targets.md) | [ADR-0102](../adr/ADR-0102-sjas-counterexample-proof-targets.md) | completed |
+| [AAR-0103](AAR-0103-sjas-proof-attempts-a-b.md) | [ADR-0103](../adr/ADR-0103-sjas-proof-attempts-a-b.md) | completed |

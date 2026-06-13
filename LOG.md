@@ -22,6 +22,21 @@ complete contemporaneous transcript.
 
 ## 2026-06-13
 
+- Completed [ADR-0103](docs/adr/ADR-0103-sjas-proof-attempts-a-b.md)
+  on `adr-0103-sjas-proof-attempts-a-b`: advanced both corrected proof attempts
+  from ADR-0102 by adding an executable branch-level inventory of
+  `sjas-structural-proof-check-state-decodedo`. Path A now has a narrowed
+  literal-Willard audit separating 5 direct branches, 8 lemma branches, and 6
+  excluded SJAS-extension branches. Path B now has a candidate `D_SJAS`
+  inventory covering base tableau, bookkeeping, truth normalization,
+  quantifiers, equality theory, arithmetic/profile closure, axiom membership,
+  reflected calls, recursive proof, and substitution proof, with the global
+  blockers still visible. Red→green:
+  `lein test proflog.sjas-correspondence-test` failed on missing
+  `audit-path-a-narrow-rule-inventory`, then passed with 28 tests / 397
+  assertions. See [Path A proof attempt](docs/log/2026-06-13-sjas-path-a-proof-attempt.md),
+  [Path B proof attempt](docs/log/2026-06-13-sjas-path-b-proof-attempt.md), and
+  [AAR-0103](docs/aar/AAR-0103-sjas-proof-attempts-a-b.md).
 - Completed [ADR-0102](docs/adr/ADR-0102-sjas-counterexample-proof-targets.md)
   on `adr-0102-sjas-counterexample-proof-targets`: wrote an executable
   counterexample to ADR-0100 as stated. The focused test constructs a Tableau-0

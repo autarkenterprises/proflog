@@ -380,6 +380,79 @@
                  (keys correspondence/proof-symbol-classifications)))
         "no proof symbol remains :unresolved after the Track 2a completion")))
 
+(deftest path-a-rule-inventory-classifies-narrow-and-excluded-branches
+  (testing "ADR-0103 Path A: the literal-Willard proof target has an executable branch inventory"
+    (let [audit (correspondence/audit-path-a-narrow-rule-inventory)]
+      (is (= 19 (:rule-count audit)))
+      (is (= #{}
+             (:unclassified-rule-ids audit)))
+      (is (set/subset?
+            #{:conjunction
+              :complementary-literal-closure
+              :negation-and-implication
+              :disjunction}
+            (:direct-willard-rule-ids audit)))
+      (is (set/subset?
+            #{:literal-save-agenda-continuation
+              :not-false-agenda-continuation
+              :true-agenda-continuation}
+            (:lemma-rule-ids audit)))
+      (is (set/subset?
+            #{:disequality-progress-and-storage
+              :profile-structural-closes
+              :equality-triggered-reflected-calls
+              :direct-reflected-calls}
+            (:excluded-rule-ids audit)))
+      (is (contains? (:path-a-open-obligations audit)
+                     :agenda-ancestor-preservation)))))
+
+(deftest path-b-dsjas-rule-inventory-covers-extended-apparatus
+  (testing "ADR-0103 Path B: D_SJAS names every extended checker family and its remaining blockers"
+    (let [audit (correspondence/audit-dsjas-rule-inventory)]
+      (is (= 19 (:rule-count audit)))
+      (is (= #{}
+             (:unclassified-rule-ids audit)))
+      (is (set/subset?
+            #{:base-tableau
+              :branch-bookkeeping
+              :truth-normalization
+              :quantifier
+              :equality-theory
+              :arithmetic-profile
+              :axiom-membership
+              :reflected-call
+              :recursive-proof
+              :substitution-proof}
+            (:rule-families audit)))
+      (is (set/subset?
+            #{:sjas-axiom-size-accounting
+              :recursive-proof-well-foundedness
+              :literature-admissibility}
+            (:open-obligations audit))))))
+
+(deftest structural-checker-rule-inventory-covers-recorded-branch-lines
+  (testing "ADR-0103: the branch inventory covers the ADR-0101 checker audit line ranges"
+    (is (= [[6179 6209]
+            [6210 6217]
+            [6218 6236]
+            [6237 6313]
+            [6314 6363]
+            [6364 6373]
+            [6374 6392]
+            [6393 6482]
+            [6483 6596]
+            [6597 6706]
+            [6707 6754]
+            [6755 6783]
+            [6784 6805]
+            [6806 6867]
+            [6868 6889]
+            [6890 6927]
+            [6928 6985]
+            [6986 7111]
+            [7112 7130]]
+           (mapv :line-range correspondence/sjas-structural-checker-rule-inventory)))))
+
 (deftest structural-proof-tree-audit-reports-flat-node-size-and-shape
   (testing "flat formula-byte nodes expose finite tree and byte-size metrics"
     (let [audit (correspondence/audit-structural-proof-tree

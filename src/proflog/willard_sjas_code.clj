@@ -104,6 +104,8 @@
    'dbl
    'delta-star-0-code
    'div
+   'dsjas-subst-prf
+   'dsjas-tableau-proof
    'leq
    'log
    'lt
@@ -193,6 +195,8 @@
     willard-sjas-subst-source-result
     willard-sjas-subst-exprf
     willard-sjas-subst-proof-check
+    dsjas-tableau-proof-object
+    dsjas-subst-prf-object
     sjas-bind-done
     sjas-bind-num
     sjas-generated-axiom-member

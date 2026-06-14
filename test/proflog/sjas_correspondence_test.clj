@@ -55,7 +55,13 @@
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'guarded-seq-done))))
     (is (= :relevant
-           (:status (correspondence/classify-proof-symbol 'profiled))))))
+           (:status (correspondence/classify-proof-symbol 'profiled))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol
+                      'dsjas-tableau-proof-object))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol
+                      'dsjas-subst-prf-object))))))
 
 (deftest implemented-proof-checker-constructors-are-relevant
   (testing "constructors consumed by the SJAS proof checker are not stale unresolved gaps"
@@ -520,12 +526,18 @@
              (:unclassified-rule-ids spec))))))
 
 (deftest dsjas-track2c-combined-proof-object-repairs-axiom-citation-accounting
-  (testing "ADR-0104 Track 2c: sjas-axiom citations are measured as combined (S,F,P) proof objects"
+  (testing "ADR-0104 Track 2c: citations are measured as composite proof objects"
     (let [accounting (correspondence/audit-dsjas-proof-object-accounting)]
       (is (= :combined-proof-object
              (:selected-repair accounting)))
       (is (= #{:system-code :theorem-code :proof-code}
-             (:citation-measured-components accounting)))
+             (:tableau-citation-measured-components accounting)))
+      (is (= #{:system-code :substitution-code :theorem-code :proof-code}
+             (:substitution-citation-measured-components accounting)))
+      (is (= 'dsjas-tableau-proof-object
+             (get-in accounting [:proof-object-symbols :tableau-proof])))
+      (is (= 'dsjas-subst-prf-object
+             (get-in accounting [:proof-object-symbols :substitution-proof])))
       (is (= #{:proof-code}
              (:structural-measured-components accounting)))
       (is (true? (:adr-0102-counterexample-repaired? accounting))))))
@@ -535,12 +547,22 @@
     (let [audit (correspondence/audit-dsjas-combined-size-lower-bound)]
       (is (= :proved-under-code-injectivity
              (:status audit)))
-      (is (= #{:sjas-axiom-citation :formula-bearing-structural-tree}
+      (is (= #{:tableau-axiom-citation
+               :substitution-axiom-citation
+               :formula-bearing-structural-tree}
              (:covered-proof-object-kinds audit)))
       (is (= #{}
              (:uncovered-proof-object-kinds audit)))
       (is (= :theorem-code-payload
-             (get-in audit [:kind-arguments :sjas-axiom-citation :j-source])))
+             (get-in audit [:kind-arguments :tableau-axiom-citation :j-source])))
+      (is (= :theorem-code-payload
+             (get-in audit [:kind-arguments
+                            :substitution-axiom-citation
+                            :j-source])))
+      (is (= #{:system-code :substitution-code :theorem-code :proof-code}
+             (get-in audit [:kind-arguments
+                            :substitution-axiom-citation
+                            :measured-components])))
       (is (= :proof-code-formula-node-payloads
              (get-in audit [:kind-arguments :formula-bearing-structural-tree :j-source]))))))
 
@@ -562,7 +584,9 @@
       (is (= :no-finite-derivation
              (:cyclic-call-policy audit)))
       (is (= #{:tableau-proof-structural-core
-               :subst-prf-structural-core}
+               :subst-prf-structural-core
+               :dsjas-tableau-proof-structural-core
+               :dsjas-subst-prf-structural-core}
              (:recursive-branches audit)))
       (is (= #{}
              (:unmeasured-recursive-branches audit)))
@@ -630,7 +654,10 @@
              (get-in audit [:selected-length-measure :name])))
       (is (= #{:system-code :theorem-code :proof-code}
              (get-in audit [:selected-length-measure
-                            :citation-measured-components])))
+                            :tableau-citation-measured-components])))
+      (is (= #{:system-code :substitution-code :theorem-code :proof-code}
+             (get-in audit [:selected-length-measure
+                            :substitution-citation-measured-components])))
       (is (= #{:proof-code}
              (get-in audit [:selected-length-measure
                             :structural-measured-components])))

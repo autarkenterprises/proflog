@@ -22,6 +22,26 @@ complete contemporaneous transcript.
 
 ## 2026-06-14
 
+- Completed [ADR-0109](docs/adr/ADR-0109-dsjas-composite-proof-object-internalization.md)
+  on `adr-0109-dsjas-composite-proof-object`: generated Tableau-0 and Level-1
+  SelfCons now quantify measured `D_SJAS` composite proof-object codes through
+  `dsjas-tableau-proof/3` and `dsjas-subst-prf/4`, with payloads `(S,F,P)` and
+  `(S,G,F,P)` decoded through the arithmeticized public byte/proof-code
+  relations. Public `tableau-proof/3` and `subst-prf/4` remain compatible. The
+  correspondence audit now classifies the composite proof-object symbols and
+  extends `Log_D_SJAS` accounting to the substitution object. Final gates passed:
+  `lein test-proflog-fast` with 208 tests / 1115 assertions,
+  `lein test-proflog-extended` with 73 tests / 219 assertions, and
+  `lein test-proflog-sjas` with `:SUMMARY pass=1078 fail=0 error=0`. See
+  [AAR-0109](docs/aar/AAR-0109-dsjas-composite-proof-object-internalization.md).
+- During ADR-0109 focused SJAS verification on
+  `adr-0109-dsjas-composite-proof-object`, the selector
+  `proflog.willard-sjas-test/sjas-subst-prf-checks-selfcons-fixed-point-certificate`
+  crossed 15 minutes at 2026-06-14T19:23:04Z inside
+  `lein test-proflog-sjas-focused`. The all-vars focused run was later
+  interrupted after the selector exceeded its historical 45-minute envelope; the
+  branch's SJAS gate evidence is the not-slow `lein test-proflog-sjas` run, with
+  slow fixed-point probes remaining in the recorded slow-suite lane.
 - Completed [ADR-0108](docs/adr/ADR-0108-dsjas-quantitative-ea-stability.md)
   on `adr-0108-dsjas-ea-stability`: proved quantitative EA-stability for the
   selected `D_SJAS` proof-object measure `Log_D_SJAS`, while preserving the

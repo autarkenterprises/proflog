@@ -83,11 +83,13 @@
      sjas-code-args-end
      sjas-neg-pair-structural
      wff
-     delta-star-0-code
-     pi-star-1-code
-     sigma-star-1-code
-     neg-pair
-     sjas-axiom})
+	     delta-star-0-code
+	     pi-star-1-code
+	     sigma-star-1-code
+	     neg-pair
+	     sjas-axiom
+	     dsjas-tableau-proof-object
+	     dsjas-subst-prf-object})
 
 (def ^:private relevant-equality-symbols
   "Equality, disequality, and equality-triggered proof constructors consumed by
@@ -1072,16 +1074,25 @@
   "ADR-0104 proof-size accounting repair for `D_SJAS`.
 
    The ADR-0102 counterexample refutes measuring a bare `sjas-axiom` citation by
-   `P` alone. Track 2c repairs this by measuring citation leaves as the
-   combined, inspectable object `(S,F,P)`: the system code supplies the axiom
-   basis, the theorem code supplies the cited formula, and the proof code
-   supplies the citation marker. Structural proof trees keep the ordinary
+   `P` alone. Track 2c repairs this by measuring recursive proof-predicate
+   leaves as composite, inspectable objects. Tableau proof leaves use `(S,F,P)`;
+   substitution-proof leaves use `(S,G,F,P)`, where `G` is the substitution
+   source/skeleton code. Structural proof trees keep the ordinary
    formula-bearing proof-code measure."
   {:selected-repair :combined-proof-object
-   :citation-measured-components #{:system-code :theorem-code :proof-code}
+   :proof-object-symbols {:tableau-proof 'dsjas-tableau-proof-object
+                          :substitution-proof 'dsjas-subst-prf-object}
+   :tableau-citation-measured-components #{:system-code
+                                            :theorem-code
+                                            :proof-code}
+   :substitution-citation-measured-components #{:system-code
+                                                :substitution-code
+                                                :theorem-code
+                                                :proof-code}
    :structural-measured-components #{:proof-code}
    :citation-size-source
    {:system-code "Decoded finite axiom basis and profile/fixed-point payload."
+    :substitution-code "Decoded substitution source or fixed-point skeleton payload."
     :theorem-code "Decoded cited theorem/axiom formula payload."
     :proof-code "Decoded `sjas-axiom` citation marker."}
    :adr-0102-counterexample-repaired? true})
@@ -1096,20 +1107,32 @@
 
    The result is stated under the same code-injectivity and byte-inspectability
    assumptions already used by the SJAS coding ADRs. Citation objects now count
-   theorem and system payloads, so the ADR-0102 fixed-size `P` counterexample no
-   longer hides the formula occurrences being measured. Structural objects keep
-   the ADR-0097 formula-bearing proof-tree argument."
+   theorem, system, and substitution payloads where applicable, so the ADR-0102
+   fixed-size `P` counterexample no longer hides the formula occurrences being
+   measured. Structural objects keep the ADR-0097 formula-bearing proof-tree
+   argument."
   {:status :proved-under-code-injectivity
-   :covered-proof-object-kinds #{:sjas-axiom-citation
+   :covered-proof-object-kinds #{:tableau-axiom-citation
+                                 :substitution-axiom-citation
                                  :formula-bearing-structural-tree}
    :uncovered-proof-object-kinds #{}
    :kind-arguments
-   {:sjas-axiom-citation
+   {:tableau-axiom-citation
     {:measure :combined-proof-object
-     :measured-components #{:system-code :theorem-code :proof-code}
+     :object-symbol 'dsjas-tableau-proof-object
+     :measured-components (:tableau-citation-measured-components
+                            dsjas-proof-object-accounting)
      :j-source :theorem-code-payload
      :argument
      "Every function/application occurrence of the cited formula is in the measured theorem-code payload, while system-code bytes account for the finite axiom basis that made the citation legal."}
+    :substitution-axiom-citation
+    {:measure :combined-proof-object
+     :object-symbol 'dsjas-subst-prf-object
+     :measured-components (:substitution-citation-measured-components
+                            dsjas-proof-object-accounting)
+     :j-source :theorem-code-payload
+     :argument
+     "Every function/application occurrence of the cited theorem is in the measured theorem-code payload, while system-code and substitution-code bytes account for the finite axiom basis and fixed substitution source that make the substitution proof legal."}
     :formula-bearing-structural-tree
     {:measure :proof-code
      :measured-components #{:proof-code}
@@ -1128,12 +1151,13 @@
 (def dsjas-recursive-well-foundedness
   "ADR-0104 recursive proof/substitution well-foundedness audit.
 
-   `tableau-proof/3` and `subst-prf/4` leaves are not justified by runtime fuel:
-   fixed proof-tree validation deliberately preserves fuel. The selected
-   `D_SJAS` semantics instead treats recursive proof checks as a least fixed
-   point over finite, acyclic proof-call graphs. The proof is by induction on
-   proof-call graph height, with ordinary structural induction on each decoded
-   formula-bearing proof tree at a graph node."
+   Public `tableau-proof/3` and `subst-prf/4` leaves, and the measured
+   `dsjas-tableau-proof/3` and `dsjas-subst-prf/4` leaves used by SelfCons, are
+   not justified by runtime fuel: fixed proof-tree validation deliberately
+   preserves fuel. The selected `D_SJAS` semantics instead treats recursive proof
+   checks as a least fixed point over finite, acyclic proof-call graphs. The
+   proof is by induction on proof-call graph height, with ordinary structural
+   induction on each decoded formula-bearing proof tree at a graph node."
   {:status :proved-for-finite-acyclic-proof-call-graphs
    :recursive-semantics :least-fixed-point-over-proof-call-graph
    :primary-measure :decoded-proof-code-payload
@@ -1144,26 +1168,40 @@
                          :finite-system-code-size
                          :branch-state-size}
    :recursive-branches #{:tableau-proof-structural-core
-                         :subst-prf-structural-core}
+                         :subst-prf-structural-core
+                         :dsjas-tableau-proof-structural-core
+                         :dsjas-subst-prf-structural-core}
    :unmeasured-recursive-branches #{}
    :runtime-fuel-role :not-a-proof-measure
    :cyclic-call-policy :no-finite-derivation
    :discharged-risks #{:same-proof-code-self-call
                        :mutual-proof-code-cycle
                        :non-subtree-proof-code-reference}
-   :implementation-evidence
-   {:tableau-proof-structural-core
-    {:line-range [7281 7308]
-     :proof-code-source :tableau-proof-third-argument
-     :decoder :decode-structural-proof-bytes-coreo
-     :recursive-entry :sjas-proof-check-programo}
-    :subst-prf-structural-core
-    {:line-range [7423 7447]
-     :proof-code-source :subst-prf-fourth-argument
-     :decoder :decode-structural-proof-bytes-coreo
-     :recursive-entry :sjas-proof-check-programo}
-    :fuel-preservation
-    {:line-range [6124 6132]
+	   :implementation-evidence
+	   {:tableau-proof-structural-core
+	    {:line-range [7541 7568]
+	     :proof-code-source :tableau-proof-third-argument
+	     :decoder :decode-structural-proof-bytes-coreo
+	     :recursive-entry :sjas-proof-check-programo}
+	    :subst-prf-structural-core
+	    {:line-range [7634 7706]
+	     :proof-code-source :subst-prf-fourth-argument
+	     :decoder :decode-structural-proof-bytes-coreo
+	     :recursive-entry :sjas-proof-check-programo}
+	    :dsjas-tableau-proof-structural-core
+	    {:line-range [7487 7502]
+	     :proof-code-source :decoded-dsjas-tableau-proof-object
+	     :composite-object 'dsjas-tableau-proof-object
+	     :decoder :decode-structural-proof-bytes-coreo
+	     :recursive-entry :sjas-proof-check-programo}
+	    :dsjas-subst-prf-structural-core
+	    {:line-range [7504 7523]
+	     :proof-code-source :decoded-dsjas-subst-prf-object
+	     :composite-object 'dsjas-subst-prf-object
+	     :decoder :decode-structural-proof-bytes-coreo
+	     :recursive-entry :sjas-proof-check-programo}
+	    :fuel-preservation
+	    {:line-range [6124 6132]
      :role :runtime-certificate-validation-only}}
    :proof-obligations
    {:finite-node-decoding
@@ -1266,7 +1304,7 @@
                            :least-fixed-point-recursive-semantics}
    :criteria
    {:natural-tree-coding
-    "Formula-bearing structural proof trees and combined citation objects are inspectable byte-coded proof objects."
+   "Formula-bearing structural proof trees and composite tableau/substitution citation objects are inspectable byte-coded proof objects."
     :bounded-object-relations
     "Code reading, axiom membership, arithmetic/profile closure, reflected calls, substitution, and proof checks are represented as object relations over finite codes."
     :semantic-tableau-shape
@@ -1274,7 +1312,7 @@
     :selected-apparatus-labeling
     "`D_SJAS` is named as a modified selected apparatus, not identified with literal Willard `D`."
     :combined-proof-size-discipline
-    "The proof-size theorem is repaired over the combined `(S,F,P)` object for citation leaves and formula-bearing proof-code bytes for structural leaves."
+    "The proof-size theorem is repaired over composite `(S,F,P)` and `(S,G,F,P)` objects for recursive proof leaves and formula-bearing proof-code bytes for structural leaves."
     :recursive-proof-well-foundedness
     "Recursive `tableau-proof/3` and `subst-prf/4` leaves are interpreted by a least fixed point over finite acyclic proof-call graphs."
     :d-parametric-proof-predicate
@@ -1341,7 +1379,8 @@
    ADR-0102 refuted that statement with the fixed-size `sjas-axiom` citation.
    The positive theorem uses ADR-0104's selected proof-object length
    `Log_D_SJAS`: structural tableaux are measured by proof-code bytes, while
-   citation leaves are measured by the combined inspectable object `(S,F,P)`.
+   recursive proof-predicate citation leaves are measured by the composite
+   inspectable objects `(S,F,P)` and `(S,G,F,P)`.
    With that measure, the Appendix D A/E-stability contradiction proof carries
    over to `D_SJAS` by the rule-family preservation clauses above."
   {:status :proved-for-selected-combined-proof-measure
@@ -1363,15 +1402,17 @@
                   :tau 1
                   :lambda 1/2
                   :mu -1}}
-   :selected-length-measure
-   {:name :log-dsjas
-    :definition "The base-2 logarithmic length of the selected `D_SJAS` proof object."
-    :structural-measured-components (:structural-measured-components
-                                      dsjas-proof-object-accounting)
-    :citation-measured-components (:citation-measured-components
-                                   dsjas-proof-object-accounting)
-    :structural-case "For formula-bearing structural proof trees, Log_D_SJAS is the ordinary proof-code length."
-    :citation-case "For `sjas-axiom` citations, Log_D_SJAS is the combined length of decoded system-code, theorem-code, and the citation proof marker."}
+	   :selected-length-measure
+	   {:name :log-dsjas
+	    :definition "The base-2 logarithmic length of the selected `D_SJAS` proof object."
+	    :structural-measured-components (:structural-measured-components
+	                                      dsjas-proof-object-accounting)
+	    :tableau-citation-measured-components
+	    (:tableau-citation-measured-components dsjas-proof-object-accounting)
+	    :substitution-citation-measured-components
+	    (:substitution-citation-measured-components dsjas-proof-object-accounting)
+	    :structural-case "For formula-bearing structural proof trees, Log_D_SJAS is the ordinary proof-code length."
+	    :citation-case "For measured proof-predicate citations, Log_D_SJAS is the combined length of decoded system-code, theorem-code, proof marker, and substitution-code when the predicate is `dsjas-subst-prf/4`."}
    :proof-code-only-counterexample
    {:status :refuted
     :counterexample :sjas-axiom-citation

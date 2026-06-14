@@ -3302,7 +3302,7 @@
               1
               (list 'neg
                     (list 'app
-                          'tableau-proof
+                          'dsjas-tableau-proof
                           (list system-term
                                 contradiction-term
                                 (list 'var 1)))))
@@ -3321,7 +3321,7 @@
               1
               (list 'neg
                     (list 'app
-                          'tableau-proof
+                          'dsjas-tableau-proof
                           (list system-term
                                 contradiction-term
                                 (list 'var 1)))))
@@ -3404,14 +3404,14 @@
                        (list 'app 'neg-pair (list x-term y-term)))
         left-subst (list 'neg
                          (list 'app
-                               'subst-prf
+                               'dsjas-subst-prf
                                (list system-term
                                      substitution-term
                                      x-term
                                      p-term)))
         right-subst (list 'neg
                           (list 'app
-                                'subst-prf
+                                'dsjas-subst-prf
                                 (list system-term
                                       substitution-term
                                       y-term
@@ -4768,7 +4768,7 @@
               1
               (list 'neg
                     (list 'app
-                          'tableau-proof
+                          'dsjas-tableau-proof
                           (list system-term
                                 contradiction-term
                                 (list 'var 1)))))
@@ -4994,7 +4994,7 @@
                 (nominal/tie binder-nom
                              (list 'neg
                                    (list 'app
-                                         'tableau-proof
+                                         'dsjas-tableau-proof
                                          system-ast
                                          contradiction-ast
                                          (list 'var binder-nom)))))
@@ -5032,7 +5032,7 @@
                 (nominal/tie binder-nom
                              (list 'neg
                                    (list 'app
-                                         'tableau-proof
+                                         'dsjas-tableau-proof
                                          system-ast
                                          contradiction-ast
                                          (list 'var binder-nom)))))
@@ -5630,7 +5630,9 @@
 (declare sjas-proof-check-stateo
          sjas-proof-guided-selecto
          sjas-tableau-proof-structural-closeo
-         sjas-subst-prf-structural-closeo)
+         sjas-subst-prf-structural-closeo
+         sjas-dsjas-tableau-proof-structural-closeo
+         sjas-dsjas-subst-prf-structural-closeo)
 
 (defn- proof-byte-prefixo
   [remaining input bytes rest]
@@ -6778,6 +6780,22 @@
                                               neqs-out
                                               prog
                                               fuel)]
+           [(sjas-dsjas-tableau-proof-structural-closeo fml
+                                                        env
+                                                        sigma
+                                                        sigma-out
+                                                        neqs
+                                                        neqs-out
+                                                        prog
+                                                        fuel)]
+           [(sjas-dsjas-subst-prf-structural-closeo fml
+                                                    env
+                                                    sigma
+                                                    sigma-out
+                                                    neqs
+                                                    neqs-out
+                                                    prog
+                                                    fuel)]
            [(sjas-neq-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
            [(sjas-neg-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
            [(sjas-pos-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]))]
@@ -7263,6 +7281,247 @@
                                   sigma-proof
                                   proof-kind)))
 
+(defn- dsjas-code-bytes-match-coreo
+  "Read a public code term and require it to match embedded composite bytes."
+  [code embedded-bytes sigma sigma-out]
+  (fresh [actual-bytes kind]
+    (sjas-formal-code-bytes-coreo code actual-bytes sigma sigma-out kind)
+    (sjas-byte-list-equalo embedded-bytes actual-bytes)))
+
+(defn- decode-dsjas-tableau-proof-object-coreo
+  "Decode measured `D_SJAS` object `C = (S,F,P)` from public proof code."
+  [object-code system-code theorem-code proof-bytes sigma sigma-out]
+  (fresh [object-bytes object-kind sigma-object rest object
+          system-proof theorem-proof proof-proof
+          system-bytes theorem-bytes sigma-system]
+    (sjas-formal-code-bytes-coreo object-code
+                                  object-bytes
+                                  sigma
+                                  sigma-object
+                                  object-kind)
+    (decode-proof-byteso object-bytes rest object)
+    (== '() rest)
+    (== (list 'dsjas-tableau-proof-object
+              system-proof
+              theorem-proof
+              proof-proof)
+        object)
+    (proof-byte-list-termo system-proof system-bytes)
+    (proof-byte-list-termo theorem-proof theorem-bytes)
+    (proof-byte-list-termo proof-proof proof-bytes)
+    (dsjas-code-bytes-match-coreo system-code system-bytes
+                                  sigma-object sigma-system)
+    (dsjas-code-bytes-match-coreo theorem-code theorem-bytes
+                                  sigma-system sigma-out)))
+
+(defn- decode-dsjas-subst-prf-object-coreo
+  "Decode measured `D_SJAS` object `C = (S,G,F,P)` from public proof code."
+  [object-code system-code substitution-code theorem-code proof-bytes
+   sigma sigma-out]
+  (fresh [object-bytes object-kind sigma-object rest object
+          system-proof substitution-proof theorem-proof proof-proof
+          system-bytes substitution-bytes theorem-bytes sigma-system
+          sigma-substitution]
+    (sjas-formal-code-bytes-coreo object-code
+                                  object-bytes
+                                  sigma
+                                  sigma-object
+                                  object-kind)
+    (decode-proof-byteso object-bytes rest object)
+    (== '() rest)
+    (== (list 'dsjas-subst-prf-object
+              system-proof
+              substitution-proof
+              theorem-proof
+              proof-proof)
+        object)
+    (proof-byte-list-termo system-proof system-bytes)
+    (proof-byte-list-termo substitution-proof substitution-bytes)
+    (proof-byte-list-termo theorem-proof theorem-bytes)
+    (proof-byte-list-termo proof-proof proof-bytes)
+    (dsjas-code-bytes-match-coreo system-code system-bytes
+                                  sigma-object sigma-system)
+    (dsjas-code-bytes-match-coreo substitution-code substitution-bytes
+                                  sigma-system sigma-substitution)
+    (dsjas-code-bytes-match-coreo theorem-code theorem-bytes
+                                  sigma-substitution sigma-out)))
+
+(defn- sjas-dsjas-tableau-proof-destructureo
+  "Walk a negated `dsjas-tableau-proof/3` literal into its code arguments."
+  [fml env sigma system-code theorem-code proof-object-code]
+  (fresh [lit atom walked-atom]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo
+      (list 'app 'dsjas-tableau-proof system-code theorem-code proof-object-code)
+      walked-atom)))
+
+(defn- sjas-dsjas-tableau-proof-callo
+  "Destructure a measured `dsjas-tableau-proof/3` call and decode `C`."
+  [fml env sigma system-code theorem-code proof-bytes sigma-proof]
+  (fresh [proof-object-code]
+    (sjas-dsjas-tableau-proof-destructureo fml env sigma
+                                           system-code
+                                           theorem-code
+                                           proof-object-code)
+    (decode-dsjas-tableau-proof-object-coreo proof-object-code
+                                             system-code
+                                             theorem-code
+                                             proof-bytes
+                                             sigma
+                                             sigma-proof)))
+
+(defn- sjas-dsjas-subst-prf-callo
+  "Destructure a measured `dsjas-subst-prf/4` call and decode `C`."
+  [fml env sigma system-code substitution-code theorem-code proof-bytes
+   sigma-proof]
+  (fresh [lit atom walked-atom proof-object-code]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo
+      (list 'app 'dsjas-subst-prf
+            system-code substitution-code theorem-code proof-object-code)
+      walked-atom)
+    (decode-dsjas-subst-prf-object-coreo proof-object-code
+                                         system-code
+                                         substitution-code
+                                         theorem-code
+                                         proof-bytes
+                                         sigma
+                                         sigma-proof)))
+
+(defn- sjas-tableau-proof-bytes-coreo
+  "Validate a `D_SJAS` tableau proof after the selected proof bytes are known."
+  [system-code theorem-code proof-bytes sigma sigma-out neqs neqs-out prog fuel]
+  (conde
+    [(== sjas-axiom-proof-bytes proof-bytes)
+     (sjas-walked-axiom-member-coreo prog
+                                      system-code
+                                      theorem-code
+                                      sigma)
+     (== sigma sigma-out)
+     (== neqs neqs-out)]
+    [(fresh [decoded-proof neg-theorem target sigma-theorem
+             walked-system-code axiom-formula]
+       (decode-structural-proof-bytes-coreo proof-bytes decoded-proof)
+       (sjas-structural-negated-theorem-coreo prog
+                                              theorem-code
+                                              sigma
+                                              sigma-theorem
+                                              neg-theorem)
+       (sjas-system-axiom-formula-walked-coreo prog
+                                               system-code
+                                               sigma-theorem
+                                               sigma-out
+                                               walked-system-code
+                                               axiom-formula)
+       (sjas-acyclic-unifyo (list 'and axiom-formula neg-theorem) target)
+       (sjas-proof-check-programo prog
+                                  walked-system-code
+                                  target
+                                  fuel
+                                  decoded-proof)
+       (== neqs neqs-out))]))
+
+(defn- sjas-subst-prf-bytes-coreo
+  "Validate a `D_SJAS` substitution proof after selected proof bytes are known."
+  [system-code substitution-code theorem-code proof-bytes
+   sigma sigma-out neqs neqs-out prog fuel]
+  (fresh [decoded-proof axiom-formula subst-axiom-formula
+          extended-axiom-formula neg-theorem target sigma-valid sigma-proof
+          sigma-system walked-system-code walked-valid-system-code]
+    (conde
+      [(== sjas-axiom-proof-bytes proof-bytes)
+       (== 'sjas-axiom decoded-proof)
+       (conde
+         [(fresh []
+            (sjas-walked-axiom-member-coreo prog
+                                             system-code
+                                             theorem-code
+                                             sigma)
+            (sjas-subst-source-result-antecedent-coreo prog
+                                                        substitution-code
+                                                        sigma
+                                                        sigma-out
+                                                        subst-axiom-formula))]
+         [(fresh []
+            (sjas-system-code-valid-walked-coreo prog
+                                                 system-code
+                                                 sigma
+                                                 sigma-system
+                                                 walked-valid-system-code)
+            (sjas-subst-code-any-coreo prog
+                                       substitution-code
+                                       theorem-code
+                                       sigma-system
+                                       sigma-out))])]
+      [(decode-structural-proof-bytes-coreo proof-bytes decoded-proof)
+       (sjas-system-axiom-formula-walked-coreo prog
+                                               system-code
+                                               sigma
+                                               sigma-system
+                                               walked-system-code
+                                               axiom-formula)
+       (sjas-subst-source-result-antecedent-coreo prog
+                                                   substitution-code
+                                                   sigma-system
+                                                   sigma-valid
+                                                   subst-axiom-formula)
+       (sjas-structural-negated-theorem-coreo prog
+                                              theorem-code
+                                              sigma-valid
+                                              sigma-out
+                                              neg-theorem)
+       (sjas-acyclic-unifyo (list 'and axiom-formula subst-axiom-formula)
+                            extended-axiom-formula)
+       (sjas-acyclic-unifyo (list 'and extended-axiom-formula neg-theorem) target)
+       (sjas-proof-check-programo prog
+                                  walked-system-code
+                                  target
+                                  fuel
+                                  decoded-proof)])
+    (== neqs neqs-out)))
+
+(defn- sjas-dsjas-tableau-proof-coreo
+  "Proof-free measured `dsjas-tableau-proof/3` predicate relation."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (fresh [system-code theorem-code proof-bytes sigma-proof]
+    (sjas-dsjas-tableau-proof-callo fml env sigma
+                                    system-code theorem-code
+                                    proof-bytes sigma-proof)
+    (sjas-tableau-proof-bytes-coreo system-code
+                                    theorem-code
+                                    proof-bytes
+                                    sigma-proof
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    fuel)))
+
+(defn- sjas-dsjas-subst-prf-coreo
+  "Proof-free measured `dsjas-subst-prf/4` predicate relation."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (fresh [system-code substitution-code theorem-code proof-bytes sigma-proof]
+    (sjas-dsjas-subst-prf-callo fml env sigma
+                                system-code
+                                substitution-code
+                                theorem-code
+                                proof-bytes
+                                sigma-proof)
+    (sjas-subst-prf-bytes-coreo system-code
+                                substitution-code
+                                theorem-code
+                                proof-bytes
+                                sigma-proof
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                fuel)))
+
 (defn- sjas-tableau-proof-certificate-coreo
   "Proof-free `sjas-axiom` certificate branch of `tableau-proof/3`."
   [fml env sigma sigma-out neqs neqs-out prog]
@@ -7460,6 +7719,32 @@
                           fuel)
     (== '(profiled willard-sjas-subst-proof-check) proof)))
 
+(defn- sjas-dsjas-tableau-proof-closeo
+  [fml env sigma sigma-out neqs neqs-out prog fuel proof]
+  (fresh []
+    (sjas-dsjas-tableau-proof-coreo fml
+                                    env
+                                    sigma
+                                    sigma-out
+                                    neqs
+                                    neqs-out
+                                    prog
+                                    fuel)
+    (== '(profiled willard-sjas-proof-check) proof)))
+
+(defn- sjas-dsjas-subst-prf-closeo
+  [fml env sigma sigma-out neqs neqs-out prog fuel proof]
+  (fresh []
+    (sjas-dsjas-subst-prf-coreo fml
+                                env
+                                sigma
+                                sigma-out
+                                neqs
+                                neqs-out
+                                prog
+                                fuel)
+    (== '(profiled willard-sjas-subst-proof-check) proof)))
+
 (defn- sjas-tableau-proof-structural-closeo
   "Close a structural tableau leaf through `tableau-proof/3`.
 
@@ -7494,11 +7779,37 @@
                         prog
                         fuel))
 
+(defn- sjas-dsjas-tableau-proof-structural-closeo
+  "Close a structural tableau leaf through measured `dsjas-tableau-proof/3`."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (sjas-dsjas-tableau-proof-coreo fml
+                                  env
+                                  sigma
+                                  sigma-out
+                                  neqs
+                                  neqs-out
+                                  prog
+                                  fuel))
+
+(defn- sjas-dsjas-subst-prf-structural-closeo
+  "Close a structural tableau leaf through measured `dsjas-subst-prf/4`."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (sjas-dsjas-subst-prf-coreo fml
+                              env
+                              sigma
+                              sigma-out
+                              neqs
+                              neqs-out
+                              prog
+                              fuel))
+
 (defn willard-sjas-theory-closeo
   "SJAS theory branch rule bound into the ordinary proof kernel."
   [fml unexpanded lits env proof-vars sigma sigma-out neqs neqs-out
    prog gamma-terms fuel proof]
   (conde
+    [(sjas-dsjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
+    [(sjas-dsjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
     [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
     [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
     [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
@@ -7521,6 +7832,10 @@
    residuals residuals-out prog _gamma-terms fuel _call-depth _existentials-as-vars?
   proof]
   (conde
+    [(sjas-dsjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
+     (== residuals residuals-out)]
+    [(sjas-dsjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
+     (== residuals residuals-out)]
     [(sjas-tableau-proof-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
      (== residuals residuals-out)]
     [(sjas-subst-prf-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)

@@ -120,8 +120,10 @@
    'neg-pair 2
    'axiom-member 2
    'tableau-proof 3
+   'dsjas-tableau-proof 3
    'subst-code 2
-   'subst-prf 4})
+   'subst-prf 4
+   'dsjas-subst-prf 4})
 
 (def u-grounding-language
   "Base SJAS signature without a proof-profile selection."
@@ -165,6 +167,49 @@
      (willard-sjas-profile/strip-profile-wrapper proof)
      code-format)))
 
+(declare formal-code-term-bytes)
+
+(defn- measured-proof-object
+  "Encode a `D_SJAS` measured proof object.
+
+   The payloads are byte vectors stored inside the existing proof-code grammar.
+   This makes the composite object itself a public proof-code term, so the
+   object-language checker can decode it with the same arithmeticized byte
+   reader used for ordinary proof certificates."
+  [tag code-format payloads]
+  (sjas-code/proof-formal-code-term
+    (cons tag (mapv vec payloads))
+    code-format))
+
+(defn dsjas-tableau-proof-object
+  "Encode the measured `D_SJAS` tableau proof object `(S,F,P)`."
+  ([system-code theorem-code proof-code]
+   (dsjas-tableau-proof-object system-code theorem-code proof-code
+                               {:code-format :compact}))
+  ([system-code theorem-code proof-code {:keys [code-format]
+                                         :or {code-format :compact}}]
+   (measured-proof-object
+     'dsjas-tableau-proof-object
+     code-format
+     [(formal-code-term-bytes system-code)
+      (formal-code-term-bytes theorem-code)
+      (formal-code-term-bytes proof-code)])))
+
+(defn dsjas-subst-prf-object
+  "Encode the measured `D_SJAS` substitution-proof object `(S,G,F,P)`."
+  ([system-code substitution-code theorem-code proof-code]
+   (dsjas-subst-prf-object system-code substitution-code theorem-code proof-code
+                           {:code-format :compact}))
+  ([system-code substitution-code theorem-code proof-code {:keys [code-format]
+                                                           :or {code-format :compact}}]
+   (measured-proof-object
+     'dsjas-subst-prf-object
+     code-format
+     [(formal-code-term-bytes system-code)
+      (formal-code-term-bytes substitution-code)
+      (formal-code-term-bytes theorem-code)
+      (formal-code-term-bytes proof-code)])))
+
 (defn pred-term [term] (ast/app-term 'pred term))
 (defn sub-term [left right] (ast/app-term 'sub left right))
 (defn div-term [left right] (ast/app-term 'div left right))
@@ -185,11 +230,24 @@
   (ast/pos-lit (ast/app-term 'axiom-member system-code formula-code)))
 (defn tableau-proof [system-code theorem-code proof-code]
   (ast/pos-lit (ast/app-term 'tableau-proof system-code theorem-code proof-code)))
+(defn dsjas-tableau-proof [system-code theorem-code proof-object-code]
+  (ast/pos-lit
+    (ast/app-term 'dsjas-tableau-proof
+                  system-code
+                  theorem-code
+                  proof-object-code)))
 (defn subst-code [source-code substituted-code]
   (ast/pos-lit (ast/app-term 'subst-code source-code substituted-code)))
 (defn subst-prf [system-code substitution-code theorem-code proof-code]
   (ast/pos-lit
     (ast/app-term 'subst-prf system-code substitution-code theorem-code proof-code)))
+(defn dsjas-subst-prf [system-code substitution-code theorem-code proof-object-code]
+  (ast/pos-lit
+    (ast/app-term 'dsjas-subst-prf
+                  system-code
+                  substitution-code
+                  theorem-code
+                  proof-object-code)))
 
 ;; -----------------------------------------------------------------------------
 ;; Formula-class surface
@@ -649,7 +707,7 @@
     (ast/forall-form
       p
       (ast/neg-lit
-        (ast/app-term 'tableau-proof
+        (ast/app-term 'dsjas-tableau-proof
                       system-code
                       contradiction-code
                       (ast/var-term p))))))
@@ -682,13 +740,13 @@
                                 (ast/var-term y)))
                 (ast/or-form
                   (ast/neg-lit
-                    (ast/app-term 'subst-prf
+                    (ast/app-term 'dsjas-subst-prf
                                   system-code
                                   substitution-code
                                   (ast/var-term x)
                                   (ast/var-term p)))
                   (ast/neg-lit
-                    (ast/app-term 'subst-prf
+                    (ast/app-term 'dsjas-subst-prf
                                   system-code
                                   substitution-code
                                   (ast/var-term y)

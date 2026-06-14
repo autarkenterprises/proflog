@@ -272,7 +272,9 @@
           "multiplication must be a graph relation, not a function symbol")
       (is (= 3 (get-in lang [:relations 'mult])))
       (is (= 2 (get-in lang [:relations 'subst-code])))
-      (is (= 4 (get-in lang [:relations 'subst-prf]))))))
+      (is (= 4 (get-in lang [:relations 'subst-prf])))
+      (is (= 3 (get-in lang [:relations 'dsjas-tableau-proof])))
+      (is (= 4 (get-in lang [:relations 'dsjas-subst-prf]))))))
 
 (deftest sjas-numerals-are-binary-composed-terms
   (testing "only 0 and 1 are object-language numeral constants"
@@ -804,13 +806,13 @@
                                 (ast/var-term y)))
                 (ast/or-form
                   (ast/neg-lit
-                    (ast/app-term 'subst-prf
+                    (ast/app-term 'dsjas-subst-prf
                                   system-code
                                   substitution-code
                                   (ast/var-term x)
                                   (ast/var-term p)))
                   (ast/neg-lit
-                    (ast/app-term 'subst-prf
+                    (ast/app-term 'dsjas-subst-prf
                                   system-code
                                   substitution-code
                                   (ast/var-term y)
@@ -845,14 +847,17 @@
           target (first (l/run 1 [target]
                           (selfcons-object-targeto system target)))
           axiom-formula (second target)
-          tableau-proof-atoms (filter #(= 'tableau-proof (second %))
-                                      (formula-atoms axiom-formula))]
+          atoms (formula-atoms axiom-formula)
+          measured-proof-atoms (filter #(= 'dsjas-tableau-proof (second %)) atoms)
+          bare-proof-atoms (filter #(= 'tableau-proof (second %)) atoms)]
       (is target
           "the test must reconstruct the object target through the proof predicate relation")
-      (is (seq tableau-proof-atoms)
-          "AxiomConj(s) must include a reconstructed Tableau-0 Group-3 atom")
-      (is (some #(= zero-one-code (nth % 3)) tableau-proof-atoms)
-          "reconstructed Tableau-0 Group-3 must assert no proof of 0=1"))))
+      (is (seq measured-proof-atoms)
+          "AxiomConj(s) must include a measured reconstructed Tableau-0 Group-3 atom")
+      (is (empty? bare-proof-atoms)
+          "SelfCons must not quantify bare tableau-proof/3 proof codes")
+      (is (some #(= zero-one-code (nth % 3)) measured-proof-atoms)
+          "reconstructed Tableau-0 Group-3 must assert no measured proof of 0=1"))))
 
 (deftest sjas-tableau0-group-three-rejects-wrong-public-code-representation
   (testing "Group-3 cites the presented public s term, not just equivalent bytes"
@@ -866,7 +871,7 @@
             (ast/forall-form
               p
               (ast/neg-lit
-                (ast/app-term 'tableau-proof
+                (ast/app-term 'dsjas-tableau-proof
                               compact-system-code
                               compact-contradiction-code
                               (ast/var-term p))))
@@ -4413,19 +4418,129 @@
   (let [system (demo-system :willard-sjas-level1)
         relations (set (formula-relation-symbols (:formula (:group-three system))))]
     (is (contains? relations 'neg-pair))
-    (is (contains? relations 'subst-prf))
+    (is (contains? relations 'dsjas-subst-prf))
+    (is (not (contains? relations 'subst-prf))
+        "Level-1 SelfCons must quantify measured substitution-proof objects")
     (is (not (contains? relations 'tableau-proof)))))
 
 (deftest sjas-level1-group-three-uses-selfcons-skeleton-code
   (let [system (demo-system :willard-sjas-level1)
         skeleton-code (:selfcons-skeleton-code system)
-        subst-atoms (filter #(= 'subst-prf (second %))
-                            (formula-atoms (:formula (:group-three system))))]
+        atoms (formula-atoms (:formula (:group-three system)))
+        subst-atoms (filter #(= 'dsjas-subst-prf (second %)) atoms)
+        bare-subst-atoms (filter #(= 'subst-prf (second %)) atoms)]
     (is (sjas-code/code-term? skeleton-code))
     (is (= 2 (count subst-atoms)))
+    (is (empty? bare-subst-atoms)
+        "Level-1 SelfCons must quantify composite proof-object codes, not bare subst-prf proof codes")
     (is (every? #(= (:system-code system) (nth % 2)) subst-atoms))
     (is (every? #(= skeleton-code (nth % 3)) subst-atoms))
     (is (not-any? #(= (:system-code system) (nth % 3)) subst-atoms))))
+
+(deftest dsjas-composite-tableau-proof-object-carries-measured-components
+  (testing "composite tableau proof objects encode S, F, and P bytes under one measured proof variable"
+    (let [system (demo-system :willard-sjas-tableau0)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          composite (sjas/dsjas-tableau-proof-object (:system-code system)
+                                                     (:code beta-record)
+                                                     axiom-certificate)
+          decoded (sjas-code/proof-formal-code-term->proof composite)]
+      (is (= ['dsjas-tableau-proof-object
+              (formal-code-term-bytes (:system-code system))
+              (formal-code-term-bytes (:code beta-record))
+              (formal-code-term-bytes axiom-certificate)]
+             (vec decoded)))
+      (is (> (count (formal-code-term-bytes composite))
+             (count (formal-code-term-bytes axiom-certificate)))
+          "the measured object must include more than the fixed citation marker"))))
+
+(deftest dsjas-tableau-proof-accepts-and-checks-composite-axiom-citations
+  (testing "measured tableau proof checks the embedded S/F/P bytes before delegating to tableau-proof"
+    (let [system (demo-system :willard-sjas-tableau0)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          composite (sjas/dsjas-tableau-proof-object (:system-code system)
+                                                     (:code beta-record)
+                                                     axiom-certificate)
+          wrong-theorem-composite (sjas/dsjas-tableau-proof-object
+                                    (:system-code system)
+                                    (:contradiction-code system)
+                                    axiom-certificate)]
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-tableau-proof (:system-code system)
+                                        (:code beta-record)
+                                        composite)
+              1
+              160))
+          "matching composite citation object must be accepted")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-tableau-proof (:system-code system)
+                                        (:code beta-record)
+                                        wrong-theorem-composite)
+              1
+              160))
+          "mismatched embedded theorem bytes must be rejected"))))
+
+(deftest dsjas-composite-subst-prf-object-carries-measured-components
+  (testing "composite substitution proof objects encode S, G, F, and P bytes under one measured proof variable"
+    (let [system (demo-system :willard-sjas-level1)
+          group3-record (:group-three system)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          composite (sjas/dsjas-subst-prf-object (:system-code system)
+                                                 (:selfcons-skeleton-code system)
+                                                 (:code group3-record)
+                                                 axiom-certificate)
+          decoded (sjas-code/proof-formal-code-term->proof composite)]
+      (is (= ['dsjas-subst-prf-object
+              (formal-code-term-bytes (:system-code system))
+              (formal-code-term-bytes (:selfcons-skeleton-code system))
+              (formal-code-term-bytes (:code group3-record))
+              (formal-code-term-bytes axiom-certificate)]
+             (vec decoded)))
+      (is (> (count (formal-code-term-bytes composite))
+             (count (formal-code-term-bytes axiom-certificate)))
+          "the measured substitution object must include more than the fixed citation marker"))))
+
+(deftest dsjas-subst-prf-accepts-and-checks-composite-axiom-citations
+  (testing "measured subst-prf checks embedded S/G/F/P bytes before applying substitution proof"
+    (let [system (demo-system :willard-sjas-tableau0)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          fixed-record (first (filter #(= :group-zero (:group %)) (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          composite (sjas/dsjas-subst-prf-object (:system-code system)
+                                                 (:code beta-record)
+                                                 (:code beta-record)
+                                                 axiom-certificate)
+          wrong-substitution-composite
+          (sjas/dsjas-subst-prf-object (:system-code system)
+                                       (:code fixed-record)
+                                       (:code beta-record)
+                                       axiom-certificate)]
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-subst-prf (:system-code system)
+                                    (:code beta-record)
+                                    (:code beta-record)
+                                    composite)
+              1
+              220))
+          "matching composite substitution citation object must be accepted")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-subst-prf (:system-code system)
+                                    (:code beta-record)
+                                    (:code beta-record)
+                                    wrong-substitution-composite)
+              1
+              220))
+          "mismatched embedded substitution bytes must be rejected"))))
 
 (deftest sjas-level1-group-three-rejects-wrong-public-code-representation
   (testing "Level-1 Group-3 is fixed to the presented public s term"

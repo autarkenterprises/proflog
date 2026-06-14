@@ -13,10 +13,13 @@
 - **Microbench:** ~2× slower than the linear `or*` on a ground-key lookup
   (27.2 vs 12.3 ms/op).
 - **Extended gate:** no improvement; construction-heavy tests regressed ~0.8×.
-- **Slow suite:** no improvement; the positive
-  `sjas-subst-prf-checks-selfcons-fixed-point-certificate` **timed out at 240 s**
-  under int-indexo (it reaches the lookup via the selfcons builder) — see the
-  revert retest for the linear-baseline completion time.
+- **Slow suite:** no improvement (8/10 pass at 1.6–7 s under int-indexo, same as
+  baseline). The two heaviest (`subst-prf-checks-selfcons-fixed-point-certificate`,
+  `…-rejects-selfcons-complement-axiom-certificate`) **do not complete under either
+  version** — int-indexo timed out at 240 s, but the reverted/linear code also
+  times out at 600 s, so they are *inherently* near/at the wall and **not** a #2
+  artefact. (The revert thus rests on the microbench + extended, not the slow
+  timeouts.)
 
 The ADR-0106 §C #2 premise was wrong: a *ground*-key linear `or*` already fails
 every wrong entry at its first `==`, so it never "opens a choice point per entry"

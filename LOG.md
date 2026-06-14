@@ -68,9 +68,10 @@ complete contemporaneous transcript.
   entry") was wrong; the table scan was never the cost. So #2 is correct + pure but
   **not a performance win** as built; an actual win needs a non-`fd` trie or a
   larger table. **REVERTED 2026-06-14** after confirming no speedup on the extended
-  gate and the slow suite (8/10 slow pass at 1.6–7 s, no improvement; the *positive*
-  `subst-prf-checks-selfcons-fixed-point-certificate` even timed out at 240 s under
-  int-indexo). Reverted `code-constructor-buildo` to the linear `or*`, deleted the
+  gate and the slow suite (8/10 slow pass at 1.6–7 s, no improvement; the two
+  heaviest don't complete under *either* version — int-indexo 240 s, linear 600 s —
+  so they are inherently near/at the wall, not a #2 artefact). Reverted
+  `code-constructor-buildo` to the linear `or*`, deleted the
   `int-indexo` primitive + its two tests + the project.clj entries; retested green.
   #1 (ADR-0109) is independent and retained. Kept ADR-0107/AAR-0107 as the recorded
   negative result so the fd-trie lookup line is not re-attempted.

@@ -1,5 +1,5 @@
 (ns proflog.decode-mode-directed-test
-  "ADR-0109 (#1, ground-before-decode). The formula/term byte decoders must be
+  "ADR-0110 (#1, ground-before-decode). The formula/term byte decoders must be
    *mode-directed*: with a ground formula they run the decode forward (the known
    structure drives the byte computation) and terminate deterministically, not
    enumerate. This is achieved purely, by conjunction ordering -- moving each

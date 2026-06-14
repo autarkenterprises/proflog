@@ -22,7 +22,7 @@ complete contemporaneous transcript.
 
 ## 2026-06-14
 
-- Completed [ADR-0109](docs/adr/ADR-0109-mode-directed-ground-before-decode.md)
+- Completed [ADR-0110](docs/adr/ADR-0110-mode-directed-ground-before-decode.md)
   (width-reduction #1, mode-directed ground-before-decode), the ADR-0106
   highest-leverage lever. The formula/term byte decoders placed the constructor
   `==` *last*, so a ground formula could not drive the recursive byte-decodes
@@ -45,9 +45,9 @@ complete contemporaneous transcript.
   `axiom-member-query…` 1.62×), but the heavy proof-check tests are **unchanged**
   (`rejects-wrong-public-code` 1.03×, `distinct-nested-existential` 1.01×) because
   the checker decodes each node formula while it is still free — the empirical
-  case for the proof-checker ground-target propagation (detailed as ADR-0109's
+  case for the proof-checker ground-target propagation (detailed as ADR-0110's
   "Proposal" section, the named successor). Also defers the `decode-syntax-*`
-  family. See [AAR-0109](docs/aar/AAR-0109-mode-directed-ground-before-decode.md).
+  family. See [AAR-0110](docs/aar/AAR-0110-mode-directed-ground-before-decode.md).
 - Completed [ADR-0107](docs/adr/ADR-0107-pure-indexed-relational-lookup.md)
   (width-reduction #2, pure indexed relational lookup). Added
   `clojure.core.logic.index/int-indexo` to the vendored overlay: a fixed
@@ -73,7 +73,7 @@ complete contemporaneous transcript.
   so they are inherently near/at the wall, not a #2 artefact). Reverted
   `code-constructor-buildo` to the linear `or*`, deleted the
   `int-indexo` primitive + its two tests + the project.clj entries; retested green.
-  #1 (ADR-0109) is independent and retained. Kept ADR-0107/AAR-0107 as the recorded
+  #1 (ADR-0110) is independent and retained. Kept ADR-0107/AAR-0107 as the recorded
   negative result so the fd-trie lookup line is not re-attempted.
   See [AAR-0107](docs/aar/AAR-0107-pure-indexed-relational-lookup.md).
 

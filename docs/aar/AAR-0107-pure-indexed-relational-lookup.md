@@ -24,10 +24,10 @@
 The ADR-0106 §C #2 premise was wrong: a *ground*-key linear `or*` already fails
 every wrong entry at its first `==`, so it never "opens a choice point per entry"
 and was never the cost. The real grind is the *free*-key decode enumeration,
-addressed by #1 / the [ADR-0109](../adr/ADR-0109-mode-directed-ground-before-decode.md)
+addressed by #1 / the [ADR-0110](../adr/ADR-0110-mode-directed-ground-before-decode.md)
 proof-checker proposal — not the table lookup. The `code-constructor-buildo`
 re-expression, the `int-indexo` primitive, the contract test, the agreement test,
-and the project.clj entries were all reverted; #1 (ADR-0109) is independent and
+and the project.clj entries were all reverted; #1 (ADR-0110) is independent and
 retained.
 
 ## Outcome (as built, before revert)
@@ -92,7 +92,7 @@ goal.
   the `fd` version measured here is a dead end and should not be rebuilt.
 - The real tractability lever is the free-key **decode enumeration**, addressed by
   #1 and the proof-checker proposal in
-  [ADR-0109](../adr/ADR-0109-mode-directed-ground-before-decode.md) — not the
+  [ADR-0110](../adr/ADR-0110-mode-directed-ground-before-decode.md) — not the
   table lookup.
 - The primitive is already correct for non-contiguous / sparse keys; only the leaf
   count is `2^width` (assumes a small max key).

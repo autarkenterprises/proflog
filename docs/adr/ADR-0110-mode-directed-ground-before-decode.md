@@ -1,9 +1,9 @@
-# ADR-0109: Mode-Directed Ground-Before-Decode (Width-Reduction #1)
+# ADR-0110: Mode-Directed Ground-Before-Decode (Width-Reduction #1)
 
 - Status: accepted
 - Date: 2026-06-14
-- Branch: `adr-0107-pure-indexed-lookup` (carries ADR-0107 #2 and this ADR-0109 #1)
-- AAR: [AAR-0109](../aar/AAR-0109-mode-directed-ground-before-decode.md)
+- Branch: `adr-0107-pure-indexed-lookup` (carries ADR-0107 #2 and this ADR-0110 #1)
+- AAR: [AAR-0110](../aar/AAR-0110-mode-directed-ground-before-decode.md)
 
 ## Context
 

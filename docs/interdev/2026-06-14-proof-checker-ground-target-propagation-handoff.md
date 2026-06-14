@@ -1,18 +1,18 @@
 # Interdev Handoff: Proof-Checker Ground-Target Propagation
 
 - Date: 2026-06-14
-- From: SJAS tractability line (ADR-0105/0106/0107/0109)
+- From: SJAS tractability line (ADR-0105/0106/0107/0110)
 - To: the parallel agent picking up SJAS tractability
 - Prerequisite branch: `adr-0107-pure-indexed-lookup` (pushed; **merge to main
-  first** — it carries #1 / ADR-0109, the prerequisite, and the #2 revert)
-- Full design: ADR-0109 "Proposal: proof-checker ground-target propagation"
+  first** — it carries #1 / ADR-0110, the prerequisite, and the #2 revert)
+- Full design: ADR-0110 "Proposal: proof-checker ground-target propagation"
 
 ## Why this is *the* lever (state of play)
 
 The subst-prf negative-exhaustion wall grinds in **free-key formula decode
 enumeration inside the proof checker** (ADR-0106 corrected diagnosis).
 
-- **#1 (ADR-0109) — done, on this branch.** Made the formula/term decoders
+- **#1 (ADR-0110) — done, on this branch.** Made the formula/term decoders
   *mode-directed*: with a ground formula the decode runs forward (constructor `==`
   moved to the front of every branch). Backward decode of `0=0` went from
   non-terminating (>70 s) to ~0.3 ms.
@@ -72,7 +72,7 @@ enumerating the formula language. Apply the same reorder to the recursive child
 decode in `sjas-structural-proof-check-state-decodedo`.
 
 **Why #1 is the prerequisite:** without it (constructor `==` last) a ground
-`node-formula` still enumerates; with it, ground drives forward. Merge ADR-0109
+`node-formula` still enumerates; with it, ground drives forward. Merge ADR-0110
 first.
 
 **Recursive propagation (why it compounds):** Willard's `D` rules are *functional
@@ -122,7 +122,7 @@ forward ~ms each). Report **both** directions:
 
 - The parallel **`decode-syntax-*`** family (`decode-syntax-formula-byteso` etc.,
   ~:1700–1900) still has constructor `==` last; apply the same #1 reorder
-  (mechanical, ADR-0109-style) to complete the decoder work.
+  (mechanical, ADR-0110-style) to complete the decoder work.
 
 ## Do NOT
 
@@ -133,9 +133,9 @@ forward ~ms each). Report **both** directions:
 
 ## Pointers
 
-- Proposal in full: `docs/adr/ADR-0109-mode-directed-ground-before-decode.md`
+- Proposal in full: `docs/adr/ADR-0110-mode-directed-ground-before-decode.md`
   ("Proposal" section).
-- #1 outcome: `docs/aar/AAR-0109-…`. #2 negative result: `docs/adr/ADR-0107-…`,
+- #1 outcome: `docs/aar/AAR-0110-…`. #2 negative result: `docs/adr/ADR-0107-…`,
   `docs/aar/AAR-0107-…`.
 - Measurement method: SJAS not-slow via the focused runner prints per-var
   `:DONE <name> <ms>`; for before/after, `git checkout <ref> -- <profile>` then

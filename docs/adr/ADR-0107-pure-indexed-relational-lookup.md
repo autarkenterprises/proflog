@@ -80,7 +80,7 @@ So int-indexo is **~2× slower** (0.47×), not faster. Two reasons:
    leaves live alternatives, which a ground key does not.)
 
 Whole-gate effect is negligible-to-slightly-negative: the construction-heavy SJAS
-tests that use this lookup regress ~0.8× (see ADR-0109's gate table); the gate
+tests that use this lookup regress ~0.8× (see ADR-0110's gate table); the gate
 overall is ~1.01×.
 
 **Conclusion:** as built (an *fd*-trie), #2 is correct and pure but **not a
@@ -90,7 +90,7 @@ trie (plain unification over a bit/digit decomposition, no `fd/in`/`fd/eq`) to c
 the per-step constant — the likely right redesign. The premise in ADR-0106 §C #2
 (that a ground-key linear `or*` "opens a choice point per entry") was the error:
 a ground key fails those branches immediately, so the lookup was never the cost.
-The real grind is the *free*-key decode enumeration (#1 / the ADR-0109 proposal),
+The real grind is the *free*-key decode enumeration (#1 / the ADR-0110 proposal),
 not the table scan.
 
 ## Exit Criteria

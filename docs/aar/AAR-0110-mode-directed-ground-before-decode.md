@@ -1,7 +1,7 @@
-# AAR-0109: Mode-Directed Ground-Before-Decode (Width-Reduction #1)
+# AAR-0110: Mode-Directed Ground-Before-Decode (Width-Reduction #1)
 
 - Date: 2026-06-14
-- ADR: [ADR-0109](../adr/ADR-0109-mode-directed-ground-before-decode.md)
+- ADR: [ADR-0110](../adr/ADR-0110-mode-directed-ground-before-decode.md)
 - Branch: `adr-0107-pure-indexed-lookup`
 
 ## Outcome
@@ -56,7 +56,7 @@ is what caught it.
   unchanged** (`…rejects-wrong-public-code` 1.03×, `…distinct-nested-existential`
   1.01×) — they decode each node formula while it is still free, so the
   mode-directed decoder never enters the ground regime. This is the empirical
-  case for the proof-checker propagation (ADR-0109 "Proposal" section). A few
+  case for the proof-checker propagation (ADR-0110 "Proposal" section). A few
   construction tests regress ~0.8× (attributable to #2's lookup, ADR-0107).
 
 ## Follow-up

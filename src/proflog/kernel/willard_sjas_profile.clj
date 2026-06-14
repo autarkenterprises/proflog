@@ -1424,7 +1424,7 @@
       [(== bytes rest)
        (== '() terms)])
     (fresh [head tail after-head]
-      ;; ADR-0109 (#1): bind the output cons before recurring, so a ground
+      ;; ADR-0110 (#1): bind the output cons before recurring, so a ground
       ;; `terms` drives the byte decode forward instead of enumerating.
       (== (lcons head tail) terms)
       (decode-term-byteso prog bytes after-head head)
@@ -1437,7 +1437,7 @@
       [(== bytes rest)
        (== '() payload)])
     (fresh [byte tail after-byte]
-      ;; ADR-0109 (#1): bind the output cons first, so a ground `payload` fails a
+      ;; ADR-0110 (#1): bind the output cons first, so a ground `payload` fails a
       ;; wrong byte-count arm in O(1) (head/length mismatch) rather than after
       ;; building a depth-`remaining` structure.
       (== (lcons byte tail) payload)
@@ -1470,7 +1470,7 @@
                (== expected-low low)
                (== expected-high high)
                (fresh [payload]
-                 ;; ADR-0109 (#1): bind the payload from a ground `term` before
+                 ;; ADR-0110 (#1): bind the payload from a ground `term` before
                  ;; parsing, so a wrong byte-count arm fails fast in the
                  ;; backward (encode) direction. The header checks still run
                  ;; first, preserving the forward-mode length rejection.
@@ -1503,7 +1503,7 @@
                (== expected-low low)
                (== expected-high high)
                (fresh [payload]
-                 ;; ADR-0109 (#1): bind the payload from a ground `term` before
+                 ;; ADR-0110 (#1): bind the payload from a ground `term` before
                  ;; parsing (backward/encode fast-fail); header checks still
                  ;; run first, preserving the forward-mode length rejection.
                  (== (list 'num payload) term)

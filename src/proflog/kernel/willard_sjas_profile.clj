@@ -17,6 +17,7 @@
   (:require [clojure.core.logic :as logic
              :refer [!= == appendo conde fail fresh lcons membero or* run]]
             [clojure.core.logic.nominal :as nominal]
+            [clojure.core.logic.index :as cl-index]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
             [proflog.kernel :as kernel]
@@ -644,6 +645,16 @@
                 [constructor byte-count])
               sjas-code/code-functions)))
 
+(def ^:private code-constructor-build-index
+  "ADR-0107: byte-count-keyed index of the code constructors for the
+   build-direction lookup. `int-indexo` over this gives a pure, deterministic
+   O(width) descent (no choice points on a ground byte-count) in place of the
+   linear `or*` over the ~1590-entry constructor table, with the same answer
+   set (see the agreement regression)."
+  (cl-index/int-index
+    (map (fn [[constructor byte-count]] [byte-count constructor])
+         code-constructor-entries)))
+
 (def ^:private proof-symbol-index-entries
   (apply list
          (map (fn [[idx sym]]
@@ -1033,14 +1044,14 @@
   (static-table-entryo [constructor byte-count] code-constructor-entries))
 
 (defn- code-constructor-buildo
-  "Byte-count-first constructor relation for rebuilding compact code terms."
+  "Byte-count-first constructor relation for rebuilding compact code terms.
+
+   ADR-0107: a pure deterministic indexed lookup (`int-indexo`) keyed on the
+   byte-count, replacing the linear `or*` over the ~1590-entry constructor
+   table. Same answer set as the linear relation, by structure (no project/conda
+   cut); see `code-constructor-buildo-agrees-with-linear-baseline`."
   [constructor byte-count]
-  (or*
-    (map (fn [[entry-constructor entry-byte-count]]
-           (fresh []
-             (== entry-byte-count byte-count)
-             (== entry-constructor constructor)))
-         code-constructor-entries)))
+  (cl-index/int-indexo byte-count constructor code-constructor-build-index))
 
 (defn- code-argso
   "Read compact-code byte arguments while tying the argument count to the
@@ -1424,9 +1435,11 @@
       [(== bytes rest)
        (== '() terms)])
     (fresh [head tail after-head]
+      ;; ADR-0109 (#1): bind the output cons before recurring, so a ground
+      ;; `terms` drives the byte decode forward instead of enumerating.
+      (== (lcons head tail) terms)
       (decode-term-byteso prog bytes after-head head)
-      (parse-term-list-byteso prog (dec remaining) after-head rest tail)
-      (== (lcons head tail) terms))))
+      (parse-term-list-byteso prog (dec remaining) after-head rest tail))))
 
 (defn- parse-code-payload-byteso
   [remaining bytes rest payload]
@@ -1435,9 +1448,12 @@
       [(== bytes rest)
        (== '() payload)])
     (fresh [byte tail after-byte]
+      ;; ADR-0109 (#1): bind the output cons first, so a ground `payload` fails a
+      ;; wrong byte-count arm in O(1) (head/length mismatch) rather than after
+      ;; building a depth-`remaining` structure.
+      (== (lcons byte tail) payload)
       (== (lcons byte after-byte) bytes)
-      (parse-code-payload-byteso (dec remaining) after-byte rest tail)
-      (== (lcons byte tail) payload))))
+      (parse-code-payload-byteso (dec remaining) after-byte rest tail))))
 
 (defn- append-sentinel-byteo
   [bytes encoded]
@@ -1465,8 +1481,12 @@
                (== expected-low low)
                (== expected-high high)
                (fresh [payload]
-                 (parse-code-payload-byteso byte-count payload-bytes rest payload)
-                 (== (list 'code payload) term)))))
+                 ;; ADR-0109 (#1): bind the payload from a ground `term` before
+                 ;; parsing, so a wrong byte-count arm fails fast in the
+                 ;; backward (encode) direction. The header checks still run
+                 ;; first, preserving the forward-mode length rejection.
+                 (== (list 'code payload) term)
+                 (parse-code-payload-byteso byte-count payload-bytes rest payload)))))
          (range (inc sjas-code/max-code-bytes)))))
 
 (defn- decode-embedded-code-termo
@@ -1494,8 +1514,11 @@
                (== expected-low low)
                (== expected-high high)
                (fresh [payload]
-                 (parse-code-payload-byteso byte-count payload-bytes rest payload)
-                 (== (list 'num payload) term)))))
+                 ;; ADR-0109 (#1): bind the payload from a ground `term` before
+                 ;; parsing (backward/encode fast-fail); header checks still
+                 ;; run first, preserving the forward-mode length rejection.
+                 (== (list 'num payload) term)
+                 (parse-code-payload-byteso byte-count payload-bytes rest payload)))))
          (range (inc sjas-code/max-code-bytes)))))
 
 (defn- decode-natural-termo
@@ -1527,10 +1550,10 @@
 (defn- decode-app-termo
   [prog bytes rest term]
   (fresh [symbol-index after-symbol sym args]
+    (== (list 'app sym args) term)
     (== (lcons term-app-tag
                 (lcons symbol-index after-symbol))
         bytes)
-    (== (list 'app sym args) term)
     (sjas-object-symbol-indexo symbol-index sym)
     (decode-app-arityo prog after-symbol rest args)))
 
@@ -1544,15 +1567,15 @@
   [prog bytes rest term]
   (conde
     [(fresh [idx after-var]
+       (== (list 'var idx) term)
        (== (lcons term-var-tag (lcons idx after-var)) bytes)
        (positive-byteo idx)
-       (== after-var rest)
-       (== (list 'var idx) term))]
+       (== after-var rest))]
     [(fresh [idx after-par]
+       (== (list 'par idx) term)
        (== (lcons term-par-tag (lcons idx after-par)) bytes)
        (positive-byteo idx)
-       (== after-par rest)
-       (== (list 'par idx) term))]
+       (== after-par rest))]
     [(decode-app-termo prog bytes rest term)]
     [(decode-natural-termo bytes rest term)]
     [(decode-embedded-code-termo bytes rest term)]))
@@ -1562,87 +1585,87 @@
   [prog bytes rest formula]
   (conde
     [(fresh [after]
+       (== (list 'true) formula)
        (== (lcons formula-true-tag after) bytes)
-       (== after rest)
-       (== (list 'true) formula))]
+       (== after rest))]
     [(fresh [after]
+       (== (list 'false) formula)
        (== (lcons formula-false-tag after) bytes)
-       (== after rest)
-       (== (list 'false) formula))]
+       (== after rest))]
     [(fresh [term after-tag]
+       (== (list 'pos term) formula)
        (== (lcons formula-pos-tag after-tag) bytes)
-       (decode-term-byteso prog after-tag rest term)
-       (== (list 'pos term) formula))]
+       (decode-term-byteso prog after-tag rest term))]
     [(fresh [term after-tag]
+       (== (list 'neg term) formula)
        (== (lcons formula-neg-tag after-tag) bytes)
-       (decode-term-byteso prog after-tag rest term)
-       (== (list 'neg term) formula))]
+       (decode-term-byteso prog after-tag rest term))]
     [(fresh [left right after-tag after-left]
+       (== (list 'eq left right) formula)
        (== (lcons formula-eq-tag after-tag) bytes)
        (decode-term-byteso prog after-tag after-left left)
-       (decode-term-byteso prog after-left rest right)
-       (== (list 'eq left right) formula))]
+       (decode-term-byteso prog after-left rest right))]
     [(fresh [left right after-tag after-left]
+       (== (list 'neq left right) formula)
        (== (lcons formula-neq-tag after-tag) bytes)
        (decode-term-byteso prog after-tag after-left left)
-       (decode-term-byteso prog after-left rest right)
-       (== (list 'neq left right) formula))]
+       (decode-term-byteso prog after-left rest right))]
     [(fresh [left right after-tag after-left]
+       (== (list 'and left right) formula)
        (== (lcons formula-and-tag after-tag) bytes)
        (decode-formula-byteso prog after-tag after-left left)
-       (decode-formula-byteso prog after-left rest right)
-       (== (list 'and left right) formula))]
+       (decode-formula-byteso prog after-left rest right))]
     [(fresh [left right after-tag after-left]
+       (== (list 'or left right) formula)
        (== (lcons formula-or-tag after-tag) bytes)
        (decode-formula-byteso prog after-tag after-left left)
-       (decode-formula-byteso prog after-left rest right)
-       (== (list 'or left right) formula))]
+       (decode-formula-byteso prog after-left rest right))]
     [(fresh [body after-tag]
+       (== (list 'not body) formula)
        (== (lcons formula-not-tag after-tag) bytes)
-       (decode-formula-byteso prog after-tag rest body)
-       (== (list 'not body) formula))]
+       (decode-formula-byteso prog after-tag rest body))]
     [(fresh [left right after-tag after-left]
+       (== (list 'implies left right) formula)
        (== (lcons formula-implies-tag after-tag) bytes)
        (decode-formula-byteso prog after-tag after-left left)
-       (decode-formula-byteso prog after-left rest right)
-       (== (list 'implies left right) formula))]
+       (decode-formula-byteso prog after-left rest right))]
     [(fresh [idx body after-idx]
+       (== (list 'forall idx body) formula)
        (== (lcons formula-forall-tag
                    (lcons idx after-idx))
            bytes)
        (positive-byteo idx)
-       (decode-formula-byteso prog after-idx rest body)
-       (== (list 'forall idx body) formula))]
+       (decode-formula-byteso prog after-idx rest body))]
     [(fresh [idx body after-idx]
+       (== (list 'once-forall idx body) formula)
        (== (lcons formula-once-forall-tag
                    (lcons idx after-idx))
            bytes)
        (positive-byteo idx)
-       (decode-formula-byteso prog after-idx rest body)
-       (== (list 'once-forall idx body) formula))]
+       (decode-formula-byteso prog after-idx rest body))]
     [(fresh [idx body after-idx]
+       (== (list 'exists idx body) formula)
        (== (lcons formula-exists-tag
                    (lcons idx after-idx))
            bytes)
        (positive-byteo idx)
-       (decode-formula-byteso prog after-idx rest body)
-       (== (list 'exists idx body) formula))]
+       (decode-formula-byteso prog after-idx rest body))]
     [(fresh [idx bound body after-idx after-bound]
+       (== (list 'bounded-forall idx bound body) formula)
        (== (lcons formula-bounded-forall-tag
                    (lcons idx after-idx))
            bytes)
        (positive-byteo idx)
        (decode-term-byteso prog after-idx after-bound bound)
-       (decode-formula-byteso prog after-bound rest body)
-       (== (list 'bounded-forall idx bound body) formula))]
+       (decode-formula-byteso prog after-bound rest body))]
     [(fresh [idx bound body after-idx after-bound]
+       (== (list 'bounded-exists idx bound body) formula)
        (== (lcons formula-bounded-exists-tag
                    (lcons idx after-idx))
            bytes)
        (positive-byteo idx)
        (decode-term-byteso prog after-idx after-bound bound)
-       (decode-formula-byteso prog after-bound rest body)
-       (== (list 'bounded-exists idx bound body) formula))]))
+       (decode-formula-byteso prog after-bound rest body))]))
 
 (declare decode-syntax-formula-byteso decode-syntax-term-byteso)
 

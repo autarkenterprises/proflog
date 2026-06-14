@@ -20,6 +20,47 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-14
+
+- Completed [ADR-0109](docs/adr/ADR-0109-mode-directed-ground-before-decode.md)
+  (width-reduction #1, mode-directed ground-before-decode), the ADR-0106
+  highest-leverage lever. The formula/term byte decoders placed the constructor
+  `==` *last*, so a ground formula could not drive the recursive byte-decodes
+  (conjunction is sequential per answer) — backward decode of even `0 = 0` did
+  not complete in 70 s. Reordered the constructor `==` to the front of all 15
+  `decode-formula-byteso` branches, `decode-term-byteso` var/par,
+  `decode-app-termo`, and bound the output cons before recursion in
+  `parse-code-payload-byteso` / `parse-term-list-byteso` and ahead of the parse
+  (inside the payload `fresh`) in the two `*-bodyo` decoders. Pure conjunction
+  reordering — answer-set-identical. Backward decode now **0.33–1.19 ms**
+  (deterministic) vs non-terminating; forward unchanged (~0.94 ms). An initial
+  hoist above the header-length checks tripped the
+  `sjas-embedded-payload-decoders-check-header-before-payload-fresh` guard
+  (transient 1058/2); narrowed to inside the payload `fresh` to honour that
+  forward-mode invariant. Gates: fast 198/1047/0 (incl. ADR-0093 canonical +
+  new `proflog.decode-mode-directed-test`), SJAS not-slow 1060/0/0. Honest
+  scope: this is the *decoder* reformulation; the full negative-wall payoff also
+  needs the proof checker to propagate the ground target before node decode, and
+  the parallel `decode-syntax-*` family — named follow-ups.
+  See [AAR-0109](docs/aar/AAR-0109-mode-directed-ground-before-decode.md).
+- Completed [ADR-0107](docs/adr/ADR-0107-pure-indexed-relational-lookup.md)
+  (width-reduction #2, pure indexed relational lookup). Added
+  `clojure.core.logic.index/int-indexo` to the vendored overlay: a fixed
+  integer-keyed table compiled into a perfect bit-trie of ground terms, descended
+  **deterministically by unification** on a ground key (no cut, no groundness
+  inspection, no double-count) and enumerating on a free key — the "richer
+  structure inside core.logic" of ADR-0106 §D. TDD isolation-first contract
+  (`proflog.core-logic-indexed-lookup-test`, 8 assertions) red→green, then
+  re-expressed `code-constructor-buildo` (the 4096-entry `code-functions` table)
+  over it: O(12) descent vs O(4096) scan on a ground byte-count. Answer-set
+  agreement vs a faithful linear baseline in every mode
+  (`proflog.code-constructor-index-test`, 19 assertions, incl. the full 4096-entry
+  enumeration). No regression (fast 198/1047/0, SJAS not-slow 1060/0/0). Both #1
+  and #2 share the `adr-0107-pure-indexed-lookup` worktree. The grind-level payoff
+  of #2 is realised once #1 makes the keys ground; #2 is the correctness-preserving
+  O(N)→O(log N) infrastructure on ground-key lookups in its own right.
+  See [AAR-0107](docs/aar/AAR-0107-pure-indexed-relational-lookup.md).
+
 ## 2026-06-13
 
 - Completed [ADR-0106](docs/adr/ADR-0106-sjas-search-width-reduction.md) on

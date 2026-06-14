@@ -1,9 +1,9 @@
 # ADR-0107: Pure Indexed Relational Lookup (Width-Reduction #2)
 
-- Status: in progress
+- Status: accepted
 - Date: 2026-06-13
 - Branch: `adr-0107-pure-indexed-lookup`
-- AAR: pending
+- AAR: [AAR-0107](../aar/AAR-0107-pure-indexed-relational-lookup.md)
 
 ## Context
 

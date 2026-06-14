@@ -74,7 +74,6 @@
                                     "proflog.core-logic-occurs-check-test"
                                     "proflog.core-logic-ground-walk-test"
                                     "proflog.core-logic-lvar-equality-test"
-                                    "proflog.core-logic-indexed-lookup-test"
                                     "proflog.decode-mode-directed-test"
                                     "proflog.core-logic-canonical-test"
                                     "proflog.frontend-test"
@@ -92,7 +91,6 @@
                                     "proflog.program-test"
                                     "proflog.query-test"]
             "test-proflog-extended" ["test"
-                                    "proflog.code-constructor-index-test"
                                     "proflog.answers-test"
                                      "proflog.integration-families-test"
                                      "proflog.core-logic-canonical-extended-test"

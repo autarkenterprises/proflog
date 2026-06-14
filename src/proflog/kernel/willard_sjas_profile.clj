@@ -17,7 +17,6 @@
   (:require [clojure.core.logic :as logic
              :refer [!= == appendo conde fail fresh lcons membero or* run]]
             [clojure.core.logic.nominal :as nominal]
-            [clojure.core.logic.index :as cl-index]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
             [proflog.kernel :as kernel]
@@ -645,16 +644,6 @@
                 [constructor byte-count])
               sjas-code/code-functions)))
 
-(def ^:private code-constructor-build-index
-  "ADR-0107: byte-count-keyed index of the code constructors for the
-   build-direction lookup. `int-indexo` over this gives a pure, deterministic
-   O(width) descent (no choice points on a ground byte-count) in place of the
-   linear `or*` over the ~1590-entry constructor table, with the same answer
-   set (see the agreement regression)."
-  (cl-index/int-index
-    (map (fn [[constructor byte-count]] [byte-count constructor])
-         code-constructor-entries)))
-
 (def ^:private proof-symbol-index-entries
   (apply list
          (map (fn [[idx sym]]
@@ -1044,14 +1033,14 @@
   (static-table-entryo [constructor byte-count] code-constructor-entries))
 
 (defn- code-constructor-buildo
-  "Byte-count-first constructor relation for rebuilding compact code terms.
-
-   ADR-0107: a pure deterministic indexed lookup (`int-indexo`) keyed on the
-   byte-count, replacing the linear `or*` over the ~1590-entry constructor
-   table. Same answer set as the linear relation, by structure (no project/conda
-   cut); see `code-constructor-buildo-agrees-with-linear-baseline`."
+  "Byte-count-first constructor relation for rebuilding compact code terms."
   [constructor byte-count]
-  (cl-index/int-indexo byte-count constructor code-constructor-build-index))
+  (or*
+    (map (fn [[entry-constructor entry-byte-count]]
+           (fresh []
+             (== entry-byte-count byte-count)
+             (== entry-constructor constructor)))
+         code-constructor-entries)))
 
 (defn- code-argso
   "Read compact-code byte arguments while tying the argument count to the

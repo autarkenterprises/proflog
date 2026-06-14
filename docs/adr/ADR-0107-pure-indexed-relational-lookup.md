@@ -1,7 +1,9 @@
 # ADR-0107: Pure Indexed Relational Lookup (Width-Reduction #2)
 
-- Status: accepted
-- Date: 2026-06-13
+- Status: **REVERTED** (negative result — int-indexo gave no speedup / a ~2×
+  regression; reverted to the linear `or*`; see AAR-0107 and the Measurement
+  section). Recorded so the fd-trie lookup line is not re-attempted.
+- Date: 2026-06-13 (reverted 2026-06-14)
 - Branch: `adr-0107-pure-indexed-lookup`
 - AAR: [AAR-0107](../aar/AAR-0107-pure-indexed-relational-lookup.md)
 

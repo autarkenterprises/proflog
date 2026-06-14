@@ -3,13 +3,37 @@
 - Date: 2026-06-14
 - ADR: [ADR-0107](../adr/ADR-0107-pure-indexed-relational-lookup.md)
 - Branch: `adr-0107-pure-indexed-lookup`
+- **Status: REVERTED** — built, measured, found to give no speedup (a regression),
+  reverted. Kept as a recorded negative result so this line is not re-attempted.
 
-## Outcome
+## TL;DR (why reverted)
+
+`int-indexo` is correct and pure but provides **no speedup** — it is a regression:
+
+- **Microbench:** ~2× slower than the linear `or*` on a ground-key lookup
+  (27.2 vs 12.3 ms/op).
+- **Extended gate:** no improvement; construction-heavy tests regressed ~0.8×.
+- **Slow suite:** no improvement; the positive
+  `sjas-subst-prf-checks-selfcons-fixed-point-certificate` **timed out at 240 s**
+  under int-indexo (it reaches the lookup via the selfcons builder) — see the
+  revert retest for the linear-baseline completion time.
+
+The ADR-0106 §C #2 premise was wrong: a *ground*-key linear `or*` already fails
+every wrong entry at its first `==`, so it never "opens a choice point per entry"
+and was never the cost. The real grind is the *free*-key decode enumeration,
+addressed by #1 / the [ADR-0109](../adr/ADR-0109-mode-directed-ground-before-decode.md)
+proof-checker proposal — not the table lookup. The `code-constructor-buildo`
+re-expression, the `int-indexo` primitive, the contract test, the agreement test,
+and the project.clj entries were all reverted; #1 (ADR-0109) is independent and
+retained.
+
+## Outcome (as built, before revert)
 
 Added a **pure relational indexed lookup** to the vendored core.logic overlay and
 re-expressed the largest integer-keyed SJAS static table over it, with zero
-regression and an answer-set agreement test — discharging ADR-0106 §C/§D #2
-without any `project`/`conda`/host cut.
+*correctness* regression and an answer-set agreement test — discharging ADR-0106
+§C/§D #2's purity bar (no `project`/`conda`/host cut) but **not** its performance
+goal.
 
 - **The primitive.** `clojure.core.logic.index/int-indexo` (new namespace, depends
   on `clojure.core.logic.fd`): a fixed finite table with non-negative integer
@@ -56,14 +80,13 @@ without any `project`/`conda`/host cut.
 
 ## Follow-up
 
-- **Reconsider #2.** As built it is a measured ~2× regression with no current
-  benefit (the lookup was never the bottleneck). Options: (a) re-implement the
-  trie with **plain unification over a bit/digit decomposition, no `fd`**, to cut
-  the per-step constant and see if it then beats the linear scan; (b) **revert**
-  the `code-constructor-buildo` re-expression and keep `int-indexo` only as a
-  vendored primitive for a future large/sparse table; (c) leave it (correct,
-  pure, negligible gate cost) pending a table where the asymptotics matter.
-  Decision deferred to the user.
+- **#2 was reverted** (decision made 2026-06-14). The `code-constructor-buildo`
+  re-expression, the `int-indexo` primitive, both tests, and the project.clj
+  entries were removed; the linear `or*` restored; gates re-run green. If the
+  indexed-lookup idea is ever revisited, the *only* viable form is a **non-`fd`
+  trie** (plain unification over a bit/digit decomposition, to cut the per-step
+  constant) **and** a table far larger than 4096 where the asymptotics dominate —
+  the `fd` version measured here is a dead end and should not be rebuilt.
 - The real tractability lever is the free-key **decode enumeration**, addressed by
   #1 and the proof-checker proposal in
   [ADR-0109](../adr/ADR-0109-mode-directed-ground-before-decode.md) — not the

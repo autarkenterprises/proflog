@@ -74,6 +74,7 @@
                                     "proflog.core-logic-occurs-check-test"
                                     "proflog.core-logic-ground-walk-test"
                                     "proflog.core-logic-lvar-equality-test"
+                                    "proflog.decode-mode-directed-test"
                                     "proflog.core-logic-canonical-test"
                                     "proflog.frontend-test"
                                     "proflog.formula-profile-test"

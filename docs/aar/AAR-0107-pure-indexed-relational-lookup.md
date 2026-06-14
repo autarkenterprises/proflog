@@ -30,9 +30,17 @@ without any `project`/`conda`/host cut.
 - **Integration.** `code-constructor-buildo` (byte-count → constructor) was a
   linear `or*` over the **4096-entry** `code-functions` table (keys 0..4095, all
   distinct). Re-expressed as a single `int-indexo` over a byte-count-keyed index:
-  O(12) trie descent on a ground byte-count instead of an O(4096) scan, **no
-  choice point** on the ground key. The other call sites (`code-constructoro`
-  forward is symbol-keyed) are left for a follow-up code-N↔N variant.
+  an O(12) trie descent on a ground byte-count instead of an O(4096) scan.
+
+- **Negative result (measured).** The re-expression is **~2× slower**, not faster
+  (int-indexo 27.2 ms/op vs linear 12.3 ms/op on a forced, warmed ground-key
+  lookup). The `fd` constant outweighs the asymptotic win at N=4096, and a ground
+  key already fails the linear `or*`'s wrong branches at the first `==` (no
+  residual choice points for the trie to remove). The ADR-0106 §C #2 premise — that
+  a ground-key linear lookup "opens a choice point per entry" — was wrong; the
+  table scan was never the cost. So #2 stands as a **correct, pure, but
+  non-performant** primitive; an actual win needs a non-`fd` trie (cut the
+  per-step constant) or a much larger table. See ADR-0107 Measurement.
 
 ## Evidence
 
@@ -48,12 +56,17 @@ without any `project`/`conda`/host cut.
 
 ## Follow-up
 
-- The grind-level payoff of #2 is realised only once #1
-  ([ADR-0109](../adr/ADR-0109-mode-directed-ground-before-decode.md)) makes the
-  table keys ground at lookup time; #2 here is the enabling, correctness-preserving
-  O(N)→O(log N) infrastructure on ground-key lookups.
-- A symbol-keyed (`code-N` ↔ N) variant to also determinise `code-constructoro`
-  forward and the other `static-table-entryo` call sites.
-- Extend the trie primitive to non-contiguous / sparse key sets if a future table
-  needs it (the current build assumes a small max key; it is already correct for
-  sparse keys, only the leaf count is `2^width`).
+- **Reconsider #2.** As built it is a measured ~2× regression with no current
+  benefit (the lookup was never the bottleneck). Options: (a) re-implement the
+  trie with **plain unification over a bit/digit decomposition, no `fd`**, to cut
+  the per-step constant and see if it then beats the linear scan; (b) **revert**
+  the `code-constructor-buildo` re-expression and keep `int-indexo` only as a
+  vendored primitive for a future large/sparse table; (c) leave it (correct,
+  pure, negligible gate cost) pending a table where the asymptotics matter.
+  Decision deferred to the user.
+- The real tractability lever is the free-key **decode enumeration**, addressed by
+  #1 and the proof-checker proposal in
+  [ADR-0109](../adr/ADR-0109-mode-directed-ground-before-decode.md) — not the
+  table lookup.
+- The primitive is already correct for non-contiguous / sparse keys; only the leaf
+  count is `2^width` (assumes a small max key).

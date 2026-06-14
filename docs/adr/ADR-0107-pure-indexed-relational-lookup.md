@@ -56,9 +56,45 @@ both modes, no double-count, pure.
 - The full ADR-0093 canonical suite and the broad gates stay green after the
   engine change and after integration.
 
+## Measurement (negative result — recorded honestly)
+
+Isolated ground-key lookup, forced realisation (`doall`), warmed, 80 iters:
+
+| `code-constructor-buildo c 2000` | ms/op |
+|---|---|
+| **int-indexo** (this ADR) | **27.2** |
+| linear `or*` (the prior form) | **12.3** |
+
+So int-indexo is **~2× slower** (0.47×), not faster. Two reasons:
+
+1. **The fd constant dominates the asymptotic win at N=4096.** The O(log N)
+   descent does ~12 `fd` steps (domains, bit-decomposition, child unification);
+   each is far more expensive than a plain `==`, so 12 fd-steps cost more than the
+   ~4096 fail-fast `==`s the linear scan does.
+2. **The determinism advantage doesn't apply to a *ground* key.** The linear
+   `or*` already fails every wrong entry at its first `(== ebc bc)`, leaving **no
+   residual choice points** — so there was no choice-point proliferation for the
+   trie to remove. (The trie's determinism would only matter where a linear scan
+   leaves live alternatives, which a ground key does not.)
+
+Whole-gate effect is negligible-to-slightly-negative: the construction-heavy SJAS
+tests that use this lookup regress ~0.8× (see ADR-0109's gate table); the gate
+overall is ~1.01×.
+
+**Conclusion:** as built (an *fd*-trie), #2 is correct and pure but **not a
+performance win** on this table. Its value would require either (a) a much larger
+key set where the asymptotic win overcomes the fd constant, or (b) a **non-fd**
+trie (plain unification over a bit/digit decomposition, no `fd/in`/`fd/eq`) to cut
+the per-step constant — the likely right redesign. The premise in ADR-0106 §C #2
+(that a ground-key linear `or*` "opens a choice point per entry") was the error:
+a ground key fails those branches immediately, so the lookup was never the cost.
+The real grind is the *free*-key decode enumeration (#1 / the ADR-0109 proposal),
+not the table scan.
+
 ## Exit Criteria
 
-- The pure primitive passes its contract + the ADR-0093 suite; `static-table-entryo`
+- The pure primitive passes its contract + the ADR-0093 suite; `code-constructor-buildo`
   is re-expressed over it with an answer-set agreement test; broad gates green;
-  no `project`/`conda`/host cut introduced. (#1 then makes the keys ground so the
-  determinism pays off on the grind — successor ADR.)
+  no `project`/`conda`/host cut introduced. **All met** — but see Measurement: the
+  re-expression is correctness-preserving, not faster. Kept as a recorded negative
+  result; a non-fd trie or a larger table is the path to an actual win.

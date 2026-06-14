@@ -111,6 +111,111 @@ milliseconds; forward is unaffected. This is the decoder-level demonstration of
 the ground-decode regime (ADR-0106's ~1 ms ground path) the negative wall must be
 driven into.
 
+### Whole-gate before/after (the honest workload impact)
+
+SJAS not-slow, 145 timed vars, one clean contention-free run each (HEAD vs the
+pre-optimisation profile at `128e819`), same `pass=1060 fail=0`:
+
+- **Overall ≈ 1.01×** (summed per-var time 138.0 s → 136.3 s) — *flat*.
+
+The effect is **localised to paths where decode already carries ground
+structure** (reader rejections, certificate checks):
+
+| test | OLD → NEW ms | ratio |
+|---|---|---|
+| `compact-code-reader-rejects-arity-mismatched-terms` | 244 → 59 | **4.15×** |
+| `correspondence-anti-compression-rejects-skeletal-certificate` | 369 → 106 | **3.47×** |
+| `axiom-member-query-ignores-injected-generated-facts` | 1154 → 714 | 1.62× |
+| `proof-predicate-system-code-reconstruction-walks-equality-state` | 2192 → 1711 | 1.28× |
+| `composite-examples-distinguish-beta-axioms-from-reflected-procedures` | 2012 → 1596 | 1.26× |
+
+**The deep proof-check tests are unchanged** — and they dominate the gate's
+absolute time and are the closest not-slow analogue of the negative wall:
+
+| test | OLD → NEW ms | ratio |
+|---|---|---|
+| `level1-group-three-rejects-wrong-public-code-representation` | 29592 → 28628 | 1.03× |
+| `proof-check-accepts-…-distinct-nested-existential-parameters` | 26446 → 26303 | 1.01× |
+| `proof-check-accepts-…-equality-triggered-literal-closures` | 12565 → 14050 | 0.89× |
+
+They do **not** improve because the proof checker decodes each node's formula
+*while it is still free* — `formula-bearing-proof-nodeo` runs the decode, and the
+reconciliation with the ground branch formula (`sjas-acyclic-unifyo
+visible-formula …`) happens *after* — so the mode-directed decoder never enters
+the ground regime. A few construction-heavy tests regress slightly
+(`arithmetic-…-synthesis-modes` 0.77×, `subst-prf-reconstructs-axiom-basis`
+0.80×), attributable to #2's lookup constant (see ADR-0107 measurement).
+
+**Net:** #1 is correctness-preserving with real localised wins where ground
+structure is present, but it does **not** by itself move the proof-check critical
+path. This empirically motivates the proposal below: the checker must ground each
+node's formula *before* decoding it.
+
+## Proposal: proof-checker ground-target propagation (the deeper #1)
+
+**Where the grind is.** In `sjas-proof-check-stateo` (and recursively in
+`sjas-structural-proof-check-state-decodedo`) the order is:
+
+```clojure
+(formula-bearing-proof-nodeo prog proof node-formula children)  ; decode node-formula FROM the (free) proof
+(sjas-proof-guided-selecto node-formula env (lcons fml unexpanded)
+                           selected selected-env remaining)      ; select a branch formula -- PROOF-NODE-BLIND
+;; … later, the structural checker unifies `selected` (ground, from the target) with `node-formula`
+```
+
+In the **negative** (no proof exists) `proof` is the search variable, so
+`node-formula` is free at decode time and `decode-proof-formula-byteso`
+(→ `decode-formula-byteso`) **enumerates all formulas** — the wall — and the
+ground branch formula only filters them afterwards. `sjas-proof-guided-selecto`
+is *deliberately* proof-node-blind today (its first arg is ignored) to avoid
+re-matching a large formula before every rule check — a choice that optimises the
+**positive** case (ground proof → one decode) at the negative case's expense.
+
+**The change.** Bind `node-formula` from the ground target *before* decoding it:
+
+```clojure
+(sjas-proof-guided-selecto node-formula env (lcons fml unexpanded)
+                           selected selected-env remaining)
+(== node-formula selected)                                      ; ground node-formula from the target
+(formula-bearing-proof-nodeo prog proof node-formula children) ; decode now runs FORWARD (mode-directed, #1)
+```
+
+Now the decode runs with `node-formula` ground, so #1's reorder makes it compute
+the node's formula-bytes *forward* (ground formula → its unique encoding) and
+**reject** any proof whose bytes don't encode a branch formula — O(branch) ground
+candidates instead of enumerating the formula language. This is why #1 is the
+**prerequisite**: without it, grounding `node-formula` first would still
+enumerate (constructor `==` was last); with it, ground drives forward.
+
+**Recursive propagation.** Willard's `D` rules are *functional top-down*: a ground
+conclusion formula plus the rule determines the premise (child) formulas. So once
+the root node-formula is ground (from the target), each rule application grounds
+its children's sub-targets, which ground their node-formulas before *their*
+decodes — the ground target flows down the entire proof tree, and the
+mode-directed decode fires at every node. The wall's combinatorial decode becomes
+a ground, deterministic descent.
+
+**The tension to measure (not hand-wave).** Select-before-decode adds an
+O(branch-size) factor to the **positive** case: each branch candidate is unified
+into `node-formula` and the (ground) proof re-decoded forward (~ms each) rather
+than decoded once. The positive proof-check tests above (2–26 s) are the
+regression risk; the negatives (`rejects-*` + the `^:slow` wall) are the gain.
+The successor ADR must report both. If the positive regresses unacceptably, the
+pure mitigations (no `project`/`conda`) are: (a) a **relational skeleton/header
+prefilter** — unify only the top constructor / byte-length of `node-formula`
+against the disjunction of branch formulas before the full decode, pruning
+candidates cheaply; (b) post the membership `node-formula ∈ branch-formulas` as a
+constraint and let the *decode* (now mode-directed) be the one pass that both
+verifies and selects. Both keep the negative win while bounding the positive cost.
+
+**Scope of the change.** `sjas-proof-check-stateo` and the recursive
+`sjas-structural-proof-check-state-decodedo` (the `child-formula` decode at the
+same decode-then-select pattern); make `sjas-proof-guided-selecto` formula-aware
+(use its currently-ignored first arg) so the unify is structural, not a separate
+goal. The `decode-syntax-*` family gets the same #1 reorder it still lacks.
+Gate with ADR-0093 + an answer-set agreement test + the §D purity constraint, and
+measure the positive/negative trade above.
+
 ## Exit Criteria
 
 - The decoders are mode-directed (backward terminates — measured above); the

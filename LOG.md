@@ -38,11 +38,16 @@ complete contemporaneous transcript.
   `sjas-embedded-payload-decoders-check-header-before-payload-fresh` guard
   (transient 1058/2); narrowed to inside the payload `fresh` to honour that
   forward-mode invariant. Gates: fast 198/1047/0 (incl. ADR-0093 canonical +
-  new `proflog.decode-mode-directed-test`), SJAS not-slow 1060/0/0. Honest
-  scope: this is the *decoder* reformulation; the full negative-wall payoff also
-  needs the proof checker to propagate the ground target before node decode, and
-  the parallel `decode-syntax-*` family — named follow-ups.
-  See [AAR-0109](docs/aar/AAR-0109-mode-directed-ground-before-decode.md).
+  new `proflog.decode-mode-directed-test`), SJAS not-slow 1060/0/0.
+  **Whole-gate before/after (vs pristine 128e819, clean contention-free runs) ≈
+  1.01× overall (flat)** — localised wins where decode carries ground structure
+  (`rejects-arity-mismatched` 4.15×, `anti-compression…skeletal` 3.47×,
+  `axiom-member-query…` 1.62×), but the heavy proof-check tests are **unchanged**
+  (`rejects-wrong-public-code` 1.03×, `distinct-nested-existential` 1.01×) because
+  the checker decodes each node formula while it is still free — the empirical
+  case for the proof-checker ground-target propagation (detailed as ADR-0109's
+  "Proposal" section, the named successor). Also defers the `decode-syntax-*`
+  family. See [AAR-0109](docs/aar/AAR-0109-mode-directed-ground-before-decode.md).
 - Completed [ADR-0107](docs/adr/ADR-0107-pure-indexed-relational-lookup.md)
   (width-reduction #2, pure indexed relational lookup). Added
   `clojure.core.logic.index/int-indexo` to the vendored overlay: a fixed
@@ -52,13 +57,18 @@ complete contemporaneous transcript.
   structure inside core.logic" of ADR-0106 §D. TDD isolation-first contract
   (`proflog.core-logic-indexed-lookup-test`, 8 assertions) red→green, then
   re-expressed `code-constructor-buildo` (the 4096-entry `code-functions` table)
-  over it: O(12) descent vs O(4096) scan on a ground byte-count. Answer-set
-  agreement vs a faithful linear baseline in every mode
+  over it. Answer-set agreement vs a faithful linear baseline in every mode
   (`proflog.code-constructor-index-test`, 19 assertions, incl. the full 4096-entry
-  enumeration). No regression (fast 198/1047/0, SJAS not-slow 1060/0/0). Both #1
-  and #2 share the `adr-0107-pure-indexed-lookup` worktree. The grind-level payoff
-  of #2 is realised once #1 makes the keys ground; #2 is the correctness-preserving
-  O(N)→O(log N) infrastructure on ground-key lookups in its own right.
+  enumeration); no regression in correctness (fast 198/1047/0, SJAS not-slow
+  1060/0/0). **NEGATIVE RESULT (measured): int-indexo is ~2× SLOWER than the
+  linear `or*` on a ground-key lookup (27.2 vs 12.3 ms/op).** The `fd` constant
+  outweighs the O(N)→O(log N) win at N=4096, and a ground key already fails the
+  linear scan's wrong branches at the first `==` (no choice points for the trie to
+  remove) — the ADR-0106 §C #2 premise (ground lookup "opens a choice point per
+  entry") was wrong; the table scan was never the cost. So #2 is correct + pure but
+  **not a performance win** as built; an actual win needs a non-`fd` trie or a
+  larger table. Whether to keep / redesign / revert #2 is deferred to the user.
+  Both #1 and #2 share the `adr-0107-pure-indexed-lookup` worktree.
   See [AAR-0107](docs/aar/AAR-0107-pure-indexed-relational-lookup.md).
 
 ## 2026-06-13

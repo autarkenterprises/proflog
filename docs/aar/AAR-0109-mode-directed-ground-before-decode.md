@@ -48,6 +48,16 @@ is what caught it.
 - Fast gate + ADR-0093 canonical green (198 tests / 1047 assertions / 0).
 - SJAS not-slow gate: `pass=1060 fail=0 error=0` after the guard fix (restored
   from the transient `pass=1058 fail=2`).
+- **Whole-gate before/after (HEAD vs `128e819`, one clean contention-free run
+  each): ≈ 1.01× overall (flat).** Localised wins where decode carries ground
+  structure — `…rejects-arity-mismatched-terms` **4.15×**,
+  `…anti-compression…skeletal-certificate` **3.47×**, `axiom-member-query…` 1.62×,
+  `…system-code-reconstruction…` 1.28×. **The deep proof-check tests are
+  unchanged** (`…rejects-wrong-public-code` 1.03×, `…distinct-nested-existential`
+  1.01×) — they decode each node formula while it is still free, so the
+  mode-directed decoder never enters the ground regime. This is the empirical
+  case for the proof-checker propagation (ADR-0109 "Proposal" section). A few
+  construction tests regress ~0.8× (attributable to #2's lookup, ADR-0107).
 
 ## Follow-up
 

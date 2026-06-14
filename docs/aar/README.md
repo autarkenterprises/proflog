@@ -104,3 +104,5 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0101](AAR-0101-sjas-correspondence-proof-attempt.md) | [ADR-0101](../adr/ADR-0101-sjas-correspondence-proof-attempt.md) | completed |
 | [AAR-0102](AAR-0102-sjas-counterexample-proof-targets.md) | [ADR-0102](../adr/ADR-0102-sjas-counterexample-proof-targets.md) | completed |
 | [AAR-0103](AAR-0103-sjas-proof-attempts-a-b.md) | [ADR-0103](../adr/ADR-0103-sjas-proof-attempts-a-b.md) | completed |
+| [AAR-0104](AAR-0104-dsjas-track2c.md) | [ADR-0104](../adr/ADR-0104-dsjas-track2c.md) | completed |
+| [AAR-0108](AAR-0108-dsjas-quantitative-ea-stability.md) | [ADR-0108](../adr/ADR-0108-dsjas-quantitative-ea-stability.md) | completed |

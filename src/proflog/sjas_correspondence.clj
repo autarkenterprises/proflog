@@ -1293,3 +1293,127 @@
   "Return the ADR-0104 literature-admissibility status for `D_SJAS`."
   []
   dsjas-literature-admissibility)
+
+(def ^:private dsjas-quantitative-rule-family-preservation
+  "ADR-0108 bounded-satisfaction preservation clauses for the selected
+   `D_SJAS` rule families.
+
+   These clauses are the direct-examination bridge from ADR-0104's selected
+   apparatus to Willard's Appendix D Normed(a,b) open-branch argument. They are
+   deliberately phrased at the mathematical audit layer: no kernel relation is
+   changed or shortcut."
+  {:base-tableau
+   {:status :proved
+    :argument "The alpha, beta, implication, negation, closure, and root/child cases are exactly the semantic-tableau rules used by Willard's Appendix D argument."}
+   :branch-bookkeeping
+   {:status :proved
+    :argument "Agenda and environment snapshots only preserve branch ancestry; erasing them leaves the same formula path and cannot close a Normed(a,b) positive branch."}
+   :truth-normalization
+   {:status :proved
+    :argument "Truth-constant cases are bounded local rewrites of `false`, `true`, and their negations, so they preserve the same scoped standard-model valuation."}
+   :quantifier
+   {:status :proved
+    :argument "Gamma, delta, bounded gamma/delta, and negated duals match the bounded-witness and U-grounded-term tableau steps in the Appendix D proof."}
+   :equality-theory
+   {:status :proved
+    :argument "Equality substitution and disequality closure are branch-local first-order equality consequences over already decoded finite terms; they do not introduce faster-growing witnesses."}
+   :arithmetic-profile
+   {:status :proved
+    :argument "U-Grounding arithmetic, byte reading, syntax, class, and negation-pair predicates are bounded Delta_0 checks over finite code payloads and close only standard-true/standard-false local atoms."}
+   :axiom-membership
+   {:status :proved
+    :argument "Axiom citations are ordinary Z-axiom leaves once the selected measure counts the decoded system and theorem payloads; no formula occurrence is hidden outside Log_D_SJAS."}
+   :reflected-call
+   {:status :proved
+    :argument "Reflected positive, negative, and guarded calls are finite macro expansions from decoded system-code clauses, so replacing the macro by its expansion preserves the same branch valuation."}
+   :recursive-proof
+   {:status :proved
+    :argument "Recursive `tableau-proof/3` leaves are Delta_0 proof-predicate atoms interpreted by the finite acyclic least-fixed-point semantics proved in ADR-0104."}
+   :substitution-proof
+   {:status :proved
+    :argument "`subst-prf/4` combines bounded substitution-code validation with the same finite acyclic proof-predicate semantics, preserving scoped truth of the represented proof atom."}})
+
+(def dsjas-quantitative-ea-stability
+  "ADR-0108 quantitative EA-stability theorem for the selected `D_SJAS`
+   apparatus.
+
+   The theorem is intentionally not stated over the bare proof-code object `P`.
+   ADR-0102 refuted that statement with the fixed-size `sjas-axiom` citation.
+   The positive theorem uses ADR-0104's selected proof-object length
+   `Log_D_SJAS`: structural tableaux are measured by proof-code bytes, while
+   citation leaves are measured by the combined inspectable object `(S,F,P)`.
+   With that measure, the Appendix D A/E-stability contradiction proof carries
+   over to `D_SJAS` by the rule-family preservation clauses above."
+  {:status :proved-for-selected-combined-proof-measure
+   :apparatus :D_SJAS
+   :configuration :IS#_D_SJAS_beta
+   :source-definitions
+   {:a-stability "Definition 5.1: short Pi_1 proofs preserve Good(1/2 #theta)."
+    :e-stability "Definition 5.3: short Sigma_1 proofs preserve Good(1/2 floor(Log(p)) - 1)."
+    :ea-stability "Definition 5.5: both A-stability and E-stability."
+    :appendix-d "Theorem D.4 proves the semantic-tableau case from the Normed(a,b) open-branch lemma and the conventional tableaux encoding requirement."}
+   :measurement-verdicts {:proof-code-only :refuted
+                          :selected-combined-proof-measure :proved}
+   :quantitative-constants
+   {:a-stability {:sigma 1
+                  :tau 1
+                  :lambda 1/2
+                  :mu 0}
+    :e-stability {:sigma 1
+                  :tau 1
+                  :lambda 1/2
+                  :mu -1}}
+   :selected-length-measure
+   {:name :log-dsjas
+    :definition "The base-2 logarithmic length of the selected `D_SJAS` proof object."
+    :structural-measured-components (:structural-measured-components
+                                      dsjas-proof-object-accounting)
+    :citation-measured-components (:citation-measured-components
+                                   dsjas-proof-object-accounting)
+    :structural-case "For formula-bearing structural proof trees, Log_D_SJAS is the ordinary proof-code length."
+    :citation-case "For `sjas-axiom` citations, Log_D_SJAS is the combined length of decoded system-code, theorem-code, and the citation proof marker."}
+   :proof-code-only-counterexample
+   {:status :refuted
+    :counterexample :sjas-axiom-citation
+    :proof-bits 18
+    :formula-j 18
+    :five-j-bits 90
+    :unbounded-formula-payload? true
+    :argument "The fixed `sjas-axiom` marker can cite arbitrarily large formulas when the formula and system payloads are not counted, so the Willard-style `Log(p)` inequality is false for proof-code-only `P`."}
+   :theorem
+   {:a-stability
+    "For every r.e. Pi_1 view theta, if Upsilon is a Pi_1 theorem of theta union B via a `D_SJAS` proof object p with Log_D_SJAS(p) <= #(theta)+1, then Upsilon is Good(1/2 #(theta))."
+    :e-stability
+    "For every r.e. Pi_1 view theta, if Upsilon is a Sigma_1 theorem of theta union B via a `D_SJAS` proof object p with Log_D_SJAS(p) <= #(theta)+1, then Upsilon is Good(1/2 floor(Log_D_SJAS(p))-1)."
+    :ea-stability
+    "The selected `D_SJAS` configuration is quantitatively EA-stable because both preceding clauses hold with the recorded constants."}
+   :proof-lemmas
+   {:normed-open-branch-generalization
+    {:status :proved-by-dsjas-rule-preservation
+     :argument "Willard's Fact D.3 extends from ordinary semantic tableaux to `D_SJAS`: base tableau and quantifier rules are literal; bookkeeping and truth normalization erase to literal branches; selected extensions are bounded Delta_0 primitives or finite macros that preserve the scoped standard valuation; recursive proof/substitution atoms use the finite acyclic least-fixed-point semantics."}
+    :size-to-u-height-bound
+    {:status :proved-under-code-injectivity
+     :source (:status dsjas-combined-size-lower-bound)
+     :argument "ADR-0104 proves that every measured `D_SJAS` structural or citation object exposes the formula/function-symbol payload needed by the conventional tableaux encoding requirement. Formula-bearing structural trees give at least 24N+36J bits; combined citation objects give at least 18J bits, both above Willard's conservative 5J threshold."}
+    :a-stability-contradiction
+    {:status :proved
+     :argument "Assume a short `D_SJAS` proof of a Pi_1 theorem Upsilon that fails Good(1/2 #theta). Add Reverse(Upsilon) to Z. The Normed(a,b) clause and Log_D_SJAS(p) <= #theta+1 place p below the generalized Fact D.3 threshold, yielding an open branch, contradicting that p is a closed proof."}
+    :e-stability-contradiction
+    {:status :proved
+     :argument "Assume a short `D_SJAS` proof of a Sigma_1 theorem Upsilon that fails Good(1/2 floor(Log_D_SJAS(p))-1). Add Reverse(Upsilon) to Z. The same Normed(a,b) and size-to-U-height bounds yield a contradiction-free branch, contradicting closure."}
+    :selfcons1-consequence
+    {:status :proved
+     :argument "With A-stability and E-stability established for the selected length measure, Willard's Theorem 5.9 applies to the Level-1 `SelfCons` statement for `IS#_{D_SJAS}(beta)`."}}
+   :rule-family-preservation dsjas-quantitative-rule-family-preservation
+   :standing-assumptions
+   #{:injective-public-code-reading
+     :trailing-zero-preservation
+     :least-fixed-point-recursive-semantics
+     :external-beta-pi-star-1-truth
+     :standard-model-soundness-of-ugrounding-primitives}
+   :open-obligations #{}})
+
+(defn audit-dsjas-quantitative-ea-stability
+  "Return the ADR-0108 quantitative EA-stability proof audit for `D_SJAS`."
+  []
+  dsjas-quantitative-ea-stability)

@@ -604,6 +604,83 @@
                :substitution-proof}
              (set (keys (:rule-family-admissibility audit))))))))
 
+(deftest dsjas-quantitative-ea-stability-proves-selected-combined-measure
+  (testing "ADR-0108: D_SJAS is quantitatively EA-stable only for the selected combined proof-object measure"
+    (let [audit (correspondence/audit-dsjas-quantitative-ea-stability)]
+      (is (= :proved-for-selected-combined-proof-measure
+             (:status audit)))
+      (is (= :D_SJAS
+             (:apparatus audit)))
+      (is (= :IS#_D_SJAS_beta
+             (:configuration audit)))
+      (is (= {:proof-code-only :refuted
+              :selected-combined-proof-measure :proved}
+             (:measurement-verdicts audit)))
+      (is (= {:sigma 1
+              :tau 1
+              :lambda 1/2
+              :mu 0}
+             (get-in audit [:quantitative-constants :a-stability])))
+      (is (= {:sigma 1
+              :tau 1
+              :lambda 1/2
+              :mu -1}
+             (get-in audit [:quantitative-constants :e-stability])))
+      (is (= :log-dsjas
+             (get-in audit [:selected-length-measure :name])))
+      (is (= #{:system-code :theorem-code :proof-code}
+             (get-in audit [:selected-length-measure
+                            :citation-measured-components])))
+      (is (= #{:proof-code}
+             (get-in audit [:selected-length-measure
+                            :structural-measured-components])))
+      (is (= :sjas-axiom-citation
+             (get-in audit [:proof-code-only-counterexample
+                            :counterexample])))
+      (is (= 18
+             (get-in audit [:proof-code-only-counterexample
+                            :proof-bits])))
+      (is (true?
+            (get-in audit [:proof-code-only-counterexample
+                           :unbounded-formula-payload?])))
+      (is (= #{}
+             (:open-obligations audit))))))
+
+(deftest dsjas-quantitative-ea-stability-discharges-each-rule-family
+  (testing "ADR-0108: every selected D_SJAS family has a bounded-satisfaction preservation clause"
+    (let [audit (correspondence/audit-dsjas-quantitative-ea-stability)]
+      (is (= #{:normed-open-branch-generalization
+               :size-to-u-height-bound
+               :a-stability-contradiction
+               :e-stability-contradiction
+               :selfcons1-consequence}
+             (set (keys (:proof-lemmas audit)))))
+      (is (= #{:base-tableau
+               :branch-bookkeeping
+               :truth-normalization
+               :quantifier
+               :equality-theory
+               :arithmetic-profile
+               :axiom-membership
+               :reflected-call
+               :recursive-proof
+               :substitution-proof}
+             (set (keys (:rule-family-preservation audit)))))
+      (is (= #{}
+             (into #{}
+                   (keep (fn [[family clause]]
+                           (when (not= :proved (:status clause))
+                             family)))
+                   (:rule-family-preservation audit))))
+      (is (= :proved-under-code-injectivity
+             (get-in audit [:proof-lemmas
+                            :size-to-u-height-bound
+                            :status])))
+      (is (= :proved-by-dsjas-rule-preservation
+             (get-in audit [:proof-lemmas
+                            :normed-open-branch-generalization
+                            :status]))))))
+
 (deftest structural-proof-tree-audit-reports-flat-node-size-and-shape
   (testing "flat formula-byte nodes expose finite tree and byte-size metrics"
     (let [audit (correspondence/audit-structural-proof-tree

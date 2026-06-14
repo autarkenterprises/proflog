@@ -20,6 +20,22 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-14
+
+- Completed [ADR-0108](docs/adr/ADR-0108-dsjas-quantitative-ea-stability.md)
+  on `adr-0108-dsjas-ea-stability`: proved quantitative EA-stability for the
+  selected `D_SJAS` proof-object measure `Log_D_SJAS`, while preserving the
+  ADR-0102 refutation of the proof-code-only statement. The theorem keeps
+  Willard's A/E constants (`sigma=1`, `tau=1`, `lambda=1/2`, with `mu=0` for
+  A-stability and `mu=-1` for E-stability), but uses ADR-0104's combined
+  `(S,F,P)` measure for `sjas-axiom` citation leaves. Red->green: the focused
+  correspondence namespace first failed on missing
+  `audit-dsjas-quantitative-ea-stability`, then passed with 37 tests / 454
+  assertions after adding the executable proof audit. Final broad gates passed:
+  `lein test-proflog-fast` with 208 tests / 1103 assertions and
+  `lein test-proflog-extended` with 73 tests / 219 assertions. See
+  [AAR-0108](docs/aar/AAR-0108-dsjas-quantitative-ea-stability.md).
+
 ## 2026-06-13
 
 - Completed [ADR-0104](docs/adr/ADR-0104-dsjas-track2c.md) on

@@ -91,6 +91,7 @@
                                     "proflog.program-test"
                                     "proflog.query-test"]
             "test-proflog-extended" ["test"
+                                    "proflog.dsjas-arithmetic-soundness-test"
                                     "proflog.answers-test"
                                      "proflog.integration-families-test"
                                      "proflog.core-logic-canonical-extended-test"

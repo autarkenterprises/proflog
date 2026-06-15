@@ -22,6 +22,60 @@ complete contemporaneous transcript.
 
 ## 2026-06-14
 
+- Reviewed the parallel agent's `D_SJAS` self-justification proof line (ADR-0104
+  Track 2c, ADR-0108 quantitative EA-stability, ADR-0109 composite proof object)
+  for correctness + relevance, verifying the load-bearing claims against the
+  Willard source (`willard2011_self_justifying_logics`). The relevance chain is
+  faithful: **Theorem 5.9 is genuinely configuration-parametric** (ξ = (L, Δ0, B,
+  **d**, G); EA-stable configuration ⟹ self-justifying), **Definition 3.4(4)
+  constrains the deduction method `d` only weakly** (the "indirect-implication
+  property" of Gödel completeness, footnote 5), and **Fact D.3** (Normed(a,b)
+  open-branch lemma), **Theorem D.4** (A/E-stability), and the **5J Conventional
+  Tableaux Encoding Requirement** are adapted faithfully. So proving EA-stability
+  for the selected `D_SJAS` configuration and invoking 5.9 is structurally
+  legitimate. Identified ADR-0108's **Lemma 2** (the per-rule open-branch
+  preservation clauses) as the asserted, load-bearing gap (`:status :proved`
+  one-liners), and the `Normed(a,b)` parameters + Lemma 1 size bounds as the
+  remaining work.
+- **Proved the rule-family soundness clauses (ADR-0108 Lemma 2).** Reduced the
+  obligation to: every closure fires only on an M-unsatisfiable branch and every
+  expansion preserves M-satisfiability (M = the Normed standard model). Verified
+  per family against the implementation; no counterexample. Key upgrades of the
+  asserted clauses: **family 4 (equality)** routes all closures through arithmetic
+  normalization (`sjas-normal-equalo`), not free-constructor contradiction — the
+  `sub(2,1)=1` unsoundness is structurally absent; **family 5 (arithmetic)** closes
+  only on GROUND args (`sjas-relation-failso` requires empty pending-binds) over
+  the Δ0 graph relations `{mult, leq, lt}` (Willard Def 3.4(2)); **family 7
+  (reflected calls)** reconstructs clauses as ordinary `∀.(body→head)` implication
+  axioms reasoned classically (β / contrapositive), so no Clark-completion / NAF
+  gap. Note:
+  [docs/interdev/2026-06-14-dsjas-rule-family-soundness-proof.md](docs/interdev/2026-06-14-dsjas-rule-family-soundness-proof.md).
+- The irreducible residual is the standing assumption
+  `:standard-model-soundness-of-ugrounding-primitives` (everything in family 5,
+  and the equality decisions, rest on `arith/*o`, `arith/<=o`, `arith/<o`,
+  `sjas-num-inputo`, `sjas-normal-equalo` actually computing standard arithmetic
+  on the bit encoding).
+- **Discharged `:standard-model-soundness-of-ugrounding-primitives`.** Proof:
+  [docs/log/2026-06-14-dsjas-standard-model-soundness-proof.md](docs/log/2026-06-14-dsjas-standard-model-soundness-proof.md).
+  The bit-level core (`relational_arithmetic.clj`) is a **verified faithful
+  translation of faster-minikanren `numbers.scm`** = the Kiselyov–Byrd–Friedman–
+  Shan relational arithmetic, **published sound + complete** w.r.t. standard
+  arithmetic on canonical little-endian binary numerals; checked clause-by-clause
+  (`pluso`/`minuso`/`*o`/`<o`/`<=o`/`divo`/`logo`). The SJAS **totalization
+  wrappers** (`sjas-monuso`/`-divo`/`-maxo`/`-logo`/`-powo`/`-rooto`/`-counto`)
+  are exhaustive+exclusive splits over that core, each computing the standard
+  totalized value (monus→0, div0→numerator, log0→0, root0→numerator — Willard's
+  definitional conventions the standard model shares); the numeral-term reader
+  `sjas-num-inputo`/`sjas-num-appo` denotes correctly by structural induction;
+  `sjas-normal-equalo` decides equality by canonical-form uniqueness. Bridge to
+  the Normed model M: closure fires on U-grounded args ≤ bound where M agrees
+  with ℕ on Δ0 graph facts. Corroborated by
+  `proflog.dsjas-arithmetic-soundness-test` (10 tests / 1236 assertions / 0
+  failures: every primitive vs reference arithmetic; added to the extended gate).
+  Residual is definitional only (M shares the totalizing conventions = the SJAS
+  language spec). So under Lemma 2, D_SJAS rule-soundness now rests on a single
+  standing premise: the decoded axiom/reflected basis is standard-true (Willard
+  Def 3.4(3)).
 - Completed [ADR-0110](docs/adr/ADR-0110-mode-directed-ground-before-decode.md)
   (width-reduction #1, mode-directed ground-before-decode), the ADR-0106
   highest-leverage lever. The formula/term byte decoders placed the constructor

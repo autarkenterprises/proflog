@@ -107,5 +107,7 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0104](AAR-0104-dsjas-track2c.md) | [ADR-0104](../adr/ADR-0104-dsjas-track2c.md) | completed |
 | [AAR-0105](AAR-0105-sjas-substate-tabling-investigation.md) | [ADR-0105](../adr/ADR-0105-sjas-substate-tabling-investigation.md) | completed |
 | [AAR-0106](AAR-0106-sjas-search-width-reduction.md) | [ADR-0106](../adr/ADR-0106-sjas-search-width-reduction.md) | completed |
+| [AAR-0107](AAR-0107-pure-indexed-relational-lookup.md) | [ADR-0107](../adr/ADR-0107-pure-indexed-relational-lookup.md) | reverted |
 | [AAR-0108](AAR-0108-dsjas-quantitative-ea-stability.md) | [ADR-0108](../adr/ADR-0108-dsjas-quantitative-ea-stability.md) | completed |
 | [AAR-0109](AAR-0109-dsjas-composite-proof-object-internalization.md) | [ADR-0109](../adr/ADR-0109-dsjas-composite-proof-object-internalization.md) | completed |
+| [AAR-0110](AAR-0110-mode-directed-ground-before-decode.md) | [ADR-0110](../adr/ADR-0110-mode-directed-ground-before-decode.md) | accepted |

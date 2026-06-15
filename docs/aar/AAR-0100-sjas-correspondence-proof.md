@@ -6,6 +6,20 @@
 
 ## Outcome
 
+**Later correction, 2026-06-13:** ADR-0101 attempted this proof again against
+the actual checker and proof-code grammar and found that the completion claim
+below is too strong. The proof remains useful as a scaffold and partial
+corroboration, but it does not wholly discharge Track 2b as written. The
+blocking issues are the non-literal-`D` checker branches and the fixed-size bare
+`sjas-axiom` citation, whose proof code cannot by itself satisfy the `>=5J`
+lower bound for arbitrarily large cited axiom formulas. See
+[ADR-0101](../adr/ADR-0101-sjas-correspondence-proof-attempt.md) and
+[AAR-0101](AAR-0101-sjas-correspondence-proof-attempt.md).
+ADR-0102 then made this refutation executable with a concrete accepted
+`sjas-axiom` citation whose fixed proof code has 18 bits while the cited formula
+requires 90 bits under the stated `5J` measure; see
+[ADR-0102](../adr/ADR-0102-sjas-counterexample-proof-targets.md).
+
 Track 2b's correspondence theorem is **proved over the first correspondence
 fragment**: for covered `(S,F)` and a first-fragment certificate `P`,
 

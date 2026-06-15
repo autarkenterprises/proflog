@@ -55,7 +55,13 @@
     (is (= :relevant
            (:status (correspondence/classify-proof-symbol 'guarded-seq-done))))
     (is (= :relevant
-           (:status (correspondence/classify-proof-symbol 'profiled))))))
+           (:status (correspondence/classify-proof-symbol 'profiled))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol
+                      'dsjas-tableau-proof-object))))
+    (is (= :relevant
+           (:status (correspondence/classify-proof-symbol
+                      'dsjas-subst-prf-object))))))
 
 (deftest implemented-proof-checker-constructors-are-relevant
   (testing "constructors consumed by the SJAS proof checker are not stale unresolved gaps"
@@ -379,6 +385,328 @@
                              (:status (correspondence/classify-proof-symbol %))))
                  (keys correspondence/proof-symbol-classifications)))
         "no proof symbol remains :unresolved after the Track 2a completion")))
+
+(deftest path-a-rule-inventory-classifies-narrow-and-excluded-branches
+  (testing "ADR-0103 Path A: the literal-Willard proof target has an executable branch inventory"
+    (let [audit (correspondence/audit-path-a-narrow-rule-inventory)]
+      (is (= 19 (:rule-count audit)))
+      (is (= #{}
+             (:unclassified-rule-ids audit)))
+      (is (set/subset?
+            #{:conjunction
+              :complementary-literal-closure
+              :negation-and-implication
+              :disjunction}
+            (:direct-willard-rule-ids audit)))
+      (is (set/subset?
+            #{:literal-save-agenda-continuation
+              :not-false-agenda-continuation
+              :true-agenda-continuation}
+            (:lemma-rule-ids audit)))
+      (is (set/subset?
+            #{:disequality-progress-and-storage
+              :profile-structural-closes
+              :equality-triggered-reflected-calls
+              :direct-reflected-calls}
+            (:excluded-rule-ids audit)))
+      (is (contains? (:path-a-open-obligations audit)
+                     :agenda-ancestor-preservation)))))
+
+(deftest path-b-dsjas-rule-inventory-covers-extended-apparatus
+  (testing "ADR-0103 Path B: D_SJAS names every extended checker family and its remaining blockers"
+    (let [audit (correspondence/audit-dsjas-rule-inventory)]
+      (is (= 19 (:rule-count audit)))
+      (is (= #{}
+             (:unclassified-rule-ids audit)))
+      (is (set/subset?
+            #{:base-tableau
+              :branch-bookkeeping
+              :truth-normalization
+              :quantifier
+              :equality-theory
+              :arithmetic-profile
+              :axiom-membership
+              :reflected-call
+              :recursive-proof
+              :substitution-proof}
+            (:rule-families audit)))
+      (is (set/subset?
+            #{:sjas-axiom-size-accounting
+              :recursive-proof-well-foundedness
+              :literature-admissibility}
+            (:open-obligations audit))))))
+
+(deftest structural-checker-rule-inventory-covers-recorded-branch-lines
+  (testing "ADR-0103: the branch inventory covers the ADR-0101 checker audit line ranges"
+    (is (= [[6179 6209]
+            [6210 6217]
+            [6218 6236]
+            [6237 6313]
+            [6314 6363]
+            [6364 6373]
+            [6374 6392]
+            [6393 6482]
+            [6483 6596]
+            [6597 6706]
+            [6707 6754]
+            [6755 6783]
+            [6784 6805]
+            [6806 6867]
+            [6868 6889]
+            [6890 6927]
+            [6928 6985]
+            [6986 7111]
+            [7112 7130]]
+           (mapv :line-range correspondence/sjas-structural-checker-rule-inventory)))))
+
+(deftest path-a-narrow-correspondence-proof-discharges-lemma-obligations
+  (testing "ADR-0103 Path A: the narrowed literal-Willard theorem is no longer only an inventory"
+    (let [proof (correspondence/audit-path-a-narrow-correspondence-proof)]
+      (is (= :proved (:verdict proof)))
+      (is (= #{}
+             (:open-obligations proof)))
+      (is (= #{:agenda-ancestor-preservation
+               :truth-constant-semantics
+               :nnf-irrelevance
+               :quantifier-freshness
+               :gamma-parameter-admissibility
+               :bounded-guard-correctness}
+             (set (keys (:discharged-obligations proof)))))
+      (is (= #{:literal-save-agenda-continuation
+               :complementary-literal-closure
+               :conjunction
+               :forall-once-forall-expansion
+               :exists-expansion
+               :false-not-true-closure
+               :not-false-agenda-continuation
+               :double-negation-and-atomic-duals
+               :negation-and-implication
+               :negated-and-bounded-quantifier-duals
+               :disjunction
+               :additional-quantifier-expansions
+               :true-agenda-continuation}
+             (:proved-rule-ids proof)))
+      (is (contains? (:excluded-rule-ids proof)
+                     :profile-structural-closes)))))
+
+(deftest path-b-extended-apparatus-proof-has-conclusive-track-2b-verdict
+  (testing "ADR-0103 Path B: the current extended apparatus is conclusively separated from literal Willard D"
+    (let [verdict (correspondence/audit-path-b-correspondence-verdict)]
+      (is (= :impossible-for-current-domain
+             (:literal-willard-track-2b-verdict verdict)))
+      (is (= :track-2c-required
+             (:dsjas-verdict verdict)))
+      (is (set/subset?
+            #{:sjas-axiom-citation-size-counterexample
+              :non-willard-extended-rule-families}
+            (:blocking-reasons verdict)))
+      (is (= :formula-bearing-axiom-leaf-or-combined-object-required
+             (:required-size-accounting-repair verdict)))
+      (is (= #{}
+             (:unclassified-rule-ids verdict))))))
+
+(deftest dsjas-track2c-specification-selects-every-extended-rule-family
+  (testing "ADR-0104 Track 2c: D_SJAS is an explicit selected apparatus, not implementation drift"
+    (let [spec (correspondence/audit-dsjas-track2c-specification)]
+      (is (= :D_SJAS (:apparatus spec)))
+      (is (= :selected-apparatus (:status spec)))
+      (is (set/subset?
+            #{:base-tableau
+              :branch-bookkeeping
+              :truth-normalization
+              :quantifier
+              :equality-theory
+              :arithmetic-profile
+              :axiom-membership
+              :reflected-call
+              :recursive-proof
+              :substitution-proof}
+            (:rule-families spec)))
+      (is (= #{}
+             (:unclassified-rule-ids spec))))))
+
+(deftest dsjas-track2c-combined-proof-object-repairs-axiom-citation-accounting
+  (testing "ADR-0104 Track 2c: citations are measured as composite proof objects"
+    (let [accounting (correspondence/audit-dsjas-proof-object-accounting)]
+      (is (= :combined-proof-object
+             (:selected-repair accounting)))
+      (is (= #{:system-code :theorem-code :proof-code}
+             (:tableau-citation-measured-components accounting)))
+      (is (= #{:system-code :substitution-code :theorem-code :proof-code}
+             (:substitution-citation-measured-components accounting)))
+      (is (= 'dsjas-tableau-proof-object
+             (get-in accounting [:proof-object-symbols :tableau-proof])))
+      (is (= 'dsjas-subst-prf-object
+             (get-in accounting [:proof-object-symbols :substitution-proof])))
+      (is (= #{:proof-code}
+             (:structural-measured-components accounting)))
+      (is (true? (:adr-0102-counterexample-repaired? accounting))))))
+
+(deftest dsjas-track2c-size-lower-bound-covers-citation-and-structural-objects
+  (testing "ADR-0104 Track 2c: the combined size repair has an explicit lower-bound argument"
+    (let [audit (correspondence/audit-dsjas-combined-size-lower-bound)]
+      (is (= :proved-under-code-injectivity
+             (:status audit)))
+      (is (= #{:tableau-axiom-citation
+               :substitution-axiom-citation
+               :formula-bearing-structural-tree}
+             (:covered-proof-object-kinds audit)))
+      (is (= #{}
+             (:uncovered-proof-object-kinds audit)))
+      (is (= :theorem-code-payload
+             (get-in audit [:kind-arguments :tableau-axiom-citation :j-source])))
+      (is (= :theorem-code-payload
+             (get-in audit [:kind-arguments
+                            :substitution-axiom-citation
+                            :j-source])))
+      (is (= #{:system-code :substitution-code :theorem-code :proof-code}
+             (get-in audit [:kind-arguments
+                            :substitution-axiom-citation
+                            :measured-components])))
+      (is (= :proof-code-formula-node-payloads
+             (get-in audit [:kind-arguments :formula-bearing-structural-tree :j-source]))))))
+
+(deftest dsjas-track2c-recursive-proof-and-subst-measure-is-explicit
+  (testing "ADR-0104 Track 2c: recursive proof predicates have a discharged finite-call-graph proof"
+    (let [audit (correspondence/audit-dsjas-recursive-well-foundedness)]
+      (is (= :proved-for-finite-acyclic-proof-call-graphs
+             (:status audit)))
+      (is (= :least-fixed-point-over-proof-call-graph
+             (:recursive-semantics audit)))
+      (is (= :decoded-proof-code-payload
+             (:primary-measure audit)))
+      (is (= #{:proof-call-graph-height
+               :decoded-proof-code-payload
+               :structural-proof-node-count}
+             (:well-founded-measures audit)))
+      (is (= :not-a-proof-measure
+             (:runtime-fuel-role audit)))
+      (is (= :no-finite-derivation
+             (:cyclic-call-policy audit)))
+      (is (= #{:tableau-proof-structural-core
+               :subst-prf-structural-core
+               :dsjas-tableau-proof-structural-core
+               :dsjas-subst-prf-structural-core}
+             (:recursive-branches audit)))
+      (is (= #{}
+             (:unmeasured-recursive-branches audit)))
+      (is (= #{:same-proof-code-self-call
+               :mutual-proof-code-cycle
+               :non-subtree-proof-code-reference}
+             (:discharged-risks audit))))))
+
+(deftest dsjas-track2c-literature-admissibility-is-explicitly-audited
+  (testing "ADR-0104 Track 2c: literature admissibility is tracked per selected rule family"
+    (let [audit (correspondence/audit-dsjas-literature-admissibility)]
+      (is (= :proved-for-selected-dsjas-variant (:status audit)))
+      (is (= :IS#_D_SJAS_beta (:apparatus-label audit)))
+      (is (true? (:not-literal-willard-d? audit)))
+      (is (set/subset?
+            #{:natural-tree-coding
+              :bounded-object-relations
+              :semantic-tableau-shape
+              :selected-apparatus-labeling
+              :combined-proof-size-discipline
+              :recursive-proof-well-foundedness
+              :d-parametric-proof-predicate
+              :system-code-reconstruction
+              :primitive-or-bounded-macro-rules}
+            (:discharged-criteria audit)))
+      (is (= #{}
+             (:open-criteria audit)))
+      (is (= #{}
+             (:inadmissible-rule-families audit)))
+      (is (= #{:base-tableau
+               :branch-bookkeeping
+               :truth-normalization
+               :quantifier
+               :equality-theory
+               :arithmetic-profile
+               :axiom-membership
+               :reflected-call
+               :recursive-proof
+               :substitution-proof}
+             (set (keys (:rule-family-admissibility audit))))))))
+
+(deftest dsjas-quantitative-ea-stability-proves-selected-combined-measure
+  (testing "ADR-0108: D_SJAS is quantitatively EA-stable only for the selected combined proof-object measure"
+    (let [audit (correspondence/audit-dsjas-quantitative-ea-stability)]
+      (is (= :proved-for-selected-combined-proof-measure
+             (:status audit)))
+      (is (= :D_SJAS
+             (:apparatus audit)))
+      (is (= :IS#_D_SJAS_beta
+             (:configuration audit)))
+      (is (= {:proof-code-only :refuted
+              :selected-combined-proof-measure :proved}
+             (:measurement-verdicts audit)))
+      (is (= {:sigma 1
+              :tau 1
+              :lambda 1/2
+              :mu 0}
+             (get-in audit [:quantitative-constants :a-stability])))
+      (is (= {:sigma 1
+              :tau 1
+              :lambda 1/2
+              :mu -1}
+             (get-in audit [:quantitative-constants :e-stability])))
+      (is (= :log-dsjas
+             (get-in audit [:selected-length-measure :name])))
+      (is (= #{:system-code :theorem-code :proof-code}
+             (get-in audit [:selected-length-measure
+                            :tableau-citation-measured-components])))
+      (is (= #{:system-code :substitution-code :theorem-code :proof-code}
+             (get-in audit [:selected-length-measure
+                            :substitution-citation-measured-components])))
+      (is (= #{:proof-code}
+             (get-in audit [:selected-length-measure
+                            :structural-measured-components])))
+      (is (= :sjas-axiom-citation
+             (get-in audit [:proof-code-only-counterexample
+                            :counterexample])))
+      (is (= 18
+             (get-in audit [:proof-code-only-counterexample
+                            :proof-bits])))
+      (is (true?
+            (get-in audit [:proof-code-only-counterexample
+                           :unbounded-formula-payload?])))
+      (is (= #{}
+             (:open-obligations audit))))))
+
+(deftest dsjas-quantitative-ea-stability-discharges-each-rule-family
+  (testing "ADR-0108: every selected D_SJAS family has a bounded-satisfaction preservation clause"
+    (let [audit (correspondence/audit-dsjas-quantitative-ea-stability)]
+      (is (= #{:normed-open-branch-generalization
+               :size-to-u-height-bound
+               :a-stability-contradiction
+               :e-stability-contradiction
+               :selfcons1-consequence}
+             (set (keys (:proof-lemmas audit)))))
+      (is (= #{:base-tableau
+               :branch-bookkeeping
+               :truth-normalization
+               :quantifier
+               :equality-theory
+               :arithmetic-profile
+               :axiom-membership
+               :reflected-call
+               :recursive-proof
+               :substitution-proof}
+             (set (keys (:rule-family-preservation audit)))))
+      (is (= #{}
+             (into #{}
+                   (keep (fn [[family clause]]
+                           (when (not= :proved (:status clause))
+                             family)))
+                   (:rule-family-preservation audit))))
+      (is (= :proved-under-code-injectivity
+             (get-in audit [:proof-lemmas
+                            :size-to-u-height-bound
+                            :status])))
+      (is (= :proved-by-dsjas-rule-preservation
+             (get-in audit [:proof-lemmas
+                            :normed-open-branch-generalization
+                            :status]))))))
 
 (deftest structural-proof-tree-audit-reports-flat-node-size-and-shape
   (testing "flat formula-byte nodes expose finite tree and byte-size metrics"

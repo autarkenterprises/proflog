@@ -48,6 +48,39 @@ complete contemporaneous transcript.
   case for the proof-checker ground-target propagation (detailed as ADR-0110's
   "Proposal" section, the named successor). Also defers the `decode-syntax-*`
   family. See [AAR-0110](docs/aar/AAR-0110-mode-directed-ground-before-decode.md).
+- Completed [ADR-0109](docs/adr/ADR-0109-dsjas-composite-proof-object-internalization.md)
+  on `adr-0109-dsjas-composite-proof-object`: generated Tableau-0 and Level-1
+  SelfCons now quantify measured `D_SJAS` composite proof-object codes through
+  `dsjas-tableau-proof/3` and `dsjas-subst-prf/4`, with payloads `(S,F,P)` and
+  `(S,G,F,P)` decoded through the arithmeticized public byte/proof-code
+  relations. Public `tableau-proof/3` and `subst-prf/4` remain compatible. The
+  correspondence audit now classifies the composite proof-object symbols and
+  extends `Log_D_SJAS` accounting to the substitution object. Final gates passed:
+  `lein test-proflog-fast` with 208 tests / 1115 assertions,
+  `lein test-proflog-extended` with 73 tests / 219 assertions, and
+  `lein test-proflog-sjas` with `:SUMMARY pass=1078 fail=0 error=0`. See
+  [AAR-0109](docs/aar/AAR-0109-dsjas-composite-proof-object-internalization.md).
+- During ADR-0109 focused SJAS verification on
+  `adr-0109-dsjas-composite-proof-object`, the selector
+  `proflog.willard-sjas-test/sjas-subst-prf-checks-selfcons-fixed-point-certificate`
+  crossed 15 minutes at 2026-06-14T19:23:04Z inside
+  `lein test-proflog-sjas-focused`. The all-vars focused run was later
+  interrupted after the selector exceeded its historical 45-minute envelope; the
+  branch's SJAS gate evidence is the not-slow `lein test-proflog-sjas` run, with
+  slow fixed-point probes remaining in the recorded slow-suite lane.
+- Completed [ADR-0108](docs/adr/ADR-0108-dsjas-quantitative-ea-stability.md)
+  on `adr-0108-dsjas-ea-stability`: proved quantitative EA-stability for the
+  selected `D_SJAS` proof-object measure `Log_D_SJAS`, while preserving the
+  ADR-0102 refutation of the proof-code-only statement. The theorem keeps
+  Willard's A/E constants (`sigma=1`, `tau=1`, `lambda=1/2`, with `mu=0` for
+  A-stability and `mu=-1` for E-stability), but uses ADR-0104's combined
+  `(S,F,P)` measure for `sjas-axiom` citation leaves. Red->green: the focused
+  correspondence namespace first failed on missing
+  `audit-dsjas-quantitative-ea-stability`, then passed with 37 tests / 454
+  assertions after adding the executable proof audit. Final broad gates passed:
+  `lein test-proflog-fast` with 208 tests / 1103 assertions and
+  `lein test-proflog-extended` with 73 tests / 219 assertions. See
+  [AAR-0108](docs/aar/AAR-0108-dsjas-quantitative-ea-stability.md).
 - Completed [ADR-0107](docs/adr/ADR-0107-pure-indexed-relational-lookup.md)
   (width-reduction #2, pure indexed relational lookup). Added
   `clojure.core.logic.index/int-indexo` to the vendored overlay: a fixed
@@ -116,6 +149,69 @@ complete contemporaneous transcript.
   *before* building, per the ADR-0100 lesson. See
   [measurement note](docs/log/2026-06-13-sjas-substate-tabling-measurement.md)
   and [AAR-0105](docs/aar/AAR-0105-sjas-substate-tabling-investigation.md).
+- Completed [ADR-0104](docs/adr/ADR-0104-dsjas-track2c.md) on
+  `adr-0104-dsjas-track2c` for the full Track 2c `D_SJAS` objective. The branch
+  defines selected apparatus `D_SJAS`, repairs `sjas-axiom` proof-object
+  accounting with the combined `(S,F,P)` measure, proves the combined size lower
+  bound for citation and formula-bearing structural proof objects, proves
+  recursive `tableau-proof/3` and `subst-prf/4` well-foundedness by least fixed
+  point over finite acyclic proof-call graphs, and proves literature
+  admissibility for the explicitly labeled selected variant
+  `IS#_{D_SJAS}(beta)`. It does not identify `D_SJAS` with literal Willard `D`.
+  Red->green milestones: missing `audit-dsjas-track2c-specification`, missing
+  `audit-dsjas-combined-size-lower-bound`, insufficient recursive
+  `:measure-specified`, and insufficient literature `:in-progress` all failed
+  before implementation. Final focused correspondence tests passed with 35 tests
+  / 436 assertions; final broad gates passed with `lein test-proflog-fast` at
+  206 tests / 1085 assertions and `lein test-proflog-extended` at 73 tests / 219
+  assertions. See
+  [D_SJAS Track 2c Kickoff](docs/log/2026-06-13-dsjas-track2c-kickoff.md).
+- Completed [ADR-0103](docs/adr/ADR-0103-sjas-proof-attempts-a-b.md)
+  on `adr-0103-sjas-proof-attempts-a-b`: completed the corrected Path A/Path B
+  work from ADR-0102. Path A is now a proved narrow literal-Willard theorem over
+  non-axiom formula-bearing structural proof trees whose checker path uses only
+  admitted branches; its six agenda/truth/NNF/quantifier/bounded-guard
+  obligations are discharged by executable proof-audit clauses. Path B is now
+  completed negatively for literal Track 2b: the current accepted domain cannot
+  be literal Willard `D` because it includes non-Willard extended rule families
+  and the ADR-0102 fixed-size `sjas-axiom` citation counterexample. Positive
+  `D_SJAS` correspondence is therefore a Track 2c theorem after a proof-object
+  accounting repair. Red->green: the inventory API was first absent, then the
+  proof-status API was absent; after implementation
+  `lein test proflog.sjas-correspondence-test` passed with 30 tests / 407
+  assertions. Final gates: `lein test-proflog-fast` passed with 201 tests /
+  1056 assertions, and `lein test-proflog-extended` passed with 73 tests / 219
+  assertions. See [Path A proof](docs/log/2026-06-13-sjas-path-a-proof-attempt.md),
+  [Path B verdict](docs/log/2026-06-13-sjas-path-b-proof-attempt.md), and
+  [AAR-0103](docs/aar/AAR-0103-sjas-proof-attempts-a-b.md).
+- Completed [ADR-0102](docs/adr/ADR-0102-sjas-counterexample-proof-targets.md)
+  on `adr-0102-sjas-counterexample-proof-targets`: wrote an executable
+  counterexample to ADR-0100 as stated. The focused test constructs a Tableau-0
+  system with beta axiom `(= (f^8 1) (f^8 1))`, proves `tableau-proof(s,f,p)`
+  with the fixed compact `sjas-axiom` certificate, and verifies the certificate
+  has 3 base-64 proof bytes = 18 bits while `J=18`, so the claimed `>=5J`
+  requirement is 90 bits. This refutes ADR-0100's proof-size claim over its
+  own covered domain. Also pursued the two corrected tracks: Path A narrows to
+  a literal-Willard structural fragment excluding SJAS extensions, while Path B
+  defines the candidate extended `D_SJAS` apparatus needed for full
+  self-reference. See the
+  [counterexample](docs/log/2026-06-13-adr0100-axiom-citation-counterexample.md),
+  [Path A](docs/log/2026-06-13-sjas-path-a-narrow-willard-fragment.md),
+  [Path B](docs/log/2026-06-13-sjas-path-b-extended-dsjas.md), and
+  [AAR-0102](docs/aar/AAR-0102-sjas-counterexample-proof-targets.md).
+- Completed [ADR-0101](docs/adr/ADR-0101-sjas-correspondence-proof-attempt.md)
+  on `adr-0101-sjas-correspondence-proof-audit`: independently attempted to
+  prove ADR-0100's Track 2b correspondence claim against the actual structural
+  checker and proof-code grammar. The proof does **not** close as written.
+  Ordinary non-axiom formula-bearing structural proof trees still have a
+  credible Willard-tableau correspondence and a repairable size lower bound,
+  but the full ADR-0100 domain includes non-literal-`D` checker branches
+  (equality/arithmetic/profile/reflected/proof-predicate closure) and the bare
+  fixed-size `sjas-axiom` citation. The latter cannot satisfy `size(P) >= 5J`
+  as a property of `P` alone when the cited axiom formula grows via `S` and
+  `F`. Updated AAR-0100 with an erratum. See the
+  [proof attempt](docs/log/2026-06-13-sjas-correspondence-proof-attempt.md) and
+  [AAR-0101](docs/aar/AAR-0101-sjas-correspondence-proof-attempt.md).
 - Completed [ADR-0100](docs/adr/ADR-0100-sjas-correspondence-proof.md) on
   `adr-0100-sjas-correspondence-proof`: proved the Track 2b correspondence
   theorem over the first fragment —

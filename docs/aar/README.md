@@ -101,5 +101,11 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0098](AAR-0098-sjas-equality-fragment-reachability.md) | [ADR-0098](../adr/ADR-0098-sjas-equality-fragment-reachability.md) | completed |
 | [AAR-0099](AAR-0099-sjas-track2a-completion.md) | [ADR-0099](../adr/ADR-0099-sjas-track2a-completion.md) | completed |
 | [AAR-0100](AAR-0100-sjas-correspondence-proof.md) | [ADR-0100](../adr/ADR-0100-sjas-correspondence-proof.md) | completed |
+| [AAR-0101](AAR-0101-sjas-correspondence-proof-attempt.md) | [ADR-0101](../adr/ADR-0101-sjas-correspondence-proof-attempt.md) | completed |
+| [AAR-0102](AAR-0102-sjas-counterexample-proof-targets.md) | [ADR-0102](../adr/ADR-0102-sjas-counterexample-proof-targets.md) | completed |
+| [AAR-0103](AAR-0103-sjas-proof-attempts-a-b.md) | [ADR-0103](../adr/ADR-0103-sjas-proof-attempts-a-b.md) | completed |
+| [AAR-0104](AAR-0104-dsjas-track2c.md) | [ADR-0104](../adr/ADR-0104-dsjas-track2c.md) | completed |
 | [AAR-0105](AAR-0105-sjas-substate-tabling-investigation.md) | [ADR-0105](../adr/ADR-0105-sjas-substate-tabling-investigation.md) | completed |
 | [AAR-0106](AAR-0106-sjas-search-width-reduction.md) | [ADR-0106](../adr/ADR-0106-sjas-search-width-reduction.md) | completed |
+| [AAR-0108](AAR-0108-dsjas-quantitative-ea-stability.md) | [ADR-0108](../adr/ADR-0108-dsjas-quantitative-ea-stability.md) | completed |
+| [AAR-0109](AAR-0109-dsjas-composite-proof-object-internalization.md) | [ADR-0109](../adr/ADR-0109-dsjas-composite-proof-object-internalization.md) | completed |

@@ -4458,11 +4458,16 @@
 (deftest dsjas-tableau-proof-accepts-and-checks-composite-axiom-citations
   (testing "measured tableau proof checks the embedded S/F/P bytes before delegating to tableau-proof"
     (let [system (demo-system :willard-sjas-tableau0)
+          wrong-system (demo-system :willard-sjas-level1)
           beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
           axiom-certificate (sjas/proof-certificate 'sjas-axiom)
           composite (sjas/dsjas-tableau-proof-object (:system-code system)
                                                      (:code beta-record)
                                                      axiom-certificate)
+          wrong-system-composite (sjas/dsjas-tableau-proof-object
+                                   (:system-code wrong-system)
+                                   (:code beta-record)
+                                   axiom-certificate)
           wrong-theorem-composite (sjas/dsjas-tableau-proof-object
                                     (:system-code system)
                                     (:contradiction-code system)
@@ -4476,6 +4481,15 @@
               1
               160))
           "matching composite citation object must be accepted")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-tableau-proof (:system-code system)
+                                        (:code beta-record)
+                                        wrong-system-composite)
+              1
+              160))
+          "mismatched embedded system bytes must be rejected")
       (is (empty?
             (query/query-succeeds
               (:program system)
@@ -4509,6 +4523,7 @@
 (deftest dsjas-subst-prf-accepts-and-checks-composite-axiom-citations
   (testing "measured subst-prf checks embedded S/G/F/P bytes before applying substitution proof"
     (let [system (demo-system :willard-sjas-tableau0)
+          wrong-system (demo-system :willard-sjas-level1)
           beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
           fixed-record (first (filter #(= :group-zero (:group %)) (:axioms system)))
           axiom-certificate (sjas/proof-certificate 'sjas-axiom)
@@ -4516,10 +4531,20 @@
                                                  (:code beta-record)
                                                  (:code beta-record)
                                                  axiom-certificate)
+          wrong-system-composite
+          (sjas/dsjas-subst-prf-object (:system-code wrong-system)
+                                       (:code beta-record)
+                                       (:code beta-record)
+                                       axiom-certificate)
           wrong-substitution-composite
           (sjas/dsjas-subst-prf-object (:system-code system)
                                        (:code fixed-record)
                                        (:code beta-record)
+                                       axiom-certificate)
+          wrong-theorem-composite
+          (sjas/dsjas-subst-prf-object (:system-code system)
+                                       (:code beta-record)
+                                       (:code fixed-record)
                                        axiom-certificate)]
       (is (successful?
             (query/query-succeeds
@@ -4537,10 +4562,30 @@
               (sjas/dsjas-subst-prf (:system-code system)
                                     (:code beta-record)
                                     (:code beta-record)
+                                    wrong-system-composite)
+              1
+              220))
+          "mismatched embedded system bytes must be rejected")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-subst-prf (:system-code system)
+                                    (:code beta-record)
+                                    (:code beta-record)
                                     wrong-substitution-composite)
               1
               220))
-          "mismatched embedded substitution bytes must be rejected"))))
+          "mismatched embedded substitution bytes must be rejected")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-subst-prf (:system-code system)
+                                    (:code beta-record)
+                                    (:code beta-record)
+                                    wrong-theorem-composite)
+              1
+              220))
+          "mismatched embedded theorem bytes must be rejected"))))
 
 (deftest sjas-level1-group-three-rejects-wrong-public-code-representation
   (testing "Level-1 Group-3 is fixed to the presented public s term"

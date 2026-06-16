@@ -111,3 +111,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0108](AAR-0108-dsjas-quantitative-ea-stability.md) | [ADR-0108](../adr/ADR-0108-dsjas-quantitative-ea-stability.md) | completed |
 | [AAR-0109](AAR-0109-dsjas-composite-proof-object-internalization.md) | [ADR-0109](../adr/ADR-0109-dsjas-composite-proof-object-internalization.md) | completed |
 | [AAR-0110](AAR-0110-mode-directed-ground-before-decode.md) | [ADR-0110](../adr/ADR-0110-mode-directed-ground-before-decode.md) | accepted |
+| [AAR-0111](AAR-0111-dsjas-counting-lemma.md) | [ADR-0111](../adr/ADR-0111-dsjas-counting-lemma.md) | completed |

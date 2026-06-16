@@ -1,23 +1,31 @@
 # AAR-0114: Proflog Open-Branch Witness Extraction
 
-- Date: 2026-06-16
+- Date: 2026-06-20
 - ADR: [ADR-0114](../adr/ADR-0114-proflog-open-branch-witness-extraction.md)
 - Branch: `adr-0114-proflog-open-branch-witness-extraction`
-- Status: pending implementation
+- Status: complete
 
 ## Outcome
 
-Pending. ADR-0114 was created as part of the docs-only planning branch
-`adr-proflog-tableau-improvement-planning`. No witness extractor has been
-implemented yet.
+Added `proflog.diagnostics.witness` with conservative witness extraction for the
+v1 ground propositional fragment.
+
+## Supported fragment
+
+- Flat conjunctions of ground atomic `pos`/`neg` literals on nullary relations.
+- Explicit `{:literals [[sym :pos|:neg] ...]}` input maps.
+
+## Rejected / unsupported
+
+- Quantifiers, disjunctions, implications, disequality, nested non-flat structure.
+- Contradictory literal sets return `:closed` rather than a witness.
 
 ## Evidence
 
-The ADR defines a conservative diagnostic status map and test obligations for
-open, closed, contradictory, and unsupported branch cases.
+Tests: `lein test proflog.diagnostics.witness-test` — 6 tests, 14 assertions,
+including golden-suite integration on three ADR-0112 open-branch examples.
+Wired into `lein test-proflog-fast`.
 
 ## Follow-up
 
-- Implement ADR-0114 on its own branch.
-- Complete this AAR with supported fragments, rejected fragments, examples, and
-  test evidence.
+Broader fragments require new correctness tests per ADR-0114 consequences.

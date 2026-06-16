@@ -31,6 +31,10 @@ complete contemporaneous transcript.
 - Completed [ADR-0113](docs/adr/ADR-0113-proflog-proof-object-diagnostic-renderer.md):
   read-only proof trace renderer (`proflog.diagnostics.proof-trace`). See
   [AAR-0113](docs/aar/AAR-0113-proflog-proof-object-diagnostic-renderer.md).
+- Completed [ADR-0114](docs/adr/ADR-0114-proflog-open-branch-witness-extraction.md):
+  open-branch witness extraction (`proflog.diagnostics.witness`) for the ground
+  propositional fragment, integrated with golden-suite open examples. See
+  [AAR-0114](docs/aar/AAR-0114-proflog-open-branch-witness-extraction.md).
 
 ## 2026-06-16
 

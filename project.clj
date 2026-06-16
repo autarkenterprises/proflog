@@ -86,6 +86,7 @@
                                     "proflog.kernel-test"
                                     "proflog.literature-tableau-golden-test"
                                     "proflog.diagnostics.proof-trace-test"
+                                    "proflog.diagnostics.witness-test"
                                     "proflog.proof-test"
                                     "proflog.sjas-correspondence-test"
                                     "proflog.equality-test"

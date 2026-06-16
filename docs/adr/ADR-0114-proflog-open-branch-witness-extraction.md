@@ -1,6 +1,6 @@
 # ADR-0114: Proflog Open-Branch Witness Extraction
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-06-16
 - Branch: `adr-0114-proflog-open-branch-witness-extraction`
 - AAR: [AAR-0114](../aar/AAR-0114-proflog-open-branch-witness-extraction.md)

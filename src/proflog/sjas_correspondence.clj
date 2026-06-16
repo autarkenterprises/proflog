@@ -1157,19 +1157,22 @@
    grammar-level derivation. Bytes are six-bit base-64 digits (`byte-base` = 64).
 
    Grammar facts (read off the canonical and proof encoders):
-   - `encode-canonical-term-bytes` emits, for every `(app head args...)` term, a
-     THREE-byte header BEFORE its arguments: the `app` term-tag, the
-     `symbol-index`, and the one-byte arity. So each function/application
-     occurrence costs at least 3 bytes = 18 bits in the canonical formula
-     encoding, independent of its arguments. (`var`/`par` cost 2 bytes; a
-     numeral or embedded code costs a 3-byte header; every formula node costs at
-     least its 1 tag byte.)
+   - `encode-canonical-term-bytes` emits, for every ordinary `(app head args...)`
+     term, a THREE-byte header BEFORE its arguments: the `app` term-tag, the
+     `symbol-index`, and the one-byte arity. So each ordinary canonical
+     function/application occurrence costs at least 3 bytes = 18 bits in the
+     canonical formula encoding, independent of its arguments. Compact code terms
+     and binary numerals are normalized to first-class `code` / `num` payload
+     terms before this ordinary-application branch; `var`/`par` cost 2 bytes; and
+     every formula node costs at least its 1 tag byte.
    - `proof-code-bytes` re-wraps each canonical formula byte as a two-byte
      `[proof-byte-tag value]` proof datum, so the SAME occurrence costs at least
      6 bytes = 36 bits once embedded in a structural proof code.
    - Every structural proof node is a `proof-list` (>= proof-list-tag + count)
-     carrying a non-empty formula-byte sub-list (>= proof-list-tag + count), so
-     each of the N nodes contributes at least 4 framing bytes = 24 bits.
+     in one of two accepted formula-bearing shapes. The compact flat-prefix shape
+     carries a wrapped formula byte-count before the bytes; the wide shape carries
+     a non-empty formula-byte sub-list. Either way each of the N nodes contributes
+     at least 4 framing bytes = 24 bits before the formula bytes themselves.
 
    Therefore a cited theorem-code F with J occurrences is >= 18J bits, and an
    N-node structural proof tree with J occurrences is >= 24N + 36J bits; both
@@ -1185,7 +1188,7 @@
   (let [bits-per-byte 6
         canonical-app-header-bytes 3    ; app-term-tag + symbol-index + arity-byte
         proof-byte-wrapping-factor 2    ; each formula byte -> [proof-byte-tag value]
-        structural-framing-bytes 4]     ; node proof-list + formula sub-list framing
+        structural-framing-bytes 4]     ; node list + flat count or formula sub-list framing
     {:status :derived-from-byte-grammar
      :supersedes :dsjas-combined-size-lower-bound
      :hypothesis :injective-public-code-reading
@@ -1196,6 +1199,8 @@
      :willard-threshold-bits-per-occurrence 5
      :per-occurrence
      {:canonical-app-header-bytes canonical-app-header-bytes
+      :j-measure :ordinary-canonical-app-occurrences
+      :normalized-non-app-term-forms [:compact-code-term :binary-numeral-term]
       :canonical-app-header-components [:app-term-tag :symbol-index :arity-byte]
       :canonical-app-bits (* bits-per-byte canonical-app-header-bytes)
       :proof-byte-wrapping-factor proof-byte-wrapping-factor
@@ -1203,8 +1208,18 @@
                                  proof-byte-wrapping-factor)}
      :per-node
      {:structural-framing-bytes structural-framing-bytes
-      :structural-framing-components [:node-proof-list-tag :node-list-count
-                                      :formula-sublist-tag :formula-sublist-count]
+      :accepted-structural-node-shapes [:flat-prefix :formula-byte-list]
+      :flat-prefix-framing-components
+      [:node-proof-list-tag :node-list-count
+       :formula-byte-count-tag :formula-byte-count-value]
+      :formula-byte-list-framing-components
+      [:node-proof-list-tag :node-list-count
+       :formula-sublist-tag :formula-sublist-count]
+      :structural-framing-components-by-shape
+      {:flat-prefix [:node-proof-list-tag :node-list-count
+                     :formula-byte-count-tag :formula-byte-count-value]
+       :formula-byte-list [:node-proof-list-tag :node-list-count
+                           :formula-sublist-tag :formula-sublist-count]}
       :structural-framing-bits (* bits-per-byte structural-framing-bytes)}
      :floors
      {:tableau-axiom-citation "18 * J"
@@ -1517,7 +1532,7 @@
     {:status :derived-from-byte-grammar
      :source (:status dsjas-counting-lemma)
      :counting-lemma :dsjas-counting-lemma
-     :argument "ADR-0111's counting lemma derives this floor from the `proflog.willard-sjas-code` byte grammar instead of asserting it: each function/application occurrence emits a 3-byte canonical header (app-tag, symbol-index, arity) = 18 bits, doubled to 36 bits once proof-code-wrapped, and each structural node adds 4 framing bytes = 24 bits. So formula-bearing structural trees give at least 24N+36J bits and combined citation objects at least 18J bits, both above Willard's conservative 5J threshold, under the stated code-injectivity hypothesis."}
+     :argument "ADR-0111's counting lemma derives this floor from the `proflog.willard-sjas-code` byte grammar instead of asserting it: each ordinary canonical function/application occurrence emits a 3-byte header (app-tag, symbol-index, arity) = 18 bits, doubled to 36 bits once proof-code-wrapped; compact code terms and binary numerals are normalized to code/num payload terms before that app branch; and each accepted structural node shape adds 4 framing bytes = 24 bits. So formula-bearing structural trees give at least 24N+36J bits and combined citation objects at least 18J bits, both above Willard's conservative 5J threshold, under the stated code-injectivity hypothesis."}
     :a-stability-contradiction
     {:status :proved
      :argument "Assume a short `D_SJAS` proof of a Pi_1 theorem Upsilon that fails Good(1/2 #theta). Add Reverse(Upsilon) to Z. The Normed(a,b) clause and Log_D_SJAS(p) <= #theta+1 place p below the generalized Fact D.3 threshold, yielding an open branch, contradicting that p is a closed proof."}

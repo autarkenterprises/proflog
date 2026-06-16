@@ -32,20 +32,26 @@ from this derived lemma instead of the asserted `dsjas-combined-size-lower-bound
 Bytes are six-bit base-64 digits (`byte-base` = 64).
 
 1. **Per-occurrence floor (canonical).** `encode-canonical-term-bytes` encodes
-   every `(app head args...)` term as a three-byte header — the `app` term-tag,
-   the `symbol-index`, and the one-byte arity — emitted *before* the argument
-   encodings. So each function/application occurrence costs **≥ 3 bytes = 18
-   bits**, independent of its arguments. (`var`/`par` cost 2 bytes; numerals and
-   embedded codes cost a 3-byte header; every formula node costs ≥ its 1 tag
-   byte.) Hence a canonical formula with `J` occurrences encodes to **≥ 18J bits**.
+   every ordinary canonical `(app head args...)` term as a three-byte header —
+   the `app` term-tag, the `symbol-index`, and the one-byte arity — emitted
+   *before* the argument encodings. So each ordinary canonical
+   function/application occurrence costs **≥ 3 bytes = 18 bits**, independent of
+   its arguments. Compact code terms and binary numerals are normalized to
+   first-class `code` / `num` payload terms before this ordinary-application
+   branch; `var`/`par` cost 2 bytes; every formula node costs ≥ its 1 tag byte.
+   Hence a canonical formula with `J` ordinary application occurrences encodes
+   to **≥ 18J bits**.
 
 2. **Per-occurrence floor (proof-wrapped).** `proof-code-bytes` re-wraps each
    canonical formula byte as a two-byte `[proof-byte-tag value]` proof datum, so
    the same occurrence costs **≥ 6 bytes = 36 bits** inside a structural proof code.
 
 3. **Per-node floor.** Each structural proof node is a `proof-list`
-   (≥ `proof-list-tag` + count) carrying a non-empty formula-byte sub-list
-   (≥ `proof-list-tag` + count): **≥ 4 framing bytes = 24 bits** per node.
+   (≥ `proof-list-tag` + count) in one of two accepted formula-bearing shapes.
+   The compact flat-prefix shape carries a wrapped formula byte-count before the
+   formula bytes; the wide shape carries a non-empty formula-byte sub-list. Both
+   shapes contribute **≥ 4 framing bytes = 24 bits** per node before the formula
+   bytes themselves.
 
 Therefore a cited theorem-code `F` with `J` occurrences is **≥ 18J bits**, and an
 `N`-node structural proof tree with `J` occurrences is **≥ 24N + 36J bits**. Both
@@ -72,23 +78,30 @@ property encodes `eq(f^8(c), f^8(c))` (`J = 18`) and shows `F ≥ 324` bits ≫
 - ADR-0108 Lemma 1 / the `:size-to-u-height-bound` clause is now **derived**, not
   asserted; `dsjas-combined-size-lower-bound` is retained (marked `:supersedes`)
   for the ADR-0104 record.
-- Encoder changes that lower any per-constructor byte count would weaken the
-  floor; the executable property pins the 3-byte app header.
+- Encoder changes that lower any per-constructor byte count, or that change the
+  compact-code / binary-numeral normalization boundary, would weaken the floor;
+  the executable properties pin the public formula-byte floor and both accepted
+  structural node shapes.
 - The only standing assumption remaining under Lemma 1 is code-injectivity.
 
 ## Test Obligations
 
 - A red test requiring `audit-dsjas-counting-lemma` with the derived constants.
-- An executable property: `encode-canonical-formula-bytes` spends ≥ 3 bytes per
-  app-occurrence (and proof-wrapping ≥ 6 bytes), over representative formulas
-  including the ADR-0102 counterexample.
+- An executable property: public `canonical-formula-code-bytes` spend ≥ 3 bytes
+  per ordinary app-occurrence (and proof-wrapping ≥ 6 bytes), over representative
+  formulas including quantifiers, bounded quantifiers, compact embedded code
+  terms, and the ADR-0102 counterexample.
+- An executable structural property: encode a full structural proof tree using
+  both accepted node shapes, count `N` and `J`, and assert the **24N + 36J** bit
+  floor.
 - The EA-stability `:size-to-u-height-bound` clause sources the derived lemma.
 - Existing ADR-0104/0108 size and EA-stability tests stay green.
 
 ## Exit Criteria
 
 - The counting lemma is recorded as an executable audit with derived constants.
-- The per-occurrence / per-node floors are checked by an encoder property test.
+- The per-occurrence / per-node floors are checked by public encoder and
+  structural proof-tree property tests.
 - Focused correspondence tests pass; fast / extended / SJAS gates pass before commit.
 
 ## Evidence
@@ -105,7 +118,8 @@ Green selectors:
 ```text
 dsjas-counting-lemma-derives-per-occurrence-bit-floor
 dsjas-counting-lemma-encoder-floor-property
-proflog.sjas-correspondence-test: 39 tests, 489 assertions, 0 failures, 0 errors
+dsjas-counting-lemma-structural-proof-tree-floor-property
+proflog.sjas-correspondence-test: 40 tests, 506 assertions, 0 failures, 0 errors
 ```
 
 Final gates are recorded in [AAR-0111](../aar/AAR-0111-dsjas-counting-lemma.md).

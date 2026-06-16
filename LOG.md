@@ -27,17 +27,20 @@ complete contemporaneous transcript.
   `adr-0109-dsjas-composite-mismatch-coverage`): discharged the **counting
   lemma**, turning ADR-0108 Lemma 1 (size-to-U-height) from an asserted
   `:proved-under-code-injectivity` prose claim into a derivation off the
-  `proflog.willard-sjas-code` byte grammar. Each `(app …)` occurrence emits a
-  fixed 3-byte canonical header (app-tag, symbol-index, arity) = 18 bits, doubled
-  to 36 bits by `proof-code-bytes`' per-byte wrapping, and each structural node
-  adds 4 framing bytes = 24 bits — so citations are ≥ 18J bits and structural
-  trees ≥ 24N+36J bits, both above Willard's conservative 5J, under an explicit
-  code-injectivity hypothesis. Defeats the ADR-0102 counterexample constructively
-  (executable property: `eq(f^8(c),f^8(c))`, J=18, F ≥ 324 bits ≫ 5J=90, vs the
-  fixed 18-bit bare marker). New `dsjas-counting-lemma` audit
-  (`:derived-from-byte-grammar`); the EA-stability `:size-to-u-height-bound`
-  clause now sources it. Red→green: `No such var: audit-dsjas-counting-lemma` →
-  `proflog.sjas-correspondence-test` 39 tests / 489 assertions. See
+  `proflog.willard-sjas-code` byte grammar. Each ordinary canonical `(app …)`
+  occurrence emits a fixed 3-byte canonical header (app-tag, symbol-index, arity)
+  = 18 bits, doubled to 36 bits by `proof-code-bytes`' per-byte wrapping; compact
+  code terms and binary numerals are normalized to `code` / `num` payload terms
+  before that branch. Each accepted structural node shape adds 4 framing bytes =
+  24 bits — so citations are ≥ 18J bits and structural trees ≥ 24N+36J bits, both
+  above Willard's conservative 5J, under an explicit code-injectivity hypothesis.
+  Defeats the ADR-0102 counterexample constructively (executable property:
+  `eq(f^8(c),f^8(c))`, J=18, F ≥ 324 bits ≫ 5J=90, vs the fixed 18-bit bare
+  marker). New `dsjas-counting-lemma` audit (`:derived-from-byte-grammar`); the
+  EA-stability `:size-to-u-height-bound` clause now sources it. Red→green:
+  `No such var: audit-dsjas-counting-lemma` → `proflog.sjas-correspondence-test`
+  40 tests / 506 assertions after the public-encoder and structural proof-tree
+  floor properties were added. See
   [AAR-0111](docs/aar/AAR-0111-dsjas-counting-lemma.md).
 
 ## 2026-06-14

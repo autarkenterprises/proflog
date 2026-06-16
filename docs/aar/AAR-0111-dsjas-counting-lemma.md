@@ -13,12 +13,17 @@ from the `proflog.willard-sjas-code` byte grammar** instead of asserted as
 The derivation reads three facts off the encoders and composes them:
 
 - `encode-canonical-term-bytes` spends a fixed **3-byte header** (`app`-tag,
-  `symbol-index`, arity) on every `(app …)` occurrence → **18 bits/occurrence**
-  in a canonical formula → cited theorem-code `F` is **≥ 18J bits**.
+  `symbol-index`, arity) on every ordinary canonical `(app …)` occurrence →
+  **18 bits/occurrence** in a canonical formula → cited theorem-code `F` is
+  **≥ 18J bits**. Compact code terms and binary numerals are normalized to
+  `code` / `num` payload terms before the ordinary `app` branch and are not part
+  of this `J` count.
 - `proof-code-bytes` re-wraps each formula byte as `[proof-byte-tag value]` (×2)
   → **36 bits/occurrence** when proof-code-wrapped.
-- each structural node is a `proof-list` over a non-empty formula sub-list →
-  **≥ 4 framing bytes = 24 bits/node**.
+- each structural node is a `proof-list` in either accepted formula-bearing
+  shape: the flat-prefix node pays root-list framing plus the wrapped formula
+  byte-count, and the byte-list node pays root-list framing plus formula-sublist
+  framing. Either shape gives **≥ 4 framing bytes = 24 bits/node**.
 
 So structural trees are **≥ 24N + 36J** bits and citations **≥ 18J** bits, both
 dominating Willard's `5J`. The one remaining hypothesis is **code-injectivity**
@@ -45,21 +50,19 @@ No such var: correspondence/audit-dsjas-counting-lemma
 Green (focused), then the broad gates:
 
 ```text
-proflog.sjas-correspondence-test   39 tests / 489 assertions, 0 failures, 0 errors
-lein test-proflog-fast             <recorded at commit>
-lein test-proflog-extended         <recorded at commit>
-lein test-proflog-sjas             <recorded at commit>
+proflog.sjas-correspondence-test   40 tests / 506 assertions, 0 failures, 0 errors
+lein test-proflog-fast             212 tests / 1159 assertions, 0 failures, 0 errors
+lein test-proflog-extended         73 tests / 219 assertions, 0 failures, 0 errors
+lein test-proflog-sjas             pass=1081 fail=0 error=0
 ```
 
 ## Follow-up
 
-- The per-occurrence (3-byte/18-bit) and proof-wrapping (×2/36-bit) floors are
-  pinned by an executable property; the structural `24N + 36J` node floor is
-  grounded by the canonical + proof-wrapping composition. An end-to-end property
-  (encode a full structural proof tree, count `N` and `J`, assert ≥ 24N + 36J)
-  would strengthen the empirical check beyond the per-occurrence pieces.
+- The per-occurrence (3-byte/18-bit), proof-wrapping (×2/36-bit), and structural
+  `24N + 36J` floors are pinned by executable properties. The structural property
+  encodes a full proof tree using both accepted node shapes.
 - **Code-injectivity** remains the single standing hypothesis under Lemma 1,
   shared with the ADR-0089 representation-sensitivity finding; discharging or
   bounding it is the natural successor.
-- Epistemic status: a grammar-level derivation with an executable floor check,
-  not machine-checked — the same standing as the rest of the `D_SJAS` line.
+- Epistemic status: a grammar-level derivation with executable floor checks, not
+  machine-checked — the same standing as the rest of the `D_SJAS` line.

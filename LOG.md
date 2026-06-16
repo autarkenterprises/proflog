@@ -20,6 +20,27 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-16
+
+- LOPSTR+PPDP, miniKanren 2026, and Clojure/Conj submissions completed.
+- Expanded conference search: [docs/conference/expanded-venue-map.md](docs/conference/expanded-venue-map.md)
+  and [open-by-date.md](docs/conference/open-by-date.md) (open CFPs ranked by nearest conf date, verified 2026-06-20).
+- Implemented the conference / CFP mapping plan (plan file left unchanged in
+  `.cursor/plans/`). Added [docs/conference/](docs/conference/) navigation,
+  [deadline-verification.md](docs/conference/deadline-verification.md) (Tier
+  A/B deadlines verified from official sites), and
+  [csl-2027-outline.md](docs/conference/csl-2027-outline.md) for the ADR-0100+
+  correspondence track.
+- Added submission checklists: [lopstr-ppdp26/SUBMISSION.md](lopstr-ppdp26/SUBMISSION.md),
+  [mk2026/SUBMISSION.md](mk2026/SUBMISSION.md).
+- Verified both paper artifacts build and pass their gates: LOPSTR+PPDP system
+  description (9 pp), miniKanren kernel paper (7 pp, including core.logic host
+  engine and reproducibility sections). Fixed mk2026 LaTeX build failure caused
+  by a line-broken `\texttt{q,` / `\texttt{run}` pair in the layer diagram.
+- Added [docs/conference/us-speaking-opportunities.md](docs/conference/us-speaking-opportunities.md):
+  US seminar and colloquium outreach map (NYC CTS tier, logic colloquia, PL
+  seminars, MAMLS/NJPLS/NEPLS, virtual proof-theory series, pitch template).
+
 ## 2026-06-14
 
 - Completed [ADR-0110](docs/adr/ADR-0110-mode-directed-ground-before-decode.md)

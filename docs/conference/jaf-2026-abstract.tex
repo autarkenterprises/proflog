@@ -1,0 +1,113 @@
+% JAF 2026 contributed talk abstract (anonymous; ≤1 page excluding references)
+% Submit as PDF with separate surname.txt (name, affiliation, email).
+% https://jaf45warsaw.wfz.uw.edu.pl/
+
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{microtype}
+
+\begin{document}
+\noindent
+\textbf{Executable Self-Justifying Axiom Systems over U-Grounding Arithmetic:
+Mechanizing Willard's Tableau Apparatus in a Weak-Arithmetic Setting}
+
+\medskip
+\noindent
+Willard's self-justifying axiom systems (SJAS) form a family of weak
+arithmetical theories that can consistently extend themselves with a
+carefully formulated self-consistency principle, despite living in the
+shadow of G\"odel's second incompleteness theorem.
+The construction is not merely a model-theoretic curiosity: it depends on a
+precise interaction between (i)~a \emph{U-grounding} arithmetic base, in
+which addition is total but multiplication is available only as a graph
+relation $\mathit{mult}(x,y,z)$ rather than a function symbol, and (ii)~a
+reflected semantic-tableau proof apparatus~$D$, together with arithmetized
+predicates for codes of formulae, proofs, and finite axiom bases~$\beta$.
+In an $IS\#_D(\beta)$ system, the self-consistency sentence asserts that no
+$D$-proof derives the code of a contradiction from the code of the finite
+system $\beta$.
+The boundary at which self-justification becomes possible is therefore
+proof-theoretic and intensional: it is the failure of a particular encoded
+tableau to close under the rules and size constraints Willard imposes, not
+an extensional identification of provability with truth in a stronger
+theory.
+
+\smallskip
+\noindent
+This talk reports on an executable mechanization of the $IS\#_D(\beta)$ line
+in \emph{Proflog}, a logic programming language whose operational semantics
+is Fitting/Smullyan semantic tableaux with equality and subsidiary
+procedure calls.
+The implementation makes the weak-arithmetic object language, the reflected
+clause basis, and the arithmetized proof predicate
+$\mathsf{TabPrf}_\beta(s,t,p)$---``there is a semantic-tableau proof~$p$ of
+theorem~$t$ in system~$s$''---first-class objects that can be queried,
+executed, and audited at the proof-certificate level.
+Because SJAS self-reference is sensitive to proof-tree branching, closure
+rules, and encoded proof size (including Willard's conventional tableaux
+encoding requirement), the mechanization is organized around \emph{visible}
+tableau descent from source formulae to kernel proof terms, rather than
+host-language evaluation of truth values.
+
+\smallskip
+\noindent
+From the perspective of weak arithmetics, three aspects of the work may be
+of particular interest.
+First, the U-grounding design is treated as an executable signature and
+coding discipline, not only as a metatheoretic hypothesis: numerals, bounded
+formula classes ($\Delta^\star_0$, $\Pi^\star_1$, $\Sigma^\star_1$), and
+Level-1 self-consistency schemata are generated and classified inside the
+same first-order setting used for ordinary programs.
+Second, the proof predicate is implemented as a structural checker over
+encoded tableau trees, aligning with Willard's semantic-tableau proof
+predicate for ordinary tableaux; ongoing correspondence work establishes a
+biconditional over a sharply bounded first fragment of certificates, with
+equality, procedure-call, and quantifier constructors shown unreachable in
+that fragment.
+Third, the executable setting supports \emph{computational} exploration of
+Willard's ``strength dial'': the same tableau kernel runs Fitting-style
+reference programs and SJAS-encoded proof obligations, showing where tableaux
+close, remain open, or become unresolved when coding strength changes.
+
+\smallskip
+\noindent
+The talk summarizes the weak-arithmetic commitments of the mechanized
+$IS\#_D(\beta)$ builder, exhibits arithmetized proof checking on small
+examples, and states what is not yet proved: full Willard equivalence,
+U-grounding numeral decoding in the correspondence proof, and discharge of
+$\beta$-validity.
+The broader question---which weak-arithmetic and tableau features must be
+preserved when a self-justifying system is made computational---is posed for
+discussion.
+
+\smallskip
+\noindent
+\textbf{Keywords:} weak arithmetic, U-grounding, self-justifying axiom
+systems, semantic tableaux, proof coding, incompleteness.
+
+\begin{thebibliography}{9}
+\bibitem{willard2001}
+D.~Willard,
+Self-verifying axiom systems, the incompleteness theorem and related
+reflection principles,
+\emph{J.~Symbolic Logic} \textbf{66} (2001), 536--596.
+
+\bibitem{willard2013}
+D.~Willard,
+The significance of $\Pi_1$-definable cutsets for incompleteness,
+feasibility, and self-justification,
+\emph{Ann. Pure Appl. Logic} \textbf{164} (2013), 902--912.
+
+\bibitem{willard2004}
+D.~Willard,
+Addition, multiplication, and self-inspectable theories,
+\emph{Ann. Pure Appl. Logic} \textbf{130} (2004), 27--41.
+
+\bibitem{fitting1994}
+M.~Fitting,
+\emph{First-Order Logic and Automated Theorem Proving},
+Springer, 1990/1996.
+\end{thebibliography}
+
+\end{document}

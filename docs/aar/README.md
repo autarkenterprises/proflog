@@ -112,7 +112,7 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0109](AAR-0109-dsjas-composite-proof-object-internalization.md) | [ADR-0109](../adr/ADR-0109-dsjas-composite-proof-object-internalization.md) | completed |
 | [AAR-0110](AAR-0110-mode-directed-ground-before-decode.md) | [ADR-0110](../adr/ADR-0110-mode-directed-ground-before-decode.md) | accepted |
 | [AAR-0111](AAR-0111-dsjas-counting-lemma.md) | [ADR-0111](../adr/ADR-0111-dsjas-counting-lemma.md) | completed |
-| [AAR-0112](AAR-0112-proflog-literature-tableau-golden-suite.md) | [ADR-0112](../adr/ADR-0112-proflog-literature-tableau-golden-suite.md) | pending implementation |
+| [AAR-0112](AAR-0112-proflog-literature-tableau-golden-suite.md) | [ADR-0112](../adr/ADR-0112-proflog-literature-tableau-golden-suite.md) | complete |
 | [AAR-0113](AAR-0113-proflog-proof-object-diagnostic-renderer.md) | [ADR-0113](../adr/ADR-0113-proflog-proof-object-diagnostic-renderer.md) | pending implementation |
 | [AAR-0114](AAR-0114-proflog-open-branch-witness-extraction.md) | [ADR-0114](../adr/ADR-0114-proflog-open-branch-witness-extraction.md) | pending implementation |
 | [AAR-0115](AAR-0115-proflog-proof-preserving-scheduling-benchmarks.md) | [ADR-0115](../adr/ADR-0115-proflog-proof-preserving-scheduling-benchmarks.md) | pending implementation |

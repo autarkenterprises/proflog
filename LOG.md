@@ -20,6 +20,15 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-20
+
+- Completed [ADR-0112](docs/adr/ADR-0112-proflog-literature-tableau-golden-suite.md):
+  literature tableau golden suite (`proflog.literature-tableau-golden`) covering all
+  76 active upstream `tableaux` items at commit `fa5a736`, with 44 runnable
+  Proflog-confirmed cases and 32 explicit `:unsupported` dispositions. Wired into
+  `lein test-proflog-fast` and `lein test-proflog-extended`. See
+  [AAR-0112](docs/aar/AAR-0112-proflog-literature-tableau-golden-suite.md).
+
 ## 2026-06-16
 
 - Created a docs-only planning branch for Proflog-level tableau improvements

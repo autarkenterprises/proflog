@@ -1,6 +1,6 @@
 # ADR-0112: Proflog Literature Tableau Golden Suite
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-06-16
 - Branch: `adr-0112-proflog-literature-tableau-golden-suite`
 - AAR: [AAR-0112](../aar/AAR-0112-proflog-literature-tableau-golden-suite.md)

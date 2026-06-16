@@ -20,6 +20,19 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-16
+
+- Created a docs-only planning branch for Proflog-level tableau improvements
+  inspired by review of `bradleypallen/tableaux` at commit `fa5a736`. Added
+  [ADR-0112](docs/adr/ADR-0112-proflog-literature-tableau-golden-suite.md)
+  through
+  [ADR-0115](docs/adr/ADR-0115-proflog-proof-preserving-scheduling-benchmarks.md)
+  with pending AAR stubs and planning structures for the upstream test
+  inventory and reconciliation ledger. The golden-suite ADR requires every
+  active upstream test to be represented and independently checked through
+  Proflog before its expected result is accepted. See
+  [planning note](docs/log/2026-06-16-tableaux-review-planning.md).
+
 ## 2026-06-15
 
 - Completed [ADR-0111](docs/adr/ADR-0111-dsjas-counting-lemma.md) on

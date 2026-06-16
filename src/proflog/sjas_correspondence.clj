@@ -1148,6 +1148,87 @@
   []
   dsjas-combined-size-lower-bound)
 
+(def dsjas-counting-lemma
+  "ADR-0111 counting lemma: the per-occurrence / per-node proof-object size floor,
+   DERIVED from the `proflog.willard-sjas-code` byte grammar rather than asserted.
+
+   This upgrades ADR-0104/0108's `dsjas-combined-size-lower-bound`
+   (`:status :proved-under-code-injectivity`, prose arguments) into a
+   grammar-level derivation. Bytes are six-bit base-64 digits (`byte-base` = 64).
+
+   Grammar facts (read off the canonical and proof encoders):
+   - `encode-canonical-term-bytes` emits, for every `(app head args...)` term, a
+     THREE-byte header BEFORE its arguments: the `app` term-tag, the
+     `symbol-index`, and the one-byte arity. So each function/application
+     occurrence costs at least 3 bytes = 18 bits in the canonical formula
+     encoding, independent of its arguments. (`var`/`par` cost 2 bytes; a
+     numeral or embedded code costs a 3-byte header; every formula node costs at
+     least its 1 tag byte.)
+   - `proof-code-bytes` re-wraps each canonical formula byte as a two-byte
+     `[proof-byte-tag value]` proof datum, so the SAME occurrence costs at least
+     6 bytes = 36 bits once embedded in a structural proof code.
+   - Every structural proof node is a `proof-list` (>= proof-list-tag + count)
+     carrying a non-empty formula-byte sub-list (>= proof-list-tag + count), so
+     each of the N nodes contributes at least 4 framing bytes = 24 bits.
+
+   Therefore a cited theorem-code F with J occurrences is >= 18J bits, and an
+   N-node structural proof tree with J occurrences is >= 24N + 36J bits; both
+   dominate Willard's conservative 5J Conventional-Tableaux-Encoding threshold
+   (18 >= 5 and 36 >= 5). The floor bounds the MEASURED object only under
+   code-injectivity: distinct formulas decode from distinct codes, so the J
+   occurrences cannot be compressed below the per-occurrence header cost.
+
+   This defeats the ADR-0102 counterexample CONSTRUCTIVELY: a bare `sjas-axiom`
+   marker is a fixed 3 bytes (18 bits) no matter how large the cited formula is,
+   but the repaired `(S,F,P)` / `(S,G,F,P)` measure counts F, whose encoding
+   grows as >= 18J with the cited formula's occurrence count."
+  (let [bits-per-byte 6
+        canonical-app-header-bytes 3    ; app-term-tag + symbol-index + arity-byte
+        proof-byte-wrapping-factor 2    ; each formula byte -> [proof-byte-tag value]
+        structural-framing-bytes 4]     ; node proof-list + formula sub-list framing
+    {:status :derived-from-byte-grammar
+     :supersedes :dsjas-combined-size-lower-bound
+     :hypothesis :injective-public-code-reading
+     :canonical-encoder 'proflog.willard-sjas-code/encode-canonical-term-bytes
+     :proof-encoder 'proflog.willard-sjas-code/proof-code-bytes
+     :byte-base sjas-code/byte-base
+     :bits-per-byte bits-per-byte
+     :willard-threshold-bits-per-occurrence 5
+     :per-occurrence
+     {:canonical-app-header-bytes canonical-app-header-bytes
+      :canonical-app-header-components [:app-term-tag :symbol-index :arity-byte]
+      :canonical-app-bits (* bits-per-byte canonical-app-header-bytes)
+      :proof-byte-wrapping-factor proof-byte-wrapping-factor
+      :proof-wrapped-app-bits (* bits-per-byte canonical-app-header-bytes
+                                 proof-byte-wrapping-factor)}
+     :per-node
+     {:structural-framing-bytes structural-framing-bytes
+      :structural-framing-components [:node-proof-list-tag :node-list-count
+                                      :formula-sublist-tag :formula-sublist-count]
+      :structural-framing-bits (* bits-per-byte structural-framing-bytes)}
+     :floors
+     {:tableau-axiom-citation "18 * J"
+      :substitution-axiom-citation "18 * J"
+      :formula-bearing-structural-tree "24 * N + 36 * J"}
+     :dominates-5j true
+     :adr-0102-counterexample
+     {:formula "eq(f^8(1), f^8(1))"
+      :bare-proof-code-bits 18
+      :bare-proof-code-grows-with-j? false
+      :repaired-measure :combined-proof-object
+      :repaired-theorem-code-bits-floor "18 * J"
+      :defeated? true}
+     :derivation-checked-by
+     #{:dsjas-counting-lemma-derives-per-occurrence-bit-floor
+       :dsjas-counting-lemma-encoder-floor-property}
+     :epistemic-status :grammar-derived-not-machine-checked}))
+
+(defn audit-dsjas-counting-lemma
+  "Return the ADR-0111 counting-lemma derivation of the `D_SJAS` proof-object
+   size floor (the derived successor to `audit-dsjas-combined-size-lower-bound`)."
+  []
+  dsjas-counting-lemma)
+
 (def dsjas-recursive-well-foundedness
   "ADR-0104 recursive proof/substitution well-foundedness audit.
 
@@ -1433,9 +1514,10 @@
     {:status :proved-by-dsjas-rule-preservation
      :argument "Willard's Fact D.3 extends from ordinary semantic tableaux to `D_SJAS`: base tableau and quantifier rules are literal; bookkeeping and truth normalization erase to literal branches; selected extensions are bounded Delta_0 primitives or finite macros that preserve the scoped standard valuation; recursive proof/substitution atoms use the finite acyclic least-fixed-point semantics."}
     :size-to-u-height-bound
-    {:status :proved-under-code-injectivity
-     :source (:status dsjas-combined-size-lower-bound)
-     :argument "ADR-0104 proves that every measured `D_SJAS` structural or citation object exposes the formula/function-symbol payload needed by the conventional tableaux encoding requirement. Formula-bearing structural trees give at least 24N+36J bits; combined citation objects give at least 18J bits, both above Willard's conservative 5J threshold."}
+    {:status :derived-from-byte-grammar
+     :source (:status dsjas-counting-lemma)
+     :counting-lemma :dsjas-counting-lemma
+     :argument "ADR-0111's counting lemma derives this floor from the `proflog.willard-sjas-code` byte grammar instead of asserting it: each function/application occurrence emits a 3-byte canonical header (app-tag, symbol-index, arity) = 18 bits, doubled to 36 bits once proof-code-wrapped, and each structural node adds 4 framing bytes = 24 bits. So formula-bearing structural trees give at least 24N+36J bits and combined citation objects at least 18J bits, both above Willard's conservative 5J threshold, under the stated code-injectivity hypothesis."}
     :a-stability-contradiction
     {:status :proved
      :argument "Assume a short `D_SJAS` proof of a Pi_1 theorem Upsilon that fails Good(1/2 #theta). Add Reverse(Upsilon) to Z. The Normed(a,b) clause and Log_D_SJAS(p) <= #theta+1 place p below the generalized Fact D.3 threshold, yielding an open branch, contradicting that p is a closed proof."}

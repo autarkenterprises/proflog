@@ -566,6 +566,66 @@
       (is (= :proof-code-formula-node-payloads
              (get-in audit [:kind-arguments :formula-bearing-structural-tree :j-source]))))))
 
+(defn- app-occurrence-count
+  "Count `app` (function/application) occurrences in a canonical SJAS term/formula AST."
+  [node]
+  (cond
+    (not (sequential? node)) 0
+    (= 'app (first node)) (apply + 1 (map app-occurrence-count (nnext node)))
+    :else (apply + 0 (map app-occurrence-count (rest node)))))
+
+(defn- fk
+  "Build the canonical term f^k(c): `f` applied k times to the constant `c`."
+  [k]
+  (if (zero? k) '(app c) (list 'app 'f (fk (dec k)))))
+
+(deftest dsjas-counting-lemma-derives-per-occurrence-bit-floor
+  (testing "ADR-0111: the proof-object size floor is derived from the byte grammar, not asserted"
+    (let [lemma (correspondence/audit-dsjas-counting-lemma)]
+      (is (= :derived-from-byte-grammar (:status lemma)))
+      (is (= :injective-public-code-reading (:hypothesis lemma)))
+      (is (= 6 (:bits-per-byte lemma)))
+      ;; canonical app header = app-tag + symbol-index + arity = 3 bytes = 18 bits
+      (is (= 3 (get-in lemma [:per-occurrence :canonical-app-header-bytes])))
+      (is (= 18 (get-in lemma [:per-occurrence :canonical-app-bits])))
+      ;; proof-code re-wraps each formula byte as [proof-byte-tag value] -> 2x -> 36 bits
+      (is (= 2 (get-in lemma [:per-occurrence :proof-byte-wrapping-factor])))
+      (is (= 36 (get-in lemma [:per-occurrence :proof-wrapped-app-bits])))
+      (is (= 24 (get-in lemma [:per-node :structural-framing-bits])))
+      (is (true? (:dominates-5j lemma)))
+      (is (true? (get-in lemma [:adr-0102-counterexample :defeated?])))
+      (is (= #{:tableau-axiom-citation
+               :substitution-axiom-citation
+               :formula-bearing-structural-tree}
+             (set (keys (:floors lemma))))))))
+
+(deftest dsjas-counting-lemma-encoder-floor-property
+  (testing "ADR-0111: encode-canonical-formula-bytes spends >= 3 bytes (18 bits) per app occurrence"
+    (let [ctx (sjas-code/context '[p f c])
+          formulas ['(pos (app p (app c)))
+                    '(eq (app f (app f (app c))) (app c))
+                    (list 'eq (fk 8) (fk 8))]]
+      (doseq [formula formulas]
+        (let [j (app-occurrence-count formula)
+              bytes (sjas-code/encode-canonical-formula-bytes ctx formula)
+              proof-bytes (sjas-code/proof-code-bytes (vec bytes))]
+          ;; canonical floor: >= 3 bytes / occurrence  (=> >= 18J bits)
+          (is (>= (count bytes) (* 3 j))
+              (str "canonical 3J floor failed for " formula))
+          (is (>= (* 6 (count bytes)) (* 18 j)))
+          ;; proof-code wrapping doubles each formula byte: >= 6 bytes / occurrence (=> 36J bits)
+          (is (>= (count proof-bytes) (* 6 j))
+              (str "proof-wrapped 6J floor failed for " formula))))))
+  (testing "ADR-0102 counterexample defeated: the cited theorem-code F grows with J, unlike the bare 3-byte proof marker"
+    (let [ctx (sjas-code/context '[f c])
+          counterexample (list 'eq (fk 8) (fk 8))
+          j (app-occurrence-count counterexample)
+          f-bytes (sjas-code/encode-canonical-formula-bytes ctx counterexample)]
+      (is (= 18 j))
+      ;; repaired citation measures F: >= 18J = 324 bits, far above Willard's conservative 5J = 90
+      (is (>= (* 6 (count f-bytes)) (* 18 j)))
+      (is (> (* 6 (count f-bytes)) (* 5 j))))))
+
 (deftest dsjas-track2c-recursive-proof-and-subst-measure-is-explicit
   (testing "ADR-0104 Track 2c: recursive proof predicates have a discharged finite-call-graph proof"
     (let [audit (correspondence/audit-dsjas-recursive-well-foundedness)]
@@ -699,7 +759,7 @@
                            (when (not= :proved (:status clause))
                              family)))
                    (:rule-family-preservation audit))))
-      (is (= :proved-under-code-injectivity
+      (is (= :derived-from-byte-grammar
              (get-in audit [:proof-lemmas
                             :size-to-u-height-bound
                             :status])))

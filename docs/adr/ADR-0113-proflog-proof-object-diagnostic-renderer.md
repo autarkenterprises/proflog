@@ -1,6 +1,6 @@
 # ADR-0113: Proflog Proof Object Diagnostic Renderer
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-06-16
 - Branch: `adr-0113-proflog-proof-object-diagnostic-renderer`
 - AAR: [AAR-0113](../aar/AAR-0113-proflog-proof-object-diagnostic-renderer.md)

@@ -85,6 +85,7 @@
                                     "proflog.pelletier-layering-test"
                                     "proflog.kernel-test"
                                     "proflog.literature-tableau-golden-test"
+                                    "proflog.diagnostics.proof-trace-test"
                                     "proflog.proof-test"
                                     "proflog.sjas-correspondence-test"
                                     "proflog.equality-test"

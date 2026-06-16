@@ -28,6 +28,9 @@ complete contemporaneous transcript.
   Proflog-confirmed cases and 32 explicit `:unsupported` dispositions. Wired into
   `lein test-proflog-fast` and `lein test-proflog-extended`. See
   [AAR-0112](docs/aar/AAR-0112-proflog-literature-tableau-golden-suite.md).
+- Completed [ADR-0113](docs/adr/ADR-0113-proflog-proof-object-diagnostic-renderer.md):
+  read-only proof trace renderer (`proflog.diagnostics.proof-trace`). See
+  [AAR-0113](docs/aar/AAR-0113-proflog-proof-object-diagnostic-renderer.md).
 
 ## 2026-06-16
 

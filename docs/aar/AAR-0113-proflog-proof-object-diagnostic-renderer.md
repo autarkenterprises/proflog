@@ -1,23 +1,29 @@
 # AAR-0113: Proflog Proof Object Diagnostic Renderer
 
-- Date: 2026-06-16
+- Date: 2026-06-20
 - ADR: [ADR-0113](../adr/ADR-0113-proflog-proof-object-diagnostic-renderer.md)
 - Branch: `adr-0113-proflog-proof-object-diagnostic-renderer`
-- Status: pending implementation
+- Status: complete
 
 ## Outcome
 
-Pending. ADR-0113 was created as part of the docs-only planning branch
-`adr-proflog-tableau-improvement-planning`. No renderer implementation has been
-added yet.
+Added read-only diagnostic namespace `proflog.diagnostics.proof-trace` with
+`proof-trace-edn`, `format-proof-trace`, and `render-proof-trace`.
 
 ## Evidence
 
-The ADR defines the diagnostic surface and red-test obligations for structured
-and formatted proof traces.
+Supported artifact shapes: kernel proof S-expressions whose tags appear in
+`known-step-tags` (conj/split/close/savefml, quantifiers, equality, procedure
+calls, profile markers).
+
+Limitations: artifacts without recognized tags return `:insufficient-data`;
+non-collection artifacts return `:unsupported`. Branch IDs and signed-tableau
+metadata are not inferred.
+
+Tests: `lein test proflog.diagnostics.proof-trace-test` — 5 tests, 15 assertions.
+Wired into `lein test-proflog-fast`.
 
 ## Follow-up
 
-- Implement ADR-0113 on its own branch.
-- Complete this AAR with supported artifact shapes, test evidence, and known
-  limitations.
+ADR-0114 may reuse literal extraction patterns; ADR-0115 may consume traces for
+debugging but must not depend on rendering for semantic checks.

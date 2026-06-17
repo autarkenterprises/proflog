@@ -20,6 +20,43 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-17
+
+- Fitting-fidelity audit of the greenfield Proflog core, on branch
+  `fitting-fidelity-audit` (independent of `origin/main` by request; reconcile at
+  close). Anchors the core to Fitting's *Tableaus for Logic Programming*
+  (`LPTableaus.pdf`) §2–§8 — the project had a Willard-D correspondence but no
+  systematic Fitting anchor. Matrix: [docs/FITTING_FIDELITY_AUDIT.md](docs/FITTING_FIDELITY_AUDIT.md).
+- Method discipline: every verdict is backed by a test, not an assertion (an
+  early automated exploration had over-asserted "compliant" and hallucinated
+  kernel line numbers, so all anchors were re-verified against source).
+- Interrogation suite `proflog.fitting-fidelity-test` (fast gate, 8 tests / 222
+  assertions): §3 supervaluation occurs subtlety (ground/var close, existential
+  ⊥, Fitting p.6); §3 P1 tautology-vs-⊥; §4 NNF negation duals (incl.
+  ¬∃→once-forall); §6 `l-ground` guard; §2 one-clause-per-relation; and a §7
+  propositional differential (kernel validity == truth-table tautology over 200
+  random formulas — no spurious closure, and complete, for the propositional core).
+- Phase 2b quorum `proflog.proof-quorum-test` (extended gate, 5 tests / 58
+  assertions): kernel-as-prover → kernel-as-checker (the same relation with the
+  `proof` bound) → independent non-relational `src/proflog/proof_check.clj`. All
+  agree on genuine certificates (incl. P2 `win(4)`) and reject mutants.
+- Findings: [ADR-0116](docs/adr/ADR-0116-fitting-free-variable-procedure-call.md)
+  — the core Procedure Call Rule is Fitting's §8 free-variable call, not the §6
+  ground-only rule, with `l-ground-termo` as his keep-in-L mechanism (corrected an
+  earlier core/overlay hypothesis: the extension is in the core).
+  [ADR-0117](docs/adr/ADR-0117-quorum-proof-checking.md) — quorum + proof-term
+  adequacy: certificates are pure tag trees recording the rule per node but no
+  witnesses, so the independent oracle is structural-only and kernel-as-checker
+  supplies the semantic re-validation (check-determinism).
+  [ADR-0118](docs/adr/ADR-0118-fitting-audit-secondary-findings.md) — secondary
+  dispositions (⊥-vs-`:unresolved`, γ-envelope, Substitutivity-via-σ,
+  answer-overlay soundness). Numbered 0116+ to clear the parallel agent's pushed
+  0111–0115.
+- Gates: fast 217/1341 green (fidelity suite included); quorum 5/58 green.
+- Deferred: precise `⊥`; first-order/equality differential soundness; first-order
+  γ-envelope quantification; line-level `answer_overlay` diff; reconcile with
+  `origin/main` (ADR-0112 golden suite / 0113 renderer / 0114 open-branch witness).
+
 ## 2026-06-16
 
 - LOPSTR+PPDP, miniKanren 2026, and Clojure/Conj submissions completed.

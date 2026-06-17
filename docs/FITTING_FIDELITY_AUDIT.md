@@ -15,9 +15,18 @@ line numbers; anchors here were re-confirmed against the source.
 **Scope.** The proof procedure + LP layer and `answer_overlay.clj`. Excluded: the `*_probe.clj`
 experiments and the SJAS layer (consumers of this core).
 
-**Companion test:** `test/proflog/fitting_fidelity_test.clj` (gap-filling interrogations); plus the
+**Companion tests:** `test/proflog/fitting_fidelity_test.clj` (gap-filling interrogations, in the fast
+gate) and `test/proflog/proof_quorum_test.clj` (Phase 2b quorum, in the extended gate); plus the
 pre-existing `test/proflog/equality_test.clj` and `test/proflog/fitting_programs_test.clj`, which
 already establish large parts of §2/§5/§8.
+
+**Status (2026-06-17).** §2–§8 fully dispositioned; the two headline results have ADRs — §6
+free-variable calls ([ADR-0116](adr/ADR-0116-fitting-free-variable-procedure-call.md)) and quorum
+proof-checking + proof-term adequacy ([ADR-0117](adr/ADR-0117-quorum-proof-checking.md)) — and the
+secondary findings are dispositioned in [ADR-0118](adr/ADR-0118-fitting-audit-secondary-findings.md).
+Interrogation + quorum suites are green and gated. Named deferrals: precise `⊥`, a first-order/equality
+differential soundness test, first-order γ-envelope quantification, a line-level `answer_overlay` diff,
+and reconciliation with `origin/main` (ADR-0112/0113/0114).
 
 ### Verdict legend
 - ✅ **faithful** — realizes Fitting's element directly.
@@ -138,3 +147,25 @@ already establish large parts of §2/§5/§8.
 `lein test proflog.proof-quorum-test` → **5 tests, 58 assertions, 0 failures** (Phase 2b quorum).
 §5 rows rest on the pre-existing `equality_test.clj`; §8 on `fitting_programs_test.clj`; answer-overlay
 on `answers_test.clj`/`parity_test.clj`.
+
+## Literature anchors (cross-references)
+
+Fitting's paper situates Proflog against the sources this audit also leans on:
+
+- **R. M. Smullyan, *First-Order Logic* (Springer, 1968)** — Fitting [10]: the uniform-notation
+  α/β/γ/δ tableau rules (Tables 1–2) the §4 row maps onto `kernel.clj` + `normalize.clj`.
+- **M. Fitting, *First-Order Logic and Automated Theorem Proving* (Springer, 1990)** — Fitting [4]:
+  the systematic tableau construction behind §7 completeness, and the free-variable +
+  run-time-Skolemization discussion that §8 / [ADR-0116] / [ADR-0118] build on.
+- **B. C. van Fraassen, *Singular Terms, Truth-Value Gaps, and Free Logic* (J. Philosophy 63, 1966)**
+  — Fitting [11]: the supervaluation semantics whose operational image `t_P` the §3 rows characterize.
+- **M. Fitting, Kripke/Kleene (JLP 2, 1985) [2]; Partial models and logic programming (TCS 48, 1987)
+  [3]** — the semantic lineage of the smallest supervaluation model `s_P`.
+
+Repo secondary tableau sources for reconciliation: `sjas/lit/tableau-def.pdf`,
+`sjas/lit/tableauchapter.pdf`. The project's own correspondence to *Willard's D* (ADR-0100, first
+fragment) sits atop this Fitting anchor; `origin/main`'s literature golden suite (ADR-0112) adds
+external corpus coverage to reconcile with at audit close.
+
+[ADR-0116]: adr/ADR-0116-fitting-free-variable-procedure-call.md
+[ADR-0118]: adr/ADR-0118-fitting-audit-secondary-findings.md

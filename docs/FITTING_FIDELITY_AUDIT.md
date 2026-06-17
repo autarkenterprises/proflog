@@ -33,7 +33,7 @@ already establish large parts of §2/§5/§8.
 | Spec element (Fitting ref) | Impl anchor | Verdict | Evidence |
 |---|---|---|---|
 | Language L = constants/functions/relations; equality always a relation (p.2) | `language/language` | ✅ | `fitting/peano-language` (`fitting_programs.clj:53`) |
-| L-clause `R(x̄) ← φ(x̄)`; **≤ 1 clause per relation, except equality** (Def 2.1) | `language/compile-program` | ⏳❓ | one-clause-per-relation enforcement not yet line-verified or interrogated — **PENDING test**; confirm "guarded alternatives" are disjunctive bodies of *one* clause, not multiple clauses |
+| L-clause `R(x̄) ← φ(x̄)`; **≤ 1 clause per relation, except equality** (Def 2.1) | `compile-program` (`language.clj:438`); `clause-group->core-clause` (`:378`) | ⚖️ | multiple *surface* clauses are sugar; compilation disjoins them into ONE defining formula per relation (`:clauses` keyed one-per-relation), explicitly recovering Def 2.1. "Guarded alternatives" are disjuncts of that one body. Evidence: `sec2-multiple-surface-clauses-compile-to-one-defining-formula` |
 | Parameters cannot appear in query answers (p.2) | `l-ground` filter on answer export (`answers.clj`, `answer_overlay.clj`) | ⏳ | guard exists (`l-ground-term*o`); dedicated answer-export interrogation PENDING |
 | Fixed L; a program may use a subset (avoids "irrelevant axioms") | `language/validate-query` (`query.clj:49,62`) | ✅ | queries validated against `(:language program)` |
 | Query = any ground literal of L (p.3) | `query/query-succeeds`/`-fails`/`-status` | ✅ | `query.clj`; `fitting_programs_test.clj` |
@@ -75,7 +75,7 @@ already establish large parts of §2/§5/§8.
 
 | Spec element | Impl anchor | Verdict | Evidence |
 |---|---|---|---|
-| Fires only on a **ground atom of L** (pos) / **¬ ground atom of L** (neg), opening a subsidiary tableau for φ(t̄)/¬φ(t̄) (Def 6.1) | `kernel.clj:1188` (pos-call), `:1246` (neg-call); `l-ground-term*o` guard rejecting `(par …)` (`:1209/:1266`) | ✅ guard / ❓ exactness | guard verified; **exact firing condition** (ground-only vs variable-bearing) is the core/overlay boundary — **PENDING**, likely the headline finding |
+| Fires only on a **ground atom of L** (pos) / **¬ ground atom of L** (neg) (Def 6.1) | `kernel.clj:1188`/`:1246`; guard `l-ground-termo` (`kernel_support.clj:313`) | ➕ extension | **core admits free `(var …)`**, rejecting only `(par …)` — broader than §6's *ground* atoms. This is Fitting's §8 free-variable (Prolog-style) call, with `l-ground` as his §8 "keep-the-unifier-in-L" mechanism. Evidence: `sec6-l-ground-guard-admits-variables-but-rejects-parameters`. **Headline finding → ADR** |
 | Atom must be of L, not L^par | `l-ground-term*o` | ✅ | rejects parameters; indirectly evidenced by `sec3-p1-even-or-odd-is-undefined` (non-ground call does not fire) |
 | Negative call uses closed tableau for ¬φ(t̄) (via NNF + `once-forall`) | `normalize/negate-formula`; `kernel.clj:1246` | ✅ | `fitting_programs_test` `win(3)` fails (Fitting pp.8–9) |
 
@@ -115,18 +115,21 @@ already establish large parts of §2/§5/§8.
 ---
 
 ## Open interrogations / candidate ADRs (carried forward)
-1. **§6 exact call-firing condition** — does the *core* fire on variable-bearing (L-ground but
-   non-ground) atoms (an `extension-beyond-Fitting`), with strict ground-of-L calls in the kernel and
-   free-variable calls confined to `answer_overlay`? Headline boundary finding.
+1. **§6 call-firing — RESOLVED.** The *core* fires on variable-bearing (L-ground, non-ground) atoms
+   (`l-ground-termo` admits `(var …)`, rejects `(par …)`): an `extension-beyond-Fitting` realizing
+   Fitting's §8 free-variable calls. It is **not** a core/overlay split — the extension is in the core.
+   → ADR (headline). Soundness rests on the `l-ground` guard + `proof-bindingso`; the completeness
+   envelope is Fitting's §8 disunification caveat.
 2. **⊥ vs `:unresolved`** — reporting-soundness boundary (`:unresolved` over-approximates ⊥).
 3. **γ-instantiation envelope** — bounded enumeration vs Fitting's "any closed term of L^par"; the
    §8 Skolemization/keep-in-L "serious complication".
 4. **Proof-term adequacy** — do certificates record enough (δ-witnesses, γ-instantiations, unifiers,
    clause-used) to be replayed without re-search? Surfaced by kernel-as-checker.
-5. **§2 one-clause-per-relation** — enforced? are "guarded alternatives" single-clause disjunctions?
+5. **§2 one-clause-per-relation — RESOLVED.** Multiple surface clauses compile to one disjunctive
+   defining formula per relation (`clause-group->core-clause`); Def 2.1 is preserved at the core (⚖️).
 6. **answer_overlay rule-mirror** — no kernel rule weakened in the overlay.
 
 ## Status of the interrogation suite (this pass)
-`lein test proflog.fitting-fidelity-test` → **5 tests, 14 assertions, 0 failures** (verifying §3, §4,
-§7 rows above). §5 rows rest on the pre-existing `equality_test.clj`; §2/§8 rows on
+`lein test proflog.fitting-fidelity-test` → **7 tests, 22 assertions, 0 failures** (verifying §2, §3,
+§4, §6, §7 rows above). §5 rows rest on the pre-existing `equality_test.clj`; §8 on
 `fitting_programs_test.clj`.

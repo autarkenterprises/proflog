@@ -10,9 +10,12 @@
    between them already establish the §2 worked programs P1/P2, the §8 move
    non-example, and most of the §5 equality battery)."
   (:refer-clojure :exclude [==])
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.core.logic :as logic]
+            [clojure.test :refer [deftest is testing]]
             [proflog.ast :as ast]
             [proflog.kernel :as kernel]
+            [proflog.kernel-support :as support]
+            [proflog.language :as language]
             [proflog.normalize :as normalize]
             [proflog.query :as query]
             [proflog.fitting-programs :as fitting]))
@@ -133,3 +136,54 @@
                 (query/query-status prog q
                                     {:timeout-ms 2000 :max-fuel 64 :poll-ms 0}))
           (str label " must not be reported inconsistent")))))
+
+;; ---------------------------------------------------------------------------
+;; §2 Programs — ≤ 1 clause per relation (Def 2.1), via surface sugar
+;; ---------------------------------------------------------------------------
+;;
+;; Fitting's core has exactly one defining formula per relation. The greenfield
+;; frontend lets authors write several surface clauses for one relation as
+;; ergonomic sugar; compile-program recovers Fitting's shape by disjoining the
+;; alpha-renamed, NNF-normalized bodies into a single compiled clause. The
+;; "alternatives" are the disjuncts of that one body, NOT multiple clauses.
+
+(deftest sec2-multiple-surface-clauses-compile-to-one-defining-formula
+  (ast/nom x
+    (let [lang (language/language {:constants ['a 'b] :relations {'p 1}})
+          prog (language/compile-program
+                 lang
+                 [(ast/clause 'p [x] (ast/eq-lit (ast/var-term x) (ast/app-term 'a)))
+                  (ast/clause 'p [x] (ast/eq-lit (ast/var-term x) (ast/app-term 'b)))])]
+      (testing "exactly one compiled clause per relation (Fitting Def 2.1 at the core)"
+        (is (= 1 (count (:clauses prog))))
+        (is (contains? (:clauses prog) 'p)))
+      (testing "the single defining body is the disjunction of the surface bodies"
+        (is (= 'or (ast/tag-of (get-in prog [:clauses 'p :body]))))
+        (is (= 2 (count (get-in prog [:clauses 'p :alternatives]))))))))
+
+;; ---------------------------------------------------------------------------
+;; §6 vs §8 — the Procedure Call Rule admissibility boundary
+;; ---------------------------------------------------------------------------
+;;
+;; Fitting §6 fires the Procedure Call Rule only on a GROUND atom of L. The
+;; greenfield core instead admits free proof variables (the Prolog-style
+;; free-variable calls Fitting discusses in §8), rejecting only delta
+;; parameters of L^par. `l-ground-termo` is the structural realization of the
+;; §8 "the unifier must be a term of L, not the Skolem enlargement" mechanism
+;; that Fitting calls "a serious complication". Documented as an
+;; extension-beyond-Fitting in docs/FITTING_FIDELITY_AUDIT.md (candidate ADR).
+
+(deftest sec6-l-ground-guard-admits-variables-but-rejects-parameters
+  (ast/nom x p
+    (testing "a free proof variable is L-ground — a call on it is admitted (Prolog-style, §8)"
+      (is (seq (logic/run* [q] (support/l-ground-termo (ast/var-term x))))))
+    (testing "a constructor over a free variable is L-ground"
+      (is (seq (logic/run* [q]
+                 (support/l-ground-termo
+                   (ast/app-term 's (ast/var-term x)))))))
+    (testing "a delta parameter is NOT L-ground — the call is rejected (no L^par leak)"
+      (is (empty? (logic/run* [q] (support/l-ground-termo (ast/par-term p))))))
+    (testing "a constructor over a parameter is NOT L-ground"
+      (is (empty? (logic/run* [q]
+                    (support/l-ground-termo
+                      (ast/app-term 's (ast/par-term p)))))))))

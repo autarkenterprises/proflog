@@ -103,14 +103,15 @@ already establish large parts of §2/§5/§8.
 | Answer soundness (every exported answer ↔ a closed tableau; residuals = unresolved, never proven) | ⏳ | PENDING |
 | Faithful rule-by-rule mirror of the kernel (no rule weakened in ~2.5k LOC) | ⏳❓ | highest correctness-risk surface; PENDING + extend `parity_test` |
 
-## Quorum proof-checking (Phase 2b)
+## Quorum proof-checking (Phase 2b) — RESOLVED ([ADR-0117](adr/ADR-0117-quorum-proof-checking.md))
 
 | Oracle | Verdict | Evidence |
 |---|---|---|
-| Kernel-as-prover (search) | ✅ exists | `kernel/prove`, `query/*` |
-| Kernel-as-checker (proof bound, relational) | ⏳❓ | PENDING — also forces the **proof-term adequacy** & **check-determinism** findings (proof tags look like a rule skeleton; `proof.clj` has only inspectors) |
-| Independent non-relational `proof_check.clj` | ⏳ | PENDING — to be written |
-| Quorum + mutation harness | ⏳ | PENDING — `proof_quorum_test.clj` |
+| Kernel-as-prover (search) | ✅ | `kernel/prove`, `query/*` |
+| Kernel-as-checker (proof bound, relational) | ✅ | `proof-quorum-test/kernel-accepts?` — accepts genuine, rejects garbage; binding `proof` fixes the rule per node but re-searches witnesses (**check-determinism** finding) |
+| Independent non-relational `proof_check.clj` | ✅ | structural grammar validator (`rule-arities`), no shared code / no core.logic |
+| Quorum + mutation harness | ✅ | `proof_quorum_test.clj` — **5 tests / 58 assertions**; all oracles accept genuine (incl. P2 `win(4)` guarded-alt), reject garbage + arity-truncated mutants |
+| **Proof-term adequacy** | finding | certificates are pure tag trees (no formulas/witnesses) → independent oracle is structural-only; kernel-as-checker supplies semantic re-validation → [ADR-0117](adr/ADR-0117-quorum-proof-checking.md) |
 
 ---
 
@@ -123,8 +124,10 @@ already establish large parts of §2/§5/§8.
 2. **⊥ vs `:unresolved`** — reporting-soundness boundary (`:unresolved` over-approximates ⊥).
 3. **γ-instantiation envelope** — bounded enumeration vs Fitting's "any closed term of L^par"; the
    §8 Skolemization/keep-in-L "serious complication".
-4. **Proof-term adequacy** — do certificates record enough (δ-witnesses, γ-instantiations, unifiers,
-   clause-used) to be replayed without re-search? Surfaced by kernel-as-checker.
+4. **Proof-term adequacy — RESOLVED.** Certificates are pure tag trees recording the rule at each node
+   but no δ-witnesses / γ-instantiations / unifiers, so they cannot be replayed without re-search; the
+   independent checker is structural-only and the kernel-as-checker supplies semantic re-validation.
+   → [ADR-0117](adr/ADR-0117-quorum-proof-checking.md).
 5. **§2 one-clause-per-relation — RESOLVED.** Multiple surface clauses compile to one disjunctive
    defining formula per relation (`clause-group->core-clause`); Def 2.1 is preserved at the core (⚖️).
 6. **answer_overlay rule-mirror** — no kernel rule weakened in the overlay.

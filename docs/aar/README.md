@@ -112,3 +112,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0109](AAR-0109-dsjas-composite-proof-object-internalization.md) | [ADR-0109](../adr/ADR-0109-dsjas-composite-proof-object-internalization.md) | completed |
 | [AAR-0110](AAR-0110-mode-directed-ground-before-decode.md) | [ADR-0110](../adr/ADR-0110-mode-directed-ground-before-decode.md) | accepted |
 | [AAR-0116](AAR-0116-fitting-free-variable-procedure-call.md) | [ADR-0116](../adr/ADR-0116-fitting-free-variable-procedure-call.md) | accepted |
+| [AAR-0117](AAR-0117-quorum-proof-checking.md) | [ADR-0117](../adr/ADR-0117-quorum-proof-checking.md) | accepted |

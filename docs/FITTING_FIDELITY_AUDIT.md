@@ -75,7 +75,7 @@ already establish large parts of §2/§5/§8.
 
 | Spec element | Impl anchor | Verdict | Evidence |
 |---|---|---|---|
-| Fires only on a **ground atom of L** (pos) / **¬ ground atom of L** (neg) (Def 6.1) | `kernel.clj:1188`/`:1246`; guard `l-ground-termo` (`kernel_support.clj:313`) | ➕ extension | **core admits free `(var …)`**, rejecting only `(par …)` — broader than §6's *ground* atoms. This is Fitting's §8 free-variable (Prolog-style) call, with `l-ground` as his §8 "keep-the-unifier-in-L" mechanism. Evidence: `sec6-l-ground-guard-admits-variables-but-rejects-parameters`. **Headline finding → ADR** |
+| Fires only on a **ground atom of L** (pos) / **¬ ground atom of L** (neg) (Def 6.1) | `kernel.clj:1188`/`:1246`; guard `l-ground-termo` (`kernel_support.clj:313`) | ➕ extension | **core admits free `(var …)`**, rejecting only `(par …)` — broader than §6's *ground* atoms. This is Fitting's §8 free-variable (Prolog-style) call, with `l-ground` as his §8 "keep-the-unifier-in-L" mechanism. Evidence: `sec6-l-ground-guard-admits-variables-but-rejects-parameters` → **[ADR-0116](adr/ADR-0116-fitting-free-variable-procedure-call.md)** |
 | Atom must be of L, not L^par | `l-ground-term*o` | ✅ | rejects parameters; indirectly evidenced by `sec3-p1-even-or-odd-is-undefined` (non-ground call does not fire) |
 | Negative call uses closed tableau for ¬φ(t̄) (via NNF + `once-forall`) | `normalize/negate-formula`; `kernel.clj:1246` | ✅ | `fitting_programs_test` `win(3)` fails (Fitting pp.8–9) |
 
@@ -118,8 +118,8 @@ already establish large parts of §2/§5/§8.
 1. **§6 call-firing — RESOLVED.** The *core* fires on variable-bearing (L-ground, non-ground) atoms
    (`l-ground-termo` admits `(var …)`, rejects `(par …)`): an `extension-beyond-Fitting` realizing
    Fitting's §8 free-variable calls. It is **not** a core/overlay split — the extension is in the core.
-   → ADR (headline). Soundness rests on the `l-ground` guard + `proof-bindingso`; the completeness
-   envelope is Fitting's §8 disunification caveat.
+   → **[ADR-0116](adr/ADR-0116-fitting-free-variable-procedure-call.md)** (headline). Soundness rests on
+   the `l-ground` guard + `proof-bindingso`; the completeness envelope is Fitting's §8 disunification caveat.
 2. **⊥ vs `:unresolved`** — reporting-soundness boundary (`:unresolved` over-approximates ⊥).
 3. **γ-instantiation envelope** — bounded enumeration vs Fitting's "any closed term of L^par"; the
    §8 Skolemization/keep-in-L "serious complication".

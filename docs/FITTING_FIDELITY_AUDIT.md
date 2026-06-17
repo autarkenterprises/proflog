@@ -83,7 +83,7 @@ already establish large parts of §2/§5/§8.
 
 | Spec element | Impl anchor | Verdict | Evidence |
 |---|---|---|---|
-| Soundness: never close a v-satisfiable branch (Lemmas 7.4/7.5) | whole kernel | ⏳ | `sec7-query-status-is-never-inconsistent…` + `adversarial_test`; a **no-spurious-closure property test** is PENDING |
+| Soundness: never close a v-satisfiable branch (Lemmas 7.4/7.5) | whole kernel | ✅ propositional / ⏳ FO | `sec7-query-status-is-never-inconsistent…`; **`sec7-propositional-validity-matches-truth-tables`** — kernel validity == truth-table tautology over 200 random formulas (no spurious closure, and complete) for the propositional core; first-order/equality soundness remains characterized but not differentially tested |
 | Completeness bounded by §8 compromises; classical-FOL engine benchmark | `pelletier_test` (cross-ref) | ✅ (engine) | Pelletier ≠ full t_P-completeness (supervaluational) — documented bound |
 | Relation to the project's Willard-D correspondence (ADR-0100, first fragment, not machine-checked) | `docs/log/2026-06-13-sjas-tableau-correspondence-proof.md` | note | this audit supplies the Fitting-side ground truth that correspondence presupposes |
 
@@ -99,9 +99,9 @@ already establish large parts of §2/§5/§8.
 
 | Concern | Verdict | Evidence |
 |---|---|---|
-| Residuals / `call-depth` / `existentials-as-vars?` | ⏳ | PENDING line-verification |
-| Answer soundness (every exported answer ↔ a closed tableau; residuals = unresolved, never proven) | ⏳ | PENDING |
-| Faithful rule-by-rule mirror of the kernel (no rule weakened in ~2.5k LOC) | ⏳❓ | highest correctness-risk surface; PENDING + extend `parity_test` |
+| Residuals / `call-depth` / `existentials-as-vars?` | ✅ inspection | `answer_overlay.clj:46` (`*defer-residual-calls*`), `:100` (saved-call w/ residual export), `:830-869` (δ exports `(var …)` when `existentials-as-vars?`, else `(par …)`) |
+| Answer soundness (residuals = unresolved, never proven; no `par` in answers) | ✅ inspection + existing tests | residuals exported as distinctly-tagged obligations (`eq-triggered-residual-call` `:147`), never folded into closures; `answers/admissible-term?`/`ground-no-par?` (`answers.clj:127,540`) keep `par` out of exports; behaviourally covered by `answers_test`/`parity_test` |
+| Faithful rule-by-rule mirror of the kernel (no rule weakened) | ⚖️ inspection | overlay rules (`answer_overlay.clj:690-870`) mirror kernel `:885-1045` with added `residuals`/`call-depth` threading and identical proof tags (validated by the ADR-0117 quorum, which accepts P2 `win(4)` certificates). A line-level diff of all ~2.5k LOC is deferred |
 
 ## Quorum proof-checking (Phase 2b) — RESOLVED ([ADR-0117](adr/ADR-0117-quorum-proof-checking.md))
 
@@ -133,6 +133,8 @@ already establish large parts of §2/§5/§8.
 6. **answer_overlay rule-mirror** — no kernel rule weakened in the overlay.
 
 ## Status of the interrogation suite (this pass)
-`lein test proflog.fitting-fidelity-test` → **7 tests, 22 assertions, 0 failures** (verifying §2, §3,
-§4, §6, §7 rows above). §5 rows rest on the pre-existing `equality_test.clj`; §8 on
-`fitting_programs_test.clj`.
+`lein test proflog.fitting-fidelity-test` → **8 tests, 222 assertions, 0 failures** (verifying §2, §3,
+§4, §6, §7 rows; the §7 propositional differential is 200 of those assertions).
+`lein test proflog.proof-quorum-test` → **5 tests, 58 assertions, 0 failures** (Phase 2b quorum).
+§5 rows rest on the pre-existing `equality_test.clj`; §8 on `fitting_programs_test.clj`; answer-overlay
+on `answers_test.clj`/`parity_test.clj`.

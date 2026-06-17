@@ -187,3 +187,59 @@
       (is (empty? (logic/run* [q]
                     (support/l-ground-termo
                       (ast/app-term 's (ast/par-term p)))))))))
+
+;; ---------------------------------------------------------------------------
+;; §7 Soundness & completeness — propositional differential (no spurious closure)
+;; ---------------------------------------------------------------------------
+;;
+;; The strongest automatable soundness+completeness check for the propositional
+;; core: for random ground propositional formulas the kernel must prove validity
+;; (close the tableau for the negation) IFF a truth-table oracle says the formula
+;; is a tautology. A "valid but not tautology" disagreement is a *spurious
+;; closure* (unsound); a "tautology but not valid" disagreement is incompleteness.
+
+(def ^:private prop-atoms ['p 'q 'r])
+
+(defn- prop-eval [f assign]
+  (case (ast/tag-of f)
+    pos (get assign (second (second f)))
+    neg (not (get assign (second (second f))))
+    and (and (prop-eval (second f) assign) (prop-eval (nth f 2) assign))
+    or  (or  (prop-eval (second f) assign) (prop-eval (nth f 2) assign))
+    implies (or (not (prop-eval (second f) assign)) (prop-eval (nth f 2) assign))
+    not (not (prop-eval (second f) assign))))
+
+(defn- assignments [atoms]
+  (if (empty? atoms)
+    [{}]
+    (for [rest-assign (assignments (rest atoms))
+          b [true false]]
+      (assoc rest-assign (first atoms) b))))
+
+(defn- tautology? [f]
+  (every? #(prop-eval f %) (assignments prop-atoms)))
+
+(defn- rand-prop [^java.util.Random rng depth]
+  (if (or (zero? depth) (< (.nextDouble rng) 0.3))
+    (let [a (nth prop-atoms (.nextInt rng (count prop-atoms)))]
+      (if (< (.nextDouble rng) 0.5)
+        (ast/pos-lit (ast/app-term a))
+        (ast/neg-lit (ast/app-term a))))
+    (case (.nextInt rng 4)
+      0 (ast/and-form (rand-prop rng (dec depth)) (rand-prop rng (dec depth)))
+      1 (ast/or-form (rand-prop rng (dec depth)) (rand-prop rng (dec depth)))
+      2 (ast/implies-form (rand-prop rng (dec depth)) (rand-prop rng (dec depth)))
+      3 (ast/not-form (rand-prop rng (dec depth))))))
+
+(defn- kernel-valid?
+  "F is valid iff the kernel closes a tableau for its (NNF) negation."
+  [f]
+  (boolean (seq (kernel/prove (normalize/negate-formula f) 1))))
+
+(deftest sec7-propositional-validity-matches-truth-tables
+  (testing "kernel validity == truth-table tautology over 200 random propositional formulas"
+    (let [rng (java.util.Random. 1234567)]
+      (doseq [_ (range 200)]
+        (let [f (rand-prop rng 3)]
+          (is (= (tautology? f) (kernel-valid? f))
+              (str "validity/tautology mismatch for " (pr-str f))))))))

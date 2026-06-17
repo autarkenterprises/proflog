@@ -51,7 +51,7 @@
 (deftest golden-suite-open-branch-uses-witness-diagnostics
   (testing "selected ADR-0112 open examples admit witness assignments"
     (doseq [id [:comprehensive/test-simple-atom
-                :comprehensive/test-satisfiable-conjunction
+                :literature/test-fitting-satisfiable-example
                 :formulas/p]]
       (let [entry (golden/entry-by-id id)
             formula (golden/formula-for-entry entry)

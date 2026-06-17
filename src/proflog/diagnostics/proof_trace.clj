@@ -32,7 +32,7 @@
   (cond
     (some '#{close} tags) :contradictory-literals
     (some '#{neq-close} tags) :disequality-contradiction
-    (some '#{refl-close} tags) :reflexive-disequality-contradiction
+    (some '#{refl-close} tags) :procedure-refutation
     :else :unknown))
 
 (defn- walk-proof-steps

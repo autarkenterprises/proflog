@@ -20,15 +20,6 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
-## 2026-06-17
-
-- Applied interdev review corrections for [ADR-0112](docs/adr/ADR-0112-proflog-literature-tableau-golden-suite.md)
-  through [ADR-0115](docs/adr/ADR-0115-proflog-proof-preserving-scheduling-benchmarks.md):
-  upstream translation records, formula fidelity fixes, reconciliation ledger
-  expansion, closed-proof-only branch-growth in scheduling benchmarks, fast/extended
-  namespace split, `refl-close` diagnostic label fix, and AAR date correction. See
-  [interdev note](docs/interdev/2026-06-17-adr-0112-0115-tableau-improvements-review.md).
-
 ## 2026-06-20
 
 - Completed [ADR-0112](docs/adr/ADR-0112-proflog-literature-tableau-golden-suite.md):

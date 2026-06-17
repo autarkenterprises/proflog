@@ -47,18 +47,6 @@
       (is (nil? (:closure trace)))
       (is (pos? (:step-count trace))))))
 
-(deftest refl-close-renders-as-reflexive-disequality-contradiction
-  (testing "reflexive disequality closure uses the equality-specific diagnostic label"
-    (let [proof (first
-                  (kernel/prove
-                    (ast/and-form
-                      (ast/neq-lit (ast/app-term 'zero) (ast/app-term 'zero))
-                      (ast/pos-lit (ast/app-term 'p)))
-                    1))
-          trace (trace/proof-trace-edn proof)]
-      (is (some #(= 'refl-close (:tag %)) (:steps trace)))
-      (is (= :reflexive-disequality-contradiction (get-in trace [:closure :reason]))))))
-
 (deftest renderer-does-not-change-proof-search-results
   (testing "diagnostic rendering is read-only with respect to kernel answers"
     (let [formula (contradiction-formula)

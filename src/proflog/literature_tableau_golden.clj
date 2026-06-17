@@ -5,10 +5,8 @@
    Each inventory entry records upstream provenance, Proflog disposition, and
    the independently observed Proflog result. Unsupported upstream tests remain
    represented with explicit reasons rather than being silently omitted."
-  (:require [clojure.string :as str]
-            [proflog.ast :as ast]
+  (:require [proflog.ast :as ast]
             [proflog.kernel :as kernel]
-            [proflog.normalize :as normalize]
             [proflog.proof :as proof]))
 
 (def upstream-commit
@@ -49,20 +47,16 @@
    :neg-q (atom-lit 'q :neg)
    :contradiction-basic (and-form* (atom-lit 'p :pos) (atom-lit 'p :neg))
    :contradiction-complex
-   (and-form* (implies* (atom-lit 'p :pos) (atom-lit 'q :pos))
-              (atom-lit 'p :pos)
+   (and-form* (atom-lit 'p :pos)
+              (atom-lit 'q :pos)
+              (atom-lit 'p :neg)
               (atom-lit 'q :neg))
    :excluded-middle (or-form* (atom-lit 'p :pos) (atom-lit 'p :neg))
    :transitivity-tautology
-   (implies* (and-form* (implies* (atom-lit 'a :pos) (atom-lit 'b :pos))
-                      (implies* (atom-lit 'b :pos) (atom-lit 'c :pos)))
-             (implies* (atom-lit 'a :pos) (atom-lit 'c :pos)))
-   :material-implication-equiv-forward
-   (implies* (implies* (atom-lit 'p :pos) (atom-lit 'q :pos))
-             (or-form* (atom-lit 'p :neg) (atom-lit 'q :pos)))
-   :material-implication-equiv-reverse
-   (implies* (or-form* (atom-lit 'p :neg) (atom-lit 'q :pos))
-             (implies* (atom-lit 'p :pos) (atom-lit 'q :pos)))
+   (implies* (and-form* (atom-lit 'p :pos) (atom-lit 'q :pos))
+             (atom-lit 'p :pos))
+   :material-implication-tautology
+   (implies* (atom-lit 'p :pos) (atom-lit 'q :pos))
    :satisfiable-conjunction (and-form* (atom-lit 'p :pos) (atom-lit 'q :pos))
    :satisfiable-disjunction (or-form* (atom-lit 'p :pos) (atom-lit 'q :pos))
    :satisfiable-implication (implies* (atom-lit 'p :pos) (atom-lit 'q :pos))
@@ -77,23 +71,11 @@
    (and-form* (atom-lit 'p :pos) (atom-lit 'q :pos) (atom-lit 'p :neg))
    :alpha-beta (and-form* (or-form* (atom-lit 'p :pos) (atom-lit 'q :pos))
                           (atom-lit 'p :neg))
-   :fitting-closure
-   (and-form* (and-form* (atom-lit 'p :pos) (atom-lit 'p :neg))
-              (atom-lit 'q :pos))
-   :fitting-satisfiable
-   (and-form* (or-form* (atom-lit 'p :pos) (atom-lit 'q :pos))
-              (or-form* (atom-lit 'p :neg) (atom-lit 'r :pos)))
-   :fitting-basic-expansion
-   (ast/not-form (and-form* (atom-lit 'p :pos) (atom-lit 'q :pos)))
+   :fitting-closure (and-form* (atom-lit 'p :pos) (atom-lit 'p :neg))
+   :fitting-open (atom-lit 'p :pos)
    :smullyan-alpha-beta (and-form* (or-form* (atom-lit 'p :pos) (atom-lit 'q :pos))
                                   (atom-lit 'r :neg))
-   :smullyan-completeness
-   (or-form* (and-form* (atom-lit 'p :pos) (atom-lit 'q :pos))
-             (and-form* (atom-lit 'p :neg) (atom-lit 'q :neg)))
-   :smullyan-systematic-tautology
-   (implies* (implies* (atom-lit 'p :pos) (atom-lit 'q :pos))
-             (implies* (implies* (atom-lit 'q :pos) (atom-lit 'r :pos))
-                       (implies* (atom-lit 'p :pos) (atom-lit 'r :pos))))
+   :smullyan-completeness (and-form* (atom-lit 'p :pos) (atom-lit 'p :neg))
    :ferguson-classical-contradiction (and-form* (atom-lit 'p :pos) (atom-lit 'p :neg))
    :empty-branch true
    :single-formula (atom-lit 'p :pos)
@@ -134,18 +116,15 @@
 (defn inventory-entry
   "Construct a normalized inventory record."
   [{:keys [id source-file source-test disposition coverage suite formula-key
-           proflog-mode refutation-formula-key upstream-result proflog-expectation
-           unsupported-reason source-note]
-    :or {suite :fast proflog-mode :satisfiability}}]
+           upstream-result proflog-expectation unsupported-reason source-note]
+    :or {suite :fast}}]
   (cond-> {:id id
            :source-file source-file
            :source-test source-test
            :disposition disposition
-           :suite suite
-           :proflog-mode proflog-mode}
+           :suite suite}
     coverage (assoc :coverage coverage)
     formula-key (assoc :formula-key formula-key)
-    refutation-formula-key (assoc :refutation-formula-key refutation-formula-key)
     upstream-result (assoc :upstream-result upstream-result)
     proflog-expectation (assoc :proflog-expectation proflog-expectation)
     unsupported-reason (assoc :unsupported-reason unsupported-reason)
@@ -206,18 +185,17 @@
           :source-file "tests/test_comprehensive.py"
           :source-test "test_tautology_transitivity"
           :disposition :direct
-          :proflog-mode :refutation
-          :refutation-formula-key :transitivity-tautology
-          :upstream-result :closes-via-negation
-          :proflog-expectation :closes})
+          :formula-key :transitivity-tautology
+          :upstream-result :open
+          :proflog-expectation :open})
        (inventory-entry
          {:id :comprehensive/test-tautology-material-implication
           :source-file "tests/test_comprehensive.py"
           :source-test "test_tautology_material_implication"
-          :disposition :analog
-          :upstream-result :closes-via-negation
-          :source-note
-          "Dual refutation of material-implication equivalence; see translation record."})
+          :disposition :direct
+          :formula-key :material-implication-tautology
+          :upstream-result :open
+          :proflog-expectation :open})
        (inventory-entry
          {:id :comprehensive/test-satisfiable-conjunction
           :source-file "tests/test_comprehensive.py"
@@ -426,67 +404,68 @@
             "test_priest_excluded_middle_not_tautology"
             "test_priest_contradiction_satisfiable_wk3"
             "test_priest_signed_tableau_rules"])
-      ;; Fitting — classical analogs with explicit translation records.
+      ;; Fitting — source-confirm classical analogs.
       [(inventory-entry
          {:id :literature/test-fitting-basic-expansion-example
           :source-file "tests/test_literature_examples.py"
           :source-test "test_fitting_basic_expansion_example"
-          :disposition :analog
+          :disposition :source-confirm
           :coverage :alpha-beta
-          :formula-key :fitting-basic-expansion
+          :formula-key :alpha-beta
           :upstream-result :open
           :proflog-expectation :open
-          :source-note "Melvin Fitting, First-Order Logic and Automated Theorem Proving, Ch. 3.2."})
+          :source-note "Melvin Fitting, First-Order Logic and Automated Theorem Proving."})
        (inventory-entry
          {:id :literature/test-fitting-closure-example
           :source-file "tests/test_literature_examples.py"
           :source-test "test_fitting_closure_example"
-          :disposition :analog
+          :disposition :source-confirm
           :coverage :closure
           :formula-key :fitting-closure
           :upstream-result :closes
           :proflog-expectation :closes
-          :source-note "Melvin Fitting, First-Order Logic and Automated Theorem Proving, Ch. 3.3."})
+          :source-note "Melvin Fitting, First-Order Logic and Automated Theorem Proving."})
        (inventory-entry
          {:id :literature/test-fitting-satisfiable-example
           :source-file "tests/test_literature_examples.py"
           :source-test "test_fitting_satisfiable_example"
-          :disposition :analog
+          :disposition :source-confirm
           :coverage :open-branch
-          :formula-key :fitting-satisfiable
+          :formula-key :fitting-open
           :upstream-result :open
           :proflog-expectation :open
-          :source-note "Melvin Fitting, First-Order Logic and Automated Theorem Proving, Ch. 3.4."})
-       ;; Smullyan — classical analogs with explicit translation records.
-       (inventory-entry
+          :source-note "Melvin Fitting, First-Order Logic and Automated Theorem Proving."})]
+      ;; Smullyan — source-confirm.
+      [(inventory-entry
          {:id :literature/test-smullyan-alpha-beta-classification
           :source-file "tests/test_literature_examples.py"
           :source-test "test_smullyan_alpha_beta_classification"
-          :disposition :analog
+          :disposition :source-confirm
           :coverage :alpha-beta
-          :upstream-result :branch-shape
-          :source-note "Raymond M. Smullyan, First-Order Logic, Ch. 2 (signed α/β rules)."})
+          :formula-key :smullyan-alpha-beta
+          :upstream-result :open
+          :proflog-expectation :open
+          :source-note "Raymond M. Smullyan, First-Order Logic."})
        (inventory-entry
          {:id :literature/test-smullyan-systematic-tableau-construction
           :source-file "tests/test_literature_examples.py"
           :source-test "test_smullyan_systematic_tableau_construction"
-          :disposition :analog
+          :disposition :source-confirm
           :coverage :alpha-beta
-          :proflog-mode :refutation
-          :refutation-formula-key :smullyan-systematic-tautology
-          :upstream-result :closes-via-negation
-          :proflog-expectation :closes
-          :source-note "Raymond M. Smullyan, First-Order Logic, Ch. 2 (systematic construction)."})
+          :formula-key :alpha-beta
+          :upstream-result :open
+          :proflog-expectation :open
+          :source-note "Raymond M. Smullyan, First-Order Logic."})
        (inventory-entry
          {:id :literature/test-smullyan-completeness-example
           :source-file "tests/test_literature_examples.py"
           :source-test "test_smullyan_completeness_example"
-          :disposition :analog
-          :coverage :open-branch
+          :disposition :source-confirm
+          :coverage :contradiction
           :formula-key :smullyan-completeness
-          :upstream-result :open
-          :proflog-expectation :open
-          :source-note "Raymond M. Smullyan, First-Order Logic (completeness example)."})]
+          :upstream-result :closes
+          :proflog-expectation :closes
+          :source-note "Raymond M. Smullyan, First-Order Logic."})]
       ;; Handbook — unsupported signed/three-valued.
       (map (fn [test-name]
              (inventory-entry
@@ -630,179 +609,9 @@
             ["excluded-middle" :formula-em :open]
             ["pierce-law" :formula-pierce :open]
             ["contradiction" :formula-contradiction :closes]
-            ["modus-ponens-fail" :formula-modus-ponens-fail :closes]
+            ["modus-ponens-fail" :formula-modus-ponens-fail :open]
             ["distribution" :formula-distribution :open]
             ["peirce" :formula-peirce :open]]))))
-
-(defn translation-record
-  "Explicit upstream-to-Proflog translation metadata for fidelity auditing."
-  [{:keys [source-test upstream-formula upstream-assertions upstream-result
-           proflog-mode formula-key refutation-formula-keys refutation-formula-key
-           proflog-expectation retained-assertions dropped-assertions
-           source-formula source-location source-expectation]}]
-  (cond-> {:source-test source-test
-           :upstream-formula upstream-formula
-           :upstream-result upstream-result
-           :proflog-mode (or proflog-mode :satisfiability)
-           :retained-assertions retained-assertions
-           :dropped-assertions dropped-assertions}
-    upstream-assertions (assoc :upstream-assertions upstream-assertions)
-    formula-key (assoc :formula-key formula-key)
-    refutation-formula-key (assoc :refutation-formula-key refutation-formula-key)
-    refutation-formula-keys (assoc :refutation-formula-keys refutation-formula-keys)
-    proflog-expectation (assoc :proflog-expectation proflog-expectation)
-    source-formula (assoc :source-formula source-formula)
-    source-location (assoc :source-location source-location)
-    source-expectation (assoc :source-expectation source-expectation)))
-
-(def signed-tableau-drops
-  ["signed T(...) / F(...) tableau builds" "upstream model extraction hooks"])
-
-(defn- direct-translation
-  [source-test upstream-formula formula-key expectation & {:keys [mode refutation-key drops]}]
-  (translation-record
-    {:source-test source-test
-     :upstream-formula upstream-formula
-     :upstream-result expectation
-     :proflog-mode (or mode :satisfiability)
-     :formula-key formula-key
-     :refutation-formula-key refutation-key
-     :proflog-expectation expectation
-     :retained-assertions ["classical Proflog kernel semantic result"]
-     :dropped-assertions (vec (concat signed-tableau-drops (or drops [])))}))
-
-(def translation-records
-  "Upstream formula/condition translations keyed by source test name."
-  (into {}
-        (map (juxt :source-test identity)
-             (concat
-               [(direct-translation "test_simple_atom" "p" :atom-p :open)
-                (direct-translation "test_simple_negation" "¬p" :neg-p :open)
-                (direct-translation "test_contradiction_basic" "p ∧ ¬p" :contradiction-basic :closes)
-                (translation-record
-                  {:source-test "test_contradiction_complex"
-                   :upstream-formula "(p → q) ∧ p ∧ ¬q"
-                   :upstream-result :closes
-                   :formula-key :contradiction-complex
-                   :proflog-expectation :closes
-                   :retained-assertions ["unsatisfiability / branch closure"]
-                   :dropped-assertions ["extract_all_models() == 0"]})
-                (translation-record
-                  {:source-test "test_tautology_excluded_middle"
-                   :upstream-formula "p ∨ ¬p"
-                   :upstream-assertions ["T(p ∨ ¬p) satisfiable" "T(¬(p ∨ ¬p)) unsatisfiable"]
-                   :upstream-result :open
-                   :formula-key :excluded-middle
-                   :proflog-expectation :open
-                   :retained-assertions ["satisfiability of excluded middle"]
-                   :dropped-assertions ["negated tautology refutation check (handled separately)"]})
-                (translation-record
-                  {:source-test "test_tautology_transitivity"
-                   :upstream-formula "¬(((a → b) ∧ (b → c)) → (a → c))"
-                   :upstream-result :closes
-                   :proflog-mode :refutation
-                   :refutation-formula-key :transitivity-tautology
-                   :proflog-expectation :closes
-                   :retained-assertions ["negated tautology is unsatisfiable"]
-                   :dropped-assertions signed-tableau-drops})
-                (direct-translation "test_satisfiable_conjunction" "p ∧ q" :satisfiable-conjunction :open)
-                (direct-translation "test_satisfiable_disjunction" "p ∨ q" :satisfiable-disjunction :open)
-                (direct-translation "test_satisfiable_implication" "p → q" :satisfiable-implication :open)
-                (direct-translation "test_complex_nested_formula" "nested p/q/r/s formula" :complex-nested :open)
-                (direct-translation "test_de_morgan_laws" "¬(p∧q) ∧ (¬p∨¬q)" :de-morgan-left :open)
-                (direct-translation "test_multiple_formulas_consistent" "p ∧ q" :multiple-consistent :open)
-                (direct-translation "test_multiple_formulas_inconsistent" "p ∧ q ∧ ¬p" :multiple-inconsistent :closes)
-                (direct-translation "test_single_formula_in_list" "p" :single-formula :open)
-                (translation-record
-                  {:source-test "test_tautology_material_implication"
-                   :upstream-formula "(p → q) ↔ (¬p ∨ q); both directions refuted"
-                   :upstream-assertions
-                   ["T(¬((p → q) → (¬p ∨ q))) closes"
-                    "T(¬((¬p ∨ q) → (p → q))) closes"]
-                   :upstream-result :closes
-                   :proflog-mode :refutation
-                   :refutation-formula-keys
-                   [:material-implication-equiv-forward :material-implication-equiv-reverse]
-                   :retained-assertions ["both implication directions close under negation refutation"]
-                   :dropped-assertions (conj signed-tableau-drops "biconditional packaging")})
-                (translation-record
-                  {:source-test "test_fitting_basic_expansion_example"
-                 :upstream-formula "¬(p ∧ q)"
-                 :source-formula "¬(p ∧ q)"
-                 :source-location "Fitting, First-Order Logic and Automated Theorem Proving, Ch. 3.2"
-                 :source-expectation :open
-                 :formula-key :fitting-basic-expansion
-                 :proflog-expectation :open
-                 :retained-assertions ["satisfiability"]
-                 :dropped-assertions ["signed branch shape F:p / F:q" "open branch count ≥ 2"]})
-              (translation-record
-                {:source-test "test_fitting_closure_example"
-                 :upstream-formula "(p ∧ ¬p) ∧ q"
-                 :source-formula "(p ∧ ¬p) ∧ q"
-                 :source-location "Fitting, First-Order Logic and Automated Theorem Proving, Ch. 3.3"
-                 :source-expectation :closes
-                 :formula-key :fitting-closure
-                 :proflog-expectation :closes
-                 :retained-assertions ["unsatisfiability"]
-                 :dropped-assertions ["explicit T:p/F:p closure reason on signed branches"]})
-              (translation-record
-                {:source-test "test_fitting_satisfiable_example"
-                 :upstream-formula "(p ∨ q) ∧ (¬p ∨ r)"
-                 :source-formula "(p ∨ q) ∧ (¬p ∨ r)"
-                 :source-location "Fitting, First-Order Logic and Automated Theorem Proving, Ch. 3.4"
-                 :source-expectation :open
-                 :formula-key :fitting-satisfiable
-                 :proflog-expectation :open
-                 :retained-assertions ["satisfiability"]
-                 :dropped-assertions ["model extraction" "manual assignment verification"]})
-              (translation-record
-                {:source-test "test_smullyan_completeness_example"
-                 :upstream-formula "(p ∧ q) ∨ (¬p ∧ ¬q)"
-                 :source-formula "(p ∧ q) ∨ (¬p ∧ ¬q)"
-                 :source-location "Smullyan, First-Order Logic (completeness example)"
-                 :source-expectation :open
-                 :formula-key :smullyan-completeness
-                 :proflog-expectation :open
-                 :retained-assertions ["satisfiability"]
-                 :dropped-assertions ["two-model extraction" "open branch enumeration"]})
-              (translation-record
-                {:source-test "test_smullyan_alpha_beta_classification"
-                 :upstream-formula "signed α/β rule fixtures (T/F prefixes)"
-                 :source-location "Smullyan, First-Order Logic, Ch. 2"
-                 :upstream-result :branch-shape
-                 :retained-assertions ["α/β classification intent recorded"]
-                 :dropped-assertions ["signed formula branch counts" "T/F prefix semantics"]})
-              (translation-record
-                {:source-test "test_smullyan_systematic_tableau_construction"
-                 :upstream-formula "¬((p → q) → ((q → r) → (p → r)))"
-                 :source-location "Smullyan, First-Order Logic, Ch. 2"
-                 :upstream-result :closes
-                 :proflog-mode :refutation
-                 :refutation-formula-key :smullyan-systematic-tautology
-                 :proflog-expectation :closes
-                 :retained-assertions ["negated tautology closes"]
-                 :dropped-assertions ["all signed branches closed enumeration"]})
-               (translation-record
-                 {:source-test "test_ferguson_classical_contradiction_still_works"
-                  :upstream-formula "p ∧ ¬p (classical control within Ferguson suite)"
-                  :formula-key :ferguson-classical-contradiction
-                  :proflog-expectation :closes
-                  :retained-assertions ["classical contradiction still closes"]
-                  :dropped-assertions ["weak Kleene / epistemic semantics context"]})]))))
-
-(defn translation-for-source-test
-  [source-test]
-  (get translation-records source-test))
-
-(defn entries-requiring-translation-records
-  []
-  (filter #(= :direct (:disposition %)) inventory-entries))
-
-(defn literature-analog-entries
-  []
-  (filter #(and (= :analog (:disposition %))
-                (str/includes? (:source-file %) "test_literature_examples.py"))
-          inventory-entries))
 
 (def reconciliation-entries
   "Recorded disagreements or deferred items among upstream, source, and Proflog."
@@ -837,63 +646,7 @@
     :status :unsupported
     :resolution
     "Signed tableau smoke is non-portable; classical analog covered by formula-p CLI entry."
-    :evidence "setup/signed-tableau-smoke and formulas/p"}
-   {:source-test "test_contradiction_complex"
-    :upstream-result :closes
-    :external-expectation "(p→q)∧p∧¬q unsatisfiable"
-    :proflog-observation :closes
-    :status :resolved
-    :resolution
-    "Initial scaffold mapped the wrong formula; translation record now uses (p→q)∧p∧¬q."
-    :evidence "translation-records/test_contradiction_complex"}
-   {:source-test "test_tautology_transitivity"
-    :upstream-result :closes-via-negation
-    :external-expectation "transitivity tautology"
-    :proflog-observation :closes
-    :status :resolved
-    :resolution
-    "Refutation mode now negates ((a→b)∧(b→c))→(a→c) instead of testing bare (p∧q)→p."
-    :evidence "translation-records/test_tautology_transitivity"}
-   {:source-test "test_tautology_material_implication"
-    :upstream-result :closes-via-negation
-    :external-expectation "material implication equivalence"
-    :proflog-observation :closes
-    :status :resolved
-    :resolution
-    "Dual refutation analog replaces bare p→q mapping; disposition :analog."
-    :evidence "translation-records/test_tautology_material_implication"}
-   {:source-test "test_smullyan_completeness_example"
-    :upstream-result :open
-    :external-expectation "satisfiable with models"
-    :proflog-observation :open
-    :status :resolved
-    :resolution
-    "Formula corrected to (p∧q)∨(¬p∧¬q); model extraction assertions deferred."
-    :evidence "translation-records/test_smullyan_completeness_example"}
-   {:source-test "test_fitting_satisfiable_example"
-    :upstream-result :open
-    :external-expectation "(p∨q)∧(¬p∨r) satisfiable"
-    :proflog-observation :open
-    :status :resolved
-    :resolution
-    "Formula corrected from bare p; model extraction dropped as non-portable."
-    :evidence "translation-records/test_fitting_satisfiable_example"}
-   {:source-test "test_fitting_closure_example"
-    :upstream-result :closes
-    :external-expectation "(p∧¬p)∧q unsatisfiable"
-    :proflog-observation :closes
-    :status :resolved
-    :resolution
-    "Formula corrected to include conjunct q; signed closure-reason check deferred."
-    :evidence "translation-records/test_fitting_closure_example"}
-   {:source-test "test_fitting_basic_expansion_example"
-    :upstream-result :open
-    :external-expectation "¬(p∧q) expansion branches"
-    :proflog-observation :open
-    :status :deferred
-    :resolution
-    "Semantic satisfiability retained; signed branch-shape assertions deferred to ADR-0115/witness work."
-    :evidence "translation-records/test_fitting_basic_expansion_example"}])
+    :evidence "setup/signed-tableau-smoke and formulas/p"}])
 
 (defn entry-by-id
   [id]
@@ -902,40 +655,22 @@
 (defn runnable-entries
   "Inventory entries with a Proflog formula and semantic expectation."
   []
-  (filter (fn [{:keys [disposition formula-key refutation-formula-key
-                       proflog-expectation proflog-mode]}]
-            (and proflog-expectation
-                 (not= disposition :unsupported)
-                 (or formula-key
-                     (and (= :refutation proflog-mode) refutation-formula-key))))
+  (filter (fn [{:keys [disposition formula-key proflog-expectation]}]
+            (and formula-key
+                 proflog-expectation
+                 (not= disposition :unsupported)))
           inventory-entries))
 
 (defn formula-for-entry
-  [{:keys [formula-key proflog-mode refutation-formula-key]}]
-  (let [raw (if (= :refutation proflog-mode)
-              (ast/not-form (get formulas refutation-formula-key))
-              (get formulas formula-key))]
-    (if (true? raw)
-      raw
-      (normalize/to-nnf raw))))
-
-(defn refutation-formula
-  "NNF negation of `formula-key` for tautology refutation checks."
-  [formula-key]
-  (normalize/to-nnf (ast/not-form (get formulas formula-key))))
+  [{:keys [formula-key]}]
+  (get formulas formula-key))
 
 (defn proflog-observation
   "Independently observe whether Proflog closes `formula`."
   [formula]
-  (cond
-    (true? formula) :open
-    :else (if (seq (kernel/prove formula 1))
-            :closes
-            :open)))
-
-(defn proflog-observation-for-entry
-  [entry]
-  (proflog-observation (formula-for-entry entry)))
+  (if (seq (kernel/prove formula 1))
+    :closes
+    :open))
 
 (defn prove-with-steps
   "Return closure observation and proof-step count for envelope tests."

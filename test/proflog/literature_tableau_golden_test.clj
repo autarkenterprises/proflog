@@ -81,6 +81,13 @@
     "distribution"
     "peirce"})
 
+(def spot-check-source-tests
+  #{"test_contradiction_complex"
+    "test_tautology_transitivity"
+    "test_tautology_material_implication"
+    "test_fitting_satisfiable_example"
+    "test_smullyan_completeness_example"})
+
 (deftest inventory-covers-reviewed-upstream-corpus
   (testing "every active upstream item is represented with a final disposition"
     (let [catalog-tests (set (map :source-test golden/inventory-entries))
@@ -98,9 +105,33 @@
     (let [kinds (set (keep :coverage golden/inventory-entries))]
       (is (= golden/coverage-kinds kinds)))))
 
+(deftest direct-entries-require-translation-records
+  (testing ":direct inventory rows must cite explicit upstream translations"
+    (doseq [{:keys [id source-test]} (golden/entries-requiring-translation-records)]
+      (let [translation (golden/translation-for-source-test source-test)]
+        (is (some? translation) (str "missing translation record for " id))
+        (when translation
+          (is (string? (:upstream-formula translation))
+              (str "missing upstream formula on " id))
+          (is (seq (:retained-assertions translation))
+              (str "missing retained assertions on " id))
+          (is (seq (:dropped-assertions translation))
+              (str "missing dropped assertions on " id)))))))
+
+(deftest literature-analog-entries-require-translation-records
+  (testing "literature :analog rows must record source locations and dropped assertions"
+    (doseq [{:keys [id source-test]} (golden/literature-analog-entries)]
+      (let [translation (golden/translation-for-source-test source-test)]
+        (is (some? translation) (str "missing literature translation for " id))
+        (when translation
+          (is (or (:source-location translation) (:upstream-formula translation))
+              (str "missing source metadata on " id))
+          (is (seq (:dropped-assertions translation))
+              (str "missing dropped assertions on " id)))))))
+
 (deftest reconciliation-ledger-records-disagreements
-  (testing "structured reconciliation entries exist for non-portable or disputed cases"
-    (is (= 4 (count golden/reconciliation-entries)))
+  (testing "structured reconciliation entries exist for translation and portability gaps"
+    (is (<= 4 (count golden/reconciliation-entries)))
     (doseq [entry golden/reconciliation-entries]
       (is (contains? golden/valid-reconciliation-statuses (:status entry)))
       (is (string? (:resolution entry)))
@@ -108,24 +139,36 @@
 
 (deftest runnable-golden-cases-match-proflog-observations
   (testing "supported inventory entries are independently confirmed through Proflog"
-    (doseq [{:keys [id proflog-expectation] :as entry}
-            (golden/runnable-entries)
-            :let [formula (golden/formula-for-entry entry)
-                  observed (golden/proflog-observation formula)]]
+    (doseq [{:keys [id proflog-expectation] :as entry} (golden/runnable-entries)
+            :let [observed (golden/proflog-observation-for-entry entry)]]
       (is (= proflog-expectation observed)
           (str "golden mismatch on " id)))))
 
-(deftest ^:slow literature-tableau-extended-branch-growth-envelopes
-  (testing "performance-disposition entries stay within modest proof-step envelopes"
-    (doseq [{:keys [id suite formula-key proflog-expectation] :as entry} golden/inventory-entries
-            :when (and (= :extended suite)
-                       formula-key
-                       proflog-expectation)
-            :let [{:keys [observation step-count]}
-                  (golden/prove-with-steps (golden/formula-for-entry entry))]]
-      (is (= proflog-expectation observation) (str "semantic mismatch on " id))
-      (is (<= step-count 64)
-          (str "branch-growth envelope exceeded on " id)))))
+(deftest upstream-spot-checks-match-translation-records
+  (testing "named upstream formulas from the interdev review close the fidelity loop"
+    (doseq [source-test spot-check-source-tests
+            :let [translation (golden/translation-for-source-test source-test)]]
+      (is (some? translation) (str "missing spot-check translation for " source-test))
+      (when translation
+        (cond
+          (:refutation-formula-keys translation)
+          (doseq [formula-key (:refutation-formula-keys translation)]
+            (is (= :closes
+                   (golden/proflog-observation (golden/refutation-formula formula-key)))
+                (str "refutation failed for " source-test " " formula-key)))
+
+          (= :refutation (:proflog-mode translation))
+          (is (= (:proflog-expectation translation)
+                 (golden/proflog-observation
+                   (golden/refutation-formula (:refutation-formula-key translation))))
+              (str "refutation spot-check failed for " source-test))
+
+          (:formula-key translation)
+          (is (= (:proflog-expectation translation)
+                 (golden/proflog-observation
+                   (golden/formula-for-entry {:formula-key (:formula-key translation)
+                                              :proflog-mode :satisfiability})))
+              (str "satisfiability spot-check failed for " source-test)))))))
 
 (deftest unsupported-entries-document-reasons
   (testing "unsupported upstream tests record explicit non-portability reasons"

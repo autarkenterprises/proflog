@@ -88,17 +88,18 @@
     :open))
 
 (defn measure-benchmark
-  "Return semantic observation and proof-step count for a benchmark record."
-  [{:keys [formula formula-key] :as benchmark}]
+  "Return semantic observation and, for closed cases, proof-step count."
+  [{:keys [formula formula-key semantic] :as benchmark}]
   (let [f (or formula (golden/formula-for-entry {:formula-key formula-key}))
         proofs (kernel/prove f 1)
         observation (if (seq proofs) :closes :open)
-        step-count (if (seq proofs)
-                     (count (proof/collect-steps (first proofs)))
-                     0)]
+        branch-growth-applicable (= :closes semantic)
+        step-count (when (and branch-growth-applicable (seq proofs))
+                     (count (proof/collect-steps (first proofs))))]
     (assoc benchmark
            :formula f
            :observation observation
+           :branch-growth-applicable branch-growth-applicable
            :step-count step-count)))
 
 (defn semantic-preservation-ok?
@@ -107,9 +108,12 @@
   (= (:semantic measured) (:observation measured)))
 
 (defn branch-growth-ok?
-  "True when proof-step count stays within the recorded envelope."
+  "True when proof-step count stays within the recorded envelope for closed cases."
   [measured]
-  (<= (:step-count measured) (:max-steps measured)))
+  (if (:branch-growth-applicable measured)
+    (and (some? (:step-count measured))
+         (<= (:step-count measured) (:max-steps measured)))
+    true))
 
 (defn run-benchmark
   "Run semantic and branch-growth checks. Returns a result map."
@@ -117,6 +121,7 @@
   (let [measured (measure-benchmark benchmark)]
     {:benchmark (:id measured)
      :semantic-ok (semantic-preservation-ok? measured)
+     :branch-growth-applicable (:branch-growth-applicable measured)
      :branch-growth-ok (branch-growth-ok? measured)
      :observation (:observation measured)
      :expected (:semantic measured)

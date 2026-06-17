@@ -95,10 +95,10 @@
                                     "proflog.program-test"
                                     "proflog.query-test"]
             "test-proflog-extended" ["test"
-                                    "proflog.answers-test"
+                                     "proflog.answers-test"
                                      "proflog.integration-families-test"
-                                     "proflog.literature-tableau-golden-test"
-                                     "proflog.scheduling-benchmark-test"
+                                     "proflog.literature-tableau-golden-extended-test"
+                                     "proflog.scheduling-benchmark-extended-test"
                                      "proflog.core-logic-canonical-extended-test"
                                      "proflog.list-programs-test"
                                      "proflog.quantified-programs-test"

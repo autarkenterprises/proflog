@@ -1,6 +1,6 @@
 # AAR-0113: Proflog Proof Object Diagnostic Renderer
 
-- Date: 2026-06-20
+- Date: 2026-06-17
 - ADR: [ADR-0113](../adr/ADR-0113-proflog-proof-object-diagnostic-renderer.md)
 - Branch: `adr-0113-proflog-proof-object-diagnostic-renderer`
 - Status: complete
@@ -20,8 +20,9 @@ Limitations: artifacts without recognized tags return `:insufficient-data`;
 non-collection artifacts return `:unsupported`. Branch IDs and signed-tableau
 metadata are not inferred.
 
-Tests: `lein test proflog.diagnostics.proof-trace-test` — 5 tests, 15 assertions.
-Wired into `lein test-proflog-fast`.
+Tests: `lein test proflog.diagnostics.proof-trace-test` — includes `refl-close`
+label regression (`:reflexive-disequality-contradiction`). Wired into
+`lein test-proflog-fast`.
 
 ## Follow-up
 

@@ -1,6 +1,6 @@
 # ADR-0115: Proflog Proof-Preserving Scheduling Benchmarks
 
-- Status: proposed
+- Status: accepted
 - Date: 2026-06-16
 - Branch: `adr-0115-proflog-proof-preserving-scheduling-benchmarks`
 - AAR: [AAR-0115](../aar/AAR-0115-proflog-proof-preserving-scheduling-benchmarks.md)

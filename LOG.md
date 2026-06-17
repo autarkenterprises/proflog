@@ -35,6 +35,10 @@ complete contemporaneous transcript.
   open-branch witness extraction (`proflog.diagnostics.witness`) for the ground
   propositional fragment, integrated with golden-suite open examples. See
   [AAR-0114](docs/aar/AAR-0114-proflog-open-branch-witness-extraction.md).
+- Completed [ADR-0115](docs/adr/ADR-0115-proflog-proof-preserving-scheduling-benchmarks.md):
+  proof-preserving scheduling benchmarks (`proflog.scheduling-benchmarks`) with
+  semantic-before-envelope tests. See
+  [AAR-0115](docs/aar/AAR-0115-proflog-proof-preserving-scheduling-benchmarks.md).
 
 ## 2026-06-16
 

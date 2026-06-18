@@ -1187,9 +1187,9 @@
   "ADR-0124 executable Workstream B contract for negative SJAS variants.
 
    This audit intentionally separates a public variant surface from a completed
-   Goedel-boundary failure. The first surface is total multiplication, but the
-   destructive reduced/full SelfCons witnesses remain open until both
-   constructed certificates and proof-search synthesis evidence exist."
+   Goedel-boundary failure. The first surface is total multiplication; ADR-0125
+   and ADR-0126 complete its reduced witness and generated target stages, but
+   constructed certificates and proof-search synthesis evidence remain open."
   {:workstream :workstream-b
    :first-variant :total-multiplication
    :planned-variants #{:total-multiplication
@@ -1199,21 +1199,30 @@
                              :full-generated-selfcons-contradiction-target]
    :final-evidence-required #{:constructed-certificate
                               :proof-search-synthesis}
-   :variant-statuses {:total-multiplication :reduced-witness-implemented
+   :variant-statuses {:total-multiplication :full-target-implemented
                       :tab-2-or-stronger :not-started
                       :xtab-or-lem-axiom :not-started}
    :completed-witness-stages
-   {:total-multiplication #{:reduced-reflected-beta-witness}}
+   {:total-multiplication #{:reduced-reflected-beta-witness
+                            :full-generated-selfcons-contradiction-target}}
    :reduced-witnesses
    {:total-multiplication
     {:kind :squaring-chain
      :default-depth 3
      :fragment "u_0 = 2; u_(i+1) = mul(u_i,u_i)"
      :status :implemented
-     :remaining-stage :full-generated-selfcons-contradiction-target}}
+     :remaining-stage :completed}}
+   :full-targets
+   {:total-multiplication
+    {:kind :generated-selfcons-refutation
+     :system-builder 'total-multiplication-reduced-witness-system
+     :target-report 'total-multiplication-full-target-report
+     :target-shape "AxiomConj(S_total-mul) /\\ not(SelfCons(S_total-mul))"
+     :status :implemented
+     :remaining-evidence #{:constructed-certificate
+                           :proof-search-synthesis}}}
    :open-obligations
-   {:total-multiplication #{:full-generated-selfcons-contradiction-target
-                            :constructed-certificate
+   {:total-multiplication #{:constructed-certificate
                             :proof-search-synthesis}
     :tab-2-or-stronger #{:variant-surface
                          :reduced-reflected-beta-witness

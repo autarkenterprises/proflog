@@ -1236,6 +1236,51 @@
               :functions (merge (:functions system-opts) witness-signature)
               :beta (vec (concat witness-beta (:beta system-opts))))))))
 
+(defn selfcons-negation-target
+  "Return the generated negative SelfCons theorem target for `system`.
+
+   The positive SelfCons sentence is the system's generated Group-3 theorem
+   formula. Workstream B contradiction probes refute that exact generated
+   statement, so this helper deliberately derives the target from
+   `(:group-three system)` instead of rebuilding a parallel schema."
+  [system]
+  (normalize/negate-formula (:formula (:group-three system))))
+
+(defn selfcons-refutation-target
+  "Return `AxiomConj(S) /\\ not(SelfCons_S)` for `system`.
+
+   This is the full formula a later contradiction certificate must close for a
+   generated SJAS SelfCons target. It is a target constructor only; it performs
+   no proof search and does not imply that a certificate has been found."
+  [system]
+  (ast/and-form (:axiom-formula system)
+                (selfcons-negation-target system)))
+
+(defn total-multiplication-full-target-report
+  "Describe the ADR-0126 full target for the total-multiplication variant.
+
+   The report names the reduced-witness system from ADR-0125 and the exact
+   generated SelfCons refutation target for that system. Certificate and
+   synthesis fields intentionally remain open because this ADR constructs the
+   target, not the proof of contradiction."
+  ([]
+   (total-multiplication-full-target-report {}))
+  ([opts]
+   (let [system (total-multiplication-reduced-witness-system opts)
+         negated-selfcons (selfcons-negation-target system)]
+     {:variant :total-multiplication
+      :witness-stage :full-generated-selfcons-contradiction-target
+      :system-code (:system-code system)
+      :group-three-code (:code (:group-three system))
+      :axiom-formula (:axiom-formula system)
+      :selfcons-formula (:formula (:group-three system))
+      :negated-selfcons-formula negated-selfcons
+      :selfcons-refutation-target (ast/and-form (:axiom-formula system)
+                                                negated-selfcons)
+      :constructed-certificate-status :open
+      :proof-search-synthesis-status :open
+      :durable-probe-required? true})))
+
 ;; -----------------------------------------------------------------------------
 ;; Source-facing SJAS builder
 ;; -----------------------------------------------------------------------------

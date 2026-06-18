@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0126](docs/adr/ADR-0126-sjas-total-mul-full-target.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0126-sjas-total-mul-full-target`. This slice targets the full
+  generated SelfCons contradiction target for the total-multiplication reduced
+  witness system, while deliberately keeping constructed-certificate and
+  proof-search synthesis evidence open. Completed with
+  [AAR-0126](docs/aar/AAR-0126-sjas-total-mul-full-target.md); gates:
+  `lein test-proflog-fast` 221/1377 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1154 fail=0 error=0`.
 - Spawned [ADR-0125](docs/adr/ADR-0125-sjas-total-mul-reduced-witness.md)
   from ADR-0119 Workstream B on branch
   `adr-0125-sjas-total-mul-reduced-witness`. This slice targets the reduced

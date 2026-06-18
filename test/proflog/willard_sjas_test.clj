@@ -1160,6 +1160,44 @@
               220))
           "the final squaring-chain beta record must be citeable by sjas-axiom"))))
 
+(deftest sjas-total-multiplication-full-target-names-generated-selfcons
+  (testing "ADR-0126 names the generated SelfCons refutation target without claiming proof evidence"
+    (let [depth 3
+          opts {:profile :willard-sjas-level1
+                :depth depth}
+          system (sjas/total-multiplication-reduced-witness-system opts)
+          report (sjas/total-multiplication-full-target-report opts)
+          system-negated-selfcons (normalize/negate-formula
+                                    (:formula (:group-three system)))
+          system-refutation-target (ast/and-form (:axiom-formula system)
+                                                 system-negated-selfcons)
+          report-negated-selfcons (normalize/negate-formula
+                                    (:selfcons-formula report))
+          report-refutation-target (ast/and-form (:axiom-formula report)
+                                                 report-negated-selfcons)]
+      (is (= :total-multiplication (:variant report)))
+      (is (= :full-generated-selfcons-contradiction-target
+             (:witness-stage report)))
+      (is (= (:system-code system) (:system-code report)))
+      (is (= (:code (:group-three system)) (:group-three-code report)))
+      (is (= system-negated-selfcons
+             (sjas/selfcons-negation-target system)))
+      (is (= system-refutation-target
+             (sjas/selfcons-refutation-target system)))
+      (is (= report-negated-selfcons
+             (:negated-selfcons-formula report)))
+      (is (= report-refutation-target
+             (:selfcons-refutation-target report)))
+      (is (= :open (:constructed-certificate-status report)))
+      (is (= :open (:proof-search-synthesis-status report)))
+      (is (true? (:durable-probe-required? report)))
+      (is (= :not-found
+             (:result (sjas/bounded-contradiction-probe
+                        system
+                        {:fuel 4
+                         :proof-limit 1})))
+          "target construction must not be counted as a contradiction proof"))))
+
 (deftest sjas-system-builder-axiom-formula-includes-fixed-group-one
   (testing "the public theorem antecedent agrees with the fixed axiom basis"
     (let [system (demo-system :willard-sjas-tableau0)

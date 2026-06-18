@@ -122,3 +122,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0125](AAR-0125-sjas-total-mul-reduced-witness.md) | [ADR-0125](../adr/ADR-0125-sjas-total-mul-reduced-witness.md) | completed |
 | [AAR-0126](AAR-0126-sjas-total-mul-full-target.md) | [ADR-0126](../adr/ADR-0126-sjas-total-mul-full-target.md) | completed |
 | [AAR-0127](AAR-0127-sjas-boundary-evidence-screen.md) | [ADR-0127](../adr/ADR-0127-sjas-boundary-evidence-screen.md) | completed |
+| [AAR-0128](AAR-0128-sjas-self-extension-lists.md) | [ADR-0128](../adr/ADR-0128-sjas-self-extension-lists.md) | completed |

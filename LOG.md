@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0128](docs/adr/ADR-0128-sjas-self-extension-lists.md)
+  from ADR-0119 Workstream C on branch
+  `adr-0128-sjas-self-extension-lists`. This slice adds the reflected
+  pair-backed list layer after the ADR-0123 pair demo, without claiming list
+  recursion or full self-interpretation. Completed with
+  [AAR-0128](docs/aar/AAR-0128-sjas-self-extension-lists.md); gates:
+  `lein test-proflog-fast` 223/1394 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1173 fail=0 error=0`.
 - Spawned [ADR-0127](docs/adr/ADR-0127-sjas-boundary-evidence-screen.md)
   from ADR-0119 Workstream B on branch
   `adr-0127-sjas-boundary-evidence-screen`. This slice adds an executable

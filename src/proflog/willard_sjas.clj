@@ -341,6 +341,75 @@
   {:functions pair-functions
    :beta (pair-projection-axioms)})
 
+(def list-constants
+  "Constants introduced by ADR-0128's pair-backed list extension."
+  ['list-nil])
+
+(def list-functions
+  "Function declarations for the finite reflected list representation layer."
+  {'list-cons 2
+   'list-head 1
+   'list-tail 1})
+
+(def list-nil-term (ast/app-term 'list-nil))
+
+(defn list-cons-term
+  "Construct the pair-backed list constructor term."
+  [head tail]
+  (ast/app-term 'list-cons head tail))
+
+(defn list-head-term
+  "Construct the list-head projection term."
+  [list-term]
+  (ast/app-term 'list-head list-term))
+
+(defn list-tail-term
+  "Construct the list-tail projection term."
+  [list-term]
+  (ast/app-term 'list-tail list-term))
+
+(defn list-constructor-axioms
+  "Return finite reflected beta laws for lists represented through pairs.
+
+   The constructor is tied to the ADR-0123 pair layer by
+   `list-cons(x,xs) = pair(x,xs)`. Head and tail are then exposed as list-facing
+   projections. Recursive list processing is intentionally left to later
+   Workstream C ADRs."
+  []
+  (let [x (nominal/nom (lvar 'x))
+        xs (nominal/nom (lvar 'xs))
+        x-term (ast/var-term x)
+        xs-term (ast/var-term xs)
+        cons-term (list-cons-term x-term xs-term)]
+    [(ast/forall-form
+       x
+       (ast/forall-form
+         xs
+         (ast/eq-lit cons-term
+                     (pair-term x-term xs-term))))
+     (ast/forall-form
+       x
+       (ast/forall-form
+         xs
+         (ast/eq-lit (list-head-term cons-term)
+                     x-term)))
+     (ast/forall-form
+       x
+       (ast/forall-form
+         xs
+         (ast/eq-lit (list-tail-term cons-term)
+                     xs-term)))]))
+
+(defn list-extension-options
+  "Return the pair-plus-list reflected extension fragment for ADR-0128."
+  []
+  (let [{pair-beta :beta
+         pair-signature :functions} (pair-extension-options)]
+    {:constants list-constants
+     :functions (merge pair-signature list-functions)
+     :beta (vec (concat pair-beta
+                        (list-constructor-axioms)))}))
+
 (def total-multiplication-functions
   "Function declaration for ADR-0124's total-multiplication boundary variant.
 
@@ -1194,6 +1263,26 @@
        (assoc opts
               :functions (merge (:functions opts) pair-signature)
               :beta (vec (concat pair-beta (:beta opts))))))))
+
+(defn list-extended-system
+  "Build an SJAS system with the ADR-0128 pair-backed list layer.
+
+   The extension includes the ADR-0123 pair beta records plus the finite list
+   constructor/projection beta laws. The list constants, functions, and beta
+   records are reflected into the generated source, so system identity and the
+   Level-1 SelfCons statement change when the list layer is selected."
+  ([]
+   (list-extended-system {}))
+  ([opts]
+   (let [{list-constants :constants
+          list-beta :beta
+          list-signature :functions} (list-extension-options)]
+     (system
+       (assoc opts
+              :constants (vec (concat list-constants
+                                      (:constants opts)))
+              :functions (merge (:functions opts) list-signature)
+              :beta (vec (concat list-beta (:beta opts))))))))
 
 (defn total-multiplication-boundary-system
   "Build the ADR-0124 total-multiplication negative-variant surface.

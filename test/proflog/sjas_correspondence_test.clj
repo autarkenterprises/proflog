@@ -589,8 +589,11 @@
              (:survey-criteria audit)))
       (is (= :selected
              (get-in audit [:candidates :fresh-pair-functions :verdict])))
-      (is (= :second-stage
+      (is (= :implemented
              (get-in audit [:candidates :lists-from-pairs :verdict])))
+      (is (= #{:fresh-pair-functions
+               :lists-from-pairs}
+             (:implemented-demos audit)))
       (is (= :too-weak
              (get-in audit [:candidates :tagged-constants-only :verdict])))
       (is (= #{:list-recursion

@@ -1037,6 +1037,79 @@
               220))
           "pair beta records must be citeable by the public sjas-axiom certificate"))))
 
+(deftest sjas-list-extension-is-reflected-through-pair-layer
+  (testing "ADR-0128 list constructors are reflected beta backed by pair representation"
+    (let [pair-with-list-signature (sjas/pair-extended-system
+                                     {:profile :willard-sjas-level1
+                                      :constants sjas/list-constants
+                                      :functions sjas/list-functions})
+          extended (sjas/list-extended-system
+                     {:profile :willard-sjas-level1})
+          code-canonical-formula (var-get #'sjas/code-canonical-formula)
+          list-axioms (sjas/list-constructor-axioms)
+          list-axiom-set (set (map code-canonical-formula list-axioms))
+          pair-axiom-set (set (map code-canonical-formula
+                                   (sjas/pair-projection-axioms)))
+          options (sjas/list-extension-options)
+          list-records (filter #(and (= :group-two (:group %))
+                                     (contains?
+                                       list-axiom-set
+                                       (code-canonical-formula (:formula %))))
+                               (:axioms extended))
+          first-list-record (first list-records)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)]
+      (is (= ['list-nil] sjas/list-constants))
+      (is (= {'list-cons 2
+              'list-head 1
+              'list-tail 1}
+             sjas/list-functions))
+      (is (= 3 (count list-axioms)))
+      (is (every? sjas/pi-star-1-encodable? list-axioms))
+      (is (contains? (:constants (:language extended)) 'list-nil))
+      (is (= 2 (get-in extended [:language :functions 'pair]))
+          "list extension must include the pair representation layer")
+      (is (= 2 (get-in extended [:language :functions 'list-cons])))
+      (is (= 1 (get-in extended [:language :functions 'list-head])))
+      (is (= 1 (get-in extended [:language :functions 'list-tail])))
+      (is (= pair-axiom-set
+             (set (map code-canonical-formula
+                       (sjas/pair-projection-axioms))))
+          "the regression should exercise the same pair axioms used by ADR-0123")
+      (is (= ['list-nil] (:constants options)))
+      (is (= (merge sjas/pair-functions sjas/list-functions)
+             (:functions options)))
+      (is (= (+ (count (sjas/pair-projection-axioms))
+                (count list-axioms))
+             (count (:beta options)))
+          "list extension options must include pair and list reflected beta")
+      (is (every? sjas/pi-star-1-encodable? (:beta options)))
+      (is (= list-axiom-set
+             (set (map (comp code-canonical-formula :formula)
+                       list-records))))
+      (is (not= (:system-code pair-with-list-signature)
+                (:system-code extended))
+          "reflected list beta axioms must alter encoded source identity")
+      (is (not= (-> pair-with-list-signature :group-three :code)
+                (-> extended :group-three :code))
+          "reflected list beta axioms must regenerate SelfCons code")
+      (is (successful?
+            (query/query-succeeds
+              (:program extended)
+              (sjas/axiom-member (:system-code extended)
+                                  (:code first-list-record))
+              1
+              180))
+          "list beta records must be visible through decoded axiom membership")
+      (is (successful?
+            (query/query-succeeds
+              (:program extended)
+              (sjas/tableau-proof (:system-code extended)
+                                  (:code first-list-record)
+                                  axiom-certificate)
+              1
+              220))
+          "list beta records must be citeable by the public sjas-axiom certificate"))))
+
 (deftest sjas-total-multiplication-boundary-surface-is-reflected
   (testing "ADR-0124 total multiplication is a negative-variant surface, not a completed witness"
     (let [seedless-with-function (sjas/system

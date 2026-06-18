@@ -1155,6 +1155,8 @@
   {:workstream :self-extension
    :selected-demo :pairs-first
    :implementation-layer :reflected-beta
+   :implemented-demos #{:fresh-pair-functions
+                        :lists-from-pairs}
    :survey-criteria #{:finite-beta-axiomatization
                       :level-1-classifier-discipline
                       :system-identity-change
@@ -1170,8 +1172,15 @@
                  "forall x y. snd(pair(x,y)) = y"]
      :argument "Finite projection laws give an immediately reflected data layer whose beta source changes system identity and regenerated SelfCons code."}
     :lists-from-pairs
-    {:verdict :second-stage
-     :argument "Lists are the intended next representation layer, but recursive list operations should be added after pair axioms are reflected and citeable."}
+    {:verdict :implemented
+     :data-symbols {'list-nil 0
+                    'list-cons 2
+                    'list-head 1
+                    'list-tail 1}
+     :beta-laws ["forall x xs. list-cons(x,xs) = pair(x,xs)"
+                 "forall x xs. list-head(list-cons(x,xs)) = x"
+                 "forall x xs. list-tail(list-cons(x,xs)) = xs"]
+     :argument "ADR-0128 adds the finite pair-backed list representation layer; recursive list operations remain deferred."}
     :tagged-constants-only
     {:verdict :too-weak
      :argument "Fresh constants can demonstrate recoding, but they do not provide data-structure operations for self-interpretation."}}

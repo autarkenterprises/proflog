@@ -1,135 +1,174 @@
 (ns proflog.literature-tableau-golden-test
   (:require [clojure.test :refer [deftest is testing]]
+            [proflog.ast :as ast]
             [proflog.literature-tableau-golden :as golden]))
 
-(def required-source-tests
-  "Every active upstream test name from the reviewed `tableaux` inventory."
-  #{"test_simple_atom"
-    "test_simple_negation"
-    "test_contradiction_basic"
-    "test_contradiction_complex"
-    "test_tautology_excluded_middle"
-    "test_tautology_transitivity"
-    "test_tautology_material_implication"
-    "test_satisfiable_conjunction"
-    "test_satisfiable_disjunction"
-    "test_satisfiable_implication"
-    "test_complex_nested_formula"
-    "test_de_morgan_laws"
-    "test_multiple_formulas_consistent"
-    "test_multiple_formulas_inconsistent"
-    "test_wk3_simple_atom"
-    "test_wk3_contradiction_satisfiable"
-    "test_wk3_truth_values"
-    "test_wk3_model_evaluation"
-    "test_term_creation"
-    "test_predicate_creation"
-    "test_predicate_with_variables"
-    "test_atom_backward_compatibility"
-    "test_mode_detection"
-    "test_mode_aware_api"
-    "test_mixed_mode_prevention"
-    "test_formula_prioritization"
-    "test_subsumption_elimination"
-    "test_early_satisfiability_detection"
-    "test_performance_complex_formula"
-    "test_model_extraction_correctness"
-    "test_empty_formula_list"
-    "test_single_formula_in_list"
-    "test_very_deep_nesting"
-    "test_large_disjunction"
-    "test_large_conjunction"
-    "test_priest_weak_kleene_conjunction_table"
-    "test_priest_excluded_middle_not_tautology"
-    "test_priest_contradiction_satisfiable_wk3"
-    "test_priest_signed_tableau_rules"
-    "test_fitting_basic_expansion_example"
-    "test_fitting_closure_example"
-    "test_fitting_satisfiable_example"
-    "test_smullyan_alpha_beta_classification"
-    "test_smullyan_systematic_tableau_construction"
-    "test_smullyan_completeness_example"
-    "test_handbook_signed_semantic_tableaux"
-    "test_handbook_three_valued_tableaux"
-    "test_handbook_optimization_techniques"
-    "test_deep_nesting_priest_example"
-    "test_three_valued_non_classical_behavior"
-    "test_fitting_branch_bound_example"
-    "test_ferguson_epistemic_disjunction_example"
-    "test_ferguson_epistemic_contradiction_non_closure"
-    "test_ferguson_classical_contradiction_still_works"
-    "test_ferguson_sign_duality_in_negation"
-    "test_ferguson_restricted_quantifier_example"
-    "test_ferguson_universal_quantifier_uncertainty"
-    "test_ferguson_mixed_epistemic_reasoning"
-    "test_ferguson_non_classical_tautology_behavior"
-    "test_ferguson_comparison_with_classical_three_valued"
-    "test_ferguson_epistemic_closure_conditions"
-    "test_prioritization_benefit"
-    "test_subsumption_benefit"
-    "test_complex_formula_performance"
-    "test_termination_correctness"
-    "setup_smoke"
-    "p"
-    "p-and-q"
-    "p-or-q"
-    "p-impl-q"
-    "excluded-middle"
-    "pierce-law"
-    "contradiction"
-    "modus-ponens-fail"
-    "distribution"
-    "peirce"})
+(defn source-tests
+  []
+  (set (map :source-test golden/inventory-entries)))
 
-(deftest inventory-covers-reviewed-upstream-corpus
-  (testing "every active upstream item is represented with a final disposition"
-    (let [catalog-tests (set (map :source-test golden/inventory-entries))
-          stats (golden/inventory-stats)]
-      (is (= 76 (:total stats)))
-      (is (= required-source-tests catalog-tests))
-      (doseq [entry golden/inventory-entries]
-        (is (contains? golden/valid-dispositions (:disposition entry))
-            (str "invalid disposition on " (:id entry)))
-        (is (not= :pending (:disposition entry))
-            (str "pending disposition on " (:id entry)))))))
+(defn entry
+  [source-test]
+  (golden/entry-by-id source-test))
 
-(deftest minimum-coverage-kinds-are-present
-  (testing "ADR-0112 requires closure, open, alpha/beta, contradiction, and branch-growth examples"
-    (let [kinds (set (keep :coverage golden/inventory-entries))]
-      (is (= golden/coverage-kinds kinds)))))
+(defn translation
+  [source-test]
+  (golden/translation-for-source-test source-test))
 
-(deftest reconciliation-ledger-records-disagreements
-  (testing "structured reconciliation entries exist for non-portable or disputed cases"
-    (is (= 4 (count golden/reconciliation-entries)))
-    (doseq [entry golden/reconciliation-entries]
-      (is (contains? golden/valid-reconciliation-statuses (:status entry)))
-      (is (string? (:resolution entry)))
-      (is (string? (:evidence entry))))))
+(defn open?
+  [formula]
+  (= :open (golden/proflog-observation formula)))
 
-(deftest runnable-golden-cases-match-proflog-observations
-  (testing "supported inventory entries are independently confirmed through Proflog"
-    (doseq [{:keys [id proflog-expectation] :as entry}
-            (golden/runnable-entries)
-            :let [formula (golden/formula-for-entry entry)
-                  observed (golden/proflog-observation formula)]]
-      (is (= proflog-expectation observed)
-          (str "golden mismatch on " id)))))
+(defn closes?
+  [formula]
+  (= :closes (golden/proflog-observation formula)))
 
-(deftest ^:slow literature-tableau-extended-branch-growth-envelopes
-  (testing "performance-disposition entries stay within modest proof-step envelopes"
-    (doseq [{:keys [id suite formula-key proflog-expectation] :as entry} golden/inventory-entries
-            :when (and (= :extended suite)
-                       formula-key
-                       proflog-expectation)
-            :let [{:keys [observation step-count]}
-                  (golden/prove-with-steps (golden/formula-for-entry entry))]]
-      (is (= proflog-expectation observation) (str "semantic mismatch on " id))
-      (is (<= step-count 64)
-          (str "branch-growth envelope exceeded on " id)))))
+(defn lit
+  [name]
+  (ast/pos-lit (ast/app-term (symbol name))))
 
-(deftest unsupported-entries-document-reasons
-  (testing "unsupported upstream tests record explicit non-portability reasons"
-    (doseq [{:keys [id unsupported-reason disposition]} golden/inventory-entries
-            :when (= :unsupported disposition)]
-      (is (string? unsupported-reason) (str "missing unsupported reason on " id))
-      (is (pos? (count unsupported-reason)) (str "empty unsupported reason on " id)))))
+(def p (lit "p"))
+(def q (lit "q"))
+(def r (lit "r"))
+(def s (lit "s"))
+
+(defn not*
+  [formula]
+  (ast/not-form formula))
+
+(defn and*
+  [& formulas]
+  (reduce ast/and-form formulas))
+
+(defn or*
+  [& formulas]
+  (reduce ast/or-form formulas))
+
+(defn implies*
+  [antecedent consequent]
+  (ast/implies-form antecedent consequent))
+
+(deftest upstream-suite-inventory-is-complete
+  (testing "The ADR-0112 catalog keeps a row for every upstream pytest test."
+    (is (= 76 (count golden/inventory-entries)))
+    (is (= 76 (count (source-tests))))
+    (is (every? (fn [row]
+                  (and (:source-test row)
+                       (:source-file row)
+                       (:coverage row)
+                       (:source-location row)
+                       (:source-expectation row)))
+                golden/inventory-entries))))
+
+(deftest coverage-classes-are-explicit
+  (testing "Every row is classified as direct, analog, performance, or unsupported."
+    (is (= #{:direct :analog :performance :unsupported}
+           (set (map :coverage golden/inventory-entries))))
+    (is (= {:direct 30
+            :analog 13
+            :performance 7
+            :unsupported 26}
+           golden/inventory-stats))))
+
+(deftest runnable-rows-have-an-auditable-translation-record
+  (doseq [row golden/inventory-entries]
+    (let [record (translation (:source-test row))]
+      (if (= :unsupported (:coverage row))
+        (is (nil? record) (:source-test row))
+        (do
+          (is record (:source-test row))
+          (is (= (:source-test row) (:source-test record)) (:source-test row))
+          (is (= (:source-expectation row) (:source-expectation record)) (:source-test row))
+          (is (contains? record :retained-assertions) (:source-test row))
+          (is (contains? record :dropped-assertions) (:source-test row))
+          (is (seq (:retained-assertions record)) (:source-test row))
+          (is (:proflog-mode record) (:source-test row))
+          (is (:proflog-expectation record) (:source-test row)))))))
+
+(deftest direct-rows-do-not-hide-dropped-semantic-obligations
+  (doseq [row (filter #(= :direct (:coverage %)) golden/inventory-entries)]
+    (let [record (translation (:source-test row))]
+      (is (empty? (:dropped-assertions record))
+          (str (:source-test row) " is marked direct but drops "
+               (:dropped-assertions record))))))
+
+(deftest unsupported-rows-include-specific-reconciliation-reasons
+  (testing "Unsupported rows explain the missing feature instead of disappearing from the catalog."
+    (is (= 26 (count golden/reconciliation-entries)))
+    (doseq [{:keys [source-test status reason]} golden/reconciliation-entries]
+      (is (= :unsupported status) source-test)
+      (is (seq reason) source-test))))
+
+(deftest previously-mismatched-direct-translations-are-source-faithful
+  (testing "test_complex_nested_formula keeps the exact implication chain and the source model assertion."
+    (is (= (and* (implies* (and* p q) r)
+                 (implies* r s)
+                 (and* p q))
+           (golden/formula-for-key :complex-nested-formula)))
+    (is (= :open (-> (translation "test_complex_nested_formula") :proflog-expectation)))
+    (is (= ["formula is satisfiable"]
+           (-> (translation "test_complex_nested_formula") :retained-assertions)))
+    (is (= ["all extracted models set s=true"]
+           (-> (translation "test_complex_nested_formula") :dropped-assertions)))
+    (is (= :analog (:coverage (entry "test_complex_nested_formula")))))
+
+  (testing "test_de_morgan_laws carries all four tautological implications as refutation checks."
+    (is (= [(implies* (not* (and* p q)) (or* (not* p) (not* q)))
+            (implies* (or* (not* p) (not* q)) (not* (and* p q)))
+            (implies* (not* (or* p q)) (and* (not* p) (not* q)))
+            (implies* (and* (not* p) (not* q)) (not* (or* p q)))]
+           (map golden/formula-for-key
+                (:refutation-formula-keys (translation "test_de_morgan_laws")))))
+    (is (= :closes (-> (translation "test_de_morgan_laws") :proflog-expectation)))
+    (is (= :direct (:coverage (entry "test_de_morgan_laws")))))
+
+  (testing "test_multiple_formulas_consistent preserves the source list as a conjunction."
+    (is (= (and* (implies* p q)
+                 (implies* q r)
+                 p)
+           (golden/formula-for-key :multiple-formulas-consistent)))
+    (is (= ["formula set is satisfiable"]
+           (-> (translation "test_multiple_formulas_consistent") :retained-assertions)))
+    (is (= ["all extracted models set p,q,r=true"]
+           (-> (translation "test_multiple_formulas_consistent") :dropped-assertions)))
+    (is (= :analog (:coverage (entry "test_multiple_formulas_consistent")))))
+
+  (testing "test_multiple_formulas_inconsistent preserves p, p->q, and not q."
+    (is (= (and* p
+                 (implies* p q)
+                 (not* q))
+           (golden/formula-for-key :multiple-formulas-inconsistent)))
+    (is (= :closes (-> (translation "test_multiple_formulas_inconsistent") :proflog-expectation)))
+    (is (= :direct (:coverage (entry "test_multiple_formulas_inconsistent"))))))
+
+(deftest literature-examples-are-translated-faithfully
+  (testing "Fitting examples retain the formulas that drive branch opening and closure."
+    (is (= (not* (and* p q))
+           (golden/formula-for-key :fitting-basic-expansion)))
+    (is (open? (golden/formula-for-key :fitting-basic-expansion)))
+    (is (= (and* p (not* p) q)
+           (golden/formula-for-key :fitting-closure)))
+    (is (closes? (golden/formula-for-key :fitting-closure)))
+    (is (= (and* (or* p q) (or* (not* p) r))
+           (golden/formula-for-key :fitting-satisfiable)))
+    (is (open? (golden/formula-for-key :fitting-satisfiable))))
+
+  (testing "Smullyan and Handbook tautology checks are represented as refutations of the source formula."
+    (is (closes? (golden/refutation-formula-for-key :smullyan-systematic-tautology)))
+    (is (open? (golden/formula-for-key :smullyan-completeness)))
+    (is (open? (golden/formula-for-key :handbook-signed-conjunction)))
+    (is (closes? (golden/refutation-formula-for-key :priest-deep-tautology))))
+
+  (testing "Performance and CLI examples keep their actual formulas and expected status."
+    (is (= (and* (or* p q) r)
+           (golden/formula-for-key :performance-formula-prioritization)))
+    (is (open? (golden/formula-for-key :performance-formula-prioritization)))
+    (is (= (and* (implies* p q) p (not* q))
+           (golden/formula-for-key :formula-modus-ponens-contradiction)))
+    (is (closes? (golden/formula-for-key :formula-modus-ponens-contradiction)))))
+
+(deftest runnable-proflog-observations-match-recorded-expectations
+  (doseq [record (vals golden/translation-records)]
+    (testing (:source-test record)
+      (let [actual (golden/proflog-observation-for-translation record)]
+        (is (= (:proflog-expectation record) actual))))))

@@ -47,6 +47,13 @@
       (is (nil? (:closure trace)))
       (is (pos? (:step-count trace))))))
 
+(deftest reflexive-disequality-close-is-not-labeled-as-procedure-refutation
+  (testing "refl-close denotes a collapsed disequality, not a procedure-call failure."
+    (let [trace (trace/proof-trace-edn '(refl-close))]
+      (is (= :ok (:status trace)))
+      (is (= :reflexive-disequality-contradiction
+             (get-in trace [:closure :reason]))))))
+
 (deftest renderer-does-not-change-proof-search-results
   (testing "diagnostic rendering is read-only with respect to kernel answers"
     (let [formula (contradiction-formula)

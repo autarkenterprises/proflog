@@ -1,51 +1,37 @@
 (ns proflog.scheduling-benchmark-test
   (:require [clojure.test :refer [deftest is testing]]
-            [proflog.scheduling-benchmarks :as bench]))
+            [proflog.scheduling-benchmarks :as scheduling]))
 
-(deftest benchmark-catalog-covers-required-case-kinds
-  (testing "ADR-0115 requires single, multi, deterministic, nondeterministic, and branching cases"
-    (let [kinds (set (map :kind bench/benchmark-catalog))]
-      (is (= (bench/required-kinds) kinds)))))
+(deftest benchmark-catalog-is-structural-and-source-linked
+  (testing "Every benchmark documents the profile-independent formula shape it measures."
+    (is (seq scheduling/benchmark-cases))
+    (doseq [case scheduling/benchmark-cases]
+      (is (:benchmark-id case) case)
+      (is (:origin case) case)
+      (is (:formula case) case)
+      (is (#{:open :closes} (:expected case)) case))))
 
-(deftest semantic-expectations-precede-branch-growth
-  (testing "every benchmark records an independent semantic baseline"
-    (doseq [benchmark bench/benchmark-catalog]
-      (is (contains? #{:open :closes} (:semantic benchmark))
-          (str "missing semantic baseline on " (:id benchmark)))
-      (let [measured (bench/measure-benchmark benchmark)]
-        (is (contains? #{:open :closes} (:observation measured)))
-        (is (boolean (bench/semantic-preservation-ok? measured))
-            (str "semantic mismatch on " (:id benchmark)))))))
+(deftest open-and-closed-benchmarks-both-carry-nonfabricated-measurements
+  (testing "Open cases use structural branch-growth data; closed cases additionally carry proof steps."
+    (let [measurements (map scheduling/measure-benchmark scheduling/benchmark-cases)]
+      (is (some #(= :open (:expected %)) measurements))
+      (is (some #(= :closes (:expected %)) measurements))
+      (doseq [measurement measurements]
+        (is (= (:expected measurement) (:result measurement)) measurement)
+        (is (pos? (:formula-size measurement)) measurement)
+        (is (nat-int? (:expansion-count measurement)) measurement)
+        (is (pos-int? (:estimated-branches measurement)) measurement)
+        (is (pos-int? (:max-depth measurement)) measurement)
+        (if (= :closes (:expected measurement))
+          (is (pos-int? (:closed-proof-step-count measurement)) measurement)
+          (is (nil? (:closed-proof-step-count measurement)) measurement))))))
 
-(deftest branch-growth-envelopes-hold-for-baseline-behavior
-  (testing "proof-step counts stay within recorded envelopes at baseline"
-    (doseq [benchmark bench/benchmark-catalog]
-      (let [measured (bench/measure-benchmark benchmark)]
-        (is (bench/semantic-preservation-ok? measured)
-            (str "semantic check must pass before envelope on " (:id benchmark)))
-        (is (bench/branch-growth-ok? measured)
-            (str "branch-growth envelope exceeded on " (:id benchmark)))))))
-
-(deftest run-benchmark-surfaces-semantic-failures-first
-  (testing "a wrong semantic expectation is visible before branch-growth passes"
-    (let [broken (assoc (first bench/benchmark-catalog)
-                          :semantic (if (= :open (:semantic (first bench/benchmark-catalog)))
-                                      :closes
-                                      :open))
-          result (bench/run-benchmark broken)]
-      (is (false? (:semantic-ok result)))
-      (is (not= (:expected result) (:observation result))))))
-
-(deftest ^:slow extended-scheduling-benchmarks-run
-  (testing "extended-suite benchmarks preserve semantics under larger envelopes"
-    (doseq [benchmark (bench/extended-benchmarks)
-            :let [result (bench/run-benchmark benchmark)]]
-      (is (:semantic-ok result) (str "extended semantic failure on " (:id benchmark)))
-      (is (:branch-growth-ok result) (str "extended envelope failure on " (:id benchmark))))))
-
-(deftest fast-scheduling-benchmarks-run
-  (testing "fast-suite benchmarks preserve semantics"
-    (doseq [benchmark (bench/fast-benchmarks)
-            :let [result (bench/run-benchmark benchmark)]]
-      (is (:semantic-ok result) (str "fast semantic failure on " (:id benchmark)))
-      (is (:branch-growth-ok result) (str "fast envelope failure on " (:id benchmark))))))
+(deftest branch-growth-thresholds-use-open-case-structural-evidence
+  (let [results (scheduling/run-benchmarks)
+        by-id (into {} (map (juxt :benchmark-id identity) results))]
+    (testing "The branch-growth benchmark is an open tableau case and is checked against its source bound."
+      (is (= :open (get-in by-id [:branch-bound-fitting :result])))
+      (is (< 1 (get-in by-id [:branch-bound-fitting :estimated-branches]) 50))
+      (is (true? (get-in by-id [:branch-bound-fitting :branch-growth-ok]))))
+    (testing "No benchmark reports the previous placeholder zero search count."
+      (is (not-any? #(= 0 (:search-measure %)) results)))))

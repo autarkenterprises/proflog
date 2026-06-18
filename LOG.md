@@ -20,24 +20,29 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
-## 2026-06-20
+## 2026-06-17
 
 - Completed [ADR-0112](docs/adr/ADR-0112-proflog-literature-tableau-golden-suite.md):
   literature tableau golden suite (`proflog.literature-tableau-golden`) covering all
-  76 active upstream `tableaux` items at commit `fa5a736`, with 44 runnable
-  Proflog-confirmed cases and 32 explicit `:unsupported` dispositions. Wired into
-  `lein test-proflog-fast` and `lein test-proflog-extended`. See
+  76 active upstream `tableaux` items at commit `fa5a736`, with 50 runnable
+  Proflog-confirmed cases and 26 explicit `:unsupported` dispositions. Corrected
+  previously mistranslated direct rows including complex nested formulas,
+  De Morgan refutations, multi-formula examples, and the modus-ponens
+  contradiction. Wired fast and extended golden-suite namespaces into the
+  project gates. See
   [AAR-0112](docs/aar/AAR-0112-proflog-literature-tableau-golden-suite.md).
 - Completed [ADR-0113](docs/adr/ADR-0113-proflog-proof-object-diagnostic-renderer.md):
-  read-only proof trace renderer (`proflog.diagnostics.proof-trace`). See
+  read-only proof trace renderer (`proflog.diagnostics.proof-trace`), including
+  corrected `refl-close` labeling as reflexive disequality contradiction. See
   [AAR-0113](docs/aar/AAR-0113-proflog-proof-object-diagnostic-renderer.md).
 - Completed [ADR-0114](docs/adr/ADR-0114-proflog-open-branch-witness-extraction.md):
   open-branch witness extraction (`proflog.diagnostics.witness`) for the ground
-  propositional fragment, integrated with golden-suite open examples. See
+  propositional fragment, integrated with flat golden-suite open examples. See
   [AAR-0114](docs/aar/AAR-0114-proflog-open-branch-witness-extraction.md).
 - Completed [ADR-0115](docs/adr/ADR-0115-proflog-proof-preserving-scheduling-benchmarks.md):
   proof-preserving scheduling benchmarks (`proflog.scheduling-benchmarks`) with
-  semantic-before-envelope tests. See
+  semantic-before-envelope tests and structural branch-growth measurements for
+  open cases rather than fabricated closed-proof step counts. See
   [AAR-0115](docs/aar/AAR-0115-proflog-proof-preserving-scheduling-benchmarks.md).
 
 ## 2026-06-16

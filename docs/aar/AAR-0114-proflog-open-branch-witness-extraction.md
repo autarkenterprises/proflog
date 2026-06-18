@@ -1,6 +1,6 @@
 # AAR-0114: Proflog Open-Branch Witness Extraction
 
-- Date: 2026-06-20
+- Date: 2026-06-17
 - ADR: [ADR-0114](../adr/ADR-0114-proflog-open-branch-witness-extraction.md)
 - Branch: `adr-0114-proflog-open-branch-witness-extraction`
 - Status: complete
@@ -23,7 +23,7 @@ v1 ground propositional fragment.
 ## Evidence
 
 Tests: `lein test proflog.diagnostics.witness-test` — 6 tests, 14 assertions,
-including golden-suite integration on three ADR-0112 open-branch examples.
+including golden-suite integration on three flat ADR-0112 open-branch examples.
 Wired into `lein test-proflog-fast`.
 
 ## Follow-up

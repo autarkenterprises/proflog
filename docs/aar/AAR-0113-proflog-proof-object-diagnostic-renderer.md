@@ -1,6 +1,6 @@
 # AAR-0113: Proflog Proof Object Diagnostic Renderer
 
-- Date: 2026-06-20
+- Date: 2026-06-17
 - ADR: [ADR-0113](../adr/ADR-0113-proflog-proof-object-diagnostic-renderer.md)
 - Branch: `adr-0113-proflog-proof-object-diagnostic-renderer`
 - Status: complete
@@ -14,13 +14,14 @@ Added read-only diagnostic namespace `proflog.diagnostics.proof-trace` with
 
 Supported artifact shapes: kernel proof S-expressions whose tags appear in
 `known-step-tags` (conj/split/close/savefml, quantifiers, equality, procedure
-calls, profile markers).
+calls, profile markers). `refl-close` is reported as
+`:reflexive-disequality-contradiction`, not as a procedure refutation.
 
 Limitations: artifacts without recognized tags return `:insufficient-data`;
 non-collection artifacts return `:unsupported`. Branch IDs and signed-tableau
 metadata are not inferred.
 
-Tests: `lein test proflog.diagnostics.proof-trace-test` — 5 tests, 15 assertions.
+Tests: `lein test proflog.diagnostics.proof-trace-test` — 6 tests, 17 assertions.
 Wired into `lein test-proflog-fast`.
 
 ## Follow-up

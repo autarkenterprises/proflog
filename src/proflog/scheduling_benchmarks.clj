@@ -1,135 +1,239 @@
 (ns proflog.scheduling-benchmarks
   "Proof-preserving scheduling benchmarks for representative Proflog searches.
 
-   Semantic expectations are recorded independently of branch-growth envelopes so
-   future scheduling optimizations cannot trade correctness for speed."
+   Open tableaux do not have a closed proof artifact, so their benchmark record
+   uses a deterministic structural estimate of branch growth. Closed tableaux
+   additionally record the recognized proof-step count from the kernel proof
+   object."
   (:require [proflog.ast :as ast]
             [proflog.kernel :as kernel]
             [proflog.literature-tableau-golden :as golden]
+            [proflog.normalize :as normalize]
             [proflog.proof :as proof]))
 
 (defn- lit
-  [sym polarity]
-  (if (= polarity :pos)
-    (ast/pos-lit (ast/app-term sym))
-    (ast/neg-lit (ast/app-term sym))))
+  [sym]
+  (ast/pos-lit (ast/app-term sym)))
 
-(defn benchmark-record
-  [{:keys [id kind suite formula formula-key semantic max-steps optimization-target]
-    :or {suite :fast max-steps 64}}]
-  (cond-> {:id id
-           :kind kind
-           :suite suite
-           :semantic semantic
-           :max-steps max-steps}
-    formula (assoc :formula formula)
-    formula-key (assoc :formula-key formula-key)
-    optimization-target (assoc :optimization-target optimization-target)))
+(defn- and*
+  [& formulas]
+  (reduce ast/and-form formulas))
 
-(def benchmarks
-  [{:id :single-pending-goal-open
-    :kind :single-pending-goal
-    :formula-key :atom-p
-    :semantic :open
-    :max-steps 8
-    :optimization-target :goal-selection}
-   {:id :single-pending-goal-closed
-    :kind :single-pending-goal
-    :formula-key :contradiction-basic
-    :semantic :closes
-    :max-steps 16
-    :optimization-target :early-closure}
-   {:id :multi-goal-open
-    :kind :multi-goal
-    :formula (ast/and-form (lit 'p :pos) (lit 'q :pos))
-    :semantic :open
-    :max-steps 16}
-   {:id :multi-goal-closed
-    :kind :multi-goal
-    :formula-key :multiple-inconsistent
-    :semantic :closes
-    :max-steps 32}
-   {:id :deterministic-alpha-beta
-    :kind :deterministic-expansion
-    :formula-key :alpha-beta
-    :semantic :open
-    :max-steps 32
-    :optimization-target :alpha-before-beta}
-   {:id :nondeterministic-disjunction
-    :kind :nondeterministic-expansion
-    :formula-key :large-disjunction
-    :semantic :open
-    :suite :extended
-    :max-steps 64
-    :optimization-target :branch-ordering}
-   {:id :branching-closed
-    :kind :branching
-    :formula-key :contradiction-complex
-    :semantic :closes
-    :max-steps 48}
-   {:id :branching-open
-    :kind :branching
-    :formula-key :deep-nesting
-    :semantic :open
-    :suite :extended
-    :max-steps 64}])
+(defn- or*
+  [& formulas]
+  (reduce ast/or-form formulas))
 
-(def benchmark-catalog
-  (mapv benchmark-record benchmarks))
+(defn- not*
+  [formula]
+  (ast/not-form formula))
+
+(defn- benchmark
+  [{:keys [benchmark-id kind suite formula formula-key expected max-branches
+           max-closed-proof-steps origin optimization-target]
+    :or {suite :fast max-branches 64 max-closed-proof-steps 64}}]
+  (let [f (or formula (golden/formula-for-key formula-key))]
+    (cond-> {:benchmark-id benchmark-id
+             :id benchmark-id
+             :kind kind
+             :suite suite
+             :formula f
+             :expected expected
+             :semantic expected
+             :max-branches max-branches
+             :max-closed-proof-steps max-closed-proof-steps
+             :origin origin}
+      formula-key (assoc :formula-key formula-key)
+      optimization-target (assoc :optimization-target optimization-target))))
+
+(def benchmark-cases
+  [(benchmark
+     {:benchmark-id :single-pending-goal-open
+      :kind :single-pending-goal
+      :formula-key :atom-p
+      :expected :open
+      :max-branches 1
+      :origin "single atom open branch"
+      :optimization-target :goal-selection})
+   (benchmark
+     {:benchmark-id :single-pending-goal-closed
+      :kind :single-pending-goal
+      :formula-key :contradiction-basic
+      :expected :closes
+      :origin "single conjunction with complementary literals"
+      :optimization-target :early-closure})
+   (benchmark
+     {:benchmark-id :multi-goal-open
+      :kind :multi-goal
+      :formula-key :satisfiable-conjunction
+      :expected :open
+      :origin "multi-literal open conjunction"})
+   (benchmark
+     {:benchmark-id :multi-goal-closed
+      :kind :multi-goal
+      :formula-key :multiple-formulas-inconsistent
+      :expected :closes
+      :origin "upstream multiple-formulas inconsistent case"})
+   (benchmark
+     {:benchmark-id :deterministic-alpha
+      :kind :deterministic-expansion
+      :formula-key :large-conjunction
+      :expected :open
+      :origin "large deterministic conjunction"})
+   (benchmark
+     {:benchmark-id :nondeterministic-disjunction
+      :kind :nondeterministic-expansion
+      :formula-key :large-disjunction
+      :expected :open
+      :suite :extended
+      :max-branches 16
+      :origin "large disjunction from upstream edge tests"
+      :optimization-target :branch-ordering})
+   (benchmark
+     {:benchmark-id :branching-closed
+      :kind :branching
+      :formula (and* (or* (lit 'p) (lit 'q))
+                     (not* (lit 'p))
+                     (not* (lit 'q)))
+      :expected :closes
+      :origin "branching disjunction with both complementary branches"})
+   (benchmark
+     {:benchmark-id :branch-bound-fitting
+      :kind :branching
+      :formula-key :fitting-branch-bound
+      :expected :open
+      :suite :extended
+      :max-branches 50
+      :origin "Fitting branch-bound example from reviewed tableaux corpus"
+      :optimization-target :branch-growth})])
+
+(def benchmark-catalog benchmark-cases)
 
 (defn formula-for-benchmark
   [{:keys [formula formula-key]}]
-  (or formula (golden/formula-for-entry {:formula-key formula-key})))
+  (or formula (golden/formula-for-key formula-key)))
+
+(defn- stats-leaf
+  []
+  {:formula-size 1
+   :expansion-count 0
+   :estimated-branches 1
+   :max-depth 1
+   :literal-count 1})
+
+(defn- combine-and
+  [left right]
+  {:formula-size (+ 1 (:formula-size left) (:formula-size right))
+   :expansion-count (+ 1 (:expansion-count left) (:expansion-count right))
+   :estimated-branches (* (:estimated-branches left)
+                          (:estimated-branches right))
+   :max-depth (inc (max (:max-depth left) (:max-depth right)))
+   :literal-count (+ (:literal-count left) (:literal-count right))})
+
+(defn- combine-or
+  [left right]
+  {:formula-size (+ 1 (:formula-size left) (:formula-size right))
+   :expansion-count (+ 1 (:expansion-count left) (:expansion-count right))
+   :estimated-branches (+ (:estimated-branches left)
+                          (:estimated-branches right))
+   :max-depth (inc (max (:max-depth left) (:max-depth right)))
+   :literal-count (+ (:literal-count left) (:literal-count right))})
+
+(defn structural-stats
+  "Return a profile-independent structural search estimate for a normalized formula."
+  [formula]
+  (case (ast/tag-of formula)
+    true (assoc (stats-leaf) :literal-count 0)
+    false (assoc (stats-leaf) :literal-count 0)
+    pos (stats-leaf)
+    neg (stats-leaf)
+    eq (stats-leaf)
+    neq (stats-leaf)
+    and (combine-and (structural-stats (second formula))
+                     (structural-stats (nth formula 2)))
+    or (combine-or (structural-stats (second formula))
+                   (structural-stats (nth formula 2)))
+    forall (update (structural-stats (:body (second formula))) :max-depth inc)
+    once-forall (update (structural-stats (:body (second formula))) :max-depth inc)
+    exists (update (structural-stats (:body (second formula))) :max-depth inc)
+    (throw (ex-info "Unsupported normalized formula for scheduling stats"
+                    {:formula formula}))))
 
 (defn observe-semantic
   [formula]
-  (if (seq (kernel/prove formula 1))
+  (if (seq (kernel/prove (normalize/to-nnf formula) 1))
     :closes
     :open))
 
-(defn measure-benchmark
-  "Return semantic observation and proof-step count for a benchmark record."
-  [{:keys [formula formula-key] :as benchmark}]
-  (let [f (or formula (golden/formula-for-entry {:formula-key formula-key}))
-        proofs (kernel/prove f 1)
-        observation (if (seq proofs) :closes :open)
-        step-count (if (seq proofs)
-                     (count (proof/collect-steps (first proofs)))
-                     0)]
+(defn closed-proof-step-count
+  [formula]
+  (when-let [proof (first (kernel/prove (normalize/to-nnf formula) 1))]
+    (count (proof/collect-steps proof))))
+
+(defn measure-formula
+  "Measure one benchmark-like formula map.
+
+   Required keys are `:formula` and `:expected`; `:benchmark-id`, `:origin`, and
+   branch/step limits are preserved when supplied."
+  [{:keys [formula expected max-branches max-closed-proof-steps]
+    :or {max-branches 64 max-closed-proof-steps 64}
+    :as benchmark}]
+  (let [start (System/nanoTime)
+        normalized (normalize/to-nnf formula)
+        result (observe-semantic formula)
+        stats (structural-stats normalized)
+        closed-steps (when (= :closes result)
+                       (closed-proof-step-count formula))
+        elapsed-ms (/ (double (- (System/nanoTime) start)) 1000000.0)
+        search-measure (or closed-steps (:estimated-branches stats))]
     (assoc benchmark
-           :formula f
-           :observation observation
-           :step-count step-count)))
+           :formula formula
+           :normalized-formula normalized
+           :result result
+           :observation result
+           :elapsed-ms elapsed-ms
+           :closed-proof-step-count closed-steps
+           :step-count (or closed-steps 0)
+           :search-measure search-measure
+           :semantic-ok (= expected result)
+           :branch-growth-ok (and (<= (:estimated-branches stats) max-branches)
+                                  (or (nil? closed-steps)
+                                      (<= closed-steps max-closed-proof-steps)))
+           :max-steps max-closed-proof-steps
+           :max-branches max-branches
+           :max-closed-proof-steps max-closed-proof-steps
+           :formula-size (:formula-size stats)
+           :expansion-count (:expansion-count stats)
+           :estimated-branches (:estimated-branches stats)
+           :max-depth (:max-depth stats)
+           :literal-count (:literal-count stats))))
+
+(defn measure-benchmark
+  [benchmark]
+  (measure-formula benchmark))
 
 (defn semantic-preservation-ok?
-  "True when the observed semantic result matches the benchmark baseline."
   [measured]
-  (= (:semantic measured) (:observation measured)))
+  (= (:expected measured) (:result measured)))
 
 (defn branch-growth-ok?
-  "True when proof-step count stays within the recorded envelope."
   [measured]
-  (<= (:step-count measured) (:max-steps measured)))
+  (true? (:branch-growth-ok measured)))
 
 (defn run-benchmark
-  "Run semantic and branch-growth checks. Returns a result map."
   [benchmark]
-  (let [measured (measure-benchmark benchmark)]
-    {:benchmark (:id measured)
-     :semantic-ok (semantic-preservation-ok? measured)
-     :branch-growth-ok (branch-growth-ok? measured)
-     :observation (:observation measured)
-     :expected (:semantic measured)
-     :step-count (:step-count measured)
-     :max-steps (:max-steps measured)}))
+  (measure-benchmark benchmark))
+
+(defn run-benchmarks
+  []
+  (mapv measure-benchmark benchmark-cases))
 
 (defn fast-benchmarks
   []
-  (filter #(= :fast (:suite %)) benchmark-catalog))
+  (filterv #(= :fast (:suite %)) benchmark-cases))
 
 (defn extended-benchmarks
   []
-  (filter #(= :extended (:suite %)) benchmark-catalog))
+  (filterv #(= :extended (:suite %)) benchmark-cases))
 
 (defn required-kinds
   []

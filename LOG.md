@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0127](docs/adr/ADR-0127-sjas-boundary-evidence-screen.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0127-sjas-boundary-evidence-screen`. This slice adds an executable
+  evidence screen so ordinary Group-3 SelfCons citations and structural
+  SelfCons tableaux cannot satisfy the remaining total-multiplication
+  boundary-failure obligations. Completed with
+  [AAR-0127](docs/aar/AAR-0127-sjas-boundary-evidence-screen.md); gates:
+  `lein test-proflog-fast` 223/1393 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1154 fail=0 error=0`.
 - Spawned [ADR-0126](docs/adr/ADR-0126-sjas-total-mul-full-target.md)
   from ADR-0119 Workstream B on branch
   `adr-0126-sjas-total-mul-full-target`. This slice targets the full

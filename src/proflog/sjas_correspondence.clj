@@ -1183,6 +1183,60 @@
   []
   self-extension-data-encoding-survey)
 
+(def boundary-final-evidence-obligations
+  "Final evidence obligations for Workstream B negative variants.
+
+   These obligations are deliberately not discharged by screening a candidate;
+   the screen only decides whether expensive proof verification should proceed."
+  #{:constructed-certificate
+    :proof-search-synthesis})
+
+(defn screen-boundary-evidence
+  "Reject boundary-failure evidence candidates that are the wrong kind.
+
+   `target` is a generated target report, such as
+   `total-multiplication-full-target-report`. `candidate` is an intake record
+   supplied by a future certificate or synthesis ADR. This screen performs only
+   cheap consistency checks. A passing candidate returns
+   `:verification-required`; it does not complete any Workstream B obligation."
+  [target candidate]
+  (let [reasons (cond-> #{}
+                  (not= (:variant target)
+                        (:variant candidate))
+                  (conj :wrong-variant)
+
+                  (not= (:system-code target)
+                        (:system-code candidate))
+                  (conj :wrong-system-code)
+
+                  (not= (:group-three-code target)
+                        (:selfcons-code candidate))
+                  (conj :wrong-selfcons-code)
+
+                  (and (= :sjas-axiom (:certificate-kind candidate))
+                       (= (:group-three-code target)
+                          (:theorem-code candidate)))
+                  (conj :ordinary-selfcons-citation)
+
+                  (= :ordinary-selfcons-tableau
+                     (:certificate-kind candidate))
+                  (conj :ordinary-selfcons-tableau)
+
+                  (not (true? (:uses-reduced-witness? candidate)))
+                  (conj :missing-reduced-witness)
+
+                  (and (= :proof-search-synthesis
+                          (:evidence-kind candidate))
+                       (not (and (string? (:durable-log-path candidate))
+                                 (seq (:durable-log-path candidate)))))
+                  (conj :missing-durable-synthesis-log))]
+    {:variant (:variant target)
+     :evidence-kind (:evidence-kind candidate)
+     :result (if (seq reasons) :rejected :verification-required)
+     :reasons reasons
+     :completed-obligations #{}
+     :remaining-obligations boundary-final-evidence-obligations}))
+
 (def boundary-failure-roadmap
   "ADR-0124 executable Workstream B contract for negative SJAS variants.
 
@@ -1197,8 +1251,7 @@
                        :xtab-or-lem-axiom}
    :required-witness-stages [:reduced-reflected-beta-witness
                              :full-generated-selfcons-contradiction-target]
-   :final-evidence-required #{:constructed-certificate
-                              :proof-search-synthesis}
+   :final-evidence-required boundary-final-evidence-obligations
    :variant-statuses {:total-multiplication :full-target-implemented
                       :tab-2-or-stronger :not-started
                       :xtab-or-lem-axiom :not-started}
@@ -1219,11 +1272,21 @@
      :target-report 'total-multiplication-full-target-report
      :target-shape "AxiomConj(S_total-mul) /\\ not(SelfCons(S_total-mul))"
      :status :implemented
-     :remaining-evidence #{:constructed-certificate
-                           :proof-search-synthesis}}}
+     :remaining-evidence boundary-final-evidence-obligations}}
+   :evidence-screens
+   {:total-multiplication
+    {:status :implemented
+     :screen-helper 'screen-boundary-evidence
+     :rejects #{:ordinary-selfcons-citation
+                :ordinary-selfcons-tableau
+                :wrong-system-code
+                :wrong-selfcons-code
+                :missing-reduced-witness
+                :missing-durable-synthesis-log}
+     :passes-to :verification-required
+     :completed-obligations #{}}}
    :open-obligations
-   {:total-multiplication #{:constructed-certificate
-                            :proof-search-synthesis}
+   {:total-multiplication boundary-final-evidence-obligations
     :tab-2-or-stronger #{:variant-surface
                          :reduced-reflected-beta-witness
                          :full-generated-selfcons-contradiction-target

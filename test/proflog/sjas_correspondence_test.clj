@@ -620,7 +620,90 @@
       (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :total-multiplication])))
+      (is (= :implemented
+             (get-in audit [:evidence-screens :total-multiplication :status])))
       (is (false? (:workstream-complete? audit))))))
+
+(deftest boundary-evidence-screen-rejects-trivial-selfcons-evidence
+  (testing "ADR-0127: ordinary SelfCons proofs are not boundary-failure evidence"
+    (let [target {:variant :total-multiplication
+                  :system-code 'S-total
+                  :group-three-code 'SelfCons-total}
+          citation {:variant :total-multiplication
+                    :system-code 'S-total
+                    :selfcons-code 'SelfCons-total
+                    :evidence-kind :constructed-certificate
+                    :certificate-kind :sjas-axiom
+                    :theorem-code 'SelfCons-total
+                    :uses-reduced-witness? false}
+          structural {:variant :total-multiplication
+                      :system-code 'S-total
+                      :selfcons-code 'SelfCons-total
+                      :evidence-kind :constructed-certificate
+                      :certificate-kind :ordinary-selfcons-tableau
+                      :uses-reduced-witness? true}
+          wrong-target {:variant :total-multiplication
+                        :system-code 'other-system
+                        :selfcons-code 'other-SelfCons
+                        :evidence-kind :constructed-certificate
+                        :certificate-kind :selfcons-contradiction-certificate
+                        :uses-reduced-witness? true}
+          citation-screen (correspondence/screen-boundary-evidence
+                            target
+                            citation)
+          structural-screen (correspondence/screen-boundary-evidence
+                              target
+                              structural)
+          wrong-target-screen (correspondence/screen-boundary-evidence
+                                target
+                                wrong-target)]
+      (is (= :rejected (:result citation-screen)))
+      (is (contains? (:reasons citation-screen)
+                     :ordinary-selfcons-citation))
+      (is (contains? (:reasons citation-screen)
+                     :missing-reduced-witness))
+      (is (= :rejected (:result structural-screen)))
+      (is (contains? (:reasons structural-screen)
+                     :ordinary-selfcons-tableau))
+      (is (= :rejected (:result wrong-target-screen)))
+      (is (= #{:wrong-system-code
+               :wrong-selfcons-code}
+             (:reasons wrong-target-screen)))
+      (is (= #{}
+             (:completed-obligations citation-screen))))))
+
+(deftest boundary-evidence-screen-keeps-nontrivial-candidates-pending
+  (testing "ADR-0127: screened-in candidates still need proof verification"
+    (let [target {:variant :total-multiplication
+                  :system-code 'S-total
+                  :group-three-code 'SelfCons-total}
+          constructed {:variant :total-multiplication
+                       :system-code 'S-total
+                       :selfcons-code 'SelfCons-total
+                       :evidence-kind :constructed-certificate
+                       :certificate-kind :selfcons-contradiction-certificate
+                       :uses-reduced-witness? true}
+          synthesis-without-log (assoc constructed
+                                       :evidence-kind :proof-search-synthesis)
+          constructed-screen (correspondence/screen-boundary-evidence
+                               target
+                               constructed)
+          synthesis-screen (correspondence/screen-boundary-evidence
+                             target
+                             synthesis-without-log)]
+      (is (= :verification-required (:result constructed-screen)))
+      (is (= #{}
+             (:reasons constructed-screen)))
+      (is (= #{}
+             (:completed-obligations constructed-screen)))
+      (is (= #{:constructed-certificate
+               :proof-search-synthesis}
+             (:remaining-obligations constructed-screen)))
+      (is (= :rejected (:result synthesis-screen)))
+      (is (= #{:missing-durable-synthesis-log}
+             (:reasons synthesis-screen)))
+      (is (= #{}
+             (:completed-obligations synthesis-screen))))))
 
 (deftest dsjas-track2c-size-lower-bound-covers-citation-and-structural-objects
   (testing "ADR-0104 Track 2c: the combined size repair has an explicit lower-bound argument"

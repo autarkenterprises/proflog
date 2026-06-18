@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0130](docs/adr/ADR-0130-sjas-xtab-lem-boundary-surface.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0130-sjas-xtab-lem-boundary-surface`. This slice records Xtab / Law of
+  Excluded Middle packaged as an axiom schema as an executable negative-variant
+  surface, distinct from ordinary tableau-derived excluded-middle behavior.
+  Completed with
+  [AAR-0130](docs/aar/AAR-0130-sjas-xtab-lem-boundary-surface.md); gates:
+  `lein test-proflog-fast` 225/1416 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1173 fail=0 error=0`.
 - Spawned [ADR-0129](docs/adr/ADR-0129-sjas-tab2-boundary-surface.md)
   from ADR-0119 Workstream B on branch
   `adr-0129-sjas-tab2-boundary-surface`. This slice records the

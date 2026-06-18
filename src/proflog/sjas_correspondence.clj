@@ -1275,6 +1275,35 @@
   []
   tab2-or-stronger-boundary-surface)
 
+(def xtab-or-lem-boundary-surface
+  "ADR-0130 executable surface for the Xtab/LEM-as-axiom negative variant.
+
+   The implemented SJAS baseline derives excluded-middle behavior through its
+   tableau apparatus. This record only marks the separate boundary move of
+   packaging Xtab or Law of Excluded Middle as a logical axiom schema."
+  {:variant :xtab-or-lem-axiom
+   :workstream :workstream-b
+   :status :surface-implemented
+   :baseline-treatment :tableau-derived-lem
+   :positive-workstream-status :not-a-tab1-extension
+   :boundary-step {:packaging :logical-axiom-schema
+                   :source :xtab-or-law-of-excluded-middle
+                   :risk :lem-as-axiom}
+   :remaining-obligations #{:reduced-reflected-beta-witness
+                            :full-generated-selfcons-contradiction-target
+                            :constructed-certificate
+                            :proof-search-synthesis}
+   :not-implemented #{:xtab-axiom-schema
+                      :lem-axiom-schema-profile
+                      :reduced-reflected-beta-witness
+                      :full-generated-selfcons-contradiction-target}
+   :completion-claimed? false})
+
+(defn audit-xtab-or-lem-boundary-surface
+  "Return the ADR-0130 Xtab/LEM-as-axiom Workstream B surface."
+  []
+  xtab-or-lem-boundary-surface)
+
 (def boundary-failure-roadmap
   "ADR-0124 executable Workstream B contract for negative SJAS variants.
 
@@ -1292,7 +1321,7 @@
    :final-evidence-required boundary-final-evidence-obligations
    :variant-statuses {:total-multiplication :full-target-implemented
                       :tab-2-or-stronger :surface-implemented
-                      :xtab-or-lem-axiom :not-started}
+                      :xtab-or-lem-axiom :surface-implemented}
    :completed-witness-stages
    {:total-multiplication #{:reduced-reflected-beta-witness
                             :full-generated-selfcons-contradiction-target}}
@@ -1327,15 +1356,15 @@
    {:total-multiplication {:status :implemented
                            :kind :language-extension
                            :surface-helper 'total-multiplication-boundary-system}
-    :tab-2-or-stronger tab2-or-stronger-boundary-surface}
+    :tab-2-or-stronger tab2-or-stronger-boundary-surface
+    :xtab-or-lem-axiom xtab-or-lem-boundary-surface}
    :open-obligations
    {:total-multiplication boundary-final-evidence-obligations
     :tab-2-or-stronger #{:reduced-reflected-beta-witness
                          :full-generated-selfcons-contradiction-target
                          :constructed-certificate
                          :proof-search-synthesis}
-    :xtab-or-lem-axiom #{:variant-surface
-                         :reduced-reflected-beta-witness
+    :xtab-or-lem-axiom #{:reduced-reflected-beta-witness
                          :full-generated-selfcons-contradiction-target
                          :constructed-certificate
                          :proof-search-synthesis}}

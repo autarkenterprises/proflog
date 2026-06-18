@@ -619,6 +619,8 @@
              (get-in audit [:variant-statuses :total-multiplication])))
       (is (= :surface-implemented
              (get-in audit [:variant-statuses :tab-2-or-stronger])))
+      (is (= :surface-implemented
+             (get-in audit [:variant-statuses :xtab-or-lem-axiom])))
       (is (= #{:reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
              (get-in audit [:completed-witness-stages :total-multiplication])))
@@ -630,6 +632,11 @@
                :constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :tab-2-or-stronger])))
+      (is (= #{:reduced-reflected-beta-witness
+               :full-generated-selfcons-contradiction-target
+               :constructed-certificate
+               :proof-search-synthesis}
+             (get-in audit [:open-obligations :xtab-or-lem-axiom])))
       (is (= :implemented
              (get-in audit [:evidence-screens :total-multiplication :status])))
       (is (false? (:workstream-complete? audit))))))
@@ -653,6 +660,30 @@
                :proof-search-synthesis}
              (:remaining-obligations surface)))
       (is (= #{:tab2-proof-checker
+               :reduced-reflected-beta-witness
+               :full-generated-selfcons-contradiction-target}
+             (:not-implemented surface)))
+      (is (false? (:completion-claimed? surface))))))
+
+(deftest xtab-lem-boundary-surface-distinguishes-axiom-schema-variant
+  (testing "ADR-0130: Xtab/LEM-as-axiom is a Workstream B boundary surface, not ordinary tableau behavior"
+    (let [surface (correspondence/audit-xtab-or-lem-boundary-surface)]
+      (is (= :xtab-or-lem-axiom (:variant surface)))
+      (is (= :workstream-b (:workstream surface)))
+      (is (= :surface-implemented (:status surface)))
+      (is (= :tableau-derived-lem (:baseline-treatment surface)))
+      (is (= :not-a-tab1-extension (:positive-workstream-status surface)))
+      (is (= {:packaging :logical-axiom-schema
+              :source :xtab-or-law-of-excluded-middle
+              :risk :lem-as-axiom}
+             (:boundary-step surface)))
+      (is (= #{:reduced-reflected-beta-witness
+               :full-generated-selfcons-contradiction-target
+               :constructed-certificate
+               :proof-search-synthesis}
+             (:remaining-obligations surface)))
+      (is (= #{:xtab-axiom-schema
+               :lem-axiom-schema-profile
                :reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
              (:not-implemented surface)))

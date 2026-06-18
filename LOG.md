@@ -20,6 +20,15 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-18
+
+- Added [ADR-0119](docs/adr/ADR-0119-sjas-next-research-roadmap.md) on branch
+  `adr-0119-sjas-next-research-roadmap` as a planning/control ADR for future
+  SJAS `/goal` loops. It preserves three spawnable workstreams: Tab-k/Tab-1
+  proof-list reuse, programmatized Goedel-boundary failures, and
+  self-interpretation/self-extension via reflected beta changes. This branch is
+  docs-only and does not add an AAR unless implementation begins here.
+
 ## 2026-06-17
 
 - Fitting-fidelity audit of the greenfield Proflog core, on branch

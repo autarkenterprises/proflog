@@ -1246,6 +1246,15 @@
      :completed-obligations #{}
      :remaining-obligations boundary-final-evidence-obligations}))
 
+(defn- target-mismatch?
+  [target evidence]
+  (if (and (contains? target :target-code)
+           (contains? evidence :target-code))
+    (not= (:target-code target)
+          (:target-code evidence))
+    (not= (:target-formula target)
+          (:target-formula evidence))))
+
 (defn verify-boundary-constructed-certificate
   "Verify a Workstream B constructed-certificate candidate against a target.
 
@@ -1273,12 +1282,14 @@
                         (:selfcons-code validation))
                   (conj :wrong-selfcons-code)
 
-                  (not= (:target-formula target)
-                        (:target-formula candidate))
+                  (not= (:certificate-kind candidate)
+                        (:certificate-kind validation))
+                  (conj :wrong-certificate-kind)
+
+                  (target-mismatch? target candidate)
                   (conj :wrong-target-formula)
 
-                  (not= (:target-formula target)
-                        (:target-formula validation))
+                  (target-mismatch? target validation)
                   (conj :wrong-target-formula)
 
                   (not= (:proof-code candidate)
@@ -1416,9 +1427,12 @@
     {:constructed-certificate
      {:status :implemented
       :verifier-helper 'verify-boundary-constructed-certificate
+      :validation-helper
+      'total-multiplication-constructed-certificate-validation
       :requires #{:screened-candidate
                   :matching-system-code
                   :matching-selfcons-code
+                  :matching-certificate-kind
                   :matching-target-formula
                   :matching-proof-code
                   :successful-proof-validation}

@@ -641,10 +641,16 @@
              (get-in audit [:evidence-screens :total-multiplication :status])))
       (is (= :implemented
              (get-in audit
+                      [:evidence-verifiers
+                       :total-multiplication
+                       :constructed-certificate
+                       :status])))
+      (is (= 'total-multiplication-constructed-certificate-validation
+             (get-in audit
                      [:evidence-verifiers
                       :total-multiplication
                       :constructed-certificate
-                      :status])))
+                      :validation-helper])))
       (is (false? (:workstream-complete? audit))))))
 
 (deftest tab2-boundary-surface-distinguishes-negative-proof-list-variant
@@ -789,7 +795,7 @@
                      :target-formula '(and AxiomConj-total
                                            (not SelfCons-total))
                      :evidence-kind :constructed-certificate
-                     :certificate-kind :selfcons-contradiction-certificate
+                     :certificate-kind :structural-tableau
                      :proof-code 'P-total
                      :uses-reduced-witness? true}
           validation {:variant :total-multiplication
@@ -798,6 +804,7 @@
                       :target-formula '(and AxiomConj-total
                                              (not SelfCons-total))
                       :proof-code 'P-total
+                      :certificate-kind :structural-tableau
                       :proof-valid? true
                       :validator :tableau-proof}
           verified (correspondence/verify-boundary-constructed-certificate
@@ -825,6 +832,15 @@
                         target
                         candidate
                         (assoc validation :proof-code 'OtherP))
+          wrong-kind (correspondence/verify-boundary-constructed-certificate
+                       target
+                       candidate
+                       (assoc validation :certificate-kind :sjas-axiom))
+          wrong-target-code
+          (correspondence/verify-boundary-constructed-certificate
+            (assoc target :target-code 'TargetCode)
+            (assoc candidate :target-code 'TargetCode)
+            (assoc validation :target-code 'OtherTargetCode))
           failed-proof (correspondence/verify-boundary-constructed-certificate
                          target
                          candidate
@@ -845,6 +861,10 @@
              (:reasons wrong-candidate-target)))
       (is (= #{:wrong-proof-code}
              (:reasons wrong-proof)))
+      (is (= #{:wrong-certificate-kind}
+             (:reasons wrong-kind)))
+      (is (= #{:wrong-target-formula}
+             (:reasons wrong-target-code)))
       (is (= #{:proof-validation-failed}
              (:reasons failed-proof))))))
 

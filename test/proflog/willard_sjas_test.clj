@@ -1271,6 +1271,40 @@
                          :proof-limit 1})))
           "target construction must not be counted as a contradiction proof"))))
 
+(deftest sjas-total-multiplication-certificate-validation-targets-generated-selfcons
+  (testing "ADR-0132 validates supplied proof codes against the generated total-multiplication SelfCons target"
+    (let [opts {:profile :willard-sjas-level1
+                :depth 3
+                :fuel 260
+                :proof-limit 1}
+          system (sjas/total-multiplication-reduced-witness-system opts)
+          report (sjas/total-multiplication-full-target-report opts)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          validation (sjas/total-multiplication-constructed-certificate-validation
+                       axiom-certificate
+                       opts)
+          unreadable (sjas/total-multiplication-constructed-certificate-validation
+                       (ast/app-term 'not-a-proof-code)
+                       opts)]
+      (is (= :total-multiplication (:variant validation)))
+      (is (= (:system-code system) (:system-code validation)))
+      (is (= (:group-three-code report) (:selfcons-code validation)))
+      (is (= (:target-code report)
+             (:target-code validation)))
+      (is (= (:target-code report)
+             (sjas/formula-code system (:target-formula validation))))
+      (is (= axiom-certificate (:proof-code validation)))
+      (is (= :sjas-axiom (:certificate-kind validation)))
+      (is (= :tableau-proof (:validator validation)))
+      (is (= 260 (:fuel validation)))
+      (is (= 1 (:proof-limit validation)))
+      (is (true? (:proof-valid? validation))
+          "the ordinary Group-3 citation is a valid proof but not boundary-failure evidence")
+      (is (= 1 (:proof-count validation)))
+      (is (= :unreadable-proof-code (:certificate-kind unreadable)))
+      (is (false? (:proof-valid? unreadable)))
+      (is (= 0 (:proof-count unreadable))))))
+
 (deftest sjas-system-builder-axiom-formula-includes-fixed-group-one
   (testing "the public theorem antecedent agrees with the fixed axiom basis"
     (let [system (demo-system :willard-sjas-tableau0)

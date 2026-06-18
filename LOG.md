@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0132](docs/adr/ADR-0132-sjas-total-mul-certificate-validation.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0132-sjas-total-mul-certificate-validation`. This slice adds a
+  total-multiplication proof-validation bridge for constructed-certificate
+  candidates, tying proof codes to the ADR-0126 generated SelfCons target
+  before ADR-0131 can accept them as intermediate evidence. Completed with
+  [AAR-0132](docs/aar/AAR-0132-sjas-total-mul-certificate-validation.md);
+  gates: `lein test-proflog-fast` 226/1431 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1188 fail=0 error=0`.
 - Spawned [ADR-0131](docs/adr/ADR-0131-sjas-boundary-certificate-verifier.md)
   from ADR-0119 Workstream B on branch
   `adr-0131-sjas-boundary-certificate-verifier`. This slice adds the

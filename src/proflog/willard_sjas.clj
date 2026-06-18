@@ -1356,7 +1356,9 @@
    (total-multiplication-full-target-report {}))
   ([opts]
    (let [system (total-multiplication-reduced-witness-system opts)
-         negated-selfcons (selfcons-negation-target system)]
+         negated-selfcons (selfcons-negation-target system)
+         refutation-target (ast/and-form (:axiom-formula system)
+                                         negated-selfcons)]
      {:variant :total-multiplication
       :witness-stage :full-generated-selfcons-contradiction-target
       :system-code (:system-code system)
@@ -1364,11 +1366,65 @@
       :axiom-formula (:axiom-formula system)
       :selfcons-formula (:formula (:group-three system))
       :negated-selfcons-formula negated-selfcons
-      :selfcons-refutation-target (ast/and-form (:axiom-formula system)
-                                                negated-selfcons)
+      :selfcons-refutation-target refutation-target
+      :target-code (formula-code system refutation-target)
+      :constructed-certificate-validation-helper
+      'total-multiplication-constructed-certificate-validation
       :constructed-certificate-status :open
       :proof-search-synthesis-status :open
       :durable-probe-required? true})))
+
+(defn- proof-code-certificate-kind
+  "Classify a public proof-code term for Workstream B evidence intake."
+  [proof-code]
+  (let [decoded-proof (try
+                        (sjas-code/proof-formal-code-term->proof proof-code)
+                        (catch Exception _
+                          nil))]
+    (cond
+      (= 'sjas-axiom decoded-proof) :sjas-axiom
+      decoded-proof :structural-tableau
+      :else :unreadable-proof-code)))
+
+(defn total-multiplication-constructed-certificate-validation
+  "Validate a proof code against the ADR-0126 total-multiplication target.
+
+   The public `tableau-proof/3` predicate reconstructs
+   `AxiomConj(S_total-mul) /\\ not(SelfCons(S_total-mul))` from the supplied
+   system and generated Group-3 theorem code. The returned map is the
+   proof-validation record consumed by
+   `proflog.sjas-correspondence/verify-boundary-constructed-certificate`; it is
+   not itself a Workstream B completion claim."
+  ([proof-code]
+   (total-multiplication-constructed-certificate-validation proof-code {}))
+  ([proof-code opts]
+   (let [proof-limit (:proof-limit opts 1)
+         fuel (:fuel opts 320)
+         system-opts (dissoc opts :proof-limit :fuel)
+         system (total-multiplication-reduced-witness-system system-opts)
+         report (total-multiplication-full-target-report system-opts)
+         certificate-kind (proof-code-certificate-kind proof-code)
+         proofs (if (= :unreadable-proof-code certificate-kind)
+                  '()
+                  (query/query-succeeds
+                    (:program system)
+                    (tableau-proof (:system-code system)
+                                   (:group-three-code report)
+                                   proof-code)
+                    proof-limit
+                    fuel))]
+     {:variant :total-multiplication
+      :system-code (:system-code report)
+      :selfcons-code (:group-three-code report)
+      :target-formula (:selfcons-refutation-target report)
+      :target-code (:target-code report)
+      :proof-code proof-code
+      :certificate-kind certificate-kind
+      :validator :tableau-proof
+      :proof-limit proof-limit
+      :fuel fuel
+      :proof-count (count proofs)
+      :proof-valid? (boolean (seq proofs))})))
 
 ;; -----------------------------------------------------------------------------
 ;; Source-facing SJAS builder

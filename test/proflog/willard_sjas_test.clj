@@ -1037,6 +1037,65 @@
               220))
           "pair beta records must be citeable by the public sjas-axiom certificate"))))
 
+(deftest sjas-total-multiplication-boundary-surface-is-reflected
+  (testing "ADR-0124 total multiplication is a negative-variant surface, not a completed witness"
+    (let [seedless-with-function (sjas/system
+                                   {:profile :willard-sjas-level1
+                                    :functions sjas/total-multiplication-functions})
+          variant (sjas/total-multiplication-boundary-system
+                    {:profile :willard-sjas-level1})
+          code-canonical-formula (var-get #'sjas/code-canonical-formula)
+          seed-axioms (set (map code-canonical-formula
+                                (sjas/total-multiplication-seed-axioms)))
+          seed-records (filter #(and (= :group-two (:group %))
+                                     (contains?
+                                       seed-axioms
+                                       (code-canonical-formula (:formula %))))
+                               (:axioms variant))
+          first-seed-record (first seed-records)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)]
+      (is (nil? (get-in sjas/level1-profile-language [:functions 'mul]))
+          "baseline Level-1 SJAS must still exclude total multiplication")
+      (is (= {'mul 2} sjas/total-multiplication-functions))
+      (is (= 2 (get-in variant [:language :functions 'mul]))
+          "the boundary variant makes total multiplication an official function")
+      (is (= 2 (count (sjas/total-multiplication-seed-axioms))))
+      (is (every? sjas/pi-star-1-encodable?
+                  (sjas/total-multiplication-seed-axioms))
+          "seed beta formulas must remain admissible reflected basis members")
+      (is (= seed-axioms
+             (set (map (comp code-canonical-formula :formula)
+                       seed-records))))
+      (is (not= (:system-code seedless-with-function)
+                (:system-code variant))
+          "reflected total-multiplication seed beta must alter system identity")
+      (is (not= (-> seedless-with-function :group-three :code)
+                (-> variant :group-three :code))
+          "reflected seed beta must regenerate the Level-1 SelfCons code")
+      (is (successful?
+            (query/query-succeeds
+              (:program variant)
+              (sjas/axiom-member (:system-code variant)
+                                  (:code first-seed-record))
+              1
+              180))
+          "total-multiplication seed records must be decoded axiom members")
+      (is (successful?
+            (query/query-succeeds
+              (:program variant)
+              (sjas/tableau-proof (:system-code variant)
+                                  (:code first-seed-record)
+                                  axiom-certificate)
+              1
+              220))
+          "total-multiplication seed records must be citeable by sjas-axiom")
+      (is (= :not-found
+             (:result (sjas/bounded-contradiction-probe
+                        variant
+                        {:fuel 4
+                         :proof-limit 1})))
+          "the surface must not be counted as a reduced/full negative witness"))))
+
 (deftest sjas-system-builder-axiom-formula-includes-fixed-group-one
   (testing "the public theorem antecedent agrees with the fixed axiom basis"
     (let [system (demo-system :willard-sjas-tableau0)

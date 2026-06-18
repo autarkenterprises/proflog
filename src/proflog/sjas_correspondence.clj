@@ -1183,6 +1183,47 @@
   []
   self-extension-data-encoding-survey)
 
+(def boundary-failure-roadmap
+  "ADR-0124 executable Workstream B contract for negative SJAS variants.
+
+   This audit intentionally separates a public variant surface from a completed
+   Goedel-boundary failure. The first surface is total multiplication, but the
+   destructive reduced/full SelfCons witnesses remain open until both
+   constructed certificates and proof-search synthesis evidence exist."
+  {:workstream :workstream-b
+   :first-variant :total-multiplication
+   :planned-variants #{:total-multiplication
+                       :tab-2-or-stronger
+                       :xtab-or-lem-axiom}
+   :required-witness-stages [:reduced-reflected-beta-witness
+                             :full-generated-selfcons-contradiction-target]
+   :final-evidence-required #{:constructed-certificate
+                              :proof-search-synthesis}
+   :variant-statuses {:total-multiplication :surface-implemented
+                      :tab-2-or-stronger :not-started
+                      :xtab-or-lem-axiom :not-started}
+   :open-obligations
+   {:total-multiplication #{:reduced-reflected-beta-witness
+                            :full-generated-selfcons-contradiction-target
+                            :constructed-certificate
+                            :proof-search-synthesis}
+    :tab-2-or-stronger #{:variant-surface
+                         :reduced-reflected-beta-witness
+                         :full-generated-selfcons-contradiction-target
+                         :constructed-certificate
+                         :proof-search-synthesis}
+    :xtab-or-lem-axiom #{:variant-surface
+                         :reduced-reflected-beta-witness
+                         :full-generated-selfcons-contradiction-target
+                         :constructed-certificate
+                         :proof-search-synthesis}}
+   :workstream-complete? false})
+
+(defn audit-boundary-failure-roadmap
+  "Return the ADR-0124 Workstream B negative-variant audit."
+  []
+  boundary-failure-roadmap)
+
 (def dsjas-combined-size-lower-bound
   "ADR-0104 lower-bound audit for the selected proof-object accounting.
 

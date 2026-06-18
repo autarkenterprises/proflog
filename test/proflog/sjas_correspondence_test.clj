@@ -597,6 +597,30 @@
                :encoded-syntax-manipulation}
              (:deferred-self-extension-obligations audit))))))
 
+(deftest boundary-failure-roadmap-keeps-witness-contract-open
+  (testing "ADR-0124: Workstream B distinguishes variant surface from completed negative witnesses"
+    (let [audit (correspondence/audit-boundary-failure-roadmap)]
+      (is (= :workstream-b (:workstream audit)))
+      (is (= :total-multiplication (:first-variant audit)))
+      (is (= #{:total-multiplication
+               :tab-2-or-stronger
+               :xtab-or-lem-axiom}
+             (:planned-variants audit)))
+      (is (= [:reduced-reflected-beta-witness
+              :full-generated-selfcons-contradiction-target]
+             (:required-witness-stages audit)))
+      (is (= #{:constructed-certificate
+               :proof-search-synthesis}
+             (:final-evidence-required audit)))
+      (is (= :surface-implemented
+             (get-in audit [:variant-statuses :total-multiplication])))
+      (is (= #{:reduced-reflected-beta-witness
+               :full-generated-selfcons-contradiction-target
+               :constructed-certificate
+               :proof-search-synthesis}
+             (get-in audit [:open-obligations :total-multiplication])))
+      (is (false? (:workstream-complete? audit))))))
+
 (deftest dsjas-track2c-size-lower-bound-covers-citation-and-structural-objects
   (testing "ADR-0104 Track 2c: the combined size repair has an explicit lower-bound argument"
     (let [audit (correspondence/audit-dsjas-combined-size-lower-bound)]

@@ -341,6 +341,42 @@
   {:functions pair-functions
    :beta (pair-projection-axioms)})
 
+(def total-multiplication-functions
+  "Function declaration for ADR-0124's total-multiplication boundary variant.
+
+   Baseline SJAS deliberately omits `mul/2`; this map is opt-in variant
+   metadata. The seed beta fragment below makes the variant's reflected source
+   concrete without claiming the full diagonal contradiction witness."
+  {'mul 2})
+
+(defn mul-term
+  "Construct the total multiplication term `mul(left,right)`."
+  [left right]
+  (ast/app-term 'mul left right))
+
+(defn total-multiplication-seed-axioms
+  "Return a small Pi*1-admissible reflected beta seed for the `mul/2` variant.
+
+   These laws are intentionally only a boundary surface. They install true,
+   finite equations involving the total function symbol so the variant changes
+   system identity and generated SelfCons code. Reduced/full contradiction
+   witnesses remain Workstream B obligations for later ADRs."
+  []
+  (let [x (nominal/nom (lvar 'x))
+        x-term (ast/var-term x)]
+    [(ast/forall-form
+       x
+       (ast/eq-lit (mul-term x-term zero) zero))
+     (ast/forall-form
+       x
+       (ast/eq-lit (mul-term x-term one) x-term))]))
+
+(defn total-multiplication-boundary-options
+  "Return the mergeable system option fragment for the `mul/2` boundary variant."
+  []
+  {:functions total-multiplication-functions
+   :beta (total-multiplication-seed-axioms)})
+
 (defn leq [left right] (ast/pos-lit (ast/app-term 'leq left right)))
 (defn lt [left right] (ast/pos-lit (ast/app-term 'lt left right)))
 (defn mult [left right product] (ast/pos-lit (ast/app-term 'mult left right product)))
@@ -1105,6 +1141,24 @@
        (assoc opts
               :functions (merge (:functions opts) pair-signature)
               :beta (vec (concat pair-beta (:beta opts))))))))
+
+(defn total-multiplication-boundary-system
+  "Build the ADR-0124 total-multiplication negative-variant surface.
+
+   The resulting system has `mul/2` in its object-language function signature
+   and includes the seed laws as reflected beta axioms. It is deliberately not
+   a completed Workstream B witness; callers should consult
+   `proflog.sjas-correspondence/audit-boundary-failure-roadmap` before treating
+   this variant as negative evidence."
+  ([]
+   (total-multiplication-boundary-system {}))
+  ([opts]
+   (let [{seed-beta :beta
+          seed-signature :functions} (total-multiplication-boundary-options)]
+     (system
+       (assoc opts
+              :functions (merge (:functions opts) seed-signature)
+              :beta (vec (concat seed-beta (:beta opts))))))))
 
 ;; -----------------------------------------------------------------------------
 ;; Source-facing SJAS builder

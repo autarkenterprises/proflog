@@ -22,6 +22,17 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0124](docs/adr/ADR-0124-sjas-boundary-variant-surface.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0124-sjas-boundary-variant-surface`. This slice adds the first
+  total-multiplication negative-variant surface and executable witness contract
+  without claiming the reduced/full SelfCons contradiction witnesses. Completed
+  with [AAR-0124](docs/aar/AAR-0124-sjas-boundary-variant-surface.md); gates:
+  `lein test-proflog-fast` 221/1376 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1130 fail=0 error=0`. Reduced/full SelfCons witnesses, constructed
+  certificates, and proof-search synthesis evidence remain open for Workstream
+  B completion.
 - Spawned [ADR-0123](docs/adr/ADR-0123-sjas-self-extension-pair-survey.md)
   from ADR-0119 Workstream C on branch
   `adr-0123-sjas-self-extension-pair-survey`. This slice records the required

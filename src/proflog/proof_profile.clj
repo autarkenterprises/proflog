@@ -51,10 +51,8 @@
   (willard-sjas-profile/prove-program profile program formula proof-limit fuel))
 
 (defmethod prove-program* :willard-sjas-tab1
-  [_profile _program _formula _proof-limit _fuel]
-  (throw (ex-info "Tab-1 proof search is deferred after ADR-0120"
-                  {:proof-profile :willard-sjas-tab1
-                   :deferred-to :arithmeticized-tab1-validation})))
+  [profile program formula proof-limit fuel]
+  (willard-sjas-profile/prove-program profile program formula proof-limit fuel))
 
 (defn prove-program
   "Prove `formula` relative to `program` using the program language profile."

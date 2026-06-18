@@ -268,7 +268,8 @@
     guard-eq
     willard-sjas-tab1
     tab1-proof-list-object
-    dsjas-tab1-proof-object])
+    dsjas-tab1-proof-object
+    willard-sjas-tab1-proof-check])
 
 (def proof-symbol->index
   (into {} (map-indexed (fn [idx sym] [sym (inc idx)]) proof-symbols)))

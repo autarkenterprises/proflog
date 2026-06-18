@@ -4479,6 +4479,103 @@
              (count (formal-code-term-bytes proof-list)))
           "the measured Tab-1 object must include the system and theorem payloads"))))
 
+(deftest tab1-proof-accepts-single-entry-axiom-citation
+  (testing "Tab-1 proof lists validate a single theorem/proof entry"
+    (let [system (demo-system :willard-sjas-tab1)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          proof-list (sjas/tab1-proof-list-object
+                       [{:theorem-code (:code beta-record)
+                         :proof-code axiom-certificate}])
+          beta-citation-proofs
+          (query/query-succeeds
+            (:program system)
+            (sjas/tab1-proof (:system-code system)
+                             (:code beta-record)
+                             proof-list)
+            1
+            180)
+          beta-citation-proof (first-proof beta-citation-proofs)]
+      (is (successful? beta-citation-proofs)
+          "a one-entry proof list may cite a system beta axiom")
+      (is (proof/contains-step? beta-citation-proof
+                                'willard-sjas-tab1-proof-check)
+          "Tab-1 query evidence must expose the proof-list checker marker")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tab1-proof (:system-code system)
+                               (:contradiction-code system)
+                               proof-list)
+              1
+              180))
+          "the final proof-list theorem must match the public target"))))
+
+(deftest dsjas-tab1-proof-accepts-and-checks-measured-proof-lists
+  (testing "measured Tab-1 proof objects check embedded S/F/H before validation"
+    (let [system (demo-system :willard-sjas-tab1)
+          wrong-system (demo-system :willard-sjas-level1)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          proof-list (sjas/tab1-proof-list-object
+                       [{:theorem-code (:code beta-record)
+                         :proof-code axiom-certificate}])
+          measured (sjas/dsjas-tab1-proof-object (:system-code system)
+                                                 (:code beta-record)
+                                                 proof-list)
+          wrong-system-measured
+          (sjas/dsjas-tab1-proof-object (:system-code wrong-system)
+                                        (:code beta-record)
+                                        proof-list)
+          wrong-theorem-measured
+          (sjas/dsjas-tab1-proof-object (:system-code system)
+                                        (:contradiction-code system)
+                                        proof-list)]
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-tab1-proof (:system-code system)
+                                     (:code beta-record)
+                                     measured)
+              1
+              220))
+          "matching measured Tab-1 object must be accepted")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-tab1-proof (:system-code system)
+                                     (:code beta-record)
+                                     wrong-system-measured)
+              1
+              220))
+          "mismatched embedded system bytes must be rejected")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-tab1-proof (:system-code system)
+                                     (:code beta-record)
+                                     wrong-theorem-measured)
+              1
+              220))
+          "mismatched embedded theorem bytes must be rejected"))))
+
+(deftest tab1-proof-rejects-entry-whose-proof-does-not-prove-theorem
+  (testing "Tab-1 validation checks each entry proof against its own theorem"
+    (let [system (demo-system :willard-sjas-tab1)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          proof-list (sjas/tab1-proof-list-object
+                       [{:theorem-code (:contradiction-code system)
+                         :proof-code axiom-certificate}])]
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tab1-proof (:system-code system)
+                               (:contradiction-code system)
+                               proof-list)
+              1
+              180))
+          "`sjas-axiom` cannot certify a non-axiom contradiction target"))))
+
 (deftest dsjas-composite-tableau-proof-object-carries-measured-components
   (testing "composite tableau proof objects encode S, F, and P bytes under one measured proof variable"
     (let [system (demo-system :willard-sjas-tableau0)

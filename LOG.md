@@ -22,6 +22,17 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0121](docs/adr/ADR-0121-sjas-tab1-entry-validation.md) from
+  ADR-0119/ADR-0120 Workstream A on branch
+  `adr-0121-sjas-tab1-entry-validation`. This slice targets executable
+  `tab1-proof/3` and `dsjas-tab1-proof/3` entry validation: proof-list object
+  decoding, measured `(S,F,H)` payload checks, and arithmeticized validation of
+  each theorem/proof entry through the existing SJAS tableau proof predicate.
+  Completed with [AAR-0121](docs/aar/AAR-0121-sjas-tab1-entry-validation.md);
+  gates: `lein test-proflog-fast` 219/1360 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1099 fail=0 error=0`. Theorem-reuse proof search remains the next
+  Workstream A obligation.
 - Spawned [ADR-0120](docs/adr/ADR-0120-sjas-tab1-proof-list-surface.md) from
   ADR-0119 Workstream A on branch `adr-0120-sjas-tab1-proof-list`. This first
   Tab-1 implementation slice is intentionally limited to profile identity,

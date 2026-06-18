@@ -107,7 +107,8 @@
                   willard-sjas-subst-code
                   willard-sjas-subst-source-result
                   willard-sjas-subst-exprf
-                  willard-sjas-subst-proof-check]]
+                  willard-sjas-subst-proof-check
+                  willard-sjas-tab1-proof-check]]
       (is (= :relevant (:status (correspondence/classify-proof-symbol sym)))
           (str sym " should be classified as implemented SJAS profile evidence")))
     (doseq [sym '[willard-sjas-fact
@@ -542,14 +543,14 @@
              (:structural-measured-components accounting)))
       (is (true? (:adr-0102-counterexample-repaired? accounting))))))
 
-(deftest tab1-proof-list-accounting-records-measured-object
-  (testing "ADR-0120: Tab-1 generated SelfCons will measure the whole proof-list object"
+(deftest tab1-proof-list-accounting-records-entry-validation
+  (testing "ADR-0121: Tab-1 accounting records implemented entry validation"
     (let [accounting (correspondence/audit-dsjas-proof-object-accounting)]
       (is (= 'dsjas-tab1-proof-object
              (get-in accounting [:proof-object-symbols :tab1-proof-list])))
       (is (= #{:system-code :theorem-code :proof-list-code}
              (:tab1-citation-measured-components accounting)))
-      (is (= :deferred-to-adr-0121
+      (is (= :entry-validation-implemented
              (:tab1-entry-validation-status accounting))))))
 
 (deftest tab1-roadmap-audit-reconciles-rank1-terminology
@@ -568,9 +569,7 @@
                :tab1-selfcons-relation-symbols
                :terminology-reconciliation}
              (:adr-0120-scope audit)))
-      (is (= #{:arithmeticized-entry-validation
-               :proof-search-theorem-reuse
-               :public-tab1-proof-predicate-semantics}
+      (is (= #{:proof-search-theorem-reuse}
              (:deferred-obligations audit)))
       (is (= #{:Tab-2 :stronger-Tab-k}
              (:boundary-failure-variants audit))))))

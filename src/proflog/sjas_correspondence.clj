@@ -148,7 +148,8 @@
      willard-sjas-subst-code
      willard-sjas-subst-source-result
      willard-sjas-subst-exprf
-     willard-sjas-subst-proof-check})
+     willard-sjas-subst-proof-check
+     willard-sjas-tab1-proof-check})
 
 (def ^:private excluded-answer-overlay-symbols
   "Answer-export proof constructors deliberately not admitted by SJAS theorem
@@ -261,6 +262,11 @@
    {:status :relevant
     :aspect :sjas-substitution-proof-predicate
     :obligation "Account for the wrapped subst-prf checking relation or replace it with object-level proof-tree checking."}
+
+   'willard-sjas-tab1-proof-check
+   {:status :relevant
+    :aspect :sjas-tab1-proof-list-predicate
+    :obligation "Account for the wrapped Tab-1 proof-list checking relation and its measured proof-list object."}
 
    'willard-sjas-axiom-member
    {:status :relevant
@@ -1102,7 +1108,7 @@
                                          :theorem-code
                                          :proof-list-code}
    :structural-measured-components #{:proof-code}
-   :tab1-entry-validation-status :deferred-to-adr-0121
+   :tab1-entry-validation-status :entry-validation-implemented
    :citation-size-source
    {:system-code "Decoded finite axiom basis and profile/fixed-point payload."
     :substitution-code "Decoded substitution source or fixed-point skeleton payload."
@@ -1131,9 +1137,7 @@
                      :measured-tab1-object
                      :tab1-selfcons-relation-symbols
                      :terminology-reconciliation}
-   :deferred-obligations #{:arithmeticized-entry-validation
-                           :proof-search-theorem-reuse
-                           :public-tab1-proof-predicate-semantics}
+   :deferred-obligations #{:proof-search-theorem-reuse}
    :boundary-failure-variants #{:Tab-2 :stronger-Tab-k}})
 
 (defn audit-tab1-proof-list-roadmap

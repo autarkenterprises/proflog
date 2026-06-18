@@ -125,3 +125,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0128](AAR-0128-sjas-self-extension-lists.md) | [ADR-0128](../adr/ADR-0128-sjas-self-extension-lists.md) | completed |
 | [AAR-0129](AAR-0129-sjas-tab2-boundary-surface.md) | [ADR-0129](../adr/ADR-0129-sjas-tab2-boundary-surface.md) | completed |
 | [AAR-0130](AAR-0130-sjas-xtab-lem-boundary-surface.md) | [ADR-0130](../adr/ADR-0130-sjas-xtab-lem-boundary-surface.md) | completed |
+| [AAR-0131](AAR-0131-sjas-boundary-certificate-verifier.md) | [ADR-0131](../adr/ADR-0131-sjas-boundary-certificate-verifier.md) | completed |

@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0131](docs/adr/ADR-0131-sjas-boundary-certificate-verifier.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0131-sjas-boundary-certificate-verifier`. This slice adds the
+  constructed-certificate verifier contract that combines the ADR-0127 evidence
+  screen with proof-validation metadata for the ADR-0126 target, without
+  claiming a concrete certificate or proof-search synthesis. Completed with
+  [AAR-0131](docs/aar/AAR-0131-sjas-boundary-certificate-verifier.md);
+  gates: `lein test-proflog-fast` 226/1428 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1173 fail=0 error=0`.
 - Spawned [ADR-0130](docs/adr/ADR-0130-sjas-xtab-lem-boundary-surface.md)
   from ADR-0119 Workstream B on branch
   `adr-0130-sjas-xtab-lem-boundary-surface`. This slice records Xtab / Law of

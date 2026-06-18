@@ -1246,6 +1246,65 @@
      :completed-obligations #{}
      :remaining-obligations boundary-final-evidence-obligations}))
 
+(defn verify-boundary-constructed-certificate
+  "Verify a Workstream B constructed-certificate candidate against a target.
+
+   This is the contract layer between ADR-0127's cheap evidence screen and a
+   target-specific proof checker. The caller supplies `validation`, a durable
+   record of proof checking against the exact target formula and proof code.
+   A successful result closes only the constructed-certificate obligation for
+   that candidate; proof-search synthesis remains open."
+  [target candidate validation]
+  (let [screen (screen-boundary-evidence target candidate)
+        reasons (cond-> #{}
+                  (not= :constructed-certificate
+                        (:evidence-kind candidate))
+                  (conj :not-constructed-certificate)
+
+                  (not= (:variant target)
+                        (:variant validation))
+                  (conj :wrong-variant)
+
+                  (not= (:system-code target)
+                        (:system-code validation))
+                  (conj :wrong-system-code)
+
+                  (not= (:group-three-code target)
+                        (:selfcons-code validation))
+                  (conj :wrong-selfcons-code)
+
+                  (not= (:target-formula target)
+                        (:target-formula candidate))
+                  (conj :wrong-target-formula)
+
+                  (not= (:target-formula target)
+                        (:target-formula validation))
+                  (conj :wrong-target-formula)
+
+                  (not= (:proof-code candidate)
+                        (:proof-code validation))
+                  (conj :wrong-proof-code)
+
+                  (not (true? (:proof-valid? validation)))
+                  (conj :proof-validation-failed))]
+    (if (= :rejected (:result screen))
+      (assoc screen
+             :verification-stage :screen)
+      {:variant (:variant target)
+       :evidence-kind :constructed-certificate
+       :verification-stage :proof-validation
+       :validator (:validator validation)
+       :result (if (seq reasons)
+                 :rejected
+                 :verified-intermediate-evidence)
+       :reasons reasons
+       :completed-obligations (if (seq reasons)
+                                #{}
+                                #{:constructed-certificate})
+       :remaining-obligations (if (seq reasons)
+                                boundary-final-evidence-obligations
+                                #{:proof-search-synthesis})})))
+
 (def tab2-or-stronger-boundary-surface
   "ADR-0129 executable surface for the Tab-2-or-stronger negative variant.
 
@@ -1352,6 +1411,19 @@
                 :missing-durable-synthesis-log}
      :passes-to :verification-required
      :completed-obligations #{}}}
+   :evidence-verifiers
+   {:total-multiplication
+    {:constructed-certificate
+     {:status :implemented
+      :verifier-helper 'verify-boundary-constructed-certificate
+      :requires #{:screened-candidate
+                  :matching-system-code
+                  :matching-selfcons-code
+                  :matching-target-formula
+                  :matching-proof-code
+                  :successful-proof-validation}
+      :completes-on-success #{:constructed-certificate}
+      :leaves-open #{:proof-search-synthesis}}}}
    :variant-surfaces
    {:total-multiplication {:status :implemented
                            :kind :language-extension

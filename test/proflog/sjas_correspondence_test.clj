@@ -639,6 +639,12 @@
              (get-in audit [:open-obligations :xtab-or-lem-axiom])))
       (is (= :implemented
              (get-in audit [:evidence-screens :total-multiplication :status])))
+      (is (= :implemented
+             (get-in audit
+                     [:evidence-verifiers
+                      :total-multiplication
+                      :constructed-certificate
+                      :status])))
       (is (false? (:workstream-complete? audit))))))
 
 (deftest tab2-boundary-surface-distinguishes-negative-proof-list-variant
@@ -769,6 +775,78 @@
              (:reasons synthesis-screen)))
       (is (= #{}
              (:completed-obligations synthesis-screen))))))
+
+(deftest boundary-constructed-certificate-verifier-requires-screen-and-proof-validation
+  (testing "ADR-0131: constructed certificate evidence needs both screen and proof-validation success"
+    (let [target {:variant :total-multiplication
+                  :system-code 'S-total
+                  :group-three-code 'SelfCons-total
+                  :target-formula '(and AxiomConj-total
+                                        (not SelfCons-total))}
+          candidate {:variant :total-multiplication
+                     :system-code 'S-total
+                     :selfcons-code 'SelfCons-total
+                     :target-formula '(and AxiomConj-total
+                                           (not SelfCons-total))
+                     :evidence-kind :constructed-certificate
+                     :certificate-kind :selfcons-contradiction-certificate
+                     :proof-code 'P-total
+                     :uses-reduced-witness? true}
+          validation {:variant :total-multiplication
+                      :system-code 'S-total
+                      :selfcons-code 'SelfCons-total
+                      :target-formula '(and AxiomConj-total
+                                             (not SelfCons-total))
+                      :proof-code 'P-total
+                      :proof-valid? true
+                      :validator :tableau-proof}
+          verified (correspondence/verify-boundary-constructed-certificate
+                     target
+                     candidate
+                     validation)
+          screened-out (correspondence/verify-boundary-constructed-certificate
+                         target
+                         (assoc candidate :uses-reduced-witness? false)
+                         validation)
+          wrong-target (correspondence/verify-boundary-constructed-certificate
+                         target
+                         candidate
+                         (assoc validation
+                                :target-formula '(and OtherAxiomConj
+                                                       (not SelfCons-total))))
+          wrong-candidate-target
+          (correspondence/verify-boundary-constructed-certificate
+            target
+            (assoc candidate
+                   :target-formula '(and OtherAxiomConj
+                                          (not SelfCons-total)))
+            validation)
+          wrong-proof (correspondence/verify-boundary-constructed-certificate
+                        target
+                        candidate
+                        (assoc validation :proof-code 'OtherP))
+          failed-proof (correspondence/verify-boundary-constructed-certificate
+                         target
+                         candidate
+                         (assoc validation :proof-valid? false))]
+      (is (= :verified-intermediate-evidence (:result verified)))
+      (is (= #{:constructed-certificate}
+             (:completed-obligations verified)))
+      (is (= #{:proof-search-synthesis}
+             (:remaining-obligations verified)))
+      (is (= :screen (:verification-stage screened-out)))
+      (is (= :rejected (:result screened-out)))
+      (is (contains? (:reasons screened-out)
+                     :missing-reduced-witness))
+      (is (= :proof-validation (:verification-stage wrong-target)))
+      (is (= #{:wrong-target-formula}
+             (:reasons wrong-target)))
+      (is (= #{:wrong-target-formula}
+             (:reasons wrong-candidate-target)))
+      (is (= #{:wrong-proof-code}
+             (:reasons wrong-proof)))
+      (is (= #{:proof-validation-failed}
+             (:reasons failed-proof))))))
 
 (deftest dsjas-track2c-size-lower-bound-covers-citation-and-structural-objects
   (testing "ADR-0104 Track 2c: the combined size repair has an explicit lower-bound argument"

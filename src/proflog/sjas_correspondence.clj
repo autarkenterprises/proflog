@@ -1146,6 +1146,43 @@
   []
   tab1-proof-list-roadmap)
 
+(def self-extension-data-encoding-survey
+  "ADR-0123 executable survey for the first SJAS self-extension demo.
+
+   This is a documentation-layer audit, not proof-search code. It records why
+   the next implementation slice starts with finite reflected pair beta axioms
+   and defers recursive lists until the representation layer is present."
+  {:workstream :self-extension
+   :selected-demo :pairs-first
+   :implementation-layer :reflected-beta
+   :survey-criteria #{:finite-beta-axiomatization
+                      :level-1-classifier-discipline
+                      :system-identity-change
+                      :group-three-selfcons-regeneration
+                      :focused-sjas-tractability}
+   :candidates
+   {:fresh-pair-functions
+    {:verdict :selected
+     :data-symbols {'pair 2
+                    'fst 1
+                    'snd 1}
+     :beta-laws ["forall x y. fst(pair(x,y)) = x"
+                 "forall x y. snd(pair(x,y)) = y"]
+     :argument "Finite projection laws give an immediately reflected data layer whose beta source changes system identity and regenerated SelfCons code."}
+    :lists-from-pairs
+    {:verdict :second-stage
+     :argument "Lists are the intended next representation layer, but recursive list operations should be added after pair axioms are reflected and citeable."}
+    :tagged-constants-only
+    {:verdict :too-weak
+     :argument "Fresh constants can demonstrate recoding, but they do not provide data-structure operations for self-interpretation."}}
+   :deferred-self-extension-obligations #{:list-recursion
+                                          :encoded-syntax-manipulation}})
+
+(defn audit-self-extension-data-encoding-survey
+  "Return the ADR-0123 data-encoding survey for Workstream C."
+  []
+  self-extension-data-encoding-survey)
+
 (def dsjas-combined-size-lower-bound
   "ADR-0104 lower-bound audit for the selected proof-object accounting.
 

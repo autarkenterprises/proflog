@@ -576,6 +576,27 @@
       (is (= #{:Tab-2 :stronger-Tab-k}
              (:boundary-failure-variants audit))))))
 
+(deftest self-extension-survey-selects-reflected-pair-axioms
+  (testing "ADR-0123: Workstream C records the data-encoding survey before implementation"
+    (let [audit (correspondence/audit-self-extension-data-encoding-survey)]
+      (is (= :pairs-first (:selected-demo audit)))
+      (is (= :reflected-beta (:implementation-layer audit)))
+      (is (= #{:finite-beta-axiomatization
+               :level-1-classifier-discipline
+               :system-identity-change
+               :group-three-selfcons-regeneration
+               :focused-sjas-tractability}
+             (:survey-criteria audit)))
+      (is (= :selected
+             (get-in audit [:candidates :fresh-pair-functions :verdict])))
+      (is (= :second-stage
+             (get-in audit [:candidates :lists-from-pairs :verdict])))
+      (is (= :too-weak
+             (get-in audit [:candidates :tagged-constants-only :verdict])))
+      (is (= #{:list-recursion
+               :encoded-syntax-manipulation}
+             (:deferred-self-extension-obligations audit))))))
+
 (deftest dsjas-track2c-size-lower-bound-covers-citation-and-structural-objects
   (testing "ADR-0104 Track 2c: the combined size repair has an explicit lower-bound argument"
     (let [audit (correspondence/audit-dsjas-combined-size-lower-bound)]

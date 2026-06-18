@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0123](docs/adr/ADR-0123-sjas-self-extension-pair-survey.md)
+  from ADR-0119 Workstream C on branch
+  `adr-0123-sjas-self-extension-pair-survey`. This slice records the required
+  beta-axiomatizable data-encoding survey and selects reflected pair projection
+  axioms as the first self-extension demo before list axioms. Completed with
+  [AAR-0123](docs/aar/AAR-0123-sjas-self-extension-pair-survey.md); gates:
+  `lein test-proflog-fast` 220/1368 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1119 fail=0 error=0`. List recursion and Workstream B negative
+  boundary variants remain open.
 - Spawned [ADR-0122](docs/adr/ADR-0122-sjas-tab1-theorem-reuse.md) from
   ADR-0119 Workstream A on branch `adr-0122-sjas-tab1-theorem-reuse`. This
   slice targets the remaining Tab-1 proof-list obligation from ADR-0121:

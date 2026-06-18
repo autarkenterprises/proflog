@@ -286,6 +286,61 @@
 (defn root-term [left right] (ast/app-term 'root left right))
 (defn count-term [left right] (ast/app-term 'count left right))
 
+(def pair-functions
+  "Function declarations for the ADR-0123 reflected pair self-extension demo.
+
+   The symbols are intentionally ordinary user functions rather than reserved
+   SJAS primitives. Adding them to the reflected beta basis demonstrates that a
+   finite data-structure extension changes the encoded source and regenerated
+   SelfCons statement."
+  {'pair 2
+   'fst 1
+   'snd 1})
+
+(defn pair-term
+  "Construct the fresh pair term `pair(left,right)`."
+  [left right]
+  (ast/app-term 'pair left right))
+
+(defn fst-term
+  "Construct the first-projection term `fst(pair)`."
+  [pair]
+  (ast/app-term 'fst pair))
+
+(defn snd-term
+  "Construct the second-projection term `snd(pair)`."
+  [pair]
+  (ast/app-term 'snd pair))
+
+(defn pair-projection-axioms
+  "Return the two universal reflected beta axioms for the pair extension.
+
+   These are deliberately small Pi*1-presented formulas: universal closures of
+   equality literals. Lists and recursive syntax operations are left for later
+   self-extension ADRs that can build on this pair representation layer."
+  []
+  (let [x (nominal/nom (lvar 'x))
+        y (nominal/nom (lvar 'y))
+        x-term (ast/var-term x)
+        y-term (ast/var-term y)
+        pair (pair-term x-term y-term)]
+    [(ast/forall-form
+       x
+       (ast/forall-form
+         y
+         (ast/eq-lit (fst-term pair) x-term)))
+     (ast/forall-form
+       x
+       (ast/forall-form
+         y
+         (ast/eq-lit (snd-term pair) y-term)))]))
+
+(defn pair-extension-options
+  "Return the system option fragment for the reflected pair self-extension."
+  []
+  {:functions pair-functions
+   :beta (pair-projection-axioms)})
+
 (defn leq [left right] (ast/pos-lit (ast/app-term 'leq left right)))
 (defn lt [left right] (ast/pos-lit (ast/app-term 'lt left right)))
 (defn mult [left right product] (ast/pos-lit (ast/app-term 'mult left right product)))
@@ -1033,6 +1088,23 @@
      :axiom-formula axiom-formula
      :reflected-clauses (vec reflected-clauses)
      :external-clauses (vec external-clauses)}))
+
+(defn pair-extended-system
+  "Build an SJAS system whose reflected beta basis includes pair projections.
+
+   User-supplied `:functions` and `:beta` options are preserved and merged with
+   the ADR-0123 pair fragment. The pair axioms are placed in reflected beta,
+   not in `:external-clauses`, so the encoded finite source and generated
+   Group-3/SelfCons code include the extension."
+  ([]
+   (pair-extended-system {}))
+  ([opts]
+   (let [{pair-beta :beta
+          pair-signature :functions} (pair-extension-options)]
+     (system
+       (assoc opts
+              :functions (merge (:functions opts) pair-signature)
+              :beta (vec (concat pair-beta (:beta opts))))))))
 
 ;; -----------------------------------------------------------------------------
 ;; Source-facing SJAS builder

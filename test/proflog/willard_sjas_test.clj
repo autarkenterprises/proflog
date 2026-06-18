@@ -959,6 +959,84 @@
       (is (= (-> base :group-three :code)
              (-> external-changed :group-three :code))))))
 
+(deftest sjas-pair-extension-axioms-are-level1-reflected-beta
+  (testing "ADR-0123 pair projection laws are finite Pi*1-admissible beta axioms"
+    (let [axioms (sjas/pair-projection-axioms)]
+      (is (= {'pair 2
+              'fst 1
+              'snd 1}
+             sjas/pair-functions))
+      (is (= 2 (count axioms)))
+      (is (every? sjas/pi-star-1? axioms)
+          "pair projections must be presented as universal closures")
+      (is (every? sjas/pi-star-1-encodable? axioms)
+          "pair projections must be admissible reflected beta formulas"))))
+
+(deftest sjas-pair-extended-system-changes-identity-and-selfcons
+  (testing "ADR-0123 pair extension is reflected beta, not an external helper"
+    (let [pairless-with-functions (sjas/system
+                                    {:profile :willard-sjas-level1
+                                     :functions sjas/pair-functions})
+          extended (sjas/pair-extended-system
+                     {:profile :willard-sjas-level1})
+          external-only (sjas/system
+                          {:profile :willard-sjas-level1
+                           :functions sjas/pair-functions
+                           :relations {'external-pair-demo 1}
+                           :external-clauses [(ast/nom x
+                                                (ast/clause
+                                                  'external-pair-demo
+                                                  [x]
+                                                  (ast/eq-lit (ast/var-term x)
+                                                              (ast/var-term x))))]})
+          code-canonical-formula (var-get #'sjas/code-canonical-formula)
+          pair-axioms (set (map code-canonical-formula
+                                (sjas/pair-projection-axioms)))
+          base-group-two (filter #(= :group-two (:group %))
+                                 (:axioms pairless-with-functions))
+          pair-records (filter #(and (= :group-two (:group %))
+                                     (contains?
+                                       pair-axioms
+                                       (code-canonical-formula (:formula %))))
+                               (:axioms extended))
+          first-pair-record (first pair-records)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)]
+      (is (= (+ 2 (count base-group-two))
+             (count (filter #(= :group-two (:group %)) (:axioms extended))))
+          "the reflected pair extension must add exactly the two projection beta records")
+      (is (= pair-axioms
+             (set (map (comp code-canonical-formula :formula)
+                       pair-records))))
+      (is (not= (:system-code pairless-with-functions)
+                (:system-code extended))
+          "reflected pair beta axioms must alter the encoded system source")
+      (is (not= (-> pairless-with-functions :group-three :code)
+                (-> extended :group-three :code))
+          "changing the reflected source must regenerate the Level-1 SelfCons code")
+      (is (= (:system-code pairless-with-functions)
+             (:system-code external-only))
+          "external runtime-only pair-like clauses must not alter encoded source identity")
+      (is (= (-> pairless-with-functions :group-three :code)
+             (-> external-only :group-three :code))
+          "external runtime-only pair-like clauses must not alter generated SelfCons code")
+      (is (successful?
+            (query/query-succeeds
+              (:program extended)
+              (sjas/axiom-member (:system-code extended)
+                                  (:code first-pair-record))
+              1
+              180))
+          "pair beta records must be visible through decoded axiom membership")
+      (is (successful?
+            (query/query-succeeds
+              (:program extended)
+              (sjas/tableau-proof (:system-code extended)
+                                  (:code first-pair-record)
+                                  axiom-certificate)
+              1
+              220))
+          "pair beta records must be citeable by the public sjas-axiom certificate"))))
+
 (deftest sjas-system-builder-axiom-formula-includes-fixed-group-one
   (testing "the public theorem antecedent agrees with the fixed axiom basis"
     (let [system (demo-system :willard-sjas-tableau0)

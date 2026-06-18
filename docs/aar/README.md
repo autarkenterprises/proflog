@@ -117,3 +117,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0120](AAR-0120-sjas-tab1-proof-list-surface.md) | [ADR-0120](../adr/ADR-0120-sjas-tab1-proof-list-surface.md) | completed |
 | [AAR-0121](AAR-0121-sjas-tab1-entry-validation.md) | [ADR-0121](../adr/ADR-0121-sjas-tab1-entry-validation.md) | completed |
 | [AAR-0122](AAR-0122-sjas-tab1-theorem-reuse.md) | [ADR-0122](../adr/ADR-0122-sjas-tab1-theorem-reuse.md) | completed |
+| [AAR-0123](AAR-0123-sjas-self-extension-pair-survey.md) | [ADR-0123](../adr/ADR-0123-sjas-self-extension-pair-survey.md) | completed |

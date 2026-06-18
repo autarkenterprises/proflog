@@ -20,6 +20,54 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-18
+
+- Completed [ADR-0123](docs/adr/ADR-0123-sjas-roadmap-integration-baseline.md)
+  on branch `adr-0123-sjas-roadmap-integration`: integrated current `main`
+  with the ADR-0116 through ADR-0122 line so ADR-0119 continuation work can
+  start from one baseline. Conflicts were limited to `LOG.md`,
+  `docs/adr/README.md`, `docs/aar/README.md`, and `project.clj`; the fast gate
+  now keeps both `proflog.scheduling-benchmark-test` and
+  `proflog.fitting-fidelity-test`. Gates: `lein test-proflog-fast` 245/2112
+  green, `lein test-proflog-extended` 92/971 green, and
+  `lein test-proflog-sjas` `pass=1107 fail=0 error=0`. See
+  [AAR-0123](docs/aar/AAR-0123-sjas-roadmap-integration-baseline.md).
+- Spawned [ADR-0122](docs/adr/ADR-0122-sjas-tab1-theorem-reuse.md) from
+  ADR-0119 Workstream A on branch `adr-0122-sjas-tab1-theorem-reuse`. This
+  slice targets the remaining Tab-1 proof-list obligation from ADR-0121:
+  validating later entries against beta plus earlier reusable `Pi*_1` /
+  `Sigma*_1` theorem entries, both for `sjas-axiom` citation and structural
+  tableau antecedents. Completed with
+  [AAR-0122](docs/aar/AAR-0122-sjas-tab1-theorem-reuse.md); gates:
+  `lein test-proflog-fast` 219/1361 green, `lein test-proflog-extended` 78/277
+  green, and `lein test-proflog-sjas` `pass=1107 fail=0 error=0`.
+- Spawned [ADR-0121](docs/adr/ADR-0121-sjas-tab1-entry-validation.md) from
+  ADR-0119/ADR-0120 Workstream A on branch
+  `adr-0121-sjas-tab1-entry-validation`. This slice targets executable
+  `tab1-proof/3` and `dsjas-tab1-proof/3` entry validation: proof-list object
+  decoding, measured `(S,F,H)` payload checks, and arithmeticized validation of
+  each theorem/proof entry through the existing SJAS tableau proof predicate.
+  Completed with [AAR-0121](docs/aar/AAR-0121-sjas-tab1-entry-validation.md);
+  gates: `lein test-proflog-fast` 219/1360 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1099 fail=0 error=0`. Theorem-reuse proof search remains the next
+  Workstream A obligation.
+- Spawned [ADR-0120](docs/adr/ADR-0120-sjas-tab1-proof-list-surface.md) from
+  ADR-0119 Workstream A on branch `adr-0120-sjas-tab1-proof-list`. This first
+  Tab-1 implementation slice is intentionally limited to profile identity,
+  proof-list object coding, measured `(S,F,H)` accounting, terminology
+  reconciliation, and generated SelfCons relation symbols; arithmeticized
+  proof-list validation is deferred to a later ADR. Completed with
+  [AAR-0120](docs/aar/AAR-0120-sjas-tab1-proof-list-surface.md); gates:
+  `lein test-proflog-fast` 219/1357 green, `lein test-proflog-extended` 78/277
+  green, and `lein test-proflog-sjas` `pass=1092 fail=0 error=0`.
+- Added [ADR-0119](docs/adr/ADR-0119-sjas-next-research-roadmap.md) on branch
+  `adr-0119-sjas-next-research-roadmap` as a planning/control ADR for future
+  SJAS `/goal` loops. It preserves three spawnable workstreams: Tab-k/Tab-1
+  proof-list reuse, programmatized Goedel-boundary failures, and
+  self-interpretation/self-extension via reflected beta changes. This branch is
+  docs-only and does not add an AAR unless implementation begins here.
+
 ## 2026-06-17
 
 - Completed [ADR-0112](docs/adr/ADR-0112-proflog-literature-tableau-golden-suite.md):
@@ -44,6 +92,40 @@ complete contemporaneous transcript.
   semantic-before-envelope tests and structural branch-growth measurements for
   open cases rather than fabricated closed-proof step counts. See
   [AAR-0115](docs/aar/AAR-0115-proflog-proof-preserving-scheduling-benchmarks.md).
+- Fitting-fidelity audit of the greenfield Proflog core, on branch
+  `fitting-fidelity-audit` (independent of `origin/main` by request; reconcile at
+  close). Anchors the core to Fitting's *Tableaus for Logic Programming*
+  (`LPTableaus.pdf`) §2–§8 — the project had a Willard-D correspondence but no
+  systematic Fitting anchor. Matrix: [docs/FITTING_FIDELITY_AUDIT.md](docs/FITTING_FIDELITY_AUDIT.md).
+- Method discipline: every verdict is backed by a test, not an assertion (an
+  early automated exploration had over-asserted "compliant" and hallucinated
+  kernel line numbers, so all anchors were re-verified against source).
+- Interrogation suite `proflog.fitting-fidelity-test` (fast gate, 8 tests / 222
+  assertions): §3 supervaluation occurs subtlety (ground/var close, existential
+  ⊥, Fitting p.6); §3 P1 tautology-vs-⊥; §4 NNF negation duals (incl.
+  ¬∃→once-forall); §6 `l-ground` guard; §2 one-clause-per-relation; and a §7
+  propositional differential (kernel validity == truth-table tautology over 200
+  random formulas — no spurious closure, and complete, for the propositional core).
+- Phase 2b quorum `proflog.proof-quorum-test` (extended gate, 5 tests / 58
+  assertions): kernel-as-prover → kernel-as-checker (the same relation with the
+  `proof` bound) → independent non-relational `src/proflog/proof_check.clj`. All
+  agree on genuine certificates (incl. P2 `win(4)`) and reject mutants.
+- Findings: [ADR-0116](docs/adr/ADR-0116-fitting-free-variable-procedure-call.md)
+  — the core Procedure Call Rule is Fitting's §8 free-variable call, not the §6
+  ground-only rule, with `l-ground-termo` as his keep-in-L mechanism (corrected an
+  earlier core/overlay hypothesis: the extension is in the core).
+  [ADR-0117](docs/adr/ADR-0117-quorum-proof-checking.md) — quorum + proof-term
+  adequacy: certificates are pure tag trees recording the rule per node but no
+  witnesses, so the independent oracle is structural-only and kernel-as-checker
+  supplies the semantic re-validation (check-determinism).
+  [ADR-0118](docs/adr/ADR-0118-fitting-audit-secondary-findings.md) — secondary
+  dispositions (⊥-vs-`:unresolved`, γ-envelope, Substitutivity-via-σ,
+  answer-overlay soundness). Numbered 0116+ to clear the parallel agent's pushed
+  0111–0115.
+- Gates: fast 217/1341 green (fidelity suite included); quorum 5/58 green.
+- Deferred: precise `⊥`; first-order/equality differential soundness; first-order
+  γ-envelope quantification; line-level `answer_overlay` diff; reconcile with
+  `origin/main` (ADR-0112 golden suite / 0113 renderer / 0114 open-branch witness).
 
 ## 2026-06-16
 

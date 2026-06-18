@@ -116,3 +116,10 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0113](AAR-0113-proflog-proof-object-diagnostic-renderer.md) | [ADR-0113](../adr/ADR-0113-proflog-proof-object-diagnostic-renderer.md) | complete |
 | [AAR-0114](AAR-0114-proflog-open-branch-witness-extraction.md) | [ADR-0114](../adr/ADR-0114-proflog-open-branch-witness-extraction.md) | complete |
 | [AAR-0115](AAR-0115-proflog-proof-preserving-scheduling-benchmarks.md) | [ADR-0115](../adr/ADR-0115-proflog-proof-preserving-scheduling-benchmarks.md) | complete |
+| [AAR-0116](AAR-0116-fitting-free-variable-procedure-call.md) | [ADR-0116](../adr/ADR-0116-fitting-free-variable-procedure-call.md) | accepted |
+| [AAR-0117](AAR-0117-quorum-proof-checking.md) | [ADR-0117](../adr/ADR-0117-quorum-proof-checking.md) | accepted |
+| [AAR-0118](AAR-0118-fitting-audit-secondary-findings.md) | [ADR-0118](../adr/ADR-0118-fitting-audit-secondary-findings.md) | accepted |
+| [AAR-0120](AAR-0120-sjas-tab1-proof-list-surface.md) | [ADR-0120](../adr/ADR-0120-sjas-tab1-proof-list-surface.md) | completed |
+| [AAR-0121](AAR-0121-sjas-tab1-entry-validation.md) | [ADR-0121](../adr/ADR-0121-sjas-tab1-entry-validation.md) | completed |
+| [AAR-0122](AAR-0122-sjas-tab1-theorem-reuse.md) | [ADR-0122](../adr/ADR-0122-sjas-tab1-theorem-reuse.md) | completed |
+| [AAR-0123](AAR-0123-sjas-roadmap-integration-baseline.md) | [ADR-0123](../adr/ADR-0123-sjas-roadmap-integration-baseline.md) | completed |

@@ -89,6 +89,7 @@
                                     "proflog.diagnostics.witness-test"
                                     "proflog.proof-test"
                                     "proflog.scheduling-benchmark-test"
+                                    "proflog.fitting-fidelity-test"
                                     "proflog.sjas-correspondence-test"
                                     "proflog.equality-test"
                                     "proflog.oracle.herbrand-test"
@@ -108,7 +109,8 @@
                                      "proflog.recursive-synthesis-test"
                                      "proflog.reverse-program-synthesis-test"
                                      "proflog.synthesis-modes-test"
-                                     "proflog.nim-synthesis-test"]
+                                     "proflog.nim-synthesis-test"
+                                     "proflog.proof-quorum-test"]
             "test-proflog-parity" ["test"
                                    "proflog.parity-test"]
             "test-proflog-parity-experimental" ["test"

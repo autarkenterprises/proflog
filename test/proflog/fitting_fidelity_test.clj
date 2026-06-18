@@ -1,0 +1,245 @@
+(ns proflog.fitting-fidelity-test
+  "Interrogation tests anchoring the greenfield kernel to Melvin Fitting's
+   'Tableaus for Logic Programming' (repo copy LPTableaus.pdf), section by
+   section. Companion to docs/FITTING_FIDELITY_AUDIT.md.
+
+   Each test reproduces a condition Fitting states, so that a fidelity verdict
+   rests on a passing (or, for a documented divergence, a referenced failing)
+   test rather than an assertion. These tests deliberately target gaps NOT
+   already covered by equality_test.clj / fitting_programs_test.clj (which
+   between them already establish the §2 worked programs P1/P2, the §8 move
+   non-example, and most of the §5 equality battery)."
+  (:refer-clojure :exclude [==])
+  (:require [clojure.core.logic :as logic]
+            [clojure.test :refer [deftest is testing]]
+            [proflog.ast :as ast]
+            [proflog.kernel :as kernel]
+            [proflog.kernel-support :as support]
+            [proflog.language :as language]
+            [proflog.normalize :as normalize]
+            [proflog.query :as query]
+            [proflog.fitting-programs :as fitting]))
+
+(defn- refutable?
+  "Fitting's *disproof* direction: a closed tableau exists for `formula` itself."
+  [formula]
+  (seq (kernel/prove formula 1)))
+
+(defn- open?
+  "No closed tableau for `formula` within the proof bound `n`: the branch stays
+   open, i.e. the formula is neither closed nor refuted by the raw kernel."
+  ([formula] (open? formula 1))
+  ([formula n] (empty? (kernel/prove formula n))))
+
+;; ---------------------------------------------------------------------------
+;; §3 Semantics — the supervaluation occurs-check subtlety (Fitting p.6, s_∅)
+;; ---------------------------------------------------------------------------
+;;
+;; Fitting's empty-program model s_∅ makes ground `t = f(t)` FALSE, yet leaves
+;; `(∃x)(x = f(x))` at ⊥ — "the smallest supervaluation model remains
+;; uncommitted on the occurs check issue, even though it behaves correctly on
+;; each instance." The greenfield engine realizes this as an asymmetry between
+;; gamma proof-variables (occurs => close) and delta parameters (occurs =>
+;; cannot bind AND cannot clash => branch stays open).
+
+(deftest sec3-occurs-ground-and-variable-close-but-existential-stays-open
+  (testing "ground occurs-shape c = f(c) closes (false) by free-constructor clash"
+    (is (refutable? (ast/eq-lit (ast/app-term 'c)
+                                (ast/app-term 'f (ast/app-term 'c))))))
+  (testing "gamma-variable occurs-cycle x = f(x) closes by the occurs check"
+    (ast/nom x
+      (is (refutable? (ast/eq-lit (ast/var-term x)
+                                  (ast/app-term 'f (ast/var-term x)))))))
+  (testing "existential (∃x)(x = f(x)) stays OPEN — Fitting's ⊥, not closure"
+    (ast/nom x
+      (is (open? (ast/exists-form x
+                   (ast/eq-lit (ast/var-term x)
+                               (ast/app-term 'f (ast/var-term x)))))))))
+
+;; ---------------------------------------------------------------------------
+;; §3 Semantics — supervaluation truth vs ⊥ under program P1 (Fitting p.6)
+;; ---------------------------------------------------------------------------
+;;
+;; "(∀x)(even(x) ∨ ¬even(x)) is true in the semantics ... On the other hand,
+;;  (∀x)(even(x) ∨ odd(x)) is ⊥, essentially because there are weak Herbrand
+;;  models in which there are 'non-standard' members."
+
+(deftest sec3-p1-classical-tautology-succeeds
+  (testing "(∀x)(even(x) ∨ ¬even(x)) succeeds: closes propositionally for the witness"
+    (let [p1 (fitting/p1-program)]
+      (ast/nom x
+        (is (seq (query/query-succeeds
+                   p1
+                   (ast/forall-form x
+                     (ast/or-form
+                       (ast/pos-lit (fitting/app 'even (ast/var-term x)))
+                       (ast/neg-lit (fitting/app 'even (ast/var-term x)))))
+                   1 16)))))))
+
+(deftest sec3-p1-even-or-odd-is-undefined
+  (testing "(∀x)(even(x) ∨ odd(x)) is ⊥ under P1: neither succeeds nor fails"
+    (let [p1 (fitting/p1-program)]
+      (ast/nom x
+        (is (= :unresolved
+               (query/query-status
+                 p1
+                 (ast/forall-form x
+                   (ast/or-form
+                     (ast/pos-lit (fitting/app 'even (ast/var-term x)))
+                     (ast/pos-lit (fitting/app 'odd (ast/var-term x)))))
+                 {:timeout-ms 1500 :max-fuel 6 :poll-ms 0})))))))
+
+;; ---------------------------------------------------------------------------
+;; §4 Tableau rules — NNF realizes Fitting's uniform-notation negation duals
+;; ---------------------------------------------------------------------------
+;;
+;; Table 1: ¬(X∧Y) is β, ¬(X∨Y) is α, ¬∀ is δ (∃), ¬∃ is γ (∀); plus ¬¬Z → Z.
+;; The kernel has no runtime ¬ connective; normalize/negate-formula supplies the
+;; duals, with the negated-existential clause body becoming the single-use
+;; `once-forall` (the γ that must not re-enqueue).
+
+(deftest sec4-nnf-realizes-fitting-negation-duals
+  (ast/nom x
+    (let [p (ast/pos-lit (ast/app-term 'p (ast/var-term x)))
+          q (ast/pos-lit (ast/app-term 'q (ast/var-term x)))]
+      (testing "¬(X∧Y) is disjunctive (β)"
+        (is (= 'or (ast/tag-of (normalize/negate-formula (ast/and-form p q))))))
+      (testing "¬(X∨Y) is conjunctive (α)"
+        (is (= 'and (ast/tag-of (normalize/negate-formula (ast/or-form p q))))))
+      (testing "¬∀ is existential (δ)"
+        (is (= 'exists
+               (ast/tag-of (normalize/negate-formula (ast/forall-form x p))))))
+      (testing "¬∃ is the single-use universal once-forall (γ)"
+        (is (= 'once-forall
+               (ast/tag-of (normalize/negate-formula (ast/exists-form x p))))))
+      (testing "¬¬Z normalizes back to Z"
+        (is (= p (normalize/to-nnf (ast/not-form (ast/not-form p)))))))))
+
+;; ---------------------------------------------------------------------------
+;; §7 Soundness of reporting — query-status is never :inconsistent
+;; ---------------------------------------------------------------------------
+;;
+;; For a consistent program no query may both succeed and fail. query-status
+;; returns :inconsistent only if a closed tableau is found for BOTH A and ¬A,
+;; which would be a soundness violation. It must never occur on Fitting's
+;; programs.
+
+(deftest sec7-query-status-is-never-inconsistent-on-fitting-programs
+  (let [p1 (fitting/p1-program)
+        p2 (fitting/p2-program)]
+    (doseq [[label prog q]
+            [["even(2)" p1 (ast/pos-lit (fitting/app 'even (fitting/numeral 2)))]
+             ["odd(3)"  p1 (ast/pos-lit (fitting/app 'odd (fitting/numeral 3)))]
+             ["win(4)"  p2 (ast/pos-lit (fitting/app 'win (fitting/numeral 4)))]
+             ["win(3)"  p2 (ast/pos-lit (fitting/app 'win (fitting/numeral 3)))]]]
+      (is (not= :inconsistent
+                (query/query-status prog q
+                                    {:timeout-ms 2000 :max-fuel 64 :poll-ms 0}))
+          (str label " must not be reported inconsistent")))))
+
+;; ---------------------------------------------------------------------------
+;; §2 Programs — ≤ 1 clause per relation (Def 2.1), via surface sugar
+;; ---------------------------------------------------------------------------
+;;
+;; Fitting's core has exactly one defining formula per relation. The greenfield
+;; frontend lets authors write several surface clauses for one relation as
+;; ergonomic sugar; compile-program recovers Fitting's shape by disjoining the
+;; alpha-renamed, NNF-normalized bodies into a single compiled clause. The
+;; "alternatives" are the disjuncts of that one body, NOT multiple clauses.
+
+(deftest sec2-multiple-surface-clauses-compile-to-one-defining-formula
+  (ast/nom x
+    (let [lang (language/language {:constants ['a 'b] :relations {'p 1}})
+          prog (language/compile-program
+                 lang
+                 [(ast/clause 'p [x] (ast/eq-lit (ast/var-term x) (ast/app-term 'a)))
+                  (ast/clause 'p [x] (ast/eq-lit (ast/var-term x) (ast/app-term 'b)))])]
+      (testing "exactly one compiled clause per relation (Fitting Def 2.1 at the core)"
+        (is (= 1 (count (:clauses prog))))
+        (is (contains? (:clauses prog) 'p)))
+      (testing "the single defining body is the disjunction of the surface bodies"
+        (is (= 'or (ast/tag-of (get-in prog [:clauses 'p :body]))))
+        (is (= 2 (count (get-in prog [:clauses 'p :alternatives]))))))))
+
+;; ---------------------------------------------------------------------------
+;; §6 vs §8 — the Procedure Call Rule admissibility boundary
+;; ---------------------------------------------------------------------------
+;;
+;; Fitting §6 fires the Procedure Call Rule only on a GROUND atom of L. The
+;; greenfield core instead admits free proof variables (the Prolog-style
+;; free-variable calls Fitting discusses in §8), rejecting only delta
+;; parameters of L^par. `l-ground-termo` is the structural realization of the
+;; §8 "the unifier must be a term of L, not the Skolem enlargement" mechanism
+;; that Fitting calls "a serious complication". Documented as an
+;; extension-beyond-Fitting in docs/FITTING_FIDELITY_AUDIT.md (candidate ADR).
+
+(deftest sec6-l-ground-guard-admits-variables-but-rejects-parameters
+  (ast/nom x p
+    (testing "a free proof variable is L-ground — a call on it is admitted (Prolog-style, §8)"
+      (is (seq (logic/run* [q] (support/l-ground-termo (ast/var-term x))))))
+    (testing "a constructor over a free variable is L-ground"
+      (is (seq (logic/run* [q]
+                 (support/l-ground-termo
+                   (ast/app-term 's (ast/var-term x)))))))
+    (testing "a delta parameter is NOT L-ground — the call is rejected (no L^par leak)"
+      (is (empty? (logic/run* [q] (support/l-ground-termo (ast/par-term p))))))
+    (testing "a constructor over a parameter is NOT L-ground"
+      (is (empty? (logic/run* [q]
+                    (support/l-ground-termo
+                      (ast/app-term 's (ast/par-term p)))))))))
+
+;; ---------------------------------------------------------------------------
+;; §7 Soundness & completeness — propositional differential (no spurious closure)
+;; ---------------------------------------------------------------------------
+;;
+;; The strongest automatable soundness+completeness check for the propositional
+;; core: for random ground propositional formulas the kernel must prove validity
+;; (close the tableau for the negation) IFF a truth-table oracle says the formula
+;; is a tautology. A "valid but not tautology" disagreement is a *spurious
+;; closure* (unsound); a "tautology but not valid" disagreement is incompleteness.
+
+(def ^:private prop-atoms ['p 'q 'r])
+
+(defn- prop-eval [f assign]
+  (case (ast/tag-of f)
+    pos (get assign (second (second f)))
+    neg (not (get assign (second (second f))))
+    and (and (prop-eval (second f) assign) (prop-eval (nth f 2) assign))
+    or  (or  (prop-eval (second f) assign) (prop-eval (nth f 2) assign))
+    implies (or (not (prop-eval (second f) assign)) (prop-eval (nth f 2) assign))
+    not (not (prop-eval (second f) assign))))
+
+(defn- assignments [atoms]
+  (if (empty? atoms)
+    [{}]
+    (for [rest-assign (assignments (rest atoms))
+          b [true false]]
+      (assoc rest-assign (first atoms) b))))
+
+(defn- tautology? [f]
+  (every? #(prop-eval f %) (assignments prop-atoms)))
+
+(defn- rand-prop [^java.util.Random rng depth]
+  (if (or (zero? depth) (< (.nextDouble rng) 0.3))
+    (let [a (nth prop-atoms (.nextInt rng (count prop-atoms)))]
+      (if (< (.nextDouble rng) 0.5)
+        (ast/pos-lit (ast/app-term a))
+        (ast/neg-lit (ast/app-term a))))
+    (case (.nextInt rng 4)
+      0 (ast/and-form (rand-prop rng (dec depth)) (rand-prop rng (dec depth)))
+      1 (ast/or-form (rand-prop rng (dec depth)) (rand-prop rng (dec depth)))
+      2 (ast/implies-form (rand-prop rng (dec depth)) (rand-prop rng (dec depth)))
+      3 (ast/not-form (rand-prop rng (dec depth))))))
+
+(defn- kernel-valid?
+  "F is valid iff the kernel closes a tableau for its (NNF) negation."
+  [f]
+  (boolean (seq (kernel/prove (normalize/negate-formula f) 1))))
+
+(deftest sec7-propositional-validity-matches-truth-tables
+  (testing "kernel validity == truth-table tautology over 200 random propositional formulas"
+    (let [rng (java.util.Random. 1234567)]
+      (doseq [_ (range 200)]
+        (let [f (rand-prop rng 3)]
+          (is (= (tautology? f) (kernel-valid? f))
+              (str "validity/tautology mismatch for " (pr-str f))))))))

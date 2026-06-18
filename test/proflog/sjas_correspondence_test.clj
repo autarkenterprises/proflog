@@ -107,7 +107,8 @@
                   willard-sjas-subst-code
                   willard-sjas-subst-source-result
                   willard-sjas-subst-exprf
-                  willard-sjas-subst-proof-check]]
+                  willard-sjas-subst-proof-check
+                  willard-sjas-tab1-proof-check]]
       (is (= :relevant (:status (correspondence/classify-proof-symbol sym)))
           (str sym " should be classified as implemented SJAS profile evidence")))
     (doseq [sym '[willard-sjas-fact
@@ -541,6 +542,39 @@
       (is (= #{:proof-code}
              (:structural-measured-components accounting)))
       (is (true? (:adr-0102-counterexample-repaired? accounting))))))
+
+(deftest tab1-proof-list-accounting-records-entry-validation
+  (testing "ADR-0121: Tab-1 accounting records implemented entry validation"
+    (let [accounting (correspondence/audit-dsjas-proof-object-accounting)]
+      (is (= 'dsjas-tab1-proof-object
+             (get-in accounting [:proof-object-symbols :tab1-proof-list])))
+      (is (= #{:system-code :theorem-code :proof-list-code}
+             (:tab1-citation-measured-components accounting)))
+      (is (= :entry-validation-implemented
+             (:tab1-entry-validation-status accounting))))))
+
+(deftest tab1-roadmap-audit-reconciles-rank1-terminology
+  (testing "ADR-0120: Tab-1 terminology is reconciled before implementation claims"
+    (let [audit (correspondence/audit-tab1-proof-list-roadmap)]
+      (is (= :Tab-1 (:apparatus audit)))
+      (is (= :willard-sjas-tab1 (:profile audit)))
+      (is (= {:pi-star-1 'pi-star-1?
+              :sigma-star-1 'sigma-star-1?}
+             (:public-intermediate-classifiers audit)))
+      (is (= :host-basis-admission-only
+             (get-in audit [:host-conveniences :pi-star-1-encodable?])))
+      (is (= #{:proof-list-syntax
+               :public-proof-object-coding
+               :measured-tab1-object
+               :tab1-selfcons-relation-symbols
+               :terminology-reconciliation}
+             (:adr-0120-scope audit)))
+      (is (= :implemented
+             (:tab1-theorem-reuse-status audit)))
+      (is (= #{}
+             (:deferred-obligations audit)))
+      (is (= #{:Tab-2 :stronger-Tab-k}
+             (:boundary-failure-variants audit))))))
 
 (deftest dsjas-track2c-size-lower-bound-covers-citation-and-structural-objects
   (testing "ADR-0104 Track 2c: the combined size repair has an explicit lower-bound argument"

@@ -4437,6 +4437,200 @@
     (is (every? #(= skeleton-code (nth % 3)) subst-atoms))
     (is (not-any? #(= (:system-code system) (nth % 3)) subst-atoms))))
 
+(deftest sjas-tab1-profile-group-three-uses-tab1-proof-list-vocabulary
+  (let [system (demo-system :willard-sjas-tab1)
+        relations (set (formula-relation-symbols (:formula (:group-three system))))
+        atoms (formula-atoms (:formula (:group-three system)))
+        tab1-atoms (filter #(= 'dsjas-tab1-proof (second %)) atoms)]
+    (is (= :willard-sjas-tab1 (:profile system)))
+    (is (contains? relations 'pi-star-1-code))
+    (is (contains? relations 'neg-pair))
+    (is (contains? relations 'dsjas-tab1-proof)
+        "Tab-1 SelfCons must quantify measured proof-list objects")
+    (is (not (contains? relations 'dsjas-subst-prf))
+        "Tab-1 SelfCons must not use the Level-1 substitution-proof relation")
+    (is (not (contains? relations 'tableau-proof)))
+    (is (= 2 (count tab1-atoms)))
+    (is (every? #(= (:system-code system) (nth % 2)) tab1-atoms))))
+
+(deftest tab1-proof-list-object-encodes-theorem-proof-pairs
+  (testing "Tab-1 proof-list objects encode theorem/proof-code pairs"
+    (let [system (demo-system :willard-sjas-tab1)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          proof-list (sjas/tab1-proof-list-object
+                       [{:theorem-code (:code beta-record)
+                         :proof-code axiom-certificate}])
+          measured (sjas/dsjas-tab1-proof-object (:system-code system)
+                                                 (:code beta-record)
+                                                 proof-list)
+          decoded-list (sjas-code/proof-formal-code-term->proof proof-list)
+          decoded-measured (sjas-code/proof-formal-code-term->proof measured)]
+      (is (= ['tab1-proof-list-object
+              [(formal-code-term-bytes (:code beta-record))
+               (formal-code-term-bytes axiom-certificate)]]
+             (vec decoded-list)))
+      (is (= ['dsjas-tab1-proof-object
+              (formal-code-term-bytes (:system-code system))
+              (formal-code-term-bytes (:code beta-record))
+              (formal-code-term-bytes proof-list)]
+             (vec decoded-measured)))
+      (is (> (count (formal-code-term-bytes measured))
+             (count (formal-code-term-bytes proof-list)))
+          "the measured Tab-1 object must include the system and theorem payloads"))))
+
+(deftest tab1-proof-accepts-single-entry-axiom-citation
+  (testing "Tab-1 proof lists validate a single theorem/proof entry"
+    (let [system (demo-system :willard-sjas-tab1)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          proof-list (sjas/tab1-proof-list-object
+                       [{:theorem-code (:code beta-record)
+                         :proof-code axiom-certificate}])
+          beta-citation-proofs
+          (query/query-succeeds
+            (:program system)
+            (sjas/tab1-proof (:system-code system)
+                             (:code beta-record)
+                             proof-list)
+            1
+            180)
+          beta-citation-proof (first-proof beta-citation-proofs)]
+      (is (successful? beta-citation-proofs)
+          "a one-entry proof list may cite a system beta axiom")
+      (is (proof/contains-step? beta-citation-proof
+                                'willard-sjas-tab1-proof-check)
+          "Tab-1 query evidence must expose the proof-list checker marker")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tab1-proof (:system-code system)
+                               (:contradiction-code system)
+                               proof-list)
+              1
+              180))
+          "the final proof-list theorem must match the public target"))))
+
+(deftest dsjas-tab1-proof-accepts-and-checks-measured-proof-lists
+  (testing "measured Tab-1 proof objects check embedded S/F/H before validation"
+    (let [system (demo-system :willard-sjas-tab1)
+          wrong-system (demo-system :willard-sjas-level1)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          proof-list (sjas/tab1-proof-list-object
+                       [{:theorem-code (:code beta-record)
+                         :proof-code axiom-certificate}])
+          measured (sjas/dsjas-tab1-proof-object (:system-code system)
+                                                 (:code beta-record)
+                                                 proof-list)
+          wrong-system-measured
+          (sjas/dsjas-tab1-proof-object (:system-code wrong-system)
+                                        (:code beta-record)
+                                        proof-list)
+          wrong-theorem-measured
+          (sjas/dsjas-tab1-proof-object (:system-code system)
+                                        (:contradiction-code system)
+                                        proof-list)]
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-tab1-proof (:system-code system)
+                                     (:code beta-record)
+                                     measured)
+              1
+              220))
+          "matching measured Tab-1 object must be accepted")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-tab1-proof (:system-code system)
+                                     (:code beta-record)
+                                     wrong-system-measured)
+              1
+              220))
+          "mismatched embedded system bytes must be rejected")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/dsjas-tab1-proof (:system-code system)
+                                     (:code beta-record)
+                                     wrong-theorem-measured)
+              1
+              220))
+          "mismatched embedded theorem bytes must be rejected"))))
+
+(deftest tab1-proof-rejects-entry-whose-proof-does-not-prove-theorem
+  (testing "Tab-1 validation checks each entry proof against its own theorem"
+    (let [system (demo-system :willard-sjas-tab1)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          proof-list (sjas/tab1-proof-list-object
+                       [{:theorem-code (:contradiction-code system)
+                         :proof-code axiom-certificate}])]
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tab1-proof (:system-code system)
+                               (:contradiction-code system)
+                               proof-list)
+              1
+              180))
+          "`sjas-axiom` cannot certify a non-axiom contradiction target"))))
+
+(deftest tab1-prior-theorem-member-core-recognizes-earlier-theorem-by-bytes
+  (testing "ADR-0122: reusable Tab-1 theorem membership is byte-exact"
+    (let [system (demo-system :willard-sjas-tab1)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          theorem-bytes (apply list (formal-code-term-bytes (:code beta-record)))
+          other-bytes (apply list (formal-code-term-bytes
+                                    (:contradiction-code system)))
+          prior-member-coreo
+          (var-get #'sjas-profile/sjas-tab1-prior-theorem-member-coreo)]
+      (is (successful?
+            (l/run 1 [q]
+              (prior-member-coreo theorem-bytes (list theorem-bytes))
+              (l/== true q)))
+          "an earlier theorem byte string is citeable by a later entry")
+      (is (empty?
+            (l/run 1 [q]
+              (prior-member-coreo other-bytes (list theorem-bytes))
+              (l/== true q)))
+          "nearby theorem-code bytes must not match by shape or decoding alone"))))
+
+(deftest tab1-proof-reuses-earlier-pi-star-1-theorem-as-axiom-citation
+  (testing "a later Tab-1 entry can cite an earlier non-axiom theorem"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          theorem (ast/forall-form binding (ast/true-form))
+          negated-theorem (ast/exists-form binding (ast/false-form))
+          theorem-code (sjas/formula-code system theorem)
+          target (ast/and-form
+                   (proof-side-antecedent-formula (:axiom-formula system))
+                   negated-theorem)
+          structural-proof (structural-byte-list-tableau-node
+                             system
+                             target
+                             (structural-tableau-node
+                               system
+                               negated-theorem
+                               (structural-tableau-node system
+                                                        (ast/false-form))))
+          structural-certificate (sjas/proof-certificate structural-proof)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          proof-list (sjas/tab1-proof-list-object
+                       [{:theorem-code theorem-code
+                         :proof-code structural-certificate}
+                        {:theorem-code theorem-code
+                         :proof-code axiom-certificate}])]
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tab1-proof (:system-code system)
+                               theorem-code
+                               proof-list)
+              1
+              360))
+          "the second entry's `sjas-axiom` citation must use the first entry, not the finite system"))))
+
 (deftest dsjas-composite-tableau-proof-object-carries-measured-components
   (testing "composite tableau proof objects encode S, F, and P bytes under one measured proof variable"
     (let [system (demo-system :willard-sjas-tableau0)

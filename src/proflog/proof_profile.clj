@@ -50,6 +50,10 @@
   [profile program formula proof-limit fuel]
   (willard-sjas-profile/prove-program profile program formula proof-limit fuel))
 
+(defmethod prove-program* :willard-sjas-tab1
+  [profile program formula proof-limit fuel]
+  (willard-sjas-profile/prove-program profile program formula proof-limit fuel))
+
 (defn prove-program
   "Prove `formula` relative to `program` using the program language profile."
   ([program formula proof-limit]

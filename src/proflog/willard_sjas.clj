@@ -121,6 +121,8 @@
    'axiom-member 2
    'tableau-proof 3
    'dsjas-tableau-proof 3
+   'tab1-proof 3
+   'dsjas-tab1-proof 3
    'subst-code 2
    'subst-prf 4
    'dsjas-subst-prf 4})
@@ -147,6 +149,14 @@
      :functions u-grounding-functions
      :relations base-relations
      :proof-profile :willard-sjas-level1}))
+
+(def tab1-profile-language
+  "Base SJAS signature selecting the Tab-1 proof-list self-consistency profile."
+  (language/language
+    {:constants base-constants
+     :functions u-grounding-functions
+     :relations base-relations
+     :proof-profile :willard-sjas-tab1}))
 
 (defn not-code
   "Object-language code for the complement of `formula-code`."
@@ -210,6 +220,64 @@
       (formal-code-term-bytes theorem-code)
       (formal-code-term-bytes proof-code)])))
 
+(defn- tab1-proof-list-entry-payload
+  "Return `[theorem-bytes proof-bytes]` for one public Tab-1 proof-list entry."
+  [entry]
+  (let [[theorem-code proof-code]
+        (cond
+          (map? entry)
+          [(:theorem-code entry) (:proof-code entry)]
+
+          (and (sequential? entry) (= 2 (count entry)))
+          [(first entry) (second entry)]
+
+          :else
+          (throw (ex-info "Expected a Tab-1 proof-list entry"
+                          {:entry entry
+                           :expected "{:theorem-code t :proof-code p} or [t p]"})))]
+    (when-not (and theorem-code proof-code)
+      (throw (ex-info "Tab-1 proof-list entries require theorem and proof code"
+                      {:entry entry})))
+    [(formal-code-term-bytes theorem-code)
+     (formal-code-term-bytes proof-code)]))
+
+(defn tab1-proof-list-object
+  "Encode a public Tab-1 proof list `H = [(t1,p1), ..., (tn,pn)]`.
+
+   This is only the proof-object syntax boundary. Later ADRs must validate that
+   each `pi` proves `ti` from beta plus the earlier `tj`, and that intermediate
+   `tj` are within the permitted Level-1 classes."
+  ([entries]
+   (tab1-proof-list-object entries {:code-format :compact}))
+  ([entries {:keys [code-format]
+             :or {code-format :compact}}]
+   (let [entries (vec entries)]
+     (when (empty? entries)
+       (throw (ex-info "Tab-1 proof lists must contain at least one entry"
+                       {:entries entries})))
+     (sjas-code/proof-formal-code-term
+       (into ['tab1-proof-list-object]
+             (mapv tab1-proof-list-entry-payload entries))
+       code-format))))
+
+(defn dsjas-tab1-proof-object
+  "Encode the measured Tab-1 proof object `(S,F,H)`.
+
+   `H` is the public proof-list object, already encoded as an SJAS proof-code
+   term. The generated Tab-1 SelfCons sentence quantifies this measured object
+   rather than a bare proof-list code."
+  ([system-code theorem-code proof-list-code]
+   (dsjas-tab1-proof-object system-code theorem-code proof-list-code
+                            {:code-format :compact}))
+  ([system-code theorem-code proof-list-code {:keys [code-format]
+                                              :or {code-format :compact}}]
+   (measured-proof-object
+     'dsjas-tab1-proof-object
+     code-format
+     [(formal-code-term-bytes system-code)
+      (formal-code-term-bytes theorem-code)
+      (formal-code-term-bytes proof-list-code)])))
+
 (defn pred-term [term] (ast/app-term 'pred term))
 (defn sub-term [left right] (ast/app-term 'sub left right))
 (defn div-term [left right] (ast/app-term 'div left right))
@@ -233,6 +301,15 @@
 (defn dsjas-tableau-proof [system-code theorem-code proof-object-code]
   (ast/pos-lit
     (ast/app-term 'dsjas-tableau-proof
+                  system-code
+                  theorem-code
+                  proof-object-code)))
+(defn tab1-proof [system-code theorem-code proof-list-code]
+  (ast/pos-lit
+    (ast/app-term 'tab1-proof system-code theorem-code proof-list-code)))
+(defn dsjas-tab1-proof [system-code theorem-code proof-object-code]
+  (ast/pos-lit
+    (ast/app-term 'dsjas-tab1-proof
                   system-code
                   theorem-code
                   proof-object-code)))
@@ -770,6 +847,45 @@
      :selfcons-skeleton-formula skeleton
      :selfcons-skeleton-code skeleton-code}))
 
+(defn- selfcons-tab1-formula
+  "Tab-1 Level-1 consistency sentence over measured proof-list objects.
+
+   ADR-0120 only generates the relation-symbol shape. Later ADRs must provide
+   the arithmeticized `dsjas-tab1-proof/3` validation relation."
+  [system-code]
+  (let [x (nominal/nom (lvar 'x))
+        y (nominal/nom (lvar 'y))
+        p (nominal/nom (lvar 'p))
+        q (nominal/nom (lvar 'q))]
+    (ast/forall-form
+      x
+      (ast/forall-form
+        y
+        (ast/forall-form
+          p
+          (ast/forall-form
+            q
+            (ast/or-form
+              (ast/neg-lit
+                (ast/app-term 'pi-star-1-code
+                              (ast/var-term x)))
+              (ast/or-form
+                (ast/neg-lit
+                  (ast/app-term 'neg-pair
+                                (ast/var-term x)
+                                (ast/var-term y)))
+                (ast/or-form
+                  (ast/neg-lit
+                    (ast/app-term 'dsjas-tab1-proof
+                                  system-code
+                                  (ast/var-term x)
+                                  (ast/var-term p)))
+                  (ast/neg-lit
+                    (ast/app-term 'dsjas-tab1-proof
+                                  system-code
+                                  (ast/var-term y)
+                                  (ast/var-term q))))))))))))
+
 (defn- group-three-record
   [profile coding-context system-code contradiction-code code-format]
   (case profile
@@ -782,6 +898,13 @@
                                                        {}
                                                        code-format)})
     :willard-sjas-level1 (selfcons1-record coding-context system-code code-format)
+    :willard-sjas-tab1 (let [formula (selfcons-tab1-formula system-code)]
+                         {:group :group-three
+                          :formula formula
+                          :code (formula-code-term coding-context
+                                                   formula
+                                                   {}
+                                                   code-format)})
     (throw (ex-info "Unsupported Willard SJAS profile"
                     {:profile profile}))))
 
@@ -821,7 +944,8 @@
   "Build a finite reflected SJAS system.
 
    Options:
-   - `:profile`: `:willard-sjas-tableau0` or `:willard-sjas-level1`;
+   - `:profile`: `:willard-sjas-tableau0`, `:willard-sjas-level1`,
+     or `:willard-sjas-tab1`;
    - `:code-format`: `:compact` for `code-N` terms or `:u-grounding` for
      ordinary binary numeral codes;
    - `:constants`: extra user constants;

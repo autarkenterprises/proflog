@@ -120,7 +120,9 @@
    'subst-code
    'subst-prf
    'tableau-proof
-   'wff])
+   'wff
+   'tab1-proof
+   'dsjas-tab1-proof])
 
 (def reserved-symbol->index
   "One-based indexes for `reserved-coding-symbols`."
@@ -135,6 +137,7 @@
 (def ^:private profile-tableau0-tag 32)
 (def ^:private profile-level1-tag 33)
 (def ^:private reflected-clause-tag 34)
+(def ^:private profile-tab1-tag 35)
 (def proof-symbol-tag 41)
 (def proof-list-tag 42)
 (def proof-empty-list-tag 43)
@@ -262,7 +265,11 @@
     guarded-call-seq-done
     guarded-residual-seq-done
     guard-saturation-done
-    guard-eq])
+    guard-eq
+    willard-sjas-tab1
+    tab1-proof-list-object
+    dsjas-tab1-proof-object
+    willard-sjas-tab1-proof-check])
 
 (def proof-symbol->index
   (into {} (map-indexed (fn [idx sym] [sym (inc idx)]) proof-symbols)))
@@ -634,6 +641,7 @@
   (case profile
     :willard-sjas-tableau0 profile-tableau0-tag
     :willard-sjas-level1 profile-level1-tag
+    :willard-sjas-tab1 profile-tab1-tag
     (throw (ex-info "Unsupported SJAS profile for coding"
                     {:profile profile}))))
 

@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0120](docs/adr/ADR-0120-sjas-tab1-proof-list-surface.md) from
+  ADR-0119 Workstream A on branch `adr-0120-sjas-tab1-proof-list`. This first
+  Tab-1 implementation slice is intentionally limited to profile identity,
+  proof-list object coding, measured `(S,F,H)` accounting, terminology
+  reconciliation, and generated SelfCons relation symbols; arithmeticized
+  proof-list validation is deferred to a later ADR. Completed with
+  [AAR-0120](docs/aar/AAR-0120-sjas-tab1-proof-list-surface.md); gates:
+  `lein test-proflog-fast` 219/1357 green, `lein test-proflog-extended` 78/277
+  green, and `lein test-proflog-sjas` `pass=1092 fail=0 error=0`.
 - Added [ADR-0119](docs/adr/ADR-0119-sjas-next-research-roadmap.md) on branch
   `adr-0119-sjas-next-research-roadmap` as a planning/control ADR for future
   SJAS `/goal` loops. It preserves three spawnable workstreams: Tab-k/Tab-1

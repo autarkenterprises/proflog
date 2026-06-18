@@ -36,7 +36,9 @@
   [proof]
   (if (and (seq? proof)
            (= 'profiled (first proof))
-           (contains? '#{willard-sjas-tableau0 willard-sjas-level1}
+           (contains? '#{willard-sjas-tableau0
+                         willard-sjas-level1
+                         willard-sjas-tab1}
                       (second proof))
            (= 3 (count proof)))
     (nth proof 2)

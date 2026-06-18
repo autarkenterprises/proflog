@@ -4437,6 +4437,48 @@
     (is (every? #(= skeleton-code (nth % 3)) subst-atoms))
     (is (not-any? #(= (:system-code system) (nth % 3)) subst-atoms))))
 
+(deftest sjas-tab1-profile-group-three-uses-tab1-proof-list-vocabulary
+  (let [system (demo-system :willard-sjas-tab1)
+        relations (set (formula-relation-symbols (:formula (:group-three system))))
+        atoms (formula-atoms (:formula (:group-three system)))
+        tab1-atoms (filter #(= 'dsjas-tab1-proof (second %)) atoms)]
+    (is (= :willard-sjas-tab1 (:profile system)))
+    (is (contains? relations 'pi-star-1-code))
+    (is (contains? relations 'neg-pair))
+    (is (contains? relations 'dsjas-tab1-proof)
+        "Tab-1 SelfCons must quantify measured proof-list objects")
+    (is (not (contains? relations 'dsjas-subst-prf))
+        "Tab-1 SelfCons must not use the Level-1 substitution-proof relation")
+    (is (not (contains? relations 'tableau-proof)))
+    (is (= 2 (count tab1-atoms)))
+    (is (every? #(= (:system-code system) (nth % 2)) tab1-atoms))))
+
+(deftest tab1-proof-list-object-encodes-theorem-proof-pairs
+  (testing "Tab-1 proof-list objects encode theorem/proof-code pairs"
+    (let [system (demo-system :willard-sjas-tab1)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          proof-list (sjas/tab1-proof-list-object
+                       [{:theorem-code (:code beta-record)
+                         :proof-code axiom-certificate}])
+          measured (sjas/dsjas-tab1-proof-object (:system-code system)
+                                                 (:code beta-record)
+                                                 proof-list)
+          decoded-list (sjas-code/proof-formal-code-term->proof proof-list)
+          decoded-measured (sjas-code/proof-formal-code-term->proof measured)]
+      (is (= ['tab1-proof-list-object
+              [(formal-code-term-bytes (:code beta-record))
+               (formal-code-term-bytes axiom-certificate)]]
+             (vec decoded-list)))
+      (is (= ['dsjas-tab1-proof-object
+              (formal-code-term-bytes (:system-code system))
+              (formal-code-term-bytes (:code beta-record))
+              (formal-code-term-bytes proof-list)]
+             (vec decoded-measured)))
+      (is (> (count (formal-code-term-bytes measured))
+             (count (formal-code-term-bytes proof-list)))
+          "the measured Tab-1 object must include the system and theorem payloads"))))
+
 (deftest dsjas-composite-tableau-proof-object-carries-measured-components
   (testing "composite tableau proof objects encode S, F, and P bytes under one measured proof variable"
     (let [system (demo-system :willard-sjas-tableau0)

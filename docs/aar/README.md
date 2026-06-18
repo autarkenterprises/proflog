@@ -114,3 +114,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0116](AAR-0116-fitting-free-variable-procedure-call.md) | [ADR-0116](../adr/ADR-0116-fitting-free-variable-procedure-call.md) | accepted |
 | [AAR-0117](AAR-0117-quorum-proof-checking.md) | [ADR-0117](../adr/ADR-0117-quorum-proof-checking.md) | accepted |
 | [AAR-0118](AAR-0118-fitting-audit-secondary-findings.md) | [ADR-0118](../adr/ADR-0118-fitting-audit-secondary-findings.md) | accepted |
+| [AAR-0120](AAR-0120-sjas-tab1-proof-list-surface.md) | [ADR-0120](../adr/ADR-0120-sjas-tab1-proof-list-surface.md) | completed |

@@ -89,7 +89,9 @@
 	     neg-pair
 	     sjas-axiom
 	     dsjas-tableau-proof-object
-	     dsjas-subst-prf-object})
+	     dsjas-subst-prf-object
+     tab1-proof-list-object
+     dsjas-tab1-proof-object})
 
 (def ^:private relevant-equality-symbols
   "Equality, disequality, and equality-triggered proof constructors consumed by
@@ -138,6 +140,7 @@
   '#{profiled
      willard-sjas-tableau0
      willard-sjas-level1
+     willard-sjas-tab1
      willard-sjas-arithmetic
      willard-sjas-axiom-member
      willard-sjas-theorem-code
@@ -233,6 +236,11 @@
    {:status :probably-irrelevant
     :aspect :sjas-profile-annotation
     :obligation "Prove wrapper erasure and include Level-1 substitution vocabulary in profile-selection invariants."}
+
+   'willard-sjas-tab1
+   {:status :probably-irrelevant
+    :aspect :sjas-profile-annotation
+    :obligation "Prove wrapper erasure and include Tab-1 proof-list vocabulary in profile-selection invariants."}
 
    'willard-sjas-arithmetic
    {:status :relevant
@@ -1081,7 +1089,8 @@
    formula-bearing proof-code measure."
   {:selected-repair :combined-proof-object
    :proof-object-symbols {:tableau-proof 'dsjas-tableau-proof-object
-                          :substitution-proof 'dsjas-subst-prf-object}
+                          :substitution-proof 'dsjas-subst-prf-object
+                          :tab1-proof-list 'dsjas-tab1-proof-object}
    :tableau-citation-measured-components #{:system-code
                                             :theorem-code
                                             :proof-code}
@@ -1089,18 +1098,48 @@
                                                 :substitution-code
                                                 :theorem-code
                                                 :proof-code}
+   :tab1-citation-measured-components #{:system-code
+                                         :theorem-code
+                                         :proof-list-code}
    :structural-measured-components #{:proof-code}
+   :tab1-entry-validation-status :deferred-to-adr-0121
    :citation-size-source
    {:system-code "Decoded finite axiom basis and profile/fixed-point payload."
     :substitution-code "Decoded substitution source or fixed-point skeleton payload."
     :theorem-code "Decoded cited theorem/axiom formula payload."
-    :proof-code "Decoded `sjas-axiom` citation marker."}
+    :proof-code "Decoded `sjas-axiom` citation marker."
+    :proof-list-code "Decoded Tab-1 theorem/proof-code pair list."}
    :adr-0102-counterexample-repaired? true})
 
 (defn audit-dsjas-proof-object-accounting
   "Return the selected ADR-0104 proof-object accounting repair."
   []
   dsjas-proof-object-accounting)
+
+(def tab1-proof-list-roadmap
+  "ADR-0120 executable roadmap for the first Tab-1 implementation surface."
+  {:apparatus :Tab-1
+   :profile :willard-sjas-tab1
+   :generic-tab-k-proof-list "H = [(t1,p1), ..., (tn,pn)]"
+   :public-intermediate-classifiers {:pi-star-1 'pi-star-1?
+                                     :sigma-star-1 'sigma-star-1?}
+   :willard-terminology {:rank-1* :pi-star-1-or-sigma-star-1
+                         :u1* :level-1-bounded-u-grounding-class}
+   :host-conveniences {:pi-star-1-encodable? :host-basis-admission-only}
+   :adr-0120-scope #{:proof-list-syntax
+                     :public-proof-object-coding
+                     :measured-tab1-object
+                     :tab1-selfcons-relation-symbols
+                     :terminology-reconciliation}
+   :deferred-obligations #{:arithmeticized-entry-validation
+                           :proof-search-theorem-reuse
+                           :public-tab1-proof-predicate-semantics}
+   :boundary-failure-variants #{:Tab-2 :stronger-Tab-k}})
+
+(defn audit-tab1-proof-list-roadmap
+  "Return the ADR-0120 Tab-1 terminology and scope audit."
+  []
+  tab1-proof-list-roadmap)
 
 (def dsjas-combined-size-lower-bound
   "ADR-0104 lower-bound audit for the selected proof-object accounting.

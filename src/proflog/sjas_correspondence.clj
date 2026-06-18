@@ -1246,6 +1246,35 @@
      :completed-obligations #{}
      :remaining-obligations boundary-final-evidence-obligations}))
 
+(def tab2-or-stronger-boundary-surface
+  "ADR-0129 executable surface for the Tab-2-or-stronger negative variant.
+
+   Tab-1 remains the positive proof-list apparatus. This record only identifies
+   the next stronger proof-list family as a Workstream B boundary variant and
+   keeps all witness and final-evidence obligations open."
+  {:variant :tab-2-or-stronger
+   :workstream :workstream-b
+   :status :surface-implemented
+   :implemented-baseline-profile :willard-sjas-tab1
+   :positive-workstream-status :rejected-from-workstream-a
+   :boundary-step {:minimum-apparatus :Tab-2
+                   :exceeds-intermediate-classifiers #{:pi-star-1
+                                                       :sigma-star-1}
+                   :risk :stronger-theorem-reuse}
+   :remaining-obligations #{:reduced-reflected-beta-witness
+                            :full-generated-selfcons-contradiction-target
+                            :constructed-certificate
+                            :proof-search-synthesis}
+   :not-implemented #{:tab2-proof-checker
+                      :reduced-reflected-beta-witness
+                      :full-generated-selfcons-contradiction-target}
+   :completion-claimed? false})
+
+(defn audit-tab2-or-stronger-boundary-surface
+  "Return the ADR-0129 Tab-2-or-stronger Workstream B surface."
+  []
+  tab2-or-stronger-boundary-surface)
+
 (def boundary-failure-roadmap
   "ADR-0124 executable Workstream B contract for negative SJAS variants.
 
@@ -1262,7 +1291,7 @@
                              :full-generated-selfcons-contradiction-target]
    :final-evidence-required boundary-final-evidence-obligations
    :variant-statuses {:total-multiplication :full-target-implemented
-                      :tab-2-or-stronger :not-started
+                      :tab-2-or-stronger :surface-implemented
                       :xtab-or-lem-axiom :not-started}
    :completed-witness-stages
    {:total-multiplication #{:reduced-reflected-beta-witness
@@ -1294,10 +1323,14 @@
                 :missing-durable-synthesis-log}
      :passes-to :verification-required
      :completed-obligations #{}}}
+   :variant-surfaces
+   {:total-multiplication {:status :implemented
+                           :kind :language-extension
+                           :surface-helper 'total-multiplication-boundary-system}
+    :tab-2-or-stronger tab2-or-stronger-boundary-surface}
    :open-obligations
    {:total-multiplication boundary-final-evidence-obligations
-    :tab-2-or-stronger #{:variant-surface
-                         :reduced-reflected-beta-witness
+    :tab-2-or-stronger #{:reduced-reflected-beta-witness
                          :full-generated-selfcons-contradiction-target
                          :constructed-certificate
                          :proof-search-synthesis}

@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0129](docs/adr/ADR-0129-sjas-tab2-boundary-surface.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0129-sjas-tab2-boundary-surface`. This slice records the
+  Tab-2-or-stronger proof-list apparatus as an executable negative-variant
+  surface beyond the implemented Tab-1 path, while keeping reduced-witness,
+  generated-target, certificate, and synthesis obligations open. Completed with
+  [AAR-0129](docs/aar/AAR-0129-sjas-tab2-boundary-surface.md); gates:
+  `lein test-proflog-fast` 224/1405 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1173 fail=0 error=0`.
 - Spawned [ADR-0128](docs/adr/ADR-0128-sjas-self-extension-lists.md)
   from ADR-0119 Workstream C on branch
   `adr-0128-sjas-self-extension-lists`. This slice adds the reflected

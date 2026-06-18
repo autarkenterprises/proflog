@@ -617,15 +617,46 @@
              (:final-evidence-required audit)))
       (is (= :full-target-implemented
              (get-in audit [:variant-statuses :total-multiplication])))
+      (is (= :surface-implemented
+             (get-in audit [:variant-statuses :tab-2-or-stronger])))
       (is (= #{:reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
              (get-in audit [:completed-witness-stages :total-multiplication])))
       (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :total-multiplication])))
+      (is (= #{:reduced-reflected-beta-witness
+               :full-generated-selfcons-contradiction-target
+               :constructed-certificate
+               :proof-search-synthesis}
+             (get-in audit [:open-obligations :tab-2-or-stronger])))
       (is (= :implemented
              (get-in audit [:evidence-screens :total-multiplication :status])))
       (is (false? (:workstream-complete? audit))))))
+
+(deftest tab2-boundary-surface-distinguishes-negative-proof-list-variant
+  (testing "ADR-0129: Tab-2-or-stronger is a Workstream B boundary surface, not Tab-1 completion"
+    (let [surface (correspondence/audit-tab2-or-stronger-boundary-surface)]
+      (is (= :tab-2-or-stronger (:variant surface)))
+      (is (= :workstream-b (:workstream surface)))
+      (is (= :surface-implemented (:status surface)))
+      (is (= :willard-sjas-tab1 (:implemented-baseline-profile surface)))
+      (is (= :rejected-from-workstream-a (:positive-workstream-status surface)))
+      (is (= {:minimum-apparatus :Tab-2
+              :exceeds-intermediate-classifiers #{:pi-star-1
+                                                  :sigma-star-1}
+              :risk :stronger-theorem-reuse}
+             (:boundary-step surface)))
+      (is (= #{:reduced-reflected-beta-witness
+               :full-generated-selfcons-contradiction-target
+               :constructed-certificate
+               :proof-search-synthesis}
+             (:remaining-obligations surface)))
+      (is (= #{:tab2-proof-checker
+               :reduced-reflected-beta-witness
+               :full-generated-selfcons-contradiction-target}
+             (:not-implemented surface)))
+      (is (false? (:completion-claimed? surface))))))
 
 (deftest boundary-evidence-screen-rejects-trivial-selfcons-evidence
   (testing "ADR-0127: ordinary SelfCons proofs are not boundary-failure evidence"

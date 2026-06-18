@@ -7601,28 +7601,32 @@
     (== (lcons 'tab1-proof-list-object entries) object)
     (== (lcons first-entry remaining-entries) entries)))
 
+(declare sjas-tab1-tableau-proof-bytes-coreo)
+
 (defn- sjas-tab1-proof-list-entry-coreo
   "Validate one decoded Tab-1 `(theorem, proof)` entry.
 
-   ADR-0121 reuses the existing tableau-proof byte checker for each entry. The
-   theorem bytes are also rebuilt as a public compact code term because the
-   checker's axiom-membership and structural branches intentionally accept the
-   public code term, not raw bytes."
-  [system-code entry sigma sigma-out neqs neqs-out prog fuel theorem-bytes]
+   ADR-0122 threads earlier theorem bytes into this check. The theorem bytes
+   are also rebuilt as a public compact code term because the proof checker
+   intentionally accepts the public code term, not raw bytes."
+  [system-code prior-theorem-bytes entry sigma sigma-out neqs neqs-out prog
+   fuel theorem-bytes]
   (fresh [theorem-proof proof-proof proof-bytes theorem-code]
     (== (list theorem-proof proof-proof) entry)
     (proof-byte-list-termo theorem-proof theorem-bytes)
     (proof-byte-list-termo proof-proof proof-bytes)
     (sjas-internal-code-termo theorem-bytes theorem-code)
-    (sjas-tableau-proof-bytes-coreo system-code
-                                    theorem-code
-                                    proof-bytes
-                                    sigma
-                                    sigma-out
-                                    neqs
-                                    neqs-out
-                                    prog
-                                    fuel)))
+    (sjas-tab1-tableau-proof-bytes-coreo system-code
+                                         theorem-code
+                                         theorem-bytes
+                                         proof-bytes
+                                         prior-theorem-bytes
+                                         sigma
+                                         sigma-out
+                                         neqs
+                                         neqs-out
+                                         prog
+                                         fuel)))
 
 (defn- sjas-tab1-intermediate-formula-classo
   "Require an intermediate Tab-1 theorem to be `Pi*_1` or `Sigma*_1`."
@@ -7633,17 +7637,93 @@
       [(sjas-pi-star-1-formulao formula)]
       [(sjas-sigma-star-1-formulao formula)])))
 
+(defn- sjas-tab1-prior-theorem-member-coreo
+  "Recognize a theorem byte string already validated by an earlier Tab-1 entry."
+  [theorem-bytes prior-theorem-bytes]
+  (fresh [head tail]
+    (== (lcons head tail) prior-theorem-bytes)
+    (conde
+      [(sjas-byte-list-equalo theorem-bytes head)]
+      [(sjas-tab1-prior-theorem-member-coreo theorem-bytes tail)])))
+
+(defn- sjas-tab1-prior-theorem-formulas-coreo
+  "Decode reusable theorem bytes into proof-side antecedent formulas."
+  [prog prior-theorem-bytes formulas]
+  (conde
+    [(== '() prior-theorem-bytes)
+     (== '() formulas)]
+    [(fresh [theorem-bytes rest decoded ast-formula tail-formulas]
+       (== (lcons theorem-bytes rest) prior-theorem-bytes)
+       (decode-proof-formula-byteso prog theorem-bytes '() decoded)
+       (sjas-proof-antecedent-formula-asto decoded ast-formula)
+       (sjas-tab1-prior-theorem-formulas-coreo prog rest tail-formulas)
+       (== (lcons ast-formula tail-formulas) formulas))]))
+
+(defn- sjas-tab1-extended-axiom-formula-coreo
+  "Conjoin `AxiomConj(S)` with earlier reusable Tab-1 theorem antecedents."
+  [prog axiom-formula prior-theorem-bytes extended-axiom-formula]
+  (fresh [prior-formulas all-formulas]
+    (sjas-tab1-prior-theorem-formulas-coreo prog
+                                            prior-theorem-bytes
+                                            prior-formulas)
+    (== (lcons axiom-formula prior-formulas) all-formulas)
+    (formula-list-ando all-formulas extended-axiom-formula)))
+
+(defn- sjas-tab1-tableau-proof-bytes-coreo
+  "Validate one Tab-1 entry proof against beta plus earlier theorem entries."
+  [system-code theorem-code theorem-bytes proof-bytes prior-theorem-bytes
+   sigma sigma-out neqs neqs-out prog fuel]
+  (conde
+    [(== sjas-axiom-proof-bytes proof-bytes)
+     (conde
+       [(sjas-tab1-prior-theorem-member-coreo theorem-bytes
+                                             prior-theorem-bytes)]
+       [(sjas-walked-axiom-member-coreo prog
+                                        system-code
+                                        theorem-code
+                                        sigma)])
+     (== sigma sigma-out)
+     (== neqs neqs-out)]
+    [(fresh [decoded-proof neg-theorem target sigma-theorem
+             walked-system-code axiom-formula extended-axiom-formula]
+       (decode-structural-proof-bytes-coreo proof-bytes decoded-proof)
+       (sjas-structural-negated-theorem-coreo prog
+                                              theorem-code
+                                              sigma
+                                              sigma-theorem
+                                              neg-theorem)
+       (sjas-system-axiom-formula-walked-coreo prog
+                                               system-code
+                                               sigma-theorem
+                                               sigma-out
+                                               walked-system-code
+                                               axiom-formula)
+       (sjas-tab1-extended-axiom-formula-coreo prog
+                                               axiom-formula
+                                               prior-theorem-bytes
+                                               extended-axiom-formula)
+       (sjas-acyclic-unifyo (list 'and extended-axiom-formula neg-theorem)
+                            target)
+       (sjas-proof-check-programo prog
+                                  walked-system-code
+                                  target
+                                  fuel
+                                  decoded-proof)
+       (== neqs neqs-out))]))
+
 (defn- sjas-tab1-proof-list-entries-coreo
   "Validate all entries of `H` and require the final theorem to be `F`.
 
-   This ADR validates entries against the selected system with the existing
-   tableau proof predicate. Reusing earlier `t_j` as additional assumptions for
-   later `p_i` remains the explicitly deferred theorem-reuse slice."
-  [system-code target-code entries sigma sigma-out neqs neqs-out prog fuel]
+   Intermediate entries are added to `prior-theorem-bytes` only after their
+   proof validates and their theorem satisfies the public `Pi*_1` / `Sigma*_1`
+   restriction, matching ADR-0119's beta-plus-earlier-`t_j` proof-list shape."
+  [system-code target-code entries prior-theorem-bytes sigma sigma-out neqs
+   neqs-out prog fuel]
   (conde
     [(fresh [entry theorem-bytes sigma-entry neqs-entry]
        (== (lcons entry '()) entries)
        (sjas-tab1-proof-list-entry-coreo system-code
+                                         prior-theorem-bytes
                                          entry
                                          sigma
                                          sigma-entry
@@ -7660,6 +7740,7 @@
        (== (lcons entry rest) entries)
        (== (lcons next-entry remaining-rest) rest)
        (sjas-tab1-proof-list-entry-coreo system-code
+                                         prior-theorem-bytes
                                          entry
                                          sigma
                                          sigma-entry
@@ -7672,6 +7753,8 @@
        (sjas-tab1-proof-list-entries-coreo system-code
                                            target-code
                                            rest
+                                           (lcons theorem-bytes
+                                                  prior-theorem-bytes)
                                            sigma-entry
                                            sigma-out
                                            neqs-entry
@@ -7688,6 +7771,7 @@
     (sjas-tab1-proof-list-entries-coreo system-code
                                         theorem-code
                                         entries
+                                        '()
                                         sigma
                                         sigma-out
                                         neqs

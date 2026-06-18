@@ -1137,7 +1137,8 @@
                      :measured-tab1-object
                      :tab1-selfcons-relation-symbols
                      :terminology-reconciliation}
-   :deferred-obligations #{:proof-search-theorem-reuse}
+   :tab1-theorem-reuse-status :implemented
+   :deferred-obligations #{}
    :boundary-failure-variants #{:Tab-2 :stronger-Tab-k}})
 
 (defn audit-tab1-proof-list-roadmap

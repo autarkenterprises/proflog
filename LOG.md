@@ -22,6 +22,15 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0122](docs/adr/ADR-0122-sjas-tab1-theorem-reuse.md) from
+  ADR-0119 Workstream A on branch `adr-0122-sjas-tab1-theorem-reuse`. This
+  slice targets the remaining Tab-1 proof-list obligation from ADR-0121:
+  validating later entries against beta plus earlier reusable `Pi*_1` /
+  `Sigma*_1` theorem entries, both for `sjas-axiom` citation and structural
+  tableau antecedents. Completed with
+  [AAR-0122](docs/aar/AAR-0122-sjas-tab1-theorem-reuse.md); gates:
+  `lein test-proflog-fast` 219/1361 green, `lein test-proflog-extended` 78/277
+  green, and `lein test-proflog-sjas` `pass=1107 fail=0 error=0`.
 - Spawned [ADR-0121](docs/adr/ADR-0121-sjas-tab1-entry-validation.md) from
   ADR-0119/ADR-0120 Workstream A on branch
   `adr-0121-sjas-tab1-entry-validation`. This slice targets executable

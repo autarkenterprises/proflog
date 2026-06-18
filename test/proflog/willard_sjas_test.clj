@@ -4576,6 +4576,61 @@
               180))
           "`sjas-axiom` cannot certify a non-axiom contradiction target"))))
 
+(deftest tab1-prior-theorem-member-core-recognizes-earlier-theorem-by-bytes
+  (testing "ADR-0122: reusable Tab-1 theorem membership is byte-exact"
+    (let [system (demo-system :willard-sjas-tab1)
+          beta-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          theorem-bytes (apply list (formal-code-term-bytes (:code beta-record)))
+          other-bytes (apply list (formal-code-term-bytes
+                                    (:contradiction-code system)))
+          prior-member-coreo
+          (var-get #'sjas-profile/sjas-tab1-prior-theorem-member-coreo)]
+      (is (successful?
+            (l/run 1 [q]
+              (prior-member-coreo theorem-bytes (list theorem-bytes))
+              (l/== true q)))
+          "an earlier theorem byte string is citeable by a later entry")
+      (is (empty?
+            (l/run 1 [q]
+              (prior-member-coreo other-bytes (list theorem-bytes))
+              (l/== true q)))
+          "nearby theorem-code bytes must not match by shape or decoding alone"))))
+
+(deftest tab1-proof-reuses-earlier-pi-star-1-theorem-as-axiom-citation
+  (testing "a later Tab-1 entry can cite an earlier non-axiom theorem"
+    (let [system (demo-system :willard-sjas-tableau0)
+          binding (sjas-code/code-nom 1)
+          theorem (ast/forall-form binding (ast/true-form))
+          negated-theorem (ast/exists-form binding (ast/false-form))
+          theorem-code (sjas/formula-code system theorem)
+          target (ast/and-form
+                   (proof-side-antecedent-formula (:axiom-formula system))
+                   negated-theorem)
+          structural-proof (structural-byte-list-tableau-node
+                             system
+                             target
+                             (structural-tableau-node
+                               system
+                               negated-theorem
+                               (structural-tableau-node system
+                                                        (ast/false-form))))
+          structural-certificate (sjas/proof-certificate structural-proof)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          proof-list (sjas/tab1-proof-list-object
+                       [{:theorem-code theorem-code
+                         :proof-code structural-certificate}
+                        {:theorem-code theorem-code
+                         :proof-code axiom-certificate}])]
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/tab1-proof (:system-code system)
+                               theorem-code
+                               proof-list)
+              1
+              360))
+          "the second entry's `sjas-axiom` citation must use the first entry, not the finite system"))))
+
 (deftest dsjas-composite-tableau-proof-object-carries-measured-components
   (testing "composite tableau proof objects encode S, F, and P bytes under one measured proof variable"
     (let [system (demo-system :willard-sjas-tableau0)

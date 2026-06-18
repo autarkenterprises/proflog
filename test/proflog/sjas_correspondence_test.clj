@@ -569,7 +569,9 @@
                :tab1-selfcons-relation-symbols
                :terminology-reconciliation}
              (:adr-0120-scope audit)))
-      (is (= #{:proof-search-theorem-reuse}
+      (is (= :implemented
+             (:tab1-theorem-reuse-status audit)))
+      (is (= #{}
              (:deferred-obligations audit)))
       (is (= #{:Tab-2 :stronger-Tab-k}
              (:boundary-failure-variants audit))))))

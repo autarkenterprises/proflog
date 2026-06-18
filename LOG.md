@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0125](docs/adr/ADR-0125-sjas-total-mul-reduced-witness.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0125-sjas-total-mul-reduced-witness`. This slice targets the reduced
+  reflected-beta squaring-chain witness for the total-multiplication negative
+  variant, leaving the full SelfCons contradiction target and synthesis
+  evidence for later Workstream B ADRs. Completed with
+  [AAR-0125](docs/aar/AAR-0125-sjas-total-mul-reduced-witness.md); gates:
+  `lein test-proflog-fast` 221/1377 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1142 fail=0 error=0`.
 - Spawned [ADR-0124](docs/adr/ADR-0124-sjas-boundary-variant-surface.md)
   from ADR-0119 Workstream B on branch
   `adr-0124-sjas-boundary-variant-surface`. This slice adds the first

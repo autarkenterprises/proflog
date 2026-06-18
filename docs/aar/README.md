@@ -119,3 +119,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0122](AAR-0122-sjas-tab1-theorem-reuse.md) | [ADR-0122](../adr/ADR-0122-sjas-tab1-theorem-reuse.md) | completed |
 | [AAR-0123](AAR-0123-sjas-self-extension-pair-survey.md) | [ADR-0123](../adr/ADR-0123-sjas-self-extension-pair-survey.md) | completed |
 | [AAR-0124](AAR-0124-sjas-boundary-variant-surface.md) | [ADR-0124](../adr/ADR-0124-sjas-boundary-variant-surface.md) | completed |
+| [AAR-0125](AAR-0125-sjas-total-mul-reduced-witness.md) | [ADR-0125](../adr/ADR-0125-sjas-total-mul-reduced-witness.md) | completed |

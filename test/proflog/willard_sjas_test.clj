@@ -1096,6 +1096,70 @@
                          :proof-limit 1})))
           "the surface must not be counted as a reduced/full negative witness"))))
 
+(deftest sjas-total-multiplication-reduced-witness-builds-squaring-chain
+  (testing "ADR-0125 reduced witness installs the total-multiplication squaring fragment"
+    (let [depth 3
+          constants (sjas/total-multiplication-squaring-chain-constants depth)
+          chain-axioms (sjas/total-multiplication-squaring-chain-axioms depth)
+          summary (sjas/total-multiplication-squaring-chain-summary depth)
+          chainless (sjas/system
+                      {:profile :willard-sjas-level1
+                       :constants constants
+                       :functions sjas/total-multiplication-functions
+                       :beta (sjas/total-multiplication-seed-axioms)})
+          witness (sjas/total-multiplication-reduced-witness-system
+                    {:profile :willard-sjas-level1
+                     :depth depth})
+          code-canonical-formula (var-get #'sjas/code-canonical-formula)
+          chain-set (set (map code-canonical-formula chain-axioms))
+          chain-records (filter #(and (= :group-two (:group %))
+                                      (contains?
+                                        chain-set
+                                        (code-canonical-formula (:formula %))))
+                                (:axioms witness))
+          final-chain-record (last chain-records)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)]
+      (is (= ['tm-u0 'tm-u1 'tm-u2 'tm-u3] constants))
+      (is (= 4 (count chain-axioms)))
+      (is (every? sjas/pi-star-1-encodable? chain-axioms))
+      (is (= {:depth 3
+              :definition-count 4
+              :represented-exponent 8
+              :represented-bit-length 9}
+             summary))
+      (is (> (:represented-bit-length summary)
+             (:definition-count summary))
+          "the reduced witness must exhibit squaring-chain compression")
+      (is (= 2 (get-in witness [:language :functions 'mul])))
+      (is (every? #(contains? (:constants (:language witness)) %)
+                  constants))
+      (is (= chain-set
+             (set (map (comp code-canonical-formula :formula)
+                       chain-records))))
+      (is (not= (:system-code chainless)
+                (:system-code witness))
+          "adding the reflected squaring-chain fragment must change system identity")
+      (is (not= (-> chainless :group-three :code)
+                (-> witness :group-three :code))
+          "adding the reflected squaring-chain fragment must regenerate SelfCons code")
+      (is (successful?
+            (query/query-succeeds
+              (:program witness)
+              (sjas/axiom-member (:system-code witness)
+                                  (:code final-chain-record))
+              1
+              180))
+          "the final squaring-chain beta record must decode as an axiom member")
+      (is (successful?
+            (query/query-succeeds
+              (:program witness)
+              (sjas/tableau-proof (:system-code witness)
+                                  (:code final-chain-record)
+                                  axiom-certificate)
+              1
+              220))
+          "the final squaring-chain beta record must be citeable by sjas-axiom"))))
+
 (deftest sjas-system-builder-axiom-formula-includes-fixed-group-one
   (testing "the public theorem antecedent agrees with the fixed axiom basis"
     (let [system (demo-system :willard-sjas-tableau0)

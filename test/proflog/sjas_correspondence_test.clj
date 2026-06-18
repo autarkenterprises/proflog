@@ -612,10 +612,11 @@
       (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (:final-evidence-required audit)))
-      (is (= :surface-implemented
+      (is (= :reduced-witness-implemented
              (get-in audit [:variant-statuses :total-multiplication])))
-      (is (= #{:reduced-reflected-beta-witness
-               :full-generated-selfcons-contradiction-target
+      (is (= #{:reduced-reflected-beta-witness}
+             (get-in audit [:completed-witness-stages :total-multiplication])))
+      (is (= #{:full-generated-selfcons-contradiction-target
                :constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :total-multiplication])))

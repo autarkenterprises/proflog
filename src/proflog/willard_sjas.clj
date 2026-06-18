@@ -377,6 +377,59 @@
   {:functions total-multiplication-functions
    :beta (total-multiplication-seed-axioms)})
 
+(defn- validate-squaring-chain-depth!
+  [depth]
+  (when-not (and (integer? depth) (not (neg? depth)))
+    (throw (ex-info "Expected a non-negative squaring-chain depth"
+                    {:depth depth}))))
+
+(defn total-multiplication-squaring-chain-constants
+  "Return fresh constants `tm-u0 ... tm-u<depth>` for the reduced witness."
+  [depth]
+  (validate-squaring-chain-depth! depth)
+  (mapv #(symbol (str "tm-u" %)) (range (inc depth))))
+
+(defn total-multiplication-squaring-chain-axioms
+  "Return the reflected beta equations for a finite squaring chain.
+
+   The fragment mirrors Willard's total-multiplication compression step:
+   `u_0 = 2` and `u_(i+1) = mul(u_i,u_i)`. It is only the reduced witness stage;
+   the full SelfCons contradiction remains a separate Workstream B obligation."
+  [depth]
+  (let [constants (total-multiplication-squaring-chain-constants depth)
+        constant-term #(ast/app-term %)]
+    (vec
+      (cons
+        (ast/eq-lit (constant-term (first constants)) two)
+        (map (fn [left right]
+               (let [left-term (constant-term left)]
+                 (ast/eq-lit (constant-term right)
+                             (mul-term left-term left-term))))
+             constants
+             (rest constants))))))
+
+(defn total-multiplication-squaring-chain-summary
+  "Return host-side size data for the finite squaring-chain witness.
+
+   Starting from `u_0 = 2`, depth `n` represents `2^(2^n)`, whose binary
+   representation has `2^n + 1` bits. The summary is an audit aid; proof search
+   still sees only the reflected beta equations."
+  [depth]
+  (validate-squaring-chain-depth! depth)
+  (let [represented-exponent (reduce *' 1 (repeat depth 2))]
+    {:depth depth
+     :definition-count (inc depth)
+     :represented-exponent represented-exponent
+     :represented-bit-length (inc represented-exponent)}))
+
+(defn total-multiplication-reduced-witness-options
+  "Return the mergeable reduced-witness fragment for total multiplication."
+  [depth]
+  {:constants (total-multiplication-squaring-chain-constants depth)
+   :functions total-multiplication-functions
+   :beta (vec (concat (total-multiplication-seed-axioms)
+                      (total-multiplication-squaring-chain-axioms depth)))})
+
 (defn leq [left right] (ast/pos-lit (ast/app-term 'leq left right)))
 (defn lt [left right] (ast/pos-lit (ast/app-term 'lt left right)))
 (defn mult [left right product] (ast/pos-lit (ast/app-term 'mult left right product)))
@@ -1159,6 +1212,29 @@
        (assoc opts
               :functions (merge (:functions opts) seed-signature)
               :beta (vec (concat seed-beta (:beta opts))))))))
+
+(defn total-multiplication-reduced-witness-system
+  "Build the ADR-0125 reduced squaring-chain witness system.
+
+   `:depth` controls the finite chain length and defaults to 3 for focused
+   regression tests. The returned system is still not a full Workstream B
+   contradiction witness; it only installs the reflected beta compression
+   fragment that later total-multiplication diagonal probes must use."
+  ([]
+   (total-multiplication-reduced-witness-system {}))
+  ([opts]
+   (let [depth (:depth opts 3)
+         system-opts (dissoc opts :depth)
+         {witness-constants :constants
+          witness-beta :beta
+          witness-signature :functions}
+         (total-multiplication-reduced-witness-options depth)]
+     (system
+       (assoc system-opts
+              :constants (vec (concat witness-constants
+                                      (:constants system-opts)))
+              :functions (merge (:functions system-opts) witness-signature)
+              :beta (vec (concat witness-beta (:beta system-opts))))))))
 
 ;; -----------------------------------------------------------------------------
 ;; Source-facing SJAS builder

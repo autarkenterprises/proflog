@@ -1199,12 +1199,20 @@
                              :full-generated-selfcons-contradiction-target]
    :final-evidence-required #{:constructed-certificate
                               :proof-search-synthesis}
-   :variant-statuses {:total-multiplication :surface-implemented
+   :variant-statuses {:total-multiplication :reduced-witness-implemented
                       :tab-2-or-stronger :not-started
                       :xtab-or-lem-axiom :not-started}
+   :completed-witness-stages
+   {:total-multiplication #{:reduced-reflected-beta-witness}}
+   :reduced-witnesses
+   {:total-multiplication
+    {:kind :squaring-chain
+     :default-depth 3
+     :fragment "u_0 = 2; u_(i+1) = mul(u_i,u_i)"
+     :status :implemented
+     :remaining-stage :full-generated-selfcons-contradiction-target}}
    :open-obligations
-   {:total-multiplication #{:reduced-reflected-beta-witness
-                            :full-generated-selfcons-contradiction-target
+   {:total-multiplication #{:full-generated-selfcons-contradiction-target
                             :constructed-certificate
                             :proof-search-synthesis}
     :tab-2-or-stronger #{:variant-surface

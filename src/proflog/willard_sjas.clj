@@ -1418,6 +1418,33 @@
       :proof-search-synthesis-status :open
       :durable-probe-required? true})))
 
+(defn xtab-lem-full-target-report
+  "Describe the ADR-0134 full target for the Xtab/LEM-as-axiom variant.
+
+   The report names the reduced-witness system from ADR-0133 and the exact
+   generated SelfCons refutation target for that system. Certificate and
+   synthesis fields intentionally remain open because this ADR constructs the
+   target, not the proof of contradiction."
+  ([]
+   (xtab-lem-full-target-report {}))
+  ([opts]
+   (let [system (xtab-lem-reduced-witness-system opts)
+         negated-selfcons (selfcons-negation-target system)
+         refutation-target (ast/and-form (:axiom-formula system)
+                                         negated-selfcons)]
+     {:variant :xtab-or-lem-axiom
+      :witness-stage :full-generated-selfcons-contradiction-target
+      :system-code (:system-code system)
+      :group-three-code (:code (:group-three system))
+      :axiom-formula (:axiom-formula system)
+      :selfcons-formula (:formula (:group-three system))
+      :negated-selfcons-formula negated-selfcons
+      :selfcons-refutation-target refutation-target
+      :target-code (formula-code system refutation-target)
+      :constructed-certificate-status :open
+      :proof-search-synthesis-status :open
+      :durable-probe-required? true})))
+
 (defn- proof-code-certificate-kind
   "Classify a public proof-code term for Workstream B evidence intake."
   [proof-code]

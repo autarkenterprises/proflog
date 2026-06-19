@@ -1381,8 +1381,8 @@
    Goedel-boundary failure. The first surface is total multiplication; ADR-0125
    and ADR-0126 complete its reduced witness and generated target stages, but
    constructed certificates and proof-search synthesis evidence remain open.
-   ADR-0133 also completes the reduced Xtab/LEM-as-axiom witness stage while
-   leaving that variant's generated target and final evidence open."
+   ADR-0133 and ADR-0134 complete the reduced and generated-target
+   Xtab/LEM-as-axiom witness stages while leaving final evidence open."
   {:workstream :workstream-b
    :first-variant :total-multiplication
    :planned-variants #{:total-multiplication
@@ -1393,11 +1393,12 @@
    :final-evidence-required boundary-final-evidence-obligations
    :variant-statuses {:total-multiplication :full-target-implemented
                       :tab-2-or-stronger :surface-implemented
-                      :xtab-or-lem-axiom :reduced-witness-implemented}
+                      :xtab-or-lem-axiom :full-target-implemented}
    :completed-witness-stages
    {:total-multiplication #{:reduced-reflected-beta-witness
                             :full-generated-selfcons-contradiction-target}
-    :xtab-or-lem-axiom #{:reduced-reflected-beta-witness}}
+    :xtab-or-lem-axiom #{:reduced-reflected-beta-witness
+                         :full-generated-selfcons-contradiction-target}}
    :reduced-witnesses
    {:total-multiplication
     {:kind :squaring-chain
@@ -1410,13 +1411,20 @@
      :witness-relation 'xtab-lem-demo
      :axiom-count 1
      :status :implemented
-     :remaining-stage :full-generated-selfcons-contradiction-target}}
+     :remaining-stage :completed}}
    :full-targets
    {:total-multiplication
     {:kind :generated-selfcons-refutation
      :system-builder 'total-multiplication-reduced-witness-system
      :target-report 'total-multiplication-full-target-report
      :target-shape "AxiomConj(S_total-mul) /\\ not(SelfCons(S_total-mul))"
+     :status :implemented
+     :remaining-evidence boundary-final-evidence-obligations}
+    :xtab-or-lem-axiom
+    {:kind :generated-selfcons-refutation
+     :system-builder 'xtab-lem-reduced-witness-system
+     :target-report 'xtab-lem-full-target-report
+     :target-shape "AxiomConj(S_xtab_lem) /\\ not(SelfCons(S_xtab_lem))"
      :status :implemented
      :remaining-evidence boundary-final-evidence-obligations}}
    :evidence-screens
@@ -1459,8 +1467,7 @@
                          :full-generated-selfcons-contradiction-target
                          :constructed-certificate
                          :proof-search-synthesis}
-    :xtab-or-lem-axiom #{:full-generated-selfcons-contradiction-target
-                         :constructed-certificate
+    :xtab-or-lem-axiom #{:constructed-certificate
                          :proof-search-synthesis}}
    :workstream-complete? false})
 

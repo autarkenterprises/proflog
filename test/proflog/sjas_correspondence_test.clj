@@ -619,12 +619,13 @@
              (get-in audit [:variant-statuses :total-multiplication])))
       (is (= :surface-implemented
              (get-in audit [:variant-statuses :tab-2-or-stronger])))
-      (is (= :reduced-witness-implemented
+      (is (= :full-target-implemented
              (get-in audit [:variant-statuses :xtab-or-lem-axiom])))
       (is (= #{:reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
              (get-in audit [:completed-witness-stages :total-multiplication])))
-      (is (= #{:reduced-reflected-beta-witness}
+      (is (= #{:reduced-reflected-beta-witness
+               :full-generated-selfcons-contradiction-target}
              (get-in audit [:completed-witness-stages :xtab-or-lem-axiom])))
       (is (= #{:constructed-certificate
                :proof-search-synthesis}
@@ -634,16 +635,23 @@
                :constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :tab-2-or-stronger])))
-      (is (= #{:full-generated-selfcons-contradiction-target
-               :constructed-certificate
+      (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :xtab-or-lem-axiom])))
       (is (= {:kind :universal-lem-seed
               :witness-relation 'xtab-lem-demo
               :axiom-count 1
               :status :implemented
-              :remaining-stage :full-generated-selfcons-contradiction-target}
+              :remaining-stage :completed}
              (get-in audit [:reduced-witnesses :xtab-or-lem-axiom])))
+      (is (= {:kind :generated-selfcons-refutation
+              :system-builder 'xtab-lem-reduced-witness-system
+              :target-report 'xtab-lem-full-target-report
+              :target-shape "AxiomConj(S_xtab_lem) /\\ not(SelfCons(S_xtab_lem))"
+              :status :implemented
+              :remaining-evidence #{:constructed-certificate
+                                    :proof-search-synthesis}}
+             (get-in audit [:full-targets :xtab-or-lem-axiom])))
       (is (= :implemented
              (get-in audit [:evidence-screens :total-multiplication :status])))
       (is (= :implemented
@@ -712,22 +720,44 @@
   (testing "ADR-0133: Xtab/LEM reduced witness records the finite reflected beta seed"
     (let [audit (correspondence/audit-boundary-failure-roadmap)
           witness (get-in audit [:reduced-witnesses :xtab-or-lem-axiom])]
-      (is (= :reduced-witness-implemented
+      (is (= :full-target-implemented
              (get-in audit [:variant-statuses :xtab-or-lem-axiom])))
-      (is (= #{:reduced-reflected-beta-witness}
+      (is (= #{:reduced-reflected-beta-witness
+               :full-generated-selfcons-contradiction-target}
              (get-in audit [:completed-witness-stages :xtab-or-lem-axiom])))
       (is (= {:kind :universal-lem-seed
               :witness-relation 'xtab-lem-demo
               :axiom-count 1
               :status :implemented
-              :remaining-stage :full-generated-selfcons-contradiction-target}
+              :remaining-stage :completed}
              witness))
-      (is (= #{:full-generated-selfcons-contradiction-target
-               :constructed-certificate
+      (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :xtab-or-lem-axiom])))
       (is (= :surface-implemented
              (:status (get-in audit [:variant-surfaces :xtab-or-lem-axiom]))))
+      (is (false? (:workstream-complete? audit))))))
+
+(deftest xtab-lem-full-target-records-generated-selfcons-stage
+  (testing "ADR-0134: Xtab/LEM full target records generated SelfCons refutation stage"
+    (let [audit (correspondence/audit-boundary-failure-roadmap)
+          target (get-in audit [:full-targets :xtab-or-lem-axiom])]
+      (is (= :full-target-implemented
+             (get-in audit [:variant-statuses :xtab-or-lem-axiom])))
+      (is (= #{:reduced-reflected-beta-witness
+               :full-generated-selfcons-contradiction-target}
+             (get-in audit [:completed-witness-stages :xtab-or-lem-axiom])))
+      (is (= {:kind :generated-selfcons-refutation
+              :system-builder 'xtab-lem-reduced-witness-system
+              :target-report 'xtab-lem-full-target-report
+              :target-shape "AxiomConj(S_xtab_lem) /\\ not(SelfCons(S_xtab_lem))"
+              :status :implemented
+              :remaining-evidence #{:constructed-certificate
+                                    :proof-search-synthesis}}
+             target))
+      (is (= #{:constructed-certificate
+               :proof-search-synthesis}
+             (get-in audit [:open-obligations :xtab-or-lem-axiom])))
       (is (false? (:workstream-complete? audit))))))
 
 (deftest boundary-evidence-screen-rejects-trivial-selfcons-evidence

@@ -1383,7 +1383,8 @@
    constructed certificates and proof-search synthesis evidence remain open.
    ADR-0133 and ADR-0134 complete the reduced and generated-target
    Xtab/LEM-as-axiom witness stages while leaving final evidence open.
-   ADR-0136 completes the reduced Tab-2-or-stronger witness only."
+   ADR-0136 completes the reduced Tab-2-or-stronger witness, and ADR-0137
+   completes its generated SelfCons contradiction target."
   {:workstream :workstream-b
    :first-variant :total-multiplication
    :planned-variants #{:total-multiplication
@@ -1393,12 +1394,13 @@
                              :full-generated-selfcons-contradiction-target]
    :final-evidence-required boundary-final-evidence-obligations
    :variant-statuses {:total-multiplication :full-target-implemented
-                      :tab-2-or-stronger :reduced-witness-implemented
+                      :tab-2-or-stronger :full-target-implemented
                       :xtab-or-lem-axiom :full-target-implemented}
    :completed-witness-stages
    {:total-multiplication #{:reduced-reflected-beta-witness
                             :full-generated-selfcons-contradiction-target}
-    :tab-2-or-stronger #{:reduced-reflected-beta-witness}
+    :tab-2-or-stronger #{:reduced-reflected-beta-witness
+                         :full-generated-selfcons-contradiction-target}
     :xtab-or-lem-axiom #{:reduced-reflected-beta-witness
                          :full-generated-selfcons-contradiction-target}}
    :reduced-witnesses
@@ -1437,6 +1439,13 @@
      :system-builder 'xtab-lem-reduced-witness-system
      :target-report 'xtab-lem-full-target-report
      :target-shape "AxiomConj(S_xtab_lem) /\\ not(SelfCons(S_xtab_lem))"
+     :status :implemented
+     :remaining-evidence boundary-final-evidence-obligations}
+    :tab-2-or-stronger
+    {:kind :generated-selfcons-refutation
+     :system-builder 'tab2-or-stronger-full-target-system
+     :target-report 'tab2-or-stronger-full-target-report
+     :target-shape "AxiomConj(S_tab2_boundary) /\\ not(SelfCons(S_tab2_boundary))"
      :status :implemented
      :remaining-evidence boundary-final-evidence-obligations}}
    :evidence-screens
@@ -1489,8 +1498,7 @@
     :xtab-or-lem-axiom xtab-or-lem-boundary-surface}
    :open-obligations
    {:total-multiplication boundary-final-evidence-obligations
-    :tab-2-or-stronger #{:full-generated-selfcons-contradiction-target
-                         :constructed-certificate
+    :tab-2-or-stronger #{:constructed-certificate
                          :proof-search-synthesis}
     :xtab-or-lem-axiom #{:constructed-certificate
                          :proof-search-synthesis}}

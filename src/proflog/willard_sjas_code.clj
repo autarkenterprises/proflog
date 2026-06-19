@@ -138,6 +138,7 @@
 (def ^:private profile-level1-tag 33)
 (def ^:private reflected-clause-tag 34)
 (def ^:private profile-tab1-tag 35)
+(def ^:private profile-tab2-boundary-tag 36)
 (def proof-symbol-tag 41)
 (def proof-list-tag 42)
 (def proof-empty-list-tag 43)
@@ -642,6 +643,7 @@
     :willard-sjas-tableau0 profile-tableau0-tag
     :willard-sjas-level1 profile-level1-tag
     :willard-sjas-tab1 profile-tab1-tag
+    :willard-sjas-tab2-boundary profile-tab2-boundary-tag
     (throw (ex-info "Unsupported SJAS profile for coding"
                     {:profile profile}))))
 

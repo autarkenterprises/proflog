@@ -1430,6 +1430,38 @@
              (:remaining-obligations report)))
       (is (false? (:completion-claimed? report))))))
 
+(deftest sjas-tab2-full-target-names-generated-selfcons
+  (testing "ADR-0137 generates the Tab-2-or-stronger SelfCons refutation target"
+    (let [system (sjas/tab2-or-stronger-full-target-system)
+          report (sjas/tab2-or-stronger-full-target-report)
+          group3-relations (set (formula-relation-symbols
+                                  (:formula (:group-three system))))
+          system-negated-selfcons (normalize/negate-formula
+                                    (:formula (:group-three system)))
+          system-refutation-target (ast/and-form (:axiom-formula system)
+                                                 system-negated-selfcons)]
+      (is (= :willard-sjas-tab2-boundary (:profile system)))
+      (is (= 3 (get-in system [:language :relations 'dsjas-tab2-proof])))
+      (is (contains? group3-relations 'dsjas-tab2-proof))
+      (is (contains? group3-relations 'neg-pair))
+      (is (not (contains? group3-relations 'dsjas-tab1-proof)))
+      (is (not (contains? group3-relations 'pi-star-1-code)))
+      (is (= :tab-2-or-stronger (:variant report)))
+      (is (= :full-generated-selfcons-contradiction-target
+             (:witness-stage report)))
+      (is (= (:system-code system) (:system-code report)))
+      (is (= (:code (:group-three system)) (:group-three-code report)))
+      (is (= (sjas/formula-code system system-negated-selfcons)
+             (sjas/formula-code system (:negated-selfcons-formula report))))
+      (is (= (sjas/formula-code system system-refutation-target)
+             (sjas/formula-code system (:selfcons-refutation-target report))))
+      (is (= (:target-code report)
+             (sjas/formula-code system (:selfcons-refutation-target report))))
+      (is (= :open (:constructed-certificate-status report)))
+      (is (= :open (:proof-search-synthesis-status report)))
+      (is (true? (:durable-probe-required? report)))
+      (is (false? (:completion-claimed? report))))))
+
 (deftest sjas-xtab-lem-certificate-validation-targets-generated-selfcons
   (testing "ADR-0135 validates supplied proof codes against the generated Xtab/LEM SelfCons target"
     (let [opts {:profile :willard-sjas-level1

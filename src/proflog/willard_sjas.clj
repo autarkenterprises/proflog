@@ -127,6 +127,10 @@
    'subst-prf 4
    'dsjas-subst-prf 4})
 
+(def tab2-boundary-relations
+  "Target-only relations for the Tab-2-or-stronger boundary variant."
+  {'dsjas-tab2-proof 3})
+
 (def u-grounding-language
   "Base SJAS signature without a proof-profile selection."
   (language/language
@@ -1172,6 +1176,43 @@
                                   (ast/var-term y)
                                   (ast/var-term q))))))))))))
 
+(defn- selfcons-tab2-boundary-formula
+  "Target-only Tab-2-or-stronger consistency sentence.
+
+   The profile deliberately names `dsjas-tab2-proof/3` without implementing its
+   proof checker. Unlike Tab-1, this boundary target has no `Pi*_1` guard:
+   allowing stronger intermediate theorem classes is the unsafe move under
+   examination."
+  [system-code]
+  (let [x (nominal/nom (lvar 'x))
+        y (nominal/nom (lvar 'y))
+        p (nominal/nom (lvar 'p))
+        q (nominal/nom (lvar 'q))]
+    (ast/forall-form
+      x
+      (ast/forall-form
+        y
+        (ast/forall-form
+          p
+          (ast/forall-form
+            q
+            (ast/or-form
+              (ast/neg-lit
+                (ast/app-term 'neg-pair
+                              (ast/var-term x)
+                              (ast/var-term y)))
+              (ast/or-form
+                (ast/neg-lit
+                  (ast/app-term 'dsjas-tab2-proof
+                                system-code
+                                (ast/var-term x)
+                                (ast/var-term p)))
+                (ast/neg-lit
+                  (ast/app-term 'dsjas-tab2-proof
+                                system-code
+                                (ast/var-term y)
+                                (ast/var-term q)))))))))))
+
 (defn- group-three-record
   [profile coding-context system-code contradiction-code code-format]
   (case profile
@@ -1191,6 +1232,14 @@
                                                    formula
                                                    {}
                                                    code-format)})
+    :willard-sjas-tab2-boundary
+    (let [formula (selfcons-tab2-boundary-formula system-code)]
+      {:group :group-three
+       :formula formula
+       :code (formula-code-term coding-context
+                                formula
+                                {}
+                                code-format)})
     (throw (ex-info "Unsupported Willard SJAS profile"
                     {:profile profile}))))
 
@@ -1231,7 +1280,7 @@
 
    Options:
    - `:profile`: `:willard-sjas-tableau0`, `:willard-sjas-level1`,
-     or `:willard-sjas-tab1`;
+     `:willard-sjas-tab1`, or target-only `:willard-sjas-tab2-boundary`;
    - `:code-format`: `:compact` for `code-N` terms or `:u-grounding` for
      ordinary binary numeral codes;
    - `:constants`: extra user constants;
@@ -1253,6 +1302,9 @@
   (let [reflected-clauses (vec reflected-clauses)
         external-clauses (vec external-clauses)
         beta (vec beta)
+        relations (if (= :willard-sjas-tab2-boundary profile)
+                    (merge relations tab2-boundary-relations)
+                    relations)
         _ (validate-reflected-basis! beta reflected-clauses)
         source {:profile profile
                 :beta beta
@@ -1516,6 +1568,18 @@
                          :full-generated-selfcons-contradiction-target}
       :completion-claimed? false})))
 
+(defn tab2-or-stronger-full-target-system
+  "Build the ADR-0137 target-only Tab-2-or-stronger boundary system.
+
+   The generated system names `dsjas-tab2-proof/3` in Group-3/SelfCons but does
+   not install a proof-profile method for that relation. It is a target
+   generator for Workstream B, not a Tab-2 checker."
+  ([]
+   (tab2-or-stronger-full-target-system {}))
+  ([opts]
+   (system
+     (assoc opts :profile :willard-sjas-tab2-boundary))))
+
 (defn selfcons-negation-target
   "Return the generated negative SelfCons theorem target for `system`.
 
@@ -1591,6 +1655,33 @@
       :constructed-certificate-status :open
       :proof-search-synthesis-status :open
       :durable-probe-required? true})))
+
+(defn tab2-or-stronger-full-target-report
+  "Describe the ADR-0137 full target for the Tab-2-or-stronger variant.
+
+   The report exposes the generated SelfCons refutation target for the
+   target-only Tab-2 boundary profile. Certificate and synthesis fields remain
+   open because no Tab-2 checker or contradiction proof is implemented here."
+  ([]
+   (tab2-or-stronger-full-target-report {}))
+  ([opts]
+   (let [system (tab2-or-stronger-full-target-system opts)
+         negated-selfcons (selfcons-negation-target system)
+         refutation-target (ast/and-form (:axiom-formula system)
+                                         negated-selfcons)]
+     {:variant :tab-2-or-stronger
+      :witness-stage :full-generated-selfcons-contradiction-target
+      :system-code (:system-code system)
+      :group-three-code (:code (:group-three system))
+      :axiom-formula (:axiom-formula system)
+      :selfcons-formula (:formula (:group-three system))
+      :negated-selfcons-formula negated-selfcons
+      :selfcons-refutation-target refutation-target
+      :target-code (formula-code system refutation-target)
+      :constructed-certificate-status :open
+      :proof-search-synthesis-status :open
+      :durable-probe-required? true
+      :completion-claimed? false})))
 
 (defn- proof-code-certificate-kind
   "Classify a public proof-code term for Workstream B evidence intake."

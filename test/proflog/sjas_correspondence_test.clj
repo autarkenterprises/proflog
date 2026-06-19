@@ -617,14 +617,15 @@
              (:final-evidence-required audit)))
       (is (= :full-target-implemented
              (get-in audit [:variant-statuses :total-multiplication])))
-      (is (= :reduced-witness-implemented
+      (is (= :full-target-implemented
              (get-in audit [:variant-statuses :tab-2-or-stronger])))
       (is (= :full-target-implemented
              (get-in audit [:variant-statuses :xtab-or-lem-axiom])))
       (is (= #{:reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
              (get-in audit [:completed-witness-stages :total-multiplication])))
-      (is (= #{:reduced-reflected-beta-witness}
+      (is (= #{:reduced-reflected-beta-witness
+               :full-generated-selfcons-contradiction-target}
              (get-in audit [:completed-witness-stages :tab-2-or-stronger])))
       (is (= #{:reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
@@ -632,8 +633,7 @@
       (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :total-multiplication])))
-      (is (= #{:full-generated-selfcons-contradiction-target
-               :constructed-certificate
+      (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :tab-2-or-stronger])))
       (is (= #{:constructed-certificate
@@ -663,6 +663,14 @@
               :remaining-evidence #{:constructed-certificate
                                     :proof-search-synthesis}}
              (get-in audit [:full-targets :xtab-or-lem-axiom])))
+      (is (= {:kind :generated-selfcons-refutation
+              :system-builder 'tab2-or-stronger-full-target-system
+              :target-report 'tab2-or-stronger-full-target-report
+              :target-shape "AxiomConj(S_tab2_boundary) /\\ not(SelfCons(S_tab2_boundary))"
+              :status :implemented
+              :remaining-evidence #{:constructed-certificate
+                                    :proof-search-synthesis}}
+             (get-in audit [:full-targets :tab-2-or-stronger])))
       (is (= :implemented
              (get-in audit [:evidence-screens :total-multiplication :status])))
       (is (= :implemented

@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-19
 
+- Spawned [ADR-0137](docs/adr/ADR-0137-sjas-tab2-full-target.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0137-sjas-tab2-full-target`. This slice targets the full generated
+  SelfCons contradiction target for the ADR-0136 Tab-2-or-stronger reduced
+  witness, without implementing a Tab-2 checker, constructed certificate, or
+  synthesis evidence. Completed with
+  [AAR-0137](docs/aar/AAR-0137-sjas-tab2-full-target.md); gates:
+  `lein test-proflog-fast` 229/1457 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1259 fail=0 error=0`.
 - Spawned [ADR-0136](docs/adr/ADR-0136-sjas-tab2-reduced-witness.md)
   from ADR-0119 Workstream B on branch
   `adr-0136-sjas-tab2-reduced-witness`. This slice targets the

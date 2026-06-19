@@ -130,3 +130,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0133](AAR-0133-sjas-xtab-lem-reduced-witness.md) | [ADR-0133](../adr/ADR-0133-sjas-xtab-lem-reduced-witness.md) | completed |
 | [AAR-0134](AAR-0134-sjas-xtab-lem-full-target.md) | [ADR-0134](../adr/ADR-0134-sjas-xtab-lem-full-target.md) | completed |
 | [AAR-0135](AAR-0135-sjas-xtab-lem-certificate-validation.md) | [ADR-0135](../adr/ADR-0135-sjas-xtab-lem-certificate-validation.md) | completed |
+| [AAR-0136](AAR-0136-sjas-tab2-reduced-witness.md) | [ADR-0136](../adr/ADR-0136-sjas-tab2-reduced-witness.md) | completed |

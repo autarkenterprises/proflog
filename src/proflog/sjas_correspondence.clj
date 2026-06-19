@@ -1382,7 +1382,8 @@
    and ADR-0126 complete its reduced witness and generated target stages, but
    constructed certificates and proof-search synthesis evidence remain open.
    ADR-0133 and ADR-0134 complete the reduced and generated-target
-   Xtab/LEM-as-axiom witness stages while leaving final evidence open."
+   Xtab/LEM-as-axiom witness stages while leaving final evidence open.
+   ADR-0136 completes the reduced Tab-2-or-stronger witness only."
   {:workstream :workstream-b
    :first-variant :total-multiplication
    :planned-variants #{:total-multiplication
@@ -1392,11 +1393,12 @@
                              :full-generated-selfcons-contradiction-target]
    :final-evidence-required boundary-final-evidence-obligations
    :variant-statuses {:total-multiplication :full-target-implemented
-                      :tab-2-or-stronger :surface-implemented
+                      :tab-2-or-stronger :reduced-witness-implemented
                       :xtab-or-lem-axiom :full-target-implemented}
    :completed-witness-stages
    {:total-multiplication #{:reduced-reflected-beta-witness
                             :full-generated-selfcons-contradiction-target}
+    :tab-2-or-stronger #{:reduced-reflected-beta-witness}
     :xtab-or-lem-axiom #{:reduced-reflected-beta-witness
                          :full-generated-selfcons-contradiction-target}}
    :reduced-witnesses
@@ -1410,6 +1412,16 @@
     {:kind :universal-lem-seed
      :witness-relation 'xtab-lem-demo
      :axiom-count 1
+     :status :implemented
+     :remaining-stage :completed}
+    :tab-2-or-stronger
+    {:kind :rank2-theorem-shape
+     :report-helper 'tab2-or-stronger-reduced-witness-report
+     :witness-formula "forall x. exists y. true"
+     :outside-tab1-classifiers #{:pi-star-1
+                                 :sigma-star-1
+                                 :pi-star-1-encodable}
+     :ordinary-tableau-validation :implemented
      :status :implemented
      :remaining-stage :completed}}
    :full-targets
@@ -1477,8 +1489,7 @@
     :xtab-or-lem-axiom xtab-or-lem-boundary-surface}
    :open-obligations
    {:total-multiplication boundary-final-evidence-obligations
-    :tab-2-or-stronger #{:reduced-reflected-beta-witness
-                         :full-generated-selfcons-contradiction-target
+    :tab-2-or-stronger #{:full-generated-selfcons-contradiction-target
                          :constructed-certificate
                          :proof-search-synthesis}
     :xtab-or-lem-axiom #{:constructed-certificate

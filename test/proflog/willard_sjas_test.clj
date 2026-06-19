@@ -1400,6 +1400,36 @@
                          :proof-limit 1})))
           "target construction must not be counted as a contradiction proof"))))
 
+(deftest sjas-tab2-reduced-witness-exhibits-non-tab1-intermediate
+  (testing "ADR-0136 witness is an ordinary tableau theorem shape outside Tab-1 intermediate classes"
+    (let [report (sjas/tab2-or-stronger-reduced-witness-report)
+          formula (:witness-formula report)
+          proof-code (:ordinary-tableau-proof-code report)
+          baseline-system (sjas/system {:profile (:baseline-profile report)})
+          validation (:ordinary-tableau-validation report)]
+      (is (= :tab-2-or-stronger (:variant report)))
+      (is (= :reduced-reflected-beta-witness (:witness-stage report)))
+      (is (= :willard-sjas-tab1 (:baseline-profile report)))
+      (is (= {:pi-star-1? false
+              :sigma-star-1? false
+              :pi-star-1-encodable? false}
+             (:tab1-classifier-status report)))
+      (is (= formula (sjas/tab2-rank2-witness-formula)))
+      (is (= (:witness-formula-code report)
+             (sjas/formula-code baseline-system formula)))
+      (is (= proof-code (:proof-code validation)))
+      (is (= :tableau-proof (:validator validation)))
+      (is (= :willard-sjas-tableau0 (:profile validation)))
+      (is (true? (:proof-valid? validation)))
+      (is (not (sjas/pi-star-1? formula)))
+      (is (not (sjas/sigma-star-1? formula)))
+      (is (not (sjas/pi-star-1-encodable? formula)))
+      (is (= #{:full-generated-selfcons-contradiction-target
+               :constructed-certificate
+               :proof-search-synthesis}
+             (:remaining-obligations report)))
+      (is (false? (:completion-claimed? report))))))
+
 (deftest sjas-xtab-lem-certificate-validation-targets-generated-selfcons
   (testing "ADR-0135 validates supplied proof codes against the generated Xtab/LEM SelfCons target"
     (let [opts {:profile :willard-sjas-level1

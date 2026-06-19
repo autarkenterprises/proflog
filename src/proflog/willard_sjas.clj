@@ -923,6 +923,52 @@
       (throw (ex-info "Expected an SJAS formal code term"
                       {:code-term code-term}))))
 
+(defn- proof-side-antecedent-formula
+  "Return the formula shape reconstructed for proof-predicate antecedents.
+
+   The arithmeticized proof predicates decode finite-system formulas through
+   `sjas-proof-antecedent-formula-asto`: formulas are put in NNF and antecedent
+   universals become single-use branch formulas. Structural proof objects
+   generated at the source boundary must use the same shape in their root
+   formula bytes."
+  [formula]
+  (letfn [(once-forall-antecedents [formula]
+            (case (ast/tag-of formula)
+              and (ast/and-form
+                    (once-forall-antecedents (second formula))
+                    (once-forall-antecedents (nth formula 2)))
+              or (ast/or-form
+                   (once-forall-antecedents (second formula))
+                   (once-forall-antecedents (nth formula 2)))
+              forall (ast/once-forall-form
+                       (:binding-nom (second formula))
+                       (once-forall-antecedents (:body (second formula))))
+              once-forall (ast/once-forall-form
+                             (:binding-nom (second formula))
+                             (once-forall-antecedents (:body (second formula))))
+              exists (ast/exists-form
+                       (:binding-nom (second formula))
+                       (once-forall-antecedents (:body (second formula))))
+              formula))]
+    (once-forall-antecedents (normalize/to-nnf formula))))
+
+(defn- structural-byte-list-tableau-node
+  "Encode one formula-bearing structural proof node using explicit byte lists."
+  [system formula & children]
+  (apply list
+         (cons (apply list (formal-code-term-bytes (formula-code system
+                                                                 formula)))
+               children)))
+
+(defn- canonical-structural-byte-list-tableau-node
+  "Encode one structural proof node from canonical formula-code syntax."
+  [system canonical-formula & children]
+  (let [code (sjas-code/canonical-formula-formal-code-term
+               (:coding-context system)
+               canonical-formula
+               (:code-format system :compact))]
+    (apply list (cons (apply list (formal-code-term-bytes code)) children))))
+
 (defn selfcons-godel-code-report
   "Return the concrete Group-3 self-consistency Godel code for `system`.
 
@@ -1368,6 +1414,107 @@
        (assoc opts
               :relations (merge (:relations opts) witness-relations)
               :beta (vec (concat witness-beta (:beta opts))))))))
+
+(defn tab2-rank2-witness-formula
+  "Return the ADR-0136 reduced witness formula for Tab-2-or-stronger reuse.
+
+   The formula is intentionally a `forall`-then-`exists` theorem shape outside
+   the implemented Tab-1 intermediate classes. It is not intended as a useful
+   mathematical theorem; it is a compact executable witness for the deduction
+   strength boundary."
+  []
+  (let [x (sjas-code/code-nom 1)
+        y (sjas-code/code-nom 2)]
+    (ast/forall-form x
+      (ast/exists-form y
+        (ast/true-form)))))
+
+(defn- tab2-rank2-witness-proof
+  "Return an ordinary structural tableau proof for the ADR-0136 witness."
+  [system witness-formula]
+  (let [negated-witness (normalize/negate-formula witness-formula)
+        target (ast/and-form
+                 (proof-side-antecedent-formula (:axiom-formula system))
+                 negated-witness)
+        canonical-false (list 'false)
+        canonical-once-forall (list 'once-forall 'v1 canonical-false)
+        canonical-negated (list 'exists 'v0 canonical-once-forall)]
+    (structural-byte-list-tableau-node
+      system
+      target
+      (canonical-structural-byte-list-tableau-node
+        system
+        canonical-negated
+        (canonical-structural-byte-list-tableau-node
+          system
+          canonical-once-forall
+          (canonical-structural-byte-list-tableau-node
+            system
+            canonical-false))))))
+
+(defn tab2-or-stronger-reduced-witness-report
+  "Describe the ADR-0136 reduced witness for the Tab-2-or-stronger variant.
+
+   Classification is recorded against the implemented Tab-1 proof-list
+   baseline. Ordinary theorem validity is checked through the existing
+   Tableau-0 structural `tableau-proof/3` path because this ADR does not add a
+   Tab-2 proof-list checker."
+  ([]
+   (tab2-or-stronger-reduced-witness-report {}))
+  ([opts]
+   (let [proof-limit (:proof-limit opts 1)
+         fuel (:fuel opts 360)
+         proof-validation-profile (:proof-validation-profile opts
+                                                             :willard-sjas-tableau0)
+         system-opts (dissoc opts
+                             :fuel
+                             :proof-limit
+                             :proof-validation-profile)
+         baseline-system (system (assoc system-opts
+                                        :profile :willard-sjas-tab1))
+         validation-system (system (assoc system-opts
+                                          :profile proof-validation-profile))
+         witness-formula (tab2-rank2-witness-formula)
+         witness-formula-code (formula-code baseline-system witness-formula)
+         validation-theorem-code (formula-code validation-system
+                                               witness-formula)
+         proof (tab2-rank2-witness-proof validation-system witness-formula)
+         proof-code (proof-certificate proof)
+         proofs (query/query-succeeds
+                  (:program validation-system)
+                  (tableau-proof (:system-code validation-system)
+                                 validation-theorem-code
+                                 proof-code)
+                  proof-limit
+                  fuel)]
+     {:variant :tab-2-or-stronger
+      :witness-stage :reduced-reflected-beta-witness
+      :kind :rank2-theorem-shape
+      :baseline-profile :willard-sjas-tab1
+      :baseline-system-code (:system-code baseline-system)
+      :witness-formula witness-formula
+      :witness-formula-code witness-formula-code
+      :tab1-classifier-status {:pi-star-1? (pi-star-1? witness-formula)
+                               :sigma-star-1? (sigma-star-1? witness-formula)
+                               :pi-star-1-encodable?
+                               (pi-star-1-encodable? witness-formula)}
+      :ordinary-tableau-validation
+      {:validator :tableau-proof
+       :profile (:profile validation-system)
+       :system-code (:system-code validation-system)
+       :theorem-code validation-theorem-code
+       :proof-code proof-code
+       :proof-limit proof-limit
+       :fuel fuel
+       :proof-count (count proofs)
+       :proof-valid? (boolean (seq proofs))}
+      :ordinary-tableau-proof-code proof-code
+      :remaining-obligations #{:full-generated-selfcons-contradiction-target
+                               :constructed-certificate
+                               :proof-search-synthesis}
+      :not-implemented #{:tab2-proof-checker
+                         :full-generated-selfcons-contradiction-target}
+      :completion-claimed? false})))
 
 (defn selfcons-negation-target
   "Return the generated negative SelfCons theorem target for `system`.

@@ -20,6 +20,20 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-19
+
+- Spawned [ADR-0136](docs/adr/ADR-0136-sjas-tab2-reduced-witness.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0136-sjas-tab2-reduced-witness`. This slice targets the
+  Tab-2-or-stronger reduced witness: a concrete theorem-reuse witness outside
+  the implemented Tab-1 intermediate classifier, while leaving the Tab-2
+  checker, full generated SelfCons target, constructed certificate, and
+  synthesis evidence open. Completed with
+  [AAR-0136](docs/aar/AAR-0136-sjas-tab2-reduced-witness.md); gates:
+  `lein test-proflog-fast` 229/1456 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1242 fail=0 error=0`.
+
 ## 2026-06-18
 
 - Spawned [ADR-0135](docs/adr/ADR-0135-sjas-xtab-lem-certificate-validation.md)

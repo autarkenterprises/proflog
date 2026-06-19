@@ -617,21 +617,22 @@
              (:final-evidence-required audit)))
       (is (= :full-target-implemented
              (get-in audit [:variant-statuses :total-multiplication])))
-      (is (= :surface-implemented
+      (is (= :reduced-witness-implemented
              (get-in audit [:variant-statuses :tab-2-or-stronger])))
       (is (= :full-target-implemented
              (get-in audit [:variant-statuses :xtab-or-lem-axiom])))
       (is (= #{:reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
              (get-in audit [:completed-witness-stages :total-multiplication])))
+      (is (= #{:reduced-reflected-beta-witness}
+             (get-in audit [:completed-witness-stages :tab-2-or-stronger])))
       (is (= #{:reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
              (get-in audit [:completed-witness-stages :xtab-or-lem-axiom])))
       (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :total-multiplication])))
-      (is (= #{:reduced-reflected-beta-witness
-               :full-generated-selfcons-contradiction-target
+      (is (= #{:full-generated-selfcons-contradiction-target
                :constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :tab-2-or-stronger])))
@@ -644,6 +645,16 @@
               :status :implemented
               :remaining-stage :completed}
              (get-in audit [:reduced-witnesses :xtab-or-lem-axiom])))
+      (is (= {:kind :rank2-theorem-shape
+              :report-helper 'tab2-or-stronger-reduced-witness-report
+              :witness-formula "forall x. exists y. true"
+              :outside-tab1-classifiers #{:pi-star-1
+                                          :sigma-star-1
+                                          :pi-star-1-encodable}
+              :ordinary-tableau-validation :implemented
+              :status :implemented
+              :remaining-stage :completed}
+             (get-in audit [:reduced-witnesses :tab-2-or-stronger])))
       (is (= {:kind :generated-selfcons-refutation
               :system-builder 'xtab-lem-reduced-witness-system
               :target-report 'xtab-lem-full-target-report

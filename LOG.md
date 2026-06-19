@@ -22,6 +22,20 @@ complete contemporaneous transcript.
 
 ## 2026-06-19
 
+- Spawned [ADR-0139](docs/adr/ADR-0139-sjas-boundary-synthesis-probe.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0139-sjas-boundary-synthesis-probe`. This slice adds a shared
+  proof-search synthesis probe and durable-result screening surface for the
+  three generated boundary targets, while rejecting ordinary synthesized
+  `sjas-axiom` SelfCons citation as non-final evidence. Completed with
+  [AAR-0139](docs/aar/AAR-0139-sjas-boundary-synthesis-probe.md); focused
+  selectors: `lein test-vars :not-slow
+  proflog.sjas-boundary-synthesis-probe-test` `pass=36 fail=0 error=0`, and
+  `lein test-vars
+  proflog.sjas-correspondence-test/boundary-proof-search-synthesis-probe-recorded-for-final-evidence`
+  `pass=19 fail=0 error=0`. Final gates: `lein test-proflog-fast` 231/1484
+  green, `lein test-proflog-extended` 78/277 green, and
+  `lein test-proflog-sjas` `pass=1310 fail=0 error=0`.
 - Spawned [ADR-0138](docs/adr/ADR-0138-sjas-tab2-certificate-validation.md)
   from ADR-0119 Workstream B on branch
   `adr-0138-sjas-tab2-certificate-validation`. This slice targets the

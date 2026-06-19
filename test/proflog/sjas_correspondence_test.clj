@@ -738,6 +738,33 @@
                :proof-search-synthesis}
              (get-in audit [:open-obligations :tab-2-or-stronger]))))))
 
+(deftest boundary-proof-search-synthesis-probe-recorded-for-final-evidence
+  (testing "ADR-0139: Workstream B advertises a synthesis probe without closing final evidence"
+    (let [audit (correspondence/audit-boundary-failure-roadmap)]
+      (doseq [variant [:total-multiplication
+                       :xtab-or-lem-axiom
+                       :tab-2-or-stronger]
+              :let [probe (get-in audit
+                                   [:evidence-probes
+                                    variant
+                                    :proof-search-synthesis])]]
+        (is (= :implemented (:status probe)))
+        (is (= 'boundary-proof-search-synthesis-report
+               (:probe-helper probe)))
+        (is (= 'boundary-proof-search-synthesis-plan
+               (:plan-helper probe)))
+        (is (= #{:generated-target
+                 :fresh-proof-variable
+                 :durable-log-path
+                 :screen-boundary-evidence
+                 :target-validation-helper}
+               (:requires probe)))
+        (is (= #{}
+               (:completed-obligations probe)))
+        (is (= correspondence/boundary-final-evidence-obligations
+               (:remaining-obligations probe))))
+      (is (false? (:workstream-complete? audit))))))
+
 (deftest tab2-boundary-surface-distinguishes-negative-proof-list-variant
   (testing "ADR-0129: Tab-2-or-stronger is a Workstream B boundary surface, not Tab-1 completion"
     (let [surface (correspondence/audit-tab2-or-stronger-boundary-surface)]

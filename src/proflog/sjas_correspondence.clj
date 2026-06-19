@@ -1505,6 +1505,43 @@
                   :successful-proof-validation}
       :completes-on-success #{:constructed-certificate}
       :leaves-open #{:proof-search-synthesis}}}}
+   :evidence-probes
+   {:total-multiplication
+    {:proof-search-synthesis
+     {:status :implemented
+      :probe-helper 'boundary-proof-search-synthesis-report
+      :plan-helper 'boundary-proof-search-synthesis-plan
+      :requires #{:generated-target
+                  :fresh-proof-variable
+                  :durable-log-path
+                  :screen-boundary-evidence
+                  :target-validation-helper}
+      :completed-obligations #{}
+      :remaining-obligations boundary-final-evidence-obligations}}
+    :xtab-or-lem-axiom
+    {:proof-search-synthesis
+     {:status :implemented
+      :probe-helper 'boundary-proof-search-synthesis-report
+      :plan-helper 'boundary-proof-search-synthesis-plan
+      :requires #{:generated-target
+                  :fresh-proof-variable
+                  :durable-log-path
+                  :screen-boundary-evidence
+                  :target-validation-helper}
+      :completed-obligations #{}
+      :remaining-obligations boundary-final-evidence-obligations}}
+    :tab-2-or-stronger
+    {:proof-search-synthesis
+     {:status :implemented
+      :probe-helper 'boundary-proof-search-synthesis-report
+      :plan-helper 'boundary-proof-search-synthesis-plan
+      :requires #{:generated-target
+                  :fresh-proof-variable
+                  :durable-log-path
+                  :screen-boundary-evidence
+                  :target-validation-helper}
+      :completed-obligations #{}
+      :remaining-obligations boundary-final-evidence-obligations}}}
    :variant-surfaces
    {:total-multiplication {:status :implemented
                            :kind :language-extension

@@ -122,7 +122,8 @@
    'tableau-proof
    'wff
    'tab1-proof
-   'dsjas-tab1-proof])
+   'dsjas-tab1-proof
+   'dsjas-tab2-proof])
 
 (def reserved-symbol->index
   "One-based indexes for `reserved-coding-symbols`."

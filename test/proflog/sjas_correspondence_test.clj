@@ -697,7 +697,46 @@
                       :xtab-or-lem-axiom
                       :constructed-certificate
                       :validation-helper])))
+      (is (= :implemented
+             (get-in audit
+                     [:evidence-verifiers
+                      :tab-2-or-stronger
+                      :constructed-certificate
+                      :status])))
+      (is (= 'tab2-or-stronger-constructed-certificate-validation
+             (get-in audit
+                     [:evidence-verifiers
+                      :tab-2-or-stronger
+                      :constructed-certificate
+                      :validation-helper])))
       (is (false? (:workstream-complete? audit))))))
+
+(deftest tab2-certificate-validation-recorded-for-generated-target
+  (testing "ADR-0138: Tab-2 constructed-certificate validation helper is advertised but not completed"
+    (let [audit (correspondence/audit-boundary-failure-roadmap)
+          verifier (get-in audit
+                           [:evidence-verifiers
+                            :tab-2-or-stronger
+                            :constructed-certificate])]
+      (is (= 'verify-boundary-constructed-certificate
+             (:verifier-helper verifier)))
+      (is (= 'tab2-or-stronger-constructed-certificate-validation
+             (:validation-helper verifier)))
+      (is (= #{:screened-candidate
+               :matching-system-code
+               :matching-selfcons-code
+               :matching-certificate-kind
+               :matching-target-formula
+               :matching-proof-code
+               :successful-proof-validation}
+             (:requires verifier)))
+      (is (= #{:constructed-certificate}
+             (:completes-on-success verifier)))
+      (is (= #{:proof-search-synthesis}
+             (:leaves-open verifier)))
+      (is (= #{:constructed-certificate
+               :proof-search-synthesis}
+             (get-in audit [:open-obligations :tab-2-or-stronger]))))))
 
 (deftest tab2-boundary-surface-distinguishes-negative-proof-list-variant
   (testing "ADR-0129: Tab-2-or-stronger is a Workstream B boundary surface, not Tab-1 completion"

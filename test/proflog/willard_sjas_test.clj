@@ -1462,6 +1462,38 @@
       (is (true? (:durable-probe-required? report)))
       (is (false? (:completion-claimed? report))))))
 
+(deftest sjas-tab2-certificate-validation-targets-generated-selfcons
+  (testing "ADR-0138 validates supplied proof codes against the generated Tab-2 SelfCons target"
+    (let [opts {:fuel 260
+                :proof-limit 1}
+          system (sjas/tab2-or-stronger-full-target-system opts)
+          report (sjas/tab2-or-stronger-full-target-report opts)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          validation (sjas/tab2-or-stronger-constructed-certificate-validation
+                       axiom-certificate
+                       opts)
+          unreadable (sjas/tab2-or-stronger-constructed-certificate-validation
+                       (ast/app-term 'not-a-proof-code)
+                       opts)]
+      (is (= :tab-2-or-stronger (:variant validation)))
+      (is (= (:system-code system) (:system-code validation)))
+      (is (= (:group-three-code report) (:selfcons-code validation)))
+      (is (= (:target-code report)
+             (:target-code validation)))
+      (is (= (:target-code report)
+             (sjas/formula-code system (:target-formula validation))))
+      (is (= axiom-certificate (:proof-code validation)))
+      (is (= :sjas-axiom (:certificate-kind validation)))
+      (is (= :tableau-proof (:validator validation)))
+      (is (= 260 (:fuel validation)))
+      (is (= 1 (:proof-limit validation)))
+      (is (true? (:proof-valid? validation))
+          "the ordinary Group-3 citation is a valid proof but not boundary-failure evidence")
+      (is (= 1 (:proof-count validation)))
+      (is (= :unreadable-proof-code (:certificate-kind unreadable)))
+      (is (false? (:proof-valid? unreadable)))
+      (is (= 0 (:proof-count unreadable))))))
+
 (deftest sjas-xtab-lem-certificate-validation-targets-generated-selfcons
   (testing "ADR-0135 validates supplied proof codes against the generated Xtab/LEM SelfCons target"
     (let [opts {:profile :willard-sjas-level1

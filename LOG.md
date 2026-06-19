@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-19
 
+- Spawned [ADR-0138](docs/adr/ADR-0138-sjas-tab2-certificate-validation.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0138-sjas-tab2-certificate-validation`. This slice targets the
+  proof-validation bridge for Tab-2-or-stronger constructed-certificate
+  candidates against the ADR-0137 generated target, without claiming a
+  certificate, synthesis evidence, or Tab-2 checker. Completed with
+  [AAR-0138](docs/aar/AAR-0138-sjas-tab2-certificate-validation.md); gates:
+  `lein test-proflog-fast` 230/1465 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1274 fail=0 error=0`.
 - Spawned [ADR-0137](docs/adr/ADR-0137-sjas-tab2-full-target.md)
   from ADR-0119 Workstream B on branch
   `adr-0137-sjas-tab2-full-target`. This slice targets the full generated

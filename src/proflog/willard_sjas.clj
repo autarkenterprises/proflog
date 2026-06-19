@@ -1772,6 +1772,51 @@
       :proof-count (count proofs)
       :proof-valid? (boolean (seq proofs))})))
 
+(defn tab2-or-stronger-constructed-certificate-validation
+  "Validate a proof code against the ADR-0137 Tab-2 boundary target.
+
+   The checked system and theorem code come from the target-only
+   `:willard-sjas-tab2-boundary` system. The validation query itself runs
+   through an ordinary Tableau-0 SJAS program whose language includes
+   `dsjas-tab2-proof/3`, so this helper validates proof-code evidence without
+   installing a Tab-2 proof-list checker."
+  ([proof-code]
+   (tab2-or-stronger-constructed-certificate-validation proof-code {}))
+  ([proof-code opts]
+   (let [proof-limit (:proof-limit opts 1)
+         fuel (:fuel opts 320)
+         system-opts (dissoc opts :proof-limit :fuel)
+         target-system (tab2-or-stronger-full-target-system system-opts)
+         report (tab2-or-stronger-full-target-report system-opts)
+         validation-system
+         (system
+           (assoc system-opts
+                  :profile :willard-sjas-tableau0
+                  :relations (merge (:relations system-opts)
+                                    tab2-boundary-relations)))
+         certificate-kind (proof-code-certificate-kind proof-code)
+         proofs (if (= :unreadable-proof-code certificate-kind)
+                  '()
+                  (query/query-succeeds
+                    (:program validation-system)
+                    (tableau-proof (:system-code target-system)
+                                   (:group-three-code report)
+                                   proof-code)
+                    proof-limit
+                    fuel))]
+     {:variant :tab-2-or-stronger
+      :system-code (:system-code report)
+      :selfcons-code (:group-three-code report)
+      :target-formula (:selfcons-refutation-target report)
+      :target-code (:target-code report)
+      :proof-code proof-code
+      :certificate-kind certificate-kind
+      :validator :tableau-proof
+      :proof-limit proof-limit
+      :fuel fuel
+      :proof-count (count proofs)
+      :proof-valid? (boolean (seq proofs))})))
+
 ;; -----------------------------------------------------------------------------
 ;; Source-facing SJAS builder
 ;; -----------------------------------------------------------------------------

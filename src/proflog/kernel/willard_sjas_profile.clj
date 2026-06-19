@@ -1284,6 +1284,7 @@
 (def ^:private system-profile-tableau0-tag 32)
 (def ^:private system-profile-level1-tag 33)
 (def ^:private system-profile-tab1-tag 35)
+(def ^:private system-profile-tab2-boundary-tag 36)
 (def ^:private system-reflected-clause-tag 34)
 
 (def ^:private internal-zero-num (list 'num '()))
@@ -1351,17 +1352,27 @@
   "Shared code-level noms used when decoded formula-code variables become ASTs."
   sjas-code/code-nom-entries)
 
+(def ^:private profile-local-reserved-symbols
+  "Symbols reserved for a specific generated profile, not for every SJAS system.
+
+   `dsjas-tab2-proof` is present in the encoder's reserved order so the
+   target-only Tab-2 boundary profile has a stable symbol index. It is not a
+   globally semantic symbol, because ordinary systems can still use that same
+   index for their first user relation."
+  '#{dsjas-tab2-proof})
+
 (def ^:private reserved-symbol-index-entries
   "Fixed SJAS vocabulary entries recoverable without a generated codebook."
   (apply list
-         (map-indexed (fn [idx sym]
-                        [(inc idx) sym])
-                      sjas-code/reserved-coding-symbols)))
+         (keep-indexed (fn [idx sym]
+                         (when-not (contains? profile-local-reserved-symbols
+                                              sym)
+                           [(inc idx) sym]))
+                       sjas-code/reserved-coding-symbols)))
 
 (def ^:private user-symbol-index-entries
   "Formula-code symbol indexes not reserved by the fixed SJAS codebook."
-  (let [reserved-indexes (set (range 1
-                                      (inc (count sjas-code/reserved-coding-symbols))))]
+  (let [reserved-indexes (set (map first reserved-symbol-index-entries))]
     (apply list
            (remove reserved-indexes
                    (range 1 sjas-code/byte-base)))))
@@ -3168,7 +3179,8 @@
   (conde
     [(== system-profile-tableau0-tag profile-tag)]
     [(== system-profile-level1-tag profile-tag)]
-    [(== system-profile-tab1-tag profile-tag)]))
+    [(== system-profile-tab1-tag profile-tag)]
+    [(== system-profile-tab2-boundary-tag profile-tag)]))
 
 (defn- sjas-public-code-byteso
   "Expose public code bytes through the SJAS object-language code relation.
@@ -3509,6 +3521,84 @@
                                           system-bytes
                                           formula
                                           group-three-proof)
+    (== (list 'sjas-system-group-three-axiom
+              system-read-proof
+              formula-read-proof
+              header-proof
+              group-three-proof)
+        proof)))
+
+(def ^:private tab2-boundary-proof-symbol
+  "Internal formula-code head for the target-only Tab-2 proof predicate.
+
+   The encoder gives `dsjas-tab2-proof` a stable profile-local index, while the
+   ordinary decoder intentionally leaves that index structural so existing user
+   relations remain decodable without a source symbol registry."
+  (list 'sym (sjas-code/reserved-symbol->index 'dsjas-tab2-proof)))
+
+(defn- tab2-boundary-selfcons-internal-formula
+  "Decoded internal Tab-2 boundary SelfCons formula for a system code term."
+  [system-term x y p q]
+  (let [x-term (list 'var x)
+        y-term (list 'var y)
+        p-term (list 'var p)
+        q-term (list 'var q)
+        neg-pair (list 'neg
+                       (list 'app 'neg-pair (list x-term y-term)))
+        left-proof (list 'neg
+                         (list 'app
+                               tab2-boundary-proof-symbol
+                               (list system-term x-term p-term)))
+        right-proof (list 'neg
+                          (list 'app
+                                tab2-boundary-proof-symbol
+                                (list system-term y-term q-term)))]
+    (list 'forall
+          x
+          (list 'forall
+                y
+                (list 'forall
+                      p
+                      (list 'forall
+                            q
+                            (list 'or
+                                  neg-pair
+                                  (list 'or left-proof right-proof))))))))
+
+(defn- sjas-tab2-boundary-system-code-headero
+  "Recognize the header of a target-only Tab-2 boundary SJAS system code."
+  [system-bytes proof]
+  (fresh [rest]
+    (== (lcons system-code-tag
+                (lcons system-profile-tab2-boundary-tag rest))
+        system-bytes)
+    (== '(sjas-system-tab2-boundary-profile) proof)))
+
+(defn- tab2-boundary-group-three-formula-for-kindo
+  "Reconstruct target-only Tab-2 Group-3 in the presented code format."
+  [kind system-bytes formula proof]
+  (fresh [system-term]
+    (code-kind-internal-termo kind system-bytes system-term)
+    (== (tab2-boundary-selfcons-internal-formula system-term 1 2 3 4)
+        formula)
+    (== '(sjas-system-tab2-boundary-group-three-axiom) proof)))
+
+(defn- sjas-tab2-boundary-group-three-axiom-membero
+  "Cite the target-only Tab-2 boundary Group-3 axiom from system-code."
+  [prog system-code formula-code proof]
+  (fresh [system-bytes system-kind formula-bytes system-read-proof formula-read-proof
+          header-proof formula group-three-proof]
+    (sjas-public-code-byteso system-code
+                             system-bytes
+                             system-kind
+                             system-read-proof)
+    (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
+    (sjas-tab2-boundary-system-code-headero system-bytes header-proof)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (tab2-boundary-group-three-formula-for-kindo system-kind
+                                                 system-bytes
+                                                 formula
+                                                 group-three-proof)
     (== (list 'sjas-system-group-three-axiom
               system-read-proof
               formula-read-proof
@@ -4628,6 +4718,13 @@
                                               system-bytes
                                               decoded
                                               group-proof)
+        (sjas-proof-antecedent-formula-asto decoded formula))]
+     [(fresh [decoded group-proof]
+        (== system-profile-tab2-boundary-tag profile-tag)
+        (tab2-boundary-group-three-formula-for-kindo system-kind
+                                                     system-bytes
+                                                     decoded
+                                                     group-proof)
         (sjas-proof-antecedent-formula-asto decoded formula))])))
 
 (defn- sjas-system-proof-axiom-formulao
@@ -4708,7 +4805,11 @@
     [(sjas-beta-axiom-membero prog system-code formula-code proof)]
     [(sjas-reflected-axiom-membero prog system-code formula-code proof)]
     [(sjas-tableau0-group-three-axiom-membero prog system-code formula-code proof)]
-    [(sjas-level1-group-three-axiom-membero prog system-code formula-code proof)]))
+    [(sjas-level1-group-three-axiom-membero prog system-code formula-code proof)]
+    [(sjas-tab2-boundary-group-three-axiom-membero prog
+                                                  system-code
+                                                  formula-code
+                                                  proof)]))
 
 (defn- sjas-walked-axiom-membero
   "Check axiom membership after normalizing code terms through equality sigma.
@@ -4847,6 +4948,35 @@
                                           formula
                                           group-three-proof)))
 
+(defn- sjas-tab2-boundary-system-code-header-coreo
+  "Proof-free target-only Tab-2 boundary system header recognizer."
+  [system-bytes]
+  (fresh [rest]
+    (== (lcons system-code-tag
+                (lcons system-profile-tab2-boundary-tag rest))
+        system-bytes)))
+
+(defn- tab2-boundary-group-three-formula-coreo
+  "Proof-free target-only Tab-2 boundary Group-3 axiom reconstruction."
+  [system-bytes formula]
+  (fresh [system-term]
+    (system-code-internal-termo system-bytes system-term)
+    (== (tab2-boundary-selfcons-internal-formula system-term 1 2 3 4)
+        formula)))
+
+(defn- sjas-tab2-boundary-group-three-axiom-member-coreo
+  "Proof-free target-only Tab-2 boundary Group-3 axiom membership."
+  [prog system-code formula-code]
+  (fresh [system-bytes system-kind formula-bytes formula group-three-proof]
+    (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
+    (sjas-public-code-bytes-coreo formula-code formula-bytes)
+    (sjas-tab2-boundary-system-code-header-coreo system-bytes)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (tab2-boundary-group-three-formula-for-kindo system-kind
+                                                 system-bytes
+                                                 formula
+                                                 group-three-proof)))
+
 (defn- byte-list-neqo
   "Object-level disequality for finite byte lists."
   [left right]
@@ -4969,7 +5099,10 @@
     [(sjas-beta-axiom-member-coreo prog system-code formula-code)]
     [(sjas-reflected-axiom-member-coreo prog system-code formula-code)]
     [(sjas-tableau0-group-three-axiom-member-coreo prog system-code formula-code)]
-    [(sjas-level1-group-three-axiom-member-coreo prog system-code formula-code)]))
+    [(sjas-level1-group-three-axiom-member-coreo prog system-code formula-code)]
+    [(sjas-tab2-boundary-group-three-axiom-member-coreo prog
+                                                       system-code
+                                                       formula-code)]))
 
 (defn- sjas-walked-axiom-member-coreo
   "Proof-free axiom membership after equality walking."
@@ -5063,6 +5196,10 @@
     [(fresh [decoded]
        (== system-profile-level1-tag profile-tag)
        (level1-group-three-formula-coreo prog system-bytes decoded)
+       (sjas-proof-antecedent-formula-asto decoded formula))]
+    [(fresh [decoded]
+       (== system-profile-tab2-boundary-tag profile-tag)
+       (tab2-boundary-group-three-formula-coreo system-bytes decoded)
        (sjas-proof-antecedent-formula-asto decoded formula))]))
 
 (defn- sjas-system-group-three-proof-antecedent-for-code-coreo
@@ -5081,6 +5218,14 @@
                                              system-bytes
                                              decoded
                                              group-proof)
+       (sjas-proof-antecedent-formula-asto decoded formula))]
+    [(fresh [decoded system-kind group-proof]
+       (== system-profile-tab2-boundary-tag profile-tag)
+       (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
+       (tab2-boundary-group-three-formula-for-kindo system-kind
+                                                    system-bytes
+                                                    decoded
+                                                    group-proof)
        (sjas-proof-antecedent-formula-asto decoded formula))]))
 
 (defn- sjas-system-proof-axiom-formula-coreo

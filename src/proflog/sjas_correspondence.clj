@@ -1454,6 +1454,20 @@
                   :matching-proof-code
                   :successful-proof-validation}
       :completes-on-success #{:constructed-certificate}
+      :leaves-open #{:proof-search-synthesis}}}
+    :xtab-or-lem-axiom
+    {:constructed-certificate
+     {:status :implemented
+      :verifier-helper 'verify-boundary-constructed-certificate
+      :validation-helper 'xtab-lem-constructed-certificate-validation
+      :requires #{:screened-candidate
+                  :matching-system-code
+                  :matching-selfcons-code
+                  :matching-certificate-kind
+                  :matching-target-formula
+                  :matching-proof-code
+                  :successful-proof-validation}
+      :completes-on-success #{:constructed-certificate}
       :leaves-open #{:proof-search-synthesis}}}}
    :variant-surfaces
    {:total-multiplication {:status :implemented

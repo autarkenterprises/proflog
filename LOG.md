@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0135](docs/adr/ADR-0135-sjas-xtab-lem-certificate-validation.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0135-sjas-xtab-lem-certificate-validation`. This slice targets the
+  proof-validation bridge for Xtab / Law of Excluded Middle constructed
+  certificate candidates against the ADR-0134 generated target, without
+  claiming certificate or synthesis completion. Completed with
+  [AAR-0135](docs/aar/AAR-0135-sjas-xtab-lem-certificate-validation.md);
+  gates: `lein test-proflog-fast` 229/1454 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1227 fail=0 error=0`.
 - Spawned [ADR-0134](docs/adr/ADR-0134-sjas-xtab-lem-full-target.md)
   from ADR-0119 Workstream B on branch
   `adr-0134-sjas-xtab-lem-full-target`. This slice targets the full generated

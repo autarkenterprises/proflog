@@ -666,6 +666,18 @@
                       :total-multiplication
                       :constructed-certificate
                       :validation-helper])))
+      (is (= :implemented
+             (get-in audit
+                     [:evidence-verifiers
+                      :xtab-or-lem-axiom
+                      :constructed-certificate
+                      :status])))
+      (is (= 'xtab-lem-constructed-certificate-validation
+             (get-in audit
+                     [:evidence-verifiers
+                      :xtab-or-lem-axiom
+                      :constructed-certificate
+                      :validation-helper])))
       (is (false? (:workstream-complete? audit))))))
 
 (deftest tab2-boundary-surface-distinguishes-negative-proof-list-variant
@@ -759,6 +771,34 @@
                :proof-search-synthesis}
              (get-in audit [:open-obligations :xtab-or-lem-axiom])))
       (is (false? (:workstream-complete? audit))))))
+
+(deftest xtab-lem-certificate-validation-recorded-for-generated-target
+  (testing "ADR-0135: Xtab/LEM constructed-certificate validation helper is advertised but not completed"
+    (let [audit (correspondence/audit-boundary-failure-roadmap)
+          verifier (get-in audit
+                           [:evidence-verifiers
+                            :xtab-or-lem-axiom
+                            :constructed-certificate])]
+      (is (= :implemented (:status verifier)))
+      (is (= 'verify-boundary-constructed-certificate
+             (:verifier-helper verifier)))
+      (is (= 'xtab-lem-constructed-certificate-validation
+             (:validation-helper verifier)))
+      (is (= #{:screened-candidate
+               :matching-system-code
+               :matching-selfcons-code
+               :matching-certificate-kind
+               :matching-target-formula
+               :matching-proof-code
+               :successful-proof-validation}
+             (:requires verifier)))
+      (is (= #{:constructed-certificate}
+             (:completes-on-success verifier)))
+      (is (= #{:proof-search-synthesis}
+             (:leaves-open verifier)))
+      (is (= #{:constructed-certificate
+               :proof-search-synthesis}
+             (get-in audit [:open-obligations :xtab-or-lem-axiom]))))))
 
 (deftest boundary-evidence-screen-rejects-trivial-selfcons-evidence
   (testing "ADR-0127: ordinary SelfCons proofs are not boundary-failure evidence"

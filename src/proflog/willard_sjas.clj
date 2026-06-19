@@ -1497,6 +1497,43 @@
       :proof-count (count proofs)
       :proof-valid? (boolean (seq proofs))})))
 
+(defn xtab-lem-constructed-certificate-validation
+  "Validate a proof code against the ADR-0134 Xtab/LEM target.
+
+   The returned proof-validation record has the same shape as
+   `total-multiplication-constructed-certificate-validation`, but derives its
+   system and target from the ADR-0133/0134 Xtab/LEM reduced-witness path."
+  ([proof-code]
+   (xtab-lem-constructed-certificate-validation proof-code {}))
+  ([proof-code opts]
+   (let [proof-limit (:proof-limit opts 1)
+         fuel (:fuel opts 320)
+         system-opts (dissoc opts :proof-limit :fuel)
+         system (xtab-lem-reduced-witness-system system-opts)
+         report (xtab-lem-full-target-report system-opts)
+         certificate-kind (proof-code-certificate-kind proof-code)
+         proofs (if (= :unreadable-proof-code certificate-kind)
+                  '()
+                  (query/query-succeeds
+                    (:program system)
+                    (tableau-proof (:system-code system)
+                                   (:group-three-code report)
+                                   proof-code)
+                    proof-limit
+                    fuel))]
+     {:variant :xtab-or-lem-axiom
+      :system-code (:system-code report)
+      :selfcons-code (:group-three-code report)
+      :target-formula (:selfcons-refutation-target report)
+      :target-code (:target-code report)
+      :proof-code proof-code
+      :certificate-kind certificate-kind
+      :validator :tableau-proof
+      :proof-limit proof-limit
+      :fuel fuel
+      :proof-count (count proofs)
+      :proof-valid? (boolean (seq proofs))})))
+
 ;; -----------------------------------------------------------------------------
 ;; Source-facing SJAS builder
 ;; -----------------------------------------------------------------------------

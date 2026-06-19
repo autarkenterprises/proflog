@@ -1380,7 +1380,9 @@
    This audit intentionally separates a public variant surface from a completed
    Goedel-boundary failure. The first surface is total multiplication; ADR-0125
    and ADR-0126 complete its reduced witness and generated target stages, but
-   constructed certificates and proof-search synthesis evidence remain open."
+   constructed certificates and proof-search synthesis evidence remain open.
+   ADR-0133 also completes the reduced Xtab/LEM-as-axiom witness stage while
+   leaving that variant's generated target and final evidence open."
   {:workstream :workstream-b
    :first-variant :total-multiplication
    :planned-variants #{:total-multiplication
@@ -1391,17 +1393,24 @@
    :final-evidence-required boundary-final-evidence-obligations
    :variant-statuses {:total-multiplication :full-target-implemented
                       :tab-2-or-stronger :surface-implemented
-                      :xtab-or-lem-axiom :surface-implemented}
+                      :xtab-or-lem-axiom :reduced-witness-implemented}
    :completed-witness-stages
    {:total-multiplication #{:reduced-reflected-beta-witness
-                            :full-generated-selfcons-contradiction-target}}
+                            :full-generated-selfcons-contradiction-target}
+    :xtab-or-lem-axiom #{:reduced-reflected-beta-witness}}
    :reduced-witnesses
    {:total-multiplication
     {:kind :squaring-chain
      :default-depth 3
      :fragment "u_0 = 2; u_(i+1) = mul(u_i,u_i)"
      :status :implemented
-     :remaining-stage :completed}}
+     :remaining-stage :completed}
+    :xtab-or-lem-axiom
+    {:kind :universal-lem-seed
+     :witness-relation 'xtab-lem-demo
+     :axiom-count 1
+     :status :implemented
+     :remaining-stage :full-generated-selfcons-contradiction-target}}
    :full-targets
    {:total-multiplication
     {:kind :generated-selfcons-refutation
@@ -1450,8 +1459,7 @@
                          :full-generated-selfcons-contradiction-target
                          :constructed-certificate
                          :proof-search-synthesis}
-    :xtab-or-lem-axiom #{:reduced-reflected-beta-witness
-                         :full-generated-selfcons-contradiction-target
+    :xtab-or-lem-axiom #{:full-generated-selfcons-contradiction-target
                          :constructed-certificate
                          :proof-search-synthesis}}
    :workstream-complete? false})

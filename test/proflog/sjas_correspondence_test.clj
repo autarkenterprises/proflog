@@ -619,11 +619,13 @@
              (get-in audit [:variant-statuses :total-multiplication])))
       (is (= :surface-implemented
              (get-in audit [:variant-statuses :tab-2-or-stronger])))
-      (is (= :surface-implemented
+      (is (= :reduced-witness-implemented
              (get-in audit [:variant-statuses :xtab-or-lem-axiom])))
       (is (= #{:reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
              (get-in audit [:completed-witness-stages :total-multiplication])))
+      (is (= #{:reduced-reflected-beta-witness}
+             (get-in audit [:completed-witness-stages :xtab-or-lem-axiom])))
       (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :total-multiplication])))
@@ -632,11 +634,16 @@
                :constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :tab-2-or-stronger])))
-      (is (= #{:reduced-reflected-beta-witness
-               :full-generated-selfcons-contradiction-target
+      (is (= #{:full-generated-selfcons-contradiction-target
                :constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :xtab-or-lem-axiom])))
+      (is (= {:kind :universal-lem-seed
+              :witness-relation 'xtab-lem-demo
+              :axiom-count 1
+              :status :implemented
+              :remaining-stage :full-generated-selfcons-contradiction-target}
+             (get-in audit [:reduced-witnesses :xtab-or-lem-axiom])))
       (is (= :implemented
              (get-in audit [:evidence-screens :total-multiplication :status])))
       (is (= :implemented
@@ -700,6 +707,28 @@
                :full-generated-selfcons-contradiction-target}
              (:not-implemented surface)))
       (is (false? (:completion-claimed? surface))))))
+
+(deftest xtab-lem-reduced-witness-records-reflected-beta-stage
+  (testing "ADR-0133: Xtab/LEM reduced witness records the finite reflected beta seed"
+    (let [audit (correspondence/audit-boundary-failure-roadmap)
+          witness (get-in audit [:reduced-witnesses :xtab-or-lem-axiom])]
+      (is (= :reduced-witness-implemented
+             (get-in audit [:variant-statuses :xtab-or-lem-axiom])))
+      (is (= #{:reduced-reflected-beta-witness}
+             (get-in audit [:completed-witness-stages :xtab-or-lem-axiom])))
+      (is (= {:kind :universal-lem-seed
+              :witness-relation 'xtab-lem-demo
+              :axiom-count 1
+              :status :implemented
+              :remaining-stage :full-generated-selfcons-contradiction-target}
+             witness))
+      (is (= #{:full-generated-selfcons-contradiction-target
+               :constructed-certificate
+               :proof-search-synthesis}
+             (get-in audit [:open-obligations :xtab-or-lem-axiom])))
+      (is (= :surface-implemented
+             (:status (get-in audit [:variant-surfaces :xtab-or-lem-axiom]))))
+      (is (false? (:workstream-complete? audit))))))
 
 (deftest boundary-evidence-screen-rejects-trivial-selfcons-evidence
   (testing "ADR-0127: ordinary SelfCons proofs are not boundary-failure evidence"

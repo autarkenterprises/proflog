@@ -1305,6 +1305,63 @@
       (is (false? (:proof-valid? unreadable)))
       (is (= 0 (:proof-count unreadable))))))
 
+(deftest sjas-xtab-lem-reduced-witness-installs-reflected-lem-seed
+  (testing "ADR-0133 reduced witness packages one LEM instance as reflected beta"
+    (let [relationless (sjas/system
+                         {:profile :willard-sjas-level1
+                          :relations sjas/xtab-lem-relations})
+          witness (sjas/xtab-lem-reduced-witness-system
+                    {:profile :willard-sjas-level1})
+          axioms (sjas/xtab-lem-witness-axioms)
+          axiom (first axioms)
+          tied (second axiom)
+          binding (:binding-nom tied)
+          expected-atom (ast/app-term 'xtab-lem-demo (ast/var-term binding))
+          code-canonical-formula (var-get #'sjas/code-canonical-formula)
+          axiom-set (set (map code-canonical-formula axioms))
+          records (filter #(and (= :group-two (:group %))
+                                (contains?
+                                  axiom-set
+                                  (code-canonical-formula (:formula %))))
+                          (:axioms witness))
+          first-record (first records)
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)]
+      (is (= {'xtab-lem-demo 1} sjas/xtab-lem-relations))
+      (is (= 1 (count axioms)))
+      (is (= 'forall (ast/tag-of axiom)))
+      (is (= (ast/or-form (ast/pos-lit expected-atom)
+                          (ast/neg-lit expected-atom))
+             (:body tied)))
+      (is (every? sjas/pi-star-1-encodable? axioms)
+          "the reflected LEM seed must be admissible as beta material")
+      (is (= 1 (get-in witness [:language :relations 'xtab-lem-demo])))
+      (is (= axiom-set
+             (set (map (comp code-canonical-formula :formula)
+                       records))))
+      (is (not= (:system-code relationless)
+                (:system-code witness))
+          "the reflected LEM beta seed must alter encoded system identity")
+      (is (not= (-> relationless :group-three :code)
+                (-> witness :group-three :code))
+          "the reflected LEM beta seed must regenerate SelfCons code")
+      (is (successful?
+            (query/query-succeeds
+              (:program witness)
+              (sjas/axiom-member (:system-code witness)
+                                  (:code first-record))
+              1
+              180))
+          "the reflected LEM beta record must decode as an axiom member")
+      (is (successful?
+            (query/query-succeeds
+              (:program witness)
+              (sjas/tableau-proof (:system-code witness)
+                                  (:code first-record)
+                                  axiom-certificate)
+              1
+              220))
+          "the reflected LEM beta record must be citeable by sjas-axiom"))))
+
 (deftest sjas-system-builder-axiom-formula-includes-fixed-group-one
   (testing "the public theorem antecedent agrees with the fixed axiom basis"
     (let [system (demo-system :willard-sjas-tableau0)

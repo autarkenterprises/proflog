@@ -499,6 +499,33 @@
    :beta (vec (concat (total-multiplication-seed-axioms)
                       (total-multiplication-squaring-chain-axioms depth)))})
 
+(def xtab-lem-relations
+  "Relation declaration for ADR-0133's finite Xtab/LEM reduced witness.
+
+   The baseline tableau system already proves excluded-middle behavior through
+   tableau rules. This relation is only the witness predicate used to package
+   one excluded-middle instance as reflected beta material."
+  {'xtab-lem-demo 1})
+
+(defn xtab-lem-witness-axioms
+  "Return the finite reflected beta seed for the Xtab/LEM boundary variant.
+
+   This is a one-predicate universal excluded-middle instance:
+   `forall x. xtab-lem-demo(x) or not xtab-lem-demo(x)`. It is deliberately
+   smaller than a full LEM schema and does not claim a contradiction target."
+  []
+  (let [x (nominal/nom (lvar 'x))
+        atom (ast/app-term 'xtab-lem-demo (ast/var-term x))]
+    [(ast/forall-form x
+       (ast/or-form (ast/pos-lit atom)
+                    (ast/neg-lit atom)))]))
+
+(defn xtab-lem-reduced-witness-options
+  "Return the mergeable reduced-witness fragment for Xtab/LEM-as-axiom."
+  []
+  {:relations xtab-lem-relations
+   :beta (xtab-lem-witness-axioms)})
+
 (defn leq [left right] (ast/pos-lit (ast/app-term 'leq left right)))
 (defn lt [left right] (ast/pos-lit (ast/app-term 'lt left right)))
 (defn mult [left right product] (ast/pos-lit (ast/app-term 'mult left right product)))
@@ -1324,6 +1351,23 @@
                                       (:constants system-opts)))
               :functions (merge (:functions system-opts) witness-signature)
               :beta (vec (concat witness-beta (:beta system-opts))))))))
+
+(defn xtab-lem-reduced-witness-system
+  "Build the ADR-0133 reduced Xtab/LEM reflected-beta witness system.
+
+   The resulting system includes a finite universal LEM seed over
+   `xtab-lem-demo/1`. It remains a reduced witness only; the full generated
+   SelfCons contradiction target and final evidence are separate Workstream B
+   obligations."
+  ([]
+   (xtab-lem-reduced-witness-system {}))
+  ([opts]
+   (let [{witness-relations :relations
+          witness-beta :beta} (xtab-lem-reduced-witness-options)]
+     (system
+       (assoc opts
+              :relations (merge (:relations opts) witness-relations)
+              :beta (vec (concat witness-beta (:beta opts))))))))
 
 (defn selfcons-negation-target
   "Return the generated negative SelfCons theorem target for `system`.

@@ -22,6 +22,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Spawned [ADR-0133](docs/adr/ADR-0133-sjas-xtab-lem-reduced-witness.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0133-sjas-xtab-lem-reduced-witness`. This slice targets the reduced
+  reflected-beta witness for the Xtab / Law of Excluded Middle as axiom-schema
+  negative variant, leaving the generated SelfCons target, constructed
+  certificate, and synthesis evidence open. Completed with
+  [AAR-0133](docs/aar/AAR-0133-sjas-xtab-lem-reduced-witness.md); gates:
+  `lein test-proflog-fast` 227/1439 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1199 fail=0 error=0`.
 - Spawned [ADR-0132](docs/adr/ADR-0132-sjas-total-mul-certificate-validation.md)
   from ADR-0119 Workstream B on branch
   `adr-0132-sjas-total-mul-certificate-validation`. This slice adds a

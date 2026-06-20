@@ -77,3 +77,14 @@ lein test-proflog-sjas
   `:proof-search-synthesis` obligation.
 - Add actual constructed-certificate candidates before claiming the
   `:constructed-certificate` obligation for any variant.
+
+## 2026-06-19 Reassessment
+
+ADR-0140 found that ADR-0139's live query synthesizes proofs of the positive
+Group-3 SelfCons theorem. Rejecting the immediate axiom citation was necessary
+but not sufficient: every result from that query targets ordinary
+self-justification rather than the counterexample tuple inside
+`not(SelfCons(S))`. The probe is therefore retained as diagnostic-only and is
+no longer described as an executable path to final proof-search evidence. A
+future synthesis ADR must search jointly for the complementary theorem codes
+and measured proof objects required by the generated SelfCons body.

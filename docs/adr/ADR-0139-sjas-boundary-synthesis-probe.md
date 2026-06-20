@@ -57,6 +57,17 @@ certificates by construction, and does not claim final Workstream B completion.
 - Long-running synthesis runs can use the same helper while writing stdout,
   stderr, and timing output under `test-runs/`.
 
+## ADR-0140 Reclassification
+
+ADR-0140 established that this probe searches for a proof of the positive
+Group-3 theorem, not for the counterexample tuple quantified by
+`not(SelfCons(S))`. The helper remains useful for diagnosing proof-code
+synthesis, but its plans and reports are now labeled
+`:positive-selfcons-proof-diagnostic`, with `:final-evidence-eligible? false` and
+`:counterexample-synthesis-status :not-implemented`. It cannot satisfy the
+ADR-0119 proof-search obligation regardless of which positive SelfCons proof
+shape it returns.
+
 ## Test Obligations
 
 Red first:

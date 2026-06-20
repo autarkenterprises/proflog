@@ -16,6 +16,10 @@
               :let [plan (probe/boundary-proof-search-synthesis-plan variant)]]
         (is (= variant (:variant plan)))
         (is (= :proof-search-synthesis (:evidence-kind plan)))
+        (is (= :positive-selfcons-proof-diagnostic (:probe-kind plan)))
+        (is (= :legacy-positive-selfcons-proof (:validation-kind plan)))
+        (is (false? (:final-evidence-eligible? plan)))
+        (is (= :not-implemented (:counterexample-synthesis-status plan)))
         (is (= :open (:proof-search-synthesis-status plan)))
         (is (true? (:durable-log-required? plan)))
         (is (= correspondence/boundary-final-evidence-obligations
@@ -38,6 +42,9 @@
           validation (:validation report)]
       (is (= :total-multiplication (:variant report)))
       (is (= :proof-search-synthesis (:evidence-kind report)))
+      (is (= :positive-selfcons-proof-diagnostic (:probe-kind report)))
+      (is (false? (:final-evidence-eligible? report)))
+      (is (= :not-implemented (:counterexample-synthesis-status report)))
       (is (= :provided (:synthesis-status report)))
       (is (= :ordinary-citation-rejected (:result report)))
       (is (= (sjas/proof-certificate 'sjas-axiom)

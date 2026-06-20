@@ -679,7 +679,7 @@
                        :total-multiplication
                        :constructed-certificate
                        :status])))
-      (is (= 'total-multiplication-constructed-certificate-validation
+      (is (= 'total-multiplication-selfcons-counterexample-validation
              (get-in audit
                      [:evidence-verifiers
                       :total-multiplication
@@ -691,19 +691,19 @@
                       :xtab-or-lem-axiom
                       :constructed-certificate
                       :status])))
-      (is (= 'xtab-lem-constructed-certificate-validation
+      (is (= 'xtab-lem-selfcons-counterexample-validation
              (get-in audit
                      [:evidence-verifiers
                       :xtab-or-lem-axiom
                       :constructed-certificate
                       :validation-helper])))
-      (is (= :implemented
+      (is (= :blocked-on-proof-relation
              (get-in audit
                      [:evidence-verifiers
                       :tab-2-or-stronger
                       :constructed-certificate
                       :status])))
-      (is (= 'tab2-or-stronger-constructed-certificate-validation
+      (is (= 'tab2-or-stronger-selfcons-counterexample-validation
              (get-in audit
                      [:evidence-verifiers
                       :tab-2-or-stronger
@@ -720,7 +720,9 @@
                             :constructed-certificate])]
       (is (= 'verify-boundary-constructed-certificate
              (:verifier-helper verifier)))
-      (is (= 'tab2-or-stronger-constructed-certificate-validation
+      (is (= :blocked-on-proof-relation (:status verifier)))
+      (is (= :dsjas-tab2-proof-checker (:prerequisite verifier)))
+      (is (= 'tab2-or-stronger-selfcons-counterexample-validation
              (:validation-helper verifier)))
       (is (= #{:screened-candidate
                :matching-system-code
@@ -728,7 +730,9 @@
                :matching-certificate-kind
                :matching-target-formula
                :matching-proof-code
-               :successful-proof-validation}
+               :successful-proof-validation
+               :kernel-checked-selfcons-counterexample
+               :derived-reduced-witness-proof-route}
              (:requires verifier)))
       (is (= #{:constructed-certificate}
              (:completes-on-success verifier)))
@@ -748,11 +752,15 @@
                                    [:evidence-probes
                                     variant
                                     :proof-search-synthesis])]]
-        (is (= :implemented (:status probe)))
+        (is (= :diagnostic-only (:status probe)))
         (is (= 'boundary-proof-search-synthesis-report
                (:probe-helper probe)))
         (is (= 'boundary-proof-search-synthesis-plan
                (:plan-helper probe)))
+        (is (= :positive-selfcons-proof-diagnostic
+               (:probe-kind probe)))
+        (is (false? (:final-evidence-eligible? probe)))
+        (is (= :not-implemented (:counterexample-synthesis-status probe)))
         (is (= #{:generated-target
                  :fresh-proof-variable
                  :durable-log-path
@@ -867,7 +875,7 @@
       (is (= :implemented (:status verifier)))
       (is (= 'verify-boundary-constructed-certificate
              (:verifier-helper verifier)))
-      (is (= 'xtab-lem-constructed-certificate-validation
+      (is (= 'xtab-lem-selfcons-counterexample-validation
              (:validation-helper verifier)))
       (is (= #{:screened-candidate
                :matching-system-code
@@ -875,7 +883,9 @@
                :matching-certificate-kind
                :matching-target-formula
                :matching-proof-code
-               :successful-proof-validation}
+               :successful-proof-validation
+               :kernel-checked-selfcons-counterexample
+               :derived-reduced-witness-proof-route}
              (:requires verifier)))
       (is (= #{:constructed-certificate}
              (:completes-on-success verifier)))
@@ -919,10 +929,9 @@
                                 target
                                 wrong-target)]
       (is (= :rejected (:result citation-screen)))
-      (is (contains? (:reasons citation-screen)
-                     :ordinary-selfcons-citation))
-      (is (contains? (:reasons citation-screen)
-                     :missing-reduced-witness))
+      (is (= #{:ordinary-selfcons-citation}
+             (:reasons citation-screen))
+          "candidate route metadata must not affect screening")
       (is (= :rejected (:result structural-screen)))
       (is (contains? (:reasons structural-screen)
                      :ordinary-selfcons-tableau))
@@ -981,6 +990,10 @@
                      :evidence-kind :constructed-certificate
                      :certificate-kind :structural-tableau
                      :proof-code 'P-total
+                     :theorem-code 'T-total
+                     :complement-code 'Not-T-total
+                     :theorem-proof-object 'Measured-P
+                     :complement-proof-object 'Measured-Q
                      :uses-reduced-witness? true}
           validation {:variant :total-multiplication
                       :system-code 'S-total
@@ -988,17 +1001,25 @@
                       :target-formula '(and AxiomConj-total
                                              (not SelfCons-total))
                       :proof-code 'P-total
+                      :theorem-code 'T-total
+                      :complement-code 'Not-T-total
+                      :theorem-proof-object 'Measured-P
+                      :complement-proof-object 'Measured-Q
                       :certificate-kind :structural-tableau
+                      :validation-kind :selfcons-counterexample
+                      :counterexample-valid? true
+                      :proof-route-valid? true
                       :proof-valid? true
                       :validator :tableau-proof}
           verified (correspondence/verify-boundary-constructed-certificate
                      target
                      candidate
                      validation)
-          screened-out (correspondence/verify-boundary-constructed-certificate
-                         target
-                         (assoc candidate :uses-reduced-witness? false)
-                         validation)
+          metadata-only-change
+          (correspondence/verify-boundary-constructed-certificate
+            target
+            (assoc candidate :uses-reduced-witness? false)
+            validation)
           wrong-target (correspondence/verify-boundary-constructed-certificate
                          target
                          candidate
@@ -1028,16 +1049,33 @@
           failed-proof (correspondence/verify-boundary-constructed-certificate
                          target
                          candidate
-                         (assoc validation :proof-valid? false))]
+                         (assoc validation :proof-valid? false))
+          mismatched-tuple
+          (correspondence/verify-boundary-constructed-certificate
+            target
+            candidate
+            (assoc validation :complement-proof-object 'Other-Q))
+          missing-candidate-tuple
+          (correspondence/verify-boundary-constructed-certificate
+            target
+            (dissoc candidate :theorem-proof-object)
+            validation)
+          legacy-positive-selfcons
+          (correspondence/verify-boundary-constructed-certificate
+            target
+            candidate
+            (-> validation
+                (dissoc :validation-kind
+                        :counterexample-valid?
+                        :proof-route-valid?)
+                (assoc :proof-valid? true)))]
       (is (= :verified-intermediate-evidence (:result verified)))
       (is (= #{:constructed-certificate}
              (:completed-obligations verified)))
       (is (= #{:proof-search-synthesis}
              (:remaining-obligations verified)))
-      (is (= :screen (:verification-stage screened-out)))
-      (is (= :rejected (:result screened-out)))
-      (is (contains? (:reasons screened-out)
-                     :missing-reduced-witness))
+      (is (= verified metadata-only-change)
+          "candidate :uses-reduced-witness? metadata must be inert")
       (is (= :proof-validation (:verification-stage wrong-target)))
       (is (= #{:wrong-target-formula}
              (:reasons wrong-target)))
@@ -1050,7 +1088,18 @@
       (is (= #{:wrong-target-formula}
              (:reasons wrong-target-code)))
       (is (= #{:proof-validation-failed}
-             (:reasons failed-proof))))))
+             (:reasons failed-proof)))
+      (is (= #{:wrong-counterexample-tuple}
+             (:reasons mismatched-tuple)))
+      (is (= #{:missing-counterexample-tuple
+               :wrong-counterexample-tuple}
+             (:reasons missing-candidate-tuple)))
+      (is (= :rejected (:result legacy-positive-selfcons)))
+      (is (= #{:not-selfcons-counterexample-validation
+               :selfcons-counterexample-validation-failed
+               :boundary-proof-route-unverified}
+             (:reasons legacy-positive-selfcons))
+          "a valid proof of positive Group-3 SelfCons is not a boundary counterexample"))))
 
 (deftest dsjas-track2c-size-lower-bound-covers-citation-and-structural-objects
   (testing "ADR-0104 Track 2c: the combined size repair has an explicit lower-bound argument"

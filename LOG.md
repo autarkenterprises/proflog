@@ -22,6 +22,20 @@ complete contemporaneous transcript.
 
 ## 2026-06-19
 
+- Spawned [ADR-0140](docs/adr/ADR-0140-sjas-boundary-proof-route-validation.md)
+  from the ADR-0119 Workstream B completion audit on branch
+  `adr-0140-sjas-boundary-proof-route-validation`. The audit found that the
+  current verifier trusts `:uses-reduced-witness?` metadata and that the three
+  target-specific bridges validate positive Group-3 proofs rather than concrete
+  counterexamples to the generated SelfCons proof predicate. ADR-0140 replaces
+  that contract with kernel-checked counterexample tuples and proof-tree-derived
+  reduced-witness route evidence; it also records the missing Tab-2 proof
+  relation as a prerequisite rather than routing around it through Tableau-0.
+  Completed with
+  [AAR-0140](docs/aar/AAR-0140-sjas-boundary-proof-route-validation.md).
+  Final gates: `lein test-proflog-fast` 231/1496 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1359 fail=0 error=0`.
 - Spawned [ADR-0139](docs/adr/ADR-0139-sjas-boundary-synthesis-probe.md)
   from ADR-0119 Workstream B on branch
   `adr-0139-sjas-boundary-synthesis-probe`. This slice adds a shared

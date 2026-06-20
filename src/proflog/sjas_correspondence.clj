@@ -1231,9 +1231,6 @@
                      (:certificate-kind candidate))
                   (conj :ordinary-selfcons-tableau)
 
-                  (not (true? (:uses-reduced-witness? candidate)))
-                  (conj :missing-reduced-witness)
-
                   (and (= :proof-search-synthesis
                           (:evidence-kind candidate))
                        (not (and (string? (:durable-log-path candidate))
@@ -1255,6 +1252,19 @@
     (not= (:target-formula target)
           (:target-formula evidence))))
 
+(def ^:private boundary-counterexample-component-keys
+  "Fields that bind one evidence candidate to its validated SelfCons witness."
+  [:theorem-code
+   :complement-code
+   :theorem-proof-object
+   :complement-proof-object])
+
+(defn- complete-boundary-counterexample-tuple?
+  "True when every generated-SelfCons witness component is present."
+  [evidence]
+  (every? #(some? (get evidence %))
+          boundary-counterexample-component-keys))
+
 (defn verify-boundary-constructed-certificate
   "Verify a Workstream B constructed-certificate candidate against a target.
 
@@ -1265,6 +1275,8 @@
    that candidate; proof-search synthesis remains open."
   [target candidate validation]
   (let [screen (screen-boundary-evidence target candidate)
+        counterexample-validation?
+        (= :selfcons-counterexample (:validation-kind validation))
         reasons (cond-> #{}
                   (not= :constructed-certificate
                         (:evidence-kind candidate))
@@ -1297,7 +1309,31 @@
                   (conj :wrong-proof-code)
 
                   (not (true? (:proof-valid? validation)))
-                  (conj :proof-validation-failed))]
+                  (conj :proof-validation-failed)
+
+                  (not= :selfcons-counterexample
+                        (:validation-kind validation))
+                  (conj :not-selfcons-counterexample-validation)
+
+                  (not (true? (:counterexample-valid? validation)))
+                  (conj :selfcons-counterexample-validation-failed)
+
+                  (not (true? (:proof-route-valid? validation)))
+                  (conj :boundary-proof-route-unverified)
+
+                  (and counterexample-validation?
+                       (or (not (complete-boundary-counterexample-tuple?
+                                  candidate))
+                           (not (complete-boundary-counterexample-tuple?
+                                  validation))))
+                  (conj :missing-counterexample-tuple)
+
+                  (and counterexample-validation?
+                       (not= (select-keys candidate
+                                          boundary-counterexample-component-keys)
+                             (select-keys validation
+                                          boundary-counterexample-component-keys)))
+                  (conj :wrong-counterexample-tuple))]
     (if (= :rejected (:result screen))
       (assoc screen
              :verification-stage :screen)
@@ -1456,7 +1492,6 @@
                 :ordinary-selfcons-tableau
                 :wrong-system-code
                 :wrong-selfcons-code
-                :missing-reduced-witness
                 :missing-durable-synthesis-log}
      :passes-to :verification-required
      :completed-obligations #{}}}
@@ -1466,6 +1501,8 @@
      {:status :implemented
       :verifier-helper 'verify-boundary-constructed-certificate
       :validation-helper
+      'total-multiplication-selfcons-counterexample-validation
+      :legacy-diagnostic-helper
       'total-multiplication-constructed-certificate-validation
       :requires #{:screened-candidate
                   :matching-system-code
@@ -1473,44 +1510,57 @@
                   :matching-certificate-kind
                   :matching-target-formula
                   :matching-proof-code
-                  :successful-proof-validation}
+                  :successful-proof-validation
+                  :kernel-checked-selfcons-counterexample
+                  :derived-reduced-witness-proof-route}
       :completes-on-success #{:constructed-certificate}
       :leaves-open #{:proof-search-synthesis}}}
     :xtab-or-lem-axiom
     {:constructed-certificate
      {:status :implemented
       :verifier-helper 'verify-boundary-constructed-certificate
-      :validation-helper 'xtab-lem-constructed-certificate-validation
+      :validation-helper 'xtab-lem-selfcons-counterexample-validation
+      :legacy-diagnostic-helper 'xtab-lem-constructed-certificate-validation
       :requires #{:screened-candidate
                   :matching-system-code
                   :matching-selfcons-code
                   :matching-certificate-kind
                   :matching-target-formula
                   :matching-proof-code
-                  :successful-proof-validation}
+                  :successful-proof-validation
+                  :kernel-checked-selfcons-counterexample
+                  :derived-reduced-witness-proof-route}
       :completes-on-success #{:constructed-certificate}
       :leaves-open #{:proof-search-synthesis}}}
     :tab-2-or-stronger
     {:constructed-certificate
-     {:status :implemented
+     {:status :blocked-on-proof-relation
       :verifier-helper 'verify-boundary-constructed-certificate
       :validation-helper
+      'tab2-or-stronger-selfcons-counterexample-validation
+      :legacy-diagnostic-helper
       'tab2-or-stronger-constructed-certificate-validation
+      :prerequisite :dsjas-tab2-proof-checker
       :requires #{:screened-candidate
                   :matching-system-code
                   :matching-selfcons-code
                   :matching-certificate-kind
                   :matching-target-formula
                   :matching-proof-code
-                  :successful-proof-validation}
+                  :successful-proof-validation
+                  :kernel-checked-selfcons-counterexample
+                  :derived-reduced-witness-proof-route}
       :completes-on-success #{:constructed-certificate}
       :leaves-open #{:proof-search-synthesis}}}}
    :evidence-probes
    {:total-multiplication
     {:proof-search-synthesis
-     {:status :implemented
+     {:status :diagnostic-only
       :probe-helper 'boundary-proof-search-synthesis-report
       :plan-helper 'boundary-proof-search-synthesis-plan
+      :probe-kind :positive-selfcons-proof-diagnostic
+      :final-evidence-eligible? false
+      :counterexample-synthesis-status :not-implemented
       :requires #{:generated-target
                   :fresh-proof-variable
                   :durable-log-path
@@ -1520,9 +1570,12 @@
       :remaining-obligations boundary-final-evidence-obligations}}
     :xtab-or-lem-axiom
     {:proof-search-synthesis
-     {:status :implemented
+     {:status :diagnostic-only
       :probe-helper 'boundary-proof-search-synthesis-report
       :plan-helper 'boundary-proof-search-synthesis-plan
+      :probe-kind :positive-selfcons-proof-diagnostic
+      :final-evidence-eligible? false
+      :counterexample-synthesis-status :not-implemented
       :requires #{:generated-target
                   :fresh-proof-variable
                   :durable-log-path
@@ -1532,9 +1585,12 @@
       :remaining-obligations boundary-final-evidence-obligations}}
     :tab-2-or-stronger
     {:proof-search-synthesis
-     {:status :implemented
+     {:status :diagnostic-only
       :probe-helper 'boundary-proof-search-synthesis-report
       :plan-helper 'boundary-proof-search-synthesis-plan
+      :probe-kind :positive-selfcons-proof-diagnostic
+      :final-evidence-eligible? false
+      :counterexample-synthesis-status :not-implemented
       :requires #{:generated-target
                   :fresh-proof-variable
                   :durable-log-path

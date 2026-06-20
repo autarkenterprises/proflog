@@ -1,12 +1,12 @@
 (ns proflog.sjas-boundary-synthesis-probe
-  "Bounded Workstream B synthesis probes for ADR-0139.
+  "Bounded positive-SelfCons proof diagnostics from ADR-0139.
 
-   This namespace sits at the evidence-production boundary. It asks the SJAS
+   This namespace sits at the proof-search diagnostic boundary. It asks the SJAS
    proof predicate to synthesize a proof code for an already-generated
    Workstream B SelfCons target, then routes that candidate through the cheap
-   correspondence screen. A report from this namespace is not final evidence by
-   itself; it records what proof search produced and why the candidate does or
-   does not qualify for later verification."
+   correspondence screen. ADR-0140 established that these positive Group-3
+   proofs are never final Workstream B evidence; a report records only what the
+   legacy proof-code search produced and why it does not qualify."
   (:require [clojure.pprint :as pp]
             [clojure.string :as str]
             [proflog.answers :as answers]
@@ -84,7 +84,7 @@
          (:system-opts opts)))
 
 (defn boundary-proof-search-synthesis-plan
-  "Describe the synthesis target for `variant` without running proof search."
+  "Describe the legacy positive-SelfCons diagnostic without running search."
   ([variant]
    (boundary-proof-search-synthesis-plan variant {}))
   ([variant opts]
@@ -92,6 +92,10 @@
          system-opts (merged-system-opts spec opts)]
      {:variant variant
       :evidence-kind :proof-search-synthesis
+      :probe-kind :positive-selfcons-proof-diagnostic
+      :validation-kind :legacy-positive-selfcons-proof
+      :final-evidence-eligible? false
+      :counterexample-synthesis-status :not-implemented
       :target-report-helper (:target-report-helper spec)
       :validation-helper (:validation-helper spec)
       :system-opts system-opts
@@ -150,7 +154,6 @@
    :target-code (:target-code target)
    :proof-code proof-code
    :certificate-kind certificate-kind
-   :uses-reduced-witness? true
    :durable-log-path durable-log-path})
 
 (defn- result-classification
@@ -166,7 +169,7 @@
     :verification-required))
 
 (defn boundary-proof-search-synthesis-report
-  "Run a bounded proof-code synthesis probe for one Workstream B variant.
+  "Run a bounded positive-SelfCons proof-code diagnostic for one variant.
 
    The report asks `tableau-proof/3` to synthesize a proof-code term for the
    generated Group-3 SelfCons theorem of `variant`. The first synthesized proof
@@ -195,6 +198,9 @@
          (if-not proof-code
            {:variant variant
             :evidence-kind :proof-search-synthesis
+            :probe-kind :positive-selfcons-proof-diagnostic
+            :final-evidence-eligible? false
+            :counterexample-synthesis-status :not-implemented
             :target target
             :query-opts query-opts
             :synthesis-status status
@@ -221,6 +227,9 @@
                                                                   candidate)]
              {:variant variant
               :evidence-kind :proof-search-synthesis
+              :probe-kind :positive-selfcons-proof-diagnostic
+              :final-evidence-eligible? false
+              :counterexample-synthesis-status :not-implemented
               :target target
               :query-opts query-opts
               :synthesis-status status

@@ -1695,15 +1695,307 @@
       decoded-proof :structural-tableau
       :else :unreadable-proof-code)))
 
+(defn- proof-byte-sequence?
+  "True when `value` is one complete sequence of base-64 proof bytes.
+
+   Formula-bearing proof nodes use either a flat length-prefixed byte payload or
+   a nested byte-list payload. Keeping this predicate exact prevents arbitrary
+   proof lists from being mistaken for formula nodes during route inspection."
+  [value]
+  (and (sequential? value)
+       (seq value)
+       (every? #(and (integer? %) (<= 0 % (dec sjas-code/byte-base))) value)))
+
+(defn- structural-proof-node-parts
+  "Return `[formula-bytes children]` for one formula-bearing proof node.
+
+   Narrow nodes begin with a positive byte count followed by that many formula
+   bytes. Wide nodes store the formula bytes as the first list item. The result
+   deliberately exposes only child proof terms; formula payload bytes are never
+   recursively reinterpreted as nested proof nodes."
+  [node]
+  (when (and (sequential? node) (seq node))
+    (let [head (first node)]
+      (cond
+        (proof-byte-sequence? head)
+        [(vec head) (rest node)]
+
+        (and (integer? head)
+             (pos? head)
+             (<= head (count (rest node))))
+        (let [formula-bytes (take head (rest node))]
+          (when (proof-byte-sequence? formula-bytes)
+            [(vec formula-bytes) (drop (inc head) node)]))
+
+        :else nil))))
+
+(defn- structural-proof-formula-nodes
+  "Collect exact formula-byte payloads selected by a structural proof tree."
+  [proof]
+  (loop [pending (list proof)
+         nodes []]
+    (if-let [node (first pending)]
+      (if-let [[formula-bytes children] (structural-proof-node-parts node)]
+        (recur (concat children (rest pending))
+               (conj nodes formula-bytes))
+        (recur (rest pending) nodes))
+      nodes)))
+
+(defn- decoded-measured-proof-object
+  "Decode one measured proof object and its embedded ordinary proof tree.
+
+   ADR-0109 objects carry exact system/theorem/proof byte strings. This helper
+   accepts the established measured object tags and returns nil for invalid
+   payloads rather than inferring route evidence from a partial decode."
+  [proof-object-code]
+  (let [expected-payload-counts {'dsjas-tableau-proof-object 3
+                                 'dsjas-subst-prf-object 4
+                                 'dsjas-tab1-proof-object 3}
+        decoded (try
+                  (sjas-code/proof-formal-code-term->proof proof-object-code)
+                  (catch Exception _ nil))
+        tag (first decoded)
+        payloads (rest decoded)]
+    (when (and (= (get expected-payload-counts tag)
+                  (count payloads))
+               (every? proof-byte-sequence? payloads))
+      (let [proof-bytes (last payloads)
+            proof (sjas-code/proof-bytes->term proof-bytes)]
+        (when proof
+          {:tag tag
+           :system-bytes (vec (first payloads))
+           :payloads (mapv vec payloads)
+           :proof-bytes (vec proof-bytes)
+           :proof proof
+           :formula-node-bytes (structural-proof-formula-nodes proof)})))))
+
+(defn- formula-route-bytes
+  "Return the structural-checker byte form for one selected antecedent formula."
+  [system formula]
+  (vec (formal-code-term-bytes
+         (formula-code system (proof-side-antecedent-formula formula)))))
+
+(defn boundary-proof-route-report
+  "Derive reduced-witness use from measured, inspectable proof objects.
+
+   `required-witness-formulas` names the exact variant formulas whose selection
+   constitutes route evidence. The report also detects selection of the
+   generated Group-3 formula, which is the ordinary SelfCons shortcut. This is
+   a structural audit only: final evidence must additionally pass the kernel
+   counterexample predicates returned by a target-specific validator."
+  [system required-witness-formulas proof-object-codes]
+  (let [decoded-objects (mapv decoded-measured-proof-object proof-object-codes)
+        complete-objects (filterv some? decoded-objects)
+        expected-system-bytes (vec (formal-code-term-bytes (:system-code system)))
+        all-node-bytes (vec (mapcat :formula-node-bytes complete-objects))
+        witness-node-bytes (set (map #(formula-route-bytes system %)
+                                     required-witness-formulas))
+        group-three-node-bytes (formula-route-bytes
+                                 system
+                                 (:formula (:group-three system)))
+        witness-node-count (count (filter witness-node-bytes all-node-bytes))
+        group-three-node-count (count (filter #(= group-three-node-bytes %)
+                                              all-node-bytes))
+        all-decode? (= (count proof-object-codes) (count complete-objects))
+        all-match-system? (and all-decode?
+                               (every? #(= expected-system-bytes
+                                           (:system-bytes %))
+                                       complete-objects))
+        required-witness-node? (pos? witness-node-count)
+        group-three-node? (pos? group-three-node-count)]
+    {:system-code (:system-code system)
+     :proof-object-count (count proof-object-codes)
+     :decoded-proof-object-count (count complete-objects)
+     :all-proof-objects-decode? all-decode?
+     :all-proof-objects-match-system? all-match-system?
+     :required-witness-node? required-witness-node?
+     :required-witness-node-count witness-node-count
+     :group-three-node? group-three-node?
+     :group-three-node-count group-three-node-count
+     :route-shape-valid? (and all-decode?
+                              all-match-system?
+                              required-witness-node?
+                              (not group-three-node?))}))
+
+(defn- boundary-query-valid?
+  "Run one ground boundary-counterexample predicate through the SJAS kernel."
+  [system formula proof-limit fuel]
+  (boolean
+    (seq (query/query-succeeds (:program system)
+                               formula
+                               proof-limit
+                               fuel))))
+
+(defn- missing-counterexample-fields
+  "Return stable reason keywords for absent SelfCons counterexample components."
+  [candidate]
+  (cond-> #{}
+    (nil? (:theorem-code candidate)) (conj :missing-theorem-code)
+    (nil? (:complement-code candidate)) (conj :missing-complement-code)
+    (nil? (:theorem-proof-object candidate))
+    (conj :missing-theorem-proof-object)
+    (nil? (:complement-proof-object candidate))
+    (conj :missing-complement-proof-object)))
+
+(defn- level1-selfcons-counterexample-validation
+  "Validate the positive body of a generated Level-1 `not(SelfCons)` tuple."
+  [variant system report required-witness-formulas candidate proof-limit fuel]
+  (let [missing (missing-counterexample-fields candidate)
+        theorem-code (:theorem-code candidate)
+        complement-code (:complement-code candidate)
+        theorem-proof-object (:theorem-proof-object candidate)
+        complement-proof-object (:complement-proof-object candidate)
+        substitution-code (get-in system [:group-three
+                                          :selfcons-skeleton-code])
+        ready? (empty? missing)
+        class-valid? (and ready?
+                          (boundary-query-valid? system
+                                                 (pi-star-1-code theorem-code)
+                                                 proof-limit
+                                                 fuel))
+        complement-valid? (and ready?
+                               (boundary-query-valid? system
+                                                      (neg-pair theorem-code
+                                                                complement-code)
+                                                      proof-limit
+                                                      fuel))
+        theorem-proof-valid? (and ready?
+                                  (boundary-query-valid?
+                                    system
+                                    (dsjas-subst-prf (:system-code system)
+                                                     substitution-code
+                                                     theorem-code
+                                                     theorem-proof-object)
+                                    proof-limit
+                                    fuel))
+        complement-proof-valid? (and ready?
+                                     (boundary-query-valid?
+                                       system
+                                       (dsjas-subst-prf
+                                         (:system-code system)
+                                         substitution-code
+                                         complement-code
+                                         complement-proof-object)
+                                       proof-limit
+                                       fuel))
+        route (boundary-proof-route-report
+                system
+                required-witness-formulas
+                (remove nil? [theorem-proof-object complement-proof-object]))
+        counterexample-valid? (and class-valid?
+                                   complement-valid?
+                                   theorem-proof-valid?
+                                   complement-proof-valid?)
+        proof-route-valid? (and counterexample-valid?
+                                (:route-shape-valid? route))
+        reasons (cond-> missing
+                  (and ready? (not class-valid?))
+                  (conj :theorem-class-validation-failed)
+                  (and ready? (not complement-valid?))
+                  (conj :complement-validation-failed)
+                  (and ready? (not theorem-proof-valid?))
+                  (conj :theorem-proof-validation-failed)
+                  (and ready? (not complement-proof-valid?))
+                  (conj :complement-proof-validation-failed)
+                  (and counterexample-valid? (not proof-route-valid?))
+                  (conj :boundary-proof-route-unverified))]
+    {:variant variant
+     :validation-kind :selfcons-counterexample
+     :status (if (and counterexample-valid? proof-route-valid?)
+               :validated
+               :rejected)
+     :system-code (:system-code report)
+     :selfcons-code (:group-three-code report)
+     :target-formula (:selfcons-refutation-target report)
+     :target-code (:target-code report)
+     :proof-code (:certificate-code candidate)
+     :certificate-kind :selfcons-counterexample
+     :theorem-code theorem-code
+     :complement-code complement-code
+     :theorem-proof-object theorem-proof-object
+     :complement-proof-object complement-proof-object
+     :validator :generated-selfcons-counterexample
+     :proof-valid? counterexample-valid?
+     :counterexample-valid? counterexample-valid?
+     :proof-route-valid? proof-route-valid?
+     :checks {:pi-star-1-code class-valid?
+              :neg-pair complement-valid?
+              :theorem-dsjas-subst-prf theorem-proof-valid?
+              :complement-dsjas-subst-prf complement-proof-valid?}
+     :route route
+     :reasons reasons}))
+
+(defn total-multiplication-selfcons-counterexample-validation
+  "Validate an ADR-0119 total-multiplication SelfCons counterexample tuple."
+  ([candidate]
+   (total-multiplication-selfcons-counterexample-validation candidate {}))
+  ([candidate opts]
+   (let [proof-limit (:proof-limit opts 1)
+         fuel (:fuel opts 320)
+         depth (:depth opts 3)
+         system-opts (dissoc opts :proof-limit :fuel)
+         system (total-multiplication-reduced-witness-system system-opts)
+         report (total-multiplication-full-target-report system-opts)
+         required-witness (last (total-multiplication-squaring-chain-axioms
+                                  depth))]
+     (level1-selfcons-counterexample-validation
+       :total-multiplication
+       system
+       report
+       [required-witness]
+       candidate
+       proof-limit
+       fuel))))
+
+(defn xtab-lem-selfcons-counterexample-validation
+  "Validate an ADR-0119 Xtab/LEM SelfCons counterexample tuple."
+  ([candidate]
+   (xtab-lem-selfcons-counterexample-validation candidate {}))
+  ([candidate opts]
+   (let [proof-limit (:proof-limit opts 1)
+         fuel (:fuel opts 320)
+         system-opts (dissoc opts :proof-limit :fuel)
+         system (xtab-lem-reduced-witness-system system-opts)
+         report (xtab-lem-full-target-report system-opts)]
+     (level1-selfcons-counterexample-validation
+       :xtab-or-lem-axiom
+       system
+       report
+       (xtab-lem-witness-axioms)
+       candidate
+       proof-limit
+       fuel))))
+
+(defn tab2-or-stronger-selfcons-counterexample-validation
+  "Reject Tab-2 counterexample claims until `dsjas-tab2-proof/3` exists.
+
+   ADR-0138's Tableau-0 bridge can diagnose a proof code but cannot establish
+   the positive proof predicates quantified by the Tab-2 SelfCons sentence."
+  [candidate]
+  (let [report (tab2-or-stronger-full-target-report)]
+    {:variant :tab-2-or-stronger
+     :validation-kind :selfcons-counterexample
+     :status :proof-relation-unavailable
+     :system-code (:system-code report)
+     :selfcons-code (:group-three-code report)
+     :target-formula (:selfcons-refutation-target report)
+     :target-code (:target-code report)
+     :proof-code (:certificate-code candidate)
+     :certificate-kind :selfcons-counterexample
+     :validator :dsjas-tab2-proof
+     :proof-valid? false
+     :counterexample-valid? false
+     :proof-route-valid? false
+     :reasons #{:proof-relation-unavailable}}))
+
 (defn total-multiplication-constructed-certificate-validation
-  "Validate a proof code against the ADR-0126 total-multiplication target.
+  "Diagnose a positive Group-3 proof against the ADR-0126 system.
 
    The public `tableau-proof/3` predicate reconstructs
    `AxiomConj(S_total-mul) /\\ not(SelfCons(S_total-mul))` from the supplied
-   system and generated Group-3 theorem code. The returned map is the
-   proof-validation record consumed by
-   `proflog.sjas-correspondence/verify-boundary-constructed-certificate`; it is
-   not itself a Workstream B completion claim."
+   system and generated Group-3 theorem code. ADR-0140 classifies the returned
+   map as legacy positive-SelfCons diagnostics; it is not eligible for
+   Workstream B verification."
   ([proof-code]
    (total-multiplication-constructed-certificate-validation proof-code {}))
   ([proof-code opts]
@@ -1723,6 +2015,8 @@
                     proof-limit
                     fuel))]
      {:variant :total-multiplication
+      :validation-kind :legacy-positive-selfcons-proof
+      :boundary-evidence-eligible? false
       :system-code (:system-code report)
       :selfcons-code (:group-three-code report)
       :target-formula (:selfcons-refutation-target report)
@@ -1736,7 +2030,7 @@
       :proof-valid? (boolean (seq proofs))})))
 
 (defn xtab-lem-constructed-certificate-validation
-  "Validate a proof code against the ADR-0134 Xtab/LEM target.
+  "Diagnose a positive Group-3 proof against the ADR-0134 Xtab/LEM system.
 
    The returned proof-validation record has the same shape as
    `total-multiplication-constructed-certificate-validation`, but derives its
@@ -1760,6 +2054,8 @@
                     proof-limit
                     fuel))]
      {:variant :xtab-or-lem-axiom
+      :validation-kind :legacy-positive-selfcons-proof
+      :boundary-evidence-eligible? false
       :system-code (:system-code report)
       :selfcons-code (:group-three-code report)
       :target-formula (:selfcons-refutation-target report)
@@ -1773,7 +2069,7 @@
       :proof-valid? (boolean (seq proofs))})))
 
 (defn tab2-or-stronger-constructed-certificate-validation
-  "Validate a proof code against the ADR-0137 Tab-2 boundary target.
+  "Diagnose a positive Group-3 proof against the ADR-0137 Tab-2 system.
 
    The checked system and theorem code come from the target-only
    `:willard-sjas-tab2-boundary` system. The validation query itself runs
@@ -1805,6 +2101,8 @@
                     proof-limit
                     fuel))]
      {:variant :tab-2-or-stronger
+      :validation-kind :legacy-positive-selfcons-proof
+      :boundary-evidence-eligible? false
       :system-code (:system-code report)
       :selfcons-code (:group-three-code report)
       :target-formula (:selfcons-refutation-target report)

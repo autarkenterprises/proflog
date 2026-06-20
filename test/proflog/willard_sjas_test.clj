@@ -1305,6 +1305,125 @@
       (is (false? (:proof-valid? unreadable)))
       (is (= 0 (:proof-count unreadable))))))
 
+(deftest sjas-boundary-proof-route-is-derived-from-measured-proof-objects
+  (testing "ADR-0140 derives witness use and Group-3 shortcuts from decoded proof nodes"
+    (let [opts {:profile :willard-sjas-level1
+                :depth 1}
+          system (sjas/total-multiplication-reduced-witness-system opts)
+          witness-formula (last (:beta
+                                  (sjas/total-multiplication-reduced-witness-options
+                                    1)))
+          witness-proof (structural-flex-tableau-node system witness-formula)
+          witness-proof-code (sjas/proof-certificate witness-proof)
+          witness-object
+          (sjas/dsjas-subst-prf-object
+            (:system-code system)
+            (get-in system [:group-three :selfcons-skeleton-code])
+            (sjas/formula-code system witness-formula)
+            witness-proof-code)
+          ordinary-proof
+          (structural-flex-tableau-node
+            system
+            (proof-side-antecedent-formula
+              (:formula (:group-three system))))
+          ordinary-proof-code (sjas/proof-certificate ordinary-proof)
+          ordinary-object
+          (sjas/dsjas-subst-prf-object
+            (:system-code system)
+            (get-in system [:group-three :selfcons-skeleton-code])
+            (:code (:group-three system))
+            ordinary-proof-code)
+          unrelated-formula (first (sjas/total-multiplication-squaring-chain-axioms
+                                     1))
+          unrelated-proof-code
+          (sjas/proof-certificate
+            (structural-flex-tableau-node system unrelated-formula))
+          unrelated-object
+          (sjas/dsjas-subst-prf-object
+            (:system-code system)
+            (get-in system [:group-three :selfcons-skeleton-code])
+            (sjas/formula-code system unrelated-formula)
+            unrelated-proof-code)
+          other-system (sjas/total-multiplication-reduced-witness-system
+                         (assoc opts :depth 0))
+          wrong-system-object
+          (sjas/dsjas-subst-prf-object
+            (:system-code other-system)
+            (get-in system [:group-three :selfcons-skeleton-code])
+            (sjas/formula-code system witness-formula)
+            witness-proof-code)
+          malformed-arity-object
+          (sjas-code/proof-formal-code-term
+            (list 'dsjas-subst-prf-object
+                  (vec (formal-code-term-bytes (:system-code system)))
+                  (vec (formal-code-term-bytes witness-proof-code)))
+            :compact)
+          witness-route (sjas/boundary-proof-route-report
+                          system
+                          [witness-formula]
+                          [witness-object])
+          ordinary-route (sjas/boundary-proof-route-report
+                           system
+                           [witness-formula]
+                           [ordinary-object])
+          unrelated-route (sjas/boundary-proof-route-report
+                            system
+                            [witness-formula]
+                            [unrelated-object])
+          wrong-system-route (sjas/boundary-proof-route-report
+                               system
+                               [witness-formula]
+                               [wrong-system-object])
+          malformed-route (sjas/boundary-proof-route-report
+                            system
+                            [witness-formula]
+                            [(ast/app-term 'not-a-proof-object)])
+          malformed-arity-route (sjas/boundary-proof-route-report
+                                  system
+                                  [witness-formula]
+                                  [malformed-arity-object])]
+      (is (true? (:all-proof-objects-decode? witness-route)))
+      (is (true? (:required-witness-node? witness-route)))
+      (is (false? (:group-three-node? witness-route)))
+      (is (true? (:route-shape-valid? witness-route)))
+      (is (true? (:all-proof-objects-decode? ordinary-route)))
+      (is (false? (:required-witness-node? ordinary-route)))
+      (is (true? (:group-three-node? ordinary-route)))
+      (is (false? (:route-shape-valid? ordinary-route)))
+      (is (false? (:required-witness-node? unrelated-route)))
+      (is (false? (:group-three-node? unrelated-route)))
+      (is (false? (:route-shape-valid? unrelated-route)))
+      (is (true? (:all-proof-objects-decode? wrong-system-route)))
+      (is (false? (:all-proof-objects-match-system? wrong-system-route)))
+      (is (false? (:route-shape-valid? wrong-system-route)))
+      (is (false? (:all-proof-objects-decode? malformed-route)))
+      (is (= 0 (:decoded-proof-object-count malformed-route)))
+      (is (false? (:route-shape-valid? malformed-route)))
+      (is (false? (:all-proof-objects-decode? malformed-arity-route)))
+      (is (= 0 (:decoded-proof-object-count malformed-arity-route)))
+      (is (= (:system-code system) (:system-code witness-route)))
+      (is (= 1 (:proof-object-count witness-route))))))
+
+(deftest sjas-boundary-counterexample-validation-does-not-relabel-positive-selfcons
+  (testing "ADR-0140 requires a concrete generated-SelfCons counterexample tuple"
+    (let [level1 (sjas/total-multiplication-selfcons-counterexample-validation
+                   {}
+                   {:profile :willard-sjas-level1
+                    :depth 0})
+          tab2 (sjas/tab2-or-stronger-selfcons-counterexample-validation {})]
+      (is (= :selfcons-counterexample (:validation-kind level1)))
+      (is (false? (:counterexample-valid? level1)))
+      (is (false? (:proof-route-valid? level1)))
+      (is (= #{:missing-theorem-code
+               :missing-complement-code
+               :missing-theorem-proof-object
+               :missing-complement-proof-object}
+             (:reasons level1)))
+      (is (= :selfcons-counterexample (:validation-kind tab2)))
+      (is (= :proof-relation-unavailable (:status tab2)))
+      (is (false? (:counterexample-valid? tab2)))
+      (is (false? (:proof-route-valid? tab2))))))
+
 (deftest sjas-xtab-lem-reduced-witness-installs-reflected-lem-seed
   (testing "ADR-0133 reduced witness packages one LEM instance as reflected beta"
     (let [relationless (sjas/system
@@ -1490,6 +1609,9 @@
       (is (true? (:proof-valid? validation))
           "the ordinary Group-3 citation is a valid proof but not boundary-failure evidence")
       (is (= 1 (:proof-count validation)))
+      (is (= :legacy-positive-selfcons-proof
+             (:validation-kind validation)))
+      (is (false? (:boundary-evidence-eligible? validation)))
       (is (= :unreadable-proof-code (:certificate-kind unreadable)))
       (is (false? (:proof-valid? unreadable)))
       (is (= 0 (:proof-count unreadable))))))

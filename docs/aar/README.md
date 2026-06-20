@@ -134,3 +134,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0137](AAR-0137-sjas-tab2-full-target.md) | [ADR-0137](../adr/ADR-0137-sjas-tab2-full-target.md) | completed |
 | [AAR-0138](AAR-0138-sjas-tab2-certificate-validation.md) | [ADR-0138](../adr/ADR-0138-sjas-tab2-certificate-validation.md) | completed |
 | [AAR-0139](AAR-0139-sjas-boundary-synthesis-probe.md) | [ADR-0139](../adr/ADR-0139-sjas-boundary-synthesis-probe.md) | completed |
+| [AAR-0140](AAR-0140-sjas-boundary-proof-route-validation.md) | [ADR-0140](../adr/ADR-0140-sjas-boundary-proof-route-validation.md) | completed |

@@ -110,6 +110,17 @@ Long-running synthesis probes in this stream must follow the durable
 `test-runs/` logging discipline from the project instructions, including PID
 capture and `/usr/bin/time` output.
 
+ADR-0140 tightens the meaning of this evidence after the first implementation
+audit. A proof of the positive Group-3 SelfCons axiom is ordinary
+self-justification, even when represented by a structural tableau. Final
+boundary evidence must instead supply the concrete tuple quantified by the
+positive body of `not(SelfCons(S))`, validate every class/complement/proof
+predicate against the exact generated system, and derive reduced-witness use
+from formula-bearing nodes in the kernel-accepted proof objects. Candidate
+metadata is not proof-route evidence. The Tab-2 variant additionally requires
+an implemented arithmeticized `dsjas-tab2-proof/3` relation before either final
+evidence obligation can close.
+
 ### Workstream C: Self-Interpretation / Self-Extension
 
 The default positive implementation path is reflected pair axioms first and

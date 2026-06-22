@@ -123,7 +123,12 @@
    'wff
    'tab1-proof
    'dsjas-tab1-proof
-   'dsjas-tab2-proof])
+   'dsjas-tab2-proof
+   'mul
+   'finax4
+   'willard-map
+   'semprfk-alpha
+   'semprf-alpha])
 
 (def reserved-symbol->index
   "One-based indexes for `reserved-coding-symbols`."
@@ -140,6 +145,8 @@
 (def ^:private reflected-clause-tag 34)
 (def ^:private profile-tab1-tag 35)
 (def ^:private profile-tab2-boundary-tag 36)
+(def ^:private profile-total-multiplication-tag 37)
+(def ^:private profile-xtab-tag 38)
 (def proof-symbol-tag 41)
 (def proof-list-tag 42)
 (def proof-empty-list-tag 43)
@@ -271,7 +278,18 @@
     willard-sjas-tab1
     tab1-proof-list-object
     dsjas-tab1-proof-object
-    willard-sjas-tab1-proof-check])
+    willard-sjas-tab1-proof-check
+    tab2-proof-list-object
+    dsjas-tab2-proof-object
+    willard-sjas-tab2-proof-check
+    xtab-lem
+    willard-sjas-finax4
+    willard-sjas-boundary-refutation
+    total-multiplication-boundary
+    xtab-lem-boundary
+    tab2-boundary
+    willard-sjas-semprf-alpha
+    willard-sjas-semprfk-alpha])
 
 (def proof-symbol->index
   (into {} (map-indexed (fn [idx sym] [sym (inc idx)]) proof-symbols)))
@@ -438,20 +456,51 @@
 
 (defn- binary-numeral-value
   [term]
-  (when (= 'app (ast/tag-of term))
-    (let [head (second term)
-          args (nnext term)]
-      (cond
-        (and (= zero-symbol head) (empty? args)) 0
-        (and (= one-symbol head) (empty? args)) 1
-        (and (= 'dbl head) (= 1 (count args)))
-        (when-let [arg (binary-numeral-value (first args))]
-          (*' 2 arg))
-        (and (= 'add head) (= 2 (count args)))
-        (when-let [left (binary-numeral-value (first args))]
-          (when-let [right (binary-numeral-value (second args))]
-            (+' left right)))
-        :else nil))))
+  (loop [work (list [:eval term])
+         values '()]
+    (if-let [[op node] (first work)]
+      (let [rest-work (rest work)]
+        (case op
+          :eval
+          (if (= 'app (ast/tag-of node))
+            (let [head (second node)
+                  args (nnext node)]
+              (cond
+                (and (= zero-symbol head) (empty? args))
+                (recur rest-work (cons 0 values))
+
+                (and (= one-symbol head) (empty? args))
+                (recur rest-work (cons 1 values))
+
+                (and (= 'dbl head) (= 1 (count args)))
+                (recur (list* [:eval (first args)]
+                              [:dbl nil]
+                              rest-work)
+                       values)
+
+                (and (= 'add head) (= 2 (count args)))
+                (recur (list* [:eval (first args)]
+                              [:eval (second args)]
+                              [:add nil]
+                              rest-work)
+                       values)
+
+                :else nil))
+            nil)
+
+          :dbl
+          (if-let [arg (first values)]
+            (recur rest-work (cons (*' 2 arg) (rest values)))
+            nil)
+
+          :add
+          (if (seq (rest values))
+            (let [right (first values)
+                  left (second values)]
+              (recur rest-work (cons (+' left right) (nnext values))))
+            nil)))
+      (when (and (seq values) (nil? (next values)))
+        (first values)))))
 
 (defn code-term-bytes
   "Return the byte vector denoted by a compact code term, or nil if malformed."
@@ -645,6 +694,9 @@
     :willard-sjas-level1 profile-level1-tag
     :willard-sjas-tab1 profile-tab1-tag
     :willard-sjas-tab2-boundary profile-tab2-boundary-tag
+    :willard-sjas-tab2 profile-tab2-boundary-tag
+    :willard-sjas-total-multiplication profile-total-multiplication-tag
+    :willard-sjas-xtab profile-xtab-tag
     (throw (ex-info "Unsupported SJAS profile for coding"
                     {:profile profile}))))
 

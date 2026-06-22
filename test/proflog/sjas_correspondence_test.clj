@@ -615,11 +615,13 @@
       (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (:final-evidence-required audit)))
-      (is (= :full-target-implemented
+      ;; ADR-0141 implemented each variant's apparatus; the roadmap reports
+      ;; apparatus-implemented while the evidence ledger tracks final closure.
+      (is (= :apparatus-implemented
              (get-in audit [:variant-statuses :total-multiplication])))
-      (is (= :full-target-implemented
+      (is (= :apparatus-implemented
              (get-in audit [:variant-statuses :tab-2-or-stronger])))
-      (is (= :full-target-implemented
+      (is (= :apparatus-implemented
              (get-in audit [:variant-statuses :xtab-or-lem-axiom])))
       (is (= #{:reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
@@ -656,7 +658,7 @@
               :remaining-stage :completed}
              (get-in audit [:reduced-witnesses :tab-2-or-stronger])))
       (is (= {:kind :generated-selfcons-refutation
-              :system-builder 'xtab-lem-reduced-witness-system
+              :system-builder 'xtab-complete-system
               :target-report 'xtab-lem-full-target-report
               :target-shape "AxiomConj(S_xtab_lem) /\\ not(SelfCons(S_xtab_lem))"
               :status :implemented
@@ -664,7 +666,7 @@
                                     :proof-search-synthesis}}
              (get-in audit [:full-targets :xtab-or-lem-axiom])))
       (is (= {:kind :generated-selfcons-refutation
-              :system-builder 'tab2-or-stronger-full-target-system
+              :system-builder 'tab2-complete-system
               :target-report 'tab2-or-stronger-full-target-report
               :target-shape "AxiomConj(S_tab2_boundary) /\\ not(SelfCons(S_tab2_boundary))"
               :status :implemented
@@ -697,7 +699,10 @@
                       :xtab-or-lem-axiom
                       :constructed-certificate
                       :validation-helper])))
-      (is (= :blocked-on-proof-relation
+      ;; ADR-0141 implemented the dsjas-tab2-proof checker, so the Tab-2
+      ;; constructed-certificate verifier is no longer blocked on the proof
+      ;; relation; its remaining gate is the extended-probe synthesis run.
+      (is (= :implemented-extended-probe-pending
              (get-in audit
                      [:evidence-verifiers
                       :tab-2-or-stronger
@@ -720,7 +725,7 @@
                             :constructed-certificate])]
       (is (= 'verify-boundary-constructed-certificate
              (:verifier-helper verifier)))
-      (is (= :blocked-on-proof-relation (:status verifier)))
+      (is (= :implemented-extended-probe-pending (:status verifier)))
       (is (= :dsjas-tab2-proof-checker (:prerequisite verifier)))
       (is (= 'tab2-or-stronger-selfcons-counterexample-validation
              (:validation-helper verifier)))
@@ -778,22 +783,25 @@
     (let [surface (correspondence/audit-tab2-or-stronger-boundary-surface)]
       (is (= :tab-2-or-stronger (:variant surface)))
       (is (= :workstream-b (:workstream surface)))
-      (is (= :surface-implemented (:status surface)))
+      ;; ADR-0141 implemented the Tab-2 apparatus (arithmeticized
+      ;; dsjas-tab2-proof, reduced witness, and full SelfCons target), so the
+      ;; surface now reports apparatus-implemented with only the two final
+      ;; evidence obligations open; the evidence ledger remains the completion
+      ;; authority.
+      (is (= :apparatus-implemented (:status surface)))
       (is (= :willard-sjas-tab1 (:implemented-baseline-profile surface)))
+      (is (= :willard-sjas-tab2 (:implemented-boundary-profile surface)))
       (is (= :rejected-from-workstream-a (:positive-workstream-status surface)))
       (is (= {:minimum-apparatus :Tab-2
               :exceeds-intermediate-classifiers #{:pi-star-1
                                                   :sigma-star-1}
               :risk :stronger-theorem-reuse}
              (:boundary-step surface)))
-      (is (= #{:reduced-reflected-beta-witness
-               :full-generated-selfcons-contradiction-target
-               :constructed-certificate
+      (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (:remaining-obligations surface)))
-      (is (= #{:tab2-proof-checker
-               :reduced-reflected-beta-witness
-               :full-generated-selfcons-contradiction-target}
+      (is (= #{:constructed-certificate
+               :proof-search-synthesis}
              (:not-implemented surface)))
       (is (false? (:completion-claimed? surface))))))
 
@@ -802,22 +810,22 @@
     (let [surface (correspondence/audit-xtab-or-lem-boundary-surface)]
       (is (= :xtab-or-lem-axiom (:variant surface)))
       (is (= :workstream-b (:workstream surface)))
-      (is (= :surface-implemented (:status surface)))
+      ;; ADR-0141 implemented the Xtab profile (formula-independent LEM
+      ;; injection) and its full SelfCons target, leaving the two final
+      ;; evidence obligations open for the ledger.
+      (is (= :apparatus-implemented (:status surface)))
       (is (= :tableau-derived-lem (:baseline-treatment surface)))
+      (is (= :willard-sjas-xtab (:implemented-profile surface)))
       (is (= :not-a-tab1-extension (:positive-workstream-status surface)))
       (is (= {:packaging :logical-axiom-schema
               :source :xtab-or-law-of-excluded-middle
               :risk :lem-as-axiom}
              (:boundary-step surface)))
-      (is (= #{:reduced-reflected-beta-witness
-               :full-generated-selfcons-contradiction-target
-               :constructed-certificate
+      (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (:remaining-obligations surface)))
-      (is (= #{:xtab-axiom-schema
-               :lem-axiom-schema-profile
-               :reduced-reflected-beta-witness
-               :full-generated-selfcons-contradiction-target}
+      (is (= #{:constructed-certificate
+               :proof-search-synthesis}
              (:not-implemented surface)))
       (is (false? (:completion-claimed? surface))))))
 
@@ -825,7 +833,7 @@
   (testing "ADR-0133: Xtab/LEM reduced witness records the finite reflected beta seed"
     (let [audit (correspondence/audit-boundary-failure-roadmap)
           witness (get-in audit [:reduced-witnesses :xtab-or-lem-axiom])]
-      (is (= :full-target-implemented
+      (is (= :apparatus-implemented
              (get-in audit [:variant-statuses :xtab-or-lem-axiom])))
       (is (= #{:reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
@@ -839,7 +847,7 @@
       (is (= #{:constructed-certificate
                :proof-search-synthesis}
              (get-in audit [:open-obligations :xtab-or-lem-axiom])))
-      (is (= :surface-implemented
+      (is (= :apparatus-implemented
              (:status (get-in audit [:variant-surfaces :xtab-or-lem-axiom]))))
       (is (false? (:workstream-complete? audit))))))
 
@@ -847,13 +855,13 @@
   (testing "ADR-0134: Xtab/LEM full target records generated SelfCons refutation stage"
     (let [audit (correspondence/audit-boundary-failure-roadmap)
           target (get-in audit [:full-targets :xtab-or-lem-axiom])]
-      (is (= :full-target-implemented
+      (is (= :apparatus-implemented
              (get-in audit [:variant-statuses :xtab-or-lem-axiom])))
       (is (= #{:reduced-reflected-beta-witness
                :full-generated-selfcons-contradiction-target}
              (get-in audit [:completed-witness-stages :xtab-or-lem-axiom])))
       (is (= {:kind :generated-selfcons-refutation
-              :system-builder 'xtab-lem-reduced-witness-system
+              :system-builder 'xtab-complete-system
               :target-report 'xtab-lem-full-target-report
               :target-shape "AxiomConj(S_xtab_lem) /\\ not(SelfCons(S_xtab_lem))"
               :status :implemented
@@ -1100,6 +1108,88 @@
                :boundary-proof-route-unverified}
              (:reasons legacy-positive-selfcons))
           "a valid proof of positive Group-3 SelfCons is not a boundary counterexample"))))
+
+(deftest boundary-evidence-ledger-reports-six-of-six-only-after-full-validation
+  (testing "ADR-0141: the Workstream B ledger gates six-of-six on kernel-completed obligations"
+    (let [complete-entry
+          (fn [variant]
+            {:variant variant
+             :constructed {:variant variant
+                           :result :verified-intermediate-evidence
+                           :completed-obligations #{:constructed-certificate}}
+             :synthesis {:variant variant
+                         :synthesis-status :found
+                         :completed-obligations #{:proof-search-synthesis}}})
+          all-complete (mapv complete-entry correspondence/boundary-variants)
+          full (correspondence/summarize-boundary-evidence-ledger all-complete)
+          ;; one variant whose independent synthesis never closed
+          missing-synthesis
+          (correspondence/summarize-boundary-evidence-ledger
+            (cons (-> (complete-entry :total-multiplication)
+                      (assoc-in [:synthesis :synthesis-status] :rejected)
+                      (assoc-in [:synthesis :completed-obligations] #{}))
+                  (map complete-entry [:xtab-or-lem-axiom :tab-2-or-stronger])))
+          ;; one variant whose constructed certificate failed verification
+          missing-constructed
+          (correspondence/summarize-boundary-evidence-ledger
+            (cons (-> (complete-entry :xtab-or-lem-axiom)
+                      (assoc-in [:constructed :result] :rejected)
+                      (assoc-in [:constructed :completed-obligations] #{}))
+                  (map complete-entry [:total-multiplication
+                                       :tab-2-or-stronger])))
+          ;; one expected variant entirely absent
+          missing-variant
+          (correspondence/summarize-boundary-evidence-ledger
+            (map complete-entry [:total-multiplication :xtab-or-lem-axiom]))
+          ;; a duplicated variant cannot pad the count for a missing one
+          duplicated-variant
+          (correspondence/summarize-boundary-evidence-ledger
+            (conj (mapv complete-entry [:total-multiplication
+                                        :xtab-or-lem-axiom])
+                  (complete-entry :total-multiplication)))
+          ;; an unrelated variant alongside three complete ones
+          unexpected-variant
+          (correspondence/summarize-boundary-evidence-ledger
+            (conj all-complete (complete-entry :tab-1)))
+          ;; flat metadata cannot substitute for kernel verification reports
+          metadata-only
+          (correspondence/summarize-boundary-evidence-ledger
+            (map (fn [variant]
+                   {:variant variant
+                    :completed-obligations #{:constructed-certificate
+                                             :proof-search-synthesis}})
+                 correspondence/boundary-variants))]
+      (is (= #{:total-multiplication :xtab-or-lem-axiom :tab-2-or-stronger}
+             correspondence/boundary-variants))
+      (is (= #{:constructed-certificate :proof-search-synthesis}
+             correspondence/boundary-final-evidence-obligations))
+      (is (true? (:complete? full)))
+      (is (= 6 (:obligations-total full)))
+      (is (= 6 (:obligations-complete full)))
+      (is (every? :complete? (vals (:per-variant full))))
+      (is (false? (:complete? missing-synthesis)))
+      (is (= 5 (:obligations-complete missing-synthesis)))
+      (is (= #{:proof-search-synthesis}
+             (get-in missing-synthesis
+                     [:per-variant :total-multiplication
+                      :remaining-obligations])))
+      (is (false? (:complete? missing-constructed)))
+      (is (= 5 (:obligations-complete missing-constructed)))
+      (is (= #{:constructed-certificate}
+             (get-in missing-constructed
+                     [:per-variant :xtab-or-lem-axiom
+                      :remaining-obligations])))
+      (is (false? (:complete? missing-variant)))
+      (is (false? (get-in missing-variant
+                          [:per-variant :tab-2-or-stronger :present?])))
+      (is (false? (:complete? duplicated-variant)))
+      (is (true? (get-in duplicated-variant
+                         [:per-variant :total-multiplication :duplicate?])))
+      (is (false? (:complete? unexpected-variant)))
+      (is (= #{:tab-1} (:unexpected-variants unexpected-variant)))
+      (is (false? (:complete? metadata-only))
+          "flat completed-obligations metadata must not satisfy the ledger")
+      (is (= 0 (:obligations-complete metadata-only))))))
 
 (deftest dsjas-track2c-size-lower-bound-covers-citation-and-structural-objects
   (testing "ADR-0104 Track 2c: the combined size repair has an explicit lower-bound argument"

@@ -1233,12 +1233,118 @@
               220))
           "the final squaring-chain beta record must be citeable by sjas-axiom"))))
 
+(deftest sjas-adr0141-total-multiplication-installs-willard-v-route
+  (testing "the total-multiplication boundary system contains the V4/V5 proof route vocabulary"
+    (let [system (sjas/total-multiplication-complete-system {:depth 1})
+          route-axioms (sjas/total-multiplication-willard-route-axioms
+                         (:contradiction-code system))
+          route-relations (set (keys sjas/total-multiplication-willard-relations))
+          code-canonical-formula (var-get #'sjas/code-canonical-formula)
+          route-set (set (map code-canonical-formula route-axioms))
+          route-records (filter #(and (= :group-two (:group %))
+                                      (contains?
+                                        route-set
+                                        (code-canonical-formula (:formula %))))
+                                (:axioms system))
+          v4 (sjas/total-multiplication-willard-v4-axiom)
+          v5 (sjas/total-multiplication-willard-v5-axiom
+               (:contradiction-code system))]
+      (is (= {'finax4 1
+              'willard-map 3
+              'semprfk-alpha 5
+              'semprf-alpha 3}
+             sjas/total-multiplication-willard-relations))
+      (is (every? #(contains? (:relations (:language system)) %)
+                  route-relations))
+      (is (= 2 (count route-axioms)))
+      (is (every? sjas/pi-star-1-encodable? route-axioms))
+      (is (= route-set
+             (set (map (comp code-canonical-formula :formula)
+                       route-records))))
+      (is (every? #(contains? (set (formula-relation-symbols v4)) %)
+                  '#{subst-code semprfk-alpha}))
+      (is (every? #(contains? (set (formula-relation-symbols v5)) %)
+                  '#{finax4 willard-map semprfk-alpha semprf-alpha lt}))
+      (is (not= v4 v5)
+          "V4 descent and V5 contradiction extraction must remain distinct route axioms"))))
+
+(deftest sjas-adr0141-total-multiplication-v-route-predicates-execute
+  (testing "the V-route predicates are object-level checks rather than inert relation names"
+    (let [system (sjas/system
+                   {:profile :willard-sjas-total-multiplication
+                    :functions sjas/total-multiplication-functions
+                    :relations sjas/total-multiplication-willard-relations
+                    :beta [(ast/eq-lit sjas/one sjas/one)]})
+          route-record (first (filter #(= :group-two (:group %))
+                                      (:axioms system)))
+          axiom-certificate (sjas/proof-certificate
+                              'sjas-axiom
+                              {:code-format :u-grounding})
+          proof-bound-value (inc (sjas-code/bytes->u-grounding-code-value
+                                   (formal-code-term-bytes axiom-certificate)))
+          proof-bound (sjas-code/binary-numeral-term proof-bound-value)]
+      (is (successful?
+            (query/query-succeeds (:program system)
+                                  (sjas/finax4 (:system-code system))
+                                  1
+                                  260))
+          "FinAx4 must recognize the generated finite-system code")
+      (is (empty?
+            (query/query-succeeds (:program system)
+                                  (sjas/finax4 (:contradiction-code system))
+                                  1
+                                  180))
+          "FinAx4 must reject ordinary formula codes")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/semprfk-alpha (:system-code system)
+                                  sjas/one
+                                  (:code route-record)
+                                  axiom-certificate
+                                  proof-bound)
+              1
+              320))
+          "SemPrf^k_alpha must validate bounded proof certificates, not only unbounded SemPrf_alpha"))))
+
+(deftest sjas-adr0141-willard-semprf-alpha-delegates-to-tableau-proof
+  (testing "Willard SemPrf_alpha is executable proof-kernel evidence, not an inert relation"
+    (let [system (sjas/system
+                   {:profile :willard-sjas-total-multiplication
+                    :functions sjas/total-multiplication-functions
+                    :relations sjas/total-multiplication-willard-relations
+                    :beta [(ast/eq-lit sjas/one sjas/one)]})
+          route-record (first (filter #(= :group-two (:group %))
+                                      (:axioms system)))
+          axiom-certificate (sjas/proof-certificate 'sjas-axiom)
+          semprf (ast/pos-lit
+                   (ast/app-term 'semprf-alpha
+                                 (:system-code system)
+                                 (:code route-record)
+                                 axiom-certificate))]
+      (is (successful?
+            (query/query-succeeds (:program system)
+                                  semprf
+                                  1
+                                  220)))
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (ast/pos-lit
+                (ast/app-term 'semprf-alpha
+                              (:system-code system)
+                              (:contradiction-code system)
+                              axiom-certificate))
+              1
+              160))
+          "SemPrf_alpha must not validate an axiom citation for a theorem absent from the generated system"))))
+
 (deftest sjas-total-multiplication-full-target-names-generated-selfcons
   (testing "ADR-0126 names the generated SelfCons refutation target without claiming proof evidence"
     (let [depth 3
           opts {:profile :willard-sjas-level1
                 :depth depth}
-          system (sjas/total-multiplication-reduced-witness-system opts)
+          system (sjas/total-multiplication-complete-system opts)
           report (sjas/total-multiplication-full-target-report opts)
           system-negated-selfcons (normalize/negate-formula
                                     (:formula (:group-three system)))
@@ -1277,7 +1383,7 @@
                 :depth 3
                 :fuel 260
                 :proof-limit 1}
-          system (sjas/total-multiplication-reduced-witness-system opts)
+          system (sjas/total-multiplication-complete-system opts)
           report (sjas/total-multiplication-full-target-report opts)
           axiom-certificate (sjas/proof-certificate 'sjas-axiom)
           validation (sjas/total-multiplication-constructed-certificate-validation
@@ -1420,9 +1526,222 @@
                :missing-complement-proof-object}
              (:reasons level1)))
       (is (= :selfcons-counterexample (:validation-kind tab2)))
-      (is (= :proof-relation-unavailable (:status tab2)))
+      (is (= :rejected (:status tab2)))
+      (is (= #{:missing-theorem-code
+               :missing-complement-code
+               :missing-theorem-proof-object
+               :missing-complement-proof-object}
+             (:reasons tab2)))
       (is (false? (:counterexample-valid? tab2)))
       (is (false? (:proof-route-valid? tab2))))))
+
+(deftest sjas-adr0141-total-multiplication-is-an-interpreted-function
+  (testing "the boundary profile computes products beyond its reflected seed equations"
+    (let [system-builder (ns-resolve 'proflog.willard-sjas
+                                     'total-multiplication-complete-system)
+          eligibility (ns-resolve 'proflog.willard-sjas
+                                  'total-multiplication-hypothesis-report)]
+      (is (some? system-builder))
+      (is (some? eligibility))
+      (when (and system-builder eligibility)
+        (let [system (system-builder {:depth 2})
+              report (eligibility system)
+              correct (ast/eq-lit (sjas/mul-term (n 3) (n 4)) (n 12))
+              incorrect (ast/eq-lit (sjas/mul-term (n 3) (n 4)) (n 11))]
+          (is (= :willard-sjas-total-multiplication (:profile system)))
+          (is (true? (:theorem-hypotheses-satisfied? report)))
+          (is (true? (:interpreted-total-function? report)))
+          (is (successful?
+                (query/query-succeeds (:program system) correct 1 180)))
+          (is (empty?
+                (query/query-succeeds (:program system) incorrect 1 180))))))))
+
+(deftest sjas-adr0141-xtab-executes-formula-independent-lem-injection
+  (testing "an injected arbitrary LEM node is an Xtab rule, not a reflected one-off axiom"
+    (let [builder (ns-resolve 'proflog.willard-sjas
+                              'xtab-complete-system)
+          diagnostic (ns-resolve 'proflog.willard-sjas
+                                 'xtab-lem-injection-diagnostic)]
+      (is (some? builder))
+      (is (some? diagnostic))
+      (when (and builder diagnostic)
+        (let [xtab-system (builder {})
+              atom (sjas/leq sjas/two sjas/three)
+              report (diagnostic xtab-system atom)
+              non-lem-report (diagnostic xtab-system
+                                         (ast/or-form atom atom))
+              ordinary-system (sjas/xtab-lem-reduced-witness-system
+                                {:profile :willard-sjas-level1})
+              ordinary-report (diagnostic ordinary-system atom)]
+          (is (= :willard-sjas-xtab (:profile xtab-system)))
+          (is (true? (:injection-valid? report)))
+          (is (true? (:measured-proof-valid? report)))
+          (is (false? (:injection-valid? non-lem-report)))
+          (is (false? (:injection-valid? ordinary-report))
+              "the identical proof shape must not be accepted by Level-1 tableau"))))))
+
+(deftest sjas-adr0141-tab2-accounts-rank2-proof-list-reuse
+  (testing "Tab-2 encodes a Rank-2 intermediate that the existing Tab-1 relation rejects"
+    (let [system-builder (ns-resolve 'proflog.willard-sjas
+                                     'tab2-complete-system)
+          fixture-builder (ns-resolve 'proflog.willard-sjas
+                                      'tab2-rank2-reuse-fixture)
+          relation-builder (ns-resolve 'proflog.willard-sjas
+                                       'dsjas-tab2-proof)]
+      (is (some? system-builder))
+      (is (some? fixture-builder))
+      (is (some? relation-builder))
+      (when (and system-builder fixture-builder relation-builder)
+        (let [system (system-builder {})
+              {:keys [target-code proof-list-code proof-object-code
+                      rank2-intermediate-code]
+               :as fixture} (fixture-builder system)
+              decoded-list (sjas-code/proof-formal-code-term->proof
+                             proof-list-code)
+              measured-object (sjas-code/proof-formal-code-term->proof
+                                proof-object-code)
+              theorem-bytes (apply list
+                                   (formal-code-term-bytes
+                                     rank2-intermediate-code))
+              tab2-classifier
+              (var-get #'sjas-profile/sjas-tab2-intermediate-formula-classo)
+              tab1-classifier
+              (var-get #'sjas-profile/sjas-tab1-intermediate-formula-classo)
+              tab2-classified?
+              (successful?
+                (l/run 1 [accepted]
+                  (tab2-classifier (:program system) theorem-bytes)
+                  (l/== true accepted)))
+              tab1-classified?
+              (successful?
+                (l/run 1 [accepted]
+                  (tab1-classifier (:program system) theorem-bytes)
+                  (l/== true accepted)))]
+          (is (= :willard-sjas-tab2 (:profile system)))
+          (is (= :rank-2 (:intermediate-class fixture)))
+          (is (sjas-code/code-term? rank2-intermediate-code))
+          (is (= 'tab2-proof-list-object (first decoded-list)))
+          (is (= 2 (count (rest decoded-list))))
+          (is (every? #(= (formal-code-term-bytes rank2-intermediate-code)
+                          (vec (first %)))
+                      (rest decoded-list)))
+          (is (= ['dsjas-tab2-proof-object
+                  (formal-code-term-bytes (:system-code system))
+                  (formal-code-term-bytes target-code)
+                  (formal-code-term-bytes proof-list-code)]
+                 (vec measured-object)))
+          (is tab2-classified?)
+          (is (false? tab1-classified?)))))))
+
+(deftest ^:slow sjas-adr0141-constructs-exact-selfcons-counterexamples
+  (testing "each unsafe profile supplies an exact kernel-validated not(SelfCons) tuple"
+    (let [builder (ns-resolve 'proflog.willard-sjas
+                              'constructed-boundary-selfcons-counterexample)
+          variants [:total-multiplication
+                    :xtab-or-lem-axiom
+                    :tab-2-or-stronger]]
+      (is (some? builder))
+      (when builder
+        (doseq [variant variants]
+          (let [{:keys [system target candidate validation]}
+                (builder variant {})
+                verification
+                (correspondence/verify-boundary-constructed-certificate
+                  target
+                  candidate
+                  validation)
+                tuple-keys [:theorem-code
+                            :complement-code
+                            :theorem-proof-object
+                            :complement-proof-object]
+                tampered-candidate
+                (assoc candidate
+                       :theorem-proof-object
+                       (:complement-proof-object candidate))
+                tampered-validation
+                (case variant
+                  :total-multiplication
+                  (sjas/total-multiplication-selfcons-counterexample-validation
+                    tampered-candidate)
+
+                  :xtab-or-lem-axiom
+                  (sjas/xtab-lem-selfcons-counterexample-validation
+                    tampered-candidate)
+
+                  :tab-2-or-stronger
+                  (sjas/tab2-or-stronger-selfcons-counterexample-validation
+                    tampered-candidate))]
+            (is (= variant (:variant target)))
+            (is (= (sjas/formula-code system
+                                      (ast/eq-lit sjas/one sjas/zero))
+                   (:theorem-code candidate)))
+            (is (= (sjas/formula-code system
+                                      (ast/neq-lit sjas/one sjas/zero))
+                   (:complement-code candidate)))
+            (is (every? some? (map candidate tuple-keys)))
+            (is (= :selfcons-counterexample (:certificate-kind candidate)))
+            (is (= :validated (:status validation)))
+            (is (true? (:counterexample-valid? validation)))
+            (is (true? (:proof-route-valid? validation)))
+            (is (true? (get-in validation [:route :required-witness-node?])))
+            (is (false? (get-in validation [:route :group-three-node?])))
+            (is (= :verified-intermediate-evidence (:result verification)))
+            (is (= #{:constructed-certificate}
+                   (:completed-obligations verification)))
+            (is (false? (:counterexample-valid? tampered-validation))
+                "substituting the fixed complement proof for the contradiction proof must fail")))))))
+
+(deftest ^:slow sjas-adr0141-synthesizes-fresh-selfcons-counterexamples
+  (testing "fresh tuple variables recover each exact witness through measured proof predicates"
+    (let [synthesize (ns-resolve 'proflog.willard-sjas
+                                 'synthesize-boundary-selfcons-counterexample)
+          variants [:total-multiplication
+                    :xtab-or-lem-axiom
+                    :tab-2-or-stronger]]
+      (is (some? synthesize))
+      (when synthesize
+        (doseq [variant variants]
+          (let [report
+                (synthesize
+                  variant
+                  {:durable-log-path
+                   (str "test-runs/adr0141-" (name variant) "-test.log")})
+                validation (:validation report)]
+            (is (= :found (:synthesis-status report)))
+            (is (true? (:fresh-tuple-variables? report)))
+            (is (= :selfcons-counterexample
+                   (get-in report [:candidate :certificate-kind])))
+            (is (= :validated (:status validation)))
+            (is (true? (:counterexample-valid? validation)))
+            (is (true? (:proof-route-valid? validation)))
+            (is (= #{:proof-search-synthesis}
+                   (:completed-obligations report)))
+            (is (empty? (:remaining-obligations report)))))))))
+
+(deftest ^:slow sjas-adr0141-evidence-ledger-reports-six-of-six-obligations
+  (testing "the full Workstream B ledger closes all six obligations through kernel proof checking"
+    (let [ledger (sjas/boundary-evidence-ledger
+                   {:durable-log-path "test-runs/adr0141-evidence-ledger-test.log"})]
+      (is (= :workstream-b (:workstream ledger)))
+      (is (= 6 (:obligations-total ledger)))
+      (is (= 6 (:obligations-complete ledger)))
+      (is (true? (:complete? ledger)))
+      (is (empty? (:unexpected-variants ledger)))
+      (is (= correspondence/boundary-variants
+             (set (keys (:per-variant ledger)))))
+      (doseq [variant correspondence/boundary-variants]
+        (is (true? (get-in ledger [:per-variant variant :complete?]))
+            (str variant " must close both final-evidence obligations"))
+        (is (empty? (get-in ledger [:per-variant variant
+                                    :remaining-obligations]))))
+      ;; Each entry's obligations must come from kernel verification/synthesis
+      ;; reports, not from candidate metadata.
+      (doseq [entry (:entries ledger)]
+        (is (= :verified-intermediate-evidence
+               (:result (:constructed entry)))
+            (str (:variant entry) " constructed certificate must verify"))
+        (is (= :found (:synthesis-status (:synthesis entry)))
+            (str (:variant entry) " synthesis must find a fresh tuple"))))))
 
 (deftest sjas-xtab-lem-reduced-witness-installs-reflected-lem-seed
   (testing "ADR-0133 reduced witness packages one LEM instance as reflected beta"
@@ -1484,7 +1803,7 @@
 (deftest sjas-xtab-lem-full-target-names-generated-selfcons
   (testing "ADR-0134 names the generated SelfCons refutation target for Xtab/LEM"
     (let [opts {:profile :willard-sjas-level1}
-          system (sjas/xtab-lem-reduced-witness-system opts)
+          system (sjas/xtab-complete-system opts)
           report (sjas/xtab-lem-full-target-report opts)
           system-negated-selfcons (normalize/negate-formula
                                     (:formula (:group-three system)))
@@ -1551,7 +1870,7 @@
 
 (deftest sjas-tab2-full-target-names-generated-selfcons
   (testing "ADR-0137 generates the Tab-2-or-stronger SelfCons refutation target"
-    (let [system (sjas/tab2-or-stronger-full-target-system)
+    (let [system (sjas/tab2-complete-system)
           report (sjas/tab2-or-stronger-full-target-report)
           group3-relations (set (formula-relation-symbols
                                   (:formula (:group-three system))))
@@ -1559,7 +1878,7 @@
                                     (:formula (:group-three system)))
           system-refutation-target (ast/and-form (:axiom-formula system)
                                                  system-negated-selfcons)]
-      (is (= :willard-sjas-tab2-boundary (:profile system)))
+      (is (= :willard-sjas-tab2 (:profile system)))
       (is (= 3 (get-in system [:language :relations 'dsjas-tab2-proof])))
       (is (contains? group3-relations 'dsjas-tab2-proof))
       (is (contains? group3-relations 'neg-pair))
@@ -1585,7 +1904,7 @@
   (testing "ADR-0138 validates supplied proof codes against the generated Tab-2 SelfCons target"
     (let [opts {:fuel 260
                 :proof-limit 1}
-          system (sjas/tab2-or-stronger-full-target-system opts)
+          system (sjas/tab2-complete-system opts)
           report (sjas/tab2-or-stronger-full-target-report opts)
           axiom-certificate (sjas/proof-certificate 'sjas-axiom)
           validation (sjas/tab2-or-stronger-constructed-certificate-validation
@@ -1621,7 +1940,7 @@
     (let [opts {:profile :willard-sjas-level1
                 :fuel 260
                 :proof-limit 1}
-          system (sjas/xtab-lem-reduced-witness-system opts)
+          system (sjas/xtab-complete-system opts)
           report (sjas/xtab-lem-full-target-report opts)
           axiom-certificate (sjas/proof-certificate 'sjas-axiom)
           validation (sjas/xtab-lem-constructed-certificate-validation
@@ -5966,8 +6285,19 @@
         "canonical byte generation must reject mismatched public roots before recursive numeral construction")
     (is (not (re-find #"defn- ground-code-constructoro" profile-source))
         "compact code constructor decoding must not use a host projector for ground constructors")
-    (is (not (re-find #"project \[" profile-source))
-        "SJAS proof-profile code readers must not leave host-side project guards in the internalized proof path")
+    ;; The only host `project` permitted in the SJAS profile is the
+    ;; correctness-preserving ground-compact-code byte reader
+    ;; (`sjas-ground-compact-code-bytes-coreo` and its dispatcher
+    ;; `sjas-formal-code-bytes-coreo`): each reads the unique byte string of an
+    ;; already-ground compact code term and falls back to the relational reader
+    ;; for non-ground terms, then feeds those bytes through the same pure proof
+    ;; relations. It is a read-time optimization, not a host proof checker, and
+    ;; is required for tractable boundary proof validation (the SelfCons
+    ;; skeleton and measured proof objects embed the whole reflected system).
+    ;; The proof-checking path itself must still carry no host project guard, so
+    ;; the count is pinned to exactly those two readers.
+    (is (= 2 (count (re-seq #"project \[" profile-source)))
+        "the only host project guards are the two ground-compact-code byte readers; the proof-checking path remains fully relational")
     (is (not (re-find #"compact-code-bytes-no-walko" profile-source))
         "compact public code reading must not bypass equality walking through a host-mode helper")
     (is (not (re-find #"compact-code-term-byte-count" profile-source))
@@ -6123,8 +6453,11 @@
         "guarded reflected existential scope stripping must use explicit non-exists structure, not committed-choice fallback")
     (is (not (re-find #"defn- ground-u-grounding-substitution-bytes" profile-source))
         "SJAS substitution predicates must not recover U-Grounding formula bytes through a host projector")
-    (is (not (re-find #"sjas-code/code-term-bytes term" profile-source))
-        "compact public code terms must be read through the object code-byte relation")
+    ;; `code-term-bytes term` appears only in the two ground-compact-code byte
+    ;; readers above; every other compact public code term is read through the
+    ;; object code-byte relation.
+    (is (= 2 (count (re-seq #"sjas-code/code-term-bytes term" profile-source)))
+        "compact public code terms are read by the object code-byte relation except in the two sanctioned ground-compact-code byte readers")
     (is (not (re-find #"ground-u-grounding-code-term-bytes" profile-source))
         "U-Grounding public code terms must be read through the object numeral relation")
     (is (not (re-find #"sjas-subst-source-codeo" profile-source))

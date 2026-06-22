@@ -20,6 +20,47 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-22
+
+- Completed [ADR-0141](docs/adr/ADR-0141-sjas-boundary-completion.md), closing
+  ADR-0119 Workstream B and the consolidated SJAS roadmap (see the ADR-0119
+  Roadmap Completion section and [AAR-0141](docs/aar/AAR-0141-sjas-boundary-completion.md)).
+  Picked up the branch mid-flight: the apparatus, source axioms, and tests were
+  built but the branch was broken across the gates and synthesis did not
+  terminate. Completion work: (1) made fresh-variable synthesis tractable by
+  grounding witness byte payloads with the canonical host encoder before the
+  search and running the build on a large-stack worker thread (xtab ~20s,
+  total-mul ~77s, Tab-2 ~114s, all `:found`); (2) restored SJAS proof-checker
+  purity per user direction — five of six `logic/project` host shortcuts in the
+  SJAS profile (the generic kernel was never affected) re-expressed as pure
+  relational goals (skeleton check, source-hypotheses membership, two boundary
+  routers); the sixth, the ground-compact-code byte reader, is retained as the
+  user-sanctioned correctness-preserving optimization (tractability-critical —
+  without it a single boundary `dsjas-subst-prf` validation did not finish in
+  130+ s; the audit is scoped to pin host `project` to exactly that reader),
+  with `-Xss256m` for deep decode; (3) repaired two encoding regressions
+  (a mid-list `proof-symbols` insertion shifting indices; the boundary
+  vocabulary stealing ordinary user-relation index slots, fixed by making it
+  `profile-local-reserved-symbols`); (4) classified the eleven new boundary proof
+  symbols and reconciled the boundary-failure roadmap audit + tests to the
+  implemented-apparatus state; (5) added the Workstream B evidence ledger
+  (`summarize-boundary-evidence-ledger` + `boundary-evidence-ledger`) reporting
+  six of six obligations only after kernel validation. Final gates:
+  `lein test-proflog-fast` 232/1540, `lein test-proflog-extended` 78/277,
+  `lein test-proflog-sjas` `pass=1399 fail=0 error=0`; slow boundary evidence run
+  recorded under `test-runs/adr0141-slow-evidence-*.log`. Deep root-cause notes
+  in [LESSONS.md](LESSONS.md).
+
+## 2026-06-20
+
+- Spawned [ADR-0141](docs/adr/ADR-0141-sjas-boundary-completion.md) as the final
+  ADR-0119 Workstream B implementation branch. The preceding source audit found
+  that the total-multiplication, Xtab, and Tab-2 systems did not implement the
+  hypotheses of the negative results they named. ADR-0141 therefore combines
+  the missing proof apparatus, arithmetic assumptions, constructed
+  counterexample tuples, independent synthesis, and six-of-six evidence gate;
+  documentation or positive Group-3 proofs cannot complete it.
+
 ## 2026-06-19
 
 - Spawned [ADR-0140](docs/adr/ADR-0140-sjas-boundary-proof-route-validation.md)

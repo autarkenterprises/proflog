@@ -17,6 +17,56 @@
   relations when they demonstrate expressiveness but materially broaden the
   ordinary proof-search branching factor.
 
+## 2026-06-22
+
+- Adding a symbol to `sjas-code/reserved-coding-symbols` is not free: the SJAS
+  proof checker partitions formula-code byte indexes into reserved vs. user via
+  the *full* reserved list (`reserved-symbol-index-entries` /
+  `user-symbol-index-entries`), and ordinary systems allocate user-relation
+  indexes right after the reserved block. A new reserved symbol that ordinary
+  systems do not declare steals the index slot their first user relation would
+  use, silently mis-decoding it (e.g. a `multi-demo` reflected relation decoded
+  as the reserved `mul`). If a new vocabulary symbol is only matched against a
+  query atom or compared as encoded axiom bytes — never decoded back from a
+  presented system — add it to `profile-local-reserved-symbols` so the partition
+  excludes it. Reserve a global index only for symbols every system declares or
+  the checker semantically decodes from system code. Regression guard: a
+  reflected negative-call alternative-selection test over an ordinary user
+  relation.
+- SJAS proof-byte synthesis must not run the reverse direction of
+  `decode-proof-byteso` (ground proof tree, fresh bytes) inside the main search:
+  its byte-literal/conde alternatives make the later `dsjas-subst-prf`
+  proof-calls backtrack across encodings, and the search does not terminate in
+  practical time. Ground each fixed byte payload once with the canonical host
+  encoder (`proof-code-bytes`), then let the relational run build the tuple
+  forward and accept it through the kernel object predicates over fresh
+  variables. The tuple is still the search's solution; only the candidate's byte
+  presentation is host-seeded. Pair this with a large-stack worker thread for
+  the depth-3 object, whose `walk` recursion overflows the default JVM stack.
+- Restoring purity to the SJAS profile after a host-shortcut detour is feasible
+  because the host shortcuts (`logic/project` + a host predicate) almost always
+  shadow an existing pure relation: code-byte reading reverts to the relational
+  reader; a "ground system satisfies hypotheses" check becomes a conjunction of
+  `sjas-system-beta-formula-byteso` over the required axioms; and a constructor
+  router becomes a fixed encoded-byte-prefix `==`/`!=` match (mirroring
+  `sjas-axiom-proof-bytes`). The purity audit is a blanket regression guard on
+  the profile source; keep generation-only host encoding out of the proof-check
+  relations, and a generous `-Xss` is a correctness-preserving way to let the
+  pure reader decode large reflected systems.
+- Not every host shortcut is a semantic-attack-surface risk, and the
+  tractability-critical one usually is not. The ground-compact-code byte reader
+  (`logic/project` + host `code-term-bytes` on an already-ground term, with a
+  relational fallback) only extracts the unique byte string of a ground code
+  term — bytes that still flow through the same pure proof relations — so it
+  cannot accept a proof the relational reader would reject. Removing it for
+  purity is what made boundary `dsjas-subst-prf` validation intractable (a single
+  check did not finish in 130+ s, because the SelfCons skeleton and measured
+  proof objects embed the whole reflected system and are read many times).
+  Distinguish a read-time byte optimization (keep it; pin its `project` count in
+  the audit) from a host proof-CHECKER route (forbid it). The five boundary
+  checks that decide acceptance (skeleton match, source-hypotheses membership,
+  proof routing) belong fully relational; the byte reader does not.
+
 ## 2026-05-06
 
 - Current-facing docs must distinguish historical probe failures from current

@@ -4,6 +4,12 @@
                  [org.clojure/core.logic "1.0.1"]]
   :source-paths ["vendor/core.logic-1.0.1/src" "src"]
   :test-paths ["test"]
+  ;; core.logic walks substitutions recursively, so decoding a large reflected
+  ;; SJAS boundary system (whose SelfCons sentence embeds the whole system code)
+  ;; recurses far deeper than the default JVM thread stack. A generous stack is
+  ;; a correctness-preserving setting: it changes no search semantics, only the
+  ;; depth the pure relational reader can reach before overflowing.
+  :jvm-opts ["-Xss256m"]
   :test-selectors
   {:A    (fn [m] (re-find #"^test-A\d" (str (:name m))))
    :B    (fn [m] (re-find #"^test-B\d" (str (:name m))))

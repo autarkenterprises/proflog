@@ -189,3 +189,27 @@ alter system identity and regenerated Group-3/SelfCons content.
 - Documentation checks confirm that only ADR-0119, the ADR index, and `LOG.md`
   changed for this branch.
 - No AAR is added unless implementation begins on this branch.
+
+## Roadmap Completion (2026-06-22)
+
+All three workstreams spawned from this control ADR are now closed, so the
+consolidated SJAS research roadmap is complete:
+
+- **Workstream A (Tab-k / Tab-1):** implemented by ADR-0120 (proof-list
+  surface), ADR-0121 (entry validation), and ADR-0122 (theorem reuse). Its
+  regression tests are green on the current branch.
+- **Workstream B (programmatized Goedel-boundary failures):** closed by
+  [ADR-0141](ADR-0141-sjas-boundary-completion.md). The three negative variants
+  (total multiplication, Xtab/LEM-as-axiom, Tab-2-or-stronger) implement the
+  hypotheses they name and pass all six final-evidence obligations — a
+  constructed and an independently synthesized `not(SelfCons)` counterexample
+  tuple per variant — through the ADR-0140 verifier, tallied by the new
+  Workstream B evidence ledger. See
+  [AAR-0141](../aar/AAR-0141-sjas-boundary-completion.md).
+- **Workstream C (self-interpretation / self-extension):** the pair-first survey
+  (ADR-0123) and reflected list self-extension (ADR-0128) provide the
+  consistency-preserving reflected data-structure extension; their regression
+  tests are green.
+
+This section records completion only; the three-workstream contract above
+remains the stable planning reference.

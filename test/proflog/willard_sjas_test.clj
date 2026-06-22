@@ -1633,8 +1633,8 @@
           (is tab2-classified?)
           (is (false? tab1-classified?)))))))
 
-(deftest ^:slow sjas-adr0141-constructs-exact-selfcons-counterexamples
-  (testing "each unsafe profile supplies an exact kernel-validated not(SelfCons) tuple"
+(deftest ^:slow sjas-adr0141-trusted-constructor-yields-no-valid-counterexample
+  (testing "with the trusted boundary-refutation constructor removed, the sound checker rejects the constructed not(SelfCons) tuple (boundary genuinely undemonstrated)"
     (let [builder (ns-resolve 'proflog.willard-sjas
                               'constructed-boundary-selfcons-counterexample)
           variants [:total-multiplication
@@ -1643,56 +1643,34 @@
       (is (some? builder))
       (when builder
         (doseq [variant variants]
-          (let [{:keys [system target candidate validation]}
-                (builder variant {})
-                verification
-                (correspondence/verify-boundary-constructed-certificate
-                  target
-                  candidate
-                  validation)
-                tuple-keys [:theorem-code
-                            :complement-code
-                            :theorem-proof-object
-                            :complement-proof-object]
-                tampered-candidate
-                (assoc candidate
-                       :theorem-proof-object
-                       (:complement-proof-object candidate))
-                tampered-validation
-                (case variant
-                  :total-multiplication
-                  (sjas/total-multiplication-selfcons-counterexample-validation
-                    tampered-candidate)
+          ;; The trusted `willard-sjas-boundary-refutation` constructor was
+          ;; removed (2026-06-22): it accepted `1 = 0` on the mere presence of
+          ;; the boundary hypotheses with no checked derivation, making the proof
+          ;; predicate unsound. The tuple is still constructed, but the sound
+          ;; checker no longer accepts its contradiction proof, so it is NOT a
+          ;; valid counterexample to not(SelfCons). (The now-unrouted constructor
+          ;; can throw inside the proof checker rather than rejecting cleanly;
+          ;; either way it is not accepted, which the catch tolerates. Cleanly
+          ;; rejecting it is a follow-up.) The Goedel-boundary failure is
+          ;; genuinely undemonstrated pending a real measured derivation; see
+          ;; docs/interdev/2026-06-22-adr-0141-genuine-derivation-feasibility.md.
+          (let [valid?
+                (try
+                  (let [{:keys [target candidate validation]} (builder variant {})
+                        verification
+                        (correspondence/verify-boundary-constructed-certificate
+                          target candidate validation)]
+                    (and (true? (:counterexample-valid? validation))
+                         (= :verified-intermediate-evidence
+                            (:result verification))))
+                  (catch Throwable _ false))]
+            (is (false? valid?)
+                (str variant
+                     ": the sound checker must yield no valid not(SelfCons)"
+                     " counterexample once the trusted constructor is removed"))))))))
 
-                  :xtab-or-lem-axiom
-                  (sjas/xtab-lem-selfcons-counterexample-validation
-                    tampered-candidate)
-
-                  :tab-2-or-stronger
-                  (sjas/tab2-or-stronger-selfcons-counterexample-validation
-                    tampered-candidate))]
-            (is (= variant (:variant target)))
-            (is (= (sjas/formula-code system
-                                      (ast/eq-lit sjas/one sjas/zero))
-                   (:theorem-code candidate)))
-            (is (= (sjas/formula-code system
-                                      (ast/neq-lit sjas/one sjas/zero))
-                   (:complement-code candidate)))
-            (is (every? some? (map candidate tuple-keys)))
-            (is (= :selfcons-counterexample (:certificate-kind candidate)))
-            (is (= :validated (:status validation)))
-            (is (true? (:counterexample-valid? validation)))
-            (is (true? (:proof-route-valid? validation)))
-            (is (true? (get-in validation [:route :required-witness-node?])))
-            (is (false? (get-in validation [:route :group-three-node?])))
-            (is (= :verified-intermediate-evidence (:result verification)))
-            (is (= #{:constructed-certificate}
-                   (:completed-obligations verification)))
-            (is (false? (:counterexample-valid? tampered-validation))
-                "substituting the fixed complement proof for the contradiction proof must fail")))))))
-
-(deftest ^:slow sjas-adr0141-synthesizes-fresh-selfcons-counterexamples
-  (testing "fresh tuple variables recover each exact witness through measured proof predicates"
+(deftest ^:slow sjas-adr0141-synthesis-finds-no-valid-counterexample
+  (testing "with the trusted constructor removed, fresh-variable proof search finds no valid not(SelfCons) tuple (boundary genuinely undemonstrated)"
     (let [synthesize (ns-resolve 'proflog.willard-sjas
                                  'synthesize-boundary-selfcons-counterexample)
           variants [:total-multiplication
@@ -1701,47 +1679,41 @@
       (is (some? synthesize))
       (when synthesize
         (doseq [variant variants]
-          (let [report
-                (synthesize
-                  variant
-                  {:durable-log-path
-                   (str "test-runs/adr0141-" (name variant) "-test.log")})
-                validation (:validation report)]
-            (is (= :found (:synthesis-status report)))
-            (is (true? (:fresh-tuple-variables? report)))
-            (is (= :selfcons-counterexample
-                   (get-in report [:candidate :certificate-kind])))
-            (is (= :validated (:status validation)))
-            (is (true? (:counterexample-valid? validation)))
-            (is (true? (:proof-route-valid? validation)))
-            (is (= #{:proof-search-synthesis}
-                   (:completed-obligations report)))
-            (is (empty? (:remaining-obligations report)))))))))
+          ;; The previous "synthesis" host-seeded the expected proof bytes for
+          ;; the trusted constructor; with that constructor removed the sound
+          ;; relations no longer accept it, so no counterexample is found (a
+          ;; throw in the unrouted path is tolerated — it is still not found). A
+          ;; genuine independent synthesis remains future work; see
+          ;; docs/interdev/2026-06-22-adr-0141-genuine-derivation-feasibility.md.
+          (let [found?
+                (try
+                  (= :found
+                     (:synthesis-status
+                      (synthesize
+                        variant
+                        {:durable-log-path
+                         (str "test-runs/adr0141-" (name variant) "-test.log")})))
+                  (catch Throwable _ false))]
+            (is (false? found?)
+                (str variant
+                     ": fresh-variable search must find no valid counterexample"
+                     " once the trusted constructor is removed"))))))))
 
-(deftest ^:slow sjas-adr0141-evidence-ledger-reports-six-of-six-obligations
-  (testing "the full Workstream B ledger closes all six obligations through kernel proof checking"
-    (let [ledger (sjas/boundary-evidence-ledger
-                   {:durable-log-path "test-runs/adr0141-evidence-ledger-test.log"})]
-      (is (= :workstream-b (:workstream ledger)))
-      (is (= 6 (:obligations-total ledger)))
-      (is (= 6 (:obligations-complete ledger)))
-      (is (true? (:complete? ledger)))
-      (is (empty? (:unexpected-variants ledger)))
-      (is (= correspondence/boundary-variants
-             (set (keys (:per-variant ledger)))))
-      (doseq [variant correspondence/boundary-variants]
-        (is (true? (get-in ledger [:per-variant variant :complete?]))
-            (str variant " must close both final-evidence obligations"))
-        (is (empty? (get-in ledger [:per-variant variant
-                                    :remaining-obligations]))))
-      ;; Each entry's obligations must come from kernel verification/synthesis
-      ;; reports, not from candidate metadata.
-      (doseq [entry (:entries ledger)]
-        (is (= :verified-intermediate-evidence
-               (:result (:constructed entry)))
-            (str (:variant entry) " constructed certificate must verify"))
-        (is (= :found (:synthesis-status (:synthesis entry)))
-            (str (:variant entry) " synthesis must find a fresh tuple"))))))
+(deftest ^:slow sjas-adr0141-evidence-ledger-reports-boundary-undemonstrated
+  (testing "with the trusted constructor removed, the Workstream B ledger reports no obligations closed (boundary genuinely undemonstrated)"
+    ;; No valid constructed or synthesized counterexample exists once the trusted
+    ;; boundary-refutation constructor is removed, so the ledger must report the
+    ;; workstream open, never complete (a throw in the unrouted constructor path
+    ;; is tolerated — it likewise means no obligation closes). See
+    ;; docs/interdev/2026-06-22-adr-0141-genuine-derivation-feasibility.md.
+    (let [complete?
+          (try
+            (:complete?
+             (sjas/boundary-evidence-ledger
+               {:durable-log-path "test-runs/adr0141-evidence-ledger-test.log"}))
+            (catch Throwable _ false))]
+      (is (false? complete?)
+          "the Workstream B ledger must not report completion once the trusted constructor is removed"))))
 
 (deftest sjas-xtab-lem-reduced-witness-installs-reflected-lem-seed
   (testing "ADR-0133 reduced witness packages one LEM instance as reflected beta"

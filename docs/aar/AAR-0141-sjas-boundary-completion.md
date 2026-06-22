@@ -3,6 +3,26 @@
 - Date: 2026-06-22
 - ADR: [ADR-0141](../adr/ADR-0141-sjas-boundary-completion.md)
 - Branch: `adr-0141-sjas-boundary-completion`
+- Status: **RETRACTED (completion claim withdrawn 2026-06-22)**
+
+> **RETRACTION.** The completion claim in this AAR is withdrawn following the
+> inter-developer review
+> [2026-06-22-adr-0141-completion-claim-review.md](../interdev/2026-06-22-adr-0141-completion-claim-review.md).
+> The Workstream B evidence is not conclusive: (1) `boundary-refutation-proof` /
+> `sjas-boundary-refutation-proof-bytes-coreo` is a trusted constructor that
+> accepts the canonical contradiction when the boundary hypotheses are present
+> in beta, rather than deriving it through checked inference steps — it enlarges
+> the trusted system with exactly the conclusion under investigation; (2) the
+> boundary synthesis host-encodes the exact expected system/substitution/proof
+> bytes before the core.logic query, so the "fresh" tuple variables are
+> reconstructed from a host-selected answer, not discovered by search; (3) the
+> six-of-six ledger derives completion from caller-supplied nested
+> `:completed-obligations` sets, so report-shaped metadata with `:rejected`
+> statuses can still tally complete. Passing tests do not cure these because the
+> tests exercise the flawed acceptance contract. The apparatus, purity
+> restoration, encoding-regression fixes, classifications, and gate results
+> below are accurate and retained; the *completion* and *conclusive evidence*
+> claims are not. Workstream B is reopened.
 
 ## Outcome
 

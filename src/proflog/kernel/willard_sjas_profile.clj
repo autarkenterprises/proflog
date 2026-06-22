@@ -8423,34 +8423,13 @@
                                        theorem-code
                                        sigma-system
                                        sigma-out))])]
-      [(sjas-boundary-refutation-proof-rooto proof-bytes)
-       (fresh [system-bytes profile-tag beta-count beta-bytes]
-         ;; Level-1 boundary proofs are checked against the exact diagonal
-         ;; skeleton code for the presented system. The fixed-point shape
-         ;; determines its generated Group-3 substitution result.
-         (sjas-system-code-bytes-walked-coreo system-code
-                                              sigma
-                                              sigma-system
-                                              walked-system-code
-                                              system-bytes)
-         (== (lcons system-code-tag
-                    (lcons profile-tag
-                           (lcons beta-count beta-bytes)))
-             system-bytes)
-         (sjas-level1-family-profile-tago profile-tag)
-         (level1-selfcons-skeleton-code-coreo
-           prog
-           walked-system-code
-           system-bytes
-           substitution-code
-           sigma-system
-           sigma-valid)
-         (sjas-boundary-refutation-proof-bytes-coreo
-           prog
-           walked-system-code
-           theorem-code
-           proof-bytes)
-         (== sigma-valid sigma-out))]
+      ;; The trusted `willard-sjas-boundary-refutation` branch was removed
+      ;; (2026-06-22): it accepted the canonical contradiction on the mere
+      ;; presence of the boundary hypotheses, with no checked derivation, which
+      ;; made this proof predicate unsound. A genuine boundary contradiction
+      ;; must be an ordinary measured structural/D_SJAS proof, checked by the
+      ;; branches that remain. See
+      ;; docs/interdev/2026-06-22-adr-0141-genuine-derivation-feasibility.md.
       [(sjas-non-boundary-refutation-proof-rooto proof-bytes)
        (decode-structural-proof-bytes-coreo proof-bytes decoded-proof)
        (sjas-system-axiom-formula-walked-coreo prog
@@ -8621,25 +8600,10 @@
                                         sigma)])
      (== sigma sigma-out)
      (== neqs neqs-out)]
-    [(sjas-boundary-refutation-proof-rooto proof-bytes)
-     (fresh [walked-system-code system-bytes]
-       ;; The Tab-2 contradiction entry may invoke the checked boundary
-       ;; metatheorem only after its Rank-2 witness has been validated and
-       ;; threaded into `prior-theorem-bytes`.
-       (sjas-system-code-bytes-walked-coreo system-code
-                                            sigma
-                                            sigma-out
-                                            walked-system-code
-                                            system-bytes)
-       (sjas-tab1-prior-theorem-member-coreo
-         tab2-rank2-source-witness-bytes
-         prior-theorem-bytes)
-       (sjas-boundary-refutation-proof-bytes-coreo
-         prog
-         walked-system-code
-         theorem-code
-         proof-bytes)
-       (== neqs neqs-out))]
+    ;; The trusted `willard-sjas-boundary-refutation` Tab-2 entry branch was
+    ;; removed (2026-06-22) for the same soundness reason as the D_SJAS branch:
+    ;; it accepted the contradiction without a checked derivation. A genuine
+    ;; Tab-2 contradiction entry must be an ordinary measured proof.
     [(sjas-non-boundary-refutation-proof-rooto proof-bytes)
      (fresh [decoded-proof neg-theorem target sigma-theorem
              walked-system-code axiom-formula extended-axiom-formula]

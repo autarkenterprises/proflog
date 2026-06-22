@@ -190,7 +190,17 @@ alter system identity and regenerated Group-3/SelfCons content.
   changed for this branch.
 - No AAR is added unless implementation begins on this branch.
 
-## Roadmap Completion (2026-06-22)
+## Roadmap Completion (2026-06-22) — RETRACTED 2026-06-22
+
+> **RETRACTED.** The completion claim below is withdrawn. The inter-developer
+> review [2026-06-22-adr-0141-completion-claim-review.md](../interdev/2026-06-22-adr-0141-completion-claim-review.md)
+> found the Workstream B evidence circular or forgeable, not conclusive: the
+> boundary contradiction is accepted by a trusted `willard-sjas-boundary-refutation`
+> constructor that assumes the metatheorem rather than deriving it; the
+> "independent" synthesis host-seeds the exact expected proof bytes before the
+> core.logic query; and the six-of-six ledger trusts caller-supplied nested
+> `:completed-obligations` metadata. Workstreams B and C are **reopened**; the
+> text below is retained only as the (withdrawn) claim it corrects.
 
 All three workstreams spawned from this control ADR are now closed, so the
 consolidated SJAS research roadmap is complete:

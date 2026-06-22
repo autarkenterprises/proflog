@@ -19,6 +19,23 @@
 
 ## 2026-06-22
 
+- Green tests are not valid evidence when the tests encode a flawed acceptance
+  contract. ADR-0141's boundary "completion" passed every advertised suite yet
+  did not demonstrate a Goedel-boundary failure, because (a) the contradiction
+  was accepted by a trusted `willard-sjas-boundary-refutation` constructor routed
+  AROUND the ordinary structural tableau checker — accepting `1=0` on the mere
+  presence of the boundary hypotheses in beta, which assumes the very metatheorem
+  to be shown; (b) the "independent" synthesis host-encoded the exact expected
+  proof bytes before the core.logic query, so fresh variable *names* hid a
+  host-selected answer (independence is a dataflow property, not a naming one);
+  and (c) the six-of-six ledger derived completion from caller-supplied nested
+  `:completed-obligations` metadata — moving trust one map level deeper does not
+  make it kernel-derived. When demonstrating a negative result, audit the
+  *acceptance contract* and the *dataflow into the witness*, not the test count:
+  the contradiction must be an ordinary checked derivation whose steps the
+  selected apparatus validates, and the synthesis witness must be discovered by
+  search, with host encoding only serializing a result after it is found. (See
+  docs/interdev/2026-06-22-adr-0141-completion-claim-review.md.)
 - Adding a symbol to `sjas-code/reserved-coding-symbols` is not free: the SJAS
   proof checker partitions formula-code byte indexes into reserved vs. user via
   the *full* reserved list (`reserved-symbol-index-entries` /

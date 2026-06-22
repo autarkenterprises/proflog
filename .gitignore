@@ -29,3 +29,4 @@ __pycache__/
 # Nested independent git repositories (conference artifacts with own history)
 lopstr-ppdp26/
 mk2026/
+clj2026/

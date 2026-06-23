@@ -1268,6 +1268,17 @@
       (is (not= v4 v5)
           "V4 descent and V5 contradiction extraction must remain distinct route axioms"))))
 
+(deftest sjas-public-query-accepts-generated-bounded-axiom-basis
+  (testing "the public theorem wrapper validates V4/V5 bounded quantifiers before proof search"
+    (let [system (sjas/total-multiplication-complete-system {:depth 1})
+          ;; Q6 is an explicit reflected beta member. Querying it through the
+          ;; public wrapper forces validation of the entire generated axiom
+          ;; conjunction, including V4/V5's bounded existential formulas.
+          q6 (first (sjas/total-multiplication-complete-axioms))]
+      (is (successful?
+            (sjas/query-succeeds system q6 {:proof-limit 1 :fuel 500}))
+          "supported bounded syntax must reach proof search and leave Q6 citeable"))))
+
 (deftest sjas-adr0141-total-multiplication-v-route-predicates-execute
   (testing "the V-route predicates are object-level checks rather than inert relation names"
     (let [system (sjas/system

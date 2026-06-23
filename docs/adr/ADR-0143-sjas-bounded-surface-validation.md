@@ -1,9 +1,9 @@
 # ADR-0143: SJAS Bounded Surface Validation
 
-- Status: accepted
+- Status: completed
 - Date: 2026-06-22
 - Branch: `adr-0143-sjas-bounded-surface-validation`
-- AAR: pending
+- AAR: [AAR-0143](../aar/AAR-0143-sjas-bounded-surface-validation.md)
 
 ## Context
 

@@ -205,6 +205,18 @@
                       formula)
       exists (do (validate-formula lang (:body (second formula)))
                  formula)
+      ;; A bounded quantifier stores both its numeric bound and formula body in
+      ;; the nominal tie payload. Validate both at the shared language boundary:
+      ;; later normalization lowers the form to an ordinary quantifier plus an
+      ;; order guard, but it must not be asked to process undeclared symbols.
+      bounded-forall (let [{:keys [bound body]} (:body (second formula))]
+                       (validate-term lang bound)
+                       (validate-formula lang body)
+                       formula)
+      bounded-exists (let [{:keys [bound body]} (:body (second formula))]
+                       (validate-term lang bound)
+                       (validate-formula lang body)
+                       formula)
       (throw (ex-info "Malformed formula" {:formula formula})))))
 
 (defn validate-query

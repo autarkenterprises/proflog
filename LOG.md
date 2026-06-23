@@ -31,12 +31,16 @@ complete contemporaneous transcript.
   scope. Q4-Q7 probes found only Q6/Q7 reflected in the completed multiplication
   beta, with Q6 citeable through `sjas-axiom`. See the
   [ADR-0142 interdeveloper review](docs/interdev/2026-06-22-adr-0142-review-and-corrections.md).
-- Spawned [ADR-0143](docs/adr/ADR-0143-sjas-bounded-surface-validation.md)
-  after the same probe exposed that shared surface validation rejects
+- Completed [ADR-0143](docs/adr/ADR-0143-sjas-bounded-surface-validation.md)
+  after the same probe exposed that shared surface validation rejected
   `bounded-forall` and `bounded-exists` even though the AST, normalizer, SJAS
-  coding, substitution, and structural checker support them. The repair keeps
-  ownership in `language/validate-formula` and requires a public SJAS query
-  regression.
+  coding, substitution, and structural checker supported them. The shared
+  validator now checks bounded terms and bodies, and a public multiplication
+  query reaches proof search and cites Q6. Gates: fast 233/1544, extended
+  78/277; focused bounded selectors green. The focused SJAS run passed the
+  affected vars but was stopped when the unrelated known fixed-point outlier
+  exceeded its documented 45-minute envelope. See
+  [AAR-0143](docs/aar/AAR-0143-sjas-bounded-surface-validation.md).
 - Reviewed the ADR-0141 completion claim through commit `b16ed5b` and found it
   invalid. The contradiction is accepted by a trusted boundary-refutation
   constructor, the claimed synthesis is seeded with host-generated expected

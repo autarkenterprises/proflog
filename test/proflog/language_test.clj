@@ -1,5 +1,6 @@
 (ns proflog.language-test
-  (:require [clojure.test :refer [deftest is testing]]
+  (:require [clojure.core.logic.nominal :as nominal]
+            [clojure.test :refer [deftest is testing]]
             [proflog.ast :as ast]
             [proflog.language :as language]))
 
@@ -47,6 +48,45 @@
             (language/validate-query
 	              simple-language
 	              (ast/pos-lit (ast/app-term 'even (ast/var-term x) (ast/app-term 'zero)))))))))
+
+(deftest language-validates-bounded-quantifier-bounds-and-bodies
+  (testing "bounded quantifiers use the same declared-language checks as ordinary formulas"
+    (ast/nom x
+      (let [bounded-form
+            (fn [tag bound body]
+              (list tag (nominal/tie x {:bound bound :body body})))
+            valid-body (ast/pos-lit
+                         (ast/app-term 'even (ast/var-term x)))
+            valid-bound (ast/app-term 'succ (ast/app-term 'zero))
+            bounded-forall (bounded-form 'bounded-forall
+                                         valid-bound
+                                         valid-body)
+            bounded-exists (bounded-form 'bounded-exists
+                                         valid-bound
+                                         valid-body)]
+        (is (= bounded-forall
+               (language/validate-query simple-language bounded-forall)))
+        (is (= bounded-exists
+               (language/validate-query simple-language bounded-exists)))
+        (is (thrown-with-msg?
+              clojure.lang.ExceptionInfo
+              #"Undeclared function symbol: mystery-bound"
+              (language/validate-query
+                simple-language
+                (bounded-form
+                  'bounded-forall
+                  (ast/app-term 'mystery-bound (ast/app-term 'zero))
+                  valid-body))))
+        (is (thrown-with-msg?
+              clojure.lang.ExceptionInfo
+              #"Undeclared relation symbol: mystery-body"
+              (language/validate-query
+                simple-language
+                (bounded-form
+                  'bounded-exists
+                  valid-bound
+                  (ast/pos-lit
+                    (ast/app-term 'mystery-body (ast/var-term x)))))))))))
 
 (deftest validate-term-accepts-deep-declared-unary-terms
   (testing "large arithmeticized terms validate without consuming one JVM stack frame per constructor"

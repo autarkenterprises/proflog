@@ -4,6 +4,12 @@
                  [org.clojure/core.logic "1.0.1"]]
   :source-paths ["vendor/core.logic-1.0.1/src" "src"]
   :test-paths ["test"]
+  ;; core.logic walks substitutions recursively, so decoding a large reflected
+  ;; SJAS boundary system (whose SelfCons sentence embeds the whole system code)
+  ;; recurses far deeper than the default JVM thread stack. A generous stack is
+  ;; a correctness-preserving setting: it changes no search semantics, only the
+  ;; depth the pure relational reader can reach before overflowing.
+  :jvm-opts ["-Xss256m"]
   :test-selectors
   {:A    (fn [m] (re-find #"^test-A\d" (str (:name m))))
    :B    (fn [m] (re-find #"^test-B\d" (str (:name m))))
@@ -153,9 +159,11 @@
             ;; TEST_RUNTIME_BASELINE.md.
             "test-proflog-sjas" ["run" "-m" "proflog.focused-test-runner"
                                  ":not-slow"
-                                 "proflog.willard-sjas-test"]
+                                 "proflog.willard-sjas-test"
+                                 "proflog.sjas-boundary-synthesis-probe-test"]
             "test-proflog-sjas-focused" ["run" "-m" "proflog.focused-test-runner"
-                                         "proflog.willard-sjas-test"]
+                                         "proflog.willard-sjas-test"
+                                         "proflog.sjas-boundary-synthesis-probe-test"]
             "test-proflog-sjas-slow" ["test"
                                       ":slow"
                                       "proflog.willard-sjas-test"]
@@ -178,6 +186,7 @@
             "probe-proflog-robinson-q" ["run" "-m" "proflog.robinson-q-probe"]
             "probe-proflog-relational-equality-fragment" ["run" "-m" "proflog.relational-equality-fragment-probe"]
             "print-sjas-selfcons-godel-code" ["run" "-m" "proflog.willard-sjas"]
+            "probe-proflog-sjas-boundary-synthesis" ["run" "-m" "proflog.sjas-boundary-synthesis-probe"]
             "probe-core-logic-host" ["run" "-m" "proflog.core-logic-host-probe"]
             "probe-core-logic-tabling" ["run" "-m" "proflog.core-logic-tabling-probe"]
             "probe-core-logic-count" ["run" "-m" "proflog.core-logic-count-probe"]

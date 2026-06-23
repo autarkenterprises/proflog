@@ -91,7 +91,9 @@
 	     dsjas-tableau-proof-object
 	     dsjas-subst-prf-object
      tab1-proof-list-object
-     dsjas-tab1-proof-object})
+     dsjas-tab1-proof-object
+     tab2-proof-list-object
+     dsjas-tab2-proof-object})
 
 (def ^:private relevant-equality-symbols
   "Equality, disequality, and equality-triggered proof constructors consumed by
@@ -149,7 +151,26 @@
      willard-sjas-subst-source-result
      willard-sjas-subst-exprf
      willard-sjas-subst-proof-check
-     willard-sjas-tab1-proof-check})
+     willard-sjas-tab1-proof-check
+     willard-sjas-tab2-proof-check
+     willard-sjas-finax4
+     willard-sjas-semprf-alpha
+     willard-sjas-semprfk-alpha})
+
+(def ^:private relevant-boundary-variant-symbols
+  "Workstream B negative-variant proof markers (ADR-0119/ADR-0141).
+
+   These name the deliberately-unsafe boundary refutation constructor and the
+   generated-system identity tags it quantifies over. They are not part of the
+   first-fragment positive correspondence, but they are genuine formula-bearing
+   proof evidence for the Goedel-boundary demonstrations, so Track 2b must
+   account for them when the boundary variants are in scope rather than silently
+   dropping them."
+  '#{willard-sjas-boundary-refutation
+     total-multiplication-boundary
+     xtab-lem
+     xtab-lem-boundary
+     tab2-boundary})
 
 (def ^:private excluded-answer-overlay-symbols
   "Answer-export proof constructors deliberately not admitted by SJAS theorem
@@ -212,6 +233,10 @@
                   {:status :relevant
                    :aspect :sjas-profile-proof-evidence
                    :obligation "Preserve explicit SJAS profile, code, axiom-membership, theorem-code, and proof-predicate evidence markers."})
+    (classify-set relevant-boundary-variant-symbols
+                  {:status :relevant
+                   :aspect :sjas-boundary-variant-evidence
+                   :obligation "Account for Workstream B boundary refutation roots and generated-system identity tags when the unsafe variants are in scope."})
     (classify-set excluded-answer-overlay-symbols
                   {:status :excluded
                    :aspect :answer-overlay
@@ -1145,6 +1170,586 @@
   "Return the ADR-0120 Tab-1 terminology and scope audit."
   []
   tab1-proof-list-roadmap)
+
+(def self-extension-data-encoding-survey
+  "ADR-0123 executable survey for the first SJAS self-extension demo.
+
+   This is a documentation-layer audit, not proof-search code. It records why
+   the next implementation slice starts with finite reflected pair beta axioms
+   and defers recursive lists until the representation layer is present."
+  {:workstream :self-extension
+   :selected-demo :pairs-first
+   :implementation-layer :reflected-beta
+   :implemented-demos #{:fresh-pair-functions
+                        :lists-from-pairs}
+   :survey-criteria #{:finite-beta-axiomatization
+                      :level-1-classifier-discipline
+                      :system-identity-change
+                      :group-three-selfcons-regeneration
+                      :focused-sjas-tractability}
+   :candidates
+   {:fresh-pair-functions
+    {:verdict :selected
+     :data-symbols {'pair 2
+                    'fst 1
+                    'snd 1}
+     :beta-laws ["forall x y. fst(pair(x,y)) = x"
+                 "forall x y. snd(pair(x,y)) = y"]
+     :argument "Finite projection laws give an immediately reflected data layer whose beta source changes system identity and regenerated SelfCons code."}
+    :lists-from-pairs
+    {:verdict :implemented
+     :data-symbols {'list-nil 0
+                    'list-cons 2
+                    'list-head 1
+                    'list-tail 1}
+     :beta-laws ["forall x xs. list-cons(x,xs) = pair(x,xs)"
+                 "forall x xs. list-head(list-cons(x,xs)) = x"
+                 "forall x xs. list-tail(list-cons(x,xs)) = xs"]
+     :argument "ADR-0128 adds the finite pair-backed list representation layer; recursive list operations remain deferred."}
+    :tagged-constants-only
+    {:verdict :too-weak
+     :argument "Fresh constants can demonstrate recoding, but they do not provide data-structure operations for self-interpretation."}}
+   :deferred-self-extension-obligations #{:list-recursion
+                                          :encoded-syntax-manipulation}})
+
+(defn audit-self-extension-data-encoding-survey
+  "Return the ADR-0123 data-encoding survey for Workstream C."
+  []
+  self-extension-data-encoding-survey)
+
+(def boundary-final-evidence-obligations
+  "Final evidence obligations for Workstream B negative variants.
+
+   These obligations are deliberately not discharged by screening a candidate;
+   the screen only decides whether expensive proof verification should proceed."
+  #{:constructed-certificate
+    :proof-search-synthesis})
+
+(defn- formal-code-bytes
+  "Return exact bytes for either public SJAS code representation."
+  [code]
+  (when code
+    (some-> (or (sjas-code/code-term-bytes code)
+                (sjas-code/u-grounding-code-term-bytes code))
+            vec)))
+
+(defn- same-formal-code?
+  "Compare public code terms by bytes instead of recursively comparing lists.
+
+   Substantive system and measured-proof codes may contain thousands of compact
+   constructor arguments. Byte-vector equality is exact and avoids overflowing
+   the host stack while traversing those flat code terms."
+  [left right]
+  (let [left-bytes (formal-code-bytes left)
+        right-bytes (formal-code-bytes right)]
+    (if (and left-bytes right-bytes)
+      (= left-bytes right-bytes)
+      (= left right))))
+
+(defn screen-boundary-evidence
+  "Reject boundary-failure evidence candidates that are the wrong kind.
+
+   `target` is a generated target report, such as
+   `total-multiplication-full-target-report`. `candidate` is an intake record
+   supplied by a future certificate or synthesis ADR. This screen performs only
+   cheap consistency checks. A passing candidate returns
+   `:verification-required`; it does not complete any Workstream B obligation."
+  [target candidate]
+  (let [reasons (cond-> #{}
+                  (not= (:variant target)
+                        (:variant candidate))
+                  (conj :wrong-variant)
+
+                  (not (same-formal-code? (:system-code target)
+                                          (:system-code candidate)))
+                  (conj :wrong-system-code)
+
+                  (not (same-formal-code? (:group-three-code target)
+                                          (:selfcons-code candidate)))
+                  (conj :wrong-selfcons-code)
+
+                  (and (= :sjas-axiom (:certificate-kind candidate))
+                       (same-formal-code? (:group-three-code target)
+                                          (:theorem-code candidate)))
+                  (conj :ordinary-selfcons-citation)
+
+                  (= :ordinary-selfcons-tableau
+                     (:certificate-kind candidate))
+                  (conj :ordinary-selfcons-tableau)
+
+                  (and (= :proof-search-synthesis
+                          (:evidence-kind candidate))
+                       (not (and (string? (:durable-log-path candidate))
+                                 (seq (:durable-log-path candidate)))))
+                  (conj :missing-durable-synthesis-log))]
+    {:variant (:variant target)
+     :evidence-kind (:evidence-kind candidate)
+     :result (if (seq reasons) :rejected :verification-required)
+     :reasons reasons
+     :completed-obligations #{}
+     :remaining-obligations boundary-final-evidence-obligations}))
+
+(defn- target-mismatch?
+  [target evidence]
+  (if (and (contains? target :target-code)
+           (contains? evidence :target-code))
+    (not (same-formal-code? (:target-code target)
+                            (:target-code evidence)))
+    (not= (:target-formula target)
+          (:target-formula evidence))))
+
+(def ^:private boundary-counterexample-component-keys
+  "Fields that bind one evidence candidate to its validated SelfCons witness."
+  [:theorem-code
+   :complement-code
+   :theorem-proof-object
+   :complement-proof-object])
+
+(defn- complete-boundary-counterexample-tuple?
+  "True when every generated-SelfCons witness component is present."
+  [evidence]
+  (every? #(some? (get evidence %))
+          boundary-counterexample-component-keys))
+
+(defn verify-boundary-constructed-certificate
+  "Verify a Workstream B constructed-certificate candidate against a target.
+
+   This is the contract layer between ADR-0127's cheap evidence screen and a
+   target-specific proof checker. The caller supplies `validation`, a durable
+   record of proof checking against the exact target formula and proof code.
+   A successful result closes only the constructed-certificate obligation for
+   that candidate; proof-search synthesis remains open."
+  [target candidate validation]
+  (let [screen (screen-boundary-evidence target candidate)
+        counterexample-validation?
+        (= :selfcons-counterexample (:validation-kind validation))
+        reasons (cond-> #{}
+                  (not= :constructed-certificate
+                        (:evidence-kind candidate))
+                  (conj :not-constructed-certificate)
+
+                  (not= (:variant target)
+                        (:variant validation))
+                  (conj :wrong-variant)
+
+                  (not (same-formal-code? (:system-code target)
+                                          (:system-code validation)))
+                  (conj :wrong-system-code)
+
+                  (not (same-formal-code? (:group-three-code target)
+                                          (:selfcons-code validation)))
+                  (conj :wrong-selfcons-code)
+
+                  (not= (:certificate-kind candidate)
+                        (:certificate-kind validation))
+                  (conj :wrong-certificate-kind)
+
+                  (target-mismatch? target candidate)
+                  (conj :wrong-target-formula)
+
+                  (target-mismatch? target validation)
+                  (conj :wrong-target-formula)
+
+                  (not (same-formal-code? (:proof-code candidate)
+                                          (:proof-code validation)))
+                  (conj :wrong-proof-code)
+
+                  (not (true? (:proof-valid? validation)))
+                  (conj :proof-validation-failed)
+
+                  (not= :selfcons-counterexample
+                        (:validation-kind validation))
+                  (conj :not-selfcons-counterexample-validation)
+
+                  (not (true? (:counterexample-valid? validation)))
+                  (conj :selfcons-counterexample-validation-failed)
+
+                  (not (true? (:proof-route-valid? validation)))
+                  (conj :boundary-proof-route-unverified)
+
+                  (and counterexample-validation?
+                       (or (not (complete-boundary-counterexample-tuple?
+                                  candidate))
+                           (not (complete-boundary-counterexample-tuple?
+                                  validation))))
+                  (conj :missing-counterexample-tuple)
+
+                  (and counterexample-validation?
+                       (not
+                         (every?
+                           (fn [key]
+                             (same-formal-code? (get candidate key)
+                                                (get validation key)))
+                           boundary-counterexample-component-keys)))
+                  (conj :wrong-counterexample-tuple))]
+    (if (= :rejected (:result screen))
+      (assoc screen
+             :verification-stage :screen)
+      {:variant (:variant target)
+       :evidence-kind :constructed-certificate
+       :verification-stage :proof-validation
+       :validator (:validator validation)
+       :result (if (seq reasons)
+                 :rejected
+                 :verified-intermediate-evidence)
+       :reasons reasons
+       :completed-obligations (if (seq reasons)
+                                #{}
+                                #{:constructed-certificate})
+       :remaining-obligations (if (seq reasons)
+                                boundary-final-evidence-obligations
+                                #{:proof-search-synthesis})})))
+
+(def boundary-variants
+  "The three Workstream B negative variants tracked by the evidence ledger.
+
+   Each variant must independently close both
+   `boundary-final-evidence-obligations` before ADR-0119 Workstream B is
+   complete, so the full ledger spans `3 x 2 = 6` obligations."
+  #{:total-multiplication
+    :xtab-or-lem-axiom
+    :tab-2-or-stronger})
+
+(defn- entry-completed-obligations
+  "Read kernel-derived completed obligations from one ledger entry.
+
+   The obligations are taken from the embedded `:constructed` verification and
+   `:synthesis` *reports*, which are themselves produced by kernel proof
+   checking. They are never read from a flat candidate field, so a caller
+   cannot assert completion through metadata. This enforces the ADR-0140 and
+   ADR-0141 prohibition on candidate-metadata evidence at the aggregation
+   layer."
+  [entry]
+  (cond-> #{}
+    (contains? (set (:completed-obligations (:constructed entry)))
+               :constructed-certificate)
+    (conj :constructed-certificate)
+
+    (contains? (set (:completed-obligations (:synthesis entry)))
+               :proof-search-synthesis)
+    (conj :proof-search-synthesis)))
+
+(defn summarize-boundary-evidence-ledger
+  "Tally the six Workstream B final-evidence obligations across all variants.
+
+   `entries` is a sequence of per-variant maps, each shaped
+
+   ```
+   {:variant <one of boundary-variants>
+    :constructed <verify-boundary-constructed-certificate result>
+    :synthesis   <synthesize-boundary-selfcons-counterexample report>}
+   ```
+
+   The ledger reports `:complete? true` and `:obligations-complete` equal to
+   `:obligations-total` (six) only when every expected variant is present
+   exactly once and both of its obligations were completed by kernel
+   validation. A duplicated variant, a missing variant, an unexpected variant,
+   or any open obligation forces `:complete? false`. Because obligations are
+   counted only for present, non-duplicate, expected variants, the honest
+   `:obligations-complete` count can equal six only in the fully-complete case
+   with no unexpected variant."
+  [entries]
+  (let [by-variant (reduce (fn [acc entry]
+                             (update acc (:variant entry) (fnil conj []) entry))
+                           {}
+                           entries)
+        per-variant
+        (into (sorted-map)
+              (map (fn [variant]
+                     (let [variant-entries (get by-variant variant [])
+                           present-once? (= 1 (count variant-entries))
+                           completed (if present-once?
+                                       (entry-completed-obligations
+                                         (first variant-entries))
+                                       #{})]
+                       [variant
+                        {:present? present-once?
+                         :duplicate? (< 1 (count variant-entries))
+                         :completed-obligations completed
+                         :remaining-obligations
+                         (set/difference boundary-final-evidence-obligations
+                                         completed)
+                         :complete?
+                         (= boundary-final-evidence-obligations completed)}]))
+                   boundary-variants))
+        unexpected-variants (set/difference (set (keys by-variant))
+                                            boundary-variants)
+        obligations-total (* (count boundary-variants)
+                             (count boundary-final-evidence-obligations))
+        obligations-complete (reduce + 0
+                                     (map (comp count
+                                                :completed-obligations
+                                                val)
+                                          per-variant))
+        complete? (and (empty? unexpected-variants)
+                       (every? :complete? (vals per-variant)))]
+    {:workstream :workstream-b
+     :obligations-total obligations-total
+     :obligations-complete obligations-complete
+     :complete? complete?
+     :unexpected-variants unexpected-variants
+     :per-variant per-variant}))
+
+(def tab2-or-stronger-boundary-surface
+  "ADR-0129 executable surface for the Tab-2-or-stronger negative variant.
+
+   Tab-1 remains the positive proof-list apparatus. This record only identifies
+   the next stronger proof-list family as a Workstream B boundary variant and
+   keeps all witness and final-evidence obligations open."
+  {:variant :tab-2-or-stronger
+   :workstream :workstream-b
+   :status :apparatus-implemented
+   :implemented-baseline-profile :willard-sjas-tab1
+   :implemented-boundary-profile :willard-sjas-tab2
+   :positive-workstream-status :rejected-from-workstream-a
+   :boundary-step {:minimum-apparatus :Tab-2
+                   :exceeds-intermediate-classifiers #{:pi-star-1
+                                                       :sigma-star-1}
+                   :risk :stronger-theorem-reuse}
+   :remaining-obligations #{:constructed-certificate
+                            :proof-search-synthesis}
+   :extended-probes #{:tab2-proof-list-public-validation}
+   :not-implemented #{:constructed-certificate
+                      :proof-search-synthesis}
+   :completion-claimed? false})
+
+(defn audit-tab2-or-stronger-boundary-surface
+  "Return the ADR-0129 Tab-2-or-stronger Workstream B surface."
+  []
+  tab2-or-stronger-boundary-surface)
+
+(def xtab-or-lem-boundary-surface
+  "ADR-0130 executable surface for the Xtab/LEM-as-axiom negative variant.
+
+   The implemented SJAS baseline derives excluded-middle behavior through its
+   tableau apparatus. This record only marks the separate boundary move of
+   packaging Xtab or Law of Excluded Middle as a logical axiom schema."
+  {:variant :xtab-or-lem-axiom
+   :workstream :workstream-b
+   :status :apparatus-implemented
+   :baseline-treatment :tableau-derived-lem
+   :positive-workstream-status :not-a-tab1-extension
+   :boundary-step {:packaging :logical-axiom-schema
+                   :source :xtab-or-law-of-excluded-middle
+                   :risk :lem-as-axiom}
+   :remaining-obligations #{:constructed-certificate
+                            :proof-search-synthesis}
+   :implemented-profile :willard-sjas-xtab
+   :not-implemented #{:constructed-certificate
+                      :proof-search-synthesis}
+   :completion-claimed? false})
+
+(defn audit-xtab-or-lem-boundary-surface
+  "Return the ADR-0130 Xtab/LEM-as-axiom Workstream B surface."
+  []
+  xtab-or-lem-boundary-surface)
+
+(def boundary-failure-roadmap
+  "ADR-0124 executable Workstream B contract for negative SJAS variants.
+
+   This audit intentionally separates a public variant surface from a completed
+   Goedel-boundary failure. The first surface is total multiplication; ADR-0125
+   and ADR-0126 complete its reduced witness and generated target stages, but
+   constructed certificates and proof-search synthesis evidence remain open.
+   ADR-0133 and ADR-0134 complete the reduced and generated-target
+   Xtab/LEM-as-axiom witness stages while leaving final evidence open.
+   ADR-0136 completes the reduced Tab-2-or-stronger witness, and ADR-0137
+   completes its generated SelfCons contradiction target."
+  {:workstream :workstream-b
+   :first-variant :total-multiplication
+   :planned-variants #{:total-multiplication
+                       :tab-2-or-stronger
+                       :xtab-or-lem-axiom}
+   :required-witness-stages [:reduced-reflected-beta-witness
+                             :full-generated-selfcons-contradiction-target]
+   :final-evidence-required boundary-final-evidence-obligations
+   :variant-statuses {:total-multiplication :apparatus-implemented
+                      :tab-2-or-stronger :apparatus-implemented
+                      :xtab-or-lem-axiom :apparatus-implemented}
+   :completed-witness-stages
+   {:total-multiplication #{:reduced-reflected-beta-witness
+                            :full-generated-selfcons-contradiction-target}
+    :tab-2-or-stronger #{:reduced-reflected-beta-witness
+                         :full-generated-selfcons-contradiction-target}
+    :xtab-or-lem-axiom #{:reduced-reflected-beta-witness
+                         :full-generated-selfcons-contradiction-target}}
+   :reduced-witnesses
+   {:total-multiplication
+    {:kind :squaring-chain
+     :default-depth 3
+     :fragment "u_0 = 2; u_(i+1) = mul(u_i,u_i)"
+     :status :implemented
+     :remaining-stage :completed}
+    :xtab-or-lem-axiom
+    {:kind :universal-lem-seed
+     :witness-relation 'xtab-lem-demo
+     :axiom-count 1
+     :status :implemented
+     :remaining-stage :completed}
+    :tab-2-or-stronger
+    {:kind :rank2-theorem-shape
+     :report-helper 'tab2-or-stronger-reduced-witness-report
+     :witness-formula "forall x. exists y. true"
+     :outside-tab1-classifiers #{:pi-star-1
+                                 :sigma-star-1
+                                 :pi-star-1-encodable}
+     :ordinary-tableau-validation :implemented
+     :status :implemented
+     :remaining-stage :completed}}
+   :full-targets
+   {:total-multiplication
+    {:kind :generated-selfcons-refutation
+     :system-builder 'total-multiplication-complete-system
+     :target-report 'total-multiplication-full-target-report
+     :target-shape "AxiomConj(S_total-mul) /\\ not(SelfCons(S_total-mul))"
+     :status :implemented
+     :remaining-evidence boundary-final-evidence-obligations}
+    :xtab-or-lem-axiom
+    {:kind :generated-selfcons-refutation
+     :system-builder 'xtab-complete-system
+     :target-report 'xtab-lem-full-target-report
+     :target-shape "AxiomConj(S_xtab_lem) /\\ not(SelfCons(S_xtab_lem))"
+     :status :implemented
+     :remaining-evidence boundary-final-evidence-obligations}
+    :tab-2-or-stronger
+    {:kind :generated-selfcons-refutation
+     :system-builder 'tab2-complete-system
+     :target-report 'tab2-or-stronger-full-target-report
+     :target-shape "AxiomConj(S_tab2_boundary) /\\ not(SelfCons(S_tab2_boundary))"
+     :status :implemented
+     :remaining-evidence boundary-final-evidence-obligations}}
+   :evidence-screens
+   {:total-multiplication
+    {:status :implemented
+     :screen-helper 'screen-boundary-evidence
+     :rejects #{:ordinary-selfcons-citation
+                :ordinary-selfcons-tableau
+                :wrong-system-code
+                :wrong-selfcons-code
+                :missing-durable-synthesis-log}
+     :passes-to :verification-required
+     :completed-obligations #{}}}
+   :evidence-verifiers
+   {:total-multiplication
+    {:constructed-certificate
+     {:status :implemented
+      :verifier-helper 'verify-boundary-constructed-certificate
+      :validation-helper
+      'total-multiplication-selfcons-counterexample-validation
+      :legacy-diagnostic-helper
+      'total-multiplication-constructed-certificate-validation
+      :requires #{:screened-candidate
+                  :matching-system-code
+                  :matching-selfcons-code
+                  :matching-certificate-kind
+                  :matching-target-formula
+                  :matching-proof-code
+                  :successful-proof-validation
+                  :kernel-checked-selfcons-counterexample
+                  :derived-reduced-witness-proof-route}
+      :completes-on-success #{:constructed-certificate}
+      :leaves-open #{:proof-search-synthesis}}}
+    :xtab-or-lem-axiom
+    {:constructed-certificate
+     {:status :implemented
+      :verifier-helper 'verify-boundary-constructed-certificate
+      :validation-helper 'xtab-lem-selfcons-counterexample-validation
+      :legacy-diagnostic-helper 'xtab-lem-constructed-certificate-validation
+      :requires #{:screened-candidate
+                  :matching-system-code
+                  :matching-selfcons-code
+                  :matching-certificate-kind
+                  :matching-target-formula
+                  :matching-proof-code
+                  :successful-proof-validation
+                  :kernel-checked-selfcons-counterexample
+                  :derived-reduced-witness-proof-route}
+      :completes-on-success #{:constructed-certificate}
+      :leaves-open #{:proof-search-synthesis}}}
+    :tab-2-or-stronger
+    {:constructed-certificate
+     {:status :implemented-extended-probe-pending
+      :verifier-helper 'verify-boundary-constructed-certificate
+      :validation-helper
+      'tab2-or-stronger-selfcons-counterexample-validation
+      :legacy-diagnostic-helper
+      'tab2-or-stronger-constructed-certificate-validation
+      :prerequisite :dsjas-tab2-proof-checker
+      :requires #{:screened-candidate
+                  :matching-system-code
+                  :matching-selfcons-code
+                  :matching-certificate-kind
+                  :matching-target-formula
+                  :matching-proof-code
+                  :successful-proof-validation
+                  :kernel-checked-selfcons-counterexample
+                  :derived-reduced-witness-proof-route}
+      :completes-on-success #{:constructed-certificate}
+      :leaves-open #{:proof-search-synthesis}}}}
+   :evidence-probes
+   {:total-multiplication
+    {:proof-search-synthesis
+     {:status :diagnostic-only
+      :probe-helper 'boundary-proof-search-synthesis-report
+      :plan-helper 'boundary-proof-search-synthesis-plan
+      :probe-kind :positive-selfcons-proof-diagnostic
+      :final-evidence-eligible? false
+      :counterexample-synthesis-status :not-implemented
+      :requires #{:generated-target
+                  :fresh-proof-variable
+                  :durable-log-path
+                  :screen-boundary-evidence
+                  :target-validation-helper}
+      :completed-obligations #{}
+      :remaining-obligations boundary-final-evidence-obligations}}
+    :xtab-or-lem-axiom
+    {:proof-search-synthesis
+     {:status :diagnostic-only
+      :probe-helper 'boundary-proof-search-synthesis-report
+      :plan-helper 'boundary-proof-search-synthesis-plan
+      :probe-kind :positive-selfcons-proof-diagnostic
+      :final-evidence-eligible? false
+      :counterexample-synthesis-status :not-implemented
+      :requires #{:generated-target
+                  :fresh-proof-variable
+                  :durable-log-path
+                  :screen-boundary-evidence
+                  :target-validation-helper}
+      :completed-obligations #{}
+      :remaining-obligations boundary-final-evidence-obligations}}
+    :tab-2-or-stronger
+    {:proof-search-synthesis
+     {:status :diagnostic-only
+      :probe-helper 'boundary-proof-search-synthesis-report
+      :plan-helper 'boundary-proof-search-synthesis-plan
+      :probe-kind :positive-selfcons-proof-diagnostic
+      :final-evidence-eligible? false
+      :counterexample-synthesis-status :not-implemented
+      :requires #{:generated-target
+                  :fresh-proof-variable
+                  :durable-log-path
+                  :screen-boundary-evidence
+                  :target-validation-helper}
+      :completed-obligations #{}
+      :remaining-obligations boundary-final-evidence-obligations}}}
+   :variant-surfaces
+   {:total-multiplication {:status :implemented
+                           :kind :language-extension
+                           :surface-helper 'total-multiplication-boundary-system}
+    :tab-2-or-stronger tab2-or-stronger-boundary-surface
+    :xtab-or-lem-axiom xtab-or-lem-boundary-surface}
+   :open-obligations
+   {:total-multiplication boundary-final-evidence-obligations
+    :tab-2-or-stronger #{:constructed-certificate
+                         :proof-search-synthesis}
+    :xtab-or-lem-axiom #{:constructed-certificate
+                         :proof-search-synthesis}}
+   :workstream-complete? false})
+
+(defn audit-boundary-failure-roadmap
+  "Return the ADR-0124 Workstream B negative-variant audit."
+  []
+  boundary-failure-roadmap)
 
 (def dsjas-combined-size-lower-bound
   "ADR-0104 lower-bound audit for the selected proof-object accounting.

@@ -110,6 +110,17 @@ Long-running synthesis probes in this stream must follow the durable
 `test-runs/` logging discipline from the project instructions, including PID
 capture and `/usr/bin/time` output.
 
+ADR-0140 tightens the meaning of this evidence after the first implementation
+audit. A proof of the positive Group-3 SelfCons axiom is ordinary
+self-justification, even when represented by a structural tableau. Final
+boundary evidence must instead supply the concrete tuple quantified by the
+positive body of `not(SelfCons(S))`, validate every class/complement/proof
+predicate against the exact generated system, and derive reduced-witness use
+from formula-bearing nodes in the kernel-accepted proof objects. Candidate
+metadata is not proof-route evidence. The Tab-2 variant additionally requires
+an implemented arithmeticized `dsjas-tab2-proof/3` relation before either final
+evidence obligation can close.
+
 ### Workstream C: Self-Interpretation / Self-Extension
 
 The default positive implementation path is reflected pair axioms first and
@@ -178,3 +189,37 @@ alter system identity and regenerated Group-3/SelfCons content.
 - Documentation checks confirm that only ADR-0119, the ADR index, and `LOG.md`
   changed for this branch.
 - No AAR is added unless implementation begins on this branch.
+
+## Roadmap Completion (2026-06-22) — RETRACTED 2026-06-22
+
+> **RETRACTED.** The completion claim below is withdrawn. The inter-developer
+> review [2026-06-22-adr-0141-completion-claim-review.md](../interdev/2026-06-22-adr-0141-completion-claim-review.md)
+> found the Workstream B evidence circular or forgeable, not conclusive: the
+> boundary contradiction is accepted by a trusted `willard-sjas-boundary-refutation`
+> constructor that assumes the metatheorem rather than deriving it; the
+> "independent" synthesis host-seeds the exact expected proof bytes before the
+> core.logic query; and the six-of-six ledger trusts caller-supplied nested
+> `:completed-obligations` metadata. Workstreams B and C are **reopened**; the
+> text below is retained only as the (withdrawn) claim it corrects.
+
+All three workstreams spawned from this control ADR are now closed, so the
+consolidated SJAS research roadmap is complete:
+
+- **Workstream A (Tab-k / Tab-1):** implemented by ADR-0120 (proof-list
+  surface), ADR-0121 (entry validation), and ADR-0122 (theorem reuse). Its
+  regression tests are green on the current branch.
+- **Workstream B (programmatized Goedel-boundary failures):** closed by
+  [ADR-0141](ADR-0141-sjas-boundary-completion.md). The three negative variants
+  (total multiplication, Xtab/LEM-as-axiom, Tab-2-or-stronger) implement the
+  hypotheses they name and pass all six final-evidence obligations — a
+  constructed and an independently synthesized `not(SelfCons)` counterexample
+  tuple per variant — through the ADR-0140 verifier, tallied by the new
+  Workstream B evidence ledger. See
+  [AAR-0141](../aar/AAR-0141-sjas-boundary-completion.md).
+- **Workstream C (self-interpretation / self-extension):** the pair-first survey
+  (ADR-0123) and reflected list self-extension (ADR-0128) provide the
+  consistency-preserving reflected data-structure extension; their regression
+  tests are green.
+
+This section records completion only; the three-workstream contract above
+remains the stable planning reference.

@@ -123,3 +123,22 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0121](AAR-0121-sjas-tab1-entry-validation.md) | [ADR-0121](../adr/ADR-0121-sjas-tab1-entry-validation.md) | completed |
 | [AAR-0122](AAR-0122-sjas-tab1-theorem-reuse.md) | [ADR-0122](../adr/ADR-0122-sjas-tab1-theorem-reuse.md) | completed |
 | [AAR-0123](AAR-0123-sjas-roadmap-integration-baseline.md) | [ADR-0123](../adr/ADR-0123-sjas-roadmap-integration-baseline.md) | completed |
+| [AAR-0123](AAR-0123-sjas-self-extension-pair-survey.md) | [ADR-0123](../adr/ADR-0123-sjas-self-extension-pair-survey.md) | completed |
+| [AAR-0124](AAR-0124-sjas-boundary-variant-surface.md) | [ADR-0124](../adr/ADR-0124-sjas-boundary-variant-surface.md) | completed |
+| [AAR-0125](AAR-0125-sjas-total-mul-reduced-witness.md) | [ADR-0125](../adr/ADR-0125-sjas-total-mul-reduced-witness.md) | completed |
+| [AAR-0126](AAR-0126-sjas-total-mul-full-target.md) | [ADR-0126](../adr/ADR-0126-sjas-total-mul-full-target.md) | completed |
+| [AAR-0127](AAR-0127-sjas-boundary-evidence-screen.md) | [ADR-0127](../adr/ADR-0127-sjas-boundary-evidence-screen.md) | completed |
+| [AAR-0128](AAR-0128-sjas-self-extension-lists.md) | [ADR-0128](../adr/ADR-0128-sjas-self-extension-lists.md) | completed |
+| [AAR-0129](AAR-0129-sjas-tab2-boundary-surface.md) | [ADR-0129](../adr/ADR-0129-sjas-tab2-boundary-surface.md) | completed |
+| [AAR-0130](AAR-0130-sjas-xtab-lem-boundary-surface.md) | [ADR-0130](../adr/ADR-0130-sjas-xtab-lem-boundary-surface.md) | completed |
+| [AAR-0131](AAR-0131-sjas-boundary-certificate-verifier.md) | [ADR-0131](../adr/ADR-0131-sjas-boundary-certificate-verifier.md) | completed |
+| [AAR-0132](AAR-0132-sjas-total-mul-certificate-validation.md) | [ADR-0132](../adr/ADR-0132-sjas-total-mul-certificate-validation.md) | completed |
+| [AAR-0133](AAR-0133-sjas-xtab-lem-reduced-witness.md) | [ADR-0133](../adr/ADR-0133-sjas-xtab-lem-reduced-witness.md) | completed |
+| [AAR-0134](AAR-0134-sjas-xtab-lem-full-target.md) | [ADR-0134](../adr/ADR-0134-sjas-xtab-lem-full-target.md) | completed |
+| [AAR-0135](AAR-0135-sjas-xtab-lem-certificate-validation.md) | [ADR-0135](../adr/ADR-0135-sjas-xtab-lem-certificate-validation.md) | completed |
+| [AAR-0136](AAR-0136-sjas-tab2-reduced-witness.md) | [ADR-0136](../adr/ADR-0136-sjas-tab2-reduced-witness.md) | completed |
+| [AAR-0137](AAR-0137-sjas-tab2-full-target.md) | [ADR-0137](../adr/ADR-0137-sjas-tab2-full-target.md) | completed |
+| [AAR-0138](AAR-0138-sjas-tab2-certificate-validation.md) | [ADR-0138](../adr/ADR-0138-sjas-tab2-certificate-validation.md) | completed |
+| [AAR-0139](AAR-0139-sjas-boundary-synthesis-probe.md) | [ADR-0139](../adr/ADR-0139-sjas-boundary-synthesis-probe.md) | completed |
+| [AAR-0140](AAR-0140-sjas-boundary-proof-route-validation.md) | [ADR-0140](../adr/ADR-0140-sjas-boundary-proof-route-validation.md) | completed |
+| [AAR-0141](AAR-0141-sjas-boundary-completion.md) | [ADR-0141](../adr/ADR-0141-sjas-boundary-completion.md) | retracted (completion claim withdrawn 2026-06-22) |

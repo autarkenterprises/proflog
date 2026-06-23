@@ -20,6 +20,135 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-22
+
+- Merged `adr-0141-sjas-boundary-completion` into `main`, bringing the
+  ADR-0120..0141 SJAS Goedel-boundary research line onto main alongside the
+  ADR-0111 and ADR-0112..0115 fidelity work. Union-resolved the expected
+  LOG/ADR/AAR table append-conflicts, including the parallel ADR-0123 number
+  collision (`roadmap-integration-baseline` and `self-extension-pair-survey` are
+  distinct records kept side by side).
+- Read Willard's source papers before writing any boundary witness and found the
+  prior V4/V5/willard-map/Upsilon apparatus misattributed (it is not in Willard
+  2002 tab2, 2005, or 2001). Recorded the genuine, non-circular plan in
+  [ADR-0142](docs/adr/ADR-0142-sjas-boundary-genuine-derivation.md): mechanize
+  Willard 2002 jsl2 Theorem 2.3 as an ordinary checker-verified closed tableau
+  refuting SelfCons in the multiplication-total system (which crosses the
+  boundary under semantic tableaux per Willard 2005 Remark 4), contrasted with
+  non-closure in the addition-only variant. See the linking
+  [interdev note](docs/interdev/2026-06-22-adr-0142-theorem-2-3-boundary-plan.md),
+  which also corrects the feasibility note's search-failure/consistency
+  conflation. ADR-0119 Workstream B remains reopened pending the derivation.
+- Reviewed the ADR-0141 completion claim through commit `b16ed5b` and found it
+  invalid. The contradiction is accepted by a trusted boundary-refutation
+  constructor, the claimed synthesis is seeded with host-generated expected
+  proof bytes, the evidence ledger trusts forgeable nested metadata, public
+  completion surfaces remain contradictory, required evidence records are
+  incomplete, and Workstream C lacks its claimed consistency-preservation
+  argument. ADR-0119 Workstreams B and C remain open pending the corrections
+  and acceptance criteria in the
+  [interdeveloper review note](docs/interdev/2026-06-22-adr-0141-completion-claim-review.md).
+- Completed [ADR-0141](docs/adr/ADR-0141-sjas-boundary-completion.md), closing
+  ADR-0119 Workstream B and the consolidated SJAS roadmap (see the ADR-0119
+  Roadmap Completion section and [AAR-0141](docs/aar/AAR-0141-sjas-boundary-completion.md)).
+  Picked up the branch mid-flight: the apparatus, source axioms, and tests were
+  built but the branch was broken across the gates and synthesis did not
+  terminate. Completion work: (1) made fresh-variable synthesis tractable by
+  grounding witness byte payloads with the canonical host encoder before the
+  search and running the build on a large-stack worker thread (xtab ~20s,
+  total-mul ~77s, Tab-2 ~114s, all `:found`); (2) restored SJAS proof-checker
+  purity per user direction — five of six `logic/project` host shortcuts in the
+  SJAS profile (the generic kernel was never affected) re-expressed as pure
+  relational goals (skeleton check, source-hypotheses membership, two boundary
+  routers); the sixth, the ground-compact-code byte reader, is retained as the
+  user-sanctioned correctness-preserving optimization (tractability-critical —
+  without it a single boundary `dsjas-subst-prf` validation did not finish in
+  130+ s; the audit is scoped to pin host `project` to exactly that reader),
+  with `-Xss256m` for deep decode; (3) repaired two encoding regressions
+  (a mid-list `proof-symbols` insertion shifting indices; the boundary
+  vocabulary stealing ordinary user-relation index slots, fixed by making it
+  `profile-local-reserved-symbols`); (4) classified the eleven new boundary proof
+  symbols and reconciled the boundary-failure roadmap audit + tests to the
+  implemented-apparatus state; (5) added the Workstream B evidence ledger
+  (`summarize-boundary-evidence-ledger` + `boundary-evidence-ledger`) reporting
+  six of six obligations only after kernel validation. Final gates:
+  `lein test-proflog-fast` 232/1540, `lein test-proflog-extended` 78/277,
+  `lein test-proflog-sjas` `pass=1399 fail=0 error=0`; slow boundary evidence run
+  recorded under `test-runs/adr0141-slow-evidence-*.log`. Deep root-cause notes
+  in [LESSONS.md](LESSONS.md).
+
+## 2026-06-20
+
+- Spawned [ADR-0141](docs/adr/ADR-0141-sjas-boundary-completion.md) as the final
+  ADR-0119 Workstream B implementation branch. The preceding source audit found
+  that the total-multiplication, Xtab, and Tab-2 systems did not implement the
+  hypotheses of the negative results they named. ADR-0141 therefore combines
+  the missing proof apparatus, arithmetic assumptions, constructed
+  counterexample tuples, independent synthesis, and six-of-six evidence gate;
+  documentation or positive Group-3 proofs cannot complete it.
+
+## 2026-06-19
+
+- Spawned [ADR-0140](docs/adr/ADR-0140-sjas-boundary-proof-route-validation.md)
+  from the ADR-0119 Workstream B completion audit on branch
+  `adr-0140-sjas-boundary-proof-route-validation`. The audit found that the
+  current verifier trusts `:uses-reduced-witness?` metadata and that the three
+  target-specific bridges validate positive Group-3 proofs rather than concrete
+  counterexamples to the generated SelfCons proof predicate. ADR-0140 replaces
+  that contract with kernel-checked counterexample tuples and proof-tree-derived
+  reduced-witness route evidence; it also records the missing Tab-2 proof
+  relation as a prerequisite rather than routing around it through Tableau-0.
+  Completed with
+  [AAR-0140](docs/aar/AAR-0140-sjas-boundary-proof-route-validation.md).
+  Final gates: `lein test-proflog-fast` 231/1496 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1359 fail=0 error=0`.
+- Spawned [ADR-0139](docs/adr/ADR-0139-sjas-boundary-synthesis-probe.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0139-sjas-boundary-synthesis-probe`. This slice adds a shared
+  proof-search synthesis probe and durable-result screening surface for the
+  three generated boundary targets, while rejecting ordinary synthesized
+  `sjas-axiom` SelfCons citation as non-final evidence. Completed with
+  [AAR-0139](docs/aar/AAR-0139-sjas-boundary-synthesis-probe.md); focused
+  selectors: `lein test-vars :not-slow
+  proflog.sjas-boundary-synthesis-probe-test` `pass=36 fail=0 error=0`, and
+  `lein test-vars
+  proflog.sjas-correspondence-test/boundary-proof-search-synthesis-probe-recorded-for-final-evidence`
+  `pass=19 fail=0 error=0`. Final gates: `lein test-proflog-fast` 231/1484
+  green, `lein test-proflog-extended` 78/277 green, and
+  `lein test-proflog-sjas` `pass=1310 fail=0 error=0`.
+- Spawned [ADR-0138](docs/adr/ADR-0138-sjas-tab2-certificate-validation.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0138-sjas-tab2-certificate-validation`. This slice targets the
+  proof-validation bridge for Tab-2-or-stronger constructed-certificate
+  candidates against the ADR-0137 generated target, without claiming a
+  certificate, synthesis evidence, or Tab-2 checker. Completed with
+  [AAR-0138](docs/aar/AAR-0138-sjas-tab2-certificate-validation.md); gates:
+  `lein test-proflog-fast` 230/1465 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1274 fail=0 error=0`.
+- Spawned [ADR-0137](docs/adr/ADR-0137-sjas-tab2-full-target.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0137-sjas-tab2-full-target`. This slice targets the full generated
+  SelfCons contradiction target for the ADR-0136 Tab-2-or-stronger reduced
+  witness, without implementing a Tab-2 checker, constructed certificate, or
+  synthesis evidence. Completed with
+  [AAR-0137](docs/aar/AAR-0137-sjas-tab2-full-target.md); gates:
+  `lein test-proflog-fast` 229/1457 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1259 fail=0 error=0`.
+- Spawned [ADR-0136](docs/adr/ADR-0136-sjas-tab2-reduced-witness.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0136-sjas-tab2-reduced-witness`. This slice targets the
+  Tab-2-or-stronger reduced witness: a concrete theorem-reuse witness outside
+  the implemented Tab-1 intermediate classifier, while leaving the Tab-2
+  checker, full generated SelfCons target, constructed certificate, and
+  synthesis evidence open. Completed with
+  [AAR-0136](docs/aar/AAR-0136-sjas-tab2-reduced-witness.md); gates:
+  `lein test-proflog-fast` 229/1456 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1242 fail=0 error=0`.
+
 ## 2026-06-18
 
 - Completed [ADR-0123](docs/adr/ADR-0123-sjas-roadmap-integration-baseline.md)
@@ -32,6 +161,136 @@ complete contemporaneous transcript.
   green, `lein test-proflog-extended` 92/971 green, and
   `lein test-proflog-sjas` `pass=1107 fail=0 error=0`. See
   [AAR-0123](docs/aar/AAR-0123-sjas-roadmap-integration-baseline.md).
+- Spawned [ADR-0135](docs/adr/ADR-0135-sjas-xtab-lem-certificate-validation.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0135-sjas-xtab-lem-certificate-validation`. This slice targets the
+  proof-validation bridge for Xtab / Law of Excluded Middle constructed
+  certificate candidates against the ADR-0134 generated target, without
+  claiming certificate or synthesis completion. Completed with
+  [AAR-0135](docs/aar/AAR-0135-sjas-xtab-lem-certificate-validation.md);
+  gates: `lein test-proflog-fast` 229/1454 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1227 fail=0 error=0`.
+- Spawned [ADR-0134](docs/adr/ADR-0134-sjas-xtab-lem-full-target.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0134-sjas-xtab-lem-full-target`. This slice targets the full generated
+  SelfCons contradiction target for the ADR-0133 Xtab / Law of Excluded Middle
+  reduced-witness system, leaving constructed certificate and synthesis
+  evidence open. Completed with
+  [AAR-0134](docs/aar/AAR-0134-sjas-xtab-lem-full-target.md); gates:
+  `lein test-proflog-fast` 228/1445 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1212 fail=0 error=0`.
+- Spawned [ADR-0133](docs/adr/ADR-0133-sjas-xtab-lem-reduced-witness.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0133-sjas-xtab-lem-reduced-witness`. This slice targets the reduced
+  reflected-beta witness for the Xtab / Law of Excluded Middle as axiom-schema
+  negative variant, leaving the generated SelfCons target, constructed
+  certificate, and synthesis evidence open. Completed with
+  [AAR-0133](docs/aar/AAR-0133-sjas-xtab-lem-reduced-witness.md); gates:
+  `lein test-proflog-fast` 227/1439 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1199 fail=0 error=0`.
+- Spawned [ADR-0132](docs/adr/ADR-0132-sjas-total-mul-certificate-validation.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0132-sjas-total-mul-certificate-validation`. This slice adds a
+  total-multiplication proof-validation bridge for constructed-certificate
+  candidates, tying proof codes to the ADR-0126 generated SelfCons target
+  before ADR-0131 can accept them as intermediate evidence. Completed with
+  [AAR-0132](docs/aar/AAR-0132-sjas-total-mul-certificate-validation.md);
+  gates: `lein test-proflog-fast` 226/1431 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1188 fail=0 error=0`.
+- Spawned [ADR-0131](docs/adr/ADR-0131-sjas-boundary-certificate-verifier.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0131-sjas-boundary-certificate-verifier`. This slice adds the
+  constructed-certificate verifier contract that combines the ADR-0127 evidence
+  screen with proof-validation metadata for the ADR-0126 target, without
+  claiming a concrete certificate or proof-search synthesis. Completed with
+  [AAR-0131](docs/aar/AAR-0131-sjas-boundary-certificate-verifier.md);
+  gates: `lein test-proflog-fast` 226/1428 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1173 fail=0 error=0`.
+- Spawned [ADR-0130](docs/adr/ADR-0130-sjas-xtab-lem-boundary-surface.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0130-sjas-xtab-lem-boundary-surface`. This slice records Xtab / Law of
+  Excluded Middle packaged as an axiom schema as an executable negative-variant
+  surface, distinct from ordinary tableau-derived excluded-middle behavior.
+  Completed with
+  [AAR-0130](docs/aar/AAR-0130-sjas-xtab-lem-boundary-surface.md); gates:
+  `lein test-proflog-fast` 225/1416 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1173 fail=0 error=0`.
+- Spawned [ADR-0129](docs/adr/ADR-0129-sjas-tab2-boundary-surface.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0129-sjas-tab2-boundary-surface`. This slice records the
+  Tab-2-or-stronger proof-list apparatus as an executable negative-variant
+  surface beyond the implemented Tab-1 path, while keeping reduced-witness,
+  generated-target, certificate, and synthesis obligations open. Completed with
+  [AAR-0129](docs/aar/AAR-0129-sjas-tab2-boundary-surface.md); gates:
+  `lein test-proflog-fast` 224/1405 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1173 fail=0 error=0`.
+- Spawned [ADR-0128](docs/adr/ADR-0128-sjas-self-extension-lists.md)
+  from ADR-0119 Workstream C on branch
+  `adr-0128-sjas-self-extension-lists`. This slice adds the reflected
+  pair-backed list layer after the ADR-0123 pair demo, without claiming list
+  recursion or full self-interpretation. Completed with
+  [AAR-0128](docs/aar/AAR-0128-sjas-self-extension-lists.md); gates:
+  `lein test-proflog-fast` 223/1394 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1173 fail=0 error=0`.
+- Spawned [ADR-0127](docs/adr/ADR-0127-sjas-boundary-evidence-screen.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0127-sjas-boundary-evidence-screen`. This slice adds an executable
+  evidence screen so ordinary Group-3 SelfCons citations and structural
+  SelfCons tableaux cannot satisfy the remaining total-multiplication
+  boundary-failure obligations. Completed with
+  [AAR-0127](docs/aar/AAR-0127-sjas-boundary-evidence-screen.md); gates:
+  `lein test-proflog-fast` 223/1393 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1154 fail=0 error=0`.
+- Spawned [ADR-0126](docs/adr/ADR-0126-sjas-total-mul-full-target.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0126-sjas-total-mul-full-target`. This slice targets the full
+  generated SelfCons contradiction target for the total-multiplication reduced
+  witness system, while deliberately keeping constructed-certificate and
+  proof-search synthesis evidence open. Completed with
+  [AAR-0126](docs/aar/AAR-0126-sjas-total-mul-full-target.md); gates:
+  `lein test-proflog-fast` 221/1377 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1154 fail=0 error=0`.
+- Spawned [ADR-0125](docs/adr/ADR-0125-sjas-total-mul-reduced-witness.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0125-sjas-total-mul-reduced-witness`. This slice targets the reduced
+  reflected-beta squaring-chain witness for the total-multiplication negative
+  variant, leaving the full SelfCons contradiction target and synthesis
+  evidence for later Workstream B ADRs. Completed with
+  [AAR-0125](docs/aar/AAR-0125-sjas-total-mul-reduced-witness.md); gates:
+  `lein test-proflog-fast` 221/1377 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1142 fail=0 error=0`.
+- Spawned [ADR-0124](docs/adr/ADR-0124-sjas-boundary-variant-surface.md)
+  from ADR-0119 Workstream B on branch
+  `adr-0124-sjas-boundary-variant-surface`. This slice adds the first
+  total-multiplication negative-variant surface and executable witness contract
+  without claiming the reduced/full SelfCons contradiction witnesses. Completed
+  with [AAR-0124](docs/aar/AAR-0124-sjas-boundary-variant-surface.md); gates:
+  `lein test-proflog-fast` 221/1376 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1130 fail=0 error=0`. Reduced/full SelfCons witnesses, constructed
+  certificates, and proof-search synthesis evidence remain open for Workstream
+  B completion.
+- Spawned [ADR-0123](docs/adr/ADR-0123-sjas-self-extension-pair-survey.md)
+  from ADR-0119 Workstream C on branch
+  `adr-0123-sjas-self-extension-pair-survey`. This slice records the required
+  beta-axiomatizable data-encoding survey and selects reflected pair projection
+  axioms as the first self-extension demo before list axioms. Completed with
+  [AAR-0123](docs/aar/AAR-0123-sjas-self-extension-pair-survey.md); gates:
+  `lein test-proflog-fast` 220/1368 green,
+  `lein test-proflog-extended` 78/277 green, and `lein test-proflog-sjas`
+  `pass=1119 fail=0 error=0`. List recursion and Workstream B negative
+  boundary variants remain open.
 - Spawned [ADR-0122](docs/adr/ADR-0122-sjas-tab1-theorem-reuse.md) from
   ADR-0119 Workstream A on branch `adr-0122-sjas-tab1-theorem-reuse`. This
   slice targets the remaining Tab-1 proof-list obligation from ADR-0121:

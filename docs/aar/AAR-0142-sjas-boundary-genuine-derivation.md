@@ -112,14 +112,15 @@ proflog.sjas-synthesis-guard-test                   green(2 tests / 5)
 lein test-proflog-fast       Ran 267 tests / 2323 assertions, 0 failures, 0 errors (exit 0)
                              (includes the 4 new ADR-0142 test namespaces)
 lein test-proflog-extended   Ran 92 tests / 971 assertions, 0 failures, 0 errors (exit 0)
-lein test-proflog-sjas       focused not-slow gate (the ^:slow fixed-point outlier
-                             is excluded); new willard-sjas-test ADR-0142 vars
-                             green individually
+lein test-proflog-sjas       :SUMMARY pass=1429 fail=0 error=0 (exit 0)
+                             focused not-slow gate (the ^:slow fixed-point outlier
+                             is excluded); confirms the SemPrf^k change broke
+                             nothing across the full not-slow SJAS suite
 ```
 
-All ADR-0142 focused tests are green individually (see Red-Green Evidence). The
-fast gate, which includes `sjas-correspondence-test` and the four new namespaces,
-is green.
+All three gates are green. The SJAS gate (1429 passing) is the authoritative
+check that the Definition-2.1 `SemPrf^k` rewrite did not regress any existing
+boundary/correspondence test.
 
 ## Follow-ups (separate ADRs)
 

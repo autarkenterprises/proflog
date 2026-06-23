@@ -9,8 +9,7 @@ Navigation for submission planning and paper artifacts derived from the Proflog 
 | [open-by-date.md](open-by-date.md) | **Open CFPs ranked by nearest conference date** (verified 2026-06-20) |
 | [us-speaking-opportunities.md](us-speaking-opportunities.md) | US seminars and colloquia (NYC CTS tier, logic, PL, virtual) |
 | [csl-2027-outline.md](csl-2027-outline.md) | Planned CSL 2027 paper on SJAS correspondence (ADR-0100+) |
-| [jaf-2026-abstract.tex](jaf-2026-abstract.tex) | JAF 2026 contributed-talk abstract draft (primary; U-grounding / IS#_D(β) framing) |
-| [jaf-2026-abstract-alt.md](jaf-2026-abstract-alt.md) | JAF 2026 alternative draft (EA-stability / counting-lemma framing) |
+| [jaf-2026-abstract.tex](jaf-2026-abstract.tex) | JAF 2026 contributed-talk abstract draft |
 
 ## Submission status
 

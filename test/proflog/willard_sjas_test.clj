@@ -1463,6 +1463,31 @@
               1 320))
           "k=1 rejects the same valid certificate on the Log bound alone"))))
 
+(deftest sjas-adr0142-theorem23-diagonal-and-map-locator
+  (testing "Dk(alpha)=Gamma(nbar) is built; Subst(nbar,code(Dk)) (Eq 7 / Map locator) holds"
+    (let [system (sjas/system
+                   {:profile :willard-sjas-total-multiplication
+                    :functions sjas/total-multiplication-functions
+                    :relations sjas/total-multiplication-willard-relations
+                    :beta [(ast/eq-lit sjas/one sjas/one)]
+                    :code-format :u-grounding})
+          {:keys [skeleton-code diagonal-code skeleton]}
+          (sjas/theorem23-diagonal system sjas/one)]
+      ;; Eq (4): the diagonal pairs the genuine Subst relation with SemPrf^k.
+      (is (every? #(contains? (set (formula-relation-symbols skeleton)) %)
+                  '#{subst-code semprfk-alpha})
+          "the diagonal skeleton is the Subst + SemPrf^k shape, not a SelfCons clone")
+      ;; Eq (7) / Map(alpha,k,code(Dk)): code(Dk) IS the diagonalization of nbar,
+      ;; decided by the relational subst-code (no host trust).
+      (is (subst-code-relation-succeeds? system skeleton-code diagonal-code)
+          "Subst(nbar, code(Dk)) holds: code(Dk) is the genuine diagonal locator")
+      (is (not (subst-code-relation-succeeds? system skeleton-code (:system-code system)))
+          "the locator rejects a code that is not the diagonalization of nbar")
+      ;; k is operational: the diagonal embeds k inside SemPrf^k, so a different
+      ;; superscript produces a different diagonal code.
+      (is (not= diagonal-code (:diagonal-code (sjas/theorem23-diagonal system sjas/two)))
+          "changing k changes code(Dk) because the diagonal carries the SemPrf^k superscript"))))
+
 (deftest sjas-adr0141-willard-semprf-alpha-delegates-to-tableau-proof
   (testing "Willard SemPrf_alpha is executable proof-kernel evidence, not an inert relation"
     (let [system (sjas/system

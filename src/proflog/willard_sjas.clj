@@ -1956,6 +1956,56 @@
   (ast/and-form (:axiom-formula system)
                 (selfcons-negation-target system)))
 
+(defn theorem23-diagonal-skeleton
+  "Willard 2002 JSL2 Equation (4): the open diagonal `Gamma(g)`.
+
+   `Gamma(g) = forall h y z. Subst(g,h) => not SemPrf^k_alpha(h,y,z)`, with the
+   diagonal variable `g` left free (encoded as the canonical `v0`). This is the
+   Theorem 2.3 / Theorem 2.2 diagonal -- distinct from the Level-0
+   `dsjas-tableau-proof` SelfCons and the Level-1 `dsjas-subst-prf` SelfCons: it
+   pairs the genuine `subst-code` substitution relation with the iterated-log
+   `semprfk-alpha` bound (Definition 2.1)."
+  [system-code k-code g-term]
+  (let [h (nominal/nom (lvar 'diag-h))
+        y (nominal/nom (lvar 'diag-y))
+        z (nominal/nom (lvar 'diag-z))
+        ht (ast/var-term h)
+        yt (ast/var-term y)
+        zt (ast/var-term z)]
+    (ast/forall-form
+      h
+      (ast/forall-form
+        y
+        (ast/forall-form
+          z
+          (ast/implies-form
+            (subst-code g-term ht)
+            (ast/not-form (semprfk-alpha system-code k-code ht yt zt))))))))
+
+(defn theorem23-diagonal
+  "Build the closed diagonal `Dk(alpha) = Gamma(nbar)` for a generated `system`.
+
+   Returns the open skeleton, its code `nbar = code(Gamma(g))`, the closed
+   diagonal `Dk = Gamma(nbar)`, and `code(Dk)`. By construction
+   `Subst(nbar, code(Dk))` holds (it is the Goedel diagonalization), which is
+   Theorem 2.3's Equation (7) and, read as a locator, Willard's `Map(alpha, k,
+   code(Dk))` (Lemma 3.3): `code(Dk)` is exactly the Goedel number of the
+   diagonal of `(alpha, k)`. The `subst-code` relation is the genuine relational
+   gate that decides both."
+  [system k-code]
+  (let [coding-context (:coding-context system)
+        system-code (:system-code system)
+        code-format (:code-format system)
+        g (nominal/nom (lvar 'diag-g))
+        skeleton (theorem23-diagonal-skeleton system-code k-code (ast/var-term g))
+        skeleton-code (formula-code-term coding-context skeleton {g 'v0} code-format)
+        diagonal (theorem23-diagonal-skeleton system-code k-code skeleton-code)
+        diagonal-code (formula-code-term coding-context diagonal {} code-format)]
+    {:skeleton skeleton
+     :skeleton-code skeleton-code
+     :diagonal diagonal
+     :diagonal-code diagonal-code}))
+
 (defn total-multiplication-full-target-report
   "Describe the generated target for the executable total-multiplication variant.
 

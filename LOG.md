@@ -22,6 +22,44 @@ complete contemporaneous transcript.
 
 ## 2026-06-22
 
+- Revised ADR-0142 after the Codex review and recorded the V4 "descent" strawman
+  clarification here (promoted from the interdev reply because it documents a
+  reusable concept, not just a developer hand-off). First, a correction to the
+  two 2026-06-22 entries further below: the claim that the `V4/V5/Map/Paradox`
+  apparatus is "misattributed" was WRONG. It is genuine Willard 2002 JSL2 §3.2,
+  Equations (12)-(16) (`Map` = Lemma 3.3, `Paradox` = Eq 12, `V3` = Eq 14 =
+  Theorem 2.3 condition (C), `V4` = Eq 15, `V5` = Eq 16). The earlier finding
+  read the wrong 2002 paper (tab2) and stopped before JSL2 §3.2; ADR-0142 now
+  retains and audits the apparatus and implements the only genuinely-missing
+  piece (`Map`). See
+  [ADR-0142](docs/adr/ADR-0142-sjas-boundary-genuine-derivation.md) and the
+  [review reply](docs/interdev/2026-06-22-adr-0142-review-reply.md).
+- V4 "finite descent" strawman clarification:
+  - ORIGINAL STATEMENT: the boundary route via Willard's V4 axiom
+    (`Upsilon(...,z) => exists z*<z. Upsilon(...,z*)`) cannot close, because
+    eliminating the bounded existential with the tableau delta-rule introduces an
+    opaque parameter (not a concrete smaller numeral); so without a least-number
+    principle — which SJAS lacks by design — the descent is an infinite regress
+    that never reaches a checkable bottom, and forcing closure would require
+    re-adding a trusted closer (the retracted circularity).
+  - REASON FOR REFINING: the JSL2 re-read and the ADR-0142 review showed this
+    refutes a proof strategy Willard never uses — it attacks a *reconstruction*
+    of the argument, not the argument itself. It is a strawman.
+  - REFINEMENT: (1) the inconsistency closure is Theorem 2.3's *diagonal* clash,
+    not a descent — `alpha` proves `DK` ("there is no bounded proof of me") from
+    (A) AND (B) AND (C) via Theorem 2.2, then proves `not DK` by instantiating
+    `DK` with that very proof; `DK AND not DK` is one finite derivation. (2) V4 is
+    a redundant proof-*compression* axiom — provable from Q, of the trivially
+    valid form `forall d e. phi(d,e) => exists f <= e. phi(d,f)`, using bounded
+    `<=` — included only to shorten the bounded proof; it lives *inside* the proof
+    object and is never iterated toward bottom. (3) Induction enters only in the
+    *metatheory* (proving the V-axioms standard-model-valid, Theorem 3.4), not in
+    the object-level derivation, so the "needs a least-number principle" worry
+    never bears on the construction.
+  - GENERAL LESSON: refuting your own reconstruction of a cited argument is not
+    refuting the argument. Before judging an apparatus unsound, identify the
+    paper's actual closure mechanism (here: the diagonal, not the descent) and
+    test the objection against that.
 - Merged `adr-0141-sjas-boundary-completion` into `main`, bringing the
   ADR-0120..0141 SJAS Goedel-boundary research line onto main alongside the
   ADR-0111 and ADR-0112..0115 fidelity work. Union-resolved the expected

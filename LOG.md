@@ -22,6 +22,21 @@ complete contemporaneous transcript.
 
 ## 2026-06-22
 
+- Reviewed ADR-0142 and iteratively corrected the assessment after confirming
+  that baseline `D_SJAS` already supplies total U-Grounding addition and a
+  definable successor. The remaining blockers are source fidelity (JSL2 really
+  contains `Map`, `V4`, and `V5`), proof rather than naming of Theorem 2.3
+  conditions (A)-(C), the current `SemPrfK` relation ignoring `K` and iterated
+  logarithm, cut-elimination construction, and the three-variant Workstream B
+  scope. Q4-Q7 probes found only Q6/Q7 reflected in the completed multiplication
+  beta, with Q6 citeable through `sjas-axiom`. See the
+  [ADR-0142 interdeveloper review](docs/interdev/2026-06-22-adr-0142-review-and-corrections.md).
+- Spawned [ADR-0143](docs/adr/ADR-0143-sjas-bounded-surface-validation.md)
+  after the same probe exposed that shared surface validation rejects
+  `bounded-forall` and `bounded-exists` even though the AST, normalizer, SJAS
+  coding, substitution, and structural checker support them. The repair keeps
+  ownership in `language/validate-formula` and requires a public SJAS query
+  regression.
 - Reviewed the ADR-0141 completion claim through commit `b16ed5b` and found it
   invalid. The contradiction is accepted by a trusted boundary-refutation
   constructor, the claimed synthesis is seeded with host-generated expected

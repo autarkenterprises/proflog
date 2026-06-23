@@ -83,6 +83,20 @@
   the audit) from a host proof-CHECKER route (forbid it). The five boundary
   checks that decide acceptance (skeleton match, source-hypotheses membership,
   proof routing) belong fully relational; the byte reader does not.
+- Refuting your own reconstruction of a cited argument is not refuting the
+  argument. Assessing the SJAS multiplication boundary, I called Willard's V4
+  axiom unsound via a "finite descent never closes without a least-number
+  principle" argument — but that descent-to-closure procedure is one Willard
+  never uses. His inconsistency is the Theorem 2.3 *diagonal* clash (prove `DK`
+  from (A),(B),(C), then `not DK` by self-instantiation); V4 is only a redundant,
+  Q-provable proof-*compression* axiom (bounded `<=`, used inside the proof
+  object). The objection modeled the apparatus's purpose wrongly, then refuted the
+  model. Before declaring a cited construction unsound, locate the paper's
+  *actual* closure mechanism and test the objection against that. Here it
+  compounded a source-fidelity slip (reading the wrong 2002 paper) into a
+  confident-but-wrong "misattributed / unsound" verdict that the Codex review
+  reversed. (See LOG 2026-06-22, ADR-0142, and
+  docs/interdev/2026-06-22-adr-0142-review-reply.md.)
 
 ## 2026-05-06
 

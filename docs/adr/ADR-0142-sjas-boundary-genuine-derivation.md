@@ -1,214 +1,222 @@
 # ADR-0142: SJAS Multiplication-Boundary Derivation via Willard Theorem 2.3
 
-- Status: accepted
+- Status: accepted (revised 2026-06-22 after review)
 - Date: 2026-06-22
 - Branch: `adr-0142-sjas-boundary-genuine-derivation`
 - AAR: pending
 
+## Revision note (2026-06-22)
+
+This ADR was revised after
+[the Codex review](../interdev/2026-06-22-adr-0142-review-and-corrections.md)
+and [the owner's reply](../interdev/2026-06-22-adr-0142-review-reply.md).
+
+The first draft claimed the `V3/V4/V5/Map/Paradox/FinAx4` apparatus was
+misattributed and should be removed. **That claim was wrong and is withdrawn.**
+The apparatus is genuine Willard 2002 JSL2 §3.2 (Equations 12-16); the first
+draft read the wrong 2002 paper (tab2) and stopped before JSL2 §3.2. Theorem 2.3
+is the *conclusion* those axioms feed, not a replacement for them. The apparatus
+is therefore retained, audited against JSL2, and the one genuinely-missing piece
+(`Map`) is implemented. The corrections below also fix the `SemPrfK` semantics,
+confront the cut-elimination obligation, add the arithmetic-interpretation
+bridge, and scope this ADR to the multiplication variant only.
+
 ## Context
 
 ADR-0141's completion claim for ADR-0119 Workstream B was retracted (commit
-`b16ed5b` superseded by `379031c`). The interdev review
-[2026-06-22-adr-0141-completion-claim-review.md](../interdev/2026-06-22-adr-0141-completion-claim-review.md)
-found the boundary contradiction was accepted by a trusted
-`willard-sjas-boundary-refutation` constructor routed around the ordinary
-checker (circular), the "independent" synthesis was host-seeded with the exact
-expected proof bytes, and the six-of-six ledger trusted caller-supplied
-metadata. The soundness fix removed the trusted constructor; Workstream B is
-reopened.
+`b16ed5b` superseded by `379031c`) because the boundary contradiction was
+accepted by a trusted `willard-sjas-boundary-refutation` constructor routed
+around the ordinary checker, the synthesis was host-seeded, and the ledger
+trusted forgeable metadata. **That retraction stands and is unaffected by this
+ADR**: it concerned the trusted constructor, not the source axioms.
 
-A subsequent source-fidelity investigation (this ADR's preparation) established
-two further facts that redirect the work:
+The faithful, object-level inconsistency result for a Q-extension that recognizes
+its own tableau consistency is Willard 2002 JSL2
+(`willard2002_semantic_tableaux_robinson_q_author_jsl2.pdf`), **Theorem 2.3**:
+a finite extension `alpha` of Robinson Q is inconsistent if it proves
 
-1. **The prior boundary apparatus is misattributed.** The
-   `V4`/`V5`/`willard-map`/`Upsilon`/`Paradox` axioms in
-   `proflog.sjas-boundary-axioms` carry "Willard 2002 Equation (12)/(15)" labels
-   that do not hold. Willard 2002 tab2
-   (`willard2002_new_exceptions_tableaux_author_tab2.pdf`) Eq 11-17 are the
-   `Check/omega/Top/Constraint` machinery of a *consistency-preservation* proof
-   (the safe side, Theorems 1-2), proved by metalevel induction (PROBE +
-   Lemmas 2-3). There is no V4 descent axiom, no `Upsilon = subst-code AND
-   semprfk`, no `willard-map`, no `Paradox`, and no literal V4/V5 in
-   willard2002/2005/2001. The previously planned "V4 finite descent, no
-   induction required" path is therefore unsound: eliminating a bounded
-   existential with the tableau delta-rule yields an opaque parameter, not a
-   shrinking numeral, so without a least-number principle (which SJAS lacks by
-   design, and which Willard keeps at the metalevel) the descent never closes.
+```text
+(A) forall p. not SemPrf_alpha(BOT, p)                       -- tableau-consistency (Eq 3)
+(B) (exists y z. SemPrfk_alpha(code(DK), y, z))
+        -> exists x. SemPrf_alpha(BOT, x)                    -- bounded-proof-of-diagonal => BOT
+(C) forall g h h*. Subst(g,h) AND Subst(g,h*) -> h = h*      -- Subst single-valued
+```
 
-2. **Multiplication-total crosses the boundary under this checker's deduction.**
-   The correct operationalization is: self-justification is the tableau system's
-   *failure to close* trees that would refute its SelfCons axiom (SelfCons is
-   added as an axiom, so it is trivially "proved"; the content is
-   non-refutability); a boundary *failure* is the *appearance* of a closing
-   tableau for such a refutation. Willard 2005 jsl5 Remark 4 (lines 977-984)
-   shows the theta-compactification property underwriting self-justification is
-   impossible with multiplication-total "under any possible deduction method D,
-   whether cut-free or otherwise" — semantic tableaux included; Willard
-   deliberately drops multiplication-total to keep self-justification under
-   tableaux (lines 800-826). So the configured multiplication-total system is
-   genuinely on the unsafe side under the semantic-tableau deduction this
-   project implements, and a closing tableau for the SelfCons-refutation exists.
-   The earlier feasibility note's "search rejects 1=0 in ~18 ms" is **not**
-   evidence of consistency: a genuinely inconsistent system can have its only
-   bottom-proof be a large, search-inaccessible Goedel-Loeb derivation that must
-   be *constructed*, not searched for.
+with diagonal `DK = Gamma(nbar)`, `Gamma(g) = forall h y z. Subst(g,h) =>
+not SemPrfk_alpha(h,y,z)` (Eq 4), `nbar = code(Gamma(g))`. JSL2 §3.2 then defines
+the concrete system `FinAx5(alpha) = Q + V1..V5` that proves (A), (B), (C)
+(Theorem 3.5, lines 513-549). The boundary apparatus already in
+`proflog.sjas-boundary-axioms` corresponds to that system:
 
-The faithful, checkable, object-level construction is Willard 2002 jsl2 (the
-semantic-tableau Second Incompleteness paper, ref [68] of willard2005,
-`willard2002_semantic_tableaux_robinson_q_author_jsl2.pdf`), **Theorem 2.3**.
-Its three hypotheses map directly onto genuine apparatus already in the kernel:
+| JSL2 object | Equation | Role | Kernel status |
+|---|---|---|---|
+| `Map(alpha,k,d)` | Lemma 3.3 | diagonal proof-code locator | **missing** (no kernel handler) |
+| `Paradox(y,z,alpha,k) = exists d<z {Map AND SemPrfk}` | Eq (12) | antecedent of V5 | depends on `Map` |
+| `V3 = forall g h h*. Subst(g,h) AND Subst(g,h*) => h=h*` | Eq (14) | **is** condition (C) | present as axiom |
+| `V4` with `Upsilon = Subst AND SemPrfk` | Eq (15) | proof-compression axiom (provable from Q; bounded `<=`) | present as axiom |
+| `V5 = [FinAx4 AND k>=alpha AND Paradox] => exists x<z SemPrf(BOT,x)` | Eq (16) | establishes condition (B) | present as axiom; route needs `Map` |
+| `Subst(g,h)` | §2 / Eq 4 | Goedel diagonal | present (`subst-code`, faithful) |
 
-| Theorem 2.3 condition | Meaning | Existing genuine piece |
-|---|---|---|
-| (A) `forall p. not SemPrf_alpha(BOT,p)` | SelfCons / tableau-consistency axiom (Eq 3; `BOT`=code of `0=1`) | Group-3 axiom |
-| (B) `(exists y z. SemPrfK_alpha(code(DK),y,z)) => exists x. SemPrf_alpha(BOT,x)` | bounded "proof" of the diagonal implies `BOT` provable | `semprfk-alpha`/`semprf-alpha` |
-| (C) `forall g h h*. Subst(g,h) AND Subst(g,h*) => h=h*` | `Subst` single-valued (Delta0-valid; Q proves it) | `subst-code` |
+`V4` is **not** a strict numeral-descent rule: it uses bounded `<=`, is provable
+from Q, and is included only as a redundant proof-compression axiom (JSL2 line
+478-479; it appears *inside* the bounded proof object, line 733). The
+inconsistency closure is Theorem 2.3's diagonal clash, established through
+Theorem 2.2.
 
-The diagonal is `DK = Gamma(nbar)` where
-`Gamma(g) = forall h y z. Subst(g,h) => not SemPrfK_alpha(h,y,z)` (Eq 4) and
-`nbar = code(Gamma(g))`; `sjas-subst-code-anyo` already computes
-`Subst(nbar, code(DK))`. Expressivity enters at exactly one place: `SemPrfK`
-uses `y < Log(z,K)` (Definition 2.1), whose bound arithmetic (Lemmas 3.1/3.2:
-Subtraction and Log as Delta0-total functions) needs multiplication-grade
-growth — which the addition-only variant cannot carry.
+**Operationalization.** Self-justification is the tableau system's *failure to
+close* a SelfCons-refutation (SelfCons is added as an axiom, so it is trivially
+"proved"; the content is non-refutability); a boundary *failure* is the
+*appearance* of a closing tableau for that refutation. Willard 2005 jsl5 Remark 4
+(lines 977-984) shows multiplication-total destroys the theta-compactification
+property underwriting self-justification "under any possible deduction method D"
+— semantic tableaux included. Remark 4 *selects* multiplication as the clean
+boundary; it does not by itself *instantiate* the result for our generated
+system, which remains an obligation. Non-closure under bounded search is not
+evidence of consistency: the bottom-proof is large and search-inaccessible and
+must be constructed.
 
 ## Decision
 
-Adopt the following goal and pursue it as the genuine, non-circular completion
-of ADR-0119 Workstream B.
+Pursue the genuine, non-circular completion of the **multiplication** variant of
+ADR-0119 Workstream B by mechanizing JSL2 Theorem 2.3 over the exact generated
+multiplication-total system.
 
-**Goal.** Demonstrate the Goedel-boundary *failure* for the SJAS apparatus by
-mechanizing Willard's semantic-tableau Second Incompleteness Theorem
-(willard2002 jsl2, Theorem 2.3) as an **ordinary, structural-checker-verified
-closed tableau** that derives `BOT` (`0 = 1`) from the multiplication-total
-system together with its own SelfCons axiom — establishing executably that
-recognizing multiplication as a total function carries the system across the
-boundary, from self-justifying (cannot close a SelfCons-refutation) to
-inconsistent (a closing tableau appears).
+**Goal.** Exhibit a proof object, accepted step-by-step by the existing
+`dsjas-subst-prf` / structural tableau checker, that closes the SelfCons
+refutation (derives `BOT = 0=1`) from `{Q + V1..V5 + multiplication-total +
+SelfCons axiom}`, and show the analogous construction *fails to close* in the
+addition-only variant — demonstrating executably that recognizing multiplication
+as a total function carries the system across the boundary.
 
-**Deliverable.** A proof object, accepted step-by-step by the existing
-`dsjas-subst-prf` / structural tableau checker, realizing Theorem 2.3's closure
-over the exact generated multiplication-total system: conditions (A), (B), (C)
-plus the diagonal `DK = Gamma(nbar)`, assembled into the six steps
-`A AND B => D*` ; `alpha proves Subst(nbar,code(DK))` ; `(C) pins DK == D*` ;
-`alpha proves DK` ; `alpha proves not DK` ; `close`, where
-`D* = forall y z. not SemPrfK_alpha(code(DK),y,z)`.
+**Plan.**
 
-**Success criteria (all required).**
+1. **Audit, don't delete.** Audit `sjas-boundary-axioms` formula-by-formula
+   against JSL2 Eqs (12)-(16). Keep `V3/V4/V5/Paradox/FinAx4`; remove only
+   genuinely-invented or incorrectly-specialized definitions. Implement the
+   missing `Map(alpha,k,d)` as a genuine checked relation (or supply a proved
+   equivalent route to condition (B)).
+2. **One measured proof predicate.** Use a single exact proof-code
+   interpretation consistently across SelfCons, `SemPrf`, `SemPrfk`, the
+   diagonal, and the final measured proof tuple.
+3. **Fix `SemPrfk` semantics.** Implement `SemPrfk_alpha(x,y,z) iff
+   SemPrf_alpha(x,y) AND y < Log(z,k)` (Definition 2.1) with operational `k`:
+   relational iterated U-Grounding `Log(z,k)` and `proof < Log(bound, k)` after
+   validating the exact proof. The current `sjas-semprfk-alpha-coreo` checks only
+   `proof < bound` and ignores `k`; that is wrong.
+4. **Discharge (A), (B), (C) for the exact generated system.** (C) is the V3
+   axiom. (B) follows from the V5 instance plus `Map(alpha,k,code(DK))` via
+   Theorem 2.2 (JSL2 footnote 1). (A) is the generated SelfCons; either use the
+   Level-0 `SemPrf_alpha(BOT,p)` statement directly or prove the correspondence
+   from the Level-1 measured `dsjas-subst-prf` SelfCons sentence. Prove these as
+   checker-accepted derivations, or make their status as reflected axioms
+   explicit and justify it against JSL2.
+5. **Confront cut-elimination.** Theorem 2.3's combinations invoke Theorem 2.2,
+   which for semantic tableaux is Gentzen cut-elimination / model-completeness,
+   not a fixed-size inference. Provide a concrete expanded closed tableau, or
+   implement and verify a proof-composition / cut-elimination transformation,
+   and account for the resulting formula-bearing tree in the measured proof
+   object. Profile/arithmetic leaves that abbreviate first-order derivations
+   require a macro-expansion / correspondence argument before being called an
+   ordinary tableau proof.
+6. **Arithmetic interpretation bridge.** Show the selected `D_SJAS` apparatus
+   realizes the exact Q / deduction-specific `W_D` consequences used by the
+   argument — via reflected beta axioms or an auditable deduction-modulo
+   interpretation. Declaring a function symbol is insufficient; e.g. the
+   universal addition laws `x+0=x`, `x+S(y)=S(x+y)` are operationally true under
+   the interpreter but are not currently reflected beta members.
+7. **Construct + check, contrast, synthesize.** Assemble the closing tableau;
+   verify each step with the ordinary checker; show non-closure (localized to the
+   `SemPrfk` / `Log` bound step) in the addition-only variant; then perform
+   genuinely independent synthesis (fresh `(x,y,p,q)` and proof bytes; no
+   host-seeded tuple; constructed and synthesized code paths separate).
 
-1. Every inference is accepted by the *ordinary* checker — no trusted boundary
-   constructor, no special boundary route, no proof-grammar node whose
-   conclusion is the contradiction.
-2. The boundary *contrast* holds and localizes: the analogous construction
-   fails to close in the addition-only variant, and the failure sits precisely
-   at the bound-arithmetic step (`SemPrfK`'s `y < Log(z,K)`, Lemmas 3.1/3.2)
-   that needs multiplication-grade growth.
-3. The contradiction is derived against the exact generated SelfCons code and
-   reflected beta of that same system; the diagonal is the genuine `subst-code`
-   of `Gamma(g)`, computed, not asserted.
-4. Independent synthesis discovers the proof tuple by running object-level
-   relations with fresh variables — no host-precomputed/seeded proof bytes;
-   kept on a code path separate from construction.
-5. Completion is derived from substantive verified state (not caller-supplied
-   metadata); all public surfaces agree; gates stay green; durable per-variant
-   records (exact codes, decoded proof tree, command, timings) preserved.
+**Dependency.** This ADR depends on bounded-quantifier surface validation, which
+is handled separately by **ADR-0143** (the generated multiplication system
+contains V4/V5 bounded quantifiers that `language/validate-formula` must accept).
+ADR-0143 is kept distinct and is not absorbed here.
 
-**Honesty constraints.** Construct-and-check, never search-and-trust: building
-the proof object and verifying it with the ordinary checker is legitimate;
-concluding `BOT` because the boundary hypotheses are present is not. Each
-predicate on the closure path — notably `semprfk-alpha` (must check a decoded
-bounded proof, not destructure/trust) and `subst-code` single-valuedness — is
-audited for genuine checking before any closure is claimed; an over-trusting
-predicate re-introduces the retracted circularity one level deeper. The
-misattributed V4/V5/`willard-map`/`Upsilon`/`Paradox` apparatus is removed, not
-relabeled.
-
-**Rationale.** Theorem 2.3 is the object-level result the weak system itself
-carries once multiplication-total is present; it is faithful to the implemented
-semantic-tableau deduction (criterion: Willard 2005 Remark 4), its three
-conditions are already realized by genuine kernel predicates, and its closure is
-an ordinary tableau derivation rather than a trusted rule — so it satisfies the
-review's correct-implementation criteria by construction rather than by
-assertion.
+**Honesty constraints.** Construct-and-check, never search-and-trust. Each
+predicate on the closure path — `Map`, `semprfk-alpha` (must check a decoded
+bounded proof with the real `Log` bound, not destructure/trust), `subst-code`
+single-valuedness, the Q-disproof of the invalid Pi1 leaf — is audited for
+genuine checking before any closure is claimed. The trusted
+`willard-sjas-boundary-refutation` constructor stays removed.
 
 ## Consequences
 
-- **Removed apparatus.** The `V4`/`V5`/`willard-map`/`Upsilon`/`Paradox` axioms
-  in `proflog.sjas-boundary-axioms`, the dead boundary-refutation helpers in
-  `willard_sjas_profile.clj` (`sjas-boundary-refutation-proof-bytes-coreo`,
-  `sjas-boundary-profile-hypotheses-coreo`, the byte-prefix routers), and the
-  `boundary-refutation-proof` emitter in `willard_sjas.clj` are deleted. The
-  genuine `subst-code`, `semprf-alpha`, `semprfk-alpha`, `finax4`, `lt`, and the
-  Group-3 SelfCons construction are retained.
-- **Principal risk.** This is the mechanization of an incompleteness proof as a
-  concrete tableau; it is a multi-session effort. The hard, gating parts are
-  (a) the `SemPrfK` bound arithmetic (`Log(z,K)`, Lemmas 3.1/3.2) and (b) the
-  predicate-trust audit on the closure path. If `semprfk-alpha` or
-  `subst-code` functionality turns out to destructure rather than check, that
-  trust must be removed first or the result is circular again. The boundary
-  contrast (criterion 2) is the falsifier that guards against a vacuous closure.
-- **Rejected alternatives.**
-  - *Keep a trusted boundary constructor* — the retracted circular approach;
-    enlarges the trusted system with the conclusion under investigation.
-  - *Metalevel formalization of the full generalized Second Incompleteness*
-    (definable cuts / theta-compactification) — faithful but a different,
-    much larger deliverable (a proof *about* the system, not a checker-accepted
-    proof object).
-  - *Blind proof search for the contradiction* — the bottom-proof is
-    search-inaccessible by design; construction is required.
-  - *Addition-total plus a stronger deduction method* — multiplication-total is
-    deduction-independent (Remark 4) and faithful to the implemented tableau
-    checker, so it is the cleaner boundary to exhibit.
-- **Scope.** This ADR covers Workstream B only. Workstream C (pair/list
-  consistency-preservation) remains separately reopened per the review.
+- **Apparatus retained.** `V3/V4/V5/Map/Paradox/FinAx4`, `subst-code`,
+  `semprf-alpha`, `semprfk-alpha`, `finax4`, `lt`, and the Group-3 SelfCons
+  construction are kept. Only the trusted boundary-refutation constructor and any
+  genuinely-invented/mis-specialized definitions found by the audit are removed.
+- **Principal risks.** (a) Implementing `Map` and the genuine `Log`-bounded
+  `SemPrfk` is real proof-coding work; (b) the cut-elimination obligation (step
+  5) is the deepest part — a fully expanded tableau may be very large, and a
+  verified composition transformation is itself substantial; (c) the
+  predicate-trust audit gates any completion claim. The addition-only
+  non-closure contrast is the falsifier against a vacuous closure.
+- **Rejected alternatives.** Reinstating a trusted constructor (circular);
+  deleting the JSL2 V-axioms (they are faithful and needed for (B)/(C));
+  metalevel-only formalization (a different deliverable); blind search
+  (inaccessible); a strict-descent reading of V4 (not Willard's construction).
+- **Scope.** Multiplication variant only. Tab-2 and Xtab/LEM remain open for
+  separate genuine-derivation ADRs. ADR-0119 Workstream B is not closed by this
+  ADR alone. Workstream C remains separately reopened.
 
 ## Test Obligations
 
 Red before implementation:
 
 - `subst-code` computes and decodes `Subst(nbar, code(DK))` for the generated
-  diagonal `DK = Gamma(nbar)`, and condition (C) single-valuedness is accepted
-  as a Delta0-valid leaf while a non-functional witness is rejected.
-- `semprfk-alpha` accepts a genuine decoded bounded proof and rejects a
-  non-proof / an out-of-bound proof — an explicit trust audit, not a
-  destructure.
-- The assembled six-step Theorem 2.3 closure is accepted only through ordinary
-  checker steps over the exact generated multiplication-total system; the
-  removed boundary constructor and any symbol-headed boundary certificate are
-  rejected (cleanly, without throwing).
-- The same construction over the addition-only variant fails to close, and the
-  failure localizes to the `SemPrfK` bound-arithmetic step.
-- Each Theorem 2.3 hypothesis is necessary: omitting (A), (B), or (C), or
-  using a mismatched system or diagonal, leaves the tableau open.
+  diagonal; condition (C) is accepted via the V3 axiom and a non-functional
+  `Subst` witness is rejected.
+- `Map(alpha,k,d)` accepts the genuine diagonal locator and rejects a non-locator
+  `d`; `Paradox` and the V5 route establish (B) only with a valid `Map` witness.
+- `SemPrfk` acceptance changes with `k`: tests at the iterated-log boundary
+  (equality, one below, one above `Log(bound,k)`) pass/fail correctly, and a
+  valid proof above the bound is rejected.
+- The assembled Theorem 2.3 closure is accepted only through ordinary checker
+  steps over the exact generated multiplication-total system; the removed
+  constructor and any symbol-headed boundary certificate are rejected cleanly.
+- Each hypothesis is necessary: omitting (A), (B), or (C), or using a mismatched
+  system or diagonal, leaves the tableau open.
+- The cut-elimination / proof-composition step is verified (expanded tableau
+  checks, or the transformation is tested against its specification).
+- The addition-only variant fails to close, localized to the `SemPrfk`/`Log`
+  bound step.
 - Fresh-variable synthesis recovers a proof tuple and rejects supplied
-  tuple/byte metadata as a substitute; a dataflow check fails if any tuple
-  component is ground before the proof relation is entered.
-- The Workstream B ledger reports complete only from substantive verified
-  state; adversarial forged nested metadata leaves it incomplete.
+  tuple/byte metadata; a dataflow check fails if any tuple component is ground
+  before the proof relation is entered.
+- The Workstream B ledger reports the multiplication obligation complete only
+  from substantive verified state; forged nested metadata leaves it incomplete.
 
 Run focused red/green selectors first, then `lein test-proflog-fast` and
-`lein test-proflog-extended` in parallel, followed by focused SJAS progression
-and `lein test-proflog-sjas`; long-running synthesis/evidence probes last, with
+`lein test-proflog-extended` in parallel, then focused SJAS progression and
+`lein test-proflog-sjas`; long-running synthesis/evidence probes last, with
 durable logs to `test-runs/`.
 
 ## Exit Criteria
 
-- The misattributed V4/V5/`willard-map`/`Upsilon`/`Paradox` apparatus and dead
-  boundary routes are removed; no trusted boundary route remains and the checker
-  rejects the old constructor.
-- The Theorem 2.3 closure is mechanized and accepted, step-by-step, by the
-  ordinary structural checker over the exact generated multiplication-total
-  SelfCons code and reflected beta.
-- The boundary contrast is demonstrated: the addition-only variant fails to
-  close, localized to the bound-arithmetic step.
-- The predicate-trust audit confirms genuine checking on every closure-path
-  predicate (`semprfk-alpha`, `subst-code` functionality, the Q-disproof of the
-  invalid Pi1 leaf).
-- An independently synthesized proof tuple passes the same validation and has a
-  durable log.
-- The ledger and all public completion surfaces agree and derive from verified
-  state; gates (fast, extended, SJAS) are green.
-- AAR-0142 records implementation, red/green evidence, exact tuple codes, the
-  decoded closing proof tree, the trust audit, synthesis logs, and final gates.
-- ADR-0119 records Workstream B complete on the basis of this genuine
-  derivation.
+1. Paper attribution corrected and `sjas-boundary-axioms` audited against JSL2
+   Equations (12)-(16); only invented/mis-specialized definitions removed.
+2. One exact measured proof predicate used across SelfCons, `SemPrf`, `SemPrfk`,
+   the diagonal, and the final tuple.
+3. Genuine iterated-log `SemPrfk` bound with operational `k` implemented.
+4. `Map` implemented (or a proved equivalent route to (B)); conditions (A), (B),
+   (C) proved or explicitly reflected for the exact generated system, with the
+   Level-0/Level-1 SelfCons correspondence settled.
+5. Required Q / `W_D` interpretation established via beta axioms or a proved
+   `D_SJAS` deduction-modulo bridge.
+6. A fully expanded ordinary tableau or a verified cut-elimination / composition
+   construction, with measured proof-object accounting.
+7. The contradiction validated against the exact multiplication system's
+   generated SelfCons code and reflected beta.
+8. The tuple independently synthesized without pre-grounded tuple/proof bytes,
+   with durable logs.
+9. Completion derived from validated artifacts; all public completion surfaces
+   agree.
+10. Only the multiplication obligation closed; Tab-2 and Xtab/LEM left open.
+    Gates (fast, extended, SJAS) green; AAR-0142 records implementation,
+    red/green evidence, exact tuple codes, the decoded closing proof tree, the
+    trust audit, synthesis logs, and final gates.
+
+Until these hold, ADR-0142 is an accepted plan, not a completion claim.

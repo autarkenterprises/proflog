@@ -22,6 +22,61 @@ complete contemporaneous transcript.
 
 ## 2026-06-22
 
+- Revised ADR-0142 after the Codex review and recorded the V4 "descent" strawman
+  clarification here (promoted from the interdev reply because it documents a
+  reusable concept, not just a developer hand-off). First, a correction to the
+  two 2026-06-22 entries further below: the claim that the `V4/V5/Map/Paradox`
+  apparatus is "misattributed" was WRONG. It is genuine Willard 2002 JSL2 §3.2,
+  Equations (12)-(16) (`Map` = Lemma 3.3, `Paradox` = Eq 12, `V3` = Eq 14 =
+  Theorem 2.3 condition (C), `V4` = Eq 15, `V5` = Eq 16). The earlier finding
+  read the wrong 2002 paper (tab2) and stopped before JSL2 §3.2; ADR-0142 now
+  retains and audits the apparatus and implements the only genuinely-missing
+  piece (`Map`). See
+  [ADR-0142](docs/adr/ADR-0142-sjas-boundary-genuine-derivation.md) and the
+  [review reply](docs/interdev/2026-06-22-adr-0142-review-reply.md).
+- V4 "finite descent" strawman clarification:
+  - ORIGINAL STATEMENT: the boundary route via Willard's V4 axiom
+    (`Upsilon(...,z) => exists z*<z. Upsilon(...,z*)`) cannot close, because
+    eliminating the bounded existential with the tableau delta-rule introduces an
+    opaque parameter (not a concrete smaller numeral); so without a least-number
+    principle — which SJAS lacks by design — the descent is an infinite regress
+    that never reaches a checkable bottom, and forcing closure would require
+    re-adding a trusted closer (the retracted circularity).
+  - REASON FOR REFINING: the JSL2 re-read and the ADR-0142 review showed this
+    refutes a proof strategy Willard never uses — it attacks a *reconstruction*
+    of the argument, not the argument itself. It is a strawman.
+  - REFINEMENT: (1) the inconsistency closure is Theorem 2.3's *diagonal* clash,
+    not a descent — `alpha` proves `DK` ("there is no bounded proof of me") from
+    (A) AND (B) AND (C) via Theorem 2.2, then proves `not DK` by instantiating
+    `DK` with that very proof; `DK AND not DK` is one finite derivation. (2) V4 is
+    a redundant proof-*compression* axiom — provable from Q, of the trivially
+    valid form `forall d e. phi(d,e) => exists f <= e. phi(d,f)`, using bounded
+    `<=` — included only to shorten the bounded proof; it lives *inside* the proof
+    object and is never iterated toward bottom. (3) Induction enters only in the
+    *metatheory* (proving the V-axioms standard-model-valid, Theorem 3.4), not in
+    the object-level derivation, so the "needs a least-number principle" worry
+    never bears on the construction.
+  - GENERAL LESSON: refuting your own reconstruction of a cited argument is not
+    refuting the argument. Before judging an apparatus unsound, identify the
+    paper's actual closure mechanism (here: the diagonal, not the descent) and
+    test the objection against that.
+- Merged `adr-0141-sjas-boundary-completion` into `main`, bringing the
+  ADR-0120..0141 SJAS Goedel-boundary research line onto main alongside the
+  ADR-0111 and ADR-0112..0115 fidelity work. Union-resolved the expected
+  LOG/ADR/AAR table append-conflicts, including the parallel ADR-0123 number
+  collision (`roadmap-integration-baseline` and `self-extension-pair-survey` are
+  distinct records kept side by side).
+- Read Willard's source papers before writing any boundary witness and found the
+  prior V4/V5/willard-map/Upsilon apparatus misattributed (it is not in Willard
+  2002 tab2, 2005, or 2001). Recorded the genuine, non-circular plan in
+  [ADR-0142](docs/adr/ADR-0142-sjas-boundary-genuine-derivation.md): mechanize
+  Willard 2002 jsl2 Theorem 2.3 as an ordinary checker-verified closed tableau
+  refuting SelfCons in the multiplication-total system (which crosses the
+  boundary under semantic tableaux per Willard 2005 Remark 4), contrasted with
+  non-closure in the addition-only variant. See the linking
+  [interdev note](docs/interdev/2026-06-22-adr-0142-theorem-2-3-boundary-plan.md),
+  which also corrects the feasibility note's search-failure/consistency
+  conflation. ADR-0119 Workstream B remains reopened pending the derivation.
 - Reviewed ADR-0142 and iteratively corrected the assessment after confirming
   that baseline `D_SJAS` already supplies total U-Grounding addition and a
   definable successor. The remaining blockers are source fidelity (JSL2 really
@@ -153,6 +208,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-18
 
+- Completed [ADR-0123](docs/adr/ADR-0123-sjas-roadmap-integration-baseline.md)
+  on branch `adr-0123-sjas-roadmap-integration`: integrated current `main`
+  with the ADR-0116 through ADR-0122 line so ADR-0119 continuation work can
+  start from one baseline. Conflicts were limited to `LOG.md`,
+  `docs/adr/README.md`, `docs/aar/README.md`, and `project.clj`; the fast gate
+  now keeps both `proflog.scheduling-benchmark-test` and
+  `proflog.fitting-fidelity-test`. Gates: `lein test-proflog-fast` 245/2112
+  green, `lein test-proflog-extended` 92/971 green, and
+  `lein test-proflog-sjas` `pass=1107 fail=0 error=0`. See
+  [AAR-0123](docs/aar/AAR-0123-sjas-roadmap-integration-baseline.md).
 - Spawned [ADR-0135](docs/adr/ADR-0135-sjas-xtab-lem-certificate-validation.md)
   from ADR-0119 Workstream B on branch
   `adr-0135-sjas-xtab-lem-certificate-validation`. This slice targets the
@@ -321,6 +386,28 @@ complete contemporaneous transcript.
 
 ## 2026-06-17
 
+- Completed [ADR-0112](docs/adr/ADR-0112-proflog-literature-tableau-golden-suite.md):
+  literature tableau golden suite (`proflog.literature-tableau-golden`) covering all
+  76 active upstream `tableaux` items at commit `fa5a736`, with 50 runnable
+  Proflog-confirmed cases and 26 explicit `:unsupported` dispositions. Corrected
+  previously mistranslated direct rows including complex nested formulas,
+  De Morgan refutations, multi-formula examples, and the modus-ponens
+  contradiction. Wired fast and extended golden-suite namespaces into the
+  project gates. See
+  [AAR-0112](docs/aar/AAR-0112-proflog-literature-tableau-golden-suite.md).
+- Completed [ADR-0113](docs/adr/ADR-0113-proflog-proof-object-diagnostic-renderer.md):
+  read-only proof trace renderer (`proflog.diagnostics.proof-trace`), including
+  corrected `refl-close` labeling as reflexive disequality contradiction. See
+  [AAR-0113](docs/aar/AAR-0113-proflog-proof-object-diagnostic-renderer.md).
+- Completed [ADR-0114](docs/adr/ADR-0114-proflog-open-branch-witness-extraction.md):
+  open-branch witness extraction (`proflog.diagnostics.witness`) for the ground
+  propositional fragment, integrated with flat golden-suite open examples. See
+  [AAR-0114](docs/aar/AAR-0114-proflog-open-branch-witness-extraction.md).
+- Completed [ADR-0115](docs/adr/ADR-0115-proflog-proof-preserving-scheduling-benchmarks.md):
+  proof-preserving scheduling benchmarks (`proflog.scheduling-benchmarks`) with
+  semantic-before-envelope tests and structural branch-growth measurements for
+  open cases rather than fabricated closed-proof step counts. See
+  [AAR-0115](docs/aar/AAR-0115-proflog-proof-preserving-scheduling-benchmarks.md).
 - Fitting-fidelity audit of the greenfield Proflog core, on branch
   `fitting-fidelity-audit` (independent of `origin/main` by request; reconcile at
   close). Anchors the core to Fitting's *Tableaus for Logic Programming*
@@ -358,6 +445,16 @@ complete contemporaneous transcript.
 
 ## 2026-06-16
 
+- Created a docs-only planning branch for Proflog-level tableau improvements
+  inspired by review of `bradleypallen/tableaux` at commit `fa5a736`. Added
+  [ADR-0112](docs/adr/ADR-0112-proflog-literature-tableau-golden-suite.md)
+  through
+  [ADR-0115](docs/adr/ADR-0115-proflog-proof-preserving-scheduling-benchmarks.md)
+  with pending AAR stubs and planning structures for the upstream test
+  inventory and reconciliation ledger. The golden-suite ADR requires every
+  active upstream test to be represented and independently checked through
+  Proflog before its expected result is accepted. See
+  [planning note](docs/log/2026-06-16-tableaux-review-planning.md).
 - LOPSTR+PPDP, miniKanren 2026, and Clojure/Conj submissions completed.
 - Expanded conference search: [docs/conference/expanded-venue-map.md](docs/conference/expanded-venue-map.md)
   and [open-by-date.md](docs/conference/open-by-date.md) (open CFPs ranked by nearest conf date, verified 2026-06-20).
@@ -376,6 +473,29 @@ complete contemporaneous transcript.
 - Added [docs/conference/us-speaking-opportunities.md](docs/conference/us-speaking-opportunities.md):
   US seminar and colloquium outreach map (NYC CTS tier, logic colloquia, PL
   seminars, MAMLS/NJPLS/NEPLS, virtual proof-theory series, pitch template).
+
+## 2026-06-15
+
+- Completed [ADR-0111](docs/adr/ADR-0111-dsjas-counting-lemma.md) on
+  `adr-0111-dsjas-counting-lemma` (off the other agent's
+  `adr-0109-dsjas-composite-mismatch-coverage`): discharged the **counting
+  lemma**, turning ADR-0108 Lemma 1 (size-to-U-height) from an asserted
+  `:proved-under-code-injectivity` prose claim into a derivation off the
+  `proflog.willard-sjas-code` byte grammar. Each ordinary canonical `(app …)`
+  occurrence emits a fixed 3-byte canonical header (app-tag, symbol-index, arity)
+  = 18 bits, doubled to 36 bits by `proof-code-bytes`' per-byte wrapping; compact
+  code terms and binary numerals are normalized to `code` / `num` payload terms
+  before that branch. Each accepted structural node shape adds 4 framing bytes =
+  24 bits — so citations are ≥ 18J bits and structural trees ≥ 24N+36J bits, both
+  above Willard's conservative 5J, under an explicit code-injectivity hypothesis.
+  Defeats the ADR-0102 counterexample constructively (executable property:
+  `eq(f^8(c),f^8(c))`, J=18, F ≥ 324 bits ≫ 5J=90, vs the fixed 18-bit bare
+  marker). New `dsjas-counting-lemma` audit (`:derived-from-byte-grammar`); the
+  EA-stability `:size-to-u-height-bound` clause now sources it. Red→green:
+  `No such var: audit-dsjas-counting-lemma` → `proflog.sjas-correspondence-test`
+  40 tests / 506 assertions after the public-encoder and structural proof-tree
+  floor properties were added. See
+  [AAR-0111](docs/aar/AAR-0111-dsjas-counting-lemma.md).
 
 ## 2026-06-14
 

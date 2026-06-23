@@ -185,6 +185,42 @@
                        (add-term (mul-term xt yt)
                                  (mul-term xt zt))))))]))
 
+(defn total-multiplication-translated-q-axioms
+  "Return Robinson Q's arithmetic axioms Q4-Q7 translated into the U-Grounding
+   vocabulary, with the successor `S(t)` written as `add(t,1)` (ADR-0142
+   criterion 5 / review section 4).
+
+   These are the universal arithmetic consequences Theorem 2.3's argument leans
+   on. The map keys document each law:
+
+     :q4  forall x.    add(x,0) = x
+     :q5  forall x y.  add(x, S(y)) = S(add(x,y))
+     :q6  forall x.    mul(x,0) = 0
+     :q7  forall x y.  mul(x, S(y)) = add(mul(x,y), x)
+
+   `:q6`/`:q7` are reflected beta members of
+   `total-multiplication-complete-axioms`; `:q4`/`:q5` are realized
+   instance-wise by the U-Grounding interpreter (the deduction-modulo bridge),
+   not duplicated in beta."
+  []
+  (let [x (nominal/nom (lvar 'x))
+        y (nominal/nom (lvar 'y))
+        xt (ast/var-term x)
+        yt (ast/var-term y)
+        succ (fn [t] (add-term t one))]
+    {:q4 (ast/forall-form x
+           (ast/eq-lit (add-term xt zero) xt))
+     :q5 (ast/forall-form x
+           (ast/forall-form y
+             (ast/eq-lit (add-term xt (succ yt))
+                         (succ (add-term xt yt)))))
+     :q6 (ast/forall-form x
+           (ast/eq-lit (mul-term xt zero) zero))
+     :q7 (ast/forall-form x
+           (ast/forall-form y
+             (ast/eq-lit (mul-term xt (succ yt))
+                         (add-term (mul-term xt yt) xt))))}))
+
 (defn boundary-arithmetic-basis-axioms
   "Return the finite arithmetic basis shared by Xtab and Tab-2."
   []

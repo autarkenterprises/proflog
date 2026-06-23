@@ -13,6 +13,7 @@
             [proflog.normalize :as normalize]
             [proflog.proof :as proof]
             [proflog.query :as query]
+            [proflog.relational-arithmetic :as arith]
             [proflog.sjas-correspondence :as correspondence]
             [proflog.willard-sjas :as sjas]
             [proflog.willard-sjas-code :as sjas-code]))
@@ -1323,7 +1324,14 @@
                                   1
                                   180))
           "FinAx4 must reject ordinary formula codes")
-      (is (successful?
+      ;; Definition 2.1 correction (ADR-0142 criterion 3): SemPrf^k_alpha now
+      ;; requires proof < Log(bound, k), NOT the old raw lt(proof, bound). With
+      ;; k=1 and bound = proof+1, the iterated-log bound floor(log2(proof+1)) is
+      ;; far below the ~16.6M proof code, so this configuration is correctly
+      ;; REJECTED. The same certificate is still accepted by unbounded
+      ;; SemPrf_alpha (see sjas-adr0141-willard-semprf-alpha-delegates-to-tableau-proof),
+      ;; which is exactly the distinction Definition 2.1 draws.
+      (is (empty?
             (query/query-succeeds
               (:program system)
               (sjas/semprfk-alpha (:system-code system)
@@ -1333,7 +1341,77 @@
                                   proof-bound)
               1
               320))
-          "SemPrf^k_alpha must validate bounded proof certificates, not only unbounded SemPrf_alpha"))))
+          "SemPrf^k_alpha must reject a valid proof whose code exceeds Log(bound,k)"))))
+
+(deftest sjas-adr0142-iterated-log-matches-definition-2-1
+  (testing "Log(x,k) is the k-fold floor(log2) iteration with Log(x,0)=x (Definition 2.1)"
+    (let [iterlog (fn [x k]
+                    (first (l/run 1 [q]
+                             ((var sjas-profile/sjas-iterated-logo)
+                              (arith/build-num x) (arith/build-num k) q))))]
+      (is (= (seq (arith/build-num 8)) (seq (iterlog 8 0)))
+          "zero iterations is the identity: Log(x,0)=x")
+      (is (= (seq (arith/build-num 3)) (seq (iterlog 8 1)))
+          "Log(8,1)=floor(log2 8)=3")
+      (is (= (seq (arith/build-num 16)) (seq (iterlog 65536 1)))
+          "Log(65536,1)=16")
+      (is (= (seq (arith/build-num 4)) (seq (iterlog 65536 2)))
+          "Log(65536,2)=Log(16,1)=4")
+      (is (= (seq (arith/build-num 2)) (seq (iterlog 65536 3)))
+          "Log(65536,3)=Log(4,1)=2: each extra k iterates one more logarithm"))))
+
+(deftest sjas-adr0142-semprfk-bound-is-operational-in-k
+  (testing "the SemPrf^k side condition proof < Log(bound,k) makes k operational and is strict"
+    (let [holds? (fn [p b k]
+                   (boolean
+                     (seq (l/run 1 [pf]
+                            ((var sjas-profile/sjas-semprfk-bound-holdso)
+                             (sjas/numeral p) (sjas/numeral b) (sjas/numeral k)
+                             '() (l/lvar 'so) pf)))))]
+      (is (holds? 2 16 1) "2 < Log(16,1)=4")
+      (is (not (holds? 2 16 2))
+          "2 < Log(16,2)=2 is false: increasing k tightens the bound (k is used, not ignored)")
+      (is (holds? 2 16 0) "2 < Log(16,0)=16: zero iterations leaves the bound at z")
+      (is (holds? 3 16 1) "3 < Log(16,1)=4")
+      (is (not (holds? 4 16 1))
+          "4 < Log(16,1)=4 is false: the bound is strict (equality is rejected)"))))
+
+(deftest sjas-adr0142-q-interpretation-bridge
+  (testing "D_SJAS realizes translated Q4-Q7 via the U-Grounding interpreter (deduction-modulo)"
+    (let [sys (sjas/total-multiplication-complete-system {:depth 1})
+          closes? (fn [fml]
+                    (boolean (seq (query/query-succeeds (:program sys) fml 1 400))))
+          n sjas/numeral
+          q-axioms (sjas/total-multiplication-translated-q-axioms)
+          add (fn [a b] (ast/app-term 'add a b))
+          mul (fn [a b] (ast/app-term 'mul a b))
+          q4 (fn [x] (ast/eq-lit (add (n x) sjas/zero) (n x)))
+          q5 (fn [x y] (ast/eq-lit (add (n x) (add (n y) sjas/one))
+                                   (add (add (n x) (n y)) sjas/one)))
+          q6 (fn [x] (ast/eq-lit (mul (n x) sjas/zero) sjas/zero))
+          q7 (fn [x y] (ast/eq-lit (mul (n x) (add (n y) sjas/one))
+                                   (add (mul (n x) (n y)) (n x))))
+          canon (var-get #'sjas/code-canonical-formula)
+          reflected (set (map canon (sjas/total-multiplication-complete-axioms)))]
+      (is (= #{:q4 :q5 :q6 :q7} (set (keys q-axioms)))
+          "the translated-Q helper exposes all four arithmetic laws")
+      ;; Deduction-modulo bridge: the interpreter decides every ground instance
+      ;; of Q4-Q7, which is exactly the instance-level Q reasoning Theorem 2.3
+      ;; uses (Q decides Delta0 validity / Pi1 invalidity).
+      (is (every? closes? [(q4 0) (q4 3) (q5 2 1) (q5 0 2) (q6 3) (q7 2 2)])
+          "the interpreter proves Q4-Q7 ground instances")
+      (is (not (closes? (ast/eq-lit (add (n 2) sjas/zero) (n 3))))
+          "the interpreter rejects a false Q4 instance")
+      (is (not (closes? (ast/eq-lit (mul (n 2) sjas/zero) (n 1))))
+          "the interpreter rejects a false Q6 instance")
+      ;; Reflection status (review section 4): mul laws are reflected beta,
+      ;; addition laws are interpreter-realized only.
+      (is (contains? reflected (canon (:q6 q-axioms))) "Q6 is a reflected beta member")
+      (is (contains? reflected (canon (:q7 q-axioms))) "Q7 is a reflected beta member")
+      (is (not (contains? reflected (canon (:q4 q-axioms))))
+          "Q4 is interpreter-realized, not duplicated in beta")
+      (is (not (contains? reflected (canon (:q5 q-axioms))))
+          "Q5 is interpreter-realized, not duplicated in beta"))))
 
 (deftest sjas-adr0141-willard-semprf-alpha-delegates-to-tableau-proof
   (testing "Willard SemPrf_alpha is executable proof-kernel evidence, not an inert relation"

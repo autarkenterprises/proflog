@@ -555,6 +555,14 @@
   []
   (boundary-axioms/total-multiplication-complete-axioms))
 
+(defn total-multiplication-translated-q-axioms
+  "Robinson Q axioms Q4-Q7 translated into U-Grounding vocabulary (S(t)=add(t,1)).
+
+   See `proflog.sjas-boundary-axioms/total-multiplication-translated-q-axioms`.
+   Q6/Q7 are reflected beta; Q4/Q5 are realized by the interpreter bridge."
+  []
+  (boundary-axioms/total-multiplication-translated-q-axioms))
+
 (defn boundary-arithmetic-basis-axioms
   "Return the finite Pi*1 arithmetic basis shared by unsafe profiles.
 

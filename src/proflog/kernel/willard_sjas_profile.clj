@@ -146,6 +146,27 @@
      (fresh [remainder]
        (arith/logo x two-bits out remainder))]))
 
+(declare sjas-iterated-logo)
+
+(defn- sjas-iterated-logo
+  "Willard 2002 JSL2 Definition 2.1: `Log(x,k)` = the k-fold iterated base-2
+   floor logarithm of `x`, with the conventions `Log(x,0)=x` and `Log(0)=0`
+   (the latter inherited from `sjas-logo`).
+
+   `k` is the operational iteration count from `SemPrf^k_alpha`'s superscript;
+   it is consumed here rather than ignored, so changing `k` changes the bound.
+   Recursion mirrors `sjas-powo`: descend on `k` to `0`, then re-apply
+   `sjas-logo` once per iteration on the way back up."
+  [x k out]
+  (conde
+    [(arith/zeroo k)
+     (== x out)]
+    [(arith/poso k)
+     (fresh [predecessor partial]
+       (arith/pluso predecessor one-bits k)
+       (sjas-iterated-logo x predecessor partial)
+       (sjas-logo partial out))]))
+
 (declare sjas-powo)
 
 (defn- sjas-powo
@@ -379,6 +400,33 @@
        (arith/<o left-bits right-bits)
        (sjas-pending-bindso pending-all sigma-read sigma-out bind-proof)
        (== (list 'sjas-lt left-proof right-proof bind-proof) proof))]))
+
+(defn- sjas-semprfk-bound-holdso
+  "Willard 2002 JSL2 Definition 2.1 bound: `proof-code < Log(bound-code, k-code)`.
+
+   This is the genuine `SemPrf^k_alpha` side condition (the half beyond the
+   validated `SemPrf_alpha` proof). It reads all three code terms to bits,
+   iterates the floor-log `k-code` times over `bound-code`, and requires the
+   proof code to lie strictly below that iterated-log bound. Unlike the prior
+   `lt(proof,bound)` check, the `k` superscript is operational: a larger `k`
+   shrinks `Log(bound,k)` and tightens the bound."
+  [proof-code bound-code k-code sigma sigma-out proof]
+  (fresh [proof-bits bound-bits k-bits log-bits
+          sigma-proof sigma-bound sigma-read
+          pending-proof pending-bound pending-all
+          proof-num-proof bound-num-proof k-num-proof bind-proof]
+    (sjas-num-inputo proof-code proof-bits sigma sigma-proof
+                     '() pending-proof proof-num-proof)
+    (sjas-num-inputo bound-code bound-bits sigma-proof sigma-bound
+                     pending-proof pending-bound bound-num-proof)
+    (sjas-num-inputo k-code k-bits sigma-bound sigma-read
+                     pending-bound pending-all k-num-proof)
+    (sjas-iterated-logo bound-bits k-bits log-bits)
+    (arith/<o proof-bits log-bits)
+    (sjas-pending-bindso pending-all sigma-read sigma-out bind-proof)
+    (== (list 'sjas-semprfk-bound
+              proof-num-proof bound-num-proof k-num-proof bind-proof)
+        proof)))
 
 (defn- distinct-num-bitso
   "Relate two canonical binary numerals that denote different numbers."
@@ -9551,7 +9599,7 @@
   "Executable bounded semantic-proof relation used by the Willard V-route."
   [fml env sigma sigma-out neqs neqs-out prog fuel]
   (fresh [system-code k-code theorem-code proof-code bound-code
-          sigma-proof-valid sigma-bound bound-proof]
+          sigma-proof-valid bound-proof]
     (sjas-semprfk-alpha-destructureo fml env sigma
                                      system-code k-code theorem-code proof-code
                                      bound-code)
@@ -9582,12 +9630,8 @@
                                                       neqs-out
                                                       prog
                                                       fuel))])
-    (sjas-relation-holdso 'lt
-                          (lcons proof-code (lcons bound-code '()))
-                          sigma-proof-valid
-                          sigma-bound
-                          bound-proof)
-    (== sigma-bound sigma-out)))
+    (sjas-semprfk-bound-holdso proof-code bound-code k-code
+                               sigma-proof-valid sigma-out bound-proof)))
 
 (defn- sjas-semprf-alpha-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]

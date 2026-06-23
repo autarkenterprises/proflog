@@ -102,6 +102,7 @@
                                     "proflog.program-test"
                                     "proflog.sjas-cut-composition-test"
                                     "proflog.sjas-theorem23-closure-test"
+                                    "proflog.sjas-synthesis-guard-test"
                                     "proflog.query-test"]
             "test-proflog-extended" ["test"
                                     "proflog.answers-test"

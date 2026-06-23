@@ -1413,6 +1413,56 @@
       (is (not (contains? reflected (canon (:q5 q-axioms))))
           "Q5 is interpreter-realized, not duplicated in beta"))))
 
+(deftest sjas-adr0142-semprf-and-semprfk-share-one-proof-predicate
+  (testing "SemPrf_alpha and SemPrf^k_alpha validate via one proof core; k adds only the Log bound"
+    (let [system (sjas/system
+                   {:profile :willard-sjas-total-multiplication
+                    :functions sjas/total-multiplication-functions
+                    :relations sjas/total-multiplication-willard-relations
+                    :beta [(ast/eq-lit sjas/one sjas/one)]})
+          route-record (first (filter #(= :group-two (:group %))
+                                      (:axioms system)))
+          cert (sjas/proof-certificate 'sjas-axiom {:code-format :u-grounding})
+          proof-value (sjas-code/bytes->u-grounding-code-value
+                        (formal-code-term-bytes cert))
+          loose-bound (sjas-code/binary-numeral-term (inc proof-value))]
+      ;; SemPrf_alpha accepts the certificate (no bound).
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (ast/pos-lit (ast/app-term 'semprf-alpha
+                                         (:system-code system)
+                                         (:code route-record)
+                                         cert))
+              1 320))
+          "SemPrf_alpha validates the certificate")
+      ;; SemPrf^k with k=0: Log(bound,0)=bound, so the side condition degenerates
+      ;; to proof<bound and the SAME certificate validates through the SAME proof
+      ;; core that SemPrf_alpha uses.
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/semprfk-alpha (:system-code system)
+                                  sjas/zero
+                                  (:code route-record)
+                                  cert
+                                  loose-bound)
+              1 320))
+          "k=0 degenerates SemPrf^k to the shared proof core plus a raw bound")
+      ;; SemPrf^k with k=1: Log(bound,1) << proof, so the SAME valid certificate
+      ;; is rejected purely on the iterated-log bound -- the bound is the only
+      ;; addition over SemPrf_alpha.
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/semprfk-alpha (:system-code system)
+                                  sjas/one
+                                  (:code route-record)
+                                  cert
+                                  loose-bound)
+              1 320))
+          "k=1 rejects the same valid certificate on the Log bound alone"))))
+
 (deftest sjas-adr0141-willard-semprf-alpha-delegates-to-tableau-proof
   (testing "Willard SemPrf_alpha is executable proof-kernel evidence, not an inert relation"
     (let [system (sjas/system

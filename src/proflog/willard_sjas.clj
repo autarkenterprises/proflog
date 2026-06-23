@@ -19,6 +19,7 @@
             [proflog.query :as query]
             [proflog.sjas-boundary-axioms :as boundary-axioms]
             [proflog.sjas-correspondence :as correspondence]
+            [proflog.subst :as subst]
             [proflog.willard-sjas-code :as sjas-code]))
 
 ;; -----------------------------------------------------------------------------
@@ -494,7 +495,49 @@
   [alpha theorem proof]
   (ast/pos-lit (ast/app-term 'semprf-alpha alpha theorem proof)))
 
-(declare bounded-exists leq lt subst-code)
+(declare bounded-exists leq lt subst-code formula-code-term)
+
+(defn willard-diagonal-codes
+  "Construct the JSL2 diagonal source `Gamma(g)` and `DK=Gamma(code(Gamma))`.
+
+   The returned codes are source-construction artifacts, not evidence that
+   `Map` holds. `Gamma`'s sole free variable is explicitly encoded as canonical
+   formula variable `v0`; `DK` is obtained by substituting the resulting public
+   code term for that same nominal. Kernel-side `willard-map` and `subst-code`
+   independently validate the relationship."
+  [system k]
+  (let [g (nominal/nom (lvar 'willard-gamma-g))
+        h (nominal/nom (lvar 'willard-gamma-h))
+        y (nominal/nom (lvar 'willard-gamma-y))
+        z (nominal/nom (lvar 'willard-gamma-z))
+        gt (ast/var-term g)
+        ht (ast/var-term h)
+        yt (ast/var-term y)
+        zt (ast/var-term z)
+        gamma-formula
+        (ast/forall-form
+          h
+          (ast/forall-form
+            y
+            (ast/forall-form
+              z
+              (ast/implies-form
+                (subst-code gt ht)
+                (ast/not-form
+                  (semprfk-alpha (:system-code system) k ht yt zt))))))
+        gamma-code (formula-code-term (:coding-context system)
+                                      gamma-formula
+                                      {g 'v0}
+                                      (:code-format system :compact))
+        diagonal-formula (subst/subst-formula gamma-formula [[g gamma-code]])
+        diagonal-code (formula-code-term (:coding-context system)
+                                         diagonal-formula
+                                         {}
+                                         (:code-format system :compact))]
+    {:gamma-formula gamma-formula
+     :gamma-code gamma-code
+     :diagonal-formula diagonal-formula
+     :diagonal-code diagonal-code}))
 
 (defn total-multiplication-willard-upsilon
   "Willard 2002 Equation (15): `Subst(g,h) /\\ SemPrf^k_alpha(h,y,z)`."

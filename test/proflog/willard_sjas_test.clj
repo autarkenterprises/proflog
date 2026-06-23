@@ -1306,7 +1306,7 @@
                                   1
                                   180))
           "FinAx4 must reject ordinary formula codes")
-      (is (successful?
+      (is (empty?
             (query/query-succeeds
               (:program system)
               (sjas/semprfk-alpha (:system-code system)
@@ -1316,7 +1316,95 @@
                                   proof-bound)
               1
               320))
-          "SemPrf^k_alpha must validate bounded proof certificates, not only unbounded SemPrf_alpha"))))
+          "proof+1 is not a valid bound because SemPrfK requires proof < Log(bound,K)"))))
+
+(deftest sjas-adr0144-iterated-log-relation-makes-k-operational
+  (testing "the object relation computes each requested logarithm iteration"
+    (let [iterated-log (var-get
+                         #'sjas-profile/sjas-iterated-log-term-bitso)
+          bound (sjas-code/binary-numeral-term 65536)
+          evaluate (fn [k-bits]
+                     (l/run 1 [out]
+                       (l/fresh [sigma-out]
+                         (iterated-log bound k-bits out '() sigma-out)
+                         (l/== '() sigma-out))))]
+      (is (= '((0 0 0 0 1)) (evaluate '(1)))
+          "Log(65536,1) must be 16")
+      (is (= '((0 0 1)) (evaluate '(0 1)))
+          "Log(65536,2) must be 4")
+      (is (= '((0 1)) (evaluate '(1 1)))
+          "Log(65536,3) must be 2"))))
+
+(deftest ^:slow sjas-adr0144-semprfk-enforces-iterated-log-bound
+  (testing "SemPrfK compares the genuine proof number with Log(bound,K)"
+    (let [system (sjas/system
+                   {:profile :willard-sjas-total-multiplication
+                    :functions sjas/total-multiplication-functions
+                    :relations sjas/total-multiplication-willard-relations
+                    :beta [(ast/eq-lit sjas/one sjas/one)]})
+          route-record (first (filter #(= :group-two (:group %))
+                                      (:axioms system)))
+          proof-code (sjas/proof-certificate 'sjas-axiom)
+          proof-number (sjas-code/bytes->natural
+                         (formal-code-term-bytes proof-code))
+          bound-below (repeated-unary-app-term 'dbl
+                                                (dec proof-number)
+                                                sjas/one)
+          bound-equal (repeated-unary-app-term 'dbl
+                                                proof-number
+                                                sjas/one)
+          bound-above (repeated-unary-app-term 'dbl
+                                                (inc proof-number)
+                                                sjas/one)
+          check (fn [k bound]
+                  (query/query-succeeds
+                    (:program system)
+                    (sjas/semprfk-alpha (:system-code system)
+                                        (sjas-code/binary-numeral-term k)
+                                        (:code route-record)
+                                        proof-code
+                                        bound)
+                    1
+                    420))]
+      (is (empty? (check 1 bound-below))
+          "a proof number above Log(bound,1) must be rejected")
+      (is (empty? (check 1 bound-equal))
+          "the strict bound must reject equality")
+      (is (successful? (check 1 bound-above))
+          "the same valid proof must pass one unit above the logarithmic boundary")
+      (is (empty? (check 2 bound-above))
+          "iterating Log must make K operational rather than decorative"))))
+
+(deftest sjas-adr0144-willard-map-checks-the-structural-diagonal
+  (testing "Map(alpha,K,d) identifies exactly the subst-code diagonal DK(alpha,K)"
+    (let [system (sjas/system
+                   {:profile :willard-sjas-total-multiplication
+                    :functions sjas/total-multiplication-functions
+                    :relations sjas/total-multiplication-willard-relations
+                    :beta [(ast/eq-lit sjas/one sjas/one)]})
+          k (sjas-code/binary-numeral-term 2)
+          diagonal (sjas/willard-diagonal-codes system k)
+          wrong-code (:code (first (:axioms system)))]
+      (is (subst-code-relation-succeeds? system
+                                         (:gamma-code diagonal)
+                                         (:diagonal-code diagonal))
+          "the independently encoded source and target must round-trip through subst-code")
+      (is (successful?
+            (query/query-succeeds
+              (:program system)
+              (sjas/willard-map (:system-code system)
+                                k
+                                (:diagonal-code diagonal))
+              1
+              500))
+          "Map must reconstruct and check the exact diagonal code")
+      (is (empty?
+            (query/query-succeeds
+              (:program system)
+              (sjas/willard-map (:system-code system) k wrong-code)
+              1
+              500))
+          "Map must reject a well-formed but different formula code"))))
 
 (deftest sjas-adr0141-willard-semprf-alpha-delegates-to-tableau-proof
   (testing "Willard SemPrf_alpha is executable proof-kernel evidence, not an inert relation"

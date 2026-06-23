@@ -146,6 +146,117 @@
      (fresh [remainder]
        (arith/logo x two-bits out remainder))]))
 
+(declare sjas-log-term-classified-bitso
+         bits->canonical-termo-coreo)
+
+(defn- sjas-log-term-classified-bitso
+  "Compute `floor(log2(term))` and classify whether `term` denotes zero.
+
+   A code-sized logarithmic bound is normally far larger than a proof number:
+   materializing the bound's value before taking its logarithm would allocate
+   one logic-list cell per binary digit. The `0`, `1`, `dbl(x)`, and
+   `add(dbl(x),1)` clauses expose canonical binary structure directly. The
+   guarded final clause handles every other arithmetic expression through the
+   complete evaluator. The guards make those alternatives disjoint, avoiding
+   exponential duplicate search while preserving the exact relation."
+  [term out zero-class sigma sigma-out]
+  (fresh [walked]
+    (equality/walk*o term sigma walked)
+    (conde
+      [(== zero-term walked)
+       (== '() out)
+       (== :zero zero-class)
+       (== sigma sigma-out)]
+      [(== one-term walked)
+       (== '() out)
+       (== :positive zero-class)
+       (== sigma sigma-out)]
+      [(fresh [arg arg-log arg-class]
+         (== (list 'app 'dbl arg) walked)
+         (sjas-log-term-classified-bitso arg
+                                          arg-log
+                                          arg-class
+                                          sigma
+                                          sigma-out)
+         (conde
+           [(== :zero arg-class)
+            (== '() out)
+            (== :zero zero-class)]
+           [(== :positive arg-class)
+            (arith/pluso arg-log one-bits out)
+            (== :positive zero-class)]))]
+      [(fresh [arg doubled arg-log arg-class]
+         (== (list 'app 'add doubled one-term) walked)
+         (== (list 'app 'dbl arg) doubled)
+         (sjas-log-term-classified-bitso arg
+                                          arg-log
+                                          arg-class
+                                          sigma
+                                          sigma-out)
+         (== :positive zero-class)
+         (conde
+           [(== :zero arg-class)
+            (== '() out)]
+           [(== :positive arg-class)
+            (arith/pluso arg-log one-bits out)]))]
+      [(fresh [any-dbl-arg any-canonical-arg value-bits pending read-proof]
+         (!= zero-term walked)
+         (!= one-term walked)
+         (!= (list 'app 'dbl any-dbl-arg) walked)
+         (!= (list 'app
+                   'add
+                   (list 'app 'dbl any-canonical-arg)
+                   one-term)
+             walked)
+         (sjas-num-inputo walked
+                          value-bits
+                          sigma
+                          sigma-out
+                          '()
+                          pending
+                          read-proof)
+         (== '() pending)
+         (sjas-logo value-bits out)
+         (conde
+           [(arith/zeroo value-bits)
+            (== :zero zero-class)]
+           [(arith/poso value-bits)
+            (== :positive zero-class)]))])))
+
+(defn- sjas-log-term-bitso
+  "Relate an arithmetic term to the bits of its exact binary logarithm.
+
+   Zero classification is internal bookkeeping needed by the exact `dbl` and
+   odd-numeral identities; callers consume only the logarithm."
+  [term out sigma sigma-out]
+  (fresh [zero-class]
+    (sjas-log-term-classified-bitso term
+                                    out
+                                    zero-class
+                                    sigma
+                                    sigma-out)))
+
+(defn- sjas-iterated-log-term-bitso
+  "Compute Willard's positive-iteration `Log(term,K)` relation.
+
+   `K` is a little-endian positive numeral. Each intermediate logarithm is
+   rebuilt as a canonical object term before the next iteration, keeping every
+   step inside the same arithmetic relation used by public SJAS formulas."
+  [term k-bits out sigma sigma-out]
+  (conde
+    [(== one-bits k-bits)
+     (sjas-log-term-bitso term out sigma sigma-out)]
+    [(arith/>1o k-bits)
+     (fresh [predecessor once-bits once-term sigma-mid]
+       (arith/pluso predecessor one-bits k-bits)
+       (sjas-log-term-bitso term once-bits sigma sigma-mid)
+       (bits->canonical-termo-coreo once-bits once-term)
+       (sjas-iterated-log-term-bitso once-term
+                                     predecessor
+                                     out
+                                     sigma-mid
+                                     sigma-out))]))
+
 (declare sjas-powo)
 
 (defn- sjas-powo
@@ -1483,6 +1594,18 @@
                            [(inc idx) sym]))
                        sjas-code/reserved-coding-symbols)))
 
+(def ^:private total-multiplication-symbol-index-entries
+  "Fixed coding indexes for the total-multiplication profile's vocabulary.
+
+   These symbols remain outside the global reserved/user partition so ordinary
+   source relation indexes do not shift. The coding context compacts reserved
+   vocabulary to declared symbols; this profile declares every fixed symbol
+   except the separate `dsjas-tab2-proof` boundary predicate."
+  (apply list
+         (map-indexed (fn [idx sym] [(inc idx) sym])
+                      (remove '#{dsjas-tab2-proof}
+                              sjas-code/reserved-coding-symbols))))
+
 (def ^:private user-symbol-index-entries
   "Formula-code symbol indexes not reserved by the fixed SJAS codebook."
   (let [reserved-indexes (set (map first reserved-symbol-index-entries))]
@@ -1526,6 +1649,11 @@
 (defn- sjas-reserved-symbol-indexo
   [idx sym]
   (static-table-entryo [idx sym] reserved-symbol-index-entries))
+
+(defn- sjas-total-multiplication-symbol-indexo
+  [idx sym]
+  (static-table-entryo [idx sym]
+                       total-multiplication-symbol-index-entries))
 
 (defn- sjas-user-symbol-indexo
   [idx]
@@ -6093,7 +6221,8 @@
          sjas-tab1-proof-structural-closeo
          sjas-dsjas-tab1-proof-structural-closeo
          sjas-dsjas-tab2-proof-structural-closeo
-         sjas-finax4-structural-closeo)
+         sjas-finax4-structural-closeo
+         sjas-willard-map-structural-closeo)
 
 (defn- proof-byte-prefixo
   [remaining input bytes rest]
@@ -7554,6 +7683,13 @@
                                            neqs
                                            neqs-out
                                            prog)]
+           [(sjas-willard-map-structural-closeo fml
+                                                 env
+                                                 sigma
+                                                 sigma-out
+                                                 neqs
+                                                 neqs-out
+                                                 prog)]
            [(sjas-neq-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
            [(sjas-neg-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
            [(sjas-pos-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]))]
@@ -9485,6 +9621,125 @@
   [fml env sigma sigma-out neqs neqs-out prog]
   (sjas-finax4-coreo fml env sigma sigma-out neqs neqs-out prog))
 
+(defn- sjas-willard-map-destructureo
+  "Destructure a positive `Map(alpha,K,d)` atom on a closing branch."
+  [fml env sigma alpha k diagonal-code]
+  (fresh [lit atom walked-atom]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo
+      (list 'app 'willard-map alpha k diagonal-code)
+      walked-atom)))
+
+(defn- sjas-willard-map-coreo
+  "Check Willard JSL2 Lemma 3.3's `Map(alpha,K,d)` relation.
+
+   The checker reads `d` as formula syntax, extracts the code of its alleged
+   source `Gamma(g)`, and verifies both source and target constructor trees.
+   Finally it invokes the general structural `subst-code` relation, proving
+   that diagonal substitution of that exact source produces `d`. No generated
+   code table or host-side diagonal builder participates in this relation."
+  [fml env sigma sigma-out neqs neqs-out prog]
+  (fresh [alpha k diagonal-code alpha-bytes alpha-kind k-bits k-proof
+          sigma-alpha sigma-k sigma-diagonal sigma-subst
+          diagonal-formula gamma-internal gamma-bytes gamma-code gamma-formula
+          embedded-alpha embedded-k-bytes alpha-rest
+          subst-index semprfk-index]
+    (sjas-willard-map-destructureo fml env sigma alpha k diagonal-code)
+    (sjas-formal-code-bytes-coreo alpha
+                                  alpha-bytes
+                                  sigma
+                                  sigma-alpha
+                                  alpha-kind)
+    (sjas-system-source-valid-coreo prog alpha-bytes)
+    (== (lcons system-code-tag
+                (lcons system-profile-total-multiplication-tag alpha-rest))
+        alpha-bytes)
+    (sjas-num-inputo k
+                     k-bits
+                     sigma-alpha
+                     sigma-k
+                     '()
+                     '()
+                     k-proof)
+    (arith/poso k-bits)
+    (sjas-substitution-formula-code-coreo prog
+                                          diagonal-code
+                                          sigma-k
+                                          sigma-diagonal
+                                          diagonal-formula)
+    (sjas-reserved-symbol-indexo subst-index 'subst-code)
+    (sjas-total-multiplication-symbol-indexo semprfk-index 'semprfk-alpha)
+    ;; After diagonal substitution the three binders occupy indexes 1-3.
+    (== (list
+          'forall 1
+          (list
+            'forall 2
+            (list
+              'forall 3
+              (list
+                'implies
+                (list 'pos
+                      (list 'app
+                            (list 'sym subst-index)
+                            (list gamma-internal (list 'var 1))))
+                (list 'not
+                      (list 'pos
+                            (list 'app
+                                  (list 'sym semprfk-index)
+                                  (list embedded-alpha
+                                        (list 'num embedded-k-bytes)
+                                        (list 'var 1)
+                                        (list 'var 2)
+                                        (list 'var 3)))))))))
+        diagonal-formula)
+    (internal-code-term-byteso gamma-internal gamma-bytes)
+    (internal-code-term-byteso embedded-alpha alpha-bytes)
+    (byte-list-bitso embedded-k-bytes k-bits)
+    (decode-syntax-formula-byteso gamma-bytes '() gamma-formula)
+    ;; The source has free variable index 1, so its binders start at 2.
+    (== (list
+          'forall 2
+          (list
+            'forall 3
+            (list
+              'forall 4
+              (list
+                'implies
+                (list 'pos
+                      (list 'app
+                            (list 'sym subst-index)
+                            (list (list 'var 1) (list 'var 2))))
+                (list 'not
+                      (list 'pos
+                            (list 'app
+                                  (list 'sym semprfk-index)
+                                  (list embedded-alpha
+                                        (list 'num embedded-k-bytes)
+                                        (list 'var 2)
+                                        (list 'var 3)
+                                        (list 'var 4)))))))))
+        gamma-formula)
+    (sjas-internal-code-termo gamma-bytes gamma-code)
+    (sjas-subst-code-any-coreo prog
+                               gamma-code
+                               diagonal-code
+                               sigma-diagonal
+                               sigma-subst)
+    (== sigma-subst sigma-out)
+    (== neqs neqs-out)))
+
+(defn- sjas-willard-map-closeo
+  [fml env sigma sigma-out neqs neqs-out prog proof]
+  (fresh []
+    (sjas-willard-map-coreo fml env sigma sigma-out neqs neqs-out prog)
+    (== '(profiled willard-sjas-map) proof)))
+
+(defn- sjas-willard-map-structural-closeo
+  [fml env sigma sigma-out neqs neqs-out prog]
+  (sjas-willard-map-coreo fml env sigma sigma-out neqs neqs-out prog))
+
 (defn- sjas-semprf-alpha-destructureo
   "Destructure Willard `SemPrf_alpha(theorem, proof)` leaves.
 
@@ -9548,15 +9803,22 @@
       walked-atom)))
 
 (defn- sjas-semprfk-alpha-coreo
-  "Executable bounded semantic-proof relation used by the Willard V-route."
+  "Executable Willard `SemPrfK` relation.
+
+   The proof argument is first validated by the ordinary semantic-tableau
+   checker. Its presentation-independent Godel number is then reconstructed
+   from the decoded proof bytes and compared with the exact relational
+   `Log(bound,K)`. This makes `K` semantically operative and prevents compact
+   and U-Grounding presentations of the same proof from changing the bound."
   [fml env sigma sigma-out neqs neqs-out prog fuel]
-  (fresh [system-code k-code theorem-code proof-code bound-code
-          sigma-proof-valid sigma-bound bound-proof]
+  (fresh [system-code k-code theorem-code proof-code bound-code proof-bytes
+          proof-number-bits k-bits log-bound-bits
+          sigma-proof-valid sigma-k sigma-bound k-proof]
     (sjas-semprfk-alpha-destructureo fml env sigma
                                      system-code k-code theorem-code proof-code
                                      bound-code)
     (conde
-      [(fresh [proof-bytes sigma-proof]
+      [(fresh [sigma-proof]
        (decode-sjas-axiom-proof-code-coreo proof-code
                                            sigma
                                            sigma-proof
@@ -9567,7 +9829,7 @@
                                         sigma-proof)
        (== sigma-proof sigma-proof-valid)
        (== neqs neqs-out))]
-      [(fresh [proof-bytes sigma-proof decoded-proof]
+      [(fresh [sigma-proof decoded-proof]
          (decode-non-sjas-axiom-proof-code-coreo proof-code
                                                  sigma
                                                  sigma-proof
@@ -9582,11 +9844,21 @@
                                                       neqs-out
                                                       prog
                                                       fuel))])
-    (sjas-relation-holdso 'lt
-                          (lcons proof-code (lcons bound-code '()))
-                          sigma-proof-valid
-                          sigma-bound
-                          bound-proof)
+    (byte-list-bitso proof-bytes proof-number-bits)
+    (sjas-num-inputo k-code
+                     k-bits
+                     sigma-proof-valid
+                     sigma-k
+                     '()
+                     '()
+                     k-proof)
+    (arith/poso k-bits)
+    (sjas-iterated-log-term-bitso bound-code
+                                  k-bits
+                                  log-bound-bits
+                                  sigma-k
+                                  sigma-bound)
+    (arith/<o proof-number-bits log-bound-bits)
     (== sigma-bound sigma-out)))
 
 (defn- sjas-semprf-alpha-closeo
@@ -9789,6 +10061,7 @@
     [(sjas-semprfk-alpha-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
     [(sjas-semprf-alpha-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
     [(sjas-finax4-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
+    [(sjas-willard-map-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
     [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]
     [(sjas-pos-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]
@@ -9828,6 +10101,8 @@
     [(sjas-semprf-alpha-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
      (== residuals residuals-out)]
     [(sjas-finax4-closeo fml env sigma sigma-out neqs neqs-out prog proof)
+     (== residuals residuals-out)]
+    [(sjas-willard-map-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]
     [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)
      (== residuals residuals-out)]

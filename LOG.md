@@ -20,6 +20,15 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-23
+
+- Opened [ADR-0144](docs/adr/ADR-0144-sjas-multiplication-boundary-comparison.md)
+  as an isolated comparison implementation of the revised ADR-0142
+  multiplication objective. The semantic critical path is exact iterated-log
+  `SemPrfK`, executable `Map`/diagonal coding, the arithmetic applicability
+  bridge, an ordinary checker-verified tableau contradiction, and genuinely
+  fresh synthesis; partial infrastructure does not qualify as completion.
+
 ## 2026-06-22
 
 - Reviewed ADR-0142 and iteratively corrected the assessment after confirming

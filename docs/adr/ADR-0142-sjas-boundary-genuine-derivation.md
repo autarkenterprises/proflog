@@ -1,9 +1,13 @@
 # ADR-0142: SJAS Multiplication-Boundary Derivation via Willard Theorem 2.3
 
-- Status: accepted (revised 2026-06-22 after review)
+- Status: accepted; **partially implemented 2026-06-23** — criteria 1/2/3/5 done,
+  4/6/7/8 partial; the end-to-end `BOT` closing derivation remains documented open
+  research (cut-free expansion + tower-sized `SemPrf^k` witnesses). Not a
+  completion claim; ADR-0119 Workstream B stays open.
 - Date: 2026-06-22
-- Branch: `adr-0142-sjas-boundary-genuine-derivation`
-- AAR: pending
+- Branch: `adr-0142-sjas-boundary-genuine-derivation` (implemented on
+  `adr-0142-sjas-mul-boundary-derivation`)
+- AAR: [AAR-0142](../aar/AAR-0142-sjas-boundary-genuine-derivation.md)
 
 ## Revision note (2026-06-22)
 

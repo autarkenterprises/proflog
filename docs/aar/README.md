@@ -142,4 +142,5 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0139](AAR-0139-sjas-boundary-synthesis-probe.md) | [ADR-0139](../adr/ADR-0139-sjas-boundary-synthesis-probe.md) | completed |
 | [AAR-0140](AAR-0140-sjas-boundary-proof-route-validation.md) | [ADR-0140](../adr/ADR-0140-sjas-boundary-proof-route-validation.md) | completed |
 | [AAR-0141](AAR-0141-sjas-boundary-completion.md) | [ADR-0141](../adr/ADR-0141-sjas-boundary-completion.md) | retracted (completion claim withdrawn 2026-06-22) |
+| [AAR-0142](AAR-0142-sjas-boundary-genuine-derivation.md) | [ADR-0142](../adr/ADR-0142-sjas-boundary-genuine-derivation.md) | partially implemented (closing derivation open research) |
 | [AAR-0143](AAR-0143-sjas-bounded-surface-validation.md) | [ADR-0143](../adr/ADR-0143-sjas-bounded-surface-validation.md) | completed |

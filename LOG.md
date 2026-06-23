@@ -20,6 +20,32 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-23
+
+- Implemented ADR-0142 (multiplication boundary) substantially, on branch
+  `adr-0142-sjas-mul-boundary-derivation`, honoring the Codex review's corrected
+  exit criteria. **Partial, not closed** — and deliberately so: no trusted
+  constructor, no host-seeded synthesis, no false completion flip (the ADR-0141
+  failure modes). Delivered as ordinary-checker-verified artifacts with red/green
+  tests: (C1) JSL2 Eq 12-16 audit + repair of `Paradox` to `∃d<z` (it was
+  unbounded); (C3) the genuine iterated-log `SemPrf^k` bound `proof < Log(bound,k)`
+  with operational `k` (`sjas-iterated-logo`) — the prior check ignored `k`
+  entirely; (C2) coherence test that `SemPrf`/`SemPrf^k` share one proof core via
+  the `k=0` degeneration; (C4) the Theorem 2.3 diagonal `Dk(α)` (Subst+SemPrf^k)
+  with `Subst(n̄,⌜DK⌝)`/`Map` decided by the relational `subst-code`; (C5) a
+  Q/`W_D` deduction-modulo bridge (the interpreter decides every Q4-Q7 instance —
+  the instance-level Q reasoning Theorem 2.3 actually uses); (C6) a verified
+  Theorem 2.2 with-cut composition (`proflog.sjas-cut-composition`); (C6b) a
+  closure assembler tagging each of the six steps' honest status; (C8) a
+  dataflow-independence synthesis guard. The end-to-end `BOT` closure remains
+  **documented open research** — the super-exponential cut-free expansion and the
+  tower-sized `SemPrf^k` witness for `¬Dk` (`Log(q,K)>p`, `p` a real ~10^7 proof
+  code) — exactly the criteria the review's emendation flagged as novel research.
+  ADR-0119 Workstream B stays open; Tab-2/Xtab-LEM untouched. Gates: fast
+  267/2323 green. See [ADR-0142](docs/adr/ADR-0142-sjas-boundary-genuine-derivation.md),
+  [AAR-0142](docs/aar/AAR-0142-sjas-boundary-genuine-derivation.md), and the
+  [JSL2 axiom audit](docs/log/2026-06-23-adr-0142-jsl2-axiom-audit.md).
+
 ## 2026-06-22
 
 - Revised ADR-0142 after the Codex review and recorded the V4 "descent" strawman

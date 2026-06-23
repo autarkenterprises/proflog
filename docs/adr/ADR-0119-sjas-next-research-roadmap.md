@@ -223,3 +223,22 @@ consolidated SJAS research roadmap is complete:
 
 This section records completion only; the three-workstream contract above
 remains the stable planning reference.
+
+## Workstream B multiplication variant — advanced, not closed (2026-06-23, ADR-0142)
+
+[ADR-0142](ADR-0142-sjas-boundary-genuine-derivation.md) pursues the
+**multiplication** variant of the reopened Workstream B via a genuine Willard
+2002 JSL2 Theorem 2.3 derivation (no trusted constructor, no host-seeded
+synthesis). It delivers checker-verified progress — the JSL2 Eq (12)-(16) audit
+and `∃d<z` Paradox repair, the genuine iterated-log `SemPrf^k` bound with
+operational `k` (Definition 2.1), the `Subst+SemPrf^k` diagonal `Dk(α)` with
+`Subst(n̄,⌜DK⌝)`/`Map` validated by the relational `subst-code`, the Q/`W_D`
+deduction-modulo bridge, and a verified Theorem 2.2 with-cut composition — but it
+**does not close** the multiplication obligation. The end-to-end `BOT` closure
+rests on two documented open-research problems: the super-exponential **cut-free
+expansion** of the Theorem 2.2 steps, and the **tower-sized `SemPrf^k` witness**
+for `¬Dk` (`Log(q,K) > p` with `p` a real proof code). See
+[AAR-0142](../aar/AAR-0142-sjas-boundary-genuine-derivation.md). The
+`boundary-evidence-ledger` therefore still reports the multiplication obligation
+incomplete. **Workstream B remains open**; the Tab-2-or-stronger and Xtab/LEM
+variants are untouched by ADR-0142.

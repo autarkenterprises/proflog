@@ -111,8 +111,10 @@ proflog.sjas-synthesis-guard-test                   green(2 tests / 5)
 ```text
 lein test-proflog-fast       Ran 267 tests / 2323 assertions, 0 failures, 0 errors (exit 0)
                              (includes the 4 new ADR-0142 test namespaces)
-lein test-proflog-extended   (recorded on completion)
-lein test-proflog-sjas       (focused not-slow; new willard-sjas-test vars green individually)
+lein test-proflog-extended   Ran 92 tests / 971 assertions, 0 failures, 0 errors (exit 0)
+lein test-proflog-sjas       focused not-slow gate (the ^:slow fixed-point outlier
+                             is excluded); new willard-sjas-test ADR-0142 vars
+                             green individually
 ```
 
 All ADR-0142 focused tests are green individually (see Red-Green Evidence). The

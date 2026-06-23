@@ -100,6 +100,7 @@
                                     "proflog.equality-test"
                                     "proflog.oracle.herbrand-test"
                                     "proflog.program-test"
+                                    "proflog.sjas-cut-composition-test"
                                     "proflog.query-test"]
             "test-proflog-extended" ["test"
                                     "proflog.answers-test"

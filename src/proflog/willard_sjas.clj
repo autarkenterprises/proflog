@@ -503,14 +503,12 @@
                 (semprfk-alpha alpha k h y z)))
 
 (defn total-multiplication-willard-paradox
-  "Willard 2002 Equation (12): `exists d. Map(alpha,k,d) /\\ SemPrf^k_alpha(d,y,z)`."
+  "Willard 2002 Equation (12): `exists d<z {Map(alpha,k,d) /\\ SemPrf^k_alpha(d,y,z)}`.
+
+   Delegates to the shared boundary-axioms source so the bounded `exists d<z`
+   encoding stays single-sourced with the V5 axiom that embeds it."
   [y z alpha k]
-  (let [d (nominal/nom (lvar 'willard-d))
-        dt (ast/var-term d)]
-    (ast/exists-form
-      d
-      (ast/and-form (willard-map alpha k dt)
-                    (semprfk-alpha alpha k dt y z)))))
+  (boundary-axioms/total-multiplication-willard-paradox y z alpha k))
 
 (defn total-multiplication-willard-v4-axiom
   "Willard 2002 V4 descent axiom over the Equation (15) `Upsilon` predicate."

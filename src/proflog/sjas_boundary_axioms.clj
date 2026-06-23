@@ -47,14 +47,22 @@
                 (semprfk-alpha alpha k h y z)))
 
 (defn total-multiplication-willard-paradox
-  "Willard 2002 Equation (12)."
+  "Willard 2002 Equation (12): `exists d<z {Map(alpha,k,d) /\\ SemPrf^k_alpha(d,y,z)}`.
+
+   The witness `d` is bounded strictly below `z`. The grammar only supplies
+   `<=`-bounded quantifiers, so the strict bound is encoded as the V5-style
+   `bounded-exists ... z` (which lowers to `d <= z`) conjoined with an explicit
+   `lt(d,z)` guard, exactly mirroring V5's faithful `exists x<z` encoding."
   [y z alpha k]
   (let [d (nominal/nom (lvar 'willard-d))
         dt (ast/var-term d)]
-    (ast/exists-form
+    (bounded-exists
       d
-      (ast/and-form (willard-map alpha k dt)
-                    (semprfk-alpha alpha k dt y z)))))
+      z
+      (ast/and-form
+        (lt dt z)
+        (ast/and-form (willard-map alpha k dt)
+                      (semprfk-alpha alpha k dt y z))))))
 
 (defn total-multiplication-willard-v4-axiom
   "The proof-compressing V4 descent axiom from Willard 2002."

@@ -1268,6 +1268,23 @@
       (is (not= v4 v5)
           "V4 descent and V5 contradiction extraction must remain distinct route axioms"))))
 
+(deftest sjas-adr0142-paradox-bounds-witness-below-z
+  (testing "Willard 2002 Equation (12) Paradox quantifies its witness as exists d<z"
+    (let [y sjas/one
+          z sjas/three
+          alpha sjas/zero
+          k sjas/one
+          paradox (sjas/total-multiplication-willard-paradox y z alpha k)]
+      (is (= 'bounded-exists (ast/tag-of paradox))
+          "Eq (12) bounds the diagonal-locator witness d by z, not unboundedly")
+      (is (= z (:bound (:body (second paradox))))
+          "the bound term is exactly z")
+      (is (contains? (set (formula-relation-symbols paradox)) 'lt)
+          "the body asserts the strict guard d<z, mirroring V5's exists x<z encoding")
+      (is (every? #(contains? (set (formula-relation-symbols paradox)) %)
+                  '#{willard-map semprfk-alpha})
+          "the body retains Map(alpha,k,d) AND SemPrf^k_alpha(d,y,z)"))))
+
 (deftest sjas-public-query-accepts-generated-bounded-axiom-basis
   (testing "the public theorem wrapper validates V4/V5 bounded quantifiers before proof search"
     (let [system (sjas/total-multiplication-complete-system {:depth 1})

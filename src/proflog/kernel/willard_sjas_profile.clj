@@ -167,6 +167,24 @@
        (sjas-iterated-logo x predecessor partial)
        (sjas-logo partial out))]))
 
+(defn- sjas-log-of-power-of-twoo
+  "Willard 2002 JSL2 Lemma 3.2 applied to a symbolic power of two:
+   `Log(2^m, k) = Log(m, k-1)` for `k >= 1`, computed WITHOUT materializing
+   `2^m`.
+
+   This is the linchpin for the `SemPrf^k` bound `proof < Log(z,K)` when `z` is
+   the tower-sized witness the diagonal argument (Theorem 2.3, Eq 11) requires:
+   taking `z = 2^(proof+1)` gives `Log(z,1) = proof+1 > proof`, yet `z` is never
+   built as a bit-list (for a real proof code `proof ~ 10^7`, `z` would have
+   ~10^7 bits). The first logarithm peels the base-2 exponent (`Log(2^m,1)=m`);
+   the remaining `k-1` iterations run on the small exponent `m` via the ordinary
+   `sjas-iterated-logo`. On materializable inputs it agrees with the bit-level
+   `Log(2^m,k)` by construction."
+  [m k out]
+  (fresh [k-minus-1]
+    (arith/pluso k-minus-1 one-bits k)
+    (sjas-iterated-logo m k-minus-1 out)))
+
 (declare sjas-powo)
 
 (defn- sjas-powo

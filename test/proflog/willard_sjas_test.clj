@@ -1360,6 +1360,28 @@
       (is (= (seq (arith/build-num 2)) (seq (iterlog 65536 3)))
           "Log(65536,3)=Log(4,1)=2: each extra k iterates one more logarithm"))))
 
+(deftest sjas-adr0142-symbolic-log-of-power-of-two-without-materialization
+  (testing "Log(2^m,k) is computed algebraically (Lemma 3.2) without building 2^m (Obstruction 2)"
+    (let [logp (fn [m k]
+                 (first (l/run 1 [q]
+                          ((var sjas-profile/sjas-log-of-power-of-twoo)
+                           (arith/build-num m) (arith/build-num k) q))))
+          itlog (fn [v k]
+                  (first (l/run 1 [q]
+                           ((var sjas-profile/sjas-iterated-logo)
+                            (arith/build-num v) (arith/build-num k) q))))]
+      ;; Soundness: agrees with the materialized Log(2^m,k) for small m.
+      (doseq [[m k] [[5 1] [16 1] [16 2] [16 3] [8 2]]]
+        (is (= (seq (itlog (long (Math/pow 2 m)) k)) (seq (logp m k)))
+            (str "Log(2^" m "," k ") symbolic equals materialized")))
+      ;; Works where 2^m is NOT materializable (a 1000-bit tower is never built).
+      (is (= (seq (arith/build-num 1000)) (seq (logp 1000 1)))
+          "Log(2^1000,1)=1000 with no 1000-bit numeral materialized")
+      ;; The SemPrf^k bound use: choosing z=2^(p+1) makes Log(z,1)=p+1 > p for a
+      ;; large proof code p, computed on the small exponent alone.
+      (is (= (seq (arith/build-num 779)) (seq (logp 779 1)))
+          "Log(2^779,1)=779 stands in for p+1 exceeding a large proof code p=778"))))
+
 (deftest sjas-adr0142-semprfk-bound-is-operational-in-k
   (testing "the SemPrf^k side condition proof < Log(bound,k) makes k operational and is strict"
     (let [holds? (fn [p b k]

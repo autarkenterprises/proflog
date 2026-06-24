@@ -1508,6 +1508,37 @@
               1 320))
           "k=1 rejects the same valid certificate on the Log bound alone"))))
 
+(deftest sjas-adr0142-semprfk-tower-witness-validates-through-the-checker
+  (testing "the symbolic (pow 2 exp) bound makes the diagonal's bounded-proof witness checker-accepted"
+    (let [;; pow is declared at the language level only (no coding change); it is
+          ;; recognized by the SemPrf^k bound check, never materialized.
+          system (sjas/system
+                   {:profile :willard-sjas-total-multiplication
+                    :functions (assoc sjas/total-multiplication-functions 'pow 2)
+                    :relations sjas/total-multiplication-willard-relations
+                    :beta [(ast/eq-lit sjas/one sjas/one)]})
+          route-record (first (filter #(= :group-two (:group %)) (:axioms system)))
+          cert (sjas/proof-certificate 'sjas-axiom {:code-format :u-grounding})
+          proof-value (sjas-code/bytes->u-grounding-code-value
+                        (formal-code-term-bytes cert))
+          semprfk-q (fn [bound]
+                      (query/query-succeeds
+                        (:program system)
+                        (sjas/semprfk-alpha (:system-code system) sjas/one
+                                            (:code route-record) cert bound)
+                        1 400))
+          pow (fn [exp] (ast/app-term 'pow (sjas/numeral 2) (sjas/numeral exp)))]
+      ;; The materialized bound proof+1 rejects the real ~10^7-code certificate.
+      (is (empty? (semprfk-q (sjas-code/binary-numeral-term (inc proof-value))))
+          "a materialized bound proof+1 cannot exceed Log(bound,1) for a large proof")
+      ;; The symbolic tower bound 2^(proof+1) ACCEPTS it: proof < Log(2^(proof+1),1)
+      ;; = proof+1, with the ~2^proof-bit numeral never built.
+      (is (successful? (semprfk-q (pow (inc proof-value))))
+          "the symbolic tower witness 2^(proof+1) validates the bounded proof through the checker")
+      ;; A too-small tower bound 2^proof is still rejected: the bound is genuine.
+      (is (empty? (semprfk-q (pow proof-value)))
+          "2^proof gives Log(2^proof,1)=proof, so proof<proof fails -- the bound stays strict"))))
+
 (deftest sjas-adr0142-theorem23-diagonal-and-map-locator
   (testing "Dk(alpha)=Gamma(nbar) is built; Subst(nbar,code(Dk)) (Eq 7 / Map locator) holds"
     (let [system (sjas/system

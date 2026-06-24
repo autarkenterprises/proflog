@@ -423,28 +423,62 @@
   "Willard 2002 JSL2 Definition 2.1 bound: `proof-code < Log(bound-code, k-code)`.
 
    This is the genuine `SemPrf^k_alpha` side condition (the half beyond the
-   validated `SemPrf_alpha` proof). It reads all three code terms to bits,
-   iterates the floor-log `k-code` times over `bound-code`, and requires the
-   proof code to lie strictly below that iterated-log bound. Unlike the prior
-   `lt(proof,bound)` check, the `k` superscript is operational: a larger `k`
-   shrinks `Log(bound,k)` and tightens the bound."
+   validated `SemPrf_alpha` proof). The `k` superscript is operational: a larger
+   `k` shrinks `Log(bound,k)` and tightens the bound. The bound has two
+   representations:
+
+   1. A symbolic power-of-two bound `(pow 2 exp)`. `Log((pow 2 exp), k)` is
+      computed algebraically by `sjas-log-of-power-of-twoo` (Lemma 3.2) WITHOUT
+      materializing `2^exp`. This is the tower-sized witness the diagonal
+      argument needs (Theorem 2.3, Eq 11): `bound = 2^(proof+1)` gives
+      `Log(bound,1) = proof+1 > proof`, yet the ~`2^proof`-bit numeral is never
+      built. (`pow` is recognized only here, never materialized by the general
+      term interpreter.)
+   2. A materialized numeral bound, read to bits and iterated-logged directly
+      (the ordinary path; unchanged).
+
+   The two branches are mutually exclusive: branch 2's `sjas-num-inputo` has no
+   `pow` case, so it cannot read a `(pow ...)` bound, and branch 1 requires the
+   `(app pow 2 exp)` shape."
   [proof-code bound-code k-code sigma sigma-out proof]
-  (fresh [proof-bits bound-bits k-bits log-bits
-          sigma-proof sigma-bound sigma-read
-          pending-proof pending-bound pending-all
-          proof-num-proof bound-num-proof k-num-proof bind-proof]
-    (sjas-num-inputo proof-code proof-bits sigma sigma-proof
-                     '() pending-proof proof-num-proof)
-    (sjas-num-inputo bound-code bound-bits sigma-proof sigma-bound
-                     pending-proof pending-bound bound-num-proof)
-    (sjas-num-inputo k-code k-bits sigma-bound sigma-read
-                     pending-bound pending-all k-num-proof)
-    (sjas-iterated-logo bound-bits k-bits log-bits)
-    (arith/<o proof-bits log-bits)
-    (sjas-pending-bindso pending-all sigma-read sigma-out bind-proof)
-    (== (list 'sjas-semprfk-bound
-              proof-num-proof bound-num-proof k-num-proof bind-proof)
-        proof)))
+  (conde
+    [(fresh [walked-bound base exp base-bits exp-bits proof-bits k-bits log-bits
+             sigma-proof sigma-base sigma-exp sigma-read
+             pending-proof pending-base pending-exp pending-all
+             proof-num-proof base-num-proof exp-num-proof k-num-proof bind-proof]
+       (equality/walk*o bound-code sigma walked-bound)
+       (== (list 'app 'pow base exp) walked-bound)
+       (sjas-num-inputo proof-code proof-bits sigma sigma-proof
+                        '() pending-proof proof-num-proof)
+       (sjas-num-inputo base base-bits sigma-proof sigma-base
+                        pending-proof pending-base base-num-proof)
+       (== two-bits base-bits)
+       (sjas-num-inputo exp exp-bits sigma-base sigma-exp
+                        pending-base pending-exp exp-num-proof)
+       (sjas-num-inputo k-code k-bits sigma-exp sigma-read
+                        pending-exp pending-all k-num-proof)
+       (sjas-log-of-power-of-twoo exp-bits k-bits log-bits)
+       (arith/<o proof-bits log-bits)
+       (sjas-pending-bindso pending-all sigma-read sigma-out bind-proof)
+       (== (list 'sjas-semprfk-pow-bound
+                 proof-num-proof exp-num-proof k-num-proof bind-proof)
+           proof))]
+    [(fresh [proof-bits bound-bits k-bits log-bits
+             sigma-proof sigma-bound sigma-read
+             pending-proof pending-bound pending-all
+             proof-num-proof bound-num-proof k-num-proof bind-proof]
+       (sjas-num-inputo proof-code proof-bits sigma sigma-proof
+                        '() pending-proof proof-num-proof)
+       (sjas-num-inputo bound-code bound-bits sigma-proof sigma-bound
+                        pending-proof pending-bound bound-num-proof)
+       (sjas-num-inputo k-code k-bits sigma-bound sigma-read
+                        pending-bound pending-all k-num-proof)
+       (sjas-iterated-logo bound-bits k-bits log-bits)
+       (arith/<o proof-bits log-bits)
+       (sjas-pending-bindso pending-all sigma-read sigma-out bind-proof)
+       (== (list 'sjas-semprfk-bound
+                 proof-num-proof bound-num-proof k-num-proof bind-proof)
+           proof))]))
 
 (defn- distinct-num-bitso
   "Relate two canonical binary numerals that denote different numbers."

@@ -1382,6 +1382,29 @@
       (is (= (seq (arith/build-num 779)) (seq (logp 779 1)))
           "Log(2^779,1)=779 stands in for p+1 exceeding a large proof code p=778"))))
 
+(deftest sjas-adr0142-semprfk-bound-accepts-symbolic-tower-witness
+  (testing "SemPrf^k bound proof < Log(2^exp,k) handles the tower witness without materializing 2^exp"
+    (let [pow-bound (fn [exp] (ast/app-term 'pow (sjas/numeral 2) (sjas/numeral exp)))
+          holds? (fn [proof bound k]
+                   (boolean
+                     (seq (l/run 1 [pf]
+                            ((var sjas-profile/sjas-semprfk-bound-holdso)
+                             proof bound (sjas/numeral k) '() (l/lvar 'so) pf)))))]
+      ;; The diagonal's tower witness (Theorem 2.3, Eq 11): for a large proof p,
+      ;; the bound 2^(p+1) gives Log(bound,1)=p+1>p, and the ~779-bit tower is
+      ;; never built.
+      (is (holds? (sjas/numeral 778) (pow-bound 779) 1)
+          "778 < Log(2^779,1)=779 with the ~779-bit tower never materialized")
+      (is (not (holds? (sjas/numeral 778) (pow-bound 778) 1))
+          "778 < Log(2^778,1)=778 is false: the bound is strict")
+      ;; k stays operational on the symbolic bound.
+      (is (holds? (sjas/numeral 3) (pow-bound 16) 2) "3 < Log(2^16,2)=4")
+      (is (not (holds? (sjas/numeral 5) (pow-bound 16) 2)) "5 < Log(2^16,2)=4 is false")
+      ;; The materialized bound path is preserved unchanged (regression guard).
+      (is (holds? (sjas/numeral 2) (sjas/numeral 16) 1) "materialized: 2 < Log(16,1)=4")
+      (is (not (holds? (sjas/numeral 2) (sjas/numeral 16) 2))
+          "materialized bound stays k-operational"))))
+
 (deftest sjas-adr0142-semprfk-bound-is-operational-in-k
   (testing "the SemPrf^k side condition proof < Log(bound,k) makes k operational and is strict"
     (let [holds? (fn [p b k]

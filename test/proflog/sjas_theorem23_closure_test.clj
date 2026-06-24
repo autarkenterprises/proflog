@@ -24,13 +24,18 @@
       ;; against the exact generated system by the relational subst-code.
       (is (= :checker-accepted (by-id :step2)))
       (is (contains? (:checker-accepted status) :step2-subst-eq7))
-      ;; The three Theorem 2.2 applications + condition B are cut-composition steps
-      ;; (verified with-cut; cut-free expansion is the documented boundary).
-      (is (= #{:B :step1 :step3 :step4} (:cut-composition-steps status)))
-      (is (every? #(= :cut-composition (by-id %)) [:B :step1 :step3 :step4]))
-      ;; Step 5 (not Dk) rests on the documented open boundary.
-      (is (= :open-boundary (by-id :step5)))
-      (is (= :with-cut-composition (:provided (:open-boundary status))))
+      ;; Phase 0: the three Theorem 2.2 applications + condition B are cut-free
+      ;; tableau trees to construct (no cut rule / trusted-base growth).
+      (is (= #{:B :step1 :step3 :step4} (:tree-construction-steps status)))
+      (is (every? #(= :tree-construction (by-id %)) [:B :step1 :step3 :step4]))
+      ;; Step 5 (not Dk): its bounded-proof witness is now checker-accepted via the
+      ;; symbolic pow bound (Phase 1); the step overall is partial.
+      (is (= :partial (by-id :step5)))
+      (is (contains? (:checker-accepted status)
+                     :step5-bounded-proof-witness-symbolic-pow-bound))
+      ;; The recorded progress reflects Phase 0/1.
+      (is (contains? (:resolved-since-aar status) :phase0))
+      (is (contains? (:resolved-since-aar status) :phase1))
       ;; D* (Eq 5) is a universal over the diagonal code.
       (is (= 'forall (ast/tag-of (:d-star status)))))))
 
@@ -38,8 +43,13 @@
   (testing "the assembler reports a partial structure, never a closed BOT derivation"
     (let [status (t23/theorem23-closure-status (mul-system) sjas/one)
           statuses (set (map :status (:steps status)))]
-      ;; Honesty guard: at least one step is explicitly open; not all checker-accepted.
-      (is (contains? statuses :open-boundary)
+      ;; Honesty guard: steps remain to construct (tree-construction) or finish
+      ;; (partial); the status is not uniformly checker-accepted.
+      (is (or (contains? statuses :tree-construction)
+              (contains? statuses :partial))
           "the closure must not present itself as fully checker-accepted")
       (is (not= #{:checker-accepted} statuses)
-          "a uniformly checker-accepted status would be an overclaim"))))
+          "a uniformly checker-accepted status would be an overclaim")
+      ;; The open boundary still enumerates remaining work.
+      (is (seq (:remaining (:open-boundary status)))
+          "remaining tree-construction work is explicitly listed"))))

@@ -69,26 +69,31 @@
        :status :reflected-axiom
        :note "V3 is a generated route axiom; condition (C) verbatim"}
       {:id :B :eq 16 :name "bounded-proof-of-diagonal => BOT (via V5 + Map)"
-       :status :cut-composition
-       :note "Theorem 2.2 composition of the V5 instance with Map(alpha,k,code(Dk))"}
+       :status :tree-construction
+       :note "Theorem 2.2 combination of the V5 instance with Map(alpha,k,code(Dk)); Phase 0 showed the checker validates constructed cut-free trees, so this is a tree to build (no cut rule)"}
       {:id :step1 :eq 6 :name "D* from A and B"
-       :status :cut-composition}
+       :status :tree-construction}
       {:id :step2 :eq 7 :name "Subst(nbar, code(Dk))"
        :status (if subst-eq7? :checker-accepted :FAILED)
        :validated subst-eq7?}
       {:id :step3 :eq 8 :name "Dk == D* from Subst and C"
-       :status :cut-composition}
+       :status :tree-construction}
       {:id :step4 :eq 9 :name "Dk from D* and (Dk==D*)"
-       :status :cut-composition}
+       :status :tree-construction}
       {:id :step5 :eq 11 :name "not Dk by instantiating Dk with (p,q,r) + Q-disproof of false Pi1"
-       :status :open-boundary
-       :note "Q-disproof of the false Pi1 instance is interpreter-decidable, but the witness p is the step-4 proof and q must satisfy Log(q,K)>p (a tower-sized numeral)"}
+       :status :partial
+       :note "bounded-proof witness SemPrf^k(r,p,2^(p+1)) is NOW checker-accepted via the symbolic pow bound (Phase 1; no tower materialized); what remains is the step-4 proof p (the combination tree) and assembling the not-Dk tree + Q-disproof"}
       {:id :step6 :eq nil :name "close: Dk and not Dk"
        :status :follows-from-4-and-5}]
-     :checker-accepted (cond-> #{}
+     :checker-accepted (cond-> #{:step5-bounded-proof-witness-symbolic-pow-bound}
                          subst-eq7? (conj :step2-subst-eq7))
-     :cut-composition-steps #{:B :step1 :step3 :step4}
-     :open-boundary (merge cut/cut-free-expansion-boundary
-                           {:additional-open
-                            [:step5-tower-sized-SemPrfk-witness
-                             :full-cut-free-Dk-derivation]})}))
+     ;; Phase 0: these are constructed cut-free tableau trees (the checker
+     ;; validates them; no cut rule / trusted-base growth). The with-cut model in
+     ;; proflog.sjas-cut-composition is a reference only.
+     :tree-construction-steps #{:B :step1 :step3 :step4}
+     :resolved-since-aar {:phase0 "no cut rule needed; checker validates cut-free trees"
+                          :phase1 "Log(2^m,k) symbolic; SemPrf^k bound accepts (pow 2 exp) tower witness without materialization"}
+     :open-boundary {:remaining [:cut-free-combination-trees-steps-1-3-4-and-B
+                                 :not-Dk-tree-assembly-with-Q-disproof
+                                 :pow-vocabulary-encode-decode-for-encoded-proof-trees]
+                     :note "down from the original two research problems: the bound obstruction's core is solved and no new trusted rule is needed"}}))

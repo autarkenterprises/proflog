@@ -45,6 +45,21 @@ complete contemporaneous transcript.
   267/2323 green. See [ADR-0142](docs/adr/ADR-0142-sjas-boundary-genuine-derivation.md),
   [AAR-0142](docs/aar/AAR-0142-sjas-boundary-genuine-derivation.md), and the
   [JSL2 axiom audit](docs/log/2026-06-23-adr-0142-jsl2-axiom-audit.md).
+- Began overcoming the two ADR-0142 closure obstructions (plan approved;
+  `~/.claude/plans/velvet-conjuring-frost.md`). **Phase 0** characterized the SJAS
+  checker as a VALIDATOR of constructed cut-free tableau trees (no cut tag; full
+  propositional+quantifier construct-and-check support), so **Obstruction 1 needs
+  no cut rule / trusted-base growth** — construct the cut-free trees for the
+  simple Theorem 2.2 combination steps instead
+  ([Phase-0 note](docs/log/2026-06-23-adr-0142-phase0-checker-characterization.md)).
+  **Phase 1 (Obstruction 2) bound-check done:** `sjas-log-of-power-of-twoo`
+  computes `Log(2^m,k)` without materializing the tower (Lemma 3.2), and
+  `sjas-semprfk-bound-holdso` now accepts a symbolic `(pow 2 exp)` bound — so the
+  diagonal's tower witness `2^(proof+1)` validates `proof < Log(bound,1)` with the
+  ~`2^proof`-bit numeral never built (verified at proof=778). Materialized path
+  preserved. Deferred: encode `pow` into the vocabulary (risky reserved-symbol
+  work) and the Phase-3 tree construction. The picture is now "one algebraic fix
+  (bound-check done) + bounded construct-and-check, no new trusted rule."
 
 ## 2026-06-22
 

@@ -60,6 +60,26 @@ complete contemporaneous transcript.
   preserved. Deferred: encode `pow` into the vocabulary (risky reserved-symbol
   work) and the Phase-3 tree construction. The picture is now "one algebraic fix
   (bound-check done) + bounded construct-and-check, no new trusted rule."
+- **Phase 3 infrastructure + baseline.** Promoted the formula-bearing tableau
+  node builders out of the test ns into **`proflog.sjas-tree-builder`**
+  (`flex-tableau-node` narrow/wide auto-select, `canonical-flex-tableau-node`,
+  `valid-tree?`), and committed a checker-verified construct-and-check baseline
+  over the **exact generated multiplication-total system** in
+  `proflog.sjas-tree-builder-test` (3 tests / 12 assertions): reflexive/
+  conjunction/double-negation closures, narrow+wide node shapes. Pinned down the
+  closing-rule behavior precisely: a constructed `(pos A)`/`(neg A)` clash closes
+  **iff** `A`'s relation decodes to a *named* symbol — reserved U-Grounding
+  primitives (`subst-code`, `lt`, `leq`, `axiom-member`) close, but profile-local
+  and user relations decode to `(sym n)` (source table removed) and close by
+  *interpretation* instead, not by raw clash. This is a CHARACTERIZATION, not an
+  obstruction: the Theorem 2.3 diagonal path closes via `subst-code` (named) plus
+  the `semprf`/`semprfk` profile interpretation, never via an opaque user-relation
+  clash. Also characterized the precise `pow`-vocabulary risk (encoder's
+  per-system compacted reserved index vs the decoder's global reserved index must
+  agree; full SJAS gate is the no-mis-decode falsifier) and recorded it in
+  `theorem23-closure-status` `:open-boundary`. No closure step promoted to
+  `:checker-accepted`; nothing overclaimed. Detail:
+  [Phase-3 baseline note](docs/log/2026-06-23-adr-0142-phase3-construct-and-check-baseline.md).
 
 ## 2026-06-22
 

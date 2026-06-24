@@ -122,8 +122,56 @@ All three gates are green. The SJAS gate (1429 passing) is the authoritative
 check that the Definition-2.1 `SemPrf^k` rewrite did not regress any existing
 boundary/correspondence test.
 
+## Phase 3 baseline update (2026-06-23, same day)
+
+Following the obstruction-overcoming plan's Phase 0/1
+(checker is a cut-free-tree validator; symbolic `SemPrf^k` bound done), this
+session landed the Phase 3 construction **infrastructure and a committed
+baseline**, without promoting any closure step (no overclaim):
+
+- **`proflog.sjas-tree-builder`** (new): the formula-bearing node builders
+  (`flex-tableau-node` narrow/wide auto-select, `canonical-flex-tableau-node`,
+  `valid-tree?`) promoted out of the test ns into reusable construction
+  primitives.
+- **`proflog.sjas-tree-builder-test`** (new, 3 tests / 12 assertions): the
+  construct-and-check baseline over the **exact generated multiplication-total
+  system** (reflexive/conjunction/double-negation closures; narrow+wide node
+  shapes) — Phase 0's result promoted from the demo system to the real one.
+- **Closing-rule characterization (finding).** A constructed `(pos A)`/`(neg A)`
+  clash closes **iff** `A`'s relation decodes to a *named* symbol. Reserved
+  U-Grounding primitives (`subst-code`, `lt`, `leq`, `axiom-member`) close;
+  profile-local and user relations decode to `(sym n)` (source table removed) and
+  close by **interpretation** instead, never by raw clash. This is not an
+  obstruction: the Theorem 2.3 diagonal path closes via `subst-code` (named) plus
+  the `semprf`/`semprfk` profile interpretation.
+- **Refined `pow`-vocabulary risk.** Recorded in `theorem23-closure-status`
+  `:open-boundary`: the encoder assigns per-system *compacted* reserved indexes
+  while the proof-facing decoder resolves *global* reserved indexes; appending
+  `pow` to `reserved-coding-symbols` (kept out of `profile-local-reserved-symbols`
+  so it decodes by name) must keep those two views in agreement, with the full
+  SJAS gate as the no-mis-decode falsifier.
+
+Detail: [Phase-3 baseline note](../log/2026-06-23-adr-0142-phase3-construct-and-check-baseline.md).
+
+Re-confirmed gates (with the new tree-builder test added to the fast gate):
+
+```text
+lein test-proflog-fast       Ran 270 tests / 2338 assertions, 0 failures, 0 errors
+lein test-proflog-extended   Ran 92 tests / 971 assertions, 0 failures, 0 errors
+lein test-proflog-sjas       :SUMMARY pass=1445 fail=0 error=0
+```
+
+Per-criterion status is unchanged (4/6/7/8 stay partial; nothing promoted to
+`:checker-accepted`). What changed is that the construction infrastructure and a
+checker-verified baseline over the real system are now committed, and the two
+remaining research problems are more precisely localized.
+
 ## Follow-ups (separate ADRs)
 
 - Tab-2-or-stronger and Xtab/LEM variants remain open (criterion 10).
 - The cut-free expansion and the tower-bounded `¬Dk` step are the two research
   problems that a future ADR must solve to close the multiplication obligation.
+- Next concrete step: build the step trees test-first with
+  `proflog.sjas-tree-builder` in dependency order (steps 1→3→4 and B; then step 5
+  once `pow` is in the coding vocabulary; then step 6), promoting each
+  `theorem23-closure-status` tag to `:checker-accepted` only as it lands.

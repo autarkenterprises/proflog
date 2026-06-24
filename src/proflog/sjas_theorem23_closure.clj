@@ -92,8 +92,28 @@
      ;; proflog.sjas-cut-composition is a reference only.
      :tree-construction-steps #{:B :step1 :step3 :step4}
      :resolved-since-aar {:phase0 "no cut rule needed; checker validates cut-free trees"
-                          :phase1 "Log(2^m,k) symbolic; SemPrf^k bound accepts (pow 2 exp) tower witness without materialization"}
+                          :phase1 "Log(2^m,k) symbolic; SemPrf^k bound accepts (pow 2 exp) tower witness without materialization"
+                          :phase3-baseline (str "proflog.sjas-tree-builder promotes the formula-bearing node "
+                                                "builders; proflog.sjas-tree-builder-test commits the "
+                                                "construct-and-check baseline over THIS exact generated system "
+                                                "(reflexive/conjunction/double-negation closures, narrow+wide "
+                                                "node shapes). Closure-rule finding: complementary pos/neg "
+                                                "closure fires for reserved/primitive relations that decode to "
+                                                "named atoms (subst-code, lt, leq, axiom-member) but not for "
+                                                "opaque user relations (which decode to (sym n) once the source "
+                                                "table is removed). The diagonal path closes via subst-code "
+                                                "(named) plus the semprf/semprfk profile interpretation, never "
+                                                "via an opaque user-relation clash, so this is a characterization, "
+                                                "not an obstruction.")}
      :open-boundary {:remaining [:cut-free-combination-trees-steps-1-3-4-and-B
                                  :not-Dk-tree-assembly-with-Q-disproof
                                  :pow-vocabulary-encode-decode-for-encoded-proof-trees]
-                     :note "down from the original two research problems: the bound obstruction's core is solved and no new trusted rule is needed"}}))
+                     :note (str "down from the original two research problems: the bound obstruction's core "
+                                "is solved and no new trusted rule is needed. The tree-construction "
+                                "primitives and a checker-verified baseline over the real system now exist "
+                                "(proflog.sjas-tree-builder). pow-vocabulary precise risk: the encoder's "
+                                "context assigns per-system COMPACTED reserved indexes while the proof-facing "
+                                "decoder resolves GLOBAL reserved indexes; appending pow to "
+                                "reserved-coding-symbols (and keeping it OUT of profile-local-reserved-symbols "
+                                "so it decodes by name) must be verified to keep those two index views in "
+                                "agreement, with the full SJAS gate as the no-mis-decode falsifier.")}}))

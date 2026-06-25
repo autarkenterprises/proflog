@@ -165,13 +165,15 @@
             "test-proflog-sjas" ["run" "-m" "proflog.focused-test-runner"
                                  ":not-slow"
                                  "proflog.willard-sjas-test"
+                                 "proflog.sjas-not-dk-qdisproof-test"
                                  "proflog.sjas-boundary-synthesis-probe-test"]
             "test-proflog-sjas-focused" ["run" "-m" "proflog.focused-test-runner"
                                          "proflog.willard-sjas-test"
                                          "proflog.sjas-boundary-synthesis-probe-test"]
             "test-proflog-sjas-slow" ["test"
                                       ":slow"
-                                      "proflog.willard-sjas-test"]
+                                      "proflog.willard-sjas-test"
+                                      "proflog.sjas-not-dk-qdisproof-test"]
             "test-proflog-legacy-subsumption" ["test"
                                                "proflog.legacy-subsumption-test"]
             "test-proflog-constructor-recursive" ["test"

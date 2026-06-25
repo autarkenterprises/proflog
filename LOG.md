@@ -39,6 +39,25 @@ complete contemporaneous transcript.
   items (steps 1/3/4/B combination trees; the not-Dk tree + Q-disproof). Falsifier
   green: SJAS not-slow pass=1445/0/0, fast 273/2343. Detail:
   [Phase-3 pow-vocabulary note](docs/log/2026-06-25-adr-0142-phase3-pow-vocabulary-decoded-semprfk-closure.md).
+- ADR-0142 Phase 3 (step 5 Q-disproof): built the structural machinery for
+  Willard's **Q-disproof of the false Pi1 instance** and verified it assembles over
+  the real mul system. Added kernel `sjas-subst-code-structural-closeo` (the
+  construct-and-check analog of the SemPrf^k V-route) so `(neg Subst(s,t))`
+  self-closes by evaluating the genuine `subst-code` gate — the missing Q-disproof
+  half (arithmetic-only `sjas-relation-holds-coreo` never evaluated subst-code).
+  New `proflog.sjas-not-dk-qdisproof-test`: `(neg Subst(nbar,code(Dk)))` self-closes
+  over the REAL diagonal locator (wrong target stays open); and (`^:slow`) the
+  implication β-split refuting `Subst(nbar,code(Dk)) ⇒ ¬SemPrf^k(...)` closes its
+  negated antecedent (subst eval) and consequent (V-route). **Finding** that
+  refines the boundary: refuting the universal `Dk` directly is blocked because the
+  checker's `forall` rule instantiates with a FRESH branch variable (not a chosen
+  ground witness) and the V-route can't resolve a free proof/bound var — so step 5
+  needs **witness-providing γ-instantiation** (`Dk ⊢ ground-instance`), now the
+  named residual replacing "not-Dk-tree-assembly". Ledger: `:phase3-qdisproof`
+  resolved, two new `:checker-accepted` keys, step 5 still `:partial`, open boundary
+  = {steps 1/3/4/B combination trees; witness-γ}. No-regression: SJAS not-slow
+  pass=1447/0/0, fast green. Detail:
+  [Phase-3 step-5 Q-disproof note](docs/log/2026-06-25-adr-0142-phase3-step5-qdisproof-assembly.md).
 
 ## 2026-06-23
 

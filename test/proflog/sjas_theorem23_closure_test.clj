@@ -36,14 +36,25 @@
                      :step5-bounded-proof-witness-symbolic-pow-bound))
       (is (contains? (:checker-accepted status)
                      :step5-decoded-semprfk-node-closes-construct-and-check))
-      ;; The recorded progress reflects Phase 0/1 and the pow-vocabulary discharge.
+      ;; Step 5's Q-disproof of the false Pi1 instance now assembles: the subst-code
+      ;; eval closes the negated antecedent over the real diagonal and the V-route
+      ;; closes the consequent (Phase 3 Q-disproof).
+      (is (contains? (:checker-accepted status)
+                     :step5-subst-qdisproof-closes-real-diagonal))
+      (is (contains? (:checker-accepted status)
+                     :step5-false-pi1-instance-refutation-assembles))
+      ;; The recorded progress reflects Phase 0/1 and the Phase 3 discharges.
       (is (contains? (:resolved-since-aar status) :phase0))
       (is (contains? (:resolved-since-aar status) :phase1))
       (is (contains? (:resolved-since-aar status) :phase3-pow-vocabulary))
+      (is (contains? (:resolved-since-aar status) :phase3-qdisproof))
       ;; The pow-vocabulary encode/decode item is no longer open: a decoded
       ;; bounded-proof node closes and the full SJAS gate confirms no mis-decode.
       (is (not (contains? (set (:remaining (:open-boundary status)))
                           :pow-vocabulary-encode-decode-for-encoded-proof-trees)))
+      ;; The refined residual is named: witness-providing gamma-instantiation.
+      (is (contains? (set (:remaining (:open-boundary status)))
+                     :witness-providing-gamma-instantiation-Dk-entails-its-ground-instance))
       ;; D* (Eq 5) is a universal over the diagonal code.
       (is (= 'forall (ast/tag-of (:d-star status)))))))
 

@@ -82,10 +82,17 @@
        :status :tree-construction}
       {:id :step5 :eq 11 :name "not Dk by instantiating Dk with (p,q,r) + Q-disproof of false Pi1"
        :status :partial
-       :note "bounded-proof witness SemPrf^k(r,p,2^(p+1)) is NOW checker-accepted via the symbolic pow bound (Phase 1; no tower materialized); what remains is the step-4 proof p (the combination tree) and assembling the not-Dk tree + Q-disproof"}
+       :note (str "bounded-proof witness SemPrf^k(r,p,2^(p+1)) is checker-accepted via the symbolic pow "
+                  "bound (Phase 1; no tower materialized), and -- since the pow-vocabulary coding change "
+                  "(Phase 3 step 5) -- a DECODED (neg SemPrf^k) interior node now also closes in "
+                  "construct-and-check mode: semprfk-alpha/pow decode by name and the structural V-route "
+                  "sjas-semprfk-alpha-structural-closeo closes the leaf, with a too-small tower bound "
+                  "genuinely failing. What remains is the step-4 proof p (the combination tree) and "
+                  "assembling the not-Dk tree + Q-disproof")}
       {:id :step6 :eq nil :name "close: Dk and not Dk"
        :status :follows-from-4-and-5}]
-     :checker-accepted (cond-> #{:step5-bounded-proof-witness-symbolic-pow-bound}
+     :checker-accepted (cond-> #{:step5-bounded-proof-witness-symbolic-pow-bound
+                                 :step5-decoded-semprfk-node-closes-construct-and-check}
                          subst-eq7? (conj :step2-subst-eq7))
      ;; Phase 0: these are constructed cut-free tableau trees (the checker
      ;; validates them; no cut rule / trusted-base growth). The with-cut model in
@@ -104,16 +111,29 @@
                                                 "table is removed). The diagonal path closes via subst-code "
                                                 "(named) plus the semprf/semprfk profile interpretation, never "
                                                 "via an opaque user-relation clash, so this is a characterization, "
-                                                "not an obstruction.")}
+                                                "not an obstruction.")
+                          :phase3-pow-vocabulary (str "the pow-vocabulary item is DISCHARGED. `pow` is appended "
+                                                      "to reserved-coding-symbols and `semprfk-alpha` is promoted "
+                                                      "out of profile-local-reserved-symbols, with the boundary "
+                                                      "cluster kept contiguous and dsjas-tab2-proof moved last so "
+                                                      "no compaction gap shifts their per-system index away from "
+                                                      "the global reserved index. Result: a DECODED (neg "
+                                                      "SemPrf^k) interior node decodes semprfk-alpha/pow by name "
+                                                      "AND closes via sjas-semprfk-alpha-structural-closeo (the "
+                                                      "structural V-route, reusing the same bounded-proof core), "
+                                                      "with the too-small tower bound still failing "
+                                                      "(proflog.sjas-semprfk-tree-closure-test). The full SJAS "
+                                                      "not-slow gate (1445 tests) is green as the no-mis-decode "
+                                                      "falsifier, so the encoder's compacted index view and the "
+                                                      "proof-facing decoder's global view agree.")}
      :open-boundary {:remaining [:cut-free-combination-trees-steps-1-3-4-and-B
-                                 :not-Dk-tree-assembly-with-Q-disproof
-                                 :pow-vocabulary-encode-decode-for-encoded-proof-trees]
-                     :note (str "down from the original two research problems: the bound obstruction's core "
-                                "is solved and no new trusted rule is needed. The tree-construction "
-                                "primitives and a checker-verified baseline over the real system now exist "
-                                "(proflog.sjas-tree-builder). pow-vocabulary precise risk: the encoder's "
-                                "context assigns per-system COMPACTED reserved indexes while the proof-facing "
-                                "decoder resolves GLOBAL reserved indexes; appending pow to "
-                                "reserved-coding-symbols (and keeping it OUT of profile-local-reserved-symbols "
-                                "so it decodes by name) must be verified to keep those two index views in "
-                                "agreement, with the full SJAS gate as the no-mis-decode falsifier.")}}))
+                                 :not-Dk-tree-assembly-with-Q-disproof]
+                     :note (str "down from the original two research problems AND the pow-vocabulary "
+                                "encode/decode item, which is now discharged (see :resolved-since-aar "
+                                ":phase3-pow-vocabulary): a decoded bounded-proof node closes in "
+                                "construct-and-check mode and the full SJAS gate confirms no mis-decode. "
+                                "What remains is purely tree assembly with no new trusted rule and no bound "
+                                "obstruction: the cut-free combination trees for steps 1/3/4/B, and the "
+                                "not-Dk tree with its Q-disproof of the false Pi1 sub-formula. The "
+                                "tree-construction primitives and a checker-verified baseline over the real "
+                                "system exist (proflog.sjas-tree-builder).")}}))

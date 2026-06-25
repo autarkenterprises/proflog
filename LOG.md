@@ -20,6 +20,26 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-06-25
+
+- ADR-0142 Phase 3 (pow vocabulary): discharged the last `:open-boundary` item
+  the Phase 3 baseline left — the **pow-vocabulary encode/decode for encoded proof
+  trees**. Appended `pow` to `reserved-coding-symbols` and promoted `semprfk-alpha`
+  out of `profile-local-reserved-symbols`, keeping the boundary cluster contiguous
+  and moving `dsjas-tab2-proof` last so the encoder's compacted index equals the
+  proof-facing decoder's global reserved index (no compaction gap). Added the
+  kernel `sjas-semprfk-alpha-structural-closeo` (construct-and-check V-route reusing
+  the same bounded-proof core, minus the search marker) to the structural close
+  disjunction. Result, verified by new `proflog.sjas-semprfk-tree-closure-test`: a
+  fully *decoded* `(neg SemPrf^k)` interior node decodes `semprfk-alpha`/`pow` by
+  name AND closes with the symbolic `2^(p+1)` bound, while a too-small `2^p` bound
+  genuinely fails. `theorem23-closure-status` updated honestly: `:phase3-pow-vocabulary`
+  resolved, `:step5-decoded-semprfk-node-closes-construct-and-check` checker-accepted,
+  step 5 still `:partial`; the open boundary is now down to two pure tree-assembly
+  items (steps 1/3/4/B combination trees; the not-Dk tree + Q-disproof). Falsifier
+  green: SJAS not-slow pass=1445/0/0, fast 273/2343. Detail:
+  [Phase-3 pow-vocabulary note](docs/log/2026-06-25-adr-0142-phase3-pow-vocabulary-decoded-semprfk-closure.md).
+
 ## 2026-06-23
 
 - Implemented ADR-0142 (multiplication boundary) substantially, on branch

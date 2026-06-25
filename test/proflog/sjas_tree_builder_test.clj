@@ -95,16 +95,23 @@
       ;; closing rule the Theorem 2.3 diagonal path uses (the Subst conjunct).
       (is (clash system (ast/app-term 'subst-code sjas/one sjas/one sjas/one))
           "a subst-code pos/neg clash closes (reserved/named primitive)")
+      ;; semprfk-alpha became a named primitive in the ADR-0142 pow-vocabulary
+      ;; change (the boundary cluster is contiguous with no dsjas-tab2-proof gap,
+      ;; so its compacted index equals its global reserved index and it decodes to
+      ;; its name). Its complementary literals now close too -- this is what lets a
+      ;; decoded (neg SemPrf^k) node MATCH its literal branch atom in step 5.
+      (is (clash system (ast/app-term 'semprfk-alpha
+                                      sjas/zero sjas/zero sjas/zero
+                                      sjas/zero sjas/zero))
+          "a semprfk-alpha pos/neg clash closes (now a named primitive)")
       ;; An opaque user relation decodes to (sym n) in U-Grounding (proof-facing)
       ;; mode -- the source symbol table is removed -- and does NOT close by raw
-      ;; syntactic clash. The diagonal closure never relies on this: its non-Subst
-      ;; closures go through the profile interpretation of semprf/semprfk, not a
-      ;; user-relation literal clash.
+      ;; syntactic clash.
       (is (not (clash system+opaque (ast/app-term 'opaque sjas/zero)))
           "an opaque user-relation pos/neg clash does not close syntactically")
-      ;; The profile relations are likewise opaque to syntactic clash; they close
-      ;; by interpretation, not by complementary literals.
-      (is (not (clash system (ast/app-term 'semprfk-alpha
-                                           sjas/zero sjas/zero sjas/zero
-                                           sjas/zero sjas/zero)))
-          "a profile-relation pos/neg clash does not close syntactically (it closes by interpretation)"))))
+      ;; The still-profile-local boundary relations (mul, finax4, willard-map,
+      ;; semprf-alpha) remain opaque to syntactic clash: they decode to (sym n) and
+      ;; are matched by encoded bytes / query atom, not by complementary literals.
+      (is (not (clash system (ast/app-term 'willard-map
+                                           sjas/zero sjas/zero sjas/zero)))
+          "a profile-local relation pos/neg clash does not close syntactically (it decodes to (sym n))"))))

@@ -123,12 +123,26 @@
    'wff
    'tab1-proof
    'dsjas-tab1-proof
-   'dsjas-tab2-proof
+   ;; Total-multiplication / Xtab boundary cluster. Kept contiguous and BEFORE
+   ;; `dsjas-tab2-proof` so a generated multiplication system (which declares this
+   ;; cluster but not `dsjas-tab2-proof`) has no compaction gap below it: each
+   ;; member's per-system compacted index then equals its global reserved index,
+   ;; which is what lets the proof-facing decoder recover `semprfk-alpha`/`pow` by
+   ;; name inside an encoded `SemPrf^k` node (ADR-0142 step 5).
    'mul
    'finax4
    'willard-map
    'semprfk-alpha
-   'semprf-alpha])
+   'semprf-alpha
+   ;; `pow` is the symbolic power used only inside the `SemPrf^k` Log bound
+   ;; (Definition 2.1); it must decode by name so an encoded bounded-proof node
+   ;; round-trips. It is NOT profile-local.
+   'pow
+   ;; `dsjas-tab2-proof` is the target-only Tab-2 proof predicate. It moves to the
+   ;; end so it never sits between the prefix and the multiplication cluster; a
+   ;; Tab-2 system (prefix + this symbol, no cluster) still compacts it to the slot
+   ;; right after the prefix, which `tab2-boundary-proof-symbol` accounts for.
+   'dsjas-tab2-proof])
 
 (def reserved-symbol->index
   "One-based indexes for `reserved-coding-symbols`."

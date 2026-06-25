@@ -28,14 +28,22 @@
       ;; tableau trees to construct (no cut rule / trusted-base growth).
       (is (= #{:B :step1 :step3 :step4} (:tree-construction-steps status)))
       (is (every? #(= :tree-construction (by-id %)) [:B :step1 :step3 :step4]))
-      ;; Step 5 (not Dk): its bounded-proof witness is now checker-accepted via the
-      ;; symbolic pow bound (Phase 1); the step overall is partial.
+      ;; Step 5 (not Dk): its bounded-proof witness is checker-accepted via the
+      ;; symbolic pow bound (Phase 1), and a DECODED (neg SemPrf^k) node now closes
+      ;; in construct-and-check mode (Phase 3 pow-vocabulary); the step is partial.
       (is (= :partial (by-id :step5)))
       (is (contains? (:checker-accepted status)
                      :step5-bounded-proof-witness-symbolic-pow-bound))
-      ;; The recorded progress reflects Phase 0/1.
+      (is (contains? (:checker-accepted status)
+                     :step5-decoded-semprfk-node-closes-construct-and-check))
+      ;; The recorded progress reflects Phase 0/1 and the pow-vocabulary discharge.
       (is (contains? (:resolved-since-aar status) :phase0))
       (is (contains? (:resolved-since-aar status) :phase1))
+      (is (contains? (:resolved-since-aar status) :phase3-pow-vocabulary))
+      ;; The pow-vocabulary encode/decode item is no longer open: a decoded
+      ;; bounded-proof node closes and the full SJAS gate confirms no mis-decode.
+      (is (not (contains? (set (:remaining (:open-boundary status)))
+                          :pow-vocabulary-encode-decode-for-encoded-proof-trees)))
       ;; D* (Eq 5) is a universal over the diagonal code.
       (is (= 'forall (ast/tag-of (:d-star status)))))))
 

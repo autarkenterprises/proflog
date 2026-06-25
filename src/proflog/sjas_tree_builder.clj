@@ -76,6 +76,20 @@
   [system canonical-formula & children]
   (node-from-bytes (canonical-formula-code-bytes system canonical-formula) children))
 
+(defn decode-proof-facing
+  "Decode `formula` the way the proof checker sees an interior node.
+
+   Encodes `formula` to this system's public code, then reads it back through the
+   proof-facing decoder (no source codebook). Reserved/named SJAS symbols recover
+   their names; every other symbol becomes a structural `(sym n)`. Use it to
+   characterize which symbols a constructed node will actually present to the
+   checker's `sjas-proof-node-formula-matcho` -- the match needs the decoded form
+   to equal the literal branch formula, so a node mentioning a relation that
+   decodes to `(sym n)` cannot match a literal branch atom that names it."
+  [system formula]
+  (sjas-profile/decoded-proof-formula (:program system)
+                                      (sjas/formula-code system formula)))
+
 (defn valid-tree?
   "True iff the ordinary SJAS checker accepts `proof` as a closed tableau for
    `target` over `system`, within `fuel` (default 50).

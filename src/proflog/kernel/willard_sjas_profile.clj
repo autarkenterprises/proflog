@@ -1559,19 +1559,29 @@
    globally semantic symbol, because ordinary systems can still use that same
    index for their first user relation.
 
-   The total-multiplication / Xtab boundary vocabulary (`mul`, `finax4`,
-   `willard-map`, `semprfk-alpha`, `semprf-alpha`) is treated the same way. These
-   symbols occur only in the boundary variants' axioms and metatheorem queries;
-   the proof checker matches them against the query atom or compares their
-   encoded axiom bytes, never by decoding the symbol back from a presented
-   system. Excluding them from the global reserved/user index partition keeps an
-   ordinary system's user-relation indexes stable, so adding the boundary
-   vocabulary does not shift `multi-demo`-style indexes into a reserved slot."
+   Most of the total-multiplication / Xtab boundary vocabulary (`mul`, `finax4`,
+   `willard-map`, `semprf-alpha`) is treated the same way. These symbols occur
+   only in the boundary variants' axioms and metatheorem queries; the proof
+   checker matches them against the query atom or compares their encoded axiom
+   bytes, never by decoding the symbol back from a presented system. Excluding
+   them from the global reserved/user index partition keeps an ordinary system's
+   user-relation indexes stable, so adding the boundary vocabulary does not shift
+   `multi-demo`-style indexes into a reserved slot.
+
+   `semprfk-alpha` is the exception (ADR-0142 step 5): a `not SemPrf^k` node must
+   appear DECODED inside a construct-and-check tableau tree, so its decoded form
+   has to match the literal branch atom. It is therefore globally named (kept out
+   of this set). The reserved order places the boundary cluster contiguously and
+   `dsjas-tab2-proof` last, so a multiplication system has no compaction gap below
+   `semprfk-alpha` (and `pow`) -- their per-system compacted index equals their
+   global reserved index and the decoder recovers the name. The collision surface
+   is small: ordinary systems declare only the 27-symbol prefix, so their user
+   relations never reach the cluster's indexes (the full SJAS gate falsifies any
+   regression)."
   '#{dsjas-tab2-proof
      mul
      finax4
      willard-map
-     semprfk-alpha
      semprf-alpha})
 
 (def ^:private reserved-symbol-index-entries
@@ -3835,13 +3845,27 @@
               group-three-proof)
         proof)))
 
+(def ^:private tab2-multiplication-cluster-symbols
+  "Reserved boundary symbols a Tab-2 system does NOT declare.
+
+   A Tab-2 system declares the fixed arithmetic prefix plus `dsjas-tab2-proof`,
+   but none of the multiplication/Xtab cluster. The encoder therefore compacts
+   `dsjas-tab2-proof` to the slot immediately after the prefix, skipping these."
+  '#{mul finax4 willard-map semprfk-alpha semprf-alpha pow})
+
 (def ^:private tab2-boundary-proof-symbol
   "Internal formula-code head for the target-only Tab-2 proof predicate.
 
-   The encoder gives `dsjas-tab2-proof` a stable profile-local index, while the
-   ordinary decoder intentionally leaves that index structural so existing user
-   relations remain decodable without a source symbol registry."
-  (list 'sym (sjas-code/reserved-symbol->index 'dsjas-tab2-proof)))
+   The ordinary decoder leaves `dsjas-tab2-proof`'s index structural (it is
+   profile-local) so user relations remain decodable without a source registry.
+   `dsjas-tab2-proof` is the last reserved symbol globally, but a Tab-2 system
+   does not declare the multiplication cluster, so the encoder compacts it to the
+   slot right after the arithmetic prefix. This is that COMPACTED index -- not the
+   global reserved index -- so it matches the `(sym n)` a decoded Tab-2 formula
+   actually carries."
+  (list 'sym (inc (count (->> sjas-code/reserved-coding-symbols
+                              (take-while #(not= 'dsjas-tab2-proof %))
+                              (remove tab2-multiplication-cluster-symbols))))))
 
 (defn- tab2-boundary-selfcons-internal-formula
   "Decoded internal Tab-2 boundary SelfCons formula for a system code term."
@@ -6193,7 +6217,8 @@
          sjas-tab1-proof-structural-closeo
          sjas-dsjas-tab1-proof-structural-closeo
          sjas-dsjas-tab2-proof-structural-closeo
-         sjas-finax4-structural-closeo)
+         sjas-finax4-structural-closeo
+         sjas-semprfk-alpha-structural-closeo)
 
 (defn- proof-byte-prefixo
   [remaining input bytes rest]
@@ -7654,6 +7679,14 @@
                                            neqs
                                            neqs-out
                                            prog)]
+           [(sjas-semprfk-alpha-structural-closeo fml
+                                                  env
+                                                  sigma
+                                                  sigma-out
+                                                  neqs
+                                                  neqs-out
+                                                  prog
+                                                  fuel)]
            [(sjas-neq-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
            [(sjas-neg-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
            [(sjas-pos-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]))]
@@ -9710,6 +9743,18 @@
                               prog
                               fuel)
     (== '(profiled willard-sjas-semprfk-alpha) proof)))
+
+(defn- sjas-semprfk-alpha-structural-closeo
+  "Close a structural tableau leaf through bounded `SemPrf^k_alpha/5`.
+
+   The construct-and-check counterpart of `sjas-semprfk-alpha-closeo`: it reuses
+   the same executable bounded-proof core -- proof-code validation through the
+   decoded structural proof checker plus the Definition 2.1 `Log` bound -- but,
+   like the other `*-structural-closeo` rules, omits the search-layer proof
+   marker. This is what lets a constructed `(neg SemPrf^k)` leaf, e.g. Theorem
+   2.3 step 5's bounded-proof witness, close under `structural-proof-valid?`."
+  [fml env sigma sigma-out neqs neqs-out prog fuel]
+  (sjas-semprfk-alpha-coreo fml env sigma sigma-out neqs neqs-out prog fuel))
 
 (defn- sjas-dsjas-tableau-proof-closeo
   [fml env sigma sigma-out neqs neqs-out prog fuel proof]

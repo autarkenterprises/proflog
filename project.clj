@@ -103,6 +103,7 @@
                                     "proflog.sjas-cut-composition-test"
                                     "proflog.sjas-theorem23-closure-test"
                                     "proflog.sjas-tree-builder-test"
+                                    "proflog.sjas-semprfk-tree-closure-test"
                                     "proflog.sjas-synthesis-guard-test"
                                     "proflog.query-test"]
             "test-proflog-extended" ["test"

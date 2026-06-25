@@ -78,6 +78,22 @@ complete contemporaneous transcript.
   bounded proof of Dk). No-regression: SJAS not-slow pass=1447/0/0 (project count
   back to 2), fast 273/2350. Detail:
   [Phase-3 premise-clash correction](docs/log/2026-06-25-adr-0142-phase3-premise-clash-correction.md).
+- ADR-0142 Phase 3 (BOT-closure investigation + falsifier GUARDRAIL): deep dive on
+  the single remaining item (cut-free combination trees → BOT). Re-grounded the
+  goal: Thm 2.3 says α is INCONSISTENT if it proves (A),(B),(C); the mul-total
+  system is the "bad" side of Willard's boundary (jsl5 Remark 4), so deriving BOT
+  over it is the INTENDED result, contrasted with addition-only non-closure (the
+  falsifier). **Durable finding (guardrail):** do NOT promote `semprf-alpha` to a
+  named clash (as was done for `semprfk-alpha`) — a syntactic `SemPrf(BOT,p) ∧
+  ¬SemPrf(BOT,p)` clash would close `AxiomConj ∧ ¬SelfCons` TRIVIALLY for EVERY
+  system incl. addition-only, erasing the falsifier; the closure must route through
+  the INTERPRETED bounded-proof V-route on a constructed proof code (where mul-
+  totality makes the Log bound hold). Confirmed falsifier intact (SelfCons refut
+  does NOT close trivially); SelfCons is the measured Level-1 form. Hand-built
+  combination tableaux (complex-formula closures) error/loop under the shapes tried
+  — full BOT closure stays the central OPEN research problem; no closure claimed.
+  Recorded `:falsifier-guardrail` in `theorem23-closure-status`. Detail:
+  [BOT-closure falsifier guardrail](docs/log/2026-06-25-adr-0142-bot-closure-falsifier-guardrail.md).
 
 ## 2026-06-23
 

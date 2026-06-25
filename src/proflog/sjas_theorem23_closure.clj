@@ -170,4 +170,16 @@
                                 "so step 5 is gated on step 4, and the genuine remaining work is the "
                                 "combination trees that prove Dk. The tree-construction primitives and "
                                 "checker-verified baselines over the real system exist "
-                                "(proflog.sjas-tree-builder, proflog.sjas-not-dk-qdisproof-test).")}}))
+                                "(proflog.sjas-tree-builder, proflog.sjas-not-dk-qdisproof-test).")
+                     :falsifier-guardrail
+                     (str "Do NOT promote `semprf-alpha` (un-superscripted SemPrf) to a named clash to make "
+                          "the SelfCons clash `SemPrf(BOT,p) ^ not SemPrf(BOT,p)` fire syntactically. Since "
+                          "SelfCons is a conjunct of AxiomConj, a syntactic SemPrf clash would close "
+                          "`AxiomConj ^ not SelfCons` TRIVIALLY for EVERY system -- including the "
+                          "addition-only (consistent) variant -- erasing the boundary the construction must "
+                          "distinguish (the addition-only non-closure IS the falsifier). The closure must "
+                          "instead route through the INTERPRETED bounded-proof V-route on a real constructed "
+                          "proof code, where multiplication-totality makes the Log bound hold and the "
+                          "addition-only variant fails. Confirmed: the SelfCons refutation does not close "
+                          "trivially today (semprf-alpha stays profile-local). Detail: "
+                          "docs/log/2026-06-25-adr-0142-bot-closure-falsifier-guardrail.md.")}}))

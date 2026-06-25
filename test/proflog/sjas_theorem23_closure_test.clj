@@ -36,25 +36,28 @@
                      :step5-bounded-proof-witness-symbolic-pow-bound))
       (is (contains? (:checker-accepted status)
                      :step5-decoded-semprfk-node-closes-construct-and-check))
-      ;; Step 5's Q-disproof of the false Pi1 instance now assembles: the subst-code
-      ;; eval closes the negated antecedent over the real diagonal and the V-route
-      ;; closes the consequent (Phase 3 Q-disproof).
+      ;; The not-Dk universal is refuted by binding fresh gamma witnesses through a
+      ;; complementary clash against positive premises -- no new checker rule, fully
+      ;; relational (Phase 3 premise-clash).
       (is (contains? (:checker-accepted status)
-                     :step5-subst-qdisproof-closes-real-diagonal))
-      (is (contains? (:checker-accepted status)
-                     :step5-false-pi1-instance-refutation-assembles))
+                     :step5-premise-clash-binds-universal-witness))
       ;; The recorded progress reflects Phase 0/1 and the Phase 3 discharges.
       (is (contains? (:resolved-since-aar status) :phase0))
       (is (contains? (:resolved-since-aar status) :phase1))
       (is (contains? (:resolved-since-aar status) :phase3-pow-vocabulary))
-      (is (contains? (:resolved-since-aar status) :phase3-qdisproof))
+      (is (contains? (:resolved-since-aar status) :phase3-premise-clash))
       ;; The pow-vocabulary encode/decode item is no longer open: a decoded
       ;; bounded-proof node closes and the full SJAS gate confirms no mis-decode.
       (is (not (contains? (set (:remaining (:open-boundary status)))
                           :pow-vocabulary-encode-decode-for-encoded-proof-trees)))
-      ;; The refined residual is named: witness-providing gamma-instantiation.
+      ;; The witness-providing gamma item was a mischaracterization: refuting the
+      ;; universal binds its witnesses by clashing fresh gamma variables against
+      ;; premises, using only existing rules. It is no longer an open item.
+      (is (not (contains? (set (:remaining (:open-boundary status)))
+                          :witness-providing-gamma-instantiation-Dk-entails-its-ground-instance)))
+      ;; What remains is the cut-free combination trees (step 5 reduces to step 4).
       (is (contains? (set (:remaining (:open-boundary status)))
-                     :witness-providing-gamma-instantiation-Dk-entails-its-ground-instance))
+                     :cut-free-combination-trees-steps-1-3-4-and-B))
       ;; D* (Eq 5) is a universal over the diagonal code.
       (is (= 'forall (ast/tag-of (:d-star status)))))))
 

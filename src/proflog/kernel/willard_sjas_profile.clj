@@ -6208,29 +6208,6 @@
     (== neqs neqs-out)
     (== '(profiled willard-sjas-subst-code) proof)))
 
-(defn- sjas-subst-code-structural-closeo
-  "Close a structural tableau leaf `(neg Subst(source, target))` by evaluation.
-
-   The construct-and-check counterpart of `sjas-subst-code-closeo`: it reuses the
-   same executable `subst-code` gate (`sjas-subst-code-any-coreo` -- decode the
-   source formula-code, substitute its distinguished free variable, compare modulo
-   alpha-renaming) but, like the other `*-structural-closeo` rules, omits the
-   search-layer proof marker. This is Willard's `Q`-disproof of the `Subst`
-   conjunct of a false Theorem 2.3 Pi1 instance: where the SemPrf^k V-route
-   (`sjas-semprfk-alpha-structural-closeo`) decides the bounded-proof conjunct,
-   this decides the substitution conjunct, so a constructed `(neg Subst)` leaf --
-   e.g. `(neg Subst(nbar, code(Dk)))`, which holds by Goedel diagonalization --
-   closes under `structural-proof-valid?`."
-  [fml env sigma sigma-out neqs neqs-out prog]
-  (fresh [lit atom walked-atom source-code substituted-code]
-    (sjas-subst-formulao fml env lit)
-    (sjas-acyclic-unifyo (list 'neg atom) lit)
-    (sjas-walk-atomo atom sigma walked-atom)
-    (sjas-acyclic-unifyo (list 'app 'subst-code source-code substituted-code)
-                         walked-atom)
-    (sjas-subst-code-any-coreo prog source-code substituted-code sigma sigma-out)
-    (== neqs neqs-out)))
-
 (declare sjas-proof-check-stateo
          sjas-proof-guided-selecto
          sjas-tableau-proof-structural-closeo
@@ -7710,7 +7687,6 @@
                                                   neqs-out
                                                   prog
                                                   fuel)]
-           [(sjas-subst-code-structural-closeo fml env sigma sigma-out neqs neqs-out prog)]
            [(sjas-neq-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
            [(sjas-neg-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]
            [(sjas-pos-relation-close-structural-coreo fml env sigma sigma-out neqs neqs-out)]))]

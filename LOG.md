@@ -58,6 +58,26 @@ complete contemporaneous transcript.
   = {steps 1/3/4/B combination trees; witness-γ}. No-regression: SJAS not-slow
   pass=1447/0/0, fast green. Detail:
   [Phase-3 step-5 Q-disproof note](docs/log/2026-06-25-adr-0142-phase3-step5-qdisproof-assembly.md).
+  **(Superseded next bullet: witness-γ was a mischaracterization and subst-eval was
+  reverted.)**
+- ADR-0142 Phase 3 (premise-clash CORRECTION): refuting the diagonal `Dk` is fully
+  RELATIONAL and needs **no new checker rule**. The checker's `forall` rule
+  instantiates with a FRESH branch variable, which is bound to the witness by a
+  **complementary-literal CLASH against a positive premise** — so the not-Dk tree
+  refutes `P1 ∧ P2 ∧ Dk` with only α/γ/β/clash, binding Willard's (p,q,r) from
+  P1 = `Subst(nbar,code(Dk))` (Eq 7) and P2 = `SemPrf^k(code(Dk),p,2^(p+1))`.
+  Verified (`premise-clash-binds-the-universal-witness`): a `Subst(1,5)` premise
+  binds a fresh forall witness `v0` to 5; without it the universal stays open; a
+  wrong-arg premise can't clash (`^:slow`). **Two corrections of the prior bullet:**
+  (1) the "witness-providing γ" residual was wrong — premises supply the witnesses;
+  (2) the interim `sjas-subst-code-structural-closeo` (subst-by-eval) is **REVERTED**
+  — on a free target it is non-terminating, and the only guard needs an impure host
+  `project`, which the profile-source audit forbids on the proof-checking path. The
+  clash is the relational replacement. Open boundary is now a SINGLE item: the
+  cut-free combination trees for steps 1/3/4/B; step 5 reduces to step 4 (P2 = the
+  bounded proof of Dk). No-regression: SJAS not-slow pass=1447/0/0 (project count
+  back to 2), fast 273/2350. Detail:
+  [Phase-3 premise-clash correction](docs/log/2026-06-25-adr-0142-phase3-premise-clash-correction.md).
 
 ## 2026-06-23
 

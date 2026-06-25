@@ -84,24 +84,24 @@
        :status :partial
        :note (str "bounded-proof witness SemPrf^k(r,p,2^(p+1)) is checker-accepted via the symbolic pow "
                   "bound (Phase 1; no tower materialized), and -- since the pow-vocabulary coding change "
-                  "(Phase 3 step 5) -- a DECODED (neg SemPrf^k) interior node now also closes in "
-                  "construct-and-check mode: semprfk-alpha/pow decode by name and the structural V-route "
-                  "sjas-semprfk-alpha-structural-closeo closes the leaf, with a too-small tower bound "
-                  "genuinely failing. The Q-disproof of the false Pi1 instance now ASSEMBLES (Phase 3 "
-                  "Q-disproof): refuting `Subst(nbar,code(Dk)) => not SemPrf^k(...)` closes its negated "
-                  "antecedent via the new subst-code structural eval (sjas-subst-code-structural-closeo, "
-                  "over the REAL diagonal locator) and its consequent via the SemPrf^k V-route -- both "
-                  "halves of Willard's Q-disproof. What remains is (i) witness-providing "
-                  "gamma-instantiation (the checker's forall rule introduces a FRESH variable, not a "
-                  "chosen ground witness, so deriving the instance from Dk -- `Dk |- instance` -- is the "
-                  "missing tableau mechanic) and (ii) the step-4 proof p so the consequent's theorem is "
-                  "code(Dk) itself")}
+                  "(Phase 3) -- a DECODED (neg SemPrf^k) interior node closes in construct-and-check mode "
+                  "(semprfk-alpha/pow decode by name; the structural V-route sjas-semprfk-alpha-structural-"
+                  "closeo closes the leaf; a too-small tower bound genuinely fails). The not-Dk tree "
+                  "REFUTES `P1 ^ P2 ^ Dk` using ONLY existing relational tableau rules "
+                  "(alpha/gamma-fresh-var/beta/complementary-clash): the gamma rule instantiates Dk with "
+                  "FRESH variables that are bound to the witnesses (p,q,r) by clashing against the positive "
+                  "premises P1 = Subst(nbar,code(Dk)) (Eq 7, checker-accepted at step 2) and P2 = "
+                  "SemPrf^k(code(Dk),p,2^(p+1)). NO new checker rule is needed -- neither a witness-"
+                  "providing gamma nor a subst-by-evaluation close (an interim subst-eval rule was tried "
+                  "and REVERTED: on a free target it is non-terminating, and guarding it needs an impure "
+                  "host `project` that the relational proof-checker discipline forbids; the clash binds the "
+                  "free target relationally). What remains is P2 itself: the bounded proof p of Dk, i.e. "
+                  "STEP 4 (the combination tree). So step 5 reduces to step 4")}
       {:id :step6 :eq nil :name "close: Dk and not Dk"
        :status :follows-from-4-and-5}]
      :checker-accepted (cond-> #{:step5-bounded-proof-witness-symbolic-pow-bound
                                  :step5-decoded-semprfk-node-closes-construct-and-check
-                                 :step5-subst-qdisproof-closes-real-diagonal
-                                 :step5-false-pi1-instance-refutation-assembles}
+                                 :step5-premise-clash-binds-universal-witness}
                          subst-eq7? (conj :step2-subst-eq7))
      ;; Phase 0: these are constructed cut-free tableau trees (the checker
      ;; validates them; no cut rule / trusted-base growth). The with-cut model in
@@ -135,38 +135,39 @@
                                                       "not-slow gate (1445 tests) is green as the no-mis-decode "
                                                       "falsifier, so the encoder's compacted index view and the "
                                                       "proof-facing decoder's global view agree.")
-                          :phase3-qdisproof (str "step 5's Q-disproof of the false Pi1 instance ASSEMBLES "
-                                                 "(proflog.sjas-not-dk-qdisproof-test). Added "
-                                                 "sjas-subst-code-structural-closeo so `not Subst(s,t)` "
-                                                 "self-closes by evaluating the genuine subst-code gate -- "
-                                                 "the construct-and-check analog of the SemPrf^k V-route -- "
-                                                 "verified over the REAL diagonal locator `not "
-                                                 "Subst(nbar,code(Dk))` (a wrong target stays open). The "
-                                                 "implication beta-split then refutes "
-                                                 "`Subst(nbar,code(Dk)) => not SemPrf^k(...)` by closing its "
-                                                 "negated antecedent (subst eval) and its consequent "
-                                                 "(V-route), with a too-small bound failing. FINDING that "
-                                                 "localizes the rest: the checker's forall rule "
-                                                 "(sjas-proof-check-stateo, line ~7895) instantiates a "
-                                                 "universal with a FRESH branch variable, never a chosen "
-                                                 "ground witness, and the V-route cannot resolve a free "
-                                                 "proof/bound var -- so deriving the ground instance from Dk "
-                                                 "(Willard's `instantiate Dk with (p,q,r)`) needs a "
-                                                 "witness-providing gamma-instantiation the checker does not "
-                                                 "yet have.")}
-     :open-boundary {:remaining [:cut-free-combination-trees-steps-1-3-4-and-B
-                                 :witness-providing-gamma-instantiation-Dk-entails-its-ground-instance]
-                     :note (str "down from the original two research problems AND the pow-vocabulary "
-                                "encode/decode item (discharged, :phase3-pow-vocabulary) AND step 5's "
-                                "Q-disproof of the false Pi1 instance, whose two halves now assemble "
-                                "(:phase3-qdisproof: subst-code eval + SemPrf^k V-route, both verified over "
-                                "the real diagonal). Two items remain. (1) The cut-free combination trees "
-                                "for steps 1/3/4/B -- pure tree assembly with the existing checker. (2) "
-                                "Witness-providing gamma-instantiation: the checker's forall rule "
-                                "instantiates with a fresh branch variable, so `Dk |- ground-instance` "
-                                "(Willard's `instantiate Dk with (p,q,r)`) is the one tableau mechanic the "
-                                "checker lacks; once it exists, the assembled Q-disproof closes the instance "
-                                "and -- with the step-4 proof p making the consequent's theorem code(Dk) -- "
-                                "yields not Dk. The tree-construction primitives and checker-verified "
-                                "baselines over the real system exist (proflog.sjas-tree-builder, "
-                                "proflog.sjas-not-dk-qdisproof-test).")}}))
+                          :phase3-premise-clash (str "step 5's not-Dk witness binding is FULLY RELATIONAL and "
+                                                     "needs no new checker rule. Refuting the universal Dk "
+                                                     "does not need a witness-providing gamma rule: the "
+                                                     "checker's forall rule instantiates with a FRESH branch "
+                                                     "variable, and that variable is bound to the witness by a "
+                                                     "COMPLEMENTARY-LITERAL CLASH against a positive premise. "
+                                                     "Verified over a small universal "
+                                                     "(proflog.sjas-not-dk-qdisproof-test/"
+                                                     "premise-clash-binds-the-universal-witness): a premise "
+                                                     "`Subst(1,5)` binds a fresh forall witness `v0` to 5; "
+                                                     "without the premise the universal stays open, and a "
+                                                     "premise over a different argument cannot clash. So the "
+                                                     "not-Dk tree refutes `P1 ^ P2 ^ Dk` with ONLY existing "
+                                                     "alpha/gamma/beta/clash rules, binding Willard's (p,q,r) "
+                                                     "by clashing against P1 = Subst(nbar,code(Dk)) (Eq 7) and "
+                                                     "P2 = SemPrf^k(code(Dk),p,2^(p+1)); the residual is P2 = "
+                                                     "STEP 4. NOTE: an interim subst-by-evaluation close "
+                                                     "(sjas-subst-code-structural-closeo) was tried and "
+                                                     "REVERTED -- on a free target it is non-terminating, and "
+                                                     "guarding it needs an impure host `project` that the "
+                                                     "relational proof-checker discipline (pinned by the "
+                                                     "profile-source audit) forbids. The clash is the "
+                                                     "relational replacement.")}
+     :open-boundary {:remaining [:cut-free-combination-trees-steps-1-3-4-and-B]
+                     :note (str "down from the original two research problems, the pow-vocabulary "
+                                "encode/decode item (discharged, :phase3-pow-vocabulary), AND the supposed "
+                                "witness-providing-gamma item -- which :phase3-premise-clash shows was a "
+                                "MISCHARACTERIZATION: the not-Dk tree binds its witnesses by clashing fresh "
+                                "gamma variables against positive premises, using only existing relational "
+                                "checker rules (no new rule, no impure guard). ONE item remains: the "
+                                "cut-free combination trees for steps 1/3/4/B. Step 5 (not Dk) reduces to "
+                                "refuting `P1 ^ P2 ^ Dk`, which needs P2 = the bounded proof of Dk = STEP 4; "
+                                "so step 5 is gated on step 4, and the genuine remaining work is the "
+                                "combination trees that prove Dk. The tree-construction primitives and "
+                                "checker-verified baselines over the real system exist "
+                                "(proflog.sjas-tree-builder, proflog.sjas-not-dk-qdisproof-test).")}}))

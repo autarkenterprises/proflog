@@ -3715,7 +3715,11 @@
 
 (deftest sjas-embedded-payload-decoders-check-header-before-payload-fresh
   (let [source (slurp "src/proflog/kernel/willard_sjas_profile.clj")
-        header-first-pattern #"(?s)\(== expected-low low\).*?\(== expected-high high\).*?\(fresh \[payload\]"]
+        ;; ADR-0144 (1C) regrouped the byte-count search by header digit
+        ;; (high-digit outer, low-digit inner) instead of a flat scan, but both
+        ;; header `==`s must still precede the payload `fresh` so wrong lengths
+        ;; fail before allocating payload state -- the ADR-0110 invariant.
+        header-first-pattern #"(?s)\(== high-digit high\).*?\(== low-digit low\).*?\(fresh \[payload\]"]
     (doseq [helper ["decode-embedded-code-bodyo" "decode-natural-bodyo"]]
       (is (re-find header-first-pattern (private-defn-source source helper))
           (str helper

@@ -1712,21 +1712,34 @@
    lengths should fail against the two header bytes, not by repeatedly
    re-walking the entire remaining byte stream."
   [low high payload-bytes rest term]
+  ;; ADR-0144 (1C): the byte-count's two base-`byte-base` digits ARE `high`/`low`
+  ;; (byte-count = high*byte-base + low; the two-byte header caps it at
+  ;; byte-base^2-1 = max-code-bytes). Group the candidate search by the high
+  ;; digit first, so a ground `high` selects one of `byte-base` groups and the
+  ;; inner group selects on `low`: `byte-base`+`byte-base` header unifications
+  ;; instead of `max-code-bytes`+1 flat candidates (and that many fewer scheduled
+  ;; goals). Pure regrouping of the same disjunction; `high`-outer/`low`-inner
+  ;; preserves the exact ascending byte-count order, so it is enumeration-order
+  ;; identical, and the two header `==`s still precede the payload `fresh`
+  ;; (ADR-0110 header-before-payload guard).
   (or*
-    (map (fn [byte-count]
-           (let [expected-low (mod byte-count sjas-code/byte-base)
-                 expected-high (quot byte-count sjas-code/byte-base)]
-             (fresh []
-               (== expected-low low)
-               (== expected-high high)
-               (fresh [payload]
-                 ;; ADR-0110 (#1): bind the payload from a ground `term` before
-                 ;; parsing, so a wrong byte-count arm fails fast in the
-                 ;; backward (encode) direction. The header checks still run
-                 ;; first, preserving the forward-mode length rejection.
-                 (== (list 'code payload) term)
-                 (parse-code-payload-byteso byte-count payload-bytes rest payload)))))
-         (range (inc sjas-code/max-code-bytes)))))
+    (map (fn [high-digit]
+           (fresh []
+             (== high-digit high)
+             (or*
+               (map (fn [low-digit]
+                      (let [byte-count (+ (* high-digit sjas-code/byte-base)
+                                          low-digit)]
+                        (fresh []
+                          (== low-digit low)
+                          (fresh [payload]
+                            ;; ADR-0110 (#1): bind the payload from a ground
+                            ;; `term` before parsing (backward/encode fast-fail).
+                            (== (list 'code payload) term)
+                            (parse-code-payload-byteso byte-count payload-bytes
+                                                       rest payload)))))
+                    (range sjas-code/byte-base)))))
+         (range sjas-code/byte-base))))
 
 (defn- decode-embedded-code-termo
   "Decode a code term embedded inside a formula-code byte stream.
@@ -1745,20 +1758,26 @@
 (defn- decode-natural-bodyo
   "Decode a compact numeric term payload into an internal U-Grounding numeral."
   [low high payload-bytes rest term]
+  ;; ADR-0144 (1C): high-digit-outer / low-digit-inner regroup of the byte-count
+  ;; search (byte-count = high*byte-base + low). See `decode-embedded-code-bodyo`
+  ;; for the full rationale: enumeration-order identical, ADR-0110 guard intact,
+  ;; `byte-base`+`byte-base` scheduled goals instead of `max-code-bytes`+1.
   (or*
-    (map (fn [byte-count]
-           (let [expected-low (mod byte-count sjas-code/byte-base)
-                 expected-high (quot byte-count sjas-code/byte-base)]
-             (fresh []
-               (== expected-low low)
-               (== expected-high high)
-               (fresh [payload]
-                 ;; ADR-0110 (#1): bind the payload from a ground `term` before
-                 ;; parsing (backward/encode fast-fail); header checks still
-                 ;; run first, preserving the forward-mode length rejection.
-                 (== (list 'num payload) term)
-                 (parse-code-payload-byteso byte-count payload-bytes rest payload)))))
-         (range (inc sjas-code/max-code-bytes)))))
+    (map (fn [high-digit]
+           (fresh []
+             (== high-digit high)
+             (or*
+               (map (fn [low-digit]
+                      (let [byte-count (+ (* high-digit sjas-code/byte-base)
+                                          low-digit)]
+                        (fresh []
+                          (== low-digit low)
+                          (fresh [payload]
+                            (== (list 'num payload) term)
+                            (parse-code-payload-byteso byte-count payload-bytes
+                                                       rest payload)))))
+                    (range sjas-code/byte-base)))))
+         (range sjas-code/byte-base))))
 
 (defn- decode-natural-termo
   "Decode a numeral term in the formula-code byte stream.

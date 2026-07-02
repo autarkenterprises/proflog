@@ -1,6 +1,6 @@
 # ADR-0144: Proof-Checker Ground-Mode Determinism (Level 1 kernel optimizations)
 
-- Status: accepted (1C landed; 1A/1B reverted with data; 1D deferred to its own ADR)
+- Status: accepted (1C + 1D landed; 1A/1B reverted with data)
 - Date: 2026-07-01
 - Branch: `adr-0144-checker-ground-determinism` (off `adr-0142-sjas-mul-boundary-derivation` @ `6e0f847`)
 - AAR: [AAR-0144](../aar/AAR-0144-checker-ground-determinism.md)
@@ -100,45 +100,105 @@ without enumeration needs `project` (forbidden). A truly O(1) version requires
 rewriting the payload parse to count down relationally from the header digits — a
 larger, riskier change deferred as a follow-up.
 
-### 1D — decode-once: DEFERRED (the real lever, but blocked for a safe one-session change)
+### 1D — upfront tree decode: LANDED (pure; 1.8–2.1× on decode-heavy ground checks)
 
-The data says the biggest win is eliminating the ~6981 redundant decodes (the ~41 %
-decode path is re-run every backtrack). But a decode memo is blocked from a safe
-one-session landing by two issues: (a) decoded ASTs contain **nominal logic values**
-(`sjas-internal-nom-termo`) whose identity a `run`/reify-based cache mangles;
-(b) a host-keyed memo is a purity call (referentially transparent, but host state)
-that belongs in a dedicated ADR with soundness validation — a checker that caches
-wrong could *accept an invalid proof*, the worst outcome for this project. Deferred.
+"Decode-once" splits into two distinct redundancies: **(a)** the *same node*
+re-decoded across search re-visits (the 6981 count — a symptom of the ~78 K-node
+search, subsumed by any future determinism fix), and **(b)** *cross-node*
+redundancy, where each node's bytes are re-decoded from scratch on every
+backtracking path. The landed 1D removes (b) for the construct-and-check entry
+without host state, memoization, or reification:
+
+- `decode-proof-treeo` / `decode-proof-foresto`: decode the whole **ground**
+  proof tree once into `(decoded-node formula children)` nodes (`xtab-lem`
+  wrappers preserved). Deterministic on a ground proof (the two arms are
+  structurally exclusive).
+- `decoded-proof-nodeo`: a **recognizer, not a generator** — a custom goal (same
+  style as `sjas-acyclic-unifyo`) that destructures a `decoded-node` in O(1) and
+  *fails* on anything else, so free-proof synthesis can never fabricate decoded
+  nodes; the byte decoder remains the only source of synthesized proofs. The
+  inspection is a **shallow protocol `walk`** of the proof and its head (a
+  var-chain lookup) — never a deep `walk*` rebuild, which would be
+  O(certificate) per entry on the large partially-instantiated certificates
+  synthesis builds.
+- `formula-bearing-proof-nodeo` gains the recognizer as a first `conde` arm; raw
+  byte nodes and free proofs fall through to the byte decoder unchanged.
+- `structural-proof-valid?` pre-decodes **inside the `run`** (canonical
+  code-noms stay live, never reified) and checks over the decoded tree.
+
+Nominal identity is preserved because the decoded AST is built from the shared
+`code-nom-entries` noms and never leaves the substitution — the reify-mangling
+hazard that deferred the memo variant does not arise.
+
+**Measured (warm REPL, same JVM before/after):**
+
+| test (`valid-tree?` over real mul-system codes) | baseline | 1D | ratio |
+|---|---:|---:|---|
+| `checker-validates-constructed-cut-free-trees` | 949 ms | 531 ms | **1.79×** |
+| `complementary-closure-uses-named-primitives` | 2152 ms | 1013 ms | **2.12×** |
+| `decoded-semprfk-leaf-closes-with-symbolic-tower-bound` | 3981 ms | 3500 ms | 1.14× |
+| `too-small-tower-bound-does-not-close` (negative) | 3626 ms | 3155 ms | 1.15× |
+
+The wrong-premise ground negative is **neutral** (search-dominated, tiny
+formulas — its cost is the ~78 K-node search, not decode), consistent with the
+(a)/(b) split. Synthesis mode (free proof; kernel `tableau-proof/3` route, which
+does not pre-decode) pays only the O(1) recognizer arm:
+`synthesizes-beta-axiom-citation` 31.1 s baseline → ~33 s (≤ ~6 %, single-run
+noise band).
+
+**Pre-existing drift found during attribution (not caused by this ADR):**
+`sjas-tableau-proof-synthesizes-selfcons-citation` (`^:slow`, outside the
+gates) times out at **>600 s on the baseline `c6d3f97` itself** (stash-differential
+on the same warm REPL; the AAR-0095 envelope of 6.9 s is 2026-06-13-stale, and the
+`^:slow` lane has not been re-run across the ADR-0119..0142 window). Recorded as
+an open branch-drift issue for its own investigation; both baseline and 1D time
+out identically, exonerating 1D.
 
 ## Decision
 
-Land **1C** (the one clean, pure, verified Level-1 win). Revert **1A/1B** (measured
-regressions on the target ground-proof mode). Defer **1D** to a dedicated ADR.
+Land **1C** and **1D** (pure, verified). Revert **1A/1B** (measured regressions
+on the target ground-proof mode).
 
 Record the redirected roadmap: the checker's ~78 K-node search for a 4-node ground
 proof is the actual blocker, and it is a **checker-architecture** problem, not a
 micro-optimization one. The checker *searches* for a rule interpretation of each
-ground node instead of *following* the ground tree. Two candidate fixes, each its
-own ADR with soundness/completeness care:
+ground node instead of *following* the ground tree. The remaining fix, its own
+ADR with soundness/completeness care:
 
 1. **Deterministic ground-proof rule dispatch.** Make rule inference
    mode-deterministic given a ground node formula + children count (e.g. the three
    `forall`/`once-forall` arms are the main residual multi-arm head). Requires
-   proving the arms partition the ground cases so tightening preserves completeness.
-2. **Nom-safe decode-once.** Decode each ground proof node once (upfront AST, or a
-   nominal-preserving memo) so backtracking does not re-decode. Requires nominal
-   identity preservation and an explicit purity decision.
+   proving the arms partition the ground cases so tightening preserves
+   completeness. 1D's `decoded-node` trees are the natural substrate: rule
+   dispatch can now key on an already-decoded formula head instead of bytes.
+   This also subsumes the per-node re-visit re-decode (redundancy (a)) by
+   removing the re-visits themselves.
 
 ## Consequences
 
-- Pure-relational semantics preserved; no new operator, no committed choice, no host
-  cut. Upgrading core.logic is not a lever (vendored 1.0.1 and 1.1.1
-  `Substitutions`/`walk`/`ext` are byte-identical).
+- Pure-relational semantics preserved; no new operator, no host cut, no memo/
+  reification. The only host-level construct added is the `decoded-proof-nodeo`
+  recognizer — a non-generating O(1) destructure in the established
+  `sjas-acyclic-unifyo` custom-goal style; answer sets are unchanged because its
+  arm and the byte arm are mutually exclusive on every proof shape (a
+  `decoded-node` head never destructures as bytes, and a free proof never
+  matches the recognizer). Upgrading core.logic is not a lever (vendored 1.0.1
+  and 1.1.1 `Substitutions`/`walk`/`ext` are byte-identical).
 - 1C is a modest but genuine, verified win on the whole decode path (every SJAS
-  proof-check decodes numerals/embedded codes through these two relations).
-- Honest scope: this ADR does **not** make the ground-tree negative "fast." The
-  measurements show why the simple pure reorders can't, and hand the next ADR a
-  data-grounded target (kill the ~78 K-node search) instead of a guess.
+  proof-check decodes numerals/embedded codes through these two relations); 1D
+  is a 1.8–2.1× win on decode-heavy ground construct-and-check — the exact mode
+  ADR-0142's tree assembly uses.
+- Honest scope: this ADR does **not** make the ground-tree negative "fast" (its
+  cost is the ~78 K-node search, untouched here), and it surfaced two
+  **pre-existing** issues, both differentially attributed to the baseline:
+  (i) `^:slow`-lane drift — `synthesizes-selfcons-citation` 6.9 s → >600 s
+  somewhere in the ADR-0119..0142 window; (ii) `fitting-fidelity-test` sec7 is
+  a machine-state-sensitive in-gate landmine (cooperative `query-status`
+  deadline + one unpreemptible fuel slice; hung the full fast gate ≥900 s on
+  **both** the 1D tree and the untouched baseline, while passing in isolation
+  — see AAR lesson 5b). Each needs its own investigation. The next ADR gets a
+  data-grounded target (deterministic ground-proof rule dispatch over the
+  now-available `decoded-node` trees) instead of a guess.
 - These optimizations serve the *checking* half of ADR-0142. They do not construct
   Willard's tower-sized bottom-proof; that remains a construction obligation, not a
   performance one.
@@ -146,7 +206,14 @@ own ADR with soundness/completeness care:
 ## Test obligations
 
 - Answer-set preservation: SJAS not-slow gate + `sjas-tree-builder-test` +
-  `sjas-semprfk-tree-closure-test` green after 1C (1C is enumeration-order identical
-  by construction; the gates verify it empirically).
-- Performance: benchmark timing reported above (1C ~9 %; 1A/1B regressions recorded
-  as the reason for revert).
+  `sjas-semprfk-tree-closure-test` green after 1C and after 1D (1C is
+  enumeration-order identical by construction; 1D adds only a mutually-exclusive
+  recognizer arm and an in-`run` deterministic pre-decode; the gates verify both
+  empirically). Free-proof synthesis re-verified directly
+  (`synthesizes-beta-axiom-citation` green; SelfCons sibling pre-existing-slow,
+  differentially attributed to the baseline).
+- The ADR-0110 header-before-payload source guard was retargeted (same
+  invariant, new `high-digit`/`low-digit` structure) and the profile-source
+  hygiene audit kept green (no forbidden host-shortcut vocabulary).
+- Performance: measurements reported above (1C ~9 % benchmark; 1D 1.8–2.1×
+  decode-heavy; 1A/1B regressions recorded as the reason for revert).

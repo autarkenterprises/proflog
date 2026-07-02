@@ -18,6 +18,7 @@
              :refer [!= == appendo conde fail fresh lcons membero or* run
                      succeed]]
             [clojure.core.logic.nominal :as nominal]
+            [clojure.core.logic.protocols :as logic-protocols]
             [proflog.ast :as ast]
             [proflog.equality :as equality]
             [proflog.kernel :as kernel]
@@ -6280,15 +6281,81 @@
                 (sjas-internal-formula-asto decoded-formula formula)))
             (range 1 sjas-code/byte-base)))]))
 
+(defn- decoded-proof-nodeo
+  "Recognize an already-decoded proof node produced by `decode-proof-treeo`.
+
+   ADR-0144 (1D): a constructed (ground) proof is decoded once up front into
+   `(decoded-node formula children)` nodes; this goal DESTRUCTURES such a node
+   instead of re-decoding its bytes on every backtrack. It is a recognizer, not
+   a generator -- it fails (rather than binds `proof`) when `proof` is not yet a
+   `decoded-node`, so proof-search over a free proof never fabricates decoded
+   nodes and the byte decoder stays the only source of synthesized proofs. Same
+   custom-goal style as `sjas-acyclic-unifyo`.
+
+   The inspection is a SHALLOW `walk` of the proof and of its head only -- a
+   var-chain lookup, never a deep `walk*` rebuild. During synthesis the checker
+   re-enters this goal thousands of times while `proof` is bound to a large
+   partially-instantiated certificate; a deep walk there is O(certificate) per
+   entry and measurably regressed SelfCons synthesis, while the head peek keeps
+   the recognizer O(1) in every mode."
+  [proof formula children]
+  (fn [s]
+    (let [walked (logic-protocols/walk s proof)]
+      (when (and (seq? walked)
+                 (= 'decoded-node (logic-protocols/walk s (first walked))))
+        ((== (list 'decoded-node formula children) proof) s)))))
+
 (defn- formula-bearing-proof-nodeo
   "Decode one formula-bearing tableau node from proof data.
 
    The node carries formula bytes and child nodes, not a trusted rule tag.
-   Local deduction and closure rules are inferred from the decoded formula."
+   Local deduction and closure rules are inferred from the decoded formula.
+
+   ADR-0144 (1D): a node pre-decoded by `decode-proof-treeo` is destructured in
+   O(1) via `decoded-proof-nodeo`; a raw byte node (or a free proof under
+   synthesis) falls through to the full byte decoder unchanged."
   [prog proof formula children]
-  (fresh [formula-bytes]
-    (formula-bearing-proof-node-with-byteso
-      prog proof formula-bytes formula children)))
+  (conde
+    [(decoded-proof-nodeo proof formula children)]
+    [(fresh [formula-bytes]
+       (formula-bearing-proof-node-with-byteso
+         prog proof formula-bytes formula children))]))
+
+(declare decode-proof-treeo)
+
+(defn- decode-proof-foresto
+  "Decode a list of sibling proof nodes into `decoded-node` form (ADR-0144 1D)."
+  [prog proofs asts]
+  (conde
+    [(== '() proofs)
+     (== '() asts)]
+    [(fresh [proof rest-proofs ast rest-asts]
+       (== (lcons proof rest-proofs) proofs)
+       (decode-proof-treeo prog proof ast)
+       (== (lcons ast rest-asts) asts)
+       (decode-proof-foresto prog rest-proofs rest-asts))]))
+
+(defn- decode-proof-treeo
+  "Decode a whole ground proof tree once into `decoded-node` form (ADR-0144 1D).
+
+   Each formula-bearing node becomes `(decoded-node formula decoded-children)`;
+   an `xtab-lem` wrapper is kept and its inner proof decoded. Run once, inside
+   the checker's `run`, before the search descends, so the search destructures
+   decoded nodes (`decoded-proof-nodeo`) instead of re-decoding bytes on every
+   backtrack. The two arms are structurally exclusive (a byte node never heads
+   with `xtab-lem`; an `xtab-lem` wrapper never decodes as bytes), so the
+   relation is deterministic on a ground proof; decoding in-`run` keeps the
+   canonical code-noms live (never reified)."
+  [prog proof ast]
+  (conde
+    [(fresh [inner inner-ast]
+       (== (list 'xtab-lem inner) proof)
+       (decode-proof-treeo prog inner inner-ast)
+       (== (list 'xtab-lem inner-ast) ast))]
+    [(fresh [bytes formula children ast-children]
+       (formula-bearing-proof-node-with-byteso prog proof bytes formula children)
+       (decode-proof-foresto prog children ast-children)
+       (== (list 'decoded-node formula ast-children) ast))]))
 
 (declare sjas-ast-alpha-termo
          sjas-ast-alpha-term-listo
@@ -8198,8 +8265,16 @@
   (boolean
     (seq
       (run 1 [accepted]
-        (sjas-proof-check-programo prog system-code target fuel proof)
-        (== true accepted)))))
+        ;; ADR-0144 (1D): decode the whole ground proof tree once, then check
+        ;; over the decoded nodes -- so the search destructures nodes instead of
+        ;; re-decoding bytes on every backtrack. Kept inside the `run` so the
+        ;; canonical code-noms stay live. `decode-proof-treeo` is deterministic
+        ;; on this explicit ground proof; a proof that does not decode as a tree
+        ;; simply fails here (a correct rejection).
+        (fresh [checker-proof]
+          (decode-proof-treeo prog proof checker-proof)
+          (sjas-proof-check-programo prog system-code target fuel checker-proof)
+          (== true accepted))))))
 
 (defn decoded-proof-formula
   "Decode a public formula code to the exact AST used by proof checking."

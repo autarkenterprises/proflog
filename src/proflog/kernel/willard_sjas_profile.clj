@@ -6585,6 +6585,20 @@
        (sjas-proof-node-formula-matcho visible-left node-left)
        (sjas-proof-node-formula-matcho visible-right node-right))]))
 
+(def ^:private proof-node-literal-formula-tags
+  "Formula heads whose bodies are pure first-order term structure (ADR-0145).
+
+   Below these heads there can be `(var nom)`/`(par nom)` leaves but never a
+   binder, so alpha-equivalence coincides with structural equality and the
+   binder/compound renaming matchers are structurally inapplicable. `true` and
+   `false` are the boolean formula tags used by the decoder."
+  (list 'pos 'neg 'eq 'neq true false))
+
+(def ^:private proof-node-structured-formula-tags
+  "Formula heads that can contain binders at or below the head (ADR-0145)."
+  (list 'and 'or 'not 'implies 'forall 'once-forall 'exists
+        'bounded-forall 'bounded-exists))
+
 (defn- sjas-proof-node-formula-matcho
   "Match a visible branch formula against the formula decoded from a proof node.
   Formula-bearing proof certificates usually contain the exact formula after the
@@ -6593,13 +6607,31 @@
   pay for a deep failed exact scan when only the canonical binder name differs.
   Use ordinary backtracking choice because the proof-node formula is often still
   constrained by its byte decoder; committed choice can bind it to the wrong
-  branch formula before the decoder has forced the actual node contents."
+  branch formula before the decoder has forced the actual node contents.
+
+  ADR-0145: dispatch on the visible formula's head tag (every checker call site
+  supplies a head-tagged branch formula). For the literal-family heads the
+  exact structural match is COMPLETE by itself: the renaming matchers need a
+  quantifier/connective head, and alpha-equivalence over binder-free formulas
+  (empty binding environment: unmapped noms must be identical) is exactly
+  structural equality, so the alpha arm could only re-deliver the exact arm's
+  solution. Under backtracking each duplicate success re-explored the entire
+  downstream checker subtree, multiplying per node; restricting literal heads
+  to the exact arm removes only duplicate deliveries of identical states —
+  answer-set-identical in every mode, including a free proof-node formula.
+  Structured heads keep the original four-arm ladder unchanged."
   [visible-formula node-formula]
-  (conde
-    [(sjas-proof-node-binder-renaming-matcho visible-formula node-formula)]
-    [(sjas-proof-node-compound-renaming-matcho visible-formula node-formula)]
-    [(sjas-acyclic-unifyo visible-formula node-formula)]
-    [(sjas-ast-alpha-formulao visible-formula node-formula '())]))
+  (fresh [head tail]
+    (== (lcons head tail) visible-formula)
+    (conde
+      [(static-table-entryo head proof-node-literal-formula-tags)
+       (sjas-acyclic-unifyo visible-formula node-formula)]
+      [(static-table-entryo head proof-node-structured-formula-tags)
+       (conde
+         [(sjas-proof-node-binder-renaming-matcho visible-formula node-formula)]
+         [(sjas-proof-node-compound-renaming-matcho visible-formula node-formula)]
+         [(sjas-acyclic-unifyo visible-formula node-formula)]
+         [(sjas-ast-alpha-formulao visible-formula node-formula '())])])))
 
 (def ^:private total-multiplication-required-beta-bytes
   "Exact Type-M beta bytes shared by source generation and proof checking."

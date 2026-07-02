@@ -885,20 +885,36 @@
     (bit-prefixo byte-bits bits tail)
     (== (list 'sjas-ug-code-byte-cons mul-proof) proof)))
 
-(declare byte-list-bitso)
+(declare byte-list-bitso mul-byte-base-coreo)
 
 (defn- byte-list-bitso
-  "Relate a ground byte list to the corresponding little-endian bit numeral."
+  "Relate a ground byte list to the corresponding little-endian bit numeral.
+
+   ADR-0147 (stage 1): each byte contributes its SIX-bit padded digit as a
+   prefix of the remaining bits (the radix equation `bits = byte + 64*tail`
+   when the shifted tail has six low zeros) -- the same fixed-radix
+   `bit-prefixo` overlay the U-Grounding code reader's
+   `byte-cons-equation-coreo` uses. The previous general `arith/*o` +
+   `arith/pluso` formulation re-walked the whole accumulated numeral at every
+   byte (quadratic on the multi-thousand-byte embedded codes the Theorem 2.3
+   trees carry). The highest byte is unpadded and positive, matching the
+   canonical no-trailing-zero numeral form; this relation's single caller is
+   the forward `num`-payload conversion over ground encoder-produced bytes,
+   which never carry a zero high byte."
   [bytes bits]
   (conde
     [(== '() bytes)
      (== '() bits)]
-    [(fresh [byte tail byte-bits tail-bits scaled]
+    [(fresh [byte]
+       (== (lcons byte '()) bytes)
+       (byte-bitso bits byte)
+       (arith/poso bits))]
+    [(fresh [byte tail six-bits tail-bits]
        (== (lcons byte tail) bytes)
-       (byte-bitso byte-bits byte)
-       (byte-list-bitso tail tail-bits)
-       (arith/*o byte-base-bits tail-bits scaled)
-       (arith/pluso scaled byte-bits bits))]))
+       (!= '() tail)
+       (byte-six-bitso six-bits byte)
+       (bit-prefixo six-bits bits tail-bits)
+       (byte-list-bitso tail tail-bits))]))
 
 (defn- sjas-ug-code-bytes-bitso
   "Decode a U-Grounding code numeral and retain byte-cons proof evidence.
@@ -947,6 +963,56 @@
                                      ::subst)
              (assoc restored-state :vs nil))
             restored-state))))))
+
+(defn- deep-ground-tag
+  "Rebuild ground host data with the ADR-0090 ground tag on every compound node.
+
+   ADR-0147 (stage 1): `ext` ground-tags only the ROOT of each newly bound
+   value, so an untagged host-built subterm (e.g. an embedded code numeral
+   inside a target formula) is re-scanned by the tagging groundness walk on
+   every later binding of any structure that contains it. Tagging the input
+   once, bottom-up, makes those scans (and the occurs/walk skips ADR-0090
+   provides) short-circuit at every level. Metadata does not participate in
+   unification or equality (see the ground-tag docstring in core.logic), so
+   this is a pure annotation. A node is tagged only when every child is a
+   plain atom or an already-tagged subtree, so nominal ties, noms, and logic
+   variables anywhere below keep their whole spine untagged -- the tag never
+   lies about alpha-bearing or bindable structure."
+  [form]
+  (let [tagged? (fn [node]
+                  (and (instance? clojure.lang.IMeta node)
+                       (true? (:clojure.core.logic/ground (meta node)))))
+        safe-child? (fn [node]
+                      (or (number? node) (string? node) (symbol? node)
+                          (keyword? node) (boolean? node) (nil? node)
+                          (tagged? node)))]
+    (clojure.walk/postwalk
+      (fn [node]
+        (if (and (or (seq? node) (vector? node))
+                 (every? safe-child? node))
+          (vary-meta node assoc :clojure.core.logic/ground true)
+          node))
+      form)))
+
+(defn- with-occurs-check-offo
+  "Run `goal` with the occurs check disabled, restoring the caller's setting on
+   every answer state.
+
+   ADR-0147 (stage 1): the goal-level companion of `sjas-acyclic-unifyo`, with
+   the same soundness argument -- the wrapped goals only construct or decompose
+   acyclic first-order numeral/byte structure, where a cyclic binding is
+   impossible, so disabling the occurs check changes no answer. It exists
+   because relationally RECONSTRUCTING a multi-thousand-byte embedded code
+   binds a ground-prefix-plus-fresh-tail structure at every step; each such
+   bind is unaffected by ADR-0090 ground-tagging (the tail is fresh), so the
+   occurs check re-walks the accumulated prefix -- quadratic in the code size."
+  [goal]
+  (fn [state]
+    (let [caller-oc (:oc state)]
+      ((fresh []
+         goal
+         (fn [answer-state] (assoc answer-state :oc caller-oc)))
+       (assoc state :oc false)))))
 
 (defn- sjas-local-acyclic-unifyo
   "Unify local constructor structure without occurs-check or constraint replay.
@@ -3092,11 +3158,16 @@
        (sjas-internal-term-list-asto args ast-args))]
     [(fresh [bytes bits num-proof]
        (== (list 'num bytes) term)
-       (byte-list-bitso bytes bits)
-       (bits->canonical-termo bits ast-term num-proof))]
+       ;; ADR-0147 (stage 1): numeral reconstruction over multi-thousand-byte
+       ;; payloads is acyclic construction; see `with-occurs-check-offo`.
+       (with-occurs-check-offo
+         (fresh []
+           (byte-list-bitso bytes bits)
+           (bits->canonical-termo bits ast-term num-proof))))]
     [(fresh [bytes]
        (== (list 'code bytes) term)
-       (sjas-internal-code-termo bytes ast-term))]))
+       (with-occurs-check-offo
+         (sjas-internal-code-termo bytes ast-term)))]))
 
 (defn- sjas-internal-formula-asto
   "Translate a decoded formula-code tree into the ordinary Proflog kernel AST."
@@ -8294,19 +8365,32 @@
    bypassing the object proof checker. It returns only whether the supplied
    finite proof tree was accepted; no host inference establishes a proof step."
   [prog system-code target proof fuel]
-  (boolean
-    (seq
-      (run 1 [accepted]
+  (let [target (deep-ground-tag target)
+        proof (deep-ground-tag proof)]
+    (boolean
+      (seq
+        (run 1 [accepted]
         ;; ADR-0144 (1D): decode the whole ground proof tree once, then check
         ;; over the decoded nodes -- so the search destructures nodes instead of
         ;; re-decoding bytes on every backtrack. Kept inside the `run` so the
         ;; canonical code-noms stay live. `decode-proof-treeo` is deterministic
         ;; on this explicit ground proof; a proof that does not decode as a tree
         ;; simply fails here (a correct rejection).
-        (fresh [checker-proof]
-          (decode-proof-treeo prog proof checker-proof)
-          (sjas-proof-check-programo prog system-code target fuel checker-proof)
-          (== true accepted))))))
+        ;;
+        ;; ADR-0147 (stage 1): the whole ground construct-and-check runs with
+        ;; the occurs check off (`with-occurs-check-offo`). The proof tree and
+        ;; target are explicit acyclic data; branch variables only ever bind to
+        ;; subterms of that data or to other fresh variables, so no cyclic
+        ;; binding is expressible and the answer set is unchanged. Without
+        ;; this, every binding during the residual search occurs-walks into
+        ;; the (untagged, host-built) embedded code numerals of the target
+        ;; formulas -- O(code-size) per bind, quadratic on Theorem 2.3-scale
+        ;; trees. Kernel search/synthesis entries do not pass through here.
+        (with-occurs-check-offo
+          (fresh [checker-proof]
+            (decode-proof-treeo prog proof checker-proof)
+            (sjas-proof-check-programo prog system-code target fuel checker-proof)
+            (== true accepted))))))))
 
 (defn decoded-proof-formula
   "Decode a public formula code to the exact AST used by proof checking."

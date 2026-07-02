@@ -109,3 +109,24 @@ Three decisive updates from the instrumented warm-REPL session:
 State: nominal patch + this log are the commit; the not-Dk tree recipe is
 fully scripted above and in memory. Gammas verified firing; the construction
 is unblocked pending the structured-matcho dedup.
+
+## Stage 1c: the 280s grind profiled (hot-frame distribution)
+
+Ten-sample jcmd distribution of the real not-Dk run: nominal `-hash`
+(freshness constraints) + `-do-suspc` (tie suspensions) + **`ground-tree?`/
+`ground-tag` inside `ext`** + ConstraintStore ops. Mechanism: every tie-alpha
+attempt `swap-noms`-REBUILDS the 96-byte-code-scale body into fresh untagged
+structure, so every subsequent `ext` re-runs the O(body) tagging groundness
+scan, plus per-nom freshness constraints -- all times the structured-head
+matcho ladder x search attempts.
+
+Queued lever (next session's first edit, core.logic-deepening per doctrine):
+short-circuit `swap-noms` on subtrees that cannot contain the swapped noms --
+if ADR-0090's ground tag implies nom-free (CHECK ground-leaf?/ground-tree?
+semantics on Nom first!), a ground-tagged subtree returns UNCHANGED (structural
+sharing preserves both the object and its tag; O(spine) instead of O(body) per
+swap, and the ext rescans vanish). If the tag does not imply nom-free, tag
+nom-free-ness separately in deep-ground-tag (it already only tags nom-free
+subtrees) and key the swap skip on that meta. Second lever: `ground-tree?`
+should accept already-tagged subtrees without descent (verify; ADR-0090's
+walk* comment claims it, confirm the ext path uses the same skip).

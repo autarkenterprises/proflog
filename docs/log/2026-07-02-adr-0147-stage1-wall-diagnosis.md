@@ -66,3 +66,46 @@ chain shape.
 Perf fixes landed (this commit), gates pending below. The construction
 (T_p-bar -> T_q -> final four-premise tree) remains as mapped in ADR-0147;
 stage-1's residual is exactly the nested-forall-gamma child shape.
+
+## Stage 1b addendum (same day, post-commit 247f32f)
+
+Three decisive updates from the instrumented warm-REPL session:
+
+1. **E1's nested-forall "failure" was never the checker.** Two probe artifacts
+   stacked: (a) synthetic formulas used `add(h,y)` argument terms, which the
+   encoder VALUE-reads when ground (deliberate many-to-one numeral reading,
+   ADR-0095) so the decoded node disagreed at `(app add ...)` vs `(app dbl ...)`;
+   (b) the rebuilt small system passed `:functions {'pow 2}` WITHOUT
+   `total-multiplication-functions` -- the missing `mul` opened a compaction gap
+   and `semprfk-alpha` decoded as `(sym 30)`. With the correct vocabulary
+   (`(assoc sjas/total-multiplication-functions 'pow 2)`) the real not-Dk tree's
+   gammas FIRE with canonical noms v0/v1 (matcho instrumentation: 104 calls).
+   The `ast->canonical2` child generation (log above) is CORRECT as designed.
+
+2. **Latent upstream bug found and patched: `clojure.core.logic.nominal`
+   `-suspc`** -- the tie-alpha suspension's swap loop recurs
+   `((hash nom t2) a)` without a nil guard, so a FAILING freshness constraint
+   crashes (`No implementation of :walk ... for nil`, via fix-constraints ->
+   run-constraint -> -suspc -> -hash -step) instead of failing the suspension.
+   Exposed by real-Dk tie matching; reproduced with the UNMODIFIED entry (my
+   stage-1 features exonerated by variant bisection). Fix: `nominal.clj`
+   vendored from the 1.0.1 jar into the source-path (shadows the jar, same
+   mechanism as the existing vendored logic.clj) with a 3-line nil
+   short-circuit in the loop, marked `proflog ADR-0147`. Per the
+   core.logic-patch doctrine this is called out for its own audit note.
+
+3. **Next wall, precisely queued**: with the crash fixed the real not-Dk tree
+   neither closes nor rejects in 280s -- the tie-alpha/binder-renaming
+   matching on 96-byte-code-bearing bodies grinds (nominal swap/hash constraint
+   work per attempt x residual structured-head matcho multiplicity). Next
+   levers, in order: (i) sample the run (jcmd; the workflow above); (ii) land
+   the ground-equal dedup for STRUCTURED heads in matcho (the ADR-0145
+   literal-head dedup deliberately left the 4-arm ladder for structured heads;
+   ground-identical quantified pairs re-deliver via binder/alpha arms and every
+   duplicate re-explores the subtree); (iii) if needed, a cheap first-diff
+   guard before the alpha arm. All three are warm-REPL-iterable in seconds
+   against the fast-rejecting D1/L1 pins.
+
+State: nominal patch + this log are the commit; the not-Dk tree recipe is
+fully scripted above and in memory. Gammas verified firing; the construction
+is unblocked pending the structured-matcho dedup.

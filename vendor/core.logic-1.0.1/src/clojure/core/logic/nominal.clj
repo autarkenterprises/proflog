@@ -37,6 +37,16 @@
 
 (declare suspc)
 
+(defn- nom-free-tagged?
+  "proflog ADR-0147: true when `t` carries the ADR-0090 ground tag.
+   `ground-tree?` deliberately treats nominal structures as non-ground, so a
+   tagged subtree provably contains no nom and swapping is the identity;
+   returning it unchanged preserves both structural sharing and the tag,
+   collapsing tie-alpha swaps from O(subtree) rebuilds to O(spine)."
+  [t]
+  (and (instance? clojure.lang.IMeta t)
+       (true? (:clojure.core.logic/ground (meta t)))))
+
 (extend-protocol INomSwap
   nil
   (swap-noms [t swap s] [t s])
@@ -58,18 +68,22 @@
 
   LCons
   (swap-noms [t swap s]
-    (let [[tfirst s] (swap-noms (lfirst t) swap s)
-          [tnext s] (swap-noms (lnext t) swap s)]
-      [(with-meta (lcons tfirst tnext) (meta t))
-        s]))
+    (if (nom-free-tagged? t)
+      [t s]
+      (let [[tfirst s] (swap-noms (lfirst t) swap s)
+            [tnext s] (swap-noms (lnext t) swap s)]
+        [(with-meta (lcons tfirst tnext) (meta t))
+          s])))
 
   clojure.lang.IPersistentCollection
   (swap-noms [t swap s]
-    (if (seq t)
-      (let [[tfirst s] (swap-noms (first t) swap s)
-            [tnext s] (swap-noms (next t) swap s)]
-        [(with-meta (cons tfirst tnext) (meta t)) s])
-      [t s]))
+    (if (nom-free-tagged? t)
+      [t s]
+      (if (seq t)
+        (let [[tfirst s] (swap-noms (first t) swap s)
+              [tnext s] (swap-noms (next t) swap s)]
+          [(with-meta (cons tfirst tnext) (meta t)) s])
+        [t s])))
 
   clojure.lang.IPersistentVector
   (swap-noms [t swap s]

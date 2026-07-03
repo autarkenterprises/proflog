@@ -1627,29 +1627,41 @@
    index for their first user relation.
 
    Most of the total-multiplication / Xtab boundary vocabulary (`mul`, `finax4`,
-   `willard-map`, `semprf-alpha`) is treated the same way. These symbols occur
-   only in the boundary variants' axioms and metatheorem queries; the proof
-   checker matches them against the query atom or compares their encoded axiom
-   bytes, never by decoding the symbol back from a presented system. Excluding
-   them from the global reserved/user index partition keeps an ordinary system's
-   user-relation indexes stable, so adding the boundary vocabulary does not shift
+   `willard-map`) is treated the same way. These symbols occur only in the
+   boundary variants' axioms and metatheorem queries; the proof checker matches
+   them against the query atom or compares their encoded axiom bytes, never by
+   decoding the symbol back from a presented system. Excluding them from the
+   global reserved/user index partition keeps an ordinary system's user-relation
+   indexes stable, so adding the boundary vocabulary does not shift
    `multi-demo`-style indexes into a reserved slot.
 
-   `semprfk-alpha` is the exception (ADR-0142 step 5): a `not SemPrf^k` node must
-   appear DECODED inside a construct-and-check tableau tree, so its decoded form
-   has to match the literal branch atom. It is therefore globally named (kept out
-   of this set). The reserved order places the boundary cluster contiguously and
+   `semprfk-alpha` AND `semprf-alpha` are the exceptions (ADR-0142 step 5 /
+   ADR-0147 step 1): a `not SemPrf^k` / `not SemPrf` node must appear DECODED
+   inside a construct-and-check tableau tree, so its decoded form has to match the
+   literal branch atom for the complementary clash to fire. Willard's Theorem 2.3
+   closes step 1 by the `SemPrf_alpha(BOT,w)` clash of (B)'s existential witness
+   against (A) SelfCons; keeping `semprf-alpha` profile-local (decoding to an
+   opaque `(sym n)`) blocks that legitimate closure. Both are therefore globally
+   named. Promoting `semprf-alpha` only ADDS its own reserved index entry (it does
+   not shift the position-indexed entries of the other cluster members), so the
+   single decode dependent -- the generated condition-(A) L0 companion's
+   reconstruction -- is repaired in lockstep by pointing
+   `semprf-alpha-generated-symbol` at the bare name instead of `(sym n)`.
+   The reserved order keeps the boundary cluster contiguous with the globally-named
+   members `semprfk-alpha`, `semprf-alpha`, `pow` as a contiguous suffix and
    `dsjas-tab2-proof` last, so a multiplication system has no compaction gap below
-   `semprfk-alpha` (and `pow`) -- their per-system compacted index equals their
-   global reserved index and the decoder recovers the name. The collision surface
-   is small: ordinary systems declare only the 27-symbol prefix, so their user
-   relations never reach the cluster's indexes (the full SJAS gate falsifies any
-   regression)."
+   them and each per-system compacted index equals its global reserved index.
+   The full SJAS gate falsifies any decode regression.
+
+   NOTE: step 1 (`A ^ B ^ ¬D*`) is boundary-BLIND (FinAx4 holds on both sides; V5's
+   antecedent is satisfiable from the assumed SemPrfK(Dk) witness), so re-enabling
+   the clash does not by itself localize the boundary -- the boundary is the step-4
+   concrete fixed-point proof `p = code(step 4)`, and the falsifier reframe targets
+   the FULL diagonal, not `AxiomConj ^ ¬SelfCons`."
   '#{dsjas-tab2-proof
      mul
      finax4
-     willard-map
-     semprf-alpha})
+     willard-map})
 
 (def ^:private reserved-symbol-index-entries
   "Fixed SJAS vocabulary entries recoverable without a generated codebook."
@@ -3946,13 +3958,15 @@
     (== '(sjas-system-total-multiplication-profile) proof)))
 
 (def ^:private semprf-alpha-generated-symbol
-  "Decoded proof-facing head for the profile-local `semprf-alpha` relation.
+  "Decoded proof-facing head for the `semprf-alpha` relation.
 
-   Total-multiplication systems declare the whole boundary cluster, so this
-   compacted index matches the global reserved order. The object decoder keeps
-   `semprf-alpha` profile-local and therefore exposes it as `(sym n)`, not as a
-   globally named primitive."
-  (list 'sym (sjas-code/reserved-symbol->index 'semprf-alpha)))
+   ADR-0147 step 1: `semprf-alpha` is now globally named (removed from
+   `profile-local-reserved-symbols`) so that a DECODED `not SemPrf_alpha` node
+   recovers the name and clashes the literal branch atom -- Willard's step-1
+   `SemPrf_alpha(BOT,w)` closure. The object decoder therefore exposes it as the
+   bare primitive symbol (like `semprfk-alpha`), so the generated condition-(A) L0
+   companion's reconstruction must use the bare name to match the decoded form."
+  'semprf-alpha)
 
 (defn- condition-a-l0-selfcons-internal-formula
   "Decoded internal form of Willard condition (A) over Level-0 SemPrf_alpha."

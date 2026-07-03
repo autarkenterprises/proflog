@@ -15,12 +15,27 @@
    on the documented cut-free / tower-bound boundary, see
    proflog.sjas-theorem23-closure). The guard is the part of criterion 8 that is
    meaningful and enforceable today."
-  (:require [clojure.core.logic :as l]))
+  (:require [clojure.core.logic :as l]
+            [clojure.core.logic.protocols :as logic-protocols]))
 
 (defn fresh-lvar?
-  "True iff `x` is an (unbound) core.logic logic variable."
+  "True iff `x` is syntactically a core.logic logic variable.
+
+   This is sufficient for checking a host-built tuple before it enters a logic
+   run. For checks inside a live run, use `state-fresh-lvar?`, which walks the
+   current substitution first; an lvar object can already be bound."
   [x]
   (l/lvar? x))
+
+(defn state-fresh-lvar?
+  "True iff `x` is still an unbound logic variable in the live core.logic `state`.
+
+   ADR-0147 audit correction: checking only the host object shape is not enough
+   once a synthesis tuple is inside the relation. A tuple component that is an
+   lvar object can already have been bound by earlier goals, which is exactly
+   the dataflow distinction the synthesis guard is meant to enforce."
+  [state x]
+  (l/lvar? (logic-protocols/walk state x)))
 
 (defn host-ground-component?
   "True iff a tuple component is host-supplied data rather than a fresh logic
@@ -34,6 +49,15 @@
   [tuple]
   (boolean (and (seq tuple) (every? fresh-lvar? tuple))))
 
+(defn dataflow-independent-in-state?
+  "True iff every component of `tuple` is still fresh in the live logic `state`.
+
+   Use this at the proof-relation entry point. It rejects both host-ground data
+   and lvars that were fresh when the tuple was constructed but have already
+   been bound by earlier goals."
+  [state tuple]
+  (boolean (and (seq tuple) (every? #(state-fresh-lvar? state %) tuple))))
+
 (defn assert-dataflow-independent!
   "Throw if any component of `tuple` is host-ground before the proof relation is
    entered (the ADR-0141 failure mode). Return `tuple` when independent."
@@ -42,5 +66,15 @@
     (when (seq seeded)
       (throw (ex-info "Synthesis tuple has host-ground components before proof entry"
                       {:host-ground-count (count seeded)
+                       :tuple-size (count tuple)}))))
+  tuple)
+
+(defn assert-dataflow-independent-in-state!
+  "Throw if any component of `tuple` is not fresh in the live logic `state`."
+  [state tuple]
+  (let [seeded (remove #(state-fresh-lvar? state %) tuple)]
+    (when (or (empty? tuple) (seq seeded))
+      (throw (ex-info "Synthesis tuple has non-fresh components at proof entry"
+                      {:non-fresh-count (count seeded)
                        :tuple-size (count tuple)}))))
   tuple)

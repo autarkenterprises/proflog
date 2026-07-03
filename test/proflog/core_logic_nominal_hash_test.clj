@@ -38,3 +38,19 @@
                  (== key skipped)
                  (== skipped wanted)
                  (== q out))))))))
+
+(deftest nominal-suspension-short-circuits-after-failing-freshness
+  (testing "ADR-0147 -suspc nil guard: a failed swap-name freshness check is logical failure, not a nil-state crash"
+    (is (= []
+           (run* [q]
+             (nominal/fresh [left right]
+               (fresh [term]
+                 ;; Build the exact delayed-suspension shape that exposed the
+                 ;; core.logic bug: the suspension sees the same logic variable
+                 ;; on both sides, then the state later binds that variable to
+                 ;; the first swapped nom. The first freshness check fails; the
+                 ;; patched -suspc loop must short-circuit nil rather than
+                 ;; applying the second freshness check to a nil state.
+                 (nominal/suspc term term [left right])
+                 (== term left)
+                 (== q true))))))))

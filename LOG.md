@@ -20,6 +20,15 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-07-02
+
+- ADR-0147 audit correction patch: added the exact `core.logic.nominal/-suspc`
+  nil-guard regression, added a state-aware synthesis-independence guard that
+  walks tuple components through the live core.logic substitution, and corrected
+  ADR-0147/AAR-0147's stale docs-only scope wording. This is an evidence-discipline
+  correction, not a BOT-closure completion; the remaining criteria are recorded
+  in [the interdev note](docs/interdev/2026-07-02-adr-0147-audit-correction-patch.md).
+
 ## 2026-06-25
 
 - ADR-0142 Phase 3 (pow vocabulary): discharged the last `:open-boundary` item

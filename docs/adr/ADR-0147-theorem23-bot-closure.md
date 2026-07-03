@@ -1,6 +1,6 @@
 # ADR-0147: Theorem 2.3 BOT Closure — Architecture Established, Assembly Wall Measured
 
-- Status: in progress (architecture + evidence; no closure claimed, no ledger flips)
+- Status: in progress (architecture + source evidence; no closure claimed, no ledger flips)
 - Date: 2026-07-02
 - Branch: `adr-0147-theorem23-bot-closure` (off `adr-0146-sjas-boundary-behavioral-contrast` @ `cf72b81`)
 - AAR: [AAR-0147](../aar/AAR-0147-theorem23-bot-closure.md)
@@ -14,6 +14,11 @@ code-grounded construction architecture** (new), several **live-verified
 mechanical facts** (new), and a **measured assembly wall** at the real-diagonal
 scale (new, reproducible). It makes no closure claim; per the ADR-0141/0142
 discipline no ledger status changes.
+
+Update: the first ADR-0147 checkpoint was documentation-only, but subsequent
+same-branch stages have landed proof-kernel performance/correctness patches and
+focused tests. Those source stages narrow the wall; they do not convert this ADR
+into a completed BOT-closure ADR until the completion criteria below are met.
 
 ## The architecture (the session's principal result)
 
@@ -123,5 +128,18 @@ contrast namespace pins each stage's side-pair behavior.
 
 ## Test obligations
 
-None land in this ADR (docs only; no source changes). The next ADR in this
-line lands stage 1 with a pinned real-diagonal tree test.
+The initial architecture checkpoint landed no tests. Later ADR-0147 source
+stages must be judged by focused executable evidence, not by this checkpoint's
+original docs-only scope. In particular:
+
+- the `core.logic.nominal/-suspc` nil guard requires an exact regression that
+  fails on the pre-patch loop by walking a nil state and passes by returning
+  logical failure;
+- synthesis-independence guards must inspect the live core.logic substitution
+  at proof-relation entry, not only the host shape of lvar objects;
+- any real-diagonal not-Dk or combination-tree test must be checker-accepted
+  through the public structural path and accompanied by the addition-side
+  falsifier where the construction claims boundary behavior;
+- completion still requires the cut-free combination trees for steps 1/3/4/B,
+  the audited `(A)` bridge decision, and final `theorem23-closure-status`
+  evidence. Source-stage progress alone does not close Workstream B.

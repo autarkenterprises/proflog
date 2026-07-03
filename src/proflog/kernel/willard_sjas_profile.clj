@@ -6568,12 +6568,23 @@
                                  right-body
                                  (lcons [left-nom right-nom] env)))]))
 
+(declare sjas-proof-node-formula-matcho)
+
 (defn- sjas-proof-node-binder-renaming-matcho
   "Match one binder layer by deterministically renaming the selected formula.
   Decoded formula-code binders use the shared `sjas-vN` noms, while source-side
   theorem and axiom formulas often retain their original host noms. A single
   substitution into the selected binder body avoids searching the full
-  alpha-equivalence relation over large formula-code payloads."
+  alpha-equivalence relation over large formula-code payloads.
+
+  ADR-0147 (stage 1e): after the one-layer rename the bodies are matched by
+  the RECURSIVE proof-node match rather than by a single `==`. Nested
+  quantifiers rename layer-by-layer this way; the plain `==` instead unified
+  concretely-but-differently-named inner ties, which routes through the
+  nominal alpha-suspension machinery (`-do-suspc`/`hash` freshness constraints
+  per inner binder, over full code-bearing bodies) at every match attempt --
+  the measured dominant cost on Theorem 2.3-scale trees. The recursion's exact
+  arm subsumes the old `==` case, so the answer set is preserved."
   [visible-formula node-formula]
   (conde
     [(fresh [left-nom right-nom left-body right-body renamed-body]
@@ -6582,21 +6593,21 @@
        (subst/subst-formulao left-body
                              (lcons [left-nom (ast/var-term right-nom)] '())
                              renamed-body)
-       (== renamed-body right-body))]
+       (sjas-proof-node-formula-matcho renamed-body right-body))]
     [(fresh [left-nom right-nom left-body right-body renamed-body]
        (== (list 'once-forall (nominal/tie left-nom left-body)) visible-formula)
        (== (list 'once-forall (nominal/tie right-nom right-body)) node-formula)
        (subst/subst-formulao left-body
                              (lcons [left-nom (ast/var-term right-nom)] '())
                              renamed-body)
-       (== renamed-body right-body))]
+       (sjas-proof-node-formula-matcho renamed-body right-body))]
     [(fresh [left-nom right-nom left-body right-body renamed-body]
        (== (list 'exists (nominal/tie left-nom left-body)) visible-formula)
        (== (list 'exists (nominal/tie right-nom right-body)) node-formula)
        (subst/subst-formulao left-body
                              (lcons [left-nom (ast/var-term right-nom)] '())
                              renamed-body)
-       (== renamed-body right-body))]
+       (sjas-proof-node-formula-matcho renamed-body right-body))]
     [(fresh [left-nom right-nom left-bound left-body right-bound right-body
              renamed-bound renamed-body]
        (== (list 'bounded-forall
@@ -6612,7 +6623,7 @@
                              (lcons [left-nom (ast/var-term right-nom)] '())
                              renamed-body)
        (== renamed-bound right-bound)
-       (== renamed-body right-body))]
+       (sjas-proof-node-formula-matcho renamed-body right-body))]
     [(fresh [left-nom right-nom left-bound left-body right-bound right-body
              renamed-bound renamed-body]
        (== (list 'bounded-exists
@@ -6628,7 +6639,7 @@
                              (lcons [left-nom (ast/var-term right-nom)] '())
                              renamed-body)
        (== renamed-bound right-bound)
-       (== renamed-body right-body))]))
+       (sjas-proof-node-formula-matcho renamed-body right-body))]))
 
 (declare sjas-proof-node-formula-matcho)
 
@@ -7174,6 +7185,27 @@
   [fuel next-fuel]
   (== fuel next-fuel))
 
+(defn- sjas-ground-check-flago
+  "Mark the state as a ground construct-and-check run (ADR-0147 stage 1f)."
+  [state]
+  (with-meta state (assoc (meta state) ::ground-check true)))
+
+(defn- sjas-unless-ground-checko
+  "Succeed (state unchanged) except during a ground construct-and-check run.
+
+   ADR-0147 (stage 1f): the quantifier strategy ladder deliberately keeps
+   redundant gamma arms for proof SEARCH, but on a ground certificate the
+   deferred-substitution arm (C-style) accepts exactly the trees the eager
+   arms accept -- the reconciled visible formula is identical -- while every
+   redundant arm multiplies the residual search per nesting level (measured:
+   a 3-gamma certificate re-explodes past 60s where one gamma closes in ~1s).
+   The ground entry `structural-proof-valid?` sets a state-meta flag; this
+   guard gates the redundant arms off for that mode only. Kernel search and
+   synthesis states never carry the flag and are unchanged. The SJAS gate's
+   pinned certificate corpus is the completeness falsifier for the cut."
+  [state]
+  (when-not (::ground-check (meta state)) state))
+
 (defn- sjas-agenda-entryo
   "Relate an agenda entry to its formula and saved branch environment.
 
@@ -7279,6 +7311,10 @@
                                   child))]
       [(nominal/fresh [binding-nom]
          (fresh [free-var-nom body child next-fuel]
+           ;; ADR-0147 (1f): at env=() this arm duplicates the deferred-subst
+           ;; arm below verbatim (remove-bindo/subst are identities); gated
+           ;; off in ground construct-and-check to kill the x2 first-gamma.
+           sjas-unless-ground-checko
            (== (lcons child '()) children)
            (== '() env)
            (conde
@@ -7303,6 +7339,10 @@
       [(nominal/fresh [binding-nom]
          (fresh [free-var-nom body instantiated-body narrowed-env
                  child child-formula child-children next-fuel]
+           ;; ADR-0147 (1f): the eager-substitution gamma accepts exactly the
+           ;; ground certificates the deferred arm accepts (identical visible
+           ;; formula after reconciliation); gated off in ground checks.
+           sjas-unless-ground-checko
            (== (lcons child '()) children)
            (conde
              [(== (list 'forall (nominal/tie binding-nom body)) fml)]
@@ -7379,6 +7419,9 @@
       [(nominal/fresh [binding-nom]
          (fresh [parameter-nom body instantiated-body narrowed-env
                  child child-formula child-children next-fuel]
+           ;; ADR-0147 (1f): eager-substitution delta twin of the deferred arm
+           ;; above; gated off in ground construct-and-check (see the guard).
+           sjas-unless-ground-checko
            (== (lcons child '()) children)
            (== (list 'exists (nominal/tie binding-nom body)) fml)
            (sjas-next-branch-nomo env parameter-nom)
@@ -8388,6 +8431,7 @@
         ;; trees. Kernel search/synthesis entries do not pass through here.
         (with-occurs-check-offo
           (fresh [checker-proof]
+            sjas-ground-check-flago
             (decode-proof-treeo prog proof checker-proof)
             (sjas-proof-check-programo prog system-code target fuel checker-proof)
             (== true accepted))))))))

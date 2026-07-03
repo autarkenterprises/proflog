@@ -269,12 +269,46 @@
           :else false))
       true)))
 
+(def ^:private ground-scan-budget
+  "proflog ADR-0147: node budget for the ext-time tagging scan. The ground tag
+  is an optimization hint, so skipping it is always semantics-preserving.
+  ext-time bindings during proof search are dominated by short-lived rebuilt
+  structures whose subparts are already tagged but whose fresh spines are not;
+  an unbounded groundness scan there is O(structure) per binding and never
+  amortizes. Durable structures still receive unbounded tagging through walk*
+  and through entry-level deep tagging."
+  64)
+
+(defn- ground-tree-within?
+  "Bounded `ground-tree?`: false (skip tagging) once `budget` nodes are seen.
+  Tagged subtrees and atomic leaves are budget-free, matching the skip
+  behaviour of the unbounded scan."
+  [v budget]
+  (loop [work (list v) budget (long budget)]
+    (if (seq work)
+      (if (neg? budget)
+        false
+        (let [x (first work)
+              work (next work)]
+          (cond
+            (lvar? x) false
+            (ground-tagged? x) (recur work budget)
+            (ground-leaf? x) (recur work budget)
+            (lcons? x) (recur (conj (conj work (lnext x)) (lfirst x)) (dec budget))
+            (vector? x) (recur (into work x) (dec budget))
+            (seq? x) (recur (into work x) (dec budget))
+            :else false)))
+      true)))
+
 (defn- ground-tag
-  "Tag `v` as ground when it provably is and can carry metadata."
+  "Tag `v` as ground when it provably is and can carry metadata.
+
+  proflog ADR-0147: the ext-time scan is budgeted (see `ground-scan-budget`);
+  a structure whose untagged portion exceeds the budget is simply not tagged."
   [v]
   (if (and (instance? clojure.lang.IObj v)
            (not (ground-tagged? v))
-           (ground-tree? v))
+           (ground-tree-within? v ground-scan-budget))
     (vary-meta v assoc ground-meta-key true)
     v))
 

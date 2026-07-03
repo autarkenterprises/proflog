@@ -5,6 +5,12 @@
             [clojure.core.logic :as l]
             [proflog.sjas-synthesis-guard :as guard]))
 
+(defn- state-guard-resulto
+  "Bind `out` to the state-aware independence verdict for `tuple`."
+  [tuple out]
+  (fn [state]
+    ((l/== out (guard/dataflow-independent-in-state? state tuple)) state)))
+
 (deftest dataflow-guard-distinguishes-fresh-from-host-seeded
   (testing "independence is a dataflow property: fresh lvars pass, host-ground data fails"
     (let [fresh-tuple [(l/lvar 'x) (l/lvar 'y) (l/lvar 'p) (l/lvar 'q)]
@@ -24,3 +30,17 @@
 (deftest dataflow-guard-rejects-empty-tuple
   (testing "an empty tuple is not a meaningful independent synthesis target"
     (is (not (guard/dataflow-independent? [])))))
+
+(deftest dataflow-guard-walks-live-state-before-accepting-lvars
+  (testing "a tuple component that is syntactically an lvar but already bound is not independent"
+    (is (= [true]
+           (l/run* [q]
+             (l/fresh [x y]
+               (state-guard-resulto [x y] q))))
+        "fresh lvars remain independent at proof entry")
+    (is (= [false]
+           (l/run* [q]
+             (l/fresh [x y]
+               (l/== x 42)
+               (state-guard-resulto [x y] q))))
+        "an earlier binding makes x host-determined from the proof relation's perspective")))

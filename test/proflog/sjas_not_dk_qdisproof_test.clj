@@ -26,8 +26,10 @@
             [clojure.core.logic.nominal :as nominal]
             [clojure.test :refer [deftest is testing]]
             [proflog.ast :as ast]
+            [proflog.sjas-not-dk-probe :as probe]
             [proflog.sjas-tree-builder :as tb]
-            [proflog.willard-sjas :as sjas]))
+            [proflog.willard-sjas :as sjas]
+            [proflog.willard-sjas-code :as sjas-code]))
 
 (defn- mul-system []
   (sjas/system {:profile :willard-sjas-total-multiplication
@@ -67,6 +69,73 @@
                                  (tb/canonical-flex-tableau-node system canonical-neg-subst-one-v0))
                                80))
           "the universal alone does not refute -- the premise is what binds the witness"))))
+
+(defn- mul+pow-system []
+  (sjas/system {:profile :willard-sjas-total-multiplication
+                :functions (assoc sjas/total-multiplication-functions 'pow 2)
+                :relations sjas/total-multiplication-willard-relations
+                :beta [(ast/eq-lit sjas/one sjas/one)]
+                :code-format :u-grounding}))
+
+(deftest ^:slow not-dk-tree-structure-closes-at-depth-3
+  ;; ADR-0147 step 5: the not-Dk tree STRUCTURE -- three nested gamma
+  ;; introductions (v0/v1/v2 by premise clash), the implies beta split, and
+  ;; both complementary-clash leaves -- is checker-accepted, pinned at small
+  ;; argument mass so the closure is attributable to the rule mechanics. The
+  ;; REAL-diagonal instance of the identical shape is the detached long
+  ;; probe `lein probe-proflog-not-dk` (envelope > interactive budgets; see
+  ;; the ADR-0147 stage-1 log). P2's truth (the bounded proof of Dk) is step
+  ;; 4's obligation; this pins the step-5 tree itself, exactly as the
+  ;; theorem23 ledger scopes it.
+  (testing "three gammas + implies + both premise clashes close in one certificate"
+    (let [system (mul+pow-system)
+          h (nominal/nom (l/lvar 'ndk-h))
+          y (nominal/nom (l/lvar 'ndk-y))
+          z (nominal/nom (l/lvar 'ndk-z))
+          dk-shape (ast/forall-form h (ast/forall-form y (ast/forall-form z
+                     (ast/implies-form
+                       (ast/pos-lit (ast/app-term 'subst-code (sjas/numeral 5)
+                                                  (ast/var-term h)))
+                       (ast/not-form
+                         (ast/pos-lit (ast/app-term 'subst-code (ast/var-term h)
+                                                    (ast/var-term y))))))))
+          p1 (ast/pos-lit (ast/app-term 'subst-code (sjas/numeral 5) (sjas/numeral 7)))
+          p2 (ast/pos-lit (ast/app-term 'subst-code (sjas/numeral 7) (sjas/numeral 9)))
+          target (ast/and-form p1 (ast/and-form p2 dk-shape))
+          b1 (.-body ^clojure.core.logic.nominal.Tie (second dk-shape))
+          b2 (.-body ^clojure.core.logic.nominal.Tie (second b1))
+          b3 (.-body ^clojure.core.logic.nominal.Tie (second b2))
+          c1 (tb/ast->canonical-child b1 {h 'v0})
+          c2 (tb/ast->canonical-child b2 {h 'v0 y 'v1})
+          c3 (tb/ast->canonical-child b3 {h 'v0 y 'v1 z 'v2})
+          impl-left (second c3)
+          impl-right (nth c3 2)
+          tree (tb/flex-tableau-node system target
+                 (tb/flex-tableau-node system p1
+                   (tb/flex-tableau-node system (ast/and-form p2 dk-shape)
+                     (tb/flex-tableau-node system p2
+                       (tb/flex-tableau-node system dk-shape
+                         (tb/canonical-flex-tableau-node system c1
+                           (tb/canonical-flex-tableau-node system c2
+                             (tb/canonical-flex-tableau-node system c3
+                               (tb/canonical-flex-tableau-node system (list 'not impl-left)
+                                 (tb/canonical-flex-tableau-node system
+                                   (list 'neg (second impl-left))))
+                               (tb/canonical-flex-tableau-node system impl-right
+                                 (tb/canonical-flex-tableau-node system
+                                   (list 'neg (second (second impl-right)))))))))))))]
+      (is (tb/valid-tree? system target tree 120)
+          "the depth-3 not-Dk certificate closes by premise clashes on both branches"))))
+
+(deftest real-diagonal-not-dk-tree-constructs
+  ;; The REAL-diagonal instance of the shape above builds cleanly (encoders
+  ;; accept every node, including the canonical gamma children over the real
+  ;; nbar/code(Dk) arguments); its checker envelope is the detached probe's
+  ;; obligation, not an interactive test's.
+  (testing "the real-diagonal not-Dk certificate constructs"
+    (let [[_ target tree] (probe/real-not-dk-case)]
+      (is (seq? tree) "the certificate tree builds")
+      (is (seq? target) "the target formula builds"))))
 
 (deftest ^:slow wrong-premise-leaves-the-universal-open
   ;; ^:slow: a correctly-failing refutation exhausts the closure search.

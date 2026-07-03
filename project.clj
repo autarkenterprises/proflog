@@ -192,6 +192,7 @@
             "probe-proflog-gv" ["run" "-m" "proflog.gv-probe"]
             "probe-proflog-turing-completeness" ["run" "-m" "proflog.turing-completeness-long-probe"]
             "probe-proflog-robinson-q" ["run" "-m" "proflog.robinson-q-probe"]
+            "probe-proflog-not-dk" ["run" "-m" "proflog.sjas-not-dk-probe"]
             "probe-proflog-relational-equality-fragment" ["run" "-m" "proflog.relational-equality-fragment-probe"]
             "print-sjas-selfcons-godel-code" ["run" "-m" "proflog.willard-sjas"]
             "probe-proflog-sjas-boundary-synthesis" ["run" "-m" "proflog.sjas-boundary-synthesis-probe"]

@@ -22,6 +22,36 @@
             [proflog.willard-sjas :as sjas]
             [proflog.willard-sjas-code :as sjas-code]))
 
+(defn ast->canonical-child
+  "Lower an AST formula to canonical child syntax under a binder-name map.
+
+   ADR-0147: gamma/delta child nodes present a parent binder's variable as the
+   canonical `v0`, `v1`, ... payload. This walks an AST formula replacing
+   `(var nom)` occurrences by `(var vK)` per `nom->name`, and lowering each
+   remaining quantifier tie `(forall #Tie{nom body})` to the canonical
+   index-form `(forall vK body)`, assigning further binder names in encounter
+   order continuing from the map (the checker introduces fresh branch noms
+   keyed to branch-environment depth, which matches encounter order). The
+   result feeds `canonical-flex-tableau-node`."
+  [formula nom->name]
+  (letfn [(next-name [m] (symbol (str "v" (count m))))
+          (walk-f [x m]
+            (cond
+              (and (seq? x)
+                   (contains? '#{forall once-forall exists} (first x))
+                   (instance? clojure.core.logic.nominal.Tie (second x)))
+              (let [tie (second x)
+                    nom (.-binding_nom ^clojure.core.logic.nominal.Tie tie)
+                    body (.-body ^clojure.core.logic.nominal.Tie tie)
+                    nm (next-name m)
+                    m' (assoc m nom nm)]
+                (list (first x) nm (walk-f body m')))
+              (and (seq? x) (= 'var (first x)) (contains? m (second x)))
+              (list 'var (m (second x)))
+              (seq? x) (apply list (map #(walk-f % m) x))
+              :else x))]
+    (walk-f formula nom->name)))
+
 (defn formula-code-bytes
   "Formula-code byte payload for `formula` under `system`'s coding context.
 

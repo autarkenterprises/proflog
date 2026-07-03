@@ -11,9 +11,11 @@ the session delivered (i) the **complete construction architecture**, grounded
 line-by-line in the existing checker's semantics rather than in Willard-paper
 paraphrase, (ii) several live-verified mechanical facts, and (iii) a
 **reproducible measured wall** at the real-diagonal scale, with a mechanical
-diagnosis plan. No closure was claimed; no ledger status moved; no code changed
-(docs-only commit). This follows the ADR-0141 lesson: a forced completion would
-have been worse than a truthful map.
+diagnosis plan. No closure was claimed and no ledger status moved. The initial
+checkpoint was a docs-only commit; later same-branch ADR-0147 stages have added
+source and tests, so this AAR should be read as the architecture checkpoint, not
+as the final state of the branch. This follows the ADR-0141 lesson: a forced
+completion would have been worse than a truthful map.
 
 ## What is genuinely new
 
@@ -71,3 +73,15 @@ Stage 1 (diagnose the wall) is the immediate next session: bisect the real
 tree bottom-up (each prefix is independently checkable), distinguish
 mismatch-vs-scale, and land the real-diagonal step-5 tree as a pinned test.
 Stages 2–6 as ordered in the ADR.
+
+## Audit correction
+
+A subsequent audit found three record/guard deficiencies in the post-checkpoint
+branch state. First, commit `0d60252`'s `core.logic.nominal/-suspc` nil guard
+was plausible but lacked an exact committed regression. Second, the
+ADR/AAR text still described ADR-0147 as docs-only after later source stages
+landed. Third, the synthesis-independence helper checked lvar object shape but
+not whether those lvars were still unbound in the live core.logic state. The
+correction patch adds the exact nominal-suspension regression, adds a
+state-aware synthesis guard, and records these criteria in the ADR/interdev
+handoff. These corrections do not close the BOT-closure objective.

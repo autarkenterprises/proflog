@@ -130,3 +130,46 @@ nom-free-ness separately in deep-ground-tag (it already only tags nom-free
 subtrees) and key the swap skip on that meta. Second lever: `ground-tree?`
 should accept already-tagged subtrees without descent (verify; ADR-0090's
 walk* comment claims it, confirm the ext path uses the same skip).
+
+## Stages 1e/1f/1g: nested-gamma certificates close; the ladder's multipliers cut
+
+**1e — recursive binder-renaming.** `sjas-proof-node-formula-matcho`'s binder
+arm previously renamed ONE layer then demanded `==` of the bodies; for nested
+quantifiers that unifies concretely-but-differently-named inner ties, which
+routes through the nominal alpha-suspension machinery (`-do-suspc`/`hash`
+freshness constraints over full code-bearing bodies) at every attempt. The arm
+now recurses the proof-node match per layer (its exact arm subsumes the old
+`==`), so ties never meet the suspension path during certificate matching.
+
+**1f — ground-mode gamma-arm gating.** The quantifier strategy ladder keeps
+redundant gamma arms for proof SEARCH: the env=() arm is a verbatim duplicate
+of the deferred-substitution arm (remove-bindo/subst are identities there), and
+the eager-substitution forall/exists arms accept exactly the ground
+certificates the deferred arm accepts (identical reconciled visible formula).
+On a ground certificate every redundant arm multiplies the residual search per
+nesting level. `structural-proof-valid?` now sets a state-meta ground-check
+flag (`sjas-ground-check-flago`); `sjas-unless-ground-checko` gates the three
+redundant arms off in that mode only. Kernel search/synthesis states never
+carry the flag. Measured (small system, tiny args, implies+two-clash core):
+depth-1 5.1s / depth-2 16.1s / depth-3 74.1s ALL CLOSE — pre-gating, depth-2+
+rejected or timed out. The REAL not-Dk tree's gammas verifiably fire.
+
+**Negative result (reverted):** a matcho ground-equal host-`=` shortcut with
+alpha-arm gating made the depth probes SLOWER (13.9/24.4/116.8) — the deep
+host comparison pays on every call and wins nothing on the non-equal pairs
+that dominate; reverted to the 1e ladder.
+
+**1g — budgeted ext-time tagging (vendored logic.clj).** With the above, the
+real-mass profile showed per-`ext` `ground-tree?`/`ground-tag` scans dominating:
+ADR-0090's tag never amortizes on short-lived mid-search rebuilds. `ground-tag`
+now scans under a 64-node budget (`ground-tree-within?`; tagged subtrees and
+atoms are budget-free, so bottom-up construction still tags every durable
+level; walk*/entry deep-tag still cover durable structures; the tag is an
+optimization hint, so skipping is semantics-free). Post-patch samples show the
+tag-scan frames gone; the real not-Dk run is pure unify/walk/subst churn.
+
+Real not-Dk envelope: >41 min on the pre-1g engine (killed); the budgeted run
+is in flight at this writing. The synthetic depth-3 certificate (the exact
+structure) closes in 74s; the pinned `^:slow` test
+`real-diagonal-not-dk-tree-closes` carries the real tree; the
+`tb/ast->canonical-child` helper is promoted for all further ADR-0147 trees.

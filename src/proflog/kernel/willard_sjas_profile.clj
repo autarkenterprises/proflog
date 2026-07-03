@@ -6681,6 +6681,23 @@
   (list 'and 'or 'not 'implies 'forall 'once-forall 'exists
         'bounded-forall 'bounded-exists))
 
+(defn- sjas-proof-node-distincto
+  "Succeed unless `a` and `b` are structurally identical (ADR-0147 stage 3c;
+   ground construct-and-check only). Gates the binder/compound/alpha matcho
+   arms so they are skipped for an identical pair -- which the exact arm already
+   matches -- removing only duplicate deliveries of the same reconciliation.
+   Outside a ground check (search/synthesis) it always succeeds, preserving the
+   full ladder. The `walk*` short-circuits on the ADR-0090-tagged decoded and
+   target formulas, so the equality is a tag-guided compare, not a blind deep
+   scan."
+  [a b]
+  (fn [state]
+    (if (::ground-check (meta state))
+      (let [wa (logic/walk* state a)
+            wb (logic/walk* state b)]
+        (if (= wa wb) nil state))
+      state)))
+
 (defn- sjas-proof-node-formula-matcho
   "Match a visible branch formula against the formula decoded from a proof node.
   Formula-bearing proof certificates usually contain the exact formula after the
@@ -6701,7 +6718,19 @@
   downstream checker subtree, multiplying per node; restricting literal heads
   to the exact arm removes only duplicate deliveries of identical states —
   answer-set-identical in every mode, including a free proof-node formula.
-  Structured heads keep the original four-arm ladder unchanged."
+  ADR-0147 (stage 3c): the same duplicate-delivery multiplication afflicts
+  STRUCTURED heads, and is the dominant real-mass cost -- for an identical
+  `forall`/`implies`/`and` pair (the construct-and-check norm: canonical
+  children are built from the same shared code-noms the decoder produces) the
+  exact arm, the identity binder-rename, and the reflexive alpha arm all
+  succeed, and fair interleaving explores each, compounding per nesting level
+  (measured: 80 217 matcho calls for a fixed 13-node tree). In ground
+  construct-and-check the exact arm alone handles an IDENTICAL pair; the
+  renaming/alpha arms are gated behind `sjas-proof-node-distincto` so they run
+  only for genuinely non-identical pairs (binder-name or alpha differences),
+  where the exact arm fails anyway. Answer-set-preserving (only duplicate
+  deliveries of the same state are removed); search/synthesis states (no
+  ground-check flag) keep the full four-arm ladder unchanged."
   [visible-formula node-formula]
   (fresh [head tail]
     (== (lcons head tail) visible-formula)
@@ -6710,10 +6739,12 @@
        (sjas-acyclic-unifyo visible-formula node-formula)]
       [(static-table-entryo head proof-node-structured-formula-tags)
        (conde
-         [(sjas-proof-node-binder-renaming-matcho visible-formula node-formula)]
-         [(sjas-proof-node-compound-renaming-matcho visible-formula node-formula)]
          [(sjas-acyclic-unifyo visible-formula node-formula)]
-         [(sjas-ast-alpha-formulao visible-formula node-formula '())])])))
+         [(sjas-proof-node-distincto visible-formula node-formula)
+          (conde
+            [(sjas-proof-node-binder-renaming-matcho visible-formula node-formula)]
+            [(sjas-proof-node-compound-renaming-matcho visible-formula node-formula)]
+            [(sjas-ast-alpha-formulao visible-formula node-formula '())])])])))
 
 (def ^:private total-multiplication-required-beta-bytes
   "Exact Type-M beta bytes shared by source generation and proof checking."

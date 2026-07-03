@@ -20,6 +20,18 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-07-03
+
+- ADR-0147 condition-(A) implementation slice: generated the total-multiplication
+  Level-0 `SemPrf_alpha` SelfCons companion as an extra generated group record
+  (`:group-three-l0`), not reflected beta; added proof-producing and proof-free
+  axiom-member routes and included the companion in generated-group reconstruction
+  for `AxiomConj(s)`. Focused checks: generated companion red->green; L0
+  vacuity pinned as a boundary-blind post-expansion complementary-literal close;
+  measured Level-1 SelfCons remains the primary Group-3 target; ADR-0146 boundary
+  contrast remained green (`lein test-vars proflog.sjas-boundary-contrast-test`,
+  pass=11 fail=0 error=0).
+
 ## 2026-07-02
 
 - ADR-0147 audit correction patch: added the exact `core.logic.nominal/-suspc`

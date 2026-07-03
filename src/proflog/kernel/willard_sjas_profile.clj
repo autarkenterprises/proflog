@@ -3936,6 +3936,74 @@
               group-three-proof)
         proof)))
 
+(defn- sjas-total-multiplication-system-code-headero
+  "Recognize the header of a total-multiplication SJAS system code."
+  [system-bytes proof]
+  (fresh [rest]
+    (== (lcons system-code-tag
+                (lcons system-profile-total-multiplication-tag rest))
+        system-bytes)
+    (== '(sjas-system-total-multiplication-profile) proof)))
+
+(def ^:private semprf-alpha-generated-symbol
+  "Decoded proof-facing head for the profile-local `semprf-alpha` relation.
+
+   Total-multiplication systems declare the whole boundary cluster, so this
+   compacted index matches the global reserved order. The object decoder keeps
+   `semprf-alpha` profile-local and therefore exposes it as `(sym n)`, not as a
+   globally named primitive."
+  (list 'sym (sjas-code/reserved-symbol->index 'semprf-alpha)))
+
+(defn- condition-a-l0-selfcons-internal-formula
+  "Decoded internal form of Willard condition (A) over Level-0 SemPrf_alpha."
+  [system-term contradiction-term p]
+  (list 'forall
+        p
+        (list 'neg
+              (list 'app
+                    semprf-alpha-generated-symbol
+                    (list system-term
+                          contradiction-term
+                          (list 'var p))))))
+
+(defn- condition-a-l0-group-three-formula-for-kindo
+  "Validate the generated Level-0 condition-(A) companion for total multiplication."
+  [kind system-bytes formula proof]
+  (fresh [system-term contradiction-term]
+    (code-kind-internal-termo kind system-bytes system-term)
+    (code-kind-internal-termo kind
+                              tableau0-contradiction-formula-bytes
+                              contradiction-term)
+    (== (condition-a-l0-selfcons-internal-formula system-term
+                                                  contradiction-term
+                                                  1)
+        formula)
+    (== '(sjas-system-total-multiplication-condition-a-l0-axiom) proof)))
+
+(defn- sjas-total-multiplication-l0-group-three-axiom-membero
+  "Cite the total-multiplication Level-0 condition-(A) generated companion."
+  [prog system-code formula-code proof]
+  (fresh [system-bytes system-kind formula-bytes system-read-proof formula-read-proof
+          header-proof formula group-three-proof]
+    (sjas-public-code-byteso system-code
+                             system-bytes
+                             system-kind
+                             system-read-proof)
+    (sjas-public-code-byteso formula-code formula-bytes formula-read-proof)
+    (formula-bytes-forall-rooto formula-bytes)
+    (sjas-total-multiplication-system-code-headero system-bytes header-proof)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (condition-a-l0-group-three-formula-for-kindo system-kind
+                                                 system-bytes
+                                                 formula
+                                                 group-three-proof)
+    (== (list 'sjas-system-group-three-l0-axiom
+              system-read-proof
+              formula-read-proof
+              header-proof
+              group-three-proof)
+        proof)))
+
 (def ^:private tab2-multiplication-cluster-symbols
   "Reserved boundary symbols a Tab-2 system does NOT declare.
 
@@ -5217,6 +5285,61 @@
                                                      group-proof)
         (sjas-proof-antecedent-formula-asto decoded formula))])))
 
+(defn- sjas-system-generated-group-proof-antecedentso
+  ([prog profile-tag system-bytes formulas]
+   (fresh [system-kind]
+     (conde
+       [(== :compact system-kind)]
+       [(== :u-grounding system-kind)])
+     (sjas-system-generated-group-proof-antecedentso prog
+                                                     profile-tag
+                                                     system-kind
+                                                     system-bytes
+                                                     formulas)))
+  ([prog profile-tag system-kind system-bytes formulas]
+   (conde
+     [(fresh [decoded formula group-proof]
+        (== system-profile-tableau0-tag profile-tag)
+        (tableau0-group-three-formula-for-kindo system-kind
+                                                system-bytes
+                                                decoded
+                                                group-proof)
+        (sjas-proof-antecedent-formula-asto decoded formula)
+        (== (list formula) formulas))]
+     [(fresh [level1-decoded l0-decoded level1-formula l0-formula
+              level1-proof l0-proof]
+        (== system-profile-total-multiplication-tag profile-tag)
+        (level1-group-three-formula-for-kindo prog
+                                              system-kind
+                                              system-bytes
+                                              level1-decoded
+                                              level1-proof)
+        (condition-a-l0-group-three-formula-for-kindo system-kind
+                                                     system-bytes
+                                                     l0-decoded
+                                                     l0-proof)
+        (sjas-proof-antecedent-formula-asto level1-decoded level1-formula)
+        (sjas-proof-antecedent-formula-asto l0-decoded l0-formula)
+        (== (list level1-formula l0-formula) formulas))]
+     [(fresh [decoded formula group-proof]
+        (!= system-profile-total-multiplication-tag profile-tag)
+        (sjas-level1-family-profile-tago profile-tag)
+        (level1-group-three-formula-for-kindo prog
+                                              system-kind
+                                              system-bytes
+                                              decoded
+                                              group-proof)
+        (sjas-proof-antecedent-formula-asto decoded formula)
+        (== (list formula) formulas))]
+     [(fresh [decoded formula group-proof]
+        (== system-profile-tab2-boundary-tag profile-tag)
+        (tab2-boundary-group-three-formula-for-kindo system-kind
+                                                     system-bytes
+                                                     decoded
+                                                     group-proof)
+        (sjas-proof-antecedent-formula-asto decoded formula)
+        (== (list formula) formulas))])))
+
 (defn- sjas-system-proof-axiom-formulao
   ([prog system-bytes axiom-formula]
    (fresh [system-kind]
@@ -5230,8 +5353,8 @@
   ([prog system-kind system-bytes axiom-formula]
    (fresh [profile-tag beta-count beta-bytes beta-formulas after-betas
            reflected-count reflected-bytes reflected-formulas reflected-rest
-           fixed-formulas fixed-and-beta beta-and-reflected all-but-group3
-           group-three-formula all-formulas]
+           fixed-formulas fixed-and-beta beta-and-reflected generated-groups
+           all-formulas]
      (== (lcons system-code-tag
                  (lcons profile-tag
                         (lcons beta-count beta-bytes)))
@@ -5265,15 +5388,14 @@
                            (formula-list-appendo fixed-and-beta
                                                  reflected-formulas
                                                  beta-and-reflected)
-                           (sjas-system-group-three-proof-antecedento
+                           (sjas-system-generated-group-proof-antecedentso
                              prog
                              profile-tag
                              system-kind
                              system-bytes
-                             group-three-formula)
-                           (== (list group-three-formula) all-but-group3)
+                             generated-groups)
                            (formula-list-appendo beta-and-reflected
-                                                 all-but-group3
+                                                 generated-groups
                                                  all-formulas)
                            (formula-list-ando all-formulas axiom-formula)))
                        (range sjas-code/byte-base)))))
@@ -5296,6 +5418,10 @@
     [(sjas-reflected-axiom-membero prog system-code formula-code proof)]
     [(sjas-tableau0-group-three-axiom-membero prog system-code formula-code proof)]
     [(sjas-level1-group-three-axiom-membero prog system-code formula-code proof)]
+    [(sjas-total-multiplication-l0-group-three-axiom-membero prog
+                                                             system-code
+                                                             formula-code
+                                                             proof)]
     [(sjas-tab2-boundary-group-three-axiom-membero prog
                                                   system-code
                                                   formula-code
@@ -5452,6 +5578,40 @@
                                           formula
                                           group-three-proof)))
 
+(defn- sjas-total-multiplication-system-code-header-coreo
+  "Proof-free total-multiplication system header recognizer."
+  [system-bytes]
+  (fresh [rest]
+    (== (lcons system-code-tag
+                (lcons system-profile-total-multiplication-tag rest))
+        system-bytes)))
+
+(defn- condition-a-l0-group-three-formula-coreo
+  "Proof-free generated condition-(A) companion reconstruction."
+  [system-bytes formula]
+  (fresh [system-term contradiction-term]
+    (tableau0-group-three-code-termso system-bytes
+                                      system-term
+                                      contradiction-term)
+    (== (condition-a-l0-selfcons-internal-formula system-term
+                                                  contradiction-term
+                                                  1)
+        formula)))
+
+(defn- sjas-total-multiplication-l0-group-three-axiom-member-coreo
+  "Proof-free total-multiplication Level-0 condition-(A) axiom membership."
+  [prog system-code formula-code]
+  (fresh [system-bytes system-kind formula-bytes formula group-three-proof]
+    (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
+    (sjas-public-code-bytes-coreo formula-code formula-bytes)
+    (formula-bytes-forall-rooto formula-bytes)
+    (sjas-total-multiplication-system-code-header-coreo system-bytes)
+    (decode-formula-byteso prog formula-bytes '() formula)
+    (condition-a-l0-group-three-formula-for-kindo system-kind
+                                                 system-bytes
+                                                 formula
+                                                 group-three-proof)))
+
 (defn- sjas-tab2-boundary-system-code-header-coreo
   "Proof-free target-only Tab-2 boundary system header recognizer."
   [system-bytes]
@@ -5607,6 +5767,9 @@
     [(sjas-reflected-axiom-member-coreo prog system-code formula-code)]
     [(sjas-tableau0-group-three-axiom-member-coreo prog system-code formula-code)]
     [(sjas-level1-group-three-axiom-member-coreo prog system-code formula-code)]
+    [(sjas-total-multiplication-l0-group-three-axiom-member-coreo prog
+                                                                  system-code
+                                                                  formula-code)]
     [(sjas-tab2-boundary-group-three-axiom-member-coreo prog
                                                        system-code
                                                        formula-code)]))
@@ -5713,6 +5876,33 @@
        (tab2-boundary-group-three-formula-coreo system-bytes decoded)
        (sjas-proof-antecedent-formula-asto decoded formula))]))
 
+(defn- sjas-system-generated-group-proof-antecedents-coreo
+  "Proof-free generated-group antecedent list reconstruction."
+  [prog profile-tag system-bytes formulas]
+  (conde
+    [(fresh [formula]
+       (== system-profile-tableau0-tag profile-tag)
+       (tableau0-group-three-proof-antecedent-coreo system-bytes formula)
+       (== (list formula) formulas))]
+    [(fresh [level1-decoded l0-decoded level1-formula l0-formula]
+       (== system-profile-total-multiplication-tag profile-tag)
+       (level1-group-three-formula-coreo prog system-bytes level1-decoded)
+       (condition-a-l0-group-three-formula-coreo system-bytes l0-decoded)
+       (sjas-proof-antecedent-formula-asto level1-decoded level1-formula)
+       (sjas-proof-antecedent-formula-asto l0-decoded l0-formula)
+       (== (list level1-formula l0-formula) formulas))]
+    [(fresh [decoded formula]
+       (!= system-profile-total-multiplication-tag profile-tag)
+       (sjas-level1-family-profile-tago profile-tag)
+       (level1-group-three-formula-coreo prog system-bytes decoded)
+       (sjas-proof-antecedent-formula-asto decoded formula)
+       (== (list formula) formulas))]
+    [(fresh [decoded formula]
+       (== system-profile-tab2-boundary-tag profile-tag)
+       (tab2-boundary-group-three-formula-coreo system-bytes decoded)
+       (sjas-proof-antecedent-formula-asto decoded formula)
+       (== (list formula) formulas))]))
+
 (defn- sjas-system-group-three-proof-antecedent-for-code-coreo
   "Proof-free Group-3 antecedent reconstruction using the presented system code."
   [prog profile-tag system-code system-bytes formula]
@@ -5739,14 +5929,61 @@
                                                     group-proof)
        (sjas-proof-antecedent-formula-asto decoded formula))]))
 
+(defn- sjas-system-generated-group-proof-antecedents-for-code-coreo
+  "Proof-free generated-group antecedent list using the presented system code."
+  [prog profile-tag system-code system-bytes formulas]
+  (conde
+    [(fresh [formula]
+       (== system-profile-tableau0-tag profile-tag)
+       (tableau0-group-three-proof-antecedent-for-code-coreo system-code
+                                                             system-bytes
+                                                             formula)
+       (== (list formula) formulas))]
+    [(fresh [system-kind level1-decoded l0-decoded level1-formula l0-formula
+             level1-proof l0-proof]
+       (== system-profile-total-multiplication-tag profile-tag)
+       (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
+       (level1-group-three-formula-for-kindo prog
+                                             system-kind
+                                             system-bytes
+                                             level1-decoded
+                                             level1-proof)
+       (condition-a-l0-group-three-formula-for-kindo system-kind
+                                                    system-bytes
+                                                    l0-decoded
+                                                    l0-proof)
+       (sjas-proof-antecedent-formula-asto level1-decoded level1-formula)
+       (sjas-proof-antecedent-formula-asto l0-decoded l0-formula)
+       (== (list level1-formula l0-formula) formulas))]
+    [(fresh [decoded formula system-kind group-proof]
+       (!= system-profile-total-multiplication-tag profile-tag)
+       (sjas-level1-family-profile-tago profile-tag)
+       (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
+       (level1-group-three-formula-for-kindo prog
+                                             system-kind
+                                             system-bytes
+                                             decoded
+                                             group-proof)
+       (sjas-proof-antecedent-formula-asto decoded formula)
+       (== (list formula) formulas))]
+    [(fresh [decoded formula system-kind group-proof]
+       (== system-profile-tab2-boundary-tag profile-tag)
+       (sjas-public-code-bytes-coreo system-code system-bytes system-kind)
+       (tab2-boundary-group-three-formula-for-kindo system-kind
+                                                    system-bytes
+                                                    decoded
+                                                    group-proof)
+       (sjas-proof-antecedent-formula-asto decoded formula)
+       (== (list formula) formulas))]))
+
 (defn- sjas-system-proof-axiom-formula-coreo
   "Proof-free reconstruction of the finite axiom conjunction used by
    `tableau-proof/3` and `subst-prf/4`."
   ([prog system-bytes axiom-formula]
    (fresh [profile-tag beta-count beta-bytes beta-formulas after-betas
            reflected-count reflected-bytes reflected-formulas reflected-rest
-           fixed-formulas fixed-and-beta beta-and-reflected all-but-group3
-           group-three-formula all-formulas]
+           fixed-formulas fixed-and-beta beta-and-reflected generated-groups
+           all-formulas]
      (== (lcons system-code-tag
                  (lcons profile-tag
                         (lcons beta-count beta-bytes)))
@@ -5780,14 +6017,13 @@
                            (formula-list-appendo fixed-and-beta
                                                  reflected-formulas
                                                  beta-and-reflected)
-                           (sjas-system-group-three-proof-antecedent-coreo
+                           (sjas-system-generated-group-proof-antecedents-coreo
                              prog
                              profile-tag
                              system-bytes
-                             group-three-formula)
-                           (== (list group-three-formula) all-but-group3)
+                             generated-groups)
                            (formula-list-appendo beta-and-reflected
-                                                 all-but-group3
+                                                 generated-groups
                                                  all-formulas)
                            (formula-list-ando all-formulas axiom-formula)))
                        (range sjas-code/byte-base)))))
@@ -5795,8 +6031,8 @@
   ([prog system-code system-bytes axiom-formula]
    (fresh [profile-tag beta-count beta-bytes beta-formulas after-betas
            reflected-count reflected-bytes reflected-formulas reflected-rest
-           fixed-formulas fixed-and-beta beta-and-reflected all-but-group3
-           group-three-formula all-formulas]
+           fixed-formulas fixed-and-beta beta-and-reflected generated-groups
+           all-formulas]
      (== (lcons system-code-tag
                  (lcons profile-tag
                         (lcons beta-count beta-bytes)))
@@ -5830,15 +6066,14 @@
                            (formula-list-appendo fixed-and-beta
                                                  reflected-formulas
                                                  beta-and-reflected)
-                           (sjas-system-group-three-proof-antecedent-for-code-coreo
+                           (sjas-system-generated-group-proof-antecedents-for-code-coreo
                              prog
                              profile-tag
                              system-code
                              system-bytes
-                             group-three-formula)
-                           (== (list group-three-formula) all-but-group3)
+                             generated-groups)
                            (formula-list-appendo beta-and-reflected
-                                                 all-but-group3
+                                                 generated-groups
                                                  all-formulas)
                            (formula-list-ando all-formulas axiom-formula)))
                        (range sjas-code/byte-base)))))

@@ -555,6 +555,26 @@
         node))
     formula))
 
+(def ^:private semprf-alpha-decoded-head
+  (list 'sym (sjas-code/reserved-symbol->index 'semprf-alpha)))
+
+(defn- proof-facing-semprf-alpha-heads
+  "Mirror proof-facing formula-code decoding for profile-local SemPrf_alpha.
+
+   Source formulas are encoded with the host symbol `semprf-alpha`, but the
+   proof checker decodes that profile-local relation head as `(sym n)`. Tests
+   that call the structural checker directly must therefore pass a decoded
+   target while still encoding proof nodes from the source formula bytes."
+  [formula]
+  (walk/postwalk
+    (fn [node]
+      (if (and (seq? node)
+               (= 'app (first node))
+               (= 'semprf-alpha (second node)))
+        (apply list 'app semprf-alpha-decoded-head (nnext node))
+        node))
+    formula))
+
 (declare decoded-formula->canonical)
 
 (defn- decoded-term->canonical
@@ -729,44 +749,60 @@
     {:target proof-target
      :proof proof}))
 
-(defn- selfcons-core-formula-bearing-proof
-  "Build the minimal Group-3/negated-SelfCons tableau core.
+(defn- selfcons-core-formula-bearing-proof-from
+  "Build the minimal positive-SelfCons/negated-SelfCons tableau core.
 
    This strips away `AxiomConj(s)` so focused tests can distinguish quantifier
-   and literal-closure failures from agenda-selection failures over the full
-   system antecedent."
-  [system]
-  (let [axiom-formula (:axiom-formula system)
-        selfcons (:formula (:group-three system))
-        neg-selfcons (normalize/negate-formula selfcons)
-        group-three-antecedent (last (conjunction-leaves axiom-formula))
-        group-three-binding (:binding-nom (second group-three-antecedent))
-        neg-selfcons-binding (:binding-nom (second neg-selfcons))
+   and literal-closure failures from agenda-selection failures over a full
+   system antecedent. Callers may pass the profile's primary Group-3 sentence or
+   another generated companion SelfCons sentence when checking vacuous target
+   shapes."
+  [system source-positive source-neg target-positive target-neg]
+  (let [group-three-binding (:binding-nom (second source-positive))
+        neg-selfcons-binding (:binding-nom (second source-neg))
         saved-neg-atom (replace-var-term
-                         (:body (second group-three-antecedent))
+                         (:body (second source-positive))
                          group-three-binding
                          (list 'var 'v0))
 	        closing-pos-atom (replace-var-term
-	                           (:body (second neg-selfcons))
+	                           (:body (second source-neg))
 	                           neg-selfcons-binding
 	                           (list 'par 'v0))
-        target (ast/and-form group-three-antecedent neg-selfcons)]
+        source-target (ast/and-form source-positive source-neg)
+        target (ast/and-form target-positive target-neg)]
     {:target target
      :proof (structural-flex-tableau-node
               system
-              target
+              source-target
               (structural-flex-tableau-node
                 system
-                group-three-antecedent
+                source-positive
                 (canonical-structural-flex-tableau-node
                   system
                   saved-neg-atom
                   (structural-flex-tableau-node
                     system
-                    neg-selfcons
+                    source-neg
                     (canonical-structural-flex-tableau-node
                       system
                       closing-pos-atom)))))}))
+
+(defn- selfcons-core-formula-bearing-proof-for
+  [system selfcons]
+  (let [neg-selfcons (normalize/negate-formula selfcons)]
+    (selfcons-core-formula-bearing-proof-from
+      system
+      selfcons
+      neg-selfcons
+      selfcons
+      neg-selfcons)))
+
+(defn- selfcons-core-formula-bearing-proof
+  "Build the minimal Group-3/negated-SelfCons tableau core."
+  [system]
+  (selfcons-core-formula-bearing-proof-for
+    system
+    (:formula (:group-three system))))
 
 (defn- selfcons-object-targeto
   "Reconstruct the object-level SelfCons tableau target inside the logic query."
@@ -1268,6 +1304,132 @@
                   '#{finax4 willard-map semprfk-alpha semprf-alpha lt}))
       (is (not= v4 v5)
           "V4 descent and V5 contradiction extraction must remain distinct route axioms"))))
+
+(defn- condition-a-l0-record
+  [system]
+  (first (filter #(= :group-three-l0 (:group %)) (:axioms system))))
+
+(defn- total-multiplication-condition-a-test-system
+  [beta]
+  (sjas/system
+    {:profile :willard-sjas-total-multiplication
+     :relations sjas/total-multiplication-willard-relations
+     :functions (merge {'pow 2} sjas/total-multiplication-functions)
+     :beta beta
+     :code-format :u-grounding}))
+
+(deftest sjas-total-multiplication-generates-condition-a-l0-companion
+  (testing "condition (A) is generated from system-code on both boundary sides, not reflected beta"
+    (doseq [[side system] [[:addition-only
+                            (total-multiplication-condition-a-test-system
+                              [(demo-beta)])]
+                           [:mul-total
+                            (total-multiplication-condition-a-test-system
+                              (vec (cons (demo-beta)
+                                         (sjas/total-multiplication-complete-axioms))))]]]
+      (let [records (filter #(= :group-three-l0 (:group %)) (:axioms system))
+            record (first records)
+            axiom-member-coreo (var-get #'sjas-profile/sjas-axiom-member-coreo)
+            l0-member-coreo
+            (var-get #'sjas-profile/sjas-total-multiplication-l0-group-three-axiom-member-coreo)]
+        (is (= 1 (count records))
+            (str side " must receive exactly one generated Level-0 condition-(A) companion"))
+        (when record
+          (let [formula (:formula record)
+                body (:body (second formula))
+                atom (second body)]
+            (is (= 'forall (ast/tag-of formula)))
+            (is (= 'neg (ast/tag-of body))
+                "the L0 companion is forall p. not SemPrf_alpha(...)")
+            (is (= 'semprf-alpha (second atom)))
+            (is (= (:system-code system) (nth atom 2))
+                "the generated sentence must embed this system's public code")
+            (is (= (:contradiction-code system) (nth atom 3))
+                "condition (A) targets the same BOT code as the generated system")
+            (is (not= (:code record) (:code (:group-three system)))
+                "the companion is separate from the primary measured Level-1 Group-3 record")
+            (is (empty?
+                  (filter #(and (= :group-two (:group %))
+                                (= (:code record) (:code %)))
+                          (:axioms system)))
+                "condition (A) must not be encoded as reflected beta")
+            (is (successful?
+                  (l/run 1 [q]
+                    (axiom-member-coreo (:program system)
+                                        (:system-code system)
+                                        (:code record))
+                    (l/== true q)))
+                "public axiom membership must reconstruct the L0 companion from the encoded tuple")
+            (is (successful?
+                  (l/run 1 [q]
+                    (l0-member-coreo (:program system)
+                                     (:system-code system)
+                                     (:code record))
+                    (l/== true q)))
+                "the dedicated generated L0 branch must accept the public system/formula tuple")))))))
+
+(deftest sjas-condition-a-l0-vacuity-is-boundary-blind
+  (testing "the L0-refutation target is a pinned vacuous target, not the boundary demonstration"
+    (let [literal-close-coreo
+          (var-get #'sjas-profile/sjas-complementary-lit-close-coreo)]
+      (doseq [[side system] [[:addition-only
+                              (total-multiplication-condition-a-test-system
+                                [(demo-beta)])]
+                             [:mul-total
+                              (total-multiplication-condition-a-test-system
+                                (vec (cons (demo-beta)
+                                           (sjas/total-multiplication-complete-axioms))))]]]
+        (let [record (condition-a-l0-record system)]
+          (is record (str side " must expose the generated L0 companion"))
+          (when record
+            (let [source-l0 (:formula record)
+                  source-neg-l0 (normalize/negate-formula source-l0)
+                  l0-binding (:binding-nom (second source-l0))
+                  neg-binding (:binding-nom (second source-neg-l0))
+                  saved-negative (proof-facing-semprf-alpha-heads
+                                   (replace-var-term
+                                     (:body (second source-l0))
+                                     l0-binding
+                                     (list 'var 'v0)))
+                  closing-positive (proof-facing-semprf-alpha-heads
+                                     (replace-var-term
+                                       (:body (second source-neg-l0))
+                                       neg-binding
+                                       (list 'par 'v0)))]
+              (is (successful?
+                    (l/run 1 [q]
+                      (l/fresh [sigma-out]
+                        (literal-close-coreo closing-positive
+                                             (list saved-negative)
+                                             '()
+                                             sigma-out)
+                        (l/== true q))
+                      (l/== true q)))
+                  (str side " closes the expanded L0 SelfCons/not-L0 complementary literals; this is boundary-blind")))))))))
+
+(deftest sjas-condition-a-does-not-make-level1-selfcons-vacuous
+  (testing "adding L0 condition (A) does not make the measured L1 target a syntactic clash"
+    (doseq [[side system] [[:addition-only
+                            (total-multiplication-condition-a-test-system
+                              [(demo-beta)])]
+                           [:mul-total
+                            (total-multiplication-condition-a-test-system
+                              (vec (cons (demo-beta)
+                                         (sjas/total-multiplication-complete-axioms))))]]]
+      (let [level1-selfcons (:formula (:group-three system))
+            neg-level1-selfcons (normalize/negate-formula level1-selfcons)
+            level1-relations (set (formula-relation-symbols level1-selfcons))
+            neg-level1-relations (set (formula-relation-symbols neg-level1-selfcons))]
+        (is (= :group-three (-> system :group-three :group))
+            (str side " keeps the measured Level-1 sentence as the primary Group-3 record"))
+        (is (contains? level1-relations 'dsjas-subst-prf)
+            "the measured target is still the Level-1 substitution-proof sentence")
+        (is (contains? neg-level1-relations 'dsjas-subst-prf)
+            "negating the measured target produces substitution-proof witnesses")
+        (is (not (contains? level1-relations 'semprf-alpha))
+            (str side " primary SelfCons must not be rewritten to Level-0 SemPrf_alpha"))
+        (is (not (contains? neg-level1-relations 'semprf-alpha))
+            (str side " negated measured SelfCons has no SemPrf_alpha witness for the L0 clash"))))))
 
 (deftest sjas-adr0142-paradox-bounds-witness-below-z
   (testing "Willard 2002 Equation (12) Paradox quantifies its witness as exists d<z"

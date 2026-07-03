@@ -1219,6 +1219,22 @@
                       contradiction-code
                       (ast/var-term p))))))
 
+(defn- selfcons-l0-semprf-alpha-formula
+  "Willard condition (A) in the Level-0 semantic-proof vocabulary.
+
+   This is generated after the encoded source exists, like the Tableau-0
+   SelfCons sentence, because it embeds `code(alpha)`. It must therefore remain
+   a generated group companion rather than a reflected beta axiom."
+  [system-code contradiction-code]
+  (let [p (nominal/nom (lvar 'p))]
+    (ast/forall-form
+      p
+      (ast/neg-lit
+        (ast/app-term 'semprf-alpha
+                      system-code
+                      contradiction-code
+                      (ast/var-term p))))))
+
 (defn- selfcons1-formula
   "Willard 2013 sentence (7) with `Pair(x,y)` encoded as the conjunction of
    the reserved atoms `pi-star-1-code(x)` and `neg-pair(x,y)`: the Level-1
@@ -1397,6 +1413,23 @@
     (throw (ex-info "Unsupported Willard SJAS profile"
                     {:profile profile}))))
 
+(defn- generated-group-companion-records
+  "Return generated SelfCons companions beyond the primary Group-3 record."
+  [profile coding-context system-code contradiction-code code-format]
+  (case profile
+    :willard-sjas-total-multiplication
+    (let [formula (selfcons-l0-semprf-alpha-formula system-code
+                                                    contradiction-code)]
+      [{:group :group-three-l0
+        :formula formula
+        :code (formula-code-term coding-context
+                                 formula
+                                 {}
+                                 code-format)
+        :selfcons-level :level-0
+        :selfcons-kind :semprf-alpha}])
+    []))
+
 (defn- axiom-records
   [profile coding-context system-code contradiction-code code-format beta reflected-clauses]
   (let [grouped (concat
@@ -1417,8 +1450,13 @@
                                    coding-context
                                    system-code
                                    contradiction-code
-                                   code-format)]
-    (vec (concat initial [group3]))))
+                                   code-format)
+        companions (generated-group-companion-records profile
+                                                     coding-context
+                                                     system-code
+                                                     contradiction-code
+                                                     code-format)]
+    (vec (concat initial [group3] companions))))
 
 (defn- compile-language
   [profile extra-relations constants extra-functions code-format]

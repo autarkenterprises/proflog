@@ -8291,24 +8291,53 @@
                                                 node-formula
                                                 children)))
 
+(defn- sjas-proof-head-compatibleo
+  "Prune an agenda candidate whose top formula tag cannot match the decoded
+   proof-node formula's tag (ADR-0147 stage 3; ground construct-and-check only).
+
+   `sjas-proof-node-formula-matcho` never matches two formulas with different
+   top tags -- every arm (binder renaming, compound renaming, exact unify,
+   alpha) fixes the head -- so a candidate whose head differs from the ground
+   node formula's head is certain to be rejected by the decoded checker, but
+   only AFTER a full descent that walks/renames the candidate's code-bearing
+   body and breeds tie suspensions. Failing it here is answer-set-preserving
+   and O(1) (substitution preserves a formula's head tag, so the raw candidate
+   head equals its post-subst visible head). Fires only when the run is a
+   ground check and BOTH heads are already concrete symbols; search/synthesis
+   states, and a not-yet-decoded node formula, fall through unchanged."
+  [node-formula selected]
+  (fn [state]
+    (if (::ground-check (meta state))
+      (let [nf (logic-protocols/walk state node-formula)
+            sf (logic-protocols/walk state selected)]
+        (if (and (seq? nf) (seq? sf)
+                 (symbol? (first nf)) (symbol? (first sf))
+                 (not= (first nf) (first sf)))
+          nil
+          state))
+      state)))
+
 (defn- sjas-proof-guided-selecto
   "Select a branch formula candidate with its saved branch environment.
 
    The structural checker immediately validates the selected formula against the
-   decoded proof-node formula. Keeping selection proof-node-blind avoids repeating
-   the same large formula substitution and match before every decoded rule check,
-   while remaining an ordinary relational list selection.
+   decoded proof-node formula. In ground construct-and-check the candidate is
+   pruned by `sjas-proof-head-compatibleo` when its top tag cannot match the
+   node formula's -- an O(1) cut of the descent that otherwise breeds tie
+   suspensions before failing. Selection is otherwise an ordinary relational
+   list selection.
    "
-  [_node-formula env formulas selected selected-env remaining]
+  [node-formula env formulas selected selected-env remaining]
   (fresh [head tail head-formula head-env]
     (== (lcons head tail) formulas)
     (sjas-agenda-entryo env head head-formula head-env)
     (conde
       [(== head-formula selected)
        (== head-env selected-env)
-       (== tail remaining)]
+       (== tail remaining)
+       (sjas-proof-head-compatibleo node-formula selected)]
       [(fresh [tail-selected tail-selected-env tail-remaining]
-         (sjas-proof-guided-selecto _node-formula
+         (sjas-proof-guided-selecto node-formula
                                     env
                                     tail
                                     tail-selected

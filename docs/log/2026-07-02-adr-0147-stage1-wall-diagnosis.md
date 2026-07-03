@@ -173,3 +173,40 @@ is in flight at this writing. The synthetic depth-3 certificate (the exact
 structure) closes in 74s; the pinned `^:slow` test
 `real-diagonal-not-dk-tree-closes` carries the real tree; the
 `tb/ast->canonical-child` helper is promoted for all further ADR-0147 trees.
+
+## Stage 3 (2026-07-03): the 58K wall root-caused, cut 5x, mid-scale unblocked; real-mass is memory-bound
+
+**3a head-guard (commit ba0d9f5):** guided-selecto prunes agenda candidates
+whose top tag can't match the decoded node (ground-check only; sound -- matcho
+fixes the head on every arm). L1 premise-clash 34.1->24.2s; depth-3 mixed.
+Kept (helps the premise-clash shape the final four-premise refutation uses).
+
+**Instrumented root cause (fixed 13-node depth-3 tree):** decoded-checker
+entered 58,138x, matcho 80,217x, but the clash search is CHEAP (atom-unify
+1,606x). The multiplier is matcho REDUNDANT DELIVERY: for an identical
+structured pair (forall/implies/and -- the construct-and-check norm) the exact
++ identity-binder-rename + reflexive-alpha arms ALL succeed, and fair mplus
+interleaving explores each, compounding per nesting level. ADR-0145 deduped
+literal heads but left the structured ladder.
+
+**3c structured-head dedup (commit a7fe30c, gate 1460/0/0):**
+sjas-proof-node-distincto (ground-check only) gates binder/compound/alpha
+behind a non-identity check -> exact-arm-alone for identical pairs.
+Answer-set-preserving. MEASURED: decoded-checker 58,138->11,583 (5x); matcho
+->11,971 (~1x/entry); tiny 83->24.8s. **16-byte-arg depth-3, which OOM'd every
+heap before, CLOSES in 158.7s in a ~3GB working set -- mid-scale unblocked.**
+
+**Real-mass (47/96-byte) status: MEMORY-BOUND on this 15GB machine.** The real
+Dk formula is ~7,749 app nodes (it embeds the system code) and appears at
+P1/P2/dk/gamma-children; the residual ~11,583-state search keeps many live
+branch-substitutions each referencing giant formulas, so the working set
+exceeds available RAM (killed at 6.3GB RSS climbing, only ~7.5GB usable after
+baseline). 16-byte fits (3GB) because its formulas are small; 96-byte does not.
+
+**What closes it (own stage, soundness-critical):** reduce SIMULTANEOUS search
+breadth so the giant-formula branches don't co-exist -- depth-first / ground-
+mode committed choice, which needs a rule/clash PARTITION proof (each ground
+node admits one rule; each leaf one clash target -- true for these trees but
+must be proven) OR guaranteed formula sharing (no per-branch rebuild of the
+embedded codes). The step-5 MECHANISM is validated end-to-end at mid-scale;
+the real instance awaits this breadth/memory stage.

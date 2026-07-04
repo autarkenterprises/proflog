@@ -174,7 +174,8 @@
             "test-proflog-sjas-slow" ["test"
                                       ":slow"
                                       "proflog.willard-sjas-test"
-                                      "proflog.sjas-not-dk-qdisproof-test"]
+                                      "proflog.sjas-not-dk-qdisproof-test"
+                                      "proflog.sjas-step4-bot-core-test"]
             "test-proflog-legacy-subsumption" ["test"
                                                "proflog.legacy-subsumption-test"]
             "test-proflog-constructor-recursive" ["test"

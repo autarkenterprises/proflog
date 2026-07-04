@@ -20,6 +20,18 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-07-04
+
+- ADR-0147 real BOT-core replay: incorporated the Claude step-4 continuation
+  into branch `adr-0147-claude-step1-tree`; made the real diagonal probe
+  explicit-only; added deterministic replay inside the public structural checker
+  that decodes actual proof-node bytes and replays branch state before falling
+  back to the relational checker. Result: the real `D*` formula closes against a
+  concrete `SemPrf^k(code(Dk),p,bound)` premise under `-Xmx2g`. This is not the
+  full Theorem 2.3 closure; the remaining obligation is constructing the bounded
+  proof premise for `Dk`. See
+  [ADR-0147 real BOT-core replay](docs/log/2026-07-04-adr-0147-real-bot-core-replay.md).
+
 ## 2026-07-03
 
 - ADR-0147 condition-(A) implementation slice: generated the total-multiplication

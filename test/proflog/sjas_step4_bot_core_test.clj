@@ -14,3 +14,9 @@
     (let [{:keys [system target tree fuel]} (:concrete-p2 (probe/step4-cases))]
       (is (tb/valid-tree? system target tree fuel)
           "the public encoded proof tree closes D-star against a concrete bounded-proof premise"))))
+
+(deftest ^:slow real-diagonal-dstar-closes-against-concrete-bounded-proof-premise
+  (testing "the real Theorem 2.3 D-star formula closes against a concrete SemPrf^k premise"
+    (let [{:keys [system target tree fuel]} (probe/real-concrete-p2-case)]
+      (is (tb/valid-tree? system target tree fuel)
+          "the public encoded proof tree closes the real D-star formula against a concrete bounded-proof premise"))))

@@ -12,12 +12,16 @@
    This pins the exact boundary: the BOT contradiction is executable GIVEN the
    fixed-point proof P2 (premise-clash), while DERIVING P2 (proving Dk universally
    = step 4) is the one place that needs the exists-delta construct-and-check fix.
-   Run: lein run -m proflog.sjas-step4-probe"
+   Default run covers only the small concrete case. `exists` runs the known
+   construct-and-check gap. `all` runs those two bounded cases. `real` runs the
+   real diagonal concrete premise case and must be launched only through the
+   durable Proflog runner with a heap cap."
   (:require [clojure.core.logic :as l]
             [clojure.core.logic.nominal :as nominal]
             [proflog.ast :as ast]
             [proflog.sjas-tree-builder :as tb]
-            [proflog.willard-sjas :as sjas]))
+            [proflog.willard-sjas :as sjas]
+            [proflog.willard-sjas-code :as sjas-code]))
 
 (defn- tie-body [t] (.-body ^clojure.core.logic.nominal.Tie t))
 
@@ -91,17 +95,72 @@
                  :tree treeS
                  :fuel 400}}))
 
+(defn real-concrete-p2-case
+  "Concrete BOT-core case over the real Theorem 2.3 diagonal code.
+
+   This still treats the bounded proof premise as an assumed concrete literal;
+   it does not construct the proof code for Dk. The point is narrower and
+   executable: once a public proof code is present, the real D-star formula
+   closes against that concrete SemPrf^k premise through ordinary tableau
+   expansion and saved-literal closure."
+  []
+  (let [system (mul+pow-system)
+        diag (sjas/theorem23-diagonal system sjas/one)
+        dk-code (:diagonal-code diag)
+        y (nominal/nom (l/lvar 'real-y))
+        z (nominal/nom (l/lvar 'real-z))
+        semk (fn [proof bound]
+               (sjas/semprfk-alpha (:system-code system)
+                                   sjas/one
+                                   dk-code
+                                   proof
+                                   bound))
+        dstar (ast/forall-form y
+                (ast/forall-form z
+                  (ast/not-form
+                    (semk (ast/var-term y) (ast/var-term z)))))
+        cert (sjas/proof-certificate 'sjas-axiom {:code-format :u-grounding})
+        cert-value (sjas-code/bytes->u-grounding-code-value
+                     (sjas-code/u-grounding-code-term-bytes cert))
+        bound (ast/app-term 'pow (sjas/numeral 2) (sjas/numeral (inc cert-value)))
+        p2 (semk cert bound)
+        target (ast/and-form p2 dstar)
+        b1 (tie-body (second dstar))
+        b2 (tie-body (second b1))
+        c1 (tb/ast->canonical-child b1 {y 'v0})
+        c2 (tb/ast->canonical-child b2 {y 'v0 z 'v1})
+        c3 (list 'neg (second (second c2)))
+        tree (tb/flex-tableau-node system target
+               (tb/flex-tableau-node system p2
+                 (tb/flex-tableau-node system dstar
+                   (tb/canonical-flex-tableau-node system c1
+                     (tb/canonical-flex-tableau-node system c2
+                       (tb/canonical-flex-tableau-node system c3))))))]
+    {:label :REAL-CLOSURE-Dstar-and-concrete-P2
+     :system system
+     :target target
+     :tree tree
+     :fuel 400}))
+
 (defn run-case! [{:keys [label system target tree fuel]}]
   (timed-valid-tree? label system target tree fuel))
 
 (defn -main [& args]
   (let [{:keys [concrete-p2 exists-p2]} (step4-cases)
+        real-concrete-p2 (delay (real-concrete-p2-case))
         requested (set args)]
     (cond
       (contains? requested "all")
       (do
         (run-case! concrete-p2)
         (run-case! exists-p2))
+
+      (contains? requested "real")
+      (do
+        (println :real-case-warning
+                 "Run only through proflog-test-runner with timeout and JVM heap cap.")
+        (flush)
+        (run-case! @real-concrete-p2))
 
       (contains? requested "exists")
       (run-case! exists-p2)

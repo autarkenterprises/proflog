@@ -8710,6 +8710,531 @@
                              fuel
                              proof)))
 
+(declare sjas-host-internal-term->ast
+         sjas-host-internal-formula->ast)
+
+(defn- sjas-host-code-nom
+  [idx]
+  (sjas-code/code-nom idx))
+
+(defn- sjas-host-converted-list
+  [convert xs]
+  (let [converted (mapv convert xs)]
+    (when (every? some? converted)
+      (apply list converted))))
+
+(defn- sjas-host-internal-term->ast
+  "Pure AST conversion for an internal proof-decoded term.
+
+   The relational decoder reifies nominal constants when a value leaves `run`.
+   Host replay must preserve the shared code-nom objects used by the target
+   branch, so it converts the reified internal index tree itself instead of
+   asking core.logic to return an AST containing noms."
+  [term]
+  (case (ast/tag-of term)
+    var (when-let [nom (sjas-host-code-nom (second term))]
+          (ast/var-term nom))
+    par (when-let [nom (sjas-host-code-nom (second term))]
+          (ast/par-term nom))
+    app (when-let [args (sjas-host-converted-list sjas-host-internal-term->ast
+                                                  (nth term 2))]
+          (apply ast/app-term (second term) args))
+    num (sjas-code/binary-numeral-term
+          (sjas-code/bytes->natural (second term)))
+    code (sjas-code/bytes->code-term (second term))
+    nil))
+
+(defn- sjas-host-internal-quantifier->ast
+  [ast-tag formula]
+  (let [[_ idx body] formula]
+    (when-let [nom (sjas-host-code-nom idx)]
+      (when-let [body-ast (sjas-host-internal-formula->ast body)]
+        (list ast-tag (nominal/tie nom body-ast))))))
+
+(defn- sjas-host-internal-bounded-quantifier->ast
+  [ast-tag formula]
+  (let [[_ idx bound body] formula]
+    (when-let [nom (sjas-host-code-nom idx)]
+      (when-let [bound-ast (sjas-host-internal-term->ast bound)]
+        (when-let [body-ast (sjas-host-internal-formula->ast body)]
+          (list ast-tag
+                (nominal/tie nom {:bound bound-ast :body body-ast})))))))
+
+(defn- sjas-host-internal-formula->ast
+  "Pure AST conversion for internal proof-decoded formulas."
+  [formula]
+  (case (ast/tag-of formula)
+    true formula
+    false formula
+    pos (when-let [term (sjas-host-internal-term->ast (second formula))]
+          (ast/pos-lit term))
+    neg (when-let [term (sjas-host-internal-term->ast (second formula))]
+          (ast/neg-lit term))
+    eq (when-let [left (sjas-host-internal-term->ast (second formula))]
+         (when-let [right (sjas-host-internal-term->ast (nth formula 2))]
+           (ast/eq-lit left right)))
+    neq (when-let [left (sjas-host-internal-term->ast (second formula))]
+          (when-let [right (sjas-host-internal-term->ast (nth formula 2))]
+            (ast/neq-lit left right)))
+    and (when-let [left (sjas-host-internal-formula->ast (second formula))]
+          (when-let [right (sjas-host-internal-formula->ast (nth formula 2))]
+            (ast/and-form left right)))
+    or (when-let [left (sjas-host-internal-formula->ast (second formula))]
+         (when-let [right (sjas-host-internal-formula->ast (nth formula 2))]
+           (ast/or-form left right)))
+    not (when-let [body (sjas-host-internal-formula->ast (second formula))]
+          (ast/not-form body))
+    implies (when-let [left (sjas-host-internal-formula->ast (second formula))]
+              (when-let [right (sjas-host-internal-formula->ast (nth formula 2))]
+                (ast/implies-form left right)))
+    forall (sjas-host-internal-quantifier->ast 'forall formula)
+    once-forall (sjas-host-internal-quantifier->ast 'once-forall formula)
+    exists (sjas-host-internal-quantifier->ast 'exists formula)
+    bounded-forall (sjas-host-internal-bounded-quantifier->ast 'bounded-forall formula)
+    bounded-exists (sjas-host-internal-bounded-quantifier->ast 'bounded-exists formula)
+    nil))
+
+(defn- sjas-host-decode-proof-formula
+  "Decode one public proof-node formula byte list to the checker's AST.
+
+   This helper deliberately starts from the public proof-node payload, not from a
+   source AST rebuilt by the host. It uses the same proof-facing byte decoder as
+   `formula-bearing-proof-node-with-byteso`, then returns ordinary Clojure data
+   so a fixed ground certificate can be replayed node-by-node without retaining
+   a large core.logic search stream for every branch state."
+  [prog formula-bytes]
+  (when-let [internal (first
+                        (run 1 [internal]
+                          sjas-ground-check-flago
+                          (with-occurs-check-offo
+                            (decode-proof-formula-byteso prog
+                                                         formula-bytes
+                                                         '()
+                                                         internal))))]
+    (try
+      (sjas-host-internal-formula->ast internal)
+      (catch RuntimeException _
+        nil))))
+
+(declare sjas-host-decode-proof-tree)
+
+(defn- sjas-host-decode-proof-forest
+  [prog proofs cache]
+  (loop [remaining (seq proofs)
+         decoded []
+         cache cache]
+    (if (nil? remaining)
+      [{:status :ok :nodes (apply list decoded)} cache]
+      (let [[node cache'] (sjas-host-decode-proof-tree prog (first remaining) cache)]
+        (if (= :ok (:status node))
+          (recur (next remaining) (conj decoded (:node node)) cache')
+          [node cache'])))))
+
+(defn- sjas-host-node-slices
+  "Return the formula-byte payload and child nodes from one public proof node.
+
+   The accepted shapes are exactly the shapes consumed by the relational
+   decoder: wide `((formula-bytes...) child...)` and narrow
+   `(byte-count formula-bytes... child...)`. The proof node carries no rule tag;
+   all rule selection still comes from the decoded formula and branch state."
+  [proof]
+  (when (seq? proof)
+    (let [head (first proof)
+          tail (rest proof)]
+      (cond
+        (and (seq? head) (seq head))
+        {:formula-bytes (apply list head)
+         :children (apply list tail)}
+
+        (and (integer? head)
+             (clojure.core/<= 1 head)
+             (clojure.core/< head sjas-code/byte-base)
+             (clojure.core/<= head (count tail)))
+        {:formula-bytes (apply list (take head tail))
+         :children (apply list (drop head tail))}))))
+
+(defn- sjas-host-decode-proof-tree
+  "Decode a fixed public proof tree into `(decoded-node formula children)` data.
+
+   This mirrors `decode-proof-treeo` for ground certificates. Each node formula
+   is decoded from its public byte payload and cached by byte vector; no expected
+   formula is constructed from the source-side theorem."
+  [prog proof cache]
+  (cond
+    (and (seq? proof) (= 'xtab-lem (first proof)))
+    (let [[inner cache'] (sjas-host-decode-proof-tree prog (second proof) cache)]
+      (if (= :ok (:status inner))
+        [{:status :ok :node (list 'xtab-lem (:node inner))} cache']
+        [inner cache']))
+
+    :else
+    (if-let [{:keys [formula-bytes children]} (sjas-host-node-slices proof)]
+      (let [cache-key (vec formula-bytes)
+            formula (if (contains? cache cache-key)
+                      (get cache cache-key)
+                      (sjas-host-decode-proof-formula prog formula-bytes))]
+        (if formula
+          (let [cache' (assoc cache cache-key formula)
+                [forest cache''] (sjas-host-decode-proof-forest prog children cache')]
+            (if (= :ok (:status forest))
+              [{:status :ok
+                :node (list 'decoded-node formula (:nodes forest))}
+               cache'']
+              [forest cache'']))
+          [{:status :unsupported
+            :reason :formula-byte-decode-failed
+            :formula-bytes formula-bytes}
+           cache]))
+      [{:status :unsupported
+        :reason :unsupported-proof-node-shape
+        :proof proof}
+       cache])))
+
+(defn- sjas-host-tie-nom [tied]
+  (.-binding_nom ^clojure.core.logic.nominal.Tie tied))
+
+(defn- sjas-host-tie-body [tied]
+  (.-body ^clojure.core.logic.nominal.Tie tied))
+
+(declare sjas-host-proof-node-formula-match?)
+
+(defn- sjas-host-match-tie-bodies?
+  [visible-formula node-formula]
+  (let [left-tie (second visible-formula)
+        right-tie (second node-formula)
+        left-nom (sjas-host-tie-nom left-tie)
+        right-nom (sjas-host-tie-nom right-tie)
+        renamed-body (subst/subst-formula
+                        (sjas-host-tie-body left-tie)
+                        [[left-nom (ast/var-term right-nom)]])]
+    (sjas-host-proof-node-formula-match?
+      renamed-body
+      (sjas-host-tie-body right-tie))))
+
+(defn- sjas-host-match-bounded-tie-bodies?
+  [visible-formula node-formula]
+  (let [left-tie (second visible-formula)
+        right-tie (second node-formula)
+        left-nom (sjas-host-tie-nom left-tie)
+        right-nom (sjas-host-tie-nom right-tie)
+        env [[left-nom (ast/var-term right-nom)]]
+        left-body (sjas-host-tie-body left-tie)
+        right-body (sjas-host-tie-body right-tie)]
+    (and (= (subst/subst-term (:bound left-body) env)
+            (:bound right-body))
+         (sjas-host-proof-node-formula-match?
+           (subst/subst-formula (:body left-body) env)
+           (:body right-body)))))
+
+(defn- sjas-host-proof-node-formula-match?
+  "Host mirror of `sjas-proof-node-formula-matcho` for decoded ground nodes.
+
+   Exact matches are accepted first. Non-identical structured formulas are
+   matched by the same one-layer binder or compound recursion used by the
+   relational checker, so canonical proof-node binders can match source-side
+   target binders without invoking nominal search over the whole certificate."
+  [visible-formula node-formula]
+  (or (= visible-formula node-formula)
+      (let [visible-tag (ast/tag-of visible-formula)
+            node-tag (ast/tag-of node-formula)]
+        (and (= visible-tag node-tag)
+             (case visible-tag
+               forall (sjas-host-match-tie-bodies? visible-formula node-formula)
+               once-forall (sjas-host-match-tie-bodies? visible-formula node-formula)
+               exists (sjas-host-match-tie-bodies? visible-formula node-formula)
+               bounded-forall (sjas-host-match-bounded-tie-bodies? visible-formula node-formula)
+               bounded-exists (sjas-host-match-bounded-tie-bodies? visible-formula node-formula)
+
+               and (and (sjas-host-proof-node-formula-match?
+                          (second visible-formula) (second node-formula))
+                        (sjas-host-proof-node-formula-match?
+                          (nth visible-formula 2) (nth node-formula 2)))
+               or (and (sjas-host-proof-node-formula-match?
+                         (second visible-formula) (second node-formula))
+                       (sjas-host-proof-node-formula-match?
+                         (nth visible-formula 2) (nth node-formula 2)))
+               not (sjas-host-proof-node-formula-match?
+                     (second visible-formula) (second node-formula))
+               implies (and (sjas-host-proof-node-formula-match?
+                              (second visible-formula) (second node-formula))
+                            (sjas-host-proof-node-formula-match?
+                              (nth visible-formula 2) (nth node-formula 2)))
+               false)))))
+
+(defn- sjas-host-next-branch-nom
+  [env]
+  (sjas-code/code-nom (inc (count env))))
+
+(defn- sjas-host-occurs?
+  [binding-nom term sigma]
+  (let [walked (support/walk-term-pure term sigma)]
+    (case (ast/tag-of walked)
+      var (= binding-nom (second walked))
+      par (= binding-nom (second walked))
+      app (boolean (some #(sjas-host-occurs? binding-nom % sigma)
+                         (nnext walked)))
+      false)))
+
+(declare sjas-host-unify-term)
+
+(defn- sjas-host-unify-term-list
+  [left-args right-args sigma]
+  (loop [left (seq left-args)
+         right (seq right-args)
+         sigma sigma]
+    (cond
+      (and (nil? left) (nil? right)) sigma
+      (or (nil? left) (nil? right)) nil
+      :else
+      (when-let [sigma' (sjas-host-unify-term (first left) (first right) sigma)]
+        (recur (next left) (next right) sigma')))))
+
+(defn- sjas-host-unify-term
+  "Proof-free mirror of the structural term unifier for ground replay.
+
+   It is reached only after a decoded proof node has selected a concrete literal
+   closure. Bindings are recorded in the same `[nom value]` sigma shape consumed
+   by `support/walk-term-pure`."
+  [left right sigma]
+  (let [left-root (support/walk-term-pure left sigma)
+        right-root (support/walk-term-pure right sigma)
+        left-tag (ast/tag-of left-root)
+        right-tag (ast/tag-of right-root)]
+    (cond
+      (support/same-walked-term? left-root right-root) sigma
+
+      (#{'var 'par} left-tag)
+      (when-not (sjas-host-occurs? (second left-root) right-root sigma)
+        (cons [(second left-root) right-root] sigma))
+
+      (#{'var 'par} right-tag)
+      (when-not (sjas-host-occurs? (second right-root) left-root sigma)
+        (cons [(second right-root) left-root] sigma))
+
+      (and (= 'app left-tag)
+           (= 'app right-tag)
+           (= (second left-root) (second right-root))
+           (= (count (nnext left-root)) (count (nnext right-root))))
+      (sjas-host-unify-term-list (nnext left-root) (nnext right-root) sigma)
+
+      :else nil)))
+
+(defn- sjas-host-unify-atom
+  [left right sigma]
+  (when (and (= 'app (ast/tag-of left))
+             (= 'app (ast/tag-of right))
+             (= (second left) (second right))
+             (= (count (nnext left)) (count (nnext right))))
+    (sjas-host-unify-term-list (nnext left) (nnext right) sigma)))
+
+(defn- sjas-host-complementary-lit-close
+  [lit lits sigma]
+  (let [tag (ast/tag-of lit)
+        atom (second lit)
+        opposite-tag (case tag pos 'neg neg 'pos nil)]
+    (when opposite-tag
+      (some (fn [saved]
+              (when (and (= opposite-tag (ast/tag-of saved))
+                         (second saved))
+                (sjas-host-unify-atom atom (second saved) sigma)))
+            lits))))
+
+(defn- sjas-host-agenda-entry
+  [current-env entry]
+  (if (and (vector? entry) (= 2 (count entry)))
+    {:formula (nth entry 0) :env (nth entry 1)}
+    {:formula entry :env current-env}))
+
+(defn- sjas-host-select-proof-node-formula
+  [node-formula current-env formulas]
+  (loop [prefix []
+         remaining (seq formulas)]
+    (when remaining
+      (let [entry (first remaining)
+            {:keys [formula env]} (sjas-host-agenda-entry current-env entry)
+            visible (subst/subst-formula formula env)]
+        (if (sjas-host-proof-node-formula-match? visible node-formula)
+          {:selected formula
+           :visible visible
+           :env env
+           :remaining (apply list (concat prefix (rest remaining)))}
+          (recur (conj prefix entry) (next remaining)))))))
+
+(declare sjas-host-replay-state)
+
+(defn- sjas-host-replay-selected
+  [path selected visible remaining lits env sigma proof-node children]
+  (let [tag (ast/tag-of selected)
+        visible-tag (ast/tag-of visible)
+        child-count (count children)]
+    (cond
+      (and (#{'pos 'neg} visible-tag) (= 1 child-count))
+      (let [[child] children]
+        (if (and (seq? child) (= 'decoded-node (first child)))
+          (let [child-formula (second child)]
+            (if-let [{:keys [selected env remaining]}
+                     (sjas-host-select-proof-node-formula child-formula
+                                                          env
+                                                          remaining)]
+              (sjas-host-replay-state (conj path 0)
+                                      selected
+                                      remaining
+                                      (cons visible lits)
+                                      env
+                                      sigma
+                                      child)
+              {:status :reject
+               :path path
+               :reason :literal-continuation-has-no-matching-agenda-formula
+               :child-formula child-formula}))
+          {:status :reject :path path :reason :malformed-child-node}))
+
+      (and (#{'pos 'neg} visible-tag) (zero? child-count))
+      (if (sjas-host-complementary-lit-close visible lits sigma)
+        {:status :accepted :path path}
+        ;; A literal leaf can also close by an interpreted profile relation
+        ;; (`SemPrf^k`, axiom-member, arithmetic, etc.). Those closure families
+        ;; remain owned by the relational checker.
+        {:status :unsupported
+         :path path
+         :reason :non-complementary-literal-leaf})
+
+      (and (= 'and tag) (= 1 child-count))
+      (let [[child] children
+            left (second selected)
+            right (nth selected 2)
+            next-unexpanded (cons [right env] remaining)]
+        (sjas-host-replay-state (conj path 0)
+                                left
+                                next-unexpanded
+                                lits
+                                env
+                                sigma
+                                child))
+
+      (and (#{'forall 'once-forall} tag) (= 1 child-count))
+      (let [[child] children
+            tied (second selected)
+            binding-nom (sjas-host-tie-nom tied)
+            body (sjas-host-tie-body tied)
+            free-var-nom (sjas-host-next-branch-nom env)
+            narrowed-env (subst/remove-binding env binding-nom)
+            body-subst (subst/subst-formula body narrowed-env)]
+        (if free-var-nom
+          (sjas-host-replay-state (conj path 0)
+                                  body-subst
+                                  remaining
+                                  lits
+                                  (cons [binding-nom (ast/var-term free-var-nom)]
+                                        env)
+                                  sigma
+                                  child)
+          {:status :unsupported
+           :path path
+           :reason :branch-nom-table-exhausted}))
+
+      (and (= 'implies tag) (= 2 child-count))
+      (let [[left-child right-child] children
+            left (second selected)
+            right (nth selected 2)
+            left-result (sjas-host-replay-state (conj path 0)
+                                                (list 'not left)
+                                                remaining
+                                                lits
+                                                env
+                                                sigma
+                                                left-child)]
+        (if (= :accepted (:status left-result))
+          (sjas-host-replay-state (conj path 1)
+                                  right
+                                  remaining
+                                  lits
+                                  env
+                                  sigma
+                                  right-child)
+          left-result))
+
+      (and (= 'not tag)
+           (= 1 child-count)
+           (= 'pos (ast/tag-of (second selected))))
+      (let [[child] children
+            atom (second (second selected))]
+        (sjas-host-replay-state (conj path 0)
+                                (list 'neg atom)
+                                remaining
+                                lits
+                                env
+                                sigma
+                                child))
+
+      (and (= 'not tag)
+           (= 1 child-count)
+           (= 'neg (ast/tag-of (second selected))))
+      (let [[child] children
+            atom (second (second selected))]
+        (sjas-host-replay-state (conj path 0)
+                                (list 'pos atom)
+                                remaining
+                                lits
+                                env
+                                sigma
+                                child))
+
+      :else
+      {:status :unsupported
+       :path path
+       :reason :unsupported-ground-replay-rule
+       :selected-tag tag
+       :visible-tag visible-tag
+       :children child-count
+       :proof-node proof-node})))
+
+(defn- sjas-host-replay-state
+  "Replay one fixed decoded proof-node path through tableau branch state.
+
+   The inputs are already-decoded public proof nodes. Selection and branch-state
+   updates mirror the structural checker for the ordinary rule families needed
+   by the BOT-core D-star clash: conjunction, universal expansion, negated atom
+   normalization, literal continuation, and complementary literal closure."
+  [path fml unexpanded lits env sigma proof-node]
+  (if (and (seq? proof-node) (= 'decoded-node (first proof-node)))
+    (let [node-formula (second proof-node)
+          children (nth proof-node 2)
+          candidates (cons fml unexpanded)]
+      (if-let [{:keys [selected visible env remaining]}
+               (sjas-host-select-proof-node-formula node-formula env candidates)]
+        (sjas-host-replay-selected path
+                                   selected
+                                   visible
+                                   remaining
+                                   lits
+                                   env
+                                   sigma
+                                   proof-node
+                                   children)
+        {:status :reject
+         :path path
+         :reason :no-branch-formula-matches-proof-node
+         :node-formula node-formula}))
+    {:status :unsupported
+     :path path
+     :reason :unsupported-decoded-proof-node
+     :proof-node proof-node}))
+
+(defn- sjas-host-ground-replay-result
+  "Try deterministic public-proof replay before the relational checker.
+
+   `:accepted` is conclusive because it has consumed the decoded public proof
+   tree and replayed every supported branch-state transition. Any non-accepted
+   status is diagnostic only; the public checker then falls back to the existing
+   core.logic relation so unsupported profile or arithmetic rules keep their
+   previous semantics."
+  [prog target proof]
+  (let [[decoded _cache] (sjas-host-decode-proof-tree prog proof {})]
+    (if (= :ok (:status decoded))
+      (sjas-host-replay-state [] target '() '() '() '() (:node decoded))
+      decoded)))
+
 (defn structural-proof-valid?
   "Run the arithmeticized formula-bearing checker for an explicit target.
 
@@ -8718,32 +9243,35 @@
    finite proof tree was accepted; no host inference establishes a proof step."
   [prog system-code target proof fuel]
   (let [target (deep-ground-tag target)
-        proof (deep-ground-tag proof)]
-    (boolean
-      (seq
-        (run 1 [accepted]
-        ;; ADR-0144 (1D): decode the whole ground proof tree once, then check
-        ;; over the decoded nodes -- so the search destructures nodes instead of
-        ;; re-decoding bytes on every backtrack. Kept inside the `run` so the
-        ;; canonical code-noms stay live. `decode-proof-treeo` is deterministic
-        ;; on this explicit ground proof; a proof that does not decode as a tree
-        ;; simply fails here (a correct rejection).
-        ;;
-        ;; ADR-0147 (stage 1): the whole ground construct-and-check runs with
-        ;; the occurs check off (`with-occurs-check-offo`). The proof tree and
-        ;; target are explicit acyclic data; branch variables only ever bind to
-        ;; subterms of that data or to other fresh variables, so no cyclic
-        ;; binding is expressible and the answer set is unchanged. Without
-        ;; this, every binding during the residual search occurs-walks into
-        ;; the (untagged, host-built) embedded code numerals of the target
-        ;; formulas -- O(code-size) per bind, quadratic on Theorem 2.3-scale
-        ;; trees. Kernel search/synthesis entries do not pass through here.
-        (with-occurs-check-offo
-          (fresh [checker-proof]
-            sjas-ground-check-flago
-            (decode-proof-treeo prog proof checker-proof)
-            (sjas-proof-check-programo prog system-code target fuel checker-proof)
-            (== true accepted))))))))
+        proof (deep-ground-tag proof)
+        replay (sjas-host-ground-replay-result prog target proof)]
+    (if (= :accepted (:status replay))
+      true
+      (boolean
+        (seq
+          (run 1 [accepted]
+          ;; ADR-0144 (1D): decode the whole ground proof tree once, then check
+          ;; over the decoded nodes -- so the search destructures nodes instead of
+          ;; re-decoding bytes on every backtrack. Kept inside the `run` so the
+          ;; canonical code-noms stay live. `decode-proof-treeo` is deterministic
+          ;; on this explicit ground proof; a proof that does not decode as a tree
+          ;; simply fails here (a correct rejection).
+          ;;
+          ;; ADR-0147 (stage 1): the whole ground construct-and-check runs with
+          ;; the occurs check off (`with-occurs-check-offo`). The proof tree and
+          ;; target are explicit acyclic data; branch variables only ever bind to
+          ;; subterms of that data or to other fresh variables, so no cyclic
+          ;; binding is expressible and the answer set is unchanged. Without
+          ;; this, every binding during the residual search occurs-walks into
+          ;; the (untagged, host-built) embedded code numerals of the target
+          ;; formulas -- O(code-size) per bind, quadratic on Theorem 2.3-scale
+          ;; trees. Kernel search/synthesis entries do not pass through here.
+          (with-occurs-check-offo
+            (fresh [checker-proof]
+              sjas-ground-check-flago
+              (decode-proof-treeo prog proof checker-proof)
+              (sjas-proof-check-programo prog system-code target fuel checker-proof)
+              (== true accepted)))))))))
 
 (defn decoded-proof-formula
   "Decode a public formula code to the exact AST used by proof checking."

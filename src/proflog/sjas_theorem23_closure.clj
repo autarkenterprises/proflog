@@ -64,7 +64,7 @@
      :steps
      [{:id :A :eq 3 :name "tableau-consistency / SelfCons"
        :status :reflected-axiom
-       :note "generated Group-3 SelfCons; Level-1 (dsjas-subst-prf) realizes the Level-0 forall p. not SemPrf(BOT,p)"}
+       :note "generated Group-3 SelfCons plus the generated Level-0 condition-(A) companion forall p. not SemPrf_alpha(BOT,p)"}
       {:id :C :eq 14 :name "Subst single-valued (V3)"
        :status :reflected-axiom
        :note "V3 is a generated route axiom; condition (C) verbatim"}
@@ -196,14 +196,13 @@
                                 "checker-verified baselines over the real system exist "
                                 "(proflog.sjas-tree-builder, proflog.sjas-not-dk-qdisproof-test).")
                      :falsifier-guardrail
-                     (str "Do NOT promote `semprf-alpha` (un-superscripted SemPrf) to a named clash to make "
-                          "the SelfCons clash `SemPrf(BOT,p) ^ not SemPrf(BOT,p)` fire syntactically. Since "
-                          "SelfCons is a conjunct of AxiomConj, a syntactic SemPrf clash would close "
-                          "`AxiomConj ^ not SelfCons` TRIVIALLY for EVERY system -- including the "
-                          "addition-only (consistent) variant -- erasing the boundary the construction must "
-                          "distinguish (the addition-only non-closure IS the falsifier). The closure must "
-                          "instead route through the INTERPRETED bounded-proof V-route on a real constructed "
-                          "proof code, where multiplication-totality makes the Log bound hold and the "
-                          "addition-only variant fails. Confirmed: the SelfCons refutation does not close "
-                          "trivially today (semprf-alpha stays profile-local). Detail: "
-                          "docs/log/2026-06-25-adr-0142-bot-closure-falsifier-guardrail.md.")}}))
+                     (str "ADR-0147 re-enabled the proof-facing `semprf-alpha` complementary clash because "
+                          "Willard's condition-(A)/(B) step closes by exactly that SemPrf_alpha(BOT,w) "
+                          "literal clash. The old proxy falsifier (`AxiomConj ^ not SelfCons` must not "
+                          "close) is therefore superseded: that target is now explicitly classified as "
+                          "boundary-blind and must never be used as the demonstration. The active falsifier "
+                          "is stricter and theorem-shaped: the full diagonal route must close on the "
+                          "multiplication-total side and fail on the addition-only side, with the split "
+                          "localized to the interpreted bounded-proof V-route on a real constructed proof "
+                          "code. The concrete BOT-core `D* ^ SemPrf^k(Dk,p,bound)` clash is now pinned, "
+                          "but constructing the public proof code p for Dk remains the step-4 obligation.")}}))

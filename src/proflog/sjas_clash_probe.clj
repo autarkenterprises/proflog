@@ -20,10 +20,11 @@
 (defn- clash-closes?
   "Does `pos A ∧ neg A` (identical concrete args) close by complementary clash?"
   [system atom]
-  (let [target (ast/and-form atom (ast/not-form atom))
+  (let [negative (ast/neg-lit (second atom))
+        target (ast/and-form atom negative)
         proof (tb/flex-tableau-node system target
                 (tb/flex-tableau-node system atom
-                  (tb/flex-tableau-node system (ast/not-form atom))))]
+                  (tb/flex-tableau-node system negative)))]
     (tb/valid-tree? system target proof 200)))
 
 (defn -main [& _]

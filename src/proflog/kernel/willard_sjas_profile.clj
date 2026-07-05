@@ -6235,6 +6235,110 @@
                                      substituted-formula
                                      '())))
 
+(defn- theorem23-diagonal-internal-formula
+  "Return the canonical decoded form of `D^k(alpha) = Gamma(nbar)`.
+
+   Formula-code binders are one-based.  The closed diagonal therefore binds
+   `h`, `y`, and `z` at indexes 1, 2, and 3.  The three object terms are kept as
+   arguments so `Map(alpha,k,d)` can compare the values embedded in the actual
+   presented code `d`; no source AST is rebuilt or consulted."
+  [alpha-term k-term skeleton-code-term]
+  (list 'forall 1
+        (list 'forall 2
+              (list 'forall 3
+                    (list 'implies
+                          (list 'pos
+                                (list 'app 'subst-code
+                                      (list skeleton-code-term (list 'var 1))))
+                          (list 'not
+                                (list 'pos
+                                      (list 'app 'semprfk-alpha
+                                            (list alpha-term
+                                                  k-term
+                                                  (list 'var 1)
+                                                  (list 'var 2)
+                                                  (list 'var 3))))))))))
+
+(defn- theorem23-skeleton-internal-formula
+  "Return the canonical decoded form of the open `Gamma(g)` skeleton.
+
+   The distinguished free variable `g` occupies index 1, so its three bound
+   variables begin at indexes 2, 3, and 4.  Checking this skeleton prevents an
+   arbitrary fixed point satisfying only `Subst(nbar,d)` from masquerading as
+   Willard's Theorem 2.3 diagonal."
+  [alpha-term k-term]
+  (list 'forall 2
+        (list 'forall 3
+              (list 'forall 4
+                    (list 'implies
+                          (list 'pos
+                                (list 'app 'subst-code
+                                      (list (list 'var 1) (list 'var 2))))
+                          (list 'not
+                                (list 'pos
+                                      (list 'app 'semprfk-alpha
+                                            (list alpha-term
+                                                  k-term
+                                                  (list 'var 2)
+                                                  (list 'var 3)
+                                                  (list 'var 4))))))))))
+
+(defn- sjas-willard-map-coreo
+  "Proof-free implementation of Willard's `Map(alpha,k,d)` locator.
+
+   The relation is driven entirely by the public encoded tuple.  It decodes
+   `d`, verifies the closed diagonal schema, follows the embedded code term to
+   the open `Gamma(g)` skeleton, and validates the genuine diagonal
+   substitution.  V5's distinct `FinAx4(alpha)` antecedent validates finiteness.
+   The ordering is intentional: a presented ground `d` determines every large
+   intermediate before any relation is asked to synthesize formula bytes."
+  [fml env sigma sigma-out neqs neqs-out prog]
+  (fresh [lit atom walked-atom alpha k d
+          diagonal-formula alpha-internal k-internal skeleton-code-internal
+          skeleton-bytes skeleton-formula
+          alpha-bytes alpha-kind k-ast skeleton-code-ast
+          sigma-diagonal sigma-k sigma-alpha sigma-subst]
+    (sjas-subst-formulao fml env lit)
+    (sjas-acyclic-unifyo (list 'neg atom) lit)
+    (sjas-walk-atomo atom sigma walked-atom)
+    (sjas-acyclic-unifyo (list 'app 'willard-map alpha k d)
+                         walked-atom)
+    (sjas-decode-proof-formula-code-coreo prog
+                                           d
+                                           sigma
+                                           sigma-diagonal
+                                           diagonal-formula)
+    (== (theorem23-diagonal-internal-formula alpha-internal
+                                              k-internal
+                                              skeleton-code-internal)
+        diagonal-formula)
+    ;; Reject mismatched outer tuple fields before decoding the much larger
+    ;; embedded skeleton.  This is a goal-order optimization only; every goal
+    ;; remains relational and the accepted answer set is unchanged.
+    (sjas-internal-term-asto k-internal k-ast)
+    (sjas-unify-termo-coreo k k-ast sigma-diagonal sigma-k)
+    (sjas-formal-code-bytes-coreo alpha
+                                  alpha-bytes
+                                  sigma-k
+                                  sigma-alpha
+                                  alpha-kind)
+    (code-kind-internal-termo alpha-kind alpha-bytes alpha-internal)
+    (internal-code-term-byteso skeleton-code-internal skeleton-bytes)
+    (decode-proof-formula-byteso prog skeleton-bytes '() skeleton-formula)
+    (== (theorem23-skeleton-internal-formula alpha-internal k-internal)
+        skeleton-formula)
+    (sjas-internal-term-asto skeleton-code-internal skeleton-code-ast)
+    ;; V5 separately requires `FinAx4(alpha)`.  Map is the numeric diagonal
+    ;; locator itself, so repeating whole-system validation here would conflate
+    ;; those two JSL2 antecedents and decode the same system twice.
+    (sjas-subst-code-any-coreo prog
+                               skeleton-code-ast
+                               d
+                               sigma-alpha
+                               sigma-subst)
+    (== sigma-subst sigma-out)
+    (== neqs neqs-out)))
+
 (defn- sjas-subst-source-result-antecedento
   "Compute the substituted source sentence used by `SubstPrf`.
 
@@ -6548,6 +6652,18 @@
     (== neqs neqs-out)
     (== '(profiled willard-sjas-subst-code) proof)))
 
+(defn- sjas-willard-map-closeo
+  "Close a negative `Map(alpha,k,d)` branch after validating the locator."
+  [fml env sigma sigma-out neqs neqs-out prog proof]
+  (fresh []
+    (sjas-willard-map-coreo fml env sigma sigma-out neqs neqs-out prog)
+    (== '(profiled willard-sjas-map) proof)))
+
+(defn- sjas-willard-map-structural-closeo
+  "Proof-free Map closure used by formula-bearing tableau certificates."
+  [fml env sigma sigma-out neqs neqs-out prog]
+  (sjas-willard-map-coreo fml env sigma sigma-out neqs neqs-out prog))
+
 (declare sjas-proof-check-stateo
          sjas-proof-guided-selecto
          sjas-tableau-proof-structural-closeo
@@ -6558,6 +6674,7 @@
          sjas-dsjas-tab1-proof-structural-closeo
          sjas-dsjas-tab2-proof-structural-closeo
          sjas-finax4-structural-closeo
+         sjas-willard-map-structural-closeo
          sjas-semprfk-alpha-structural-closeo)
 
 (defn- proof-byte-prefixo
@@ -8191,6 +8308,13 @@
                                            neqs
                                            neqs-out
                                            prog)]
+           [(sjas-willard-map-structural-closeo fml
+                                                env
+                                                sigma
+                                                sigma-out
+                                                neqs
+                                                neqs-out
+                                                prog)]
            [(sjas-semprfk-alpha-structural-closeo fml
                                                   env
                                                   sigma
@@ -11021,6 +11145,7 @@
     [(sjas-semprfk-alpha-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
     [(sjas-semprf-alpha-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)]
     [(sjas-finax4-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
+    [(sjas-willard-map-closeo fml env sigma sigma-out neqs neqs-out prog proof)]
     [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)]
     [(sjas-neg-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]
     [(sjas-pos-relation-closeo fml env sigma sigma-out neqs neqs-out proof)]
@@ -11060,6 +11185,8 @@
     [(sjas-semprf-alpha-closeo fml env sigma sigma-out neqs neqs-out prog fuel proof)
      (== residuals residuals-out)]
     [(sjas-finax4-closeo fml env sigma sigma-out neqs neqs-out prog proof)
+     (== residuals residuals-out)]
+    [(sjas-willard-map-closeo fml env sigma sigma-out neqs neqs-out prog proof)
      (== residuals residuals-out)]
     [(sjas-neq-closeo fml env sigma sigma-out neqs neqs-out proof)
      (== residuals residuals-out)]

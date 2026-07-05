@@ -1271,7 +1271,7 @@
           "the final squaring-chain beta record must be citeable by sjas-axiom"))))
 
 (deftest sjas-adr0141-total-multiplication-installs-willard-v-route
-  (testing "the total-multiplication boundary system contains the V4/V5 proof route vocabulary"
+  (testing "the total-multiplication boundary system contains the complete V3/V4/V5 proof route"
     (let [system (sjas/total-multiplication-complete-system {:depth 1})
           route-axioms (sjas/total-multiplication-willard-route-axioms
                          (:contradiction-code system))
@@ -1283,6 +1283,11 @@
                                         route-set
                                         (code-canonical-formula (:formula %))))
                                 (:axioms system))
+          v3 (sjas/total-multiplication-willard-v3-axiom)
+          v3-matrix (loop [formula v3]
+                      (if (= 'forall (ast/tag-of formula))
+                        (recur (:body (second formula)))
+                        formula))
           v4 (sjas/total-multiplication-willard-v4-axiom)
           v5 (sjas/total-multiplication-willard-v5-axiom
                (:contradiction-code system))]
@@ -1293,17 +1298,24 @@
              sjas/total-multiplication-willard-relations))
       (is (every? #(contains? (:relations (:language system)) %)
                   route-relations))
-      (is (= 2 (count route-axioms)))
+      (is (= 3 (count route-axioms))
+          "JSL2 Equations (14)-(16) require V3, V4, and V5 in the reflected route")
       (is (every? sjas/pi-star-1-encodable? route-axioms))
       (is (= route-set
              (set (map (comp code-canonical-formula :formula)
                        route-records))))
+      (is (= 'implies (ast/tag-of v3-matrix)))
+      (is (= 'and (ast/tag-of (second v3-matrix))))
+      (is (= 'eq (ast/tag-of (nth v3-matrix 2))))
+      (is (= ['subst-code 'subst-code]
+             (vec (formula-relation-symbols (second v3-matrix))))
+          "V3 states that two Subst results for one source code are equal")
       (is (every? #(contains? (set (formula-relation-symbols v4)) %)
                   '#{subst-code semprfk-alpha}))
       (is (every? #(contains? (set (formula-relation-symbols v5)) %)
                   '#{finax4 willard-map semprfk-alpha semprf-alpha lt}))
-      (is (not= v4 v5)
-          "V4 descent and V5 contradiction extraction must remain distinct route axioms"))))
+      (is (= 3 (count #{v3 v4 v5}))
+          "V3 functionality, V4 compression, and V5 contradiction extraction remain distinct"))))
 
 (defn- condition-a-l0-record
   [system]
@@ -1702,15 +1714,43 @@
           "2^proof gives Log(2^proof,1)=proof, so proof<proof fails -- the bound stays strict"))))
 
 (deftest sjas-adr0142-theorem23-diagonal-and-map-locator
-  (testing "Dk(alpha)=Gamma(nbar) is built; Subst(nbar,code(Dk)) (Eq 7 / Map locator) holds"
+  (testing "Map(alpha,k,d) checks the actual Dk(alpha,k) locator"
     (let [system (sjas/system
                    {:profile :willard-sjas-total-multiplication
                     :functions sjas/total-multiplication-functions
                     :relations sjas/total-multiplication-willard-relations
                     :beta [(ast/eq-lit sjas/one sjas/one)]
                     :code-format :u-grounding})
+          other-system (sjas/system
+                         {:profile :willard-sjas-total-multiplication
+                          :functions sjas/total-multiplication-functions
+                          :relations sjas/total-multiplication-willard-relations
+                          :beta [(ast/eq-lit sjas/two sjas/two)]
+                          :code-format :u-grounding})
           {:keys [skeleton-code diagonal-code skeleton]}
-          (sjas/theorem23-diagonal system sjas/one)]
+          (sjas/theorem23-diagonal system sjas/one)
+          map-holds? (fn [alpha k d]
+                       (successful?
+                         (query/query-succeeds
+                           (:program system)
+                           (sjas/willard-map alpha k d)
+                           1
+                           80)))
+          map-core-holds? (fn [alpha k d]
+                            (boolean
+                              (seq
+                                (l/run 1 [q]
+                                  (l/fresh [sigma-out neqs-out]
+                                    ((var sjas-profile/sjas-willard-map-coreo)
+                                     (ast/neg-lit
+                                       (second (sjas/willard-map alpha k d)))
+                                     '()
+                                     '()
+                                     sigma-out
+                                     '()
+                                     neqs-out
+                                     (:program system))
+                                    (l/== true q))))))]
       ;; Eq (4): the diagonal pairs the genuine Subst relation with SemPrf^k.
       (is (every? #(contains? (set (formula-relation-symbols skeleton)) %)
                   '#{subst-code semprfk-alpha})
@@ -1721,6 +1761,14 @@
           "Subst(nbar, code(Dk)) holds: code(Dk) is the genuine diagonal locator")
       (is (not (subst-code-relation-succeeds? system skeleton-code (:system-code system)))
           "the locator rejects a code that is not the diagonalization of nbar")
+      (is (map-holds? (:system-code system) sjas/one diagonal-code)
+          "the public Map relation accepts the genuine diagonal code")
+      (is (not (map-core-holds? (:system-code system) sjas/one (:system-code system)))
+          "Map rejects a non-diagonal formula code")
+      (is (not (map-core-holds? (:system-code system) sjas/two diagonal-code))
+          "Map checks the superscript k embedded in the diagonal")
+      (is (not (map-core-holds? (:system-code other-system) sjas/one diagonal-code))
+          "Map checks the encoded finite system alpha embedded in the diagonal")
       ;; k is operational: the diagonal embeds k inside SemPrf^k, so a different
       ;; superscript produces a different diagonal code.
       (is (not= diagonal-code (:diagonal-code (sjas/theorem23-diagonal system sjas/two)))

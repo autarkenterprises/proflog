@@ -510,6 +510,11 @@
   [y z alpha k]
   (boundary-axioms/total-multiplication-willard-paradox y z alpha k))
 
+(defn total-multiplication-willard-v3-axiom
+  "Willard 2002 V3: `Subst` is single-valued (condition (C))."
+  []
+  (boundary-axioms/total-multiplication-willard-v3-axiom))
+
 (defn total-multiplication-willard-v4-axiom
   "Willard 2002 V4 descent axiom over the Equation (15) `Upsilon` predicate."
   []
@@ -522,7 +527,7 @@
     contradiction-code-term))
 
 (defn total-multiplication-willard-route-axioms
-  "Return V4 and V5, the Willard 2002 route axioms needed after squaring."
+  "Return V3, V4, and V5, the complete Willard 2002 Type-M route."
   [contradiction-code-term]
   (boundary-axioms/total-multiplication-willard-route-axioms
     contradiction-code-term))

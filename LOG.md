@@ -22,6 +22,14 @@ complete contemporaneous transcript.
 
 ## 2026-07-04
 
+- ADR-0147 V3/Map correction and real-`K` frontier: retained the Claude real
+  BOT-core continuation, then corrected two prerequisites it had assumed. Added
+  the missing reflected V3/condition-(C) axiom and implemented the genuine
+  encoded `Map(alpha,k,d)` relation; the old Map test had exercised only
+  `Subst`. Literature re-audit also found that the current `k=1`, `2^(p+1)`
+  shortcut cannot instantiate V5 (`k >= alpha`): JSL2 chooses
+  `kbar = alpha + 1`, requiring a `K`-fold tower witness. See
+  [V3/Map and K frontier](docs/log/2026-07-04-adr-0147-v3-map-and-k-frontier.md).
 - ADR-0147 real BOT-core replay: incorporated the Claude step-4 continuation
   into branch `adr-0147-claude-step1-tree`; made the real diagonal probe
   explicit-only; added deterministic replay inside the public structural checker

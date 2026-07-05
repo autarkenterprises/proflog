@@ -64,6 +64,32 @@
         (ast/and-form (willard-map alpha k dt)
                       (semprfk-alpha alpha k dt y z))))))
 
+(defn total-multiplication-willard-v3-axiom
+  "Willard 2002 Equation (14), the single-valuedness of `Subst`.
+
+   Theorem 2.3 uses this condition to identify the result `h` supplied by the
+   negated diagonal with the independently constructed code of that diagonal.
+   Keeping V3 in the reflected route is therefore essential: executable
+   functionality of the kernel's `subst-code` relation is not itself an axiom
+   available inside the finite object theory."
+  []
+  (let [g (nominal/nom (lvar 'willard-g))
+        h (nominal/nom (lvar 'willard-h))
+        h-star (nominal/nom (lvar 'willard-h-star))
+        gt (ast/var-term g)
+        ht (ast/var-term h)
+        h-star-t (ast/var-term h-star)]
+    (ast/forall-form
+      g
+      (ast/forall-form
+        h
+        (ast/forall-form
+          h-star
+          (ast/implies-form
+            (ast/and-form (subst-code gt ht)
+                          (subst-code gt h-star-t))
+            (ast/eq-lit ht h-star-t)))))))
+
 (defn total-multiplication-willard-v4-axiom
   "The proof-compressing V4 descent axiom from Willard 2002."
   []
@@ -148,9 +174,13 @@
                   (semprf-alpha at contradiction-code-term pt))))))))))
 
 (defn total-multiplication-willard-route-axioms
-  "Return the exact V4/V5 fragment required by the Type-M refutation rule."
+  "Return JSL2 Equations (14)-(16), the complete Type-M proof route.
+
+   V3 provides condition (C), V4 is Willard's bounded proof-compression axiom,
+   and V5 turns the bounded diagonal proof into a contradiction proof."
   [contradiction-code-term]
-  [(total-multiplication-willard-v4-axiom)
+  [(total-multiplication-willard-v3-axiom)
+   (total-multiplication-willard-v4-axiom)
    (total-multiplication-willard-v5-axiom contradiction-code-term)])
 
 (defn total-multiplication-complete-axioms

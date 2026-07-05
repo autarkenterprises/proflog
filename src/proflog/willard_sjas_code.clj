@@ -127,8 +127,8 @@
    ;; `dsjas-tab2-proof` so a generated multiplication system (which declares this
    ;; cluster but not `dsjas-tab2-proof`) has no compaction gap below it: each
    ;; member's per-system compacted index then equals its global reserved index,
-   ;; which is what lets the proof-facing decoder recover `semprfk-alpha`/`pow` by
-   ;; name inside an encoded `SemPrf^k` node (ADR-0142 step 5).
+   ;; which is what lets the proof-facing decoder recover the bounded-proof
+   ;; vocabulary by name inside an encoded `SemPrf^k` node (ADR-0142 step 5).
    'mul
    'finax4
    'willard-map
@@ -136,8 +136,15 @@
    'semprf-alpha
    ;; `pow` is the symbolic power used only inside the `SemPrf^k` Log bound
    ;; (Definition 2.1); it must decode by name so an encoded bounded-proof node
-   ;; round-trips. It is NOT profile-local.
+   ;; round-trips. Keep this established slot before newer symbolic bound
+   ;; constructors so a legacy pow-only system cannot compact `pow` into a
+   ;; different globally named slot.
    'pow
+   ;; `tower-bound(k,m)` is the finite symbolic representation of the natural
+   ;; whose k iterated base-2 logarithms equal m. It is interpreted only by the
+   ;; SemPrf^k bound checker and keeps Willard's tower witness finite in public
+   ;; proof code without granting a general exponentiation evaluator.
+   'tower-bound
    ;; `dsjas-tab2-proof` is the target-only Tab-2 proof predicate. It moves to the
    ;; end so it never sits between the prefix and the multiplication cluster; a
    ;; Tab-2 system (prefix + this symbol, no cluster) still compacts it to the slot

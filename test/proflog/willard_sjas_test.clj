@@ -1473,11 +1473,7 @@
 
 (deftest sjas-adr0141-total-multiplication-v-route-predicates-execute
   (testing "the V-route predicates are object-level checks rather than inert relation names"
-    (let [system (sjas/system
-                   {:profile :willard-sjas-total-multiplication
-                    :functions sjas/total-multiplication-functions
-                    :relations sjas/total-multiplication-willard-relations
-                    :beta [(ast/eq-lit sjas/one sjas/one)]})
+    (let [system (sjas/total-multiplication-complete-system {:depth 0})
           route-record (first (filter #(= :group-two (:group %))
                                       (:axioms system)))
           axiom-certificate (sjas/proof-certificate
@@ -1516,6 +1512,43 @@
               1
               320))
           "SemPrf^k_alpha must reject a valid proof whose code exceeds Log(bound,k)"))))
+
+(deftest sjas-finax4-requires-the-encoded-multiplication-v3-v4-basis
+  (testing "FinAx4 inspects the finite source instead of accepting a profile-shaped shell"
+    (let [route (sjas/total-multiplication-willard-route-axioms
+                  sjas/contradiction-code)
+          v3 (first route)
+          v4 (second route)
+          v5 (nth route 2)
+          build (fn [beta]
+                  (sjas/system
+                    {:profile :willard-sjas-total-multiplication
+                     :functions (merge sjas/theorem23-bound-functions
+                                       sjas/total-multiplication-functions)
+                     :relations sjas/total-multiplication-willard-relations
+                     :beta beta
+                     :code-format :u-grounding}))
+          complete (sjas/total-multiplication-complete-system
+                     {:depth 0 :code-format :u-grounding})
+          shell (build [(ast/eq-lit sjas/one sjas/one)])
+          without-v3 (build (concat (sjas/total-multiplication-complete-axioms)
+                                    [v4 v5]))
+          without-v4 (build (concat (sjas/total-multiplication-complete-axioms)
+                                    [v3 v5]))
+          holds? (fn [system]
+                   (successful?
+                     (query/query-succeeds (:program system)
+                                           (sjas/finax4 (:system-code system))
+                                           1
+                                           520)))]
+      (is (holds? complete)
+          "the generated finite multiplication/V system satisfies FinAx4")
+      (is (not (holds? shell))
+          "a decodable same-profile source is not enough")
+      (is (not (holds? without-v3))
+          "FinAx4 requires condition (C), JSL2 V3, in the encoded source")
+      (is (not (holds? without-v4))
+          "FinAx4 requires the JSL2 V4 compression axiom in the encoded source"))))
 
 (deftest sjas-adr0142-iterated-log-matches-definition-2-1
   (testing "Log(x,k) is the k-fold floor(log2) iteration with Log(x,0)=x (Definition 2.1)"

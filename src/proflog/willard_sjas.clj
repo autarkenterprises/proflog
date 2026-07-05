@@ -453,6 +453,15 @@
    concrete without claiming the full diagonal contradiction witness."
   {'mul 2})
 
+(def theorem23-bound-functions
+  "Finite term vocabulary for Definition 2.1 bound witnesses.
+
+   `pow/2` preserves the one-log symbolic power path. `tower-bound/2` denotes
+   the K-fold base-2 tower used by Theorem 3.5 when `K = alpha + 1`; only the
+   bounded-proof checker interprets this constructor."
+  {'pow 2
+   'tower-bound 2})
+
 (defn mul-term
   "Construct the total multiplication term `mul(left,right)`."
   [left right]
@@ -1668,7 +1677,8 @@
                                       (:constants system-opts)))
               :relations (merge (:relations system-opts)
                                 total-multiplication-willard-relations)
-              :functions (merge (:functions system-opts)
+              :functions (merge theorem23-bound-functions
+                                (:functions system-opts)
                                 total-multiplication-functions)
               :beta (vec (concat (total-multiplication-complete-axioms)
                                  (total-multiplication-willard-route-axioms
@@ -1998,6 +2008,26 @@
   [system]
   (ast/and-form (:axiom-formula system)
                 (selfcons-negation-target system)))
+
+(defn theorem23-k-code
+  "Return Theorem 3.5's fixed superscript `kbar = alpha + 1` for `system`.
+
+   Here `alpha` is the exact public finite-system code consumed by `FinAx4`,
+   `Map`, `SemPrf`, and `SemPrf^k`. Keeping the arithmetic term unnormalized
+   avoids materializing its already-large natural value while the relational
+   arithmetic reader still proves `alpha <= alpha + 1`."
+  [system]
+  (add-term (:system-code system) one))
+
+(defn theorem23-tower-bound
+  "Build the finite public representation of Willard's K-fold tower witness.
+
+   `tower-bound(k,m)` denotes the natural number `E_k(m)`, where `E_0(m)=m`
+   and `E_(i+1)(m)=2^E_i(m)`. Consequently `Log(E_k(m),k)=m`. The SemPrf^k
+   bound relation checks this identity algebraically without materializing the
+   astronomical numeral."
+  [k-code top-code]
+  (ast/app-term 'tower-bound k-code top-code))
 
 (defn theorem23-diagonal-skeleton
   "Willard 2002 JSL2 Equation (4): the open diagonal `Gamma(g)`.

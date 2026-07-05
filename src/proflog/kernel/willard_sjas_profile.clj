@@ -54,7 +54,10 @@
 ;; Binary SJAS arithmetic
 ;; -----------------------------------------------------------------------------
 
-(declare sjas-num-inputo)
+(declare sjas-num-inputo
+         sjas-formal-code-byteso
+         sjas-formal-code-bytes-coreo
+         sjas-acyclic-unifyo)
 
 (defn- bits->canonical-termo
   "Relate a little-endian binary numeral to its canonical SJAS term.
@@ -401,6 +404,22 @@
        (arith/*o left-bits right-bits product-bits)
        (sjas-pending-bindso pending-all sigma-read sigma-out bind-proof)
        (== (list 'sjas-mult left-proof right-proof product-proof bind-proof) proof))]
+    [(fresh [left bytes kind code-proof]
+       (== 'leq relation)
+       (sjas-acyclic-unifyo
+         (list left (list 'app 'add left one-term))
+         args)
+       ;; V5 uses kbar=alpha+1 with alpha a public finite-system code. Reading
+       ;; that code through the optimized formal-code relation proves it denotes
+       ;; a natural, while x<=x+1 follows algebraically without expanding the
+       ;; thousands-bit numeral through the general <= relation.
+       (sjas-formal-code-byteso left
+                                bytes
+                                sigma
+                                sigma-out
+                                kind
+                                code-proof)
+       (== (list 'sjas-leq-formal-code-successor code-proof) proof))]
     [(fresh [left right left-bits right-bits sigma-left sigma-read
              pending-left pending-all left-proof right-proof bind-proof]
        (== 'leq relation)
@@ -425,7 +444,7 @@
 
    This is the genuine `SemPrf^k_alpha` side condition (the half beyond the
    validated `SemPrf_alpha` proof). The `k` superscript is operational: a larger
-   `k` shrinks `Log(bound,k)` and tightens the bound. The bound has two
+   `k` shrinks `Log(bound,k)` and tightens the bound. The bound has three
    representations:
 
    1. A symbolic power-of-two bound `(pow 2 exp)`. `Log((pow 2 exp), k)` is
@@ -435,14 +454,40 @@
       `Log(bound,1) = proof+1 > proof`, yet the ~`2^proof`-bit numeral is never
       built. (`pow` is recognized only here, never materialized by the general
       term interpreter.)
-   2. A materialized numeral bound, read to bits and iterated-logged directly
+   2. A symbolic K-fold tower `(tower-bound k top)`. It denotes `E_k(top)` and
+      therefore satisfies `Log(E_k(top),k)=top` by construction. This is the
+      Theorem 3.5 witness for `k = alpha+1`; the checker compares the encoded
+      tower height to the SemPrf superscript and checks `proof < top` without
+      iterating `k` times or materializing `E_k(top)`.
+   3. A materialized numeral bound, read to bits and iterated-logged directly
       (the ordinary path; unchanged).
 
-   The two branches are mutually exclusive: branch 2's `sjas-num-inputo` has no
-   `pow` case, so it cannot read a `(pow ...)` bound, and branch 1 requires the
-   `(app pow 2 exp)` shape."
+   The branches are shape-disjoint. The ordinary numeric reader has no `pow` or
+   `tower-bound` case, while each symbolic branch requires its named app head."
   [proof-code bound-code k-code sigma sigma-out proof]
   (conde
+    [(fresh [walked-bound height top proof-bits top-bits
+             sigma-proof sigma-read
+             pending-proof pending-all
+             proof-num-proof top-num-proof bind-proof]
+       (equality/walk*o bound-code sigma walked-bound)
+       (== (list 'app 'tower-bound height top) walked-bound)
+       ;; The public symbolic constructor carries the same canonical code term
+       ;; as the SemPrf superscript.  Relational identity proves the tower
+       ;; height side condition directly; decoding the enormous alpha+1 term
+       ;; twice would add no semantic evidence and exhaust the search heap.
+       (sjas-acyclic-unifyo height k-code)
+       (sjas-num-inputo proof-code proof-bits sigma sigma-proof
+                        '() pending-proof proof-num-proof)
+       (sjas-num-inputo top top-bits sigma-proof sigma-read
+                        pending-proof pending-all top-num-proof)
+       (arith/<o proof-bits top-bits)
+       (sjas-pending-bindso pending-all sigma-read sigma-out bind-proof)
+       (== (list 'sjas-semprfk-tower-bound
+                 proof-num-proof
+                 top-num-proof
+                 bind-proof)
+           proof))]
     [(fresh [walked-bound base exp base-bits exp-bits proof-bits k-bits log-bits
              sigma-proof sigma-base sigma-exp sigma-read
              pending-proof pending-base pending-exp pending-all
@@ -589,6 +634,11 @@
        (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
        (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
        (arith/pluso left-bits right-bits bits))]
+    [(fresh [left right left-bits right-bits sigma-mid pending-mid]
+       (== (list 'app 'mul left right) walked)
+       (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo right right-bits sigma-mid sigma-out pending-mid pending-out)
+       (arith/*o left-bits right-bits bits))]
     [(fresh [arg arg-bits]
        (== (list 'app 'pred arg) walked)
        (sjas-num-input-coreo arg arg-bits sigma sigma-out pending pending-out)
@@ -657,6 +707,16 @@
        (sjas-num-input-coreo product product-bits sigma-right sigma-read pending-right pending-all)
        (arith/*o left-bits right-bits product-bits)
        (sjas-pending-binds-coreo pending-all sigma-read sigma-out))]
+    [(fresh [left bytes kind]
+       (== 'leq relation)
+       (sjas-acyclic-unifyo
+         (list left (list 'app 'add left one-term))
+         args)
+       (sjas-formal-code-bytes-coreo left
+                                     bytes
+                                     sigma
+                                     sigma-out
+                                     kind))]
     [(fresh [left right left-bits right-bits sigma-left sigma-read
              pending-left pending-all]
        (== 'leq relation)
@@ -1648,9 +1708,10 @@
    reconstruction -- is repaired in lockstep by pointing
    `semprf-alpha-generated-symbol` at the bare name instead of `(sym n)`.
    The reserved order keeps the boundary cluster contiguous with the globally-named
-   members `semprfk-alpha`, `semprf-alpha`, `pow` as a contiguous suffix and
-   `dsjas-tab2-proof` last, so a multiplication system has no compaction gap below
-   them and each per-system compacted index equals its global reserved index.
+   members `semprfk-alpha`, `semprf-alpha`, `pow`, and `tower-bound` as a
+   contiguous suffix and `dsjas-tab2-proof` last, so a multiplication system has
+   no compaction gap below them and each per-system compacted index equals its
+   global reserved index.
    The full SJAS gate falsifies any decode regression.
 
    NOTE: step 1 (`A ^ B ^ ¬D*`) is boundary-BLIND (FinAx4 holds on both sides; V5's
@@ -4024,7 +4085,7 @@
    A Tab-2 system declares the fixed arithmetic prefix plus `dsjas-tab2-proof`,
    but none of the multiplication/Xtab cluster. The encoder therefore compacts
    `dsjas-tab2-proof` to the slot immediately after the prefix, skipping these."
-  '#{mul finax4 willard-map semprfk-alpha semprf-alpha pow})
+  '#{mul finax4 willard-map semprfk-alpha semprf-alpha tower-bound pow})
 
 (def ^:private tab2-boundary-proof-symbol
   "Internal formula-code head for the target-only Tab-2 proof predicate.
@@ -4177,6 +4238,36 @@
               formula-read-proof
               beta-proof)
         proof)))
+
+(def ^:private finax4-required-beta-formula-bytes
+  "Canonical source formulas required by the executable `FinAx4` translation.
+
+   The total-multiplication profile represents Q's addition fragment through
+   its fixed U-Grounding arithmetic interpretation.  Its reflected finite
+   source must additionally contain the complete multiplication equations,
+   JSL2 V3 (Subst functionality), and JSL2 V4 (bounded proof compression).
+   V5 is intentionally excluded: Willard's `FinAx4` names Q+V1+...+V4 and is
+   used in V5's antecedent."
+  (apply list
+         (map (comp #(apply list %)
+                    boundary-axioms/total-multiplication-formula-code-bytes)
+              (concat (boundary-axioms/total-multiplication-complete-axioms)
+                      [(boundary-axioms/total-multiplication-willard-v3-axiom)
+                       (boundary-axioms/total-multiplication-willard-v4-axiom)]))))
+
+(defn- sjas-system-beta-formulas-presento
+  "Require every canonical formula byte string to occur in one system source."
+  [prog system-bytes required-formulas]
+  (if (empty? required-formulas)
+    succeed
+    (fresh [membership-proof]
+      (sjas-system-beta-formula-byteso prog
+                                       system-bytes
+                                       (first required-formulas)
+                                       membership-proof)
+      (sjas-system-beta-formulas-presento prog
+                                          system-bytes
+                                          (rest required-formulas)))))
 
 (defn- skip-formula-byteso
   "Advance over `remaining` encoded formulas in a system-code byte tail.
@@ -10805,12 +10896,14 @@
 (defn- sjas-finax4-coreo
   "Executable `FinAx4(alpha)` check for Willard boundary route axioms.
 
-   `alpha` is accepted only when it decodes as a complete generated SJAS finite
-   system code. This deliberately reuses the object-level system-code
-   reconstruction used by proof predicates; no host-side source registry is
-   consulted."
+   `alpha` is accepted only when its public code decodes to the
+   total-multiplication profile and its finite beta source contains the exact
+   arithmetic/V3/V4 basis required by this profile's JSL2 translation. This
+   deliberately reuses the object-level system source consumed by proof
+   predicates; profile labels and host-side source registries are insufficient."
   [fml env sigma sigma-out neqs neqs-out prog]
-  (fresh [lit atom walked-atom alpha walked-system-code system-bytes]
+  (fresh [lit atom walked-atom alpha walked-system-code system-bytes
+          beta-count beta-bytes]
     (sjas-subst-formulao fml env lit)
     (sjas-acyclic-unifyo (list 'neg atom) lit)
     (sjas-walk-atomo atom sigma walked-atom)
@@ -10820,7 +10913,14 @@
                                          sigma-out
                                          walked-system-code
                                          system-bytes)
+    (sjas-acyclic-unifyo
+      (lcons system-code-tag
+             (lcons system-profile-total-multiplication-tag
+                    (lcons beta-count beta-bytes)))
+      system-bytes)
     (sjas-system-source-valid-coreo prog system-bytes)
+    (sjas-system-beta-formulas-presento
+      prog system-bytes finax4-required-beta-formula-bytes)
     (== neqs neqs-out)))
 
 (defn- sjas-finax4-closeo

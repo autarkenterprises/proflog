@@ -20,6 +20,17 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-07-05
+
+- ADR-0147 real-`kbar` continuation: replaced the invalid `k=1` Theorem 3.5
+  shortcut with `kbar=alpha+1`, added a symbolic K-fold tower bound checked by
+  the genuine `SemPrf^k` relation, made `FinAx4` inspect the encoded
+  multiplication/V3/V4 source instead of accepting any finite system, and
+  restored total multiplication in the proof-free structural arithmetic
+  reader. The remaining arithmetic-basis obligation is the explicit Q/V1/V2
+  bridge; no full BOT closure is claimed yet. See
+  [V3/Map and K frontier](docs/log/2026-07-04-adr-0147-v3-map-and-k-frontier.md).
+
 ## 2026-07-04
 
 - ADR-0147 V3/Map correction and real-`K` frontier: retained the Claude real

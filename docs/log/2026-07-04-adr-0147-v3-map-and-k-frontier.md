@@ -77,3 +77,50 @@ therefore not merely “assemble the old step-4 tree.” It must:
 
 Until these hold, the concrete-P2 BOT core is valid conditional evidence, not a
 full Theorem 2.3 closure.
+
+## 2026-07-05 continuation: real `kbar`, symbolic tower, and source-aware FinAx4
+
+The first two frontier items now have executable coverage. The generated
+Theorem 3.5 instance uses `kbar = alpha + 1`; the structural arithmetic relation
+proves `alpha <= alpha+1` over the public system code. A new symbolic
+`tower-bound(k,top)` representation implements the identity
+`Log(E_k(top),k)=top` inside the existing `SemPrf^k` bound checker, so the real
+public `kbar` term is checked without iterating it or materializing the tower.
+The real axiom-certificate boundary test passes with `top=p+1` and rejects
+`top=p`.
+
+`FinAx4` no longer accepts every well-formed generated system. It now requires
+the total-multiplication profile tag and exact encoded beta membership of the
+complete reflected multiplication equations, V3, and V4. Public red evidence
+showed the old relation incorrectly accepted a same-profile shell and variants
+missing V3 or V4; all three now fail while the generated complete system passes.
+This is a necessary source-integrity correction, not yet the full literal
+`Q+V1+V2+V3+V4` discharge: the explicit Q/V1/V2 deduction-modulo bridge remains
+the next arithmetic-basis obligation.
+
+The audit also found that the proof-producing arithmetic reader understood
+`mul(left,right)` while the proof-free structural reader did not. A focused
+red/green regression now proves that the structural checker accepts `3*4=12`
+and rejects `3*4=11`. This branch is the one the eventual V1/V2 equations and
+formula-bearing `Dk` tableau use.
+
+Focused evidence (detachable runner, `nice -n 10`, idle-class I/O, `-Xmx1g`):
+
+- corrected `kbar` and symbolic tower: 10 assertions across three selectors;
+- source-aware `FinAx4` plus existing V-route: 7 assertions across two selectors;
+- combined focused sequence: status 0, elapsed 4:47.80, max RSS 877,044 KB;
+- proof-free multiplication equality: red on the true product, then green with
+  2 assertions, elapsed 0:32.14, max RSS 315,160 KB.
+
+The first fast gate caught a reserved-code ordering regression: placing
+`tower-bound` before the established `pow` slot made a pow-only legacy system
+compact `pow` into the new global index, which decoded as `tower-bound`.
+Preserving `pow`'s slot and appending `tower-bound` fixed both affected
+proof-facing regressions; the two old pow selectors and the real tower selector
+then passed together (5 assertions, status 0).
+
+Final checkpoint gates were green under separate `-Xmx1g` caps: fast 275
+tests/2,353 assertions in 7:59.46 (max RSS 716,432 KB), and extended 92
+tests/971 assertions in 3:52.69 (max RSS 566,204 KB). The long fast-gate slice
+was sampled in `fitting-fidelity-test` and completed normally; it was not an
+SJAS proof-search stall.

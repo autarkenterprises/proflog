@@ -19,6 +19,11 @@
 
 (defn add-term [left right] (ast/app-term 'add left right))
 (defn mul-term [left right] (ast/app-term 'mul left right))
+(defn pred-term [term] (ast/app-term 'pred term))
+(defn sub-term [left right] (ast/app-term 'sub left right))
+(defn log-term [term] (ast/app-term 'log term))
+(defn iterated-log-term [value iterations]
+  (ast/app-term 'iterlog value iterations))
 (defn leq [left right] (ast/pos-lit (ast/app-term 'leq left right)))
 (defn lt [left right] (ast/pos-lit (ast/app-term 'lt left right)))
 (defn mult [left right product]
@@ -216,29 +221,37 @@
                                  (mul-term xt zt))))))]))
 
 (defn total-multiplication-translated-q-axioms
-  "Return Robinson Q's arithmetic axioms Q4-Q7 translated into the U-Grounding
-   vocabulary, with the successor `S(t)` written as `add(t,1)` (ADR-0142
-   criterion 5 / review section 4).
+  "Return Robinson Q translated into the total-function U-Grounding vocabulary.
 
-   These are the universal arithmetic consequences Theorem 2.3's argument leans
-   on. The map keys document each law:
+   Successor is `S(t)=add(t,1)`. Q3's existential predecessor is represented by
+   the already-total `pred` function: nonzero `x` satisfies `S(pred(x))=x`.
+   This is a definitional translation, not a host-side assertion.
 
+   The map keys document the seven clauses:
+
+     :q1  forall x.    S(x) != 0
+     :q2  forall x y.  S(x)=S(y) -> x=y
+     :q3  forall x.    x!=0 -> S(pred(x))=x
      :q4  forall x.    add(x,0) = x
      :q5  forall x y.  add(x, S(y)) = S(add(x,y))
      :q6  forall x.    mul(x,0) = 0
-     :q7  forall x y.  mul(x, S(y)) = add(mul(x,y), x)
-
-   `:q6`/`:q7` are reflected beta members of
-   `total-multiplication-complete-axioms`; `:q4`/`:q5` are realized
-   instance-wise by the U-Grounding interpreter (the deduction-modulo bridge),
-   not duplicated in beta."
+     :q7  forall x y.  mul(x, S(y)) = add(mul(x,y), x)"
   []
   (let [x (nominal/nom (lvar 'x))
         y (nominal/nom (lvar 'y))
         xt (ast/var-term x)
         yt (ast/var-term y)
         succ (fn [t] (add-term t one))]
-    {:q4 (ast/forall-form x
+    {:q1 (ast/forall-form x
+           (ast/neq-lit (succ xt) zero))
+     :q2 (ast/forall-form x
+           (ast/forall-form y
+             (ast/implies-form (ast/eq-lit (succ xt) (succ yt))
+                               (ast/eq-lit xt yt))))
+     :q3 (ast/forall-form x
+           (ast/implies-form (ast/neq-lit xt zero)
+                             (ast/eq-lit (succ (pred-term xt)) xt)))
+     :q4 (ast/forall-form x
            (ast/eq-lit (add-term xt zero) xt))
      :q5 (ast/forall-form x
            (ast/forall-form y
@@ -250,6 +263,106 @@
            (ast/forall-form y
              (ast/eq-lit (mul-term xt (succ yt))
                          (add-term (mul-term xt yt) xt))))}))
+
+(defn total-multiplication-willard-v1-axioms
+  "Return the executable U-Grounding translation of JSL2 Lemma 3.1's V1.
+
+   Willard states V1 using Delta-0 graph predicates for total subtraction and
+   `Log(x,k)`. Proflog's first-order language has total function symbols, so the
+   equivalent finite universal presentation is their zero/successor recursion.
+   These equations both characterize the intended functions and remain Pi*1."
+  []
+  (let [x (nominal/nom (lvar 'x))
+        y (nominal/nom (lvar 'y))
+        xt (ast/var-term x)
+        yt (ast/var-term y)
+        succ (fn [t] (add-term t one))]
+    [(ast/forall-form x
+       (ast/eq-lit (sub-term xt zero) xt))
+     (ast/forall-form x
+       (ast/forall-form y
+         (ast/eq-lit (sub-term xt (succ yt))
+                     (pred-term (sub-term xt yt)))))
+     (ast/forall-form x
+       (ast/eq-lit (iterated-log-term xt zero) xt))
+     (ast/forall-form x
+       (ast/forall-form y
+         (ast/eq-lit (iterated-log-term xt (succ yt))
+                     (log-term (iterated-log-term xt yt)))))]))
+
+(defn- conjunction
+  "Build a nonempty right-associated conjunction."
+  [formulas]
+  (reduce (fn [right left] (ast/and-form left right))
+          (last formulas)
+          (reverse (butlast formulas))))
+
+(defn total-multiplication-willard-v2-axioms
+  "Return JSL2 Lemma 3.2's A1-A6 as six reflected Pi*1 formulas.
+
+   A1-A5 are the subtraction/logarithm laws listed in the paper. A6 packages
+   addition/multiplication associativity and commutativity plus both
+   distributive orientations. `iterlog(x,k)` is the V1 total function."
+  []
+  (let [x (nominal/nom (lvar 'x))
+        y (nominal/nom (lvar 'y))
+        z (nominal/nom (lvar 'z))
+        xt (ast/var-term x)
+        yt (ast/var-term y)
+        zt (ast/var-term z)
+        log1 #(iterated-log-term % one)
+        log2 #(iterated-log-term % two)
+        succ #(add-term % one)
+        iff (fn [left right]
+              (ast/and-form (ast/implies-form left right)
+                            (ast/implies-form right left)))
+        a1 (ast/forall-form x
+             (ast/forall-form y
+               (ast/forall-form z
+                 (ast/implies-form
+                   (leq (mul-term xt yt) zt)
+                   (leq (add-term (log1 xt) (log1 yt)) (log1 zt))))))
+        a2 (ast/forall-form x
+             (ast/forall-form y
+               (ast/implies-form
+                 (leq (mul-term xt xt) yt)
+                 (leq (succ (log2 xt)) (log2 yt)))))
+        a3 (ast/forall-form x
+             (ast/forall-form y
+               (ast/eq-lit (iterated-log-term xt (succ yt))
+                           (log1 (iterated-log-term xt yt)))))
+        a4 (ast/forall-form x
+             (ast/forall-form y
+               (ast/implies-form
+                 (leq yt xt)
+                 (ast/or-form (ast/eq-lit yt xt)
+                              (leq yt (pred-term xt))))))
+        a5 (ast/forall-form x
+             (ast/forall-form y
+               (ast/forall-form z
+                 (ast/and-form
+                   (ast/implies-form
+                     (leq yt zt)
+                     (iff (ast/eq-lit (sub-term zt yt) xt)
+                          (ast/eq-lit (add-term xt yt) zt)))
+                   (ast/implies-form
+                     (leq zt yt)
+                     (ast/eq-lit (sub-term zt yt) zero))))))
+        a6 (ast/forall-form x
+             (ast/forall-form y
+               (ast/forall-form z
+                 (conjunction
+                   [(ast/eq-lit (add-term xt yt) (add-term yt xt))
+                    (ast/eq-lit (add-term (add-term xt yt) zt)
+                                (add-term xt (add-term yt zt)))
+                    (ast/eq-lit (mul-term xt yt) (mul-term yt xt))
+                    (ast/eq-lit (mul-term (mul-term xt yt) zt)
+                                (mul-term xt (mul-term yt zt)))
+                    (ast/eq-lit (mul-term xt (add-term yt zt))
+                                (add-term (mul-term xt yt) (mul-term xt zt)))
+                    (ast/eq-lit (mul-term (add-term xt yt) zt)
+                                (add-term (mul-term xt zt) (mul-term yt zt)))]))))]
+    [a1 a2 a3 a4 a5 a6]))
 
 (defn boundary-arithmetic-basis-axioms
   "Return the finite arithmetic basis shared by Xtab and Tab-2."

@@ -456,11 +456,13 @@
 (def theorem23-bound-functions
   "Finite term vocabulary for Definition 2.1 bound witnesses.
 
+   `iterlog/2` is the total Definition 2.1 function used by reflected V1/V2.
    `pow/2` preserves the one-log symbolic power path. `tower-bound/2` denotes
    the K-fold base-2 tower used by Theorem 3.5 when `K = alpha + 1`; only the
-   bounded-proof checker interprets this constructor."
+   bounded-proof checker interprets the latter constructors."
   {'pow 2
-   'tower-bound 2})
+   'tower-bound 2
+   'iterlog 2})
 
 (defn mul-term
   "Construct the total multiplication term `mul(left,right)`."
@@ -570,12 +572,21 @@
   (boundary-axioms/total-multiplication-complete-axioms))
 
 (defn total-multiplication-translated-q-axioms
-  "Robinson Q axioms Q4-Q7 translated into U-Grounding vocabulary (S(t)=add(t,1)).
+  "Robinson Q axioms Q1-Q7 translated into U-Grounding vocabulary.
 
-   See `proflog.sjas-boundary-axioms/total-multiplication-translated-q-axioms`.
-   Q6/Q7 are reflected beta; Q4/Q5 are realized by the interpreter bridge."
+   See `proflog.sjas-boundary-axioms/total-multiplication-translated-q-axioms`."
   []
   (boundary-axioms/total-multiplication-translated-q-axioms))
+
+(defn total-multiplication-willard-v1-axioms
+  "V1 total subtraction/iterated-log equations for the finite Type-M source."
+  []
+  (boundary-axioms/total-multiplication-willard-v1-axioms))
+
+(defn total-multiplication-willard-v2-axioms
+  "V2's six Lemma 3.2 arithmetic clauses for the finite Type-M source."
+  []
+  (boundary-axioms/total-multiplication-willard-v2-axioms))
 
 (defn boundary-arithmetic-basis-axioms
   "Return the finite Pi*1 arithmetic basis shared by unsafe profiles.
@@ -1680,7 +1691,11 @@
               :functions (merge theorem23-bound-functions
                                 (:functions system-opts)
                                 total-multiplication-functions)
-              :beta (vec (concat (total-multiplication-complete-axioms)
+              :beta (vec (concat ((juxt :q1 :q2 :q3 :q4 :q5 :q6 :q7)
+                                  (total-multiplication-translated-q-axioms))
+                                 (total-multiplication-willard-v1-axioms)
+                                 (total-multiplication-willard-v2-axioms)
+                                 (total-multiplication-complete-axioms)
                                  (total-multiplication-willard-route-axioms
                                    contradiction-code)
                                  witness-beta
@@ -1697,8 +1712,15 @@
         beta-set (set (map (comp canonical :formula)
                            (filter #(= :group-two (:group %))
                                    (:axioms system))))
+        q-basis ((juxt :q1 :q2 :q3 :q4 :q5 :q6 :q7)
+                 (total-multiplication-translated-q-axioms))
         required-set (set (map canonical
-                               (total-multiplication-complete-axioms)))
+                               (concat q-basis
+                                       (total-multiplication-willard-v1-axioms)
+                                       (total-multiplication-willard-v2-axioms)
+                                       (total-multiplication-complete-axioms)
+                                       [(total-multiplication-willard-v3-axiom)
+                                        (total-multiplication-willard-v4-axiom)])))
         products [[2 3 6] [3 4 12] [5 5 25]]
         product-checks
         (mapv (fn [[left right product]]
@@ -2028,6 +2050,11 @@
    astronomical numeral."
   [k-code top-code]
   (ast/app-term 'tower-bound k-code top-code))
+
+(defn iterated-log-term
+  "Build the total `Log(value,iterations)` term used by JSL2 V1 and V2."
+  [value iterations]
+  (boundary-axioms/iterated-log-term value iterations))
 
 (defn theorem23-diagonal-skeleton
   "Willard 2002 JSL2 Equation (4): the open diagonal `Gamma(g)`.

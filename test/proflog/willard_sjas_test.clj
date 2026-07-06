@@ -1513,13 +1513,19 @@
               320))
           "SemPrf^k_alpha must reject a valid proof whose code exceeds Log(bound,k)"))))
 
-(deftest sjas-finax4-requires-the-encoded-multiplication-v3-v4-basis
+(deftest sjas-finax4-requires-the-encoded-q-v1-through-v4-basis
   (testing "FinAx4 inspects the finite source instead of accepting a profile-shaped shell"
     (let [route (sjas/total-multiplication-willard-route-axioms
                   sjas/contradiction-code)
           v3 (first route)
           v4 (second route)
           v5 (nth route 2)
+          q-axioms (sjas/total-multiplication-translated-q-axioms)
+          q-basis ((juxt :q1 :q2 :q3 :q4 :q5 :q6 :q7) q-axioms)
+          v1-basis (sjas/total-multiplication-willard-v1-axioms)
+          v2-basis (sjas/total-multiplication-willard-v2-axioms)
+          multiplication-basis (sjas/total-multiplication-complete-axioms)
+          finax4-basis (concat q-basis v1-basis v2-basis multiplication-basis)
           build (fn [beta]
                   (sjas/system
                     {:profile :willard-sjas-total-multiplication
@@ -1531,10 +1537,16 @@
           complete (sjas/total-multiplication-complete-system
                      {:depth 0 :code-format :u-grounding})
           shell (build [(ast/eq-lit sjas/one sjas/one)])
-          without-v3 (build (concat (sjas/total-multiplication-complete-axioms)
-                                    [v4 v5]))
-          without-v4 (build (concat (sjas/total-multiplication-complete-axioms)
-                                    [v3 v5]))
+          without-q (build (concat (rest q-basis)
+                                   v1-basis v2-basis multiplication-basis
+                                   [v3 v4 v5]))
+          without-v1 (build (concat q-basis (rest v1-basis)
+                                    v2-basis multiplication-basis
+                                    [v3 v4 v5]))
+          without-v2 (build (concat q-basis v1-basis (rest v2-basis)
+                                    multiplication-basis [v3 v4 v5]))
+          without-v3 (build (concat finax4-basis [v4 v5]))
+          without-v4 (build (concat finax4-basis [v3 v5]))
           holds? (fn [system]
                    (successful?
                      (query/query-succeeds (:program system)
@@ -1545,10 +1557,49 @@
           "the generated finite multiplication/V system satisfies FinAx4")
       (is (not (holds? shell))
           "a decodable same-profile source is not enough")
+      (is (not (holds? without-q))
+          "FinAx4 requires the translated Robinson Q basis")
+      (is (not (holds? without-v1))
+          "FinAx4 requires V1's total subtraction and iterated-log equations")
+      (is (not (holds? without-v2))
+          "FinAx4 requires V2's six Lemma 3.2 arithmetic clauses")
       (is (not (holds? without-v3))
           "FinAx4 requires condition (C), JSL2 V3, in the encoded source")
       (is (not (holds? without-v4))
           "FinAx4 requires the JSL2 V4 compression axiom in the encoded source"))))
+
+(deftest sjas-complete-multiplication-source-reflects-q-v1-and-v2
+  (testing "the exact finite source discharges FinAx4's Q+V1+V2 basis obligation"
+    (let [system (sjas/total-multiplication-complete-system
+                   {:depth 0 :code-format :u-grounding})
+          q-axioms (sjas/total-multiplication-translated-q-axioms)
+          v1-axioms (sjas/total-multiplication-willard-v1-axioms)
+          v2-axioms (sjas/total-multiplication-willard-v2-axioms)
+          required (concat (vals q-axioms) v1-axioms v2-axioms)
+          canonical (var-get #'sjas/code-canonical-formula)
+          beta-set (set (map (comp canonical :formula)
+                             (filter #(= :group-two (:group %))
+                                     (:axioms system))))
+          required-set (set (map canonical required))
+          app-heads (->> required
+                         (mapcat #(tree-seq seqable? seq %))
+                         (filter #(and (seq? %) (= 'app (first %))))
+                         (map second)
+                         set)]
+      (is (= #{:q1 :q2 :q3 :q4 :q5 :q6 :q7} (set (keys q-axioms)))
+          "the translation covers all seven Robinson Q clauses")
+      (is (= 4 (count v1-axioms))
+          "V1 gives zero/successor equations for total subtraction and Log(x,k)")
+      (is (= 6 (count v2-axioms))
+          "V2 represents Willard Lemma 3.2 A1 through A6")
+      (is (every? sjas/pi-star-1-encodable? required)
+          "every translated basis formula remains eligible for reflected beta")
+      (is (every? beta-set required-set)
+          "Q, V1, and V2 occur in the exact encoded finite source")
+      (is (contains? app-heads 'iterlog)
+          "the formulas use the operational binary iterated-log term")
+      (is (= 2 (get-in system [:language :functions 'iterlog]))
+          "the finite language declares iterlog with its checked arity"))))
 
 (deftest sjas-adr0142-iterated-log-matches-definition-2-1
   (testing "Log(x,k) is the k-fold floor(log2) iteration with Log(x,0)=x (Definition 2.1)"

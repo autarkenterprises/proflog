@@ -124,3 +124,41 @@ tests/2,353 assertions in 7:59.46 (max RSS 716,432 KB), and extended 92
 tests/971 assertions in 3:52.69 (max RSS 566,204 KB). The long fast-gate slice
 was sampled in `fitting-fidelity-test` and completed normally; it was not an
 SJAS proof-search stall.
+
+## 2026-07-06 continuation: explicit Q/V1/V2 bridge
+
+The arithmetic-basis qualification above is now implemented rather than left
+as deduction-modulo terminology:
+
+- Robinson Q1-Q7 are explicitly translated into the total-function
+  U-Grounding vocabulary, with `S(x)=add(x,1)` and Q3 represented by the total
+  predecessor equation for nonzero `x`.
+- JSL2 V1 is represented by four universal zero/successor recurrences that
+  characterize total truncated subtraction and the binary `iterlog(x,k)`
+  function.
+- JSL2 V2 is represented by the six Lemma 3.2 clauses A1-A6, including the
+  logarithm inequalities, subtraction law, and the addition/multiplication
+  associative, commutative, and distributive laws.
+- `iterlog/2` is interpreted by the same pure `sjas-iterated-logo` relation used
+  by `SemPrf^k`; both proof-producing and proof-free arithmetic readers share
+  that semantics.
+- The complete multiplication system reflects Q, V1, and V2 before V3-V5, and
+  `FinAx4` now requires exact encoded membership of Q+V1+V2+V3+V4 plus the
+  multiplication equations. Public negative systems independently missing Q,
+  V1, V2, V3, or V4 are rejected.
+
+Red evidence was the missing public `iterated-log-term` API. Green evidence:
+the structural evaluator accepts `iterlog(65536,2)=4` and rejects `=5`; the
+source audit passes 7 assertions; the full public `FinAx4` basis test passes 7
+assertions in 6:23.20 at max RSS 897,468 KB. The follow-up four-selector
+sequence passed 20 assertions in 5:48.03 at max RSS 865,532 KB.
+
+Two stack-guided, semantics-preserving improvements kept the public check
+within the cap: `FinAx4` stopped deep-walking an unused duplicate of the public
+system numeral, and finite acyclic source-prefix membership runs with the
+occurs check locally disabled. Both changes retain relational code decoding and
+exact source-byte membership; neither uses a host source registry.
+
+Final checkpoint gates were green under separate `-Xmx1g` caps: fast 275
+tests/2,353 assertions in 2:28.87 (max RSS 595,540 KB), and extended 92
+tests/971 assertions in 3:26.97 (max RSS 528,300 KB).

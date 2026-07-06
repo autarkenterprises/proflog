@@ -61,6 +61,17 @@
                (sjas/numeral 11)))
         "the same evaluator rejects a false product")))
 
+(deftest theorem23-structural-arithmetic-evaluates-iterated-log-terms
+  (testing "the V1/V2 iterlog term uses Definition 2.1 semantics in structural leaves"
+    (is (normal-equal-holds?
+          (sjas/iterated-log-term (sjas/numeral 65536) (sjas/numeral 2))
+          (sjas/numeral 4))
+        "Log(Log(65536)) equals 4")
+    (is (not (normal-equal-holds?
+               (sjas/iterated-log-term (sjas/numeral 65536) (sjas/numeral 2))
+               (sjas/numeral 5)))
+        "the structural interpreter rejects a false iterated logarithm")))
+
 (deftest theorem23-uses-jsl2-kbar-not-one
   (testing "Theorem 3.5 chooses kbar=alpha+1, satisfying the V5 order premise"
     (let [system (sjas/total-multiplication-complete-system

@@ -319,6 +319,15 @@
        (sjas-num-inputo arg arg-bits sigma sigma-out pending pending-out arg-proof)
        (sjas-logo arg-bits bits)
        (== (list 'sjas-read-log arg-proof) proof))]
+    [(fresh [value iterations value-bits iteration-bits sigma-mid pending-mid
+             value-proof iteration-proof]
+       (== (list 'app 'iterlog value iterations) walked)
+       (sjas-num-inputo value value-bits sigma sigma-mid
+                        pending pending-mid value-proof)
+       (sjas-num-inputo iterations iteration-bits sigma-mid sigma-out
+                        pending-mid pending-out iteration-proof)
+       (sjas-iterated-logo value-bits iteration-bits bits)
+       (== (list 'sjas-read-iterlog value-proof iteration-proof) proof))]
     [(fresh [left right left-bits right-bits sigma-mid pending-mid left-proof right-proof]
        (== (list 'app 'root left right) walked)
        (sjas-num-inputo left left-bits sigma sigma-mid pending pending-mid left-proof)
@@ -662,6 +671,12 @@
        (== (list 'app 'log arg) walked)
        (sjas-num-input-coreo arg arg-bits sigma sigma-out pending pending-out)
        (sjas-logo arg-bits bits))]
+    [(fresh [value iterations value-bits iteration-bits sigma-mid pending-mid]
+       (== (list 'app 'iterlog value iterations) walked)
+       (sjas-num-input-coreo value value-bits sigma sigma-mid pending pending-mid)
+       (sjas-num-input-coreo iterations iteration-bits sigma-mid sigma-out
+                             pending-mid pending-out)
+       (sjas-iterated-logo value-bits iteration-bits bits))]
     [(fresh [left right left-bits right-bits sigma-mid pending-mid]
        (== (list 'app 'root left right) walked)
        (sjas-num-input-coreo left left-bits sigma sigma-mid pending pending-mid)
@@ -1708,7 +1723,7 @@
    reconstruction -- is repaired in lockstep by pointing
    `semprf-alpha-generated-symbol` at the bare name instead of `(sym n)`.
    The reserved order keeps the boundary cluster contiguous with the globally-named
-   members `semprfk-alpha`, `semprf-alpha`, `pow`, and `tower-bound` as a
+   members `semprfk-alpha`, `semprf-alpha`, `pow`, `tower-bound`, and `iterlog` as a
    contiguous suffix and `dsjas-tab2-proof` last, so a multiplication system has
    no compaction gap below them and each per-system compacted index equals its
    global reserved index.
@@ -4085,7 +4100,7 @@
    A Tab-2 system declares the fixed arithmetic prefix plus `dsjas-tab2-proof`,
    but none of the multiplication/Xtab cluster. The encoder therefore compacts
    `dsjas-tab2-proof` to the slot immediately after the prefix, skipping these."
-  '#{mul finax4 willard-map semprfk-alpha semprf-alpha tower-bound pow})
+  '#{mul finax4 willard-map semprfk-alpha semprf-alpha tower-bound pow iterlog})
 
 (def ^:private tab2-boundary-proof-symbol
   "Internal formula-code head for the target-only Tab-2 proof predicate.
@@ -4242,16 +4257,19 @@
 (def ^:private finax4-required-beta-formula-bytes
   "Canonical source formulas required by the executable `FinAx4` translation.
 
-   The total-multiplication profile represents Q's addition fragment through
-   its fixed U-Grounding arithmetic interpretation.  Its reflected finite
-   source must additionally contain the complete multiplication equations,
-   JSL2 V3 (Subst functionality), and JSL2 V4 (bounded proof compression).
-   V5 is intentionally excluded: Willard's `FinAx4` names Q+V1+...+V4 and is
-   used in V5's antecedent."
+   The finite source must contain the translated Q1-Q7 basis, V1's total
+   subtraction/iterated-log equations, V2's six arithmetic clauses, the
+   complete multiplication equations, JSL2 V3 (Subst functionality), and JSL2
+   V4 (bounded proof compression). V5 is intentionally excluded: Willard's
+   `FinAx4` names Q+V1+...+V4 and is used in V5's antecedent."
   (apply list
          (map (comp #(apply list %)
                     boundary-axioms/total-multiplication-formula-code-bytes)
-              (concat (boundary-axioms/total-multiplication-complete-axioms)
+              (concat ((juxt :q1 :q2 :q3 :q4 :q5 :q6 :q7)
+                       (boundary-axioms/total-multiplication-translated-q-axioms))
+                      (boundary-axioms/total-multiplication-willard-v1-axioms)
+                      (boundary-axioms/total-multiplication-willard-v2-axioms)
+                      (boundary-axioms/total-multiplication-complete-axioms)
                       [(boundary-axioms/total-multiplication-willard-v3-axiom)
                        (boundary-axioms/total-multiplication-willard-v4-axiom)]))))
 
@@ -10900,27 +10918,36 @@
    total-multiplication profile and its finite beta source contains the exact
    arithmetic/V3/V4 basis required by this profile's JSL2 translation. This
    deliberately reuses the object-level system source consumed by proof
-   predicates; profile labels and host-side source registries are insufficient."
+  predicates; profile labels and host-side source registries are insufficient."
   [fml env sigma sigma-out neqs neqs-out prog]
-  (fresh [lit atom walked-atom alpha walked-system-code system-bytes
+  (fresh [lit atom walked-atom alpha system-bytes system-kind
           beta-count beta-bytes]
     (sjas-subst-formulao fml env lit)
     (sjas-acyclic-unifyo (list 'neg atom) lit)
     (sjas-walk-atomo atom sigma walked-atom)
     (sjas-acyclic-unifyo (list 'app 'finax4 alpha) walked-atom)
-    (sjas-system-code-bytes-walked-coreo alpha
-                                         sigma
-                                         sigma-out
-                                         walked-system-code
-                                         system-bytes)
+    ;; FinAx4 consumes the finite source bytes only. Avoid deep-walking the
+    ;; already-decoded public system numeral into an otherwise-unused duplicate;
+    ;; that traversal is quadratic at the real Q+V source size.
+    (sjas-formal-code-bytes-coreo alpha
+                                  system-bytes
+                                  sigma
+                                  sigma-out
+                                  system-kind)
     (sjas-acyclic-unifyo
       (lcons system-code-tag
              (lcons system-profile-total-multiplication-tag
                     (lcons beta-count beta-bytes)))
       system-bytes)
-    (sjas-system-source-valid-coreo prog system-bytes)
-    (sjas-system-beta-formulas-presento
-      prog system-bytes finax4-required-beta-formula-bytes)
+    ;; The source and required formula byte strings are finite acyclic lists.
+    ;; Their repeated prefix decomposition cannot create a cyclic substitution,
+    ;; so the occurs check is redundant and otherwise makes membership
+    ;; quadratic in the real Q+V source size.
+    (with-occurs-check-offo
+      (fresh []
+        (sjas-system-source-valid-coreo prog system-bytes)
+        (sjas-system-beta-formulas-presento
+          prog system-bytes finax4-required-beta-formula-bytes)))
     (== neqs neqs-out)))
 
 (defn- sjas-finax4-closeo

@@ -145,6 +145,9 @@
    ;; SemPrf^k bound checker and keeps Willard's tower witness finite in public
    ;; proof code without granting a general exponentiation evaluator.
    'tower-bound
+   ;; `iterlog(x,k)` is the total Definition 2.1 function reflected by the
+   ;; multiplication profile's V1/V2 arithmetic basis.
+   'iterlog
    ;; `dsjas-tab2-proof` is the target-only Tab-2 proof predicate. It moves to the
    ;; end so it never sits between the prefix and the multiplication cluster; a
    ;; Tab-2 system (prefix + this symbol, no cluster) still compacts it to the slot

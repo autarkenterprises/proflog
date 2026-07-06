@@ -20,6 +20,17 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-07-06
+
+- ADR-0147 arithmetic bridge: reflected translated Robinson Q1-Q7, V1's total
+  subtraction/iterated-log recurrences, and V2's six Lemma 3.2 clauses in the
+  multiplication source; added pure relational `iterlog/2` semantics; and made
+  public `FinAx4` require exact encoded Q+V1+V2+V3+V4 membership. Independent
+  missing-basis variants now fail. This discharges the arithmetic-source
+  prerequisite for constructing the measured `Dk` proof; it does not itself
+  claim BOT closure. See
+  [V3/Map and K frontier](docs/log/2026-07-04-adr-0147-v3-map-and-k-frontier.md).
+
 ## 2026-07-05
 
 - ADR-0147 real-`kbar` continuation: replaced the invalid `k=1` Theorem 3.5

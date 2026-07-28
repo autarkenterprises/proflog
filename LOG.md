@@ -20,6 +20,26 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-07-27
+
+- Completed a corpus-controlled survey of Willard's published papers,
+  preprints, talks, and all 17 distinct local nachlass OCR texts (18 manifest
+  PDFs including one exact duplicate), pinned to fetched `jpt4/sjas` commit
+  `18e24bc`, for the full `resolve*` word family, an explicit exhaustive
+  sequent-calculus vocabulary pass, and other possible non-tableau deductive
+  apparatuses. The
+  evidence identifies two affirmative author-stated resolution routes (`xi_R`
+  Level-0R in 2011 and direct Level-1 `ISRes` in 2020), an affirmative
+  first-order cut-free-sequent route for total addition, a separate
+  cut-permissive sequent/Hilbert-like route for the weaker no-total-addition
+  profile, and a sharp `Res`/`Xres` LEM boundary. The resolution-specific
+  derivations are not printed in full. The survey also records every
+  resolution and sequent false positive, repository/version gaps (including
+  the metadata-only TABLEAUX 2003 position paper), older non-logic full-text
+  gaps, non-candidate consistency frameworks, and implementation correctness
+  criteria:
+  [Willard deductive-apparatus survey](docs/interdev/2026-07-27-willard-deductive-apparatus-survey.md).
+
 ## 2026-07-06
 
 - ADR-0147 arithmetic bridge: reflected translated Robinson Q1-Q7, V1's total

@@ -59,6 +59,33 @@ complete contemporaneous transcript.
     does not vet updates. Its truth conditions equal Level-0's. Detection comes
     from Σ₁-completeness, and the conditional guarantee "true update ⇒ naive
     extension consistent" comes from Σ₁ reflection.
+- Appended four addenda to the same note.
+  - **Non-numeric translations.** The earlier answer ("no gain from leaving
+    numeric codes") is recorded with four corrections. They come from reading
+    `jpt4/sjas` branch `sjas-codification`, which the answer had not covered.
+    - λᶜᵉʳᵗ rebuilds the size budget as tokens on a certificate sort.
+    - It trades against, rather than falls under, the numeric SJAS.
+    - The length sorting of operations is only a heuristic.
+    - Theorem 7.2 binds free representations only.
+  - **λᶜᵉʳᵗ and ALSJAS.**
+    - λᶜᵉʳᵗ's consistency argument checks out in its key cases. As built, it
+      trusts certificates only for 0 and base data.
+    - Assessor's derivation: its model also justifies reflection at every
+      R-free, ◇-free type, which gives a closed soundness schema over held
+      certificates.
+    - The telomere returns in two places: nested trust halves the budget per
+      level, and trust in claims that quantify over future resources is
+      unjustified by the model.
+    - ALSJAS is paper-stage, with no reflection. An affine unbox appears
+      consistent there.
+  - **Child efficiency axioms.** A child can be an SJAS but cannot be a
+    conservative extension its parent trusts: verifying a speed-up is proof
+    composition, which the parent cannot prove total. Efficiency belongs in
+    search, or in certifying algorithms over a fixed basis.
+  - **Why codes.** Any internal proof predicate ranges over a representation.
+    Opaque modalities already allow reflection. Tiling needs codes as data,
+    because found proofs and changed rules are data. What type theory adds is
+    types on the code sort.
 
 ## 2026-06-22
 

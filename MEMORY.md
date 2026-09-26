@@ -17,6 +17,15 @@
   Double as function symbols.
 - Details and the conditional "Tκ without κ" result:
   `docs/log/2026-09-26-sjas-lobian-obstacle-assessment.md`.
+- The strongest non-numeric SJAS analogue is λᶜᵉʳᵗ, on `jpt4/sjas` branch
+  `sjas-codification` (`nachlass/refinement/R4-*`, `code/lcert`).
+  - Certificates cost one token per node; self-consistency covers held
+    certificates; code-level consistency is unprovable.
+  - Assessor's derivation: its model also justifies reflection at all R-free,
+    ◇-free types.
+  - The telomere reappears as budget descent.
+- ALSJAS, the affine modal calculus on branch `adr-0003-alsjas-paper-first`,
+  is paper-stage and has no reflection.
 
 ## 2026-06-10 ADR-0088/0090 Runtime Re-Baseline
 

@@ -33,6 +33,12 @@
   where the uniform reflection principle the argument invoked lives. Carry a
   derivation in the language of the system whose theorem it uses; there the
   window had to be stated Σ₁ (∃z (z − v = K̄ ∧ …)).
+- Before claiming that no work yet achieves something, read every active
+  branch of the programme concerned. An answer asserted that no non-numeric
+  translation rebuilds Willard's size budget. It had read only `jpt4/sjas`
+  master. Branch `sjas-codification` already held λᶜᵉʳᵗ, which rebuilds the
+  budget as tokens, with a proof. List the branches with their latest dates,
+  and read the most recent research lines before saying "none".
 
 ## 2026-06-22
 

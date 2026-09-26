@@ -44,6 +44,21 @@ complete contemporaneous transcript.
   The earlier note gains a correction pointer; its text is otherwise retained.
   See
   [SJAS And The Löbian Obstacle](docs/log/2026-09-26-sjas-lobian-obstacle-assessment.md).
+- Double-checked the assessor's derivations at the user's request; results are
+  appended to the same note.
+  - "Tκ without κ" survives with a repair. The delivered window formula used
+    v+K as a term, but the 2001 Grounding language, where the uniform
+    reflection principle lives, has only non-growth function symbols. Restated
+    as Σ₁ (∃z (z − v = K̄ ∧ …)), the argument goes through for ISλ_U. It needs
+    total addition, and its premises are now explicit.
+  - The numeric telomere is confirmed. The ISREF loss per level is a small
+    constant, not exactly one.
+  - Two Section 2 statements and the anti-modularity claim are narrowed to what
+    is actually established.
+  - Answered a follow-up question: Level-1 consistency ("not both p and ¬p")
+    does not vet updates. Its truth conditions equal Level-0's. Detection comes
+    from Σ₁-completeness, and the conditional guarantee "true update ⇒ naive
+    extension consistent" comes from Σ₁ reflection.
 
 ## 2026-06-22
 

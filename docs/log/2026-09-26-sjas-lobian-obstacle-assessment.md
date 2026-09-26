@@ -292,3 +292,130 @@ load-bearing premise is Willard's unpublished proof that the uniform variant is
 consistent. Proflog's SJAS profiles implement only IS(A)-style consistency
 axioms; ISλ's reflection schemas (2001 equations 9, 54 and 60) are the natural
 target for testing Section 4(b) executably.
+
+## Addendum: Double-Check Of The Assessor's Derivations (2026-09-26)
+
+### A1. Section 4(b), "Tκ without κ": survives with a repair
+
+- Error. As delivered, φ(v) ≡ b̄ᵥ → ∀u ≤ v+K (∅ᵤ ∨ Gᵤ) treats v+K as a term.
+  That is valid in Willard's 2011/2013 U-Grounding language, where addition and
+  Double are function symbols. But there only a non-uniform principle, for
+  sentences, is documented (2013, principle 23). The uniform principle
+  (2001, equation 60) is asserted for ISλ_U and ISREF_U. Those use the 2001
+  Grounding language, whose seven function symbols are all non-growth: no term
+  exceeds the maximum of its arguments. There v+K is not a term, and φ(v) is not
+  Δ₀.
+- Repair. State the window existentially:
+  φ′(v) ≡ b̄ᵥ → ∃z (z − v = K̄ ∧ ∀u ≤ z (∅ᵤ ∨ Gᵤ)).
+  This is Σ₁, so the tangibility bound leaves it unchanged and uniform reflection
+  still gives it exactly. The parent picks z′ with z′ − t = K̄; z′ exists by
+  ISλ's Group-1 axiom that addition is total (2001, equation 6). The child's
+  guarantee reaches v+K > t+K, and ∅ holds before the first action, so the
+  parent's own Σ₁ criterion follows. The theory S and the window K are the same,
+  and there is no decrement.
+- Scope. The repair needs total addition, so it applies to ISλ_U, not ISREF_U,
+  which omits equation 6.
+- Premises, now explicit:
+  - P1: ISλ_U is consistent. This is Willard 2001 Remark 6.3; the proof is not
+    published.
+  - P2: environment predicates (∅ᵤ, Gᵤ, b̄ᵥ, "A₀ is built at t") can be added
+    with true Π₁ axioms without breaking consistency preservation. This is
+    plausible, because Willard's proofs argue by truth in a fixed standard
+    structure, but it is not in the papers.
+  - P3: the code-inspection facts the parent uses (A₀ acts only after its
+    checker accepts an S-proof; A₀ does not act before t+1) are true Π₁ facts,
+    available through Group-2 or β.
+- Verdict: the conditional claim stands in the Σ₁ form.
+
+### A2. Section 4(c), numeric telomere: confirmed with a correction
+
+- Recheck. The child's J-relativized claim ∀t (J(t) → θ(t)) is, in prenex form,
+  ∀t ∀v (t < Root(v,k) → θ(t)). The tangibility bound caps both t and v by x.
+  So for tangible x the parent gets θ(t) only for t < Root(x,k), that is, on
+  J₂ = {t : ∃x (J(x) ∧ t < Root(x,k))}, roughly {t : tᵏ ∈ J}.
+- ISλ proves J₂ ⊆ J, because it recognizes TangRoot as a definable cut, which is
+  downward closed. J ⊆ J₂ would need J closed under x ↦ xᵏ, a multiplication-like
+  totality ISλ cannot prove. Each level of delegation therefore relativizes to a
+  smaller cut: J, J₂, J₃, and so on.
+- Correction. For ISREF the loss per level is a small constant, not exactly one:
+  TangPred(x) ≡ ∃v (x < v − 1) nests to roughly "t+4 exists" against
+  "t+2 exists".
+- Scope. The telomere applies only to goals with unbounded universal quantifiers.
+  Horizons that exist as numbers, stated Σ₁ as in A1, transfer exactly.
+
+### A3. Section 2: two statements refined
+
+- "The most any system can have is uniform self-soundness for bounded and
+  existential formulas" is overstated. Theorem 7.2 forbids canonical reflection
+  for all Π₁ sentences at once, not for every particular Π₁ sentence, and
+  approximations such as tangibility and translation remain. Precise form:
+  Theorems 7.2 and 7.4 leave exact uniform self-soundness possible only below Π₁
+  and only without total multiplication; for the full Π₁ class only
+  approximations are available.
+- "Weakening arithmetic never yields exact self-trust for Π₁ claims" needs
+  Theorem 7.2's hypotheses: a Δ₀ self-proof predicate, a sound and complete
+  deduction method, and proof of PAX's Π₁⁻ theorems, which supply
+  Δ₀-completeness and provable SUBST uniqueness. A system too weak to prove those
+  facts is outside the theorem. SJAS meet the hypotheses through Group-2, so the
+  theorem applies to them.
+
+### A4. Section 4(d): not labelled a derivation, but also the assessor's
+
+- "The successor's self-consistency axiom is not a theorem of the parent" was
+  stated flatly. What is established:
+  - it is not among the parent's axioms;
+  - it cannot be imported from A through Group-2, because Con(S′) → Con(A) is
+    provable (an A-proof of 0=1 becomes an S′-proof via the Group-2 axiom for
+    "0=1"), so A ⊢ Con(S′) would give A ⊢ Con(A);
+  - the parent has no internal consistency-preservation theorem.
+
+  No derivation is therefore available. A proof of underivability is not claimed.
+
+## Addendum: Does Level-1 Consistency Help With Unvetted Updates? (2026-09-26)
+
+The question: Section 5 says a false update (for example 0=1) yields an
+inconsistent system that still asserts its consistency. Does the stronger
+Level-1 statement, that only one of p and ¬p is provable, help?
+
+Answer: essentially no. Level-1 cannot vet updates. What detection exists comes
+from Σ₁-completeness, and what internal guarantee exists comes from Σ₁
+reflection.
+
+- **Reading.** Level-1 consistency (Willard 2013 sentence 7; Proflog's
+  `SelfCons1`) says at most one of p and ¬p is provable, for Π*₁ p. It does not
+  say exactly one. "Exactly one" would be completeness for Π*₁ sentences, which a
+  sound system cannot have: its Gödel sentence Θ is Π*₁, unprovable by the
+  Theorem 7.2 argument, and unrefutable by soundness.
+- **Equal truth conditions.** Semantic tableaux are sound and complete. So in ℕ,
+  Level-0 and Level-1 consistency are both true exactly when the system is
+  consistent. Level-1 is stronger only as an axiom to reason with, because the
+  system cannot combine tableau proofs of p and ¬p into a proof of 0=1 without
+  cut (Willard 2001, comment after Lemma 7.1). Whether either axiom is true after
+  an update depends only on the update's truth.
+- **A false update violates Level-1 at once.** Take a false Π*₁ update β′. It is
+  an axiom, and ¬β′ is a true Σ*₁ sentence, provable from its Δ₀ counterexample.
+  The updated system proves both, so its Level-1 axiom is false. Being
+  inconsistent, it proves that axiom anyway, along with everything else.
+- **Detection comes from Σ₁-completeness, not Level-1.** Every false Π*₁ update
+  has a finite counterexample, so a refutation search eventually finds it. A true
+  update can never be confirmed by search, because Π₁ truth is only co-r.e. Any
+  update worth making is one the system cannot already prove, so by definition it
+  is one the system cannot confirm.
+- **What does help is Σ₁ reflection, not Level-1.**
+  - ISλ and ISREF have exact Σ₁ reflection, as do Willard's 2013 hybrid Level-1
+    systems that also verify principle 23. From □_S(¬β′) → ¬β′ they prove
+    β′ → ¬□_S(¬β′).
+  - By the trivial tableau deduction transformation, that says: if the update is
+    true, the naive extension S ∪ {β′} is tableau-consistent.
+  - Level-1 alone cannot derive this; it would need Σ₁ reflection or
+    Π₁-completeness.
+  - Even so, the guarantee is conditional on β′'s truth. It also covers only the
+    naive extension, whose consistency axiom still refers to the old S. The
+    self-justifying successor with a new fixed point still needs Willard's
+    external theorem.
+- **Practical options:**
+  - Vet a Π*₁ update by bounded counterexample search; confirming it below a
+    bound B is a Δ₀, tangibility-style check.
+  - Treat updates as provisional, withdrawn if a counterexample appears.
+  - Or keep unvetted material in Proflog's external layer, which SelfCons does
+    not vouch for, at the cost of no self-trust over it.

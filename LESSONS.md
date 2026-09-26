@@ -17,6 +17,23 @@
   relations when they demonstrate expressiveness but materially broaden the
   ordinary proof-search branching factor.
 
+## 2026-09-26
+
+- Implementation scope is not literature scope. A first answer about SJAS and
+  the Löbian obstacle inferred "SJAS assert only consistency" from Proflog's
+  implemented `SelfCons0`/`SelfCons1` profiles and the project's own summaries.
+  Willard 2001's abstract says ISλ(A) and ISREF(A) prove a tangibility
+  reflection principle, which the implementation never touched. Characterize
+  a cited formal system from its primary source's abstract and main theorems,
+  and label which variant (IS, ISλ, ISREF, Level-1, Tab-k) a claim concerns.
+- Check the object language's term formers before writing an example
+  formula. A window "∀u ≤ v+K" is Δ₀ in Willard's 2011/2013 U-Grounding
+  language, where addition is a function symbol. It is not expressible as Δ₀
+  in the 2001 Grounding language, whose symbols are all non-growth; that is
+  where the uniform reflection principle the argument invoked lives. Carry a
+  derivation in the language of the system whose theorem it uses; there the
+  window had to be stated Σ₁ (∃z (z − v = K̄ ∧ …)).
+
 ## 2026-06-22
 
 - Green tests are not valid evidence when the tests encode a flawed acceptance

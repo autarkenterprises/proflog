@@ -39,6 +39,13 @@
   master. Branch `sjas-codification` already held λᶜᵉʳᵗ, which rebuilds the
   budget as tokens, with a proof. List the branches with their latest dates,
   and read the most recent research lines before saying "none".
+- Separate a limitation of a proof's model from a limitation of the system.
+  An answer called λᶜᵉʳᵗ's restriction of reflect a telomere, because the
+  fixed-budget model reads a reflected function only on empty supplies. The
+  descent the proof needs survives if each call is charged to its caller's
+  resources. Before calling a restriction intrinsic, ask which bookkeeping
+  choice forces it, and try to break it with a concrete run, as the demo did
+  here.
 
 ## 2026-06-22
 

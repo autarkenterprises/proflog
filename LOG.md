@@ -86,6 +86,29 @@ complete contemporaneous transcript.
     Opaque modalities already allow reflection. Tiling needs codes as data,
     because found proofs and changed rules are data. What type theory adds is
     types on the code sort.
+- Merged the branch into main. Answered three follow-ups in a further addendum,
+  with experiments on a scratch copy of `jpt4/sjas` `code/lcert`. The diff is
+  saved as `docs/log/2026-09-26-lcert-reflect-experiments.patch`; 57 tests
+  pass.
+  - **"Empty supplies."** λᶜᵉʳᵗ's model reads a reflected certificate-consuming
+    function only on zero-node supplies.
+    - A demo shows the fixed-cap evaluator returning a false Σ-witness if
+      reflect is allowed there.
+    - Charging each call to its caller's resources restores the descent,
+      sketched for first-order types. This corrects the earlier telomere claim:
+      halving applies only to self-contained nesting.
+  - **P5 and T4.**
+    - T4 and T4′ survive reflection at ordinary types unchanged.
+    - P5 survives, but its Step 2 default interpretation fails at non-base
+      types. It is repaired by interpreting reflect with a fixed certified
+      witness, plus a meta-level induction on budgets.
+  - **The self-trust boundary,** in four layers:
+    - not expressible: nontermination, effects, computation beyond System T;
+    - not held: oversized certificates, bare codes, foreign proofs, erased
+      certificates;
+    - held but not trusted: resource-quantified claims, claims about certified
+      evaluation, uniform D2/D3/copy;
+    - trusted but metered: one use per certificate, at most n uses per program.
 
 ## 2026-06-22
 

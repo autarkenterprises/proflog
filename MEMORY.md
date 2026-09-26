@@ -23,7 +23,13 @@
     certificates; code-level consistency is unprovable.
   - Assessor's derivation: its model also justifies reflection at all R-free,
     ◇-free types.
-  - The telomere reappears as budget descent.
+  - The telomere reappears as budget descent only under the fixed-budget
+    model. Charging each reflected call to its caller's resources plausibly
+    removes it for first-order types (sketch, with a demo).
+  - Reflection at ordinary types keeps T4/T4′; P5 needs its Step 2 default
+    interpretation of reflect repaired.
+  - The experiment patch is
+    `docs/log/2026-09-26-lcert-reflect-experiments.patch`.
 - ALSJAS, the affine modal calculus on branch `adr-0003-alsjas-paper-first`,
   is paper-stage and has no reflection.
 

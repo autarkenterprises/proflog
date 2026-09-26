@@ -20,6 +20,46 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-09-26
+
+- Recorded a literature assessment of what SJAS contribute to resolving the
+  Löbian obstacle of Yudkowsky and Herreshoff's tiling agents, read from the
+  primary sources in `github.com/jpt4/sjas` (commit `53d56a0`) rather than from
+  this repository's earlier summaries. Main findings:
+  - Willard's systems prove more than consistency. ISλ(A) and ISREF(A)
+    (Willard 2001) prove a tangibility reflection principle for every sentence,
+    hence exact self-soundness for Σ₁/Δ₀ sentences. Proflog's SJAS profiles
+    implement only the IS(A)-style consistency axioms.
+  - Exact self-soundness for all Π₁ sentences is impossible even without total
+    successor (Willard 2001, Theorem 7.2). Uniform bounded self-soundness is
+    impossible once multiplication is total (Theorem 7.4).
+  - An assessor's derivation, conditional on Willard's unpublished
+    ISλ_U consistency proof: SJAS could tile time-window goals with no κ
+    decrement, while Π₁ goals keep a numeric telomere.
+  - Two claims in the 2026-06-10 assessment note are refuted: the tiling-agents
+    paper did not propose Willard's systems as an escape hatch, and the runtime
+    asymmetry is not the Second Incompleteness Theorem "rendered as a runtime
+    phenomenon".
+
+  The earlier note gains a correction pointer; its text is otherwise retained.
+  See
+  [SJAS And The Löbian Obstacle](docs/log/2026-09-26-sjas-lobian-obstacle-assessment.md).
+- Double-checked the assessor's derivations at the user's request; results are
+  appended to the same note.
+  - "Tκ without κ" survives with a repair. The delivered window formula used
+    v+K as a term, but the 2001 Grounding language, where the uniform
+    reflection principle lives, has only non-growth function symbols. Restated
+    as Σ₁ (∃z (z − v = K̄ ∧ …)), the argument goes through for ISλ_U. It needs
+    total addition, and its premises are now explicit.
+  - The numeric telomere is confirmed. The ISREF loss per level is a small
+    constant, not exactly one.
+  - Two Section 2 statements and the anti-modularity claim are narrowed to what
+    is actually established.
+  - Answered a follow-up question: Level-1 consistency ("not both p and ¬p")
+    does not vet updates. Its truth conditions equal Level-0's. Detection comes
+    from Σ₁-completeness, and the conditional guarantee "true update ⇒ naive
+    extension consistent" comes from Σ₁ reflection.
+
 ## 2026-06-22
 
 - Revised ADR-0142 after the Codex review and recorded the V4 "descent" strawman

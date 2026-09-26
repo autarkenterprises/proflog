@@ -2,6 +2,23 @@
 
 Date: 2026-06-10
 
+> **Correction (2026-09-26).** Two claims below are refuted by a reading of the
+> primary sources; see
+> [SJAS And The Löbian Obstacle](2026-09-26-sjas-lobian-obstacle-assessment.md).
+>
+> 1. Yudkowsky and Herreshoff (2013) did not propose Willard's systems as an
+>    escape hatch from the Löbian obstacle. They wrote that they "cannot yet
+>    see how to adopt Willard's self-verifying theories exactly to the Aα
+>    formalism".
+> 2. The citation-versus-exhaustion runtime asymmetry is not the Second
+>    Incompleteness Theorem "rendered as a runtime phenomenon". Rejecting one
+>    bounded certificate is a finite search cost. That no search can
+>    establish a Π₁ claim holds for any theory, including PA.
+>
+> The Question 2 framing of a "Lobian ceiling" is also incomplete: Willard's
+> ISλ(A) and ISREF(A) prove a tangibility reflection principle, not only
+> consistency. The note is otherwise retained as written.
+
 This note records the 2026-06-09/10 audit's assessment of the project's
 three research questions, as they stand after ADR-0073 Track 1 completion
 and the ADR-0086/0087/0089 literature-fidelity corrections, together with

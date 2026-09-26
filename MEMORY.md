@@ -1,5 +1,23 @@
 # Memory
 
+## 2026-09-26 SJAS And The Löbian Obstacle
+
+- Willard 2001 ISλ(A)/ISREF(A) prove a tangibility reflection principle, so
+  they have exact self-soundness for Σ₁/Δ₀ sentences, not only consistency.
+  Proflog implements only the IS(A)-style `SelfCons0`/`SelfCons1` consistency
+  axioms.
+- Willard 2001 Theorem 7.2: canonical self-reflection for all Π₁ sentences is
+  impossible even without total successor. Theorem 7.4: uniform Δ₀
+  self-reflection is impossible once multiplication is total.
+- Yudkowsky and Herreshoff (2013) did not propose Willard's systems as a
+  Löbian-obstacle escape hatch. That claim and "Gödel II rendered as a runtime
+  phenomenon" in the 2026-06-10 assessment note are refuted.
+- The 2001 Grounding language has only non-growth function symbols, so v+K is
+  not a term there. The 2011/2013 U-Grounding language adds addition and
+  Double as function symbols.
+- Details and the conditional "Tκ without κ" result:
+  `docs/log/2026-09-26-sjas-lobian-obstacle-assessment.md`.
+
 ## 2026-06-10 ADR-0088/0090 Runtime Re-Baseline
 
 - The vendored core.logic overlays carry the ADR-0090 ground-term fast

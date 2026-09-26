@@ -24,8 +24,14 @@
   - Assessor's derivation: its model also justifies reflection at all R-free,
     ◇-free types.
   - The telomere reappears as budget descent only under the fixed-budget
-    model. Charging each reflected call to its caller's resources plausibly
-    removes it for first-order types (sketch, with a demo).
+    model. Under the charged cap n − ‖v‖ + m, the budget model justifies
+    reflection up to second-order inputs and one consumer per result tensor.
+    This covers the delegation type Agent, which a runnable chain
+    demonstrates.
+  - Beyond that class, three higher-order shapes are open. The model fails
+    there, but only on inputs no run can hold.
+  - Pending: implement reusable reflected evidence (`reflect-w`) in `code/lcert`
+    of `jpt4/sjas`. The spec is in the 2026-09-26 note's last addendum.
   - Reflection at ordinary types keeps T4/T4′; P5 needs its Step 2 default
     interpretation of reflect repaired.
   - The experiment patch is

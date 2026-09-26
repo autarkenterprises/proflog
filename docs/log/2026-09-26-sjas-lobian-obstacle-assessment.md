@@ -1018,3 +1018,233 @@ Trusted claims are then metered.
     model, because such values have zero footprint. It keeps runtime tokens
     distinct if restricted to certificates whose derivations use no tokens,
     because the reflected value then captures none.
+
+## Addendum: Higher-Order Reflection, Delegation, Paying For Codes, And Reusable Evidence (2026-09-26)
+
+Four follow-ups to the previous addendum:
+
+1. Check the higher-order case of the caller-charged argument.
+2. Restate the consequence for tiling.
+3. Say who pays for proofs known only as codes.
+4. Say which model makes reusable evidence sound, and note its implementation.
+
+The experiments extend the same scratch copy of `jpt4/sjas` `code/lcert`, and
+[`2026-09-26-lcert-reflect-experiments.patch`](2026-09-26-lcert-reflect-experiments.patch)
+is updated:
+
+- a third cap mode, `*charged-cap*`;
+- `ho_forms.clj` and `higher_order_reflect_test.clj`.
+
+With the patch applied to a fresh copy at `f5a8490`, 62 tests with 523
+assertions pass.
+
+### 1. The higher-order case: corroborated in part, refuted beyond that as a proof in this model
+
+- **The charged cap.** A reflected program runs under w′ = w − ‖v‖ + m: its
+  caller's cap w, less the tokens the reflection burns.
+  - This replaces the lazy construction of the previous addendum. It is fixed
+    at the reflect, and w′ < w keeps the model's recursion well founded.
+  - It covers every later supply, since at most w − ‖v‖ tokens remain outside
+    the certificate.
+- **What the Reflect case needs.** Call it Q: V^{w′}_m(A) ⊆ V^w_k(A) whenever
+  k − m ≥ w − w′. The reflect term's footprint k ≥ ‖v‖ supplies the gap.
+- **How Q decomposes (the assessor's derivation).**
+  - *Function types.* For Π(x :₁ A′). B, Q needs N(A′) and Q(B), with the same
+    gap. N(A′) is V^w_j(A′) ⊆ V^{w′}_j(A′).
+  - *Inputs of inputs.* For Π(y :₁ C). D, N needs M(C) and N(D). M(C) is
+    V^{w′}_i(C) ⊆ V^w_i(C).
+  - *Where M holds.* M holds for certificates, tokens and data. It fails for
+    any certificate-consuming function, whose required range of supplies grows
+    with the budget.
+  - *Pairs.* For a tensor, Q needs the gap once for each component that
+    consumes certificates. For a reusable (ω) component, Q needs M.
+- **Corroborated.** Q holds when certificate consumers occur in the target
+  type only in three ways:
+  - as inputs;
+  - as inputs of inputs whose own inputs are certificates, tokens or data
+    (second order at most);
+  - in results, at most one per tensor and never at usage ω.
+
+  This class contains the delegation type Agent of item 2.
+- **Refuted beyond that, as an argument in this model.** In each of three
+  shapes, the model's own value for the reflected program lies outside the set
+  its type requires. Write H for a certificate consumer that returns a
+  certified Σ-pair.
+  - *(a) A third-order argument:* (H ⊸ Σ) ⊸ Σ. The model's function space
+    contains set-theoretic g that apply h to certificates g does not own. For
+    such g, the reflected program returns the default witness.
+  - *(b) Two consumers in a tensor:* 1 ⊸ H ⊗ H. Each component must be correct
+    up to w, less its share of the footprint. Together they need a gap of
+    2(‖v‖ − m), but the footprint supplies only ‖v‖ − m.
+  - *(c) A reusable consumer:* 1 ⊸ Σ(f :ω H). 1. An ω component has zero
+    footprint at both budgets, so it must be correct up to w. It is correct
+    only up to w′.
+- **Not refuted as a claim about λᶜᵉʳᵗ.** In each shape, the out-of-range
+  behaviour needs either a certificate bigger than any run can still hold
+  after the reflection burns its tokens, or, in (a), a function that passes
+  on resources it does not own. The tests in `higher_order_reflect_test.clj`
+  show both halves:
+  - On runnable programs of shapes (a)–(c), the model's own cap returns
+    witness 0, with "evidence" of 0 ≠ 0. The charged cap and the caller's cap
+    return the certified witnesses: (1, ⋆) in (a), and 1 + 2 = 3 in (b) and
+    (c).
+  - The reusable consumer of (c) was handed a certificate of more than w′
+    nodes, which is more tokens than remain after the reflection. It returned
+    the default witness. So the model's value is wrong exactly on the inputs
+    no run can hold, and only there.
+- **What would settle it.** A model whose function spaces pass on only the
+  resources they own, and whose tensors split the remaining budget between
+  their components, rather than granting each component the whole of it.
+  - Hofmann's resource-counting realizability is the natural candidate; λᶜᵉʳᵗ's
+    ◇ comes from it.
+  - Types that mention `reflect` need separate care. Barring `reflect` from
+    types, since it is needed only at runtime, is a plausible simplification.
+  - Not constructed. The higher-order case remains open, with no
+    counterexample.
+
+### 2. The consequence for tiling, restated and run
+
+- **The problem.** A parent must approve a successor before the successor
+  acts, without predicting what it will do. The successor must be able to do
+  the same, with no loss of trust per generation. In theories like PA the
+  approval needs a reflection schema that Löb's theorem forbids, so each
+  generation must be weaker (Tκ): the telomere.
+- **An agent is a program whose type is its guarantee.** Take
+  Agent = Π(s :₁ R). Σ(b :ω Act). Safe(b): given a token supply, return an
+  action with evidence that it is safe. Type-checking the agent is its
+  approval: by soundness, every action a well-typed agent returns is safe,
+  whatever it computes internally.
+- **Trusting a successor.** The agent holds a certificate of the successor,
+  received or found, and checks it against Agent with `inspect`. It then
+  `reflect`s it at Agent to get a runnable agent, and runs that on the rest of
+  its supply. The successor's evidence comes back and becomes the parent's.
+- **Approval in advance.** The parent's type-correctness does not depend on
+  which successor turns up. `reflect` makes "run whatever certified agent
+  arrives" well typed at Agent. So the parent is approved once, before any
+  successor exists.
+- **It tiles.** The demo uses one agent program at every level. It reads a
+  certificate from the front of its supply, checks it, reflects it, and runs
+  it on the rest; otherwise it takes a known-safe action. No theory index
+  falls per generation: the rule and the trust term are the same at every
+  level.
+- **What falls instead is tokens.**
+  - Each successor's certificate is paid for from the supply its parent passes
+    down; the demo's agent certificate has 21,135 nodes.
+  - Each reflection burns at least one token.
+  - So a chain's depth is limited by the supply it starts with. The cost adds
+    up linearly, and delegation continues while fresh supply arrives.
+- **Why return evidence, not a theorem about the successor's run.** "For every
+  supply, the successor's run is safe" would put the successor's code, which
+  itself uses `reflect`, inside a type. The model reads such types differently
+  at different budgets, so their certificates cannot be trusted. Returning
+  evidence mentions no run in any type; the only type involved is Agent.
+- **Why the halving does not apply.** The earlier bound (sizes at least double
+  per nesting level) holds for a certificate whose program builds its nested
+  certificates from its own declared tokens. An agent that takes its supply as
+  an argument has a fixed-size certificate, however deep the chain below it.
+- **The run** (`self-similar-delegation`). The successor chain is two agents
+  and then a leaf agent that takes action 2.
+  - Under the charged cap, delegation through zero, one and two agent levels
+    returns (2, ⋆), valid evidence.
+  - Under the model's own cap, one or two levels return (0, ⋆): the trusted
+    successor's own `reflect` falls back to the default.
+  - A certificate that is not an agent's gets the fallback action (1, ⋆).
+- **Caveats.**
+  - This rests on reflection at Agent, a certificate-consuming type. Item 1
+    justifies it on paper for this first-order shape; it is not mechanized.
+  - It needs the charged cap: under the model's cap, delegation yields false
+    evidence.
+  - Safe is about a modelled world (the naturalistic gap).
+  - Evidence is single-use, which suffices for a single action.
+
+### 3. Who pays for proofs known only as codes
+
+- **What is free.** A code (`Syn`) is free data. A program can search for,
+  receive, compute, copy, print and store codes without tokens. `chk′` checks
+  a code against a type at the cost of computation only. It gives runtime
+  evidence that the code is a valid derivation, which is verification. Bounded
+  code consistency (Proposition 4.9) needs no tokens either.
+- **What costs.** Relying on the code's content costs. That means concluding
+  the proved proposition (`reflect` at its type), running the certified
+  program on its own authority (`reflect` at a data or function type), or
+  answering a claimed refutation (`H`, `H₁`). All three take a certificate.
+- **How.**
+  1. Mint the certificate with the typed parser
+     `parse : Π(c :ω Syn). R ⊸ R ⊗ R` (metatheory §4.7). It spends one node of
+     a supply certificate per internal node of c.
+  2. Check the minted certificate with `inspect` (free).
+  3. Consume it with `reflect`. The decoded program gets m of its tokens; the
+     other ‖v‖ − m, at least one, are lost for good.
+
+  The bill is the size of the full-judgment derivation, much larger than the
+  proof term: the D1 certificate of the `not` literal has 58,180 nodes.
+- **Who.** Whoever holds the supply where the trust is exercised. No program
+  can create tokens, so every token comes from some program's initial budget.
+  Ultimately that is whoever runs the root program: an operator or the
+  environment. In a delegation chain the root's supply pays for every level
+  below, unless new supply arrives.
+- **When.** Only to rely on a proof the program did not itself contain, and
+  whose conclusion it cannot simply compute. It need not pay:
+  - for proofs written into its own text, which are terms whose conclusions
+    hold by typing;
+  - for decidable conclusions, which it can compute directly;
+  - for checking, search or storage.
+
+  Runtime-found and received proofs of undecidable claims, such as universal
+  statements or "this program is an Agent", are exactly the case that pays.
+- **Why payment is unavoidable.** Free trust in codes would be code-level
+  reflection, T(chk′ c ⌜A⌝) → A. At A = 0 it would prove code-level
+  consistency, which P5 rules out. Minting charges the one resource the
+  consistency argument counts.
+
+### 4. The model behind reusable evidence, and an implementation note
+
+- **The model.** This is the budget-stratified model of `R4-metatheory.md`
+  §3, used only in the consistency proof and never run by programs.
+  - *Carriers:* each type gets a carrier set by its simple type (skeleton). The
+    carriers are {⋆}, the Booleans, ℕ, labels, code trees (`Syn`), certificate
+    trees with ◇ at the nodes (`R`), all set functions, and pairs.
+  - *Denotations* are computed under a cap n. `reflect` of a certificate with
+    at most n nodes that checks runs the decoded program at the program's own
+    budget m; otherwise it gives a fixed default.
+  - *Semantic types* V^n_k(A) ⊆ carrier: the values of A that account for at
+    most k of the n tokens.
+    - V(0) is empty, and V(T(b)) is {⋆} if b is true.
+    - V_k(R) holds the trees with at most k nodes.
+    - A usage-1 function must be correct on every argument that fits in the
+      remaining n − k tokens, with footprints adding.
+    - A usage-ω argument must have zero footprint.
+  - *Soundness.* Lemma 3.6: every well-typed term denotes a value in the
+    semantic type of its type. It is proved by strong induction on n, and
+    gives consistency because V(0) is empty.
+- **Why reusable evidence is sound in it.** A reusable result must have zero
+  footprint: it must lie in V₀(A). For a type without R and ◇, nothing can
+  hold tokens, so V_k(A) is the same set for every k and V₀(A) = V(A). The
+  reflected value lies in V(A) by the induction hypothesis, so a rule returning
+  Σ(a :ω A). 1 passes the Reflect case unchanged.
+- **Why also restrict to token-free derivations.** The model counts nodes, not
+  individual tokens, so it cannot see tokens captured inside a closure. A
+  program decoded from a certificate with m > 0 may capture some of its tokens
+  in the value it returns, and reusing that value would reuse the tokens at
+  runtime. With m = 0 the decoded program is closed and captures none.
+- **Implementation note: reusable reflected evidence (not started).** Target:
+  `jpt4/sjas` `code/lcert`, under an ADR in that repository as an R4
+  follow-up.
+  - *Evidence:* T(chk′ (print r) ⌜A⌝ ∧ budget0 (print r)). `budget0` decides
+    whether the root judgment's context is empty; it is definable by `recSyn`,
+    or can be a primitive.
+  - *Typing rule:* `reflect-w_A r e :¹ Σ(a :ω A). 1`, for closed A in which
+    neither R nor ◇ occurs and whose T-arguments contain no `reflect`.
+  - *Check:* validate the new rule, with its evidence type.
+  - *Evaluator:* run the decoded program with no tokens, and return
+    `[:pv value :star]`.
+  - *Metatheory:* the Reflect case as above. P5's Step 2 needs the
+    fixed-witness repair already required for reflection at ordinary types.
+  - *Tests, first:*
+    - a trusted Π(x :ω Nat). T(f x) applied at two points;
+    - a certificate with budget > 0 refused;
+    - R- and ◇-mentioning types refused;
+    - the Check round trip;
+    - the two evaluators agreeing;
+    - no token duplicated at runtime when the reusable value is used many
+      times.

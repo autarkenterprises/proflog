@@ -21,8 +21,8 @@ diff -ruN '--exclude=*.class' orig/lcert/src/lcert/check.clj lcert-rinput/src/lc
                        (= G (ctx+ (at 0) (at 1)))))
 diff -ruN '--exclude=*.class' orig/lcert/src/lcert/eval.clj lcert-rinput/src/lcert/eval.clj
 --- a/code/lcert/src/lcert/eval.clj	2026-09-26 22:58:30.629503453 +0000
-+++ b/code/lcert/src/lcert/eval.clj	2026-09-26 22:56:28.146365071 +0000
-@@ -31,6 +31,11 @@
++++ b/code/lcert/src/lcert/eval.clj	2026-09-26 23:35:18.697544967 +0000
+@@ -31,6 +31,17 @@
              [lcert.kernel :as k]
              [lcert.typing :as t]))
  
@@ -31,15 +31,24 @@ diff -ruN '--exclude=*.class' orig/lcert/src/lcert/eval.clj lcert-rinput/src/lce
 +  caller's budget cap n instead of its own declared budget m."
 +  false)
 +
++(def ^:dynamic *charged-cap*
++  "Assessor's demo switch: when true, a reflected program runs under the cap
++  n − ‖v‖ + m, its caller's cap less the tokens the reflection burns.  It
++  takes precedence over *dynamic-cap*."
++  false)
++
  (defrecord Token [id])
  
  (defn token "A runtime token." [id] (->Token id))
-@@ -188,7 +193,7 @@
+@@ -188,7 +199,10 @@
                     (let [dd (e/dec-deriv (print-value v))
                           m (count (:ctx dd))
                           toks (vec (take m (tokens v)))]
 -                     (eval-deriv dd m (assoc opts :tokens toks)))
-+                     (eval-deriv dd (if *dynamic-cap* n m) (assoc opts :tokens toks)))
++                     (eval-deriv dd (cond *charged-cap* (+ (- n (nodes v)) m)
++                                          *dynamic-cap* n
++                                          :else m)
++                                 (assoc opts :tokens toks)))
                     (default-value (c/skel D))))
        :inspect (let [[_ _X rr cc t1 t2] t
                       v (go rr)
@@ -89,6 +98,255 @@ diff -ruN '--exclude=*.class' orig/lcert/src/lcert/typing.clj lcert-rinput/src/l
                       dr (sub-at rr [:R])
                       de (sub-at ev [:T [:chk [:print rr] (s/code->term (e/enc-exp D))]])]
                   (mk :Reflect (total "reflect" (:ctx dr) (:ctx de)) D [dr de]))
+diff -ruN '--exclude=*.class' orig/lcert/test/lcert/higher_order_reflect_test.clj lcert-rinput/test/lcert/higher_order_reflect_test.clj
+--- a/code/lcert/test/lcert/higher_order_reflect_test.clj	1970-01-01 00:00:00.000000000 +0000
++++ b/code/lcert/test/lcert/higher_order_reflect_test.clj	2026-09-26 23:42:39.910218794 +0000
+@@ -0,0 +1,137 @@
++(ns lcert.higher-order-reflect-test
++  "Assessor's demo (not part of jpt4/sjas).  Reflection at higher-order types
++  that consume certificates, and a self-similar delegating agent, run under
++  three caps for a reflected program: its own declared budget m (the
++  metatheory's model), its caller's cap n, and the charged cap n − ‖v‖ + m.
++
++  Programs are type checked closed, at budget 0, and applied to certificate
++  values built directly from codes, so that no certificate literal has to be
++  type checked in a context of thousands of tokens."
++  (:require [clojure.test :refer [deftest is testing]]
++            [lcert.syntax :as s]
++            [lcert.typing :as t]
++            [lcert.eval :as ev]
++            [lcert.core :as lc]
++            [lcert.ho-forms :as f]))
++
++(defn code-of [form]
++  (binding [s/*allow-resource-reflect* true] (:code (lc/certify 0 form))))
++
++(defn cert-value
++  "A runtime certificate with the shape of `code`, spending fresh tokens
++  numbered from `start` in preorder.  Returns [value next]."
++  [code start]
++  (case (first code)
++    :sl [[:rl (second code)] start]
++    :sn (let [[_ l a b] code
++              tok (ev/token start)
++              [va n1] (cert-value a (inc start))
++              [vb n2] (cert-value b n1)]
++          [[:rn tok l va vb] n2])))
++
++(defn certs
++  "Runtime certificates for the given codes, with disjoint tokens.  Returns
++  [values total-tokens]."
++  [codes]
++  (reduce (fn [[vs next] c] (let [[v n] (cert-value c next)] [(conj vs v) n]))
++          [[] 1] codes))
++
++(defn run-closed
++  "Type check the closed program `form`, evaluate it erased under cap n, and
++  apply the result to `args`."
++  [mode n form & args]
++  (binding [s/*allow-resource-reflect* true
++            ev/*charged-cap* (= mode :charged)
++            ev/*dynamic-cap* (= mode :caller)]
++    (let [d (t/check-top 0 (s/parse-term [] form))
++          v (#'ev/ev (ev/erase d) [] n {:erase? true})]
++      (reduce (fn [acc a] (acc a)) v args))))
++
++(defn sigma-code [x] (code-of (list 'pair f/sigma x 'star)))
++
++(deftest third-order-argument
++  (let [[[cf w] total] (certs [(code-of f/Fa) (sigma-code 1)])
++        n (dec total)]
++    (testing "the model's cap: the consumer built inside Fa runs under cap 0 and returns
++              the default pair (0, ⋆), 'evidence' of T(0 ≠ 0)"
++      (is (= [:pv 0 :star] (run-closed :fixed n f/driver-a cf w))))
++    (testing "the charged cap returns the certified pair (1, ⋆)"
++      (is (= [:pv 1 :star] (run-closed :charged n f/driver-a cf w))))
++    (testing "so does the caller's cap"
++      (is (= [:pv 1 :star] (run-closed :caller n f/driver-a cf w))))))
++
++(deftest two-consumers-in-a-tensor
++  (let [[[cf w1 w2] total] (certs [(code-of f/Fb) (sigma-code 1) (sigma-code 2)])
++        n (dec total)]
++    (is (= 0 (run-closed :fixed n f/driver-b cf w1 w2)))
++    (is (= 3 (run-closed :charged n f/driver-b cf w1 w2)))
++    (is (= 3 (run-closed :caller n f/driver-b cf w1 w2)))))
++
++(deftest a-reusable-consumer
++  (let [[[cf w1 w2] total] (certs [(code-of f/Fc) (sigma-code 1) (sigma-code 2)])
++        n (dec total)]
++    (is (= 0 (run-closed :fixed n f/driver-c cf w1 w2)))
++    (is (= 3 (run-closed :charged n f/driver-c cf w1 w2)))
++    (is (= 3 (run-closed :caller n f/driver-c cf w1 w2)))))
++
++(defn supply-code
++  "A supply for the agent: a spine of nodes whose left children are the given
++  certificates' codes, ending in a leaf."
++  [codes]
++  (reduce (fn [rest c] [:sn :a c rest]) [:sl :a] (reverse codes)))
++
++(defn chain
++  "Run the agent on a supply holding `depth` agent certificates and then the
++  leaf agent's certificate."
++  [mode depth]
++  (let [ca (code-of f/agent-form)
++        cl (code-of f/leaf-agent)
++        [[sv] total] (certs [(supply-code (concat (repeat depth ca) [cl]))])]
++    (run-closed mode (dec total) f/agent-form sv)))
++
++(deftest self-similar-delegation
++  (testing "the agent certificate checks at its own type"
++    (is (true? (binding [s/*allow-resource-reflect* true]
++                 (lc/check (code-of f/agent-form) f/agent-type)))))
++  (testing "no delegation: the top agent runs the leaf agent, which acts (2)"
++    (doseq [mode [:fixed :charged]]
++      (is (= [:pv 2 :star] (chain mode 0)))))
++  (testing "one and two levels of delegation under the charged cap: the leaf agent acts (2)"
++    (is (= [:pv 2 :star] (chain :charged 1)))
++    (is (= [:pv 2 :star] (chain :charged 2))))
++  (testing "under the model's cap, a trusted successor's own reflect falls back to the default:
++            action 0 with 'evidence' of T(0 ≠ 0)"
++    (is (= [:pv 0 :star] (chain :fixed 1)))
++    (is (= [:pv 0 :star] (chain :fixed 2))))
++  (testing "a supply whose certificate is not an agent's: the fallback action 1"
++    (let [[[sv] total] (certs [(supply-code [(sigma-code 5)])])]
++      (is (= [:pv 1 :star] (run-closed :charged (dec total) f/agent-form sv))))))
++
++(deftest the-model-value-fails-only-on-unholdable-inputs
++  ;; The charged cap gives the program decoded from Fc's certificate the cap
++  ;; w′ = n − ‖v‖ + m.  Its consumer G is correct on every certificate of at
++  ;; most w′ nodes, which is every certificate a run can still hold.  The
++  ;; model's requirement for a reusable (ω) consumer is correctness up to the
++  ;; caller's cap n.  Handing G a certificate bigger than w′ — more tokens
++  ;; than remain after the reflection — shows its value falls outside that
++  ;; requirement: it returns the default witness 0.
++  (binding [s/*allow-resource-reflect* true
++            ev/*charged-cap* true]
++    (let [cf-code (code-of f/Fc)
++          small (sigma-code 1)
++          big (sigma-code 400)
++          [[cf w1] total] (certs [cf-code small])
++          n (dec total)
++          wprime (- n (count (ev/tokens cf)))
++          [bigv _] (cert-value big 100000)
++          d (t/check-top 0 (s/parse-term [] (list 'fn '[cf 1 R]
++                                                  (list 'inspect (list 'Sigma ['f 'w f/H] 'Unit) 'cf (list 'code f/Fc-type)
++                                                        '[x e] (list (list 'reflect f/Fc-type 'x 'e) 'star)
++                                                        '[x e] (list 'pair (list 'Sigma ['f 'w f/H] 'Unit) f/G 'star)))))
++          g (let [v ((#'ev/ev (ev/erase d) [] n {:erase? true}) cf)] (second v))]
++      (testing "a certificate the run can hold: the certified witness"
++        (is (<= (ev/nodes w1) wprime))
++        (is (= [:pv 1 :star] ((g w1) :star))))
++      (testing "a certificate bigger than w′, which no run can hold here: the default witness 0"
++        (is (> (ev/nodes bigv) wprime))
++        (is (= [:pv 0 :star] ((g bigv) :star)))))))
+diff -ruN '--exclude=*.class' orig/lcert/test/lcert/ho_forms.clj lcert-rinput/test/lcert/ho_forms.clj
+--- a/code/lcert/test/lcert/ho_forms.clj	1970-01-01 00:00:00.000000000 +0000
++++ b/code/lcert/test/lcert/ho_forms.clj	2026-09-26 23:42:39.910082696 +0000
+@@ -0,0 +1,104 @@
++(ns lcert.ho-forms
++  "Assessor's demo forms (not part of jpt4/sjas): certificate-consuming
++  functions at higher order, and a self-similar delegating agent."
++  (:require [clojure.walk :as walk]
++            [lcert.examples :as ex]))
++
++(def sigma
++  "Σ(x :ω Nat). T(x ≠ 0): an action x with evidence that it is safe (≠ 0)."
++  '(Sigma [x w Nat] (T (rec-nat [z Bool] ff [k y] tt x))))
++
++(def H
++  "A certificate consumer: given a certificate of sigma and its evidence,
++  return the certified pair."
++  (list 'Pi '[s 1 R] (list '-o (list 'T (list 'chk '(print s) (list 'code sigma))) sigma)))
++
++(def G
++  "The canonical consumer: reflect the certificate it is handed."
++  (list 'fn '[s 1 R] (list 'fn ['e 1 (list 'T (list 'chk '(print s) (list 'code sigma)))]
++                           (list 'reflect sigma 's 'e))))
++
++;; (a) third order: F receives g, and g's argument h consumes certificates.
++(def Fa-type (list '-o (list '-o H sigma) sigma))
++(def Fa (list 'fn ['g 1 (list '-o H sigma)] (list 'g G)))
++
++;; (b) two consumers side by side in the result.
++(def Fb-type (list '-o 'Unit (list 'tensor H H)))
++(def Fb (list 'fn '[u 1 Unit] (list 'pair (list 'tensor H H) G G)))
++
++;; (c) a reusable consumer in the result.
++(def Fc-type (list '-o 'Unit (list 'Sigma ['f 'w H] 'Unit)))
++(def Fc (list 'fn '[u 1 Unit] (list 'pair (list 'Sigma ['f 'w H] 'Unit) G 'star)))
++
++(defn use-consumer
++  "Surface program: inspect certificate w at sigma and hand it to consumer h;
++  return the action, or `fail` if w does not check."
++  [h w fail]
++  (list 'inspect 'Nat w (list 'code sigma)
++        '[y e2] (list 'let-pair 'Nat '[x1 p] (list (list h 'y) 'e2) 'x1)
++        '[y e2] fail))
++
++(defn plus [a b] (list 'rec-nat '[z Nat] a '[k y] '(succ y) b))
++
++(def driver-a
++  "Given certificates cf (of Fa) and w (of a sigma pair): trust cf, and pass
++  the result a g that feeds w to whatever consumer it is given.  Returns the
++  sigma pair, or the safe pair (7, ⋆) / (9, ⋆) if a check fails."
++  (list 'fn '[cf 1 R]
++        (list 'fn '[w 1 R]
++              (list 'inspect sigma 'cf (list 'code Fa-type)
++                    '[x e] (list (list 'reflect Fa-type 'x 'e)
++                                 (list 'fn ['h 1 H]
++                                       (list 'inspect sigma 'w (list 'code sigma)
++                                             '[y e2] '((h y) e2)
++                                             '[y e2] (list 'pair sigma 7 'star))))
++                    '[x e] (list 'pair sigma 9 'star)))))
++
++(def driver-b
++  (list 'fn '[cf 1 R]
++        (list 'fn '[w1 1 R]
++              (list 'fn '[w2 1 R]
++                    (list 'inspect 'Nat 'cf (list 'code Fb-type)
++                          '[x e] (list 'let-pair 'Nat '[h1 h2] (list (list 'reflect Fb-type 'x 'e) 'star)
++                                       (plus (use-consumer 'h1 'w1 70) (use-consumer 'h2 'w2 80)))
++                          '[x e] 9)))))
++
++(def driver-c
++  (list 'fn '[cf 1 R]
++        (list 'fn '[w1 1 R]
++              (list 'fn '[w2 1 R]
++                    (list 'inspect 'Nat 'cf (list 'code Fc-type)
++                          '[x e] (list 'let-pair 'Nat '[f q] (list (list 'reflect Fc-type 'x 'e) 'star)
++                                       (plus (use-consumer 'f 'w1 70) (use-consumer 'f 'w2 80)))
++                          '[x e] 9)))))
++
++;; (d) a self-similar agent.  Agent = Π(s :₁ R). sigma: given a supply,
++;; return a safe action.  The agent reads its supply as a node whose left
++;; child is a certificate of a successor agent and whose right child is the
++;; successor's supply.  It checks the certificate at Agent; if it checks, it
++;; trusts it (reflect) and runs the successor on the rest; otherwise, or on a
++;; leaf, it takes the known-safe action 1.
++
++(def agent-type (list 'Pi '[s 1 R] sigma))
++
++(def fallback (list 'pair sigma 1 'star))
++
++(def agent-form
++  (walk/postwalk-replace
++   {'K ex/K-type 'SIGMA sigma 'AGENT agent-type 'FALLBACK fallback 'OUT ex/out-form}
++   '(fn [s 1 R]
++      (let-pair SIGMA [b q] (OUT s)
++        (let-pair SIGMA [a f] q
++          ((elim-bool [zz (-o (-o (T zz) K) SIGMA)] b
++             (fn [g 1 (-o (T tt) K)]
++               (let-pair SIGMA [d uv] (g star)
++                 (let-pair SIGMA [l r] uv
++                   (inspect SIGMA l (code AGENT)
++                     [x e] ((reflect AGENT x e) r)
++                     [x e] FALLBACK))))
++             (fn [g 1 (-o (T ff) K)] FALLBACK))
++           f))))))
++
++(def leaf-agent
++  "The last successor: takes action 2 without delegating."
++  (list 'fn '[s 1 R] (list 'pair sigma 2 'star)))
 diff -ruN '--exclude=*.class' orig/lcert/test/lcert/ordinary_reflect_test.clj lcert-rinput/test/lcert/ordinary_reflect_test.clj
 --- a/code/lcert/test/lcert/ordinary_reflect_test.clj	1970-01-01 00:00:00.000000000 +0000
 +++ b/code/lcert/test/lcert/ordinary_reflect_test.clj	2026-09-26 22:56:28.119134928 +0000

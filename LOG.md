@@ -109,6 +109,29 @@ complete contemporaneous transcript.
     - held but not trusted: resource-quantified claims, claims about certified
       evaluation, uniform D2/D3/copy;
     - trusted but metered: one use per certificate, at most n uses per program.
+- Merged into main again, then answered four more follow-ups in a further
+  addendum. The experiment patch now runs 62 tests.
+  - **Higher-order reflection.** The charged cap n − ‖v‖ + m justifies
+    reflection whenever certificate consumers occur only as inputs, as
+    inputs of inputs of at most second order, or in results at most one per
+    tensor and not reusable.
+    - Beyond that, the budget model's own values fail the Reflect case in
+      three shapes: third-order arguments, two consumers in a tensor, and a
+      reusable consumer.
+    - That failure occurs only on inputs no run can hold, and the charged-cap
+      evaluator returns certified witnesses on all three.
+    - The higher-order case stays open. A resource-realizability model is the
+      likely route.
+  - **Tiling, restated and run.** A single agent program trusts its successor
+    by `reflect` at its own type Agent, which is in the justified class. It
+    delegates through two levels with valid evidence under the charged cap,
+    and yields false evidence under the model's cap.
+  - **Paying for codes.** Checking and search are free. Relying on a code's
+    content means minting a certificate with the typed parser, paid from the
+    holder's supply and ultimately from the root's.
+  - **Reusable evidence.** Explained the budget-stratified model, and recorded
+    an implementation note for `reflect-w` (Σ(a :ω A). 1, token-free
+    certificates only).
 
 ## 2026-06-22
 

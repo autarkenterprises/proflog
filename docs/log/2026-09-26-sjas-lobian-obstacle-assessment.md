@@ -419,3 +419,412 @@ reflection.
   - Treat updates as provisional, withdrawn if a counterexample appears.
   - Or keep unvetted material in Proflog's external layer, which SelfCons does
     not vouch for, at the cost of no self-trust over it.
+
+## Addendum: Non-Numeric Translations And The Obstacle (2026-09-26)
+
+The question: Willard's SJAS constrain proofs through numeric codes. A proof is
+blocked when the number needed to represent its result is not accessible. Much
+of this repository's work generalizes self-justification away from numeric
+codes. Does that work affect whether self-justification can evade the Löbian
+obstacle?
+
+### The answer as given
+
+No. The move away from numeric codes had not increased the capacity to evade
+the obstacle, and its one implemented instance (Workstream C) puts the existing
+capacity at risk. Numbers were never essential: the evasion rests on a
+description-size budget, and numbers are one way to express size.
+
+- **The hard part (Π₁ self-trust) does not depend on codes.** Willard 2001
+  Theorem 7.2 needs only three things: the system checks concrete proofs of
+  itself, its self-reference uses a substitution it proves unique, and its
+  deduction method is sound and complete. Words, trees, terms or types
+  reproduce all three.
+- **The soft part is the size budget.** It covers consistency, and exact trust
+  for Σ₁ and uniform bounded claims: a short proof cannot establish an object
+  much larger than itself (Willard 2011 Fact D.3). Total multiplication breaks
+  this, because squaring doubles a number's length at each step (JSL2 Lemma
+  4.7).
+- **Theorem 7.4 transfers to any coding (the assessor's derivation).**
+  Multiplication does one job in Willard's proof: turning a proof of ∀x φ(x)
+  into proofs of its instances. Any coding in which the system proves that its
+  own proof codes compose (instantiation, concatenation, grafting) gets the same
+  result. So uniform bounded self-trust requires that proof-code composition is
+  not provably total.
+- **Operations sorted by description length (the assessor's synthesis).**
+  - *Safe:* operations that grow length by a constant, such as successor,
+    addition, doubling, appending a symbol, and fixed-precision floating point.
+  - *Dangerous:* operations that add lengths, such as multiplication,
+    concatenation, pairing and grafting.
+- **The repository's translations.**
+  - *Words, trees or terms as codes:* the 2026-05-20 mechanism note's own
+    test, a Fact-D.3-like invariant, is not met.
+  - *Workstream C `pair/2` and list `cons`* (ADR-0123, ADR-0128) are total
+    growth functions; no injective pairing on ℕ is non-growth. ADR-0108's Fact
+    D.3 extension predates them. The June review's repair shows consistency
+    without the new Group-3 axiom, not with it.
+  - *Decidable theories* (WS1S, WS2S, Büchi arithmetic) dissolve the obstacle
+    rather than evade it: trust gives way to decision.
+  - *Native type-theory sketches* with universe stratification rebuild the
+    telomere.
+  - *The Lawvere programme* explains the hard limit. It can explain the evasion
+    only if refined by resources.
+- **Net, as given.** The capacity cannot exceed that of the numeric SJAS, and a
+  translation preserves it only if it rebuilds the size budget in its own
+  measure.
+
+### Corrections after reading the refinement branch
+
+The answer was given before reading `jpt4/sjas` branch `sjas-codification`
+(commit `f5a8490`), whose refinement stage (2026-09-02 to 2026-09-26) bears
+directly on it.
+
+1. **"No translation rebuilds the size budget" is wrong.** λᶜᵉʳᵗ (next
+   addendum) rebuilds it as a token budget on a separate certificate sort. Its
+   consistency proof uses a budget-stratified model. It is the "separate sort
+   with its own size measure" the answer recommended, already built.
+2. **"Cannot exceed the numeric SJAS" needs a qualification.** λᶜᵉʳᵗ trades
+   differently, and neither design dominates.
+   - *What it gains:* its ordinary layer keeps Heyting arithmetic in all finite
+     types, with multiplication and exponentiation total. Its pair-form
+     consistency `H₁` ranges over every closed type. Willard's Level-1
+     statements are confined to Π*₁ sentences, and Level(2+) is impossible once
+     addition is total (Willard 2004 Theorem 1, as recorded in R4 §2.5).
+   - *What it pays:* its self-consistency covers only certificates a program
+     holds, and its code-level consistency is unprovable (its P5).
+3. **The length sorting is a heuristic at the two ends, not a criterion.**
+   Refined-sjas §5 shows no growth rate is exact. Hybrid(1), with naming rate
+   Θ(n log n), is self-justifying, and Willard's boundary sits within one
+   logarithmic factor. The exact form is an additive margin: Willard 2011
+   Definition 4.5, "Tight", Log(q_β) ≥ ♯(β) + 2.
+4. **The hard part holds for free representations only.** Theorem 7.2's
+   argument uses the witness proof twice: as input to reflection, and as the
+   counterexample to the Gödel sentence's instance. With affine certificates the
+   double use cannot be typed. A code witness also cannot become a certificate
+   without paying for its size. Trust over held certificates is therefore not
+   blocked by Theorem 7.2; code-level trust still is.
+
+## Addendum: The λᶜᵉʳᵗ And Affine-Calculus Work (2026-09-26)
+
+Sources, all in `github.com/jpt4/sjas`:
+
+- branch `sjas-codification` (`f5a8490`): `nachlass/refinement/`
+  `R4-certificate-calculus.md`, `R4-metatheory.md`,
+  `ADR-0005-lcert-implementation.md`, `RO1-affine-separation.md`,
+  `RO2-contraction-growth-rate.md` and `refined-sjas.md`; and `code/lcert`;
+- branch `adr-0003-alsjas-paper-first` (`6efbda1`):
+  `docs/theory/alsjas-calculus.md`, ADR-0002, ADR-0003 and `code/alsjas`.
+
+Neither line mentions the Löbian obstacle or tiling agents. The bearing drawn
+below is the assessor's.
+
+### What λᶜᵉʳᵗ is
+
+- **The ordinary layer.** A dependently typed calculus with usages 0, 1 and ω.
+  Without the certificate machinery it has the strength of Heyting arithmetic
+  in all finite types.
+- **Two representation sorts.**
+  - `Syn` holds free code trees.
+  - `R` holds certificate trees. Each internal node consumes one token of
+    Hofmann's resource type ◇, which has no closed terms. A closed map from
+    `Syn` into `R` yields only leaves (its Proposition 4.1).
+- **Self-reference and self-trust constants.**
+  - `chk′` is a primitive checker, so self-reference is by name, with no
+    diagonal gadget.
+  - `H : Π(r :₁ R). T(chk′(print r, c⊥)) ⊸ 0` says that no held certificate
+    refutes the calculus. Its pair form `H₁` says that no two held certificates
+    prove a type and its negation.
+  - `reflect_D` runs a certified program of base data type D.
+- **Consistency (T1)** is proved with a set-theoretic model in which values
+  carry token footprints, by strong induction on the budget. The key step is
+  strict overhead: a certificate that checks declares fewer tokens than its own
+  node count, because contexts are written entry by entry. So the refutation it
+  encodes has a smaller budget.
+- **Limits.**
+  - G2 for codes (P5): no budget derives code-level consistency. The proof
+    reduces to G2 for PA and cites three standard results.
+  - Uniform D3 and boxed contraction fail, by a counting argument (Proposition
+    4.4).
+  - Uniform D2 is conjectured to fail (Conjecture 4.6).
+- **Implementation.** It is implemented in Clojure (`code/lcert`, fast and
+  extended test suites). An Ansatz kernel, which is Lean-4-compatible, checks
+  strict overhead and the budget arithmetic of the `H₁` case.
+
+### What was checked here
+
+- The `H₁` and `Reflect` cases of the fundamental lemma (metatheory Lemma 3.6)
+  were re-derived. Both descend to a strictly smaller budget before the outer
+  hypothesis is used. No gap was found. The other cases were read, not
+  re-derived.
+- The uniform failures in the derivability table follow, as stated, from size
+  soundness and the quotation-cost bound: every certificate of □A has more than
+  2μ(A) nodes.
+- The documents state their status accurately. P5 cites standard results,
+  Conjecture 4.6 is labelled a conjecture, and erasure correctness is labelled
+  a sketch.
+
+### Bearing on the Löbian obstacle
+
+1. **As built, λᶜᵉʳᵗ offers consistency and certified evaluation, not
+   reflection for propositions.** The only proposition it trusts its
+   certificates for is 0, through `H` and `H₁`. `reflect` at `Bool` or `Nat`
+   runs a program; as propositions, those types are trivially inhabited.
+2. **Reflection extends to every ordinary proposition (the assessor's
+   derivation).**
+   - *Why the proof carries over.* The `Reflect` case needs V^m_m(D) ⊆ V^n_k(D).
+     The metatheory proves this for base data and leaves higher types open. But
+     consider any type in which neither `R` nor ◇ occurs and whose T-arguments
+     contain no `reflect`. Its semantic set is independent of budget and
+     footprint: V(T(b)) depends only on ⟦b⟧, and the usage-1 Π and Σ clauses
+     collapse when V_j(A) is the same set for every j.
+   - *What follows.* The same argument justifies `reflect_A` for every such A,
+     which covers every proposition of arithmetic in finite types. The closed,
+     budget-0 term
+     `λ r e. reflect_A r e : Π(r :₁ R). T(chk′(print r, ⌜A⌝)) ⊸ A`
+     is then the tiling agents' soundness schema, uniform over the certificates
+     a program will hold.
+   - *Why Löb stays blocked.* Löb's derivation is not recovered, because it
+     needs the Löb sentence's certificate twice.
+   - *Not yet checked:* whether P5 and the evaluator theorem (T4) survive the
+     extension.
+3. **This is Willard's tangibility, dualized.** Willard's tangibility
+   reflection accepts any proof (∃y Prf(⌜Ψ⌝, y)) and relativizes the conclusion
+   to tangible x. Extended λᶜᵉʳᵗ gives the conclusion in full, but only for
+   proofs the program holds.
+4. **Pay-to-trust.** A proof found at runtime is a `Syn` code. To act on it, a
+   program:
+   1. mints a certificate with the typed parser (metatheory §4.7), paying one
+      token per node;
+   2. checks it with `inspect`;
+   3. consumes it with `reflect`.
+
+   Each exercise of trust burns at least one token for good, by strict
+   overhead.
+5. **The telomere, relocated.**
+   - *Nested trust.* Suppose a trusted certificate's program itself holds and
+     reflects a certificate. Then sizes at least double per level: the
+     program's context declares at least the inner certificate's size, and its
+     term mentions each of those tokens. Nesting depth within a budget n is at
+     most log₂(n+1).
+   - *Trust in claims about future resources.* A typical claim: "the
+     grandchild, given any token supply, only acts safely". Its type has `R` at
+     usage 1. The model does not justify reflecting it. After decoding at
+     budget m, V^m_m(Π(s :₁ R). B) constrains the function only on supplies of
+     zero footprint.
+   - That second step is exactly what a parent needs in order to trust a
+     child's approval of a grandchild. A better model or a counterexample would
+     settle whether λᶜᵉʳᵗ-style trust tiles. As it stands, the argument
+     reproduces the telomere Yudkowsky and Herreshoff anticipated for Willard
+     ("reasoning about ever-smaller numbers"), with budgets in place of numbers.
+
+### ALSJAS, the affine modal calculus
+
+- **The calculus.**
+  - *Types:* 0, 1, ⊗, ⊸, box, and one selected fixed point G ≅ box(G ⊸ 0).
+  - *Structural rules:* weakening, no contraction.
+  - *Boxes* carry closed derivations. Boxed composition (K) and introspection
+    (4) are uniform rules. There is no unboxing and no copying.
+  - *Profiles:* `J[S]` adds `self0 : box 0 ⊸ 0`. The control `C[S]` also adds
+    `copy : box A ⊸ box A ⊗ box A`.
+- **Status.**
+  - It is a paper specification (2026-08-29), with implementation suspended
+    pending review (ADR-0003).
+  - The Lean code mechanizes step determinism, syntactic rejection of
+    `copyBox`, and an abstract G2. That G2 is stated over a host-function
+    interface that does not enforce affinity, as ADR-0003 itself notes.
+  - The headline preservation theorem (10.2) is not mechanized.
+- **Checked here.**
+  - *Consistency of `J[S]` relative to `B[S]`.* The argument is by descent on
+    hereditary derivation size (Theorem 10.2), and it is sound in outline:
+    normalization does not increase hereditary size, and a closed normal
+    refutation must be `self0` applied to a quoted, smaller refutation.
+  - *The Jeroslow construction in `C[S]`* is correct and uses `copy` exactly
+    once. It renders Beklemishev and Shamkanov's box-contraction boundary as
+    proof programs.
+  - *RO1c.* The calculus passes the programme's own test: its box rule is not
+    K4's contracting form.
+- **Bearing on the obstacle: none directly.** ALSJAS forbids unboxing, so it
+  has no reflection. It has no data or quantifiers, so it cannot state an
+  agent's safety.
+- **An affine `unbox : box A ⊸ A` appears consistent (the assessor's
+  derivation).**
+  - *The rule:* `unbox(quote D)` reduces to D's term.
+  - *Why it appears consistent:* every step strictly decreases the pair
+    (hereditary size, active size) lexicographically, and no closed normal term
+    of 0 exists. This holds with the fixed point included.
+  - *Consequence:* `self0` becomes `unbox` at 0.
+  - *Why the diagonal fails:* refuting G needs G twice. This is why Curry's
+    paradox fails without contraction (Grišin; Restall; Zardini — standard, not
+    verified here).
+  - *Limitation:* this is still not Beklemishev and Shamkanov's target, a
+    mathematical theory, because ALSJAS has no arithmetic.
+
+### The joint lesson
+
+Löb's derivation, like Curry's paradox, uses the trust evidence twice. Make the
+evidence affine and uniform self-trust survives: ALSJAS by lacking copy,
+λᶜᵉʳᵗ by tokens.
+
+The cost appears wherever evidence must be made from copyable data, and a proof
+found by search is copyable data. So every design here must charge for turning
+a found proof into trust, and nested trust pays compounding charges. That
+charge is the telomere in resource form.
+
+| | Willard ISλ/ISREF | λᶜᵉʳᵗ as built | λᶜᵉʳᵗ with ordinary reflect (proposed) | ALSJAS `J[S]` |
+| --- | --- | --- | --- | --- |
+| ordinary arithmetic | multiplication not total | HA in finite types | HA in finite types | none |
+| self-consistency | code level (tableaux) | held certificates | held certificates | closed boxes |
+| reflection | Σ₁ exact; Π₁ tangible | base data (evaluation) | all ordinary propositions, held certificates | none |
+| what blocks Löb | composition not provably total | no uniform D3 or copy (tokens) | same | no box copy |
+| telomere | tangible cut shrinks under nesting | budget halves under nesting; R-quantified trust unjustified | same | none needed; no reflection |
+
+## Addendum: Can A Child SJAS Add Efficiency Axioms Conservatively? (2026-09-26)
+
+The question: can a child of a parent SJAS conservatively extend the parent's
+axiom basis without differing in expressivity? The example is axioms that
+correspond to more efficient programs.
+
+The answer: a child can be an SJAS with such axioms, but it cannot be a
+conservative extension that its parent can trust. The speed-up is exactly what
+the parent cannot verify.
+
+1. **The child can be self-justifying.** IS(A ∪ E) is consistent by Willard's
+   theorem whenever three conditions hold: A ∪ E is true in ℕ, E lies in the
+   admitted formula class, and E adds no growth function.
+   - Efficiency axioms that make a growth function total are fatal (Willard 2001
+     Theorems 7.3–7.4). Examples are fast multiplication as a total function
+     symbol, and exponentiation.
+   - A growth function may enter only as a Δ₀ relation, which verifies
+     y = f(x) but does not compute y.
+   - The naming convention must also stay within Willard's margin
+     (refined-sjas §5).
+2. **It is never strictly conservative.** The child's Group-3 sentence is a new
+   sentence of the shared language, and the parent does not derive it
+   (addendum A4 above). Only a child with the parent's exact axioms, which is the
+   same system, is conservative.
+3. **Even when conservative apart from Group-3, the child cannot be trusted by
+   the parent (the assessor's derivation).**
+   - Take E ⊆ Thm(parent): pure lemma axioms.
+   - To prove the child consistent, the parent must turn any child refutation
+     into one of its own, inlining a proof of each lemma at each use. In a
+     tableau system that is cut elimination, which is proof composition.
+   - Even a constant-factor increase in proof length squares the proof code, and
+     IS(A) proves no squaring total. So the parent cannot prove the
+     transformation total, and cannot prove the child consistent.
+   - The speed-up factor is precisely the growth the parent lacks.
+   - Willard 2020 (printed p. 279, quoted in RO2) calls this the "Linear-Sum
+     Effect": modus ponens makes proof lengths add. Xtab recovers it through
+     φ ∨ ¬φ nodes. Xtab is then inconsistent given three more hypotheses:
+     successor totality, the ring laws stated as 3-way relations, and a
+     self-consistency axiom (statement ⊙; a sketch per the programme's
+     registry).
+4. **The same holds in λᶜᵉʳᵗ.**
+   - A child calculus with a faster δ-rule has shorter certificates, but the
+     parent's `Check` rejects them.
+   - Translating a child certificate into a parent certificate expands each
+     fast step into the slow computation. That overhead grows with the input,
+     but the only uniformly typable overhead is a fixed, additive number of
+     tokens (Proposition 4.4).
+   - Within one calculus, recorded conversions mean proof-by-reflection shortens
+     no certificate: "compressing a term never compresses a certificate".
+5. **What works.**
+   - *Keep the basis fixed, and speed up the search.* A prover whose output the
+     unchanged checker checks needs no trust for validity.
+     - Descendants that are the same theory inherit the root's self-trust at
+       every generation, with no decrement.
+     - The only open ingredient is the uniform reflection principle ISλ_U,
+       already noted in A1.
+   - *Certifying algorithms.* An untrusted fast program computes a result plus a
+     certificate, and the fixed basis checks the certificate cheaply (a Δ₀
+     relation, or a witness). In Proflog terms: external clauses whose
+     conclusions the reflected basis re-certifies.
+   - *Pre-register lemmas in the root.*
+     - A finite lemma set in the root's basis is trusted by every descendant.
+     - An infinite family must stay recognizable by the Δ₀ proof predicate.
+       Making it recognizable by Craig's trick attaches each lemma's proof, so
+       each use costs the proof's size and the length speed-up vanishes. This
+       assumes the Δ₀-recognizability requirement, which has not been
+       re-checked for every Willard variant.
+   - *Family self-consistency (open).* Consider a root axiom asserting the
+     consistency of every IS(A ∪ E) with E in a recognizable efficiency class,
+     where each member also includes the axiom itself.
+     - It would let a lineage add pre-approved efficiency axioms.
+     - It is a self-referential family fixed point, in the manner of ISλ_U.
+     - Willard's argument does not settle whether it is true, because that
+       argument needs every base axiom to be true.
+
+## Addendum: Why Proof Predicates Range Over Codes (2026-09-26)
+
+The question: why must a proof predicate operate over codes at all, rather than
+over the raw deduction? This is the motivation for seeking SJAS analogues in
+pure type systems and other symbolic models, where metaprogramming is well
+established.
+
+1. **Any internal proof predicate ranges over a representation.** It is a
+   formula or type, so its arguments are objects of the theory. To speak about
+   deductions, deductions must form a sort. The inhabitants of such a sort are
+   codes in the functional sense, whatever their carrier: numbers, words, trees
+   or S-expressions. Gödel numbering is the carrier that one-sorted arithmetic
+   forces, not the essence.
+2. **"The raw deduction" has three readings, and two of them already allow
+   reflection.**
+   - *The proof term itself (Curry–Howard).* The predicate collapses to
+     inhabitation. `⊥ → ⊥` is the identity function and says nothing about
+     derivability: a hypothesis x : ⊥ is not a closed derivation.
+   - *Closed derivability as an opaque modality.* Several systems have uniform
+     reflection and stay consistent:
+     - Pfenning and Davies' □ validates □A → A, K and 4.
+     - Artemov's Logic of Proofs has explicit reflection t:F → F.
+     - Brown and Palsberg's typed self-interpreter for Fω has
+       unquote : Exp A → A.
+
+     None has an internal diagonal or a way to make evidence from data: boxes
+     come only from closed terms, and quotation is meta-level.
+   - *Codes as data.* This reading gives inspection, quantification, runtime
+     discovery, rule modification and the diagonal, and it is where Löb bites.
+     Kavvos (arXiv:1703.01288) reads the Gödel–Löb axiom as intensional
+     recursion in a modal λ-calculus. Adding an evaluation map □A → A then
+     inhabits every type: from □⊥ → ⊥, necessitation and Löb give □⊥, and
+     reflection gives ⊥. A programming language merely diverges; a logic becomes
+     inconsistent.
+3. **Tiling needs the third reading.**
+   - The child finds proofs at runtime, and a found proof is data.
+   - Self-modification changes rules. So the parent must refer to the child's
+     derivability, which is a different modality. It can define that modality
+     only from a description of the child's rules, which is data again.
+   - Opaque boxes cover only a system's own, statically quoted proofs.
+4. **SJAS mechanisms need intensional representations.** Every mechanism in the
+   corpus measures proof size or shape: Fact D.3, the margin, strict overhead. A
+   representation up to conversion cannot see these. A quotation that respects
+   β-conversion cannot return distinct codes for (λz.z)t and t. See the PTS note
+   on `jpt4/sjas` branch `research/pts-lowering-obstruction`, §9.
+5. **What type theory adds is types on the code sort, not an escape from
+   codes.**
+   - *Arithmetic* has one sort, with unrestricted contraction on terms. It can
+     block duplication only by crippling the operations that make duplication
+     costly (the programme's 2026-09-24 log, C1–C5).
+   - *A typed calculus* can make the representation sort affine, modal or
+     resource-indexed. It can forbid exactly what Löb consumes — box
+     contraction, uniform quotation, and free manufacture of evidence from data
+     — while the ordinary layer stays strong. λᶜᵉʳᵗ is the first working
+     instance.
+6. **Summary (the assessor's synthesis).** The Löbian obstacle arises when
+   trust-bearing evidence can be made freely from copyable data.
+   - Opaque modalities forbid that: evidence comes only from closed terms.
+   - Willard makes it unaffordable in numbers: the codes are too large to name.
+   - λᶜᵉʳᵗ makes it unaffordable in tokens.
+
+   Runtime proof search must make evidence from data. So any agent that trusts
+   what it finds pays per trusted proof, with compounding charges for nested
+   trust.
+
+The sources in item 2 are cited from standard knowledge and were not re-read
+for this addendum:
+
+- Pfenning and Davies, "A Judgmental Reconstruction of Modal Logic" (MSCS
+  2001);
+- Artemov, "Explicit Provability and Constructive Semantics" (BSL 2001);
+- Brown and Palsberg, "Breaking Through the Normalization Barrier: A
+  Self-Interpreter for F-omega" (POPL 2016);
+- Kavvos, "Intensionality, Intensional Recursion, and the Gödel–Löb Axiom"
+  (arXiv:1703.01288).

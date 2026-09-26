@@ -617,6 +617,12 @@ below is the assessor's.
      reproduces the telomere Yudkowsky and Herreshoff anticipated for Willard
      ("reasoning about ever-smaller numbers"), with budgets in place of numbers.
 
+   > **Revised (2026-09-26, follow-up addendum below).** The fixed-budget model
+   > cannot justify this step, but a reading that charges each call to its
+   > caller's resources plausibly can, for first-order types. The halving
+   > bound applies only to programs that build nested certificates from their
+   > own declared tokens.
+
 ### ALSJAS, the affine modal calculus
 
 - **The calculus.**
@@ -677,6 +683,8 @@ charge is the telomere in resource form.
 | reflection | Σ₁ exact; Π₁ tangible | base data (evaluation) | all ordinary propositions, held certificates | none |
 | what blocks Löb | composition not provably total | no uniform D3 or copy (tokens) | same | no box copy |
 | telomere | tangible cut shrinks under nesting | budget halves under nesting; R-quantified trust unjustified | same | none needed; no reflection |
+
+> The λᶜᵉʳᵗ telomere entries are revised in the follow-up addendum below.
 
 ## Addendum: Can A Child SJAS Add Efficiency Axioms Conservatively? (2026-09-26)
 
@@ -828,3 +836,185 @@ for this addendum:
   Self-Interpreter for F-omega" (POPL 2016);
 - Kavvos, "Intensionality, Intensional Recursion, and the Gödel–Löb Axiom"
   (arXiv:1703.01288).
+
+## Addendum: Empty Supplies, P5 And T4, And The Self-Trust Boundary (2026-09-26)
+
+Three follow-up questions on the λᶜᵉʳᵗ addendum:
+
+1. What "a reflected certificate only constrains behaviour on empty supplies"
+   means.
+2. Whether P5 and the evaluator theorems survive reflection at ordinary types.
+3. Which program behaviours lie outside the self-trust boundary.
+
+**The experiments.** They ran on a scratch copy of `jpt4/sjas` `code/lcert` at
+`f5a8490`. The diff is saved beside this note as
+[`2026-09-26-lcert-reflect-experiments.patch`](2026-09-26-lcert-reflect-experiments.patch);
+apply it with `patch -p1` at the `jpt4/sjas` root. It makes three changes:
+
+- `reflectable-type?` admits closed types in which R and ◇ do not occur and
+  whose T-arguments contain no `reflect`;
+- two switches for the demo in item 1 (`*allow-resource-reflect*` and
+  `*dynamic-cap*`), both off by default;
+- two new test namespaces, and one updated test that pinned the old rule.
+
+With the patch, the fast suite plus the PA-translation tests run 57 tests with
+502 assertions, all passing. Nothing was pushed to `jpt4/sjas`.
+
+### 1. "Only constrains behaviour on empty supplies"
+
+- **The model's sets.** V^n_k(A) is read at a budget n, the tokens in play, for
+  a value accounting for k of them. A function that consumes a certificate,
+  Π(s :₁ R). B, must be correct on every certificate that fits in the remaining
+  budget n − k.
+- **What the Reflect case proves.** It interprets the decoded program at its
+  own declared budget m, with all m tokens assigned to it (k = m). The
+  remaining budget is m − m = 0. So the induction hypothesis covers only
+  certificates with zero nodes: leaves, which carry no tokens. It says nothing
+  about the reflected function once it is handed a real certificate.
+- **It is not pedantry: the fixed-cap evaluator misbehaves.** The demo is
+  `resource_reflect_test.clj`.
+  - A certified closed program F takes a certificate of Σ(x :ω Nat). T(x ≠ 0)
+    and reflects it.
+  - With reflect allowed at F's type, the test reflects F's certificate and
+    hands the result a certificate of (1, ⋆).
+  - F runs under its own cap, 0. The certificate it receives is over that cap,
+    so F's inner reflect returns the default (0, ⋆), which claims T(0 ≠ 0).
+  - Under the fixed-budget semantics the rule would therefore be unsound.
+- **A caller-charged reading restores the descent (the assessor's sketch).**
+  - Charge each call the resources it actually has: the certificate's declared
+    m tokens plus the supplies a₁ … a_p passed to it.
+  - Strict overhead gives m < ‖v‖, and affinity puts the supplies outside v's
+    footprint. So m + Σ‖aᵢ‖ < ‖v‖ + Σ‖aᵢ‖ ≤ n, and every call runs strictly
+    below the caller's budget, where the outer induction hypothesis applies.
+  - *First-order types* are those whose inputs are certificates, tokens or
+    ordinary data, and whose result mentions R only positively. For these,
+    interpret the reflected value as a function that evaluates the decoded
+    program only when fully applied, at budget m + Σ‖aᵢ‖, and returns the
+    default past n. The Reflect case then needs only
+    V^{n′}_{n′}(C) ⊆ V^n_K(C) for n′ ≤ K ≤ n, which holds for such result
+    types C.
+  - Higher-order types need a Kripke-style relation whose worlds are the
+    available resources. That is not done.
+  - *Operationally,* charging the call to the caller's cap returns the witness
+    1. With that cap switched on, the whole suite stays green, except for the
+    demo's own fixed-cap assertion.
+- **Consequence for tiling (the assessor's analysis).**
+  - State an agent's safety as the evidence it returns, not as a proposition
+    about its run. For example, certify a program of type
+    Π(s :₁ R). Π(i :ω I). Σ(b :ω Act). Safe(b).
+  - A proposition about the run would put `reflect` inside a T-argument,
+    whose meaning is budget-dependent.
+  - Trusting a child then means reflecting its certificate and running it on a
+    supply. That is a first-order type at every generation.
+- **Correction to the λᶜᵉʳᵗ addendum.** Its item 5 and its table said trust in
+  claims about future resources is unjustified, and that this reproduces
+  Yudkowsky and Herreshoff's telomere. Revised:
+  - The fixed-budget model cannot justify that trust, and the fixed-cap
+    evaluator would misbehave. The caller-charged reading plausibly justifies
+    the first-order case.
+  - The halving bound holds only when a certificate's program builds its nested
+    certificates from its own declared tokens. A program that takes its supply
+    as an argument pays additively.
+  - If the caller-charged model is completed, the trust schema is the same
+    closed term at every generation, and only exercising it costs tokens. The
+    telomere becomes a resource bill, not a decrement.
+
+### 2. P5 and T4 under reflection at ordinary types
+
+- **T4 and T4′ survive unchanged.**
+  - Their Reflect cases never used the restriction to base data. The evaluator
+    runs the decoded program at its budget m < n, and the outer induction
+    relates the result to the model's value at whatever type.
+  - The restriction entered only in T4′'s closing remark that "related" means
+    equal at data types.
+  - Tested in `ordinary_reflect_test.clj`: the erasing and non-erasing
+    evaluators agree on a reflected Σ-witness and on a reflected Π-function.
+- **P5 survives, but its proof needs a real repair.**
+  - *Step 1* (PA interprets into λᶜᵉʳᵗ, provably in PA) is unaffected.
+    Translated PA proofs use no `reflect`, so the extended Check accepts them
+    unchanged. The PA-translation tests pass on the extended checker.
+  - *Step 2 breaks as written.* It interprets `reflect_D` by the default value
+    of D. That works for base data, because each base type contains its
+    default. At a non-base ordinary type it fails: the default for
+    Σ(x :ω Nat). T(x ≠ 0) is (0, ⋆), which is not a witness. The test shows
+    exactly this fallback when the evaluator's cap is set below the
+    certificate's size.
+  - *The repair (the assessor's derivation).*
+    - Interpret `reflect_A` by the value of a fixed certified witness: the
+      decoded term of a smallest certificate of A.
+    - When no certificate of A has at most n nodes, make the case vacuous by a
+      PA-provable bounded fact, as BF₀ does for H.
+    - The witness's derivation has a budget below its certificate's size. So
+      Lemma 6.4 now needs an outer induction on budgets, at the meta level,
+      with finitely many cases for fixed n. The original proof had avoided
+      this.
+    - Uses of `reflect_B` inside a witness either have smaller minimal
+      certificates, so the recursion on μ is well founded, or are vacuous by
+      bounded facts.
+  - With the repair, E-PA^ω still proves Con_λ from a derivation of Con′_ω, and
+    G2 for PA still forbids that.
+  - As before, the bounded facts are true only if the extended calculus is
+    consistent. That rests on the extended model argument: a paper argument,
+    checked in its key case, not mechanized.
+
+### 3. What lies outside the self-trust boundary
+
+The boundary has three layers: what the language can express, what a program
+can hold as a certificate, and what a held certificate can be trusted for.
+Trusted claims are then metered.
+
+- **Not expressible at all.**
+  - *Non-termination and unbounded interaction.* The calculus is total (T4):
+    there is no general recursion, no stream, and no agent loop that runs
+    forever. Only finite runs, or statements quantified over a horizon, can be
+    certified.
+  - *Computation beyond Gödel's System T.* Every function the calculus defines
+    is provably total in arithmetic in finite types; P5's Step 2 interprets it
+    in System T. The Goodstein function, System F normalization and λᶜᵉʳᵗ's
+    own evaluator are out of reach. There is no total interpreter for the
+    calculus's own codes, by the usual diagonal argument; `reflect` runs only
+    certified programs.
+  - *Effects:* I/O, state, randomness, concurrency, interaction. Claims about
+    the world are only as good as the world's model in the types; this is the
+    tiling agents' "naturalistic trust" gap.
+  - *Open, hypothetical judgments.* `Check` certifies only closed types over a
+    token-only context. Assumptions must be internalized as Π-types.
+- **Expressible, but not held.**
+  - *Behaviour whose certificate exceeds the budget.* Certificates record every
+    judgment with its full context and every conversion step. The D1
+    certificate of the `not` literal has 58,180 nodes at budget 35. Anything
+    whose typing needs a long computation has a correspondingly long
+    certificate.
+  - *Proofs known only as codes,* whether found by search, received or
+    computed. They are free `Syn` values until minted with tokens. Statements
+    about all codes (Con′, code-level reflection) are unprovable (P5).
+  - *Proofs in other systems:* a child calculus with other rules, PA, Willard's
+    systems. `Check` accepts only λᶜᵉʳᵗ₀ derivations, and no uniform budget
+    translates arbitrary foreign certificates.
+  - *Erased (usage-0) certificates.* They exist only in types and can be
+    arbitrarily large, and `H` and `reflect` refuse them.
+- **Held, but not trusted.**
+  - *As built, every proposition other than 0.* With the ordinary-type
+    extension, every R-free, ◇-free proposition becomes trustable (item 2).
+  - *Claims about resource-consuming behaviour,* i.e. types mentioning R or ◇.
+    The current model does not justify them; the caller-charged reading
+    (item 1) plausibly covers the first-order ones.
+  - *Claims about certified evaluation:* types whose T-arguments contain
+    `reflect`, such as "the certified program computes an even number". Their
+    meaning depends on the budget. Returning evidence avoids them.
+  - *Uniform operations on trust:* composing two held certificates into one
+    (D2), quoting one (D3), or copying one. Per instance these cost extra
+    tokens in proportion to size. Uniformly they are unavailable, by
+    Proposition 4.4 and Conjecture 4.6.
+- **Trusted, but metered.**
+  - *Each exercise of trust consumes its certificate* and loses at least one
+    token for good, by strict overhead. So a program run in Θₙ exercises trust
+    at most n times in total.
+  - *Reflected evidence inherits the certificate's usage 1.* A trusted
+    universal claim, such as Π(x :ω Nat). T(f x), can therefore be applied at
+    one point per certificate.
+  - *A reusable variant would be sound, but is not implemented.* Reflect could
+    return reusable evidence, Σ(a :ω A). 1. For R-free A this is sound in the
+    model, because such values have zero footprint. It keeps runtime tokens
+    distinct if restricted to certificates whose derivations use no tokens,
+    because the reflected value then captures none.

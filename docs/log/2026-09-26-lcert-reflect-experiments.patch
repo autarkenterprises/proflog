@@ -1,0 +1,240 @@
+diff -ruN '--exclude=*.class' orig/lcert/src/lcert/check.clj lcert-rinput/src/lcert/check.clj
+--- a/code/lcert/src/lcert/check.clj	2026-09-26 22:58:30.629380259 +0000
++++ b/code/lcert/src/lcert/check.clj	2026-09-26 22:56:28.118716182 +0000
+@@ -115,7 +115,7 @@
+             (when (and (is rr [:R]) (is ss [:R]) (is c [:Syn]) (is e1 [:Unit]) (is e2 [:Unit]))
+               [:Unit]))
+       :reflect (let [[_ D rr ev] t]
+-                 (when (and (s/base-data-types D) (is rr [:R]) (is ev [:Unit])) (skel D)))
++                 (when (and (s/reflectable-type? D) (is rr [:R]) (is ev [:Unit])) (skel D)))
+       :inspect (let [[_ X rr c t1 t2] t]
+                  (when (wf X)
+                    (let [sx (skel X)]
+@@ -333,7 +333,7 @@
+                  (= G (ctx+ (at 0) (at 1) (at 2) (at 3) (at 4)))))
+ 
+       :Reflect (let [[tag D rr ev] term]
+-                 (and (= tag :reflect) (= 2 np) (s/base-data-types D) (= type D)
++                 (and (= tag :reflect) (= 2 np) (s/reflectable-type? D) (= type D)
+                       (sub? 0 rr [:R])
+                       (sub? 1 ev [:T [:chk [:print rr] (s/code->term (e/enc-exp D))]])
+                       (= G (ctx+ (at 0) (at 1)))))
+diff -ruN '--exclude=*.class' orig/lcert/src/lcert/eval.clj lcert-rinput/src/lcert/eval.clj
+--- a/code/lcert/src/lcert/eval.clj	2026-09-26 22:58:30.629503453 +0000
++++ b/code/lcert/src/lcert/eval.clj	2026-09-26 22:56:28.146365071 +0000
+@@ -31,6 +31,11 @@
+             [lcert.kernel :as k]
+             [lcert.typing :as t]))
+ 
++(def ^:dynamic *dynamic-cap*
++  "Assessor's demo switch: when true, a reflected program runs under its
++  caller's budget cap n instead of its own declared budget m."
++  false)
++
+ (defrecord Token [id])
+ 
+ (defn token "A runtime token." [id] (->Token id))
+@@ -188,7 +193,7 @@
+                    (let [dd (e/dec-deriv (print-value v))
+                          m (count (:ctx dd))
+                          toks (vec (take m (tokens v)))]
+-                     (eval-deriv dd m (assoc opts :tokens toks)))
++                     (eval-deriv dd (if *dynamic-cap* n m) (assoc opts :tokens toks)))
+                    (default-value (c/skel D))))
+       :inspect (let [[_ _X rr cc t1 t2] t
+                      v (go rr)
+diff -ruN '--exclude=*.class' orig/lcert/src/lcert/syntax.clj lcert-rinput/src/lcert/syntax.clj
+--- a/code/lcert/src/lcert/syntax.clj	2026-09-26 22:58:30.629695572 +0000
++++ b/code/lcert/src/lcert/syntax.clj	2026-09-26 22:56:28.146083324 +0000
+@@ -235,6 +235,28 @@
+   "The types reflect may target (R4-metatheory.md §1.2): T(b) is excluded."
+   #{[:Empty] [:Unit] [:Bool] [:Nat] [:Lbl] [:Syn] [:R]})
+ 
++(defn- mentions-tag?
++  "Does expression e contain a subexpression whose head tag is in tags?"
++  [tags e]
++  (boolean (some #(and (vector? %) (contains? tags (first %)))
++                 (tree-seq vector? seq e))))
++
++(def ^:dynamic *allow-resource-reflect*
++  "Assessor's demo switch: when true, reflect may also target closed types
++  that mention R or ◇.  The metatheory's model does not justify this."
++  false)
++
++(defn reflectable-type?
++  "Assessor's experiment: the types reflect may target.  The base data types,
++  as built, and also every closed type in which neither R nor ◇ occurs and
++  whose T-arguments contain no reflect.  Such a type has the same semantic
++  set at every budget and footprint (R4-metatheory.md §3.3), which is all the
++  Reflect case of Lemma 3.6 needs."
++  [D]
++  (or (contains? base-data-types D)
++      (and (closed? D)
++           (not (mentions-tag? (if *allow-resource-reflect* #{:reflect} #{:R :Dia :reflect}) D)))))
++
+ ;; ---------------------------------------------------------------------------
+ ;; The surface syntax: EDN forms with named variables.
+ ;;
+diff -ruN '--exclude=*.class' orig/lcert/src/lcert/typing.clj lcert-rinput/src/lcert/typing.clj
+--- a/code/lcert/src/lcert/typing.clj	2026-09-26 22:58:30.629717891 +0000
++++ b/code/lcert/src/lcert/typing.clj	2026-09-26 22:56:28.118853033 +0000
+@@ -354,8 +354,8 @@
+                 [:Empty] [dr ds dc de1 de2]))
+ 
+       :reflect (let [[_ D rr ev] t
+-                     _ (when-not (s/base-data-types D)
+-                         (err (str "reflect targets base data types only, not " (pr-str D)) {:term t}))
++                     _ (when-not (s/reflectable-type? D)
++                         (err (str "reflect targets base data types and R-free, ◇-free closed types only, not " (pr-str D)) {:term t}))
+                      dr (sub-at rr [:R])
+                      de (sub-at ev [:T [:chk [:print rr] (s/code->term (e/enc-exp D))]])]
+                  (mk :Reflect (total "reflect" (:ctx dr) (:ctx de)) D [dr de]))
+diff -ruN '--exclude=*.class' orig/lcert/test/lcert/ordinary_reflect_test.clj lcert-rinput/test/lcert/ordinary_reflect_test.clj
+--- a/code/lcert/test/lcert/ordinary_reflect_test.clj	1970-01-01 00:00:00.000000000 +0000
++++ b/code/lcert/test/lcert/ordinary_reflect_test.clj	2026-09-26 22:56:28.119134928 +0000
+@@ -0,0 +1,74 @@
++(ns lcert.ordinary-reflect-test
++  "Assessor's experiment (not part of jpt4/sjas): reflect extended from the
++  base data types to every closed type in which neither R nor ◇ occurs and
++  whose T-arguments contain no reflect.  The metatheory's model gives such a
++  type the same semantic set at every budget and footprint, so the Reflect
++  case of Lemma 3.6 goes through unchanged.  These tests exercise the type
++  checker, Check, and both evaluators (Theorems 4 and 4′) on the extension."
++  (:require [clojure.test :refer [deftest is testing]]
++            [lcert.syntax :as s]
++            [lcert.encode :as e]
++            [lcert.typing :as t]
++            [lcert.check :as c]
++            [lcert.eval :as ev]
++            [lcert.kernel :as k]
++            [lcert.core :as lc]))
++
++(def nonzero-form
++  "λx. x ≠ 0, as a Bool-valued primitive recursion."
++  '(rec-nat [z Bool] ff [k y] tt x))
++
++(def sigma-form
++  "Σ(x :ω Nat). T(x ≠ 0): an existential whose default witness 0 is wrong."
++  (list 'Sigma '[x w Nat] (list 'T nonzero-form)))
++
++(def sigma-type (s/parse-type [] sigma-form))
++
++(def pi-form
++  "Π(x :ω Nat). T(allTrue x), where allTrue = recN(tt, k y. y, x) is always tt."
++  '(Pi [x w Nat] (T (rec-nat [z Bool] tt [k y] y x))))
++
++(def pi-type (s/parse-type [] pi-form))
++
++(defn certificate [form]
++  (let [{:keys [code nodes budget]} (lc/certify 0 form)]
++    {:code code :nodes nodes :budget budget :lit (c/certificate-literal code)}))
++
++(deftest closed-trust-term-types
++  (testing "λ r e. reflect A r e types at A = Σ(x :ω Nat). T(x ≠ 0)"
++    (let [d (lc/check-program 0 (list 'fn '[r 1 R]
++                                      (list 'fn ['e 1 (list 'T (list 'chk '(print r) (list 'code sigma-form)))]
++                                            (list 'reflect sigma-form 'r 'e))))]
++      (is (= :Pi (first (:type d))))
++      (testing "and Check accepts its encoded derivation"
++        (is (true? (c/check (e/enc-deriv d) (e/enc-exp (:type d)))))))))
++
++(deftest reflect-returns-the-certified-witness
++  (let [{:keys [code nodes lit]} (certificate (list 'pair sigma-form 1 'star))
++        prog [:let [:Nat] [:reflect sigma-type lit [:star]] [:var 1]]
++        d (t/check-top nodes prog)]
++    (testing "the certificate checks at Σ(x :ω Nat). T(x ≠ 0)"
++      (is (true? (c/check code (e/enc-exp sigma-type)))))
++    (testing "the erasing evaluator returns the certified witness 1, not the default 0"
++      (is (= 1 (ev/eval-deriv d nodes {:erase? true}))))
++    (testing "the non-erasing evaluator agrees (Theorem 4′)"
++      (is (= 1 (ev/eval-deriv d nodes {:erase? false}))))
++    (testing "below the cap, reflect falls back to the default witness 0"
++      (is (= 0 (ev/eval-deriv d (dec nodes) {:erase? true}))))))
++
++(deftest reflect-at-a-function-type
++  (let [{:keys [nodes lit]} (certificate (list 'fn '[x w Nat]
++                                               '(rec-nat [x (T (rec-nat [z Bool] tt [k y] y x))] star [k y] y x)))
++        prog [:app [:reflect pi-type lit [:star]] [:succ [:succ [:succ [:zero]]]]]
++        d (t/check-top nodes prog)]
++    (testing "the reflected function is applied once and yields its evidence"
++      (is (= :star (ev/eval-deriv d nodes {:erase? true})))
++      (is (= :star (ev/eval-deriv d nodes {:erase? false}))))))
++
++(deftest the-extension-keeps-its-exclusions
++  (testing "a type mentioning R is rejected"
++    (is (thrown? Exception (lc/check-program 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) (code (-o R Nat))))]
++                                                              (reflect (-o R Nat) r e)))))))
++  (testing "a type mentioning ◇ is rejected"
++    (is (thrown? Exception (lc/check-program 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) (code (-o Dia Nat))))]
++                                                              (reflect (-o Dia Nat) r e))))))))
+diff -ruN '--exclude=*.class' orig/lcert/test/lcert/resource_reflect_test.clj lcert-rinput/test/lcert/resource_reflect_test.clj
+--- a/code/lcert/test/lcert/resource_reflect_test.clj	1970-01-01 00:00:00.000000000 +0000
++++ b/code/lcert/test/lcert/resource_reflect_test.clj	2026-09-26 22:56:28.146596076 +0000
+@@ -0,0 +1,49 @@
++(ns lcert.resource-reflect-test
++  "Assessor's demo (not part of jpt4/sjas): what goes wrong when reflect
++  targets a type that consumes certificates, Π(s :₁ R) …, under the fixed
++  budget cap, and what a cap charged to the caller's resources changes."
++  (:require [clojure.test :refer [deftest is testing]]
++            [lcert.syntax :as s]
++            [lcert.check :as c]
++            [lcert.eval :as ev]
++            [lcert.typing :as t]
++            [lcert.core :as lc]))
++
++(def sigma-form '(Sigma [x w Nat] (T (rec-nat [z Bool] ff [k y] tt x))))
++
++(def f-form
++  "The child's certified program: given a certificate of Σ(x :ω Nat). T(x ≠ 0)
++  and its evidence, return the witness it certifies."
++  (list 'fn '[s 1 R]
++        (list 'fn ['e 1 (list 'T (list 'chk '(print s) (list 'code sigma-form)))]
++              (list 'reflect sigma-form 's 'e))))
++
++(defn demo-program
++  "reflect the certificate of f-form, apply the result to a certificate of
++  the pair (1, ⋆), and return the witness's first component.  Returns
++  [program budget]."
++  []
++  (binding [s/*allow-resource-reflect* true]
++    (let [cf (lc/certify 0 f-form)
++          cw (lc/certify 0 (list 'pair sigma-form 1 'star))
++          nf (:nodes cf) nw (:nodes cw)
++          f-type (:type cf)
++          lit-f (s/shift (c/certificate-literal (:code cf)) nw)
++          lit-w (c/certificate-literal (:code cw))
++          sigma (s/parse-type [] sigma-form)
++          prog [:let [:Nat]
++                [:app [:app [:reflect f-type lit-f [:star]] lit-w] [:star]]
++                [:var 1]]]
++      [prog (+ nf nw)])))
++
++(deftest reflecting-a-certificate-consuming-function
++  (binding [s/*allow-resource-reflect* true]
++    (let [[prog n] (demo-program)
++          d (t/check-top n prog)]
++      (testing "under the fixed cap, the reflected function runs with its own budget 0, so the
++                certificate it is handed is over its cap and it returns the default witness 0,
++                which does not satisfy T(x ≠ 0)"
++        (is (= 0 (ev/eval-deriv d n {:erase? true}))))
++      (testing "charging the call to the caller's resources, it returns the certified witness 1"
++        (binding [ev/*dynamic-cap* true]
++          (is (= 1 (ev/eval-deriv d n {:erase? true}))))))))
+diff -ruN '--exclude=*.class' orig/lcert/test/lcert/typing_test.clj lcert-rinput/test/lcert/typing_test.clj
+--- a/code/lcert/test/lcert/typing_test.clj	2026-09-26 22:58:30.629978954 +0000
++++ b/code/lcert/test/lcert/typing_test.clj	2026-09-26 22:56:28.119518399 +0000
+@@ -123,9 +123,11 @@
+                (-o (T (chk (print r) c)) (T (chk (print s) (neg c))) Void)))))
+            (type-of '(fn [r 1 R s 1 R c w Syn e1 1 (T (chk (print r) c)) e2 1 (T (chk (print s) (neg c)))]
+                        (H1 r s c e1 e2))))))
+-  (testing "reflect targets base data types only"
+-    (is (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) (code (T tt))))]
+-                                   (reflect (T tt) r e))))))
++  (testing "reflect targets base data types and R-free, ◇-free closed types (assessor's experiment)"
++    (is (not (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) (code (T tt))))]
++                                        (reflect (T tt) r e))))))
++    (is (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) (code (-o R Unit))))]
++                                   (reflect (-o R Unit) r e))))))
+   (testing "inspect hands the certificate back to the branch that runs"
+     (is (= (ty '(-o R R))
+            (type-of '(fn [r 1 R] (inspect R r c-bot [x e] x [x e] x)))))))

@@ -1102,6 +1102,11 @@ assertions pass.
   - Not constructed. The higher-order case remains open, with no
     counterexample.
 
+  > **Settled (2026-09-27, ADR-0143 Step 3).** A world-indexed Kripke model,
+  > rather than realizability, validates reflect at every closed
+  > reflect-free type under the charged cap, and the fixed-cap sets are shown
+  > in the Ansatz kernel to fail at shape (c). See the last addendum.
+
 ### 2. The consequence for tiling, restated and run
 
 - **The problem.** A parent must approve a successor before the successor
@@ -1571,3 +1576,88 @@ parts remain.
    model is the likely route.
 4. Test tiling across a changed proof system, to mark exactly where trust
    stops.
+
+> **Done (2026-09-27).** All four steps were carried out under ADR-0143; see
+> the next addendum.
+
+## Addendum: The Four Steps, Performed (2026-09-27)
+
+The user asked for the four steps above, with Ansatz for the machine-checked
+parts. They were carried out under
+[ADR-0143](../adr/ADR-0143-lcert-tiling-four-steps.md), in
+[research/lcert-tiling](../../research/lcert-tiling/README.md). The proofs
+are in its [METATHEORY.md](../../research/lcert-tiling/METATHEORY.md), and
+the verdict with its evidence in
+[AAR-0143](../aar/AAR-0143-lcert-tiling-four-steps.md).
+
+### The verdict
+
+**The claim is solidified for successors that keep their parent's proof
+system, and refuted for successors that strengthen it.**
+
+- **For successors in the same calculus**, the claim holds for λᶜᵉʳᵗ₁:
+  λᶜᵉʳᵗ₀, plus the primitive destructor `caseR`, plus `reflect` at every
+  closed type without `reflect`, all under the caller-charged cap.
+  - An agent trusts its successors by one rule, the same at every
+    generation, and only tokens fall.
+  - A budget promised at any finite size costs nothing until spent: a
+    lineage on a supply promised at 10^100 materializes exactly the 37,919
+    certificate nodes it mints.
+  - The key cases are machine-checked.
+- **For successors that change their proof system**, the budget changes
+  nothing.
+  - A parent trusts exactly the programs that have derivations in its own
+    rules.
+  - A new axiom, even a true one such as the calculus's own consistency, or
+    a stronger reflection rule, even a sound one, is refused, and cannot be
+    translated.
+  - Adopting it needs justification from outside the system, and again at
+    each further strengthening: Yudkowsky and Herreshoff's tower returns
+    for self-improving reasoners.
+- **Quantified self-trust (P5) and naturalistic trust are untouched.**
+
+### What each step found
+
+1. **The caller-charged model** (METATHEORY §1).
+   - Reflection at the class 𝓕 of first-order resource types is sound, with
+     a paper proof. 𝓕 contains every agent type used here.
+   - Ansatz checks the inclusion lemma for all of 𝓕 over an embedded type
+     language, and the whole Reflect case from an abstract outer hypothesis.
+2. **The primitive destructor and lazy finite supplies** (§2).
+   - `caseR` is added to every layer. R4's metatheory is re-checked with it.
+   - A lazy finite supply is defined: a promise N, denoting the spine of N
+     nodes, materialized one node per destruction.
+   - Ansatz proves that minting a code of k nodes consumes exactly k supply
+     nodes. On the definable `out`, the same agent walks the whole supply
+     and is stopped by the guard.
+3. **The higher-order case** (§3): settled positively.
+   - Ansatz checks that R4's sets fail at shape (c): the value is in V⁰₀
+     but not in V¹₁.
+   - A Kripke model does not fail there. Its worlds bound the live tokens;
+     functions are judged at every later world; results may live in the
+     world left after the tokens a call burns. It validates the Reflect case
+     at every type, and Ansatz checks that case with no class hypothesis.
+4. **Changed proof systems** (§4). Seven child systems were tested against
+   a parent.
+   - Identical and weaker children are trusted.
+   - A re-encoded child is trusted after a free relabelling, which the
+     parent re-checks.
+   - A `caseR` child is trusted after translation to the definable `out`,
+     at ×2.3 certificate size and with laziness lost.
+   - Children with a stronger reflection rule, or with the axiom `Con′_ω`,
+     are refused.
+   - An unsound child is refused; a parent that adopted its axiom certifies
+     an unsafe action.
+
+### Corrections and limits
+
+- The earlier addenda called the higher-order case open. It is now settled,
+  by a Kripke model rather than the realizability the previous addendum
+  expected.
+- P5's repair, previously given for R-free and ◇-free types only, now covers
+  every reflect target. The fixed-witness interpretation never evaluates a
+  certificate (METATHEORY §1.5).
+- Mechanized: the key cases, over a non-dependent type fragment. On paper:
+  the rest of the fundamental lemma in both models, dependent types, T4/T4′
+  and P5. Nothing has been independently reviewed.
+

@@ -262,6 +262,13 @@ complete contemporaneous transcript.
       adopted its axiom would certify action 0.
     - The token budget moves none of these boundaries.
     - Suites: fast 74 tests / 599 assertions, extended 102 / 2034, all green.
+  - **Verdict** ([AAR-0143](docs/aar/AAR-0143-lcert-tiling-four-steps.md);
+    addendum in the
+    [assessment note](docs/log/2026-09-26-sjas-lobian-obstacle-assessment.md)):
+    the claim is solidified for successors that keep their parent's proof
+    system, and refuted for successors that strengthen it. Quantified
+    self-trust and naturalistic trust are untouched. ADR-0143 is marked
+    completed.
 
 ## 2026-06-22
 

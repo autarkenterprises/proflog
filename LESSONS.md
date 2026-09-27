@@ -37,6 +37,14 @@
     order, one lemma per case.
   - `exfalso` drops hypotheses introduced by `intro`; make such a case a
     separate lemma whose hypothesis is a parameter.
+  - `rewrite` moves the rewritten goal behind the others, so a `have`
+    proved by `rewrite` closes last.
+  - `omega` builds ill-typed proof terms (or exhausts the heap) on nested
+    truncated subtraction, and on some goals whose atoms are function
+    applications. The kernel rejects the term, so nothing false is proved,
+    but the proof fails. State the arithmetic additively (a burn b from w
+    leaves w₁ with w₁ + b = w) or prove it once over plain variables and
+    instantiate.
   - Pin a key theorem's statement in a test (its rendered type), and re-run
     the kernel on its stored proof; a green load alone would not notice a
     statement weakened later.

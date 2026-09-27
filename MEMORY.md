@@ -28,8 +28,10 @@
     reflection up to second-order inputs and one consumer per result tensor.
     This covers the delegation type Agent, which a runnable chain
     demonstrates.
-  - Beyond that class, three higher-order shapes are open. The model fails
-    there, but only on inputs no run can hold.
+  - Beyond that class, R4's budget sets fail (checked in Ansatz at shape
+    (c)), but a world-indexed Kripke model validates reflect at every closed
+    reflect-free type under the charged cap: the higher-order case is
+    settled (ADR-0143 Step 3).
   - Pending: implement reusable reflected evidence (`reflect-w`) in `code/lcert`
     of `jpt4/sjas`. The spec is in the 2026-09-26 note's
     "Higher-Order Reflection, Delegation, Paying For Codes, And Reusable
@@ -46,6 +48,28 @@
     `docs/log/2026-09-26-lcert-reflect-experiments.patch`.
 - ALSJAS, the affine modal calculus on branch `adr-0003-alsjas-paper-first`,
   is paper-stage and has no reflection.
+
+## 2026-09-27 λᶜᵉʳᵗ Tiling: The Four Steps (ADR-0143, AAR-0143)
+
+- Verdict on "an arbitrary, lazily produced token budget substantially
+  resolves tiling": solidified for successors that keep their parent's proof
+  system; refuted for successors that strengthen it (a parent trusts exactly
+  the programs with derivations in its own rules; a true new axiom such as
+  `Con′_ω`, or a sound stronger reflection rule, is refused whatever the
+  budget, and adopting it needs outside justification each time).
+  Quantified self-trust (P5) and naturalistic trust are untouched.
+- λᶜᵉʳᵗ₁ = λᶜᵉʳᵗ₀ + `caseR` + reflect at every closed reflect-free type +
+  the caller-charged cap `n − ‖v‖ + m`. A lazy finite supply is a promise N
+  denoting the spine of N nodes; a lineage on 10^100 materializes only the
+  certificates it mints.
+- Everything is in `research/lcert-tiling/` (vendored `jpt4/sjas`
+  `code/lcert` at `f5a8490` plus changes): `METATHEORY.md` for proofs,
+  `lcert/ansatz/lcert/{charged,supply,kripke}.clj` for the Ansatz lemmas,
+  `bin/deps`, `bin/test-fast`, `bin/test-extended` to run without the
+  Clojure CLI (Ansatz built from its GitHub tag; Clojars is blocked here).
+- Mechanized: the key cases over a non-dependent type fragment; the rest of
+  both fundamental lemmas, dependent types, T4/T4′ and P5 are on paper and
+  unreviewed.
 
 ## 2026-06-10 ADR-0088/0090 Runtime Re-Baseline
 

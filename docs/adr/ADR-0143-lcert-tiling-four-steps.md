@@ -1,11 +1,11 @@
 # ADR-0143: λᶜᵉʳᵗ Tiling Metatheory — Charged Budgets, Lazy Supplies, Higher-Order Reflection, Changed Proof Systems
 
-- Status: accepted
+- Status: completed
 - Date: 2026-09-27
 - Branch: `claude/sjas-lobian-obstacle-r3csa9` (the session's designated
   branch; this research line has used it since ADR-less log work began on
   2026-09-26, so the one-branch-per-ADR convention is not applied here)
-- AAR: pending
+- AAR: [AAR-0143](../aar/AAR-0143-lcert-tiling-four-steps.md)
 
 ## Context
 

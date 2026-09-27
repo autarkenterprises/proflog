@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# The extended suite: loads the Ansatz-verified kernel and the mechanized
+# lemmas, then runs the kernel tests, the slow probes and the fast suite.
+# Offline only: ANSATZ_OFFLINE=1 forbids downloads; Ansatz uses its bundled
+# Lean Init environment.  Extra arguments name single test namespaces.
+here="$(cd "$(dirname "$0")/.." && pwd)"
+"$here/bin/deps" >/dev/null
+cd "$here/lcert" || exit 2
+export ANSATZ_OFFLINE=1
+export ANSATZ_STORE_DIR="$here/lcert/stores"
+exec java -Xss1g -Xmx3g -Dstdout.encoding=UTF-8 -Dfile.encoding=UTF-8 \
+  -cp "$("$here/bin/classpath")" clojure.main -m lcert.test-runner extended "$@"

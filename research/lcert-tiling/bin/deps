@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Fetch what the lcert suites need, into research/lcert-tiling/.deps (ignored
+# by git), without the Clojure CLI:
+#   - Clojure and the small libraries Ansatz loads, from Maven Central;
+#   - Ansatz 0.2.115 from its GitHub source tag (Clojars, where the release jar
+#     lives, may be unreachable), with its Java kernel compiled by javac.
+# Idempotent: anything already present is kept.
+set -euo pipefail
+here="$(cd "$(dirname "$0")/.." && pwd)"
+deps="$here/.deps"
+jars="$deps/jars"
+mkdir -p "$jars"
+
+maven=https://repo1.maven.org/maven2
+fetch() { # group-path artifact version
+  local f="$jars/$2-$3.jar"
+  [ -s "$f" ] || curl -fsSL -o "$f" "$maven/$1/$2/$3/$2-$3.jar"
+}
+fetch org/clojure clojure 1.12.0
+fetch org/clojure spec.alpha 0.5.238
+fetch org/clojure core.specs.alpha 0.4.74
+fetch org/clojure data.json 2.5.1
+fetch org/clojure core.cache 1.1.234
+fetch org/clojure data.priority-map 1.2.0
+
+ansatz="$deps/ansatz"
+tag=0.2.115
+rev=4e23d4edcc0831e4c3c51e4aba4990eb8699f9bb
+if [ ! -d "$ansatz/.git" ]; then
+  git clone -q --depth 1 --branch "$tag" https://github.com/replikativ/ansatz.git "$ansatz"
+fi
+have="$(git -C "$ansatz" rev-parse HEAD)"
+if [ "$have" != "$rev" ]; then
+  echo "Ansatz checkout is at $have, expected tag $tag = $rev" >&2
+  exit 2
+fi
+if [ ! -d "$ansatz/classes/ansatz" ]; then
+  mkdir -p "$ansatz/classes"
+  javac -nowarn --release 11 -cp "$jars/clojure-1.12.0.jar" -d "$ansatz/classes" \
+    $(find "$ansatz/src-java" -name '*.java')
+fi
+echo "deps ready in $deps"

@@ -18,3 +18,21 @@ for `jpt4/sjas`; nothing is pushed there.
 
 Proflog does not load this code: it is not on `project.clj`'s source or test
 paths, and proflog's suites do not run it.
+
+## Running
+
+Only a JDK (11 or later), `git` and `curl` are needed; neither the Clojure CLI
+nor Leiningen is used.
+
+```sh
+research/lcert-tiling/bin/deps           # once: jars from Maven Central, Ansatz 0.2.115 from GitHub
+research/lcert-tiling/bin/test-fast      # the language, without Ansatz (seconds)
+research/lcert-tiling/bin/test-extended  # plus the Ansatz kernel, mechanized lemmas and slow probes
+research/lcert-tiling/bin/test-fast lcert.eval-test   # one namespace, for a red/green step
+```
+
+`bin/deps` puts everything in `research/lcert-tiling/.deps/`, which git
+ignores. Ansatz is built from its source tag rather than its Clojars jar
+because Clojars may be unreachable from a sandbox; `bin/deps` refuses a
+checkout at any other revision. Ansatz runs offline on its bundled Lean Init
+environment (`ANSATZ_OFFLINE=1`); no Mathlib store is ever fetched.

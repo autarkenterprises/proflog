@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# The fast suite (the language, without Ansatz), as lcert/bin/test-fast runs
+# it, but through java -cp.  Extra arguments name single test namespaces.
+here="$(cd "$(dirname "$0")/.." && pwd)"
+"$here/bin/deps" >/dev/null
+cd "$here/lcert" || exit 2
+exec java -Xss64m -Xmx1200m -Dstdout.encoding=UTF-8 -Dfile.encoding=UTF-8 \
+  -cp "$("$here/bin/classpath")" clojure.main -m lcert.test-runner fast "$@"

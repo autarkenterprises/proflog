@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Print the classpath for the lcert suites: the jars and Ansatz fetched by
+# bin/deps, then lcert's own source, test and Ansatz directories.
+here="$(cd "$(dirname "$0")/.." && pwd)"
+deps="$here/.deps"
+lcert="$here/lcert"
+cp=""
+for j in "$deps"/jars/*.jar; do cp="$cp:$j"; done
+cp="$cp:$deps/ansatz/src:$deps/ansatz/classes:$deps/ansatz/resources"
+cp="$cp:$lcert/src:$lcert/test:$lcert/ansatz:$lcert/test-ext"
+echo "${cp#:}"

@@ -386,3 +386,196 @@ with the chain *agent, agent, leaf agent* (the leaf takes action 2):
 
 The run takes a few seconds, dominated by minting and checking the three
 certificates.
+
+---
+
+## 3. The higher-order case, settled (Step 3)
+
+**Result.** Under the caller-charged cap, `reflect` is sound at **every**
+closed type that contains no `reflect`, higher-order resource types
+included. R4's semantic sets cannot show this; a world-indexed Kripke model
+does. The three higher-order shapes are sound, and so is every other closed
+`reflect`-free type.
+
+### 3.1 Why R4's sets fail, and why the failure is harmless
+
+Take shape (c), `A = 1 ⊸ Σ(f :ω H). 1` with `H = R ⊸ Σ(b :ω Act). Safe(b)`:
+a program that hands out a reusable certificate consumer. Let a certificate
+of `‖v‖ = 1` node declaring `m = 0` tokens be reflected at `A` by a caller of
+footprint `k = 1` at cap `n = 1`, so the charged cap is `n′ = 1 − 1 + 0 = 0`.
+The decoded program runs at cap 0, where its consumer's own `reflect`
+refuses every certificate with nodes and returns the default. Its value `g`
+is therefore right on certificates with no nodes and wrong on the rest.
+
+- `g ∈ V⁰₀(A)`: at cap 0 the consumer is only asked about certificates with
+  no nodes. **[Ansatz]** `lcert.kripke/fixed_accepts_c`.
+- `g ∉ V¹₁(A)`: at cap 1 a reusable (`ω`) consumer, of footprint 0, must be
+  right on every certificate of up to 1 node. **[Ansatz]** `fixed_rejects_c`.
+
+So Q of §1.3 fails at shape (c), although the gap condition
+`n − n′ ≤ k − m` holds: no Reflect case can be proved at this type in R4's
+sets, with the charged cap or with R4's own cap `m` (which gives the same
+`g` here). Running the program at the caller's own cap `n` would put its
+value in `V¹₁`, but then the model's recursion does not descend, so it
+defines nothing.
+
+The failure is harmless. A certificate of 1 node could only reach the
+consumer after the reflection; but the reflection burnt the caller's only
+token, so no such certificate can exist then. **[test]**
+`the-model-value-fails-only-on-unholdable-inputs` shows the same thing on a
+real run: the consumer is wrong exactly on certificates bigger than the
+charged cap, which no run can hold after the reflection. R4's sets judge
+every value against every supply that fits the cap *ever*; what matters is
+the supplies that can still exist *when the value is used*.
+
+### 3.2 The world model
+
+**Worlds.** A *world* `w` bounds the number of tokens alive in a run: those
+of the value in question, of its caller, and of everything else the program
+holds. Tokens are never created. `reflect` burns a certificate's `‖v‖`
+tokens and hands its program `m < ‖v‖` fresh ones, so it lowers the world
+by `‖v‖ − m ≥ 1`; nothing raises it. Later worlds are smaller.
+
+**The sets.** `V_w^k(A)η ⊆ C(skel A)`, for `k ≤ w ≤ n`, reads: values of `A`
+accounting for `k` of the `w` live tokens. The cap `n` enters only through
+`T(b)`, via `⟦b⟧ⁿη`.
+
+```
+V_w^k(0) = ∅    V_w^k(1), V_w^k(Bool), …, V_w^k(Syn) as in R4
+V_w^k(◇) = {◇} if k ≥ 1, else ∅          V_w^k(R) = { v : ‖v‖ ≤ k }
+V_w^k(T(b))η = {⋆} if ⟦b⟧ⁿη = tt, else ∅
+V_w^k(Π(x :₁ A). B)η = { f : ∀w′ ≤ w. ∀j. k + j ≤ w′ → ∀a ∈ V_{w′}^j(A)η.
+                              ∃b ≤ k + j. f(a) ∈ V_{w′−b}^{k+j−b}(B)(η, x↦a) }
+V_w^k(Π(x :ω A). B)η = { f : ∀w′ ≤ w. k ≤ w′ → ∀a ∈ V_{w′}^0(A)η.
+                              ∃b ≤ k. f(a) ∈ V_{w′−b}^{k−b}(B)(η, x↦a) }
+V_w^k(Π(x :₀ A). B)η = { f : ∀w′ ≤ w. k ≤ w′ → ∀a ∈ C(skel A).
+                              ∃b ≤ k. f(a) ∈ V_{w′−b}^{k−b}(B)(η, x↦a) }
+V_w^k(Σ(x :₁ A). B)η = { (a, c) : ∃j ≤ k. a ∈ V_w^j(A)η, c ∈ V_w^{k−j}(B)(η, x↦a) }
+V_w^k(Σ(x :ω A). B)η = { (a, c) : a ∈ V_w^0(A)η, c ∈ V_w^k(B)(η, x↦a) }
+V_w^k(Σ(x :₀ A). B)η = { (a, c) : a ∈ C(skel A), c ∈ V_w^k(B)(η, x↦a) }
+```
+
+Two features do the work.
+- **A function is judged at every later world.** A consumer created in the
+  small world after a reflection needs to be right only on the certificates
+  that can exist there, and it stays right as the world shrinks further.
+- **A result may live in a smaller world than its call began in,** by the
+  *burn* `b` of tokens the call destroys. A call that reflects burns
+  certificate tokens, and its result is judged in the world after that.
+
+`η ⊨_w^k Γ` is R4's §3.4 with sets at world `w`: the usage-1 entries account
+for footprints summing to at most `k ≤ w`, the usage-ω ones for footprint 0.
+
+**[Ansatz]** `lcert.kripke/VW` embeds these sets for the non-dependent
+fragment of `lcert.charged` (`Π₁`, `Π_ω`, `⊗`, `Σ_ω`, `R`, `◇`, data, and
+the agent's result).
+
+### 3.3 Lemmas
+
+**Lemma 3.1 (monotonicity).**
+1. `V_w^k(A) ⊆ V_{w′}^k(A)` for `k ≤ w′ ≤ w`: a function clause quantifies
+   over all worlds below `w`, which include all worlds below `w′`.
+2. `V_w^k(A) ⊆ V_w^{k′}(A)` for `k ≤ k′ ≤ w`: keep each burn; the targets'
+   footprints grow.
+3. Hence `η ⊨_w^k Γ` implies `η ⊨_{w′}^k Γ` for `k ≤ w′ ≤ w`.
+
+**[Ansatz]** `vw_world_mono`, `vw_foot_mono`, for every embedded type.
+
+**Lemma 3.2 (the cap does not matter for closed reflect-free types).** If
+`A` is closed and contains no `reflect`, its sets are the same at every cap
+`n`: the only clause that consults `n` is `T(b)`'s, through `⟦b⟧ⁿ`, and the
+denotation of a `reflect`-free term never consults the cap. Closures in
+environments do not change this: applying one never reads the caller's cap.
+**[paper]**
+
+### 3.4 The fundamental lemma
+
+> **Theorem 3.3.** Let the Reflect rule allow every closed type without
+> `reflect`, and let `reflect` denote at the charged cap (§1.1). If
+> `Γ ⊢ t :¹ A` is derivable and `η ⊨_w^k Γ` with `w ≤ n`, then some burn
+> `b ≤ k` has `⟦t⟧ⁿη ∈ V_{w−b}^{k−b}(A)η`.
+
+*Proof.* By strong induction on `n`, then on the derivation, for all `w ≤ n`
+at once. Contexts split as in R4 Lemma 3.5; `k₁ + k₂ ≤ k ≤ w`.
+
+- **Var, constants, `Leaf`, `Lbl`, …** Burn 0, by footprint monotonicity.
+- **Lam.** `⟦λx. t⟧ⁿη = a ↦ ⟦t⟧ⁿ(η, x ↦ a)`, burn 0. For `w′ ≤ w`, `j` with
+  `k + j ≤ w′` and `a ∈ V_{w′}^j(A)`, the environment `(η, x ↦ a)` satisfies
+  the extended context at world `w′` and footprint `k + j` (Lemma 3.1.3),
+  and the inner hypothesis *at world `w′`* gives the clause. Usages ω and 0
+  alike. This is why the lemma is stated for every world at once.
+- **App.** `f` burns `b₁` and lands in world `w₁ = w − b₁` with footprint
+  `k₁ − b₁`; `u`, evaluated next, burns `b₂` and lands in `w₂ = w₁ − b₂`;
+  `k₁ − b₁ + k₂ − b₂ ≤ w₂`, so `f`'s clause applies at the later world `w₂`
+  and burns `b₃`; the total `b₁ + b₂ + b₃ ≤ k`, and footprint monotonicity
+  finishes. At usage ω or 0 the argument's context has footprint 0, so it
+  burns nothing. **[Ansatz]** `app_case_world`.
+- **Pair, Let.** The same bookkeeping: the first component moves to the
+  later world by Lemma 3.1.1, and the split of the footprint is kept.
+  **[Ansatz]** `pair_case_world` (tensor introduction).
+- **If, ElimBool, CaseLbl, Inspect, caseR.** The scrutinee burns `b₁`; the
+  branch runs in world `w − b₁` with the scrutinee's parts added to its
+  environment (for `caseR`, token and children: §2.2).
+- **RecN, RecSyn, ItR.** By induction on the scrutinee's value; each step is
+  an application of an ω-scaled method, whose context has footprint 0, to
+  the recursive results, so it is the App case again, from the world the
+  previous step left.
+- **SNode, Chk, Print, Succ, Node.** Data; `Node` adds its token's
+  footprint 1.
+- **Abort.** `V(0) = ∅`: vacuous.
+- **Conv.** R4 Lemma 3.3, at the fixed cap `n`.
+- **H₁.** As in R4: the two certificates' programs compose into a
+  refutation at budget `m₁ + m₂ < ‖v₁‖ + ‖v₂‖ ≤ n`, and the **outer**
+  hypothesis at that cap, world and footprint gives an element of `∅`.
+- **Reflect at a closed `reflect`-free `A`.** `r` burns `b₁` and leaves `v`
+  with `‖v‖ ≤ k₁ − b₁`; `e` burns `b₂`; the check succeeds, so `print v`
+  encodes `Θₘ ⊢ t′ :¹ A` with `m < ‖v‖` (strict overhead). The reflection
+  burns `‖v‖` and gives `m`, leaving the world
+  `w₃ = w − (b₁ + b₂ + ‖v‖ − m)`. Then
+  - `w₃ ≤ n − ‖v‖ + m = n′ < n`, and `m ≤ w₃`: the program's tokens fit;
+  - the **outer** hypothesis at cap `n′`, world `w₃`, footprint `m` gives a
+    burn `b₄ ≤ m` with `⟦t′⟧ⁿ′ ∈ V_{w₃−b₄}^{m−b₄}(A)`; by Lemma 3.2 these
+    are the same sets at cap `n`;
+  - with `b = b₁ + b₂ + (‖v‖ − m) + b₄ ≤ k`, the caller's world `w − b` is
+    exactly `w₃ − b₄`, and `m − b₄ ≤ k − b`, so footprint monotonicity puts
+    the value in `V_{w−b}^{k−b}(A)`. ∎
+
+  No property of `A` is used except Lemma 3.2 and footprint monotonicity,
+  which every type has. **[Ansatz]** `reflect_case_world`: the case for
+  every embedded type, with no class hypothesis, from an abstract
+  denotation, derivability predicate and outer hypothesis, with the cap
+  descent from the verified strict-overhead lemma.
+
+**Shape (c) again.** The Reflect case judges the program's value in the
+world `w₃ = 0` the reflection leaves, and there it holds. **[Ansatz]**
+`world_accepts_c`, and `shape_c_world_ok`: the conclusion of the Reflect
+case for the scenario of §3.1.
+
+### 3.5 Consequences
+
+- **T1 and T3** follow as before: with `Θₙ ⊢ t :¹ 0`, take `w = k = n`; some
+  burn puts `⟦t⟧ⁿ` in `V(0) = ∅`. Corollary 3.7 holds for the extended
+  `Check`. **[paper]**
+- **T4 and T4′.** Unchanged in form (§1.5); the evaluator must run a
+  closure at the cap it was created under, which it does. **[test]**
+  `closures-keep-their-creation-cap`: in shape (c) the consumer reflects at
+  the charged cap it closed over, one reflection deep, although the driver
+  that calls it runs at the full cap.
+- **P5.** §1.5's fixed-witness interpretation never evaluates a
+  certificate, so it needs no class restriction; the bounded facts it uses
+  are true by T1 above. **[paper]**
+- **The three shapes run certified.** **[test]**
+  `the-shapes-return-certified-results`: (1, ⋆) for (a), and 3 for (b) and
+  (c), under the `:all` policy with the charged cap.
+
+**The calculus the four steps propose,** λᶜᵉʳᵗ₁: λᶜᵉʳᵗ₀ with `caseR`, with
+`reflect` at every closed type that contains no `reflect`, and with the
+caller-charged cap as the meaning of `reflect`. In the implementation:
+`*extensions*` `#{:caseR}`, `*reflect-class*` `:all`, `*charged-cap*`
+`true`.
+
+**What stays excluded.** A type whose `T`-arguments contain `reflect`: its
+meaning depends on the cap (Lemma 3.2 fails for it). An agent therefore
+states its safety as evidence it returns, not as a proposition about its own
+run. Soundness of more `reflect` instances does not add quantified
+self-trust: no budget derives `Con′` (P5).

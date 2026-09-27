@@ -224,6 +224,28 @@ complete contemporaneous transcript.
       had kept an old start script because a `pkill -f` pattern matched its
       own shell, the same slip recorded in LESSONS.md.
     - Suites: fast 71 tests / 582 assertions, extended 90 / 1908, all green.
+  - **Step 3 done: the higher-order case is settled positively.**
+    [METATHEORY.md](research/lcert-tiling/METATHEORY.md) §3.
+    - R4's sets cannot validate reflect at shape (c) under any well-founded
+      cap: `lcert.kripke/fixed_accepts_c` and `fixed_rejects_c` check in the
+      kernel that the program's value lies in V⁰₀ at the charged cap but not
+      in V¹₁ at the caller's, although the gap condition holds.
+    - A world-indexed Kripke model fixes it: worlds bound the live tokens,
+      function clauses quantify over later (smaller) worlds, and results may
+      live in the smaller world left by the tokens a call burns. The Reflect
+      case then holds at every closed reflect-free type, using nothing about
+      the type but footprint monotonicity (`reflect_case_world`, no class
+      hypothesis); monotonicity, the application and pair cases, and the
+      acceptance of shape (c) are kernel-checked too.
+    - The evaluator already runs a closure at the cap it was created under,
+      which the model requires; `lcert.world-reflect-test` pins that and runs
+      the three shapes certified under the `:all` policy.
+    - Ansatz's `omega` builds ill-typed proofs (or exhausts the heap) on
+      deeply nested truncated subtraction and on some goals with
+      function-application atoms; the arithmetic is stated additively or
+      over plain variables. The session's REPL JVM was lost during a usage
+      pause and the development was replayed from the scratch files.
+    - Suites: fast 74 tests / 599 assertions, extended 95 / 2001, all green.
 
 ## 2026-06-22
 

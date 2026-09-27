@@ -243,19 +243,72 @@
 
 (def ^:dynamic *allow-resource-reflect*
   "Assessor's demo switch: when true, reflect may also target closed types
-  that mention R or ◇.  The metatheory's model does not justify this."
+  that mention R or ◇.  The metatheory's model does not justify this.  It
+  overrides *reflect-class*, as if that were :all."
   false)
 
+;; The classes of METATHEORY.md §1 (proflog ADR-0143, Step 1).  They are
+;; syntactic, and are applied to closed reflect targets; a class test looks
+;; through binders, since a T-argument may mention a bound variable but the
+;; tags :R, :Dia and :reflect only ever occur in a type as themselves.
+
+(defn ordinary-type?
+  "O: no R, no ◇, and no reflect anywhere.  Its semantic set is the same at
+  every cap and footprint (R4-metatheory.md §3.3)."
+  [A]
+  (not (mentions-tag? #{:R :Dia :reflect} A)))
+
+(defn capfree-type?
+  "D: an ordinary type, R, ◇, or a Σ-type of D-types.  Its semantic set does
+  not depend on the cap (Ansatz: lcert.charged/capfree)."
+  [A]
+  (or (ordinary-type? A)
+      (contains? #{[:R] [:Dia]} A)
+      (and (= :Sigma (first A))
+           (capfree-type? (nth A 2))
+           (capfree-type? (nth A 3)))))
+
+(defn first-order-type?
+  "𝓕: the first-order resource types, for which the Reflect case holds under
+  the caller-charged cap (Ansatz: lcert.charged/q_f, reflect_case_charged).
+  A D-type; a Π-type whose input is in D (any input at usage 0) and whose
+  result is in 𝓕; Σ(x :ω D). 𝓕 and Σ(x :₀ ·). 𝓕; and Σ(x :₁ ·). · with one
+  side in D and the other in 𝓕.  No reflect may occur anywhere."
+  [A]
+  (and (not (mentions-tag? #{:reflect} A))
+       (or (capfree-type? A)
+           (case (first A)
+             :Pi (let [[_ u X Y] A]
+                   (and (or (= u 0) (capfree-type? X))
+                        (first-order-type? Y)))
+             :Sigma (let [[_ u X Y] A]
+                      (case u
+                        0 (first-order-type? Y)
+                        :w (and (capfree-type? X) (first-order-type? Y))
+                        1 (or (and (capfree-type? X) (first-order-type? Y))
+                              (and (first-order-type? X) (capfree-type? Y)))))
+             false))))
+
+(def ^:dynamic *reflect-class*
+  "Which closed types reflect may target, besides the base data types:
+    :ordinary     ordinary types (the default; sound in R4's model);
+    :first-order  the class 𝓕, sound with the caller-charged cap
+                  (METATHEORY.md §1; run with lcert.eval/*charged-cap*);
+    :all          every reflect-free type (METATHEORY.md §3)."
+  :ordinary)
+
 (defn reflectable-type?
-  "Assessor's experiment: the types reflect may target.  The base data types,
-  as built, and also every closed type in which neither R nor ◇ occurs and
-  whose T-arguments contain no reflect.  Such a type has the same semantic
-  set at every budget and footprint (R4-metatheory.md §3.3), which is all the
-  Reflect case of Lemma 3.6 needs."
+  "The types reflect may target: the base data types, as built, and the
+  closed types of the class *reflect-class* selects.  A T-argument that
+  contains reflect is excluded by every class: its meaning would depend on
+  the cap."
   [D]
   (or (contains? base-data-types D)
       (and (closed? D)
-           (not (mentions-tag? (if *allow-resource-reflect* #{:reflect} #{:R :Dia :reflect}) D)))))
+           (case (if *allow-resource-reflect* :all *reflect-class*)
+             :ordinary (ordinary-type? D)
+             :first-order (first-order-type? D)
+             :all (not (mentions-tag? #{:reflect} D))))))
 
 ;; ---------------------------------------------------------------------------
 ;; The surface syntax: EDN forms with named variables.

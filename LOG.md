@@ -177,6 +177,33 @@ complete contemporaneous transcript.
   - **It leaves open** code-level quantified self-trust (P5), trust across
     changed proof systems, and naturalistic trust.
   - **The physical bound is certificate size, not tokens.**
+- Began the four steps that would solidify or refute that claim, under
+  [ADR-0143](docs/adr/ADR-0143-lcert-tiling-four-steps.md), in the new
+  directory [research/lcert-tiling](research/lcert-tiling/README.md).
+  - **Setup.** Vendored `jpt4/sjas` `code/lcert` at `f5a8490` unchanged, then
+    applied the recorded experiments patch as its own commit. Clojars is
+    blocked here, so `bin/deps` builds Ansatz 0.2.115 from its GitHub tag and
+    fetches jars from Maven Central (one fetch hit HTTP 429; the jars already
+    downloaded were reused). Neither the Clojure CLI nor Leiningen is
+    installed, so `bin/test-fast` and `bin/test-extended` run through
+    `java -cp`.
+  - **Ansatz findings.** It accepts a Type-valued carrier and Prop-valued
+    semantic sets defined by the recursor, but cannot compile them to Clojure
+    (tolerated by a `kdef` macro that then requires the kernel constant).
+    `match` infers the wrong universe for a Type-valued function; the explicit
+    recursor works. `try` does not catch every elaboration error, so
+    inductions take their goals in constructor order. There is no
+    `Exists.elim` in the bundled Init; `ex_nat_elim` replaces it.
+  - **Step 1 done.** [METATHEORY.md](research/lcert-tiling/METATHEORY.md) §1
+    writes the caller-charged model and proves the Reflect case for the class
+    𝓕 of first-order resource types, which contains every agent type of the
+    demo and excludes the three higher-order shapes. `lcert.charged` checks
+    in the kernel: inclusion Q for every 𝓕-type of an embedded type language,
+    and the whole Reflect case (`reflect_case_charged`) from an abstract outer
+    hypothesis, with the cap descent taken from the verified strict-overhead
+    lemma. The calculus gains `*reflect-class*` `:first-order`, which
+    implements 𝓕 exactly. Suites: fast 56 tests / 501 assertions, extended 72
+    / 1677, all green.
 
 ## 2026-06-22
 

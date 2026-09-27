@@ -25,14 +25,15 @@
     lcert.core-test
     lcert.tutorial-test
     lcert.ordinary-reflect-test
-    lcert.resource-reflect-test])
+    lcert.resource-reflect-test
+    lcert.charged-reflect-test])
 
 (def extended-namespaces
   "Tests of the Ansatz kernel itself, run before the fast suite is repeated,
   and the slower probes: the embedding of PA (step 1 of Proposition 5), and
   the assessor's higher-order reflect shapes with the delegation chain
   (proflog ADR-0143 setup)."
-  '[lcert.verified-test lcert.pa-test lcert.higher-order-reflect-test])
+  '[lcert.verified-test lcert.charged-test lcert.pa-test lcert.higher-order-reflect-test])
 
 (defn -main [suite & only]
   (let [nss (cond
@@ -43,7 +44,7 @@
     (when (= suite "extended")
       ;; Loading the kernel runs the Ansatz elaborator and kernel on every
       ;; definition and theorem; a failure there aborts the suite.
-      (require 'lcert.verified)
+      (require 'lcert.verified 'lcert.charged)
       ((requiring-resolve 'lcert.kernel/use-verified!)))
     (apply require nss)
     (let [{:keys [fail error]} (apply t/run-tests nss)]

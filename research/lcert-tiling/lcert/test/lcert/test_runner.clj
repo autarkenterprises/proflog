@@ -26,7 +26,10 @@
     lcert.tutorial-test
     lcert.ordinary-reflect-test
     lcert.resource-reflect-test
-    lcert.charged-reflect-test])
+    lcert.charged-reflect-test
+    lcert.caser-test
+    lcert.lazy-supply-test
+    lcert.minting-agent-test])
 
 (def extended-namespaces
   "Tests of the Ansatz kernel itself, run before the fast suite is repeated,

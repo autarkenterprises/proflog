@@ -6,8 +6,11 @@
                           at the constant budget of one fixed certificate
     roll-form, out-form   the destructor of §4.7 (from review R4-03), definable
                           from itR and dependent pairs
+    out-prim-form         the same destructor on the primitive caseR (proflog
+                          ADR-0143 Step 2): constant time instead of a walk
     parse-form            a typed parser threading a supply of tokens through a
                           code received at runtime (review RR2-10)
+    parse-prim-form       the same parser on out-prim-form
     bounded-con           Proposition 4.9: bounded code consistency, by case
                           analysis, with no tokens
 
@@ -106,6 +109,16 @@
                                        (node-view 'd 'l (list roll-form 'u) (list roll-form 'v))))))
                'r))))
 
+(def out-prim-form
+  "out : R ⊸ V on the primitive caseR (proflog ADR-0143 Step 2): it takes one
+  node apart, where out-form iterates over the whole tree and rolls every
+  subtree back up.  Same type, same views."
+  (splice
+   (list 'fn '[r 1 R]
+         (list 'case-r 'V 'r
+               '[l] (leaf-view 'l)
+               '[d l u v] (node-view 'd 'l 'u 'v)))))
+
 (defn roll-out "The program (roll (out r))." [r] (list roll-form (list out-form r)))
 
 (defn left-child "The program that takes a node apart and returns its left child." [r]
@@ -126,14 +139,16 @@
 ;; and exactly nodes(c) spine nodes are used.  With too short a supply, an
 ;; exhausted node becomes a leaf, so print reveals the failure.
 
-(def parse-form
+(defn- parse-with
+  "The parser, taking supply nodes apart with `out` (out-form or out-prim-form)."
+  [out]
   (splice
    (list 'fn '[c w Syn]
          (list 'rec-syn '[z (-o R (tensor R R))]
                '[a] '(fn [s0 1 R] (pair (tensor R R) (leaf a) s0))
                '[a c1 c2 y1 y2]
                (list 'fn '[s0 1 R]
-                     (list 'let-pair '(tensor R R) '[b q] (list out-form 's0)
+                     (list 'let-pair '(tensor R R) '[b q] (list out 's0)
                            (list 'let-pair '(tensor R R) '[a2 f] 'q
                                  (list (list 'elim-bool '[x (-o (-o (T x) K) (tensor R R))] 'b
                                              '(fn [g 1 (-o (T tt) K)]
@@ -145,6 +160,16 @@
                                              '(fn [g 1 (-o (T ff) K)] (pair (tensor R R) (leaf a) (leaf a2))))
                                        'f))))
                'c))))
+
+(def parse-form
+  "parse : Π(c :ω Syn). R ⊸ R ⊗ R, on the definable out: each step walks the
+  whole remaining supply."
+  (parse-with out-form))
+
+(def parse-prim-form
+  "The same parser on out-prim-form (proflog ADR-0143 Step 2): each step takes
+  one supply node apart, so parsing a code of k nodes touches k supply nodes."
+  (parse-with out-prim-form))
 
 (defn parse-then
   "The program: parse `code-form` with `supply-form`, bind the certificate to

@@ -96,7 +96,7 @@
   one whose context is neither ω-scaled nor type-level."
   {:Lam 1 :App 0 :Pair 2 :Let 0 :Abort 0 :Conv 0 :If 0 :ElimBool 0 :Succ 0
    :RecN 0 :CaseLbl 0 :SLeaf 0 :SNode 0 :RecSyn 0 :Leaf 0 :Node 0 :ItR 3
-   :Print 0 :Chk 0 :H1 0 :Reflect 0 :Inspect 0})
+   :Print 0 :Chk 0 :H1 0 :Reflect 0 :Inspect 0 :CaseR 0})
 
 (defn raise
   "Return runtime derivation `d` with its recorded context raised to `target`,
@@ -339,6 +339,28 @@
 
       :print (let [dr (sub-at (second t) [:R])]
                (mk :Print (if rt (:ctx dr) z) [:Syn] [dr]))
+
+      ;; caseR (proflog ADR-0143 Step 2): the scrutinee is consumed; the leaf
+      ;; branch binds its label at ω, the node branch its token and children
+      ;; at 1 and its label at ω.  One branch runs, so, as for if, the
+      ;; branches share one context Γ₂ and the conclusion is Γ₁ + Γ₂.
+      :caseR (let [_ (when-not (s/extension? :caseR)
+                       (err "caseR is not a rule of this calculus (extension :caseR is off)" {:term t}))
+                   [_ X rr tl tn] t
+                   dr (sub-at rr [:R])
+                   dX (tf Γ X)
+                   bl [[:w [:Lbl]]]
+                   bn [[1 [:Dia]] [:w [:Lbl]] [1 [:R]] [1 [:R]]]
+                   Γl (into Γ bl) Γn (into Γ bn)
+                   dl (conv (synth m Γl tl) (s/shift X 1) Γl)
+                   dn (conv (synth m Γn tn) (s/shift X 4) Γn)
+                   [dl dn g2] (if rt
+                                (let [dl (raise-binders dl bl)
+                                      dn (raise-binders dn bn)
+                                      g (ctx-join (prefix (:ctx dl) n) (prefix (:ctx dn) n))]
+                                  [(raise dl (into g bl)) (raise dn (into g bn)) g])
+                                [dl dn z])]
+               (mk :CaseR (total "caseR" (:ctx dr) g2) X [dr dX dl dn]))
 
       :chk (let [[_ c d] t
                  dc (sub-at c [:Syn]) dd (sub-at d [:Syn])]

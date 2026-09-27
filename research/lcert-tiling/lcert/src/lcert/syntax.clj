@@ -24,6 +24,7 @@
             [:sleaf a] [:snode a c1 c2] [:recSyn P tl tn c]
                                             (P binds 1, tl binds 1, tn binds 5)
             [:leaf a] [:node d a r1 r2] [:itR X g h r] [:print r]
+            [:caseR X r tl tn]       (tl binds 1, tn binds 4; an extension)
             [:lam u A t] [:app f u]                          (t binds 1)
             [:pair S a b] [:let C p t]          (S is the Σ type; t binds 2)
             [:chk c d] [:h1 r s c e1 e2] [:reflect D r e]
@@ -34,7 +35,8 @@
   [:var 0] = the recursive result y; recSyn's node method sees, from outermost,
   the label a, the subcodes c1 c2, and the recursive results y1 y2; let's body
   sees x ([:var 1]) and y ([:var 0]); inspect's branches see the certificate
-  x ([:var 1]) and the evidence e ([:var 0]).
+  x ([:var 1]) and the evidence e ([:var 0]); caseR's node branch sees, from
+  outermost, the token d, the label a and the children r1 r2.
 
   Code values (the runtime values of Syn, and what the encoding produces) are
   [:sl l] for a leaf and [:sn l c1 c2] for an internal node, l a label.")
@@ -87,7 +89,9 @@
    :Var :Unit :TT :FF :Zero :Lbl :Lam :App :Pair :Let :Abort :Conv
    :If :ElimBool :Succ :RecN :CaseLbl :SLeaf :SNode :RecSyn
    :Leaf :Node :ItR :Print :Chk :H1 :Reflect :Inspect
-   :EmptyF :UnitF :BoolF :NatF :LblF :SynF :DiaF :RF :TF :PiF :SigmaF])
+   :EmptyF :UnitF :BoolF :NatF :LblF :SynF :DiaF :RF :TF :PiF :SigmaF
+   ;; the primitive destructor of R, term and rule (proflog ADR-0143 Step 2)
+   :caseR :CaseR])
 
 (def user-labels
   "Labels with no role in the encoding, free for programs to use."
@@ -115,7 +119,27 @@
    :caseLbl  [1 0 0]      ; [:caseLbl P a branches]
    :recSyn   [1 1 5 0]    ; [:recSyn P tl tn c]
    :let      [0 0 2]      ; [:let C p t]
-   :inspect  [0 0 0 2 2]}) ; [:inspect X r c t1 t2]
+   :inspect  [0 0 0 2 2]  ; [:inspect X r c t1 t2]
+   :caseR    [0 0 1 4]})  ; [:caseR X r tl tn]
+
+;; ---------------------------------------------------------------------------
+;; Extensions: rules that change the proof system (proflog ADR-0143).
+;;
+;; λᶜᵉʳᵗ₀ as R4-metatheory.md fixes it has no primitive destructor for R.
+;; Step 2 adds caseR (METATHEORY.md §2.1).  Because the checker `chk′` names
+;; *this* calculus's Check, adding a rule changes which certificates Check
+;; accepts: a program run with an extension switched off is a program of the
+;; older proof system, and rejects certificates that use the extension.  Step
+;; 4 relies on exactly that to test tiling across a change of proof system.
+
+(def ^:dynamic *extensions*
+  "The rule extensions in force.  :caseR — the primitive destructor of R."
+  #{:caseR})
+
+(defn extension?
+  "Is the rule extension `x` in force?"
+  [x]
+  (contains? *extensions* x))
 
 (defn expr?
   "True for a type or term: a vector headed by a keyword tag."
@@ -325,6 +349,7 @@
 ;;          (case-lbl [x P] a {:l t ... :else t})
 ;;          (sleaf a) (snode a c1 c2) (rec-syn [x P] [a] tl [a c1 c2 y1 y2] tn c)
 ;;          (leaf a) (node d a r1 r2) (itr X g h r) (print r)
+;;          (case-r X r [a] tl [d a r1 r2] tn)   (with the caseR extension)
 ;;          (pair S a b) (let-pair C [x y] p t) (abort A t)
 ;;          (chk c d) (H1 r s c e1 e2) (reflect D r e) (H r e)
 ;;          (inspect X r c [x e] t1 [x e] t2)
@@ -463,6 +488,8 @@
         leaf [:leaf (p (first args))]
         node (let [[d a r1 r2] args] [:node (p d) (p a) (p r1) (p r2)])
         itr (let [[X g h r] args] [:itR (ty X) (p g) (p h) (p r)])
+        case-r (let [[X r [a] tl [d a2 r1 r2] tn] args]
+                 [:caseR (ty X) (p r) (under [a] tl) (under [d a2 r1 r2] tn)])
         print [:print (p (first args))]
         pair (let [[S a b] args] [:pair (ty S) (p a) (p b)])
         let-pair (let [[C [x y] pr t] args] [:let (ty C) (p pr) (under [x y] t)])

@@ -119,3 +119,43 @@
 (def leaf-agent
   "The last successor: takes action 2 without delegating."
   (list 'fn '[s 1 R] (list 'pair sigma 2 'star)))
+
+;; (e) a minting agent (proflog ADR-0143 Step 2).  MintAgent = Π(cs :ω Syn).
+;; Π(s :₁ R). sigma: given a list of codes and a raw supply of tokens, it
+;; mints the first code into a certificate from the supply (the parser on the
+;; primitive destructor), checks it at MintAgent, trusts it, and runs it on
+;; the rest of the list and the rest of the supply; on an empty list, or a
+;; code that is not a MintAgent's, it takes the known-safe action 1.  A list
+;; is a right spine of :a nodes whose left children are the codes.
+
+(def mint-agent-type (list 'Pi '[cs w Syn] agent-type))
+
+(defn mint-agent-with
+  "The minting agent, built on the given parser form."
+  [parse-form]
+  (walk/postwalk-replace
+   {'SIGMA sigma 'MINT mint-agent-type 'PARSE parse-form 'FALLBACK fallback}
+   '(fn [cs w Syn]
+      (rec-syn [x (-o R SIGMA)]
+        [a] (fn [s 1 R] FALLBACK)
+        [a c1 c2 y1 y2]
+        (fn [s 1 R]
+          (let-pair SIGMA [t rest] (PARSE c1 s)
+            (inspect SIGMA t (code MINT)
+              [x e] (((reflect MINT x e) c2) rest)
+              [x e] FALLBACK)))
+        cs))))
+
+(def mint-agent-form
+  "The minting agent on the primitive destructor: each supply node it takes
+  is one caseR."
+  (mint-agent-with ex/parse-prim-form))
+
+(def mint-leaf-form
+  "The last successor: takes action 2, whatever it is handed."
+  (list 'fn '[cs w Syn] (list 'fn '[s 1 R] (list 'pair sigma 2 'star))))
+
+(defn code-list
+  "A list of codes as a code: a right spine of :a nodes."
+  [codes]
+  (reduce (fn [rest c] [:sn :a c rest]) [:sl :a] (reverse codes)))

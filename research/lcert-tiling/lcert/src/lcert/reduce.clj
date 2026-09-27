@@ -54,6 +54,13 @@
                :node (let [[_ d a r1 r2] r]
                        [:app [:app [:app [:app h d] a] [:itR X g h r1]] [:itR X g h r2]])
                nil))
+      ;; caseR's ι-rules (proflog ADR-0143 Step 2), only with the extension
+      :caseR (when (s/extension? :caseR)
+               (let [[_ _X r tl tn] e]
+                 (case (first r)
+                   :leaf (s/subst tl (second r))
+                   :node (let [[_ d a r1 r2] r] (s/subst-many tn [d a r1 r2]))
+                   nil)))
       :print (let [[_ r] e]
                (case (first r)
                  :leaf [:sleaf (second r)]

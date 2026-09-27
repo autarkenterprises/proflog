@@ -53,21 +53,91 @@
 (defn token "A runtime token." [id] (->Token id))
 
 ;; ---------------------------------------------------------------------------
+;; Lazy finite supplies (proflog ADR-0143 Step 2; METATHEORY.md §2.3).
+;;
+;; A lazy supply promises N nodes and materializes one only when a program
+;; takes it apart.  It stands for one finite tree, the *spine of N*:
+;;
+;;     node(τ₀, a, leaf a, node(τ₁, a, leaf a, … node(τ_{N−1}, a, leaf a, leaf a)))
+;;
+;; whose i-th token τᵢ is (token [:lazy sid i]), sid naming the supply.  A
+;; LazySupply record is the unmaterialized suffix from index `start`, with
+;; `n` nodes still promised.  Forcing it yields that suffix's top node, whose
+;; right child is again a LazySupply; forcing is pure, so forcing the same
+;; suffix twice yields equal values.  Every operation that looks inside an R
+;; value forces as it goes (force-r); `nodes` alone answers from the promise.
+
+(defrecord LazySupply [sid start n])
+
+(defn lazy? "Is v an unmaterialized supply suffix?" [v] (instance? LazySupply v))
+
+(defn lazy-supply
+  "A fresh lazy supply promising n nodes (n may be a BigInteger)."
+  [n]
+  (->LazySupply (keyword (gensym "supply")) 0 (bigint n)))
+
+(def ^:dynamic *materialized*
+  "When bound to an atom, every node materialized from a lazy supply
+  increments it."
+  nil)
+
+(def ^:dynamic *materialize-limit*
+  "No run may materialize a supply's node at index *materialize-limit* or
+  beyond.  A walk over a supply promised at 10^100 would otherwise run for
+  ever; the guard makes it fail fast, and it is stateless: it bounds how far
+  into any one supply a program may go, not a global count."
+  10000000)
+
+(defn force-r
+  "An R value with its top node materialized: v itself, unless v is a lazy
+  supply suffix, which yields its top node (or the final leaf)."
+  [v]
+  (if-not (lazy? v)
+    v
+    (let [{:keys [sid start n]} v]
+      (cond
+        (zero? n) [:rl :a]
+        (>= start *materialize-limit*)
+        (throw (ex-info (str "refusing to materialize supply node " start
+                             ": past the limit of " *materialize-limit*)
+                        {:type :lcert/materialization-limit :limit *materialize-limit*}))
+        :else
+        (do (when *materialized* (swap! *materialized* inc))
+            [:rn (token [:lazy sid start]) :a [:rl :a] (->LazySupply sid (inc start) (dec n))])))))
+
+;; ---------------------------------------------------------------------------
 ;; Certificate values.
 
 (defn nodes
-  "Internal nodes of an R value."
-  [v]
-  (if (= :rn (first v)) (+ 1 (nodes (nth v 3)) (nodes (nth v 4))) 0))
-
-(defn tokens
-  "The tokens of an R value (or of a pair holding R values), in preorder."
+  "Internal nodes of an R value.  A lazy supply answers from its promise,
+  without materializing anything."
   [v]
   (cond
+    (lazy? v) (:n v)
+    (= :rn (first v)) (+ 1 (nodes (nth v 3)) (nodes (nth v 4)))
+    :else 0))
+
+(defn tokens
+  "The tokens of an R value (or of a pair holding R values), in preorder.
+  An unmaterialized supply suffix contributes none: its tokens are fresh by
+  construction — no value outside the suffix can hold one — and enumerating
+  them would materialize it.  So the linearity checks below cover every
+  materialized token, and the rest is covered by construction."
+  [v]
+  (cond
+    (lazy? v) []
     (not (vector? v)) []
     (= :rn (first v)) (into [(second v)] (concat (tokens (nth v 3)) (tokens (nth v 4))))
     (= :pv (first v)) (into (tokens (second v)) (tokens (nth v 2)))
     :else []))
+
+(defn materialize
+  "The whole tree of an R value, lazy parts forced (subject to the guard)."
+  [v]
+  (let [v (force-r v)]
+    (if (= :rn (first v))
+      (let [[_ tok l a b] v] [:rn tok l (materialize a) (materialize b)])
+      v)))
 
 (defn assert-linear!
   "Throw if some token object occurs twice in value v: a well-typed program
@@ -81,9 +151,10 @@
     v))
 
 (defn print-value "print: forget the tokens of an R value." [v]
-  (case (first v)
-    :rl [:sl (second v)]
-    :rn [:sn (nth v 2) (print-value (nth v 3)) (print-value (nth v 4))]))
+  (let [v (force-r v)]
+    (case (first v)
+      :rl [:sl (second v)]
+      :rn [:sn (nth v 2) (print-value (nth v 3)) (print-value (nth v 4))])))
 
 ;; ---------------------------------------------------------------------------
 ;; Defaults, by skeleton (R4-metatheory.md §3.1: computable choices).
@@ -129,6 +200,7 @@
       :Node [:node (er 0) (er 1) (er 2) (er 3)]
       :ItR [:itR (second t) (er 1) (er 2) (er 3)]
       :Print [:print (er 0)]
+      :CaseR [:caseR (second t) (er 0) (er 2) (er 3)]
       :Chk [:chk (er 0) (er 1)]
       :H1 [:h1 (er 0) (er 1) (er 2) (er 3) (er 4)]
       :Reflect [:reflect (second t) (er 0) (er 1)]
@@ -183,11 +255,19 @@
       :itR (let [[_ _X g h rr] t
                  gv (go g) hv (go h)]
              (letfn [(rec [v]
-                       (case (first v)
-                         :rl (gv (second v))
-                         :rn (let [[_ tok l a b] v]
-                               ((((hv tok) l) (rec a)) (rec b)))))]
+                       (let [v (force-r v)]
+                         (case (first v)
+                           :rl (gv (second v))
+                           :rn (let [[_ tok l a b] v]
+                                 ((((hv tok) l) (rec a)) (rec b))))))]
                (rec (go rr))))
+      ;; caseR takes one node apart: constant time, and on a lazy supply it
+      ;; materializes exactly that node
+      :caseR (let [[_ _X rr tl tn] t
+                   v (force-r (go rr))]
+               (case (first v)
+                 :rl (under [(second v)] tl)
+                 :rn (let [[_ tok l a b] v] (under [tok l a b] tn))))
       :print (print-value (go (second t)))
       :lam (let [[_ _u _A body] t] (fn [v] (ev body (conj env v) n opts)))
       :app (let [[_ f a] t] ((go f) (go a)))
@@ -198,9 +278,12 @@
       :chk (let [[_ cc dd] t] (c/check (go cc) (go dd)))
       :h1 (do (doseq [x (rest t)] (go x)) :star)
       :reflect (let [[_ D rr ev0] t
-                     v (go rr)
+                     v0 (go rr)
                      _ (go ev0)
-                     within-cap (<= (nodes v) n)
+                     within-cap (<= (nodes v0) n)
+                     ;; a certificate within the cap is materialized in full
+                     ;; (guarded), so its tokens can be handed on below
+                     v (if within-cap (materialize v0) v0)
                      checks (and within-cap (c/check (print-value v) (e/enc-exp D)))]
                  (if checks
                    ;; run the certified program on m of v's own tokens

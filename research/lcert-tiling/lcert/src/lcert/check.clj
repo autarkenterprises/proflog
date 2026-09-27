@@ -98,6 +98,13 @@
                             (is rr [:R]))
                    sx))))
       :print (when (is (second t) [:R]) [:Syn])
+      :caseR (let [[_ X rr tl tn] t]
+               (when (and (s/extension? :caseR) (wf X))
+                 (let [sx (skel X)]
+                   (when (and (is rr [:R])
+                              (= sx (under [[:Lbl]] tl))
+                              (= sx (under [[:Dia] [:Lbl] [:R] [:R]] tn)))
+                     sx))))
       :chk (let [[_ c d] t] (when (and (is c [:Syn]) (is d [:Syn])) [:Bool]))
       :lam (let [[_ u A b] t]
              (when (and (s/usages u) (wf A))
@@ -319,6 +326,23 @@
 
       :Print (and (= :print (first term)) (= 1 np) (= type [:Syn])
                   (sub? 0 (second term) [:R]) (= G (at 0)))
+
+      ;; caseR (proflog ADR-0143 Step 2), valid only when the extension is
+      ;; in force: without it this rule does not exist, and a derivation
+      ;; that uses it is rejected like any other invalid one.
+      :CaseR (let [[tag X rr tl tn] term
+                   bl [[:Lbl]]
+                   bn [[:Dia] [:Lbl] [:R] [:R]]]
+               (and (s/extension? :caseR)
+                    (= tag :caseR) (= 4 np) (= type X)
+                    (sub? 0 rr [:R])
+                    (form? (ps 1) T X)
+                    (typing? (ps 2) j (into T bl) tl (s/shift X 1))
+                    (typing? (ps 3) j (into T bn) tn (s/shift X 4))
+                    (= (suffix (at 2) n) [[(u* :w) [:Lbl]]])
+                    (= (suffix (at 3) n) [[(u* 1) [:Dia]] [(u* :w) [:Lbl]] [(u* 1) [:R]] [(u* 1) [:R]]])
+                    (= (prefix (at 2) n) (prefix (at 3) n))
+                    (= G (ctx+ (at 0) (prefix (at 2) n)))))
 
       :Chk (let [[tag c d] term]
              (and (= tag :chk) (= 2 np) (= type [:Bool])

@@ -101,6 +101,8 @@
           :node (let [[d a r1 r2] xs] (sn :rnode (enc d) (args (enc a) (enc r1) (enc r2))))
           :itR (let [[X g h r] xs] (sn :itR (enc X) (args (enc g) (enc h) (enc r))))
           :print (sn :print (enc (first xs)) nil-code)
+          :caseR (let [[X r tl tn] xs]
+                   (sn :caseR (enc X) (args (enc r) (sn :branches (enc tl) (enc tn)))))
           :lam (let [[u A t] xs] (sn (get-in by-usage [:lam u]) (enc A) (enc t)))
           :app (let [[f a] xs] (sn :app (enc f) (enc a)))
           :pair (let [[S a b] xs] (sn :tpair (enc S) (args (enc a) (enc b))))
@@ -223,6 +225,9 @@
                 :rnode (let [[lb r1 r2] (dec-args 3 b)] [:node (dec a) (dec lb) (dec r1) (dec r2)])
                 :itR (let [[g h r] (dec-args 3 b)] [:itR (dec a) (dec g) (dec h) (dec r)])
                 :print (unary :print :print)
+                :caseR (let [[r br] (dec-args 2 b)
+                             [tl tn] (node-of "branches" :branches br)]
+                         [:caseR (dec a) (dec r) (dec tl) (dec tn)])
                 :app [:app (dec a) (dec b)]
                 :tpair (let [[x y] (dec-args 2 b)] [:pair (dec a) (dec x) (dec y)])
                 :let (let [[p t] (dec-args 2 b)] [:let (dec a) (dec p) (dec t)])
@@ -259,7 +264,7 @@
 (def rule-labels
   #{:Var :Unit :TT :FF :Zero :Lbl :Lam :App :Pair :Let :Abort :Conv
     :If :ElimBool :Succ :RecN :CaseLbl :SLeaf :SNode :RecSyn
-    :Leaf :Node :ItR :Print :Chk :H1 :Reflect :Inspect
+    :Leaf :Node :ItR :Print :Chk :H1 :Reflect :Inspect :CaseR
     :EmptyF :UnitF :BoolF :NatF :LblF :SynF :DiaF :RF :TF :PiF :SigmaF})
 
 (defn- dec-deriv* [c]

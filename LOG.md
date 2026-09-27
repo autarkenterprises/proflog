@@ -204,6 +204,26 @@ complete contemporaneous transcript.
     lemma. The calculus gains `*reflect-class*` `:first-order`, which
     implements 𝓕 exactly. Suites: fast 56 tests / 501 assertions, extended 72
     / 1677, all green.
+  - **Step 2 done.** [METATHEORY.md](research/lcert-tiling/METATHEORY.md) §2.
+    - `caseR`, a constant-time eliminator for R, is in every layer of the
+      calculus as a rule extension (`*extensions*`); with it off, `Check`
+      rejects certificates that use it, which is the change of proof system
+      Step 4 tests.
+    - R4's results re-checked with it: the fundamental lemma gains one case
+      (the node split is `lcert.supply/caser_node_env`), T4/T4′ one case,
+      P5 one interpretation clause; strict overhead is unaffected.
+    - A lazy finite supply is a promise N denoting the spine of N nodes,
+      materialized one node per destruction. Observational equality is
+      proved on paper and tested; `lcert.supply/parse_spine` proves in the
+      kernel that minting a code of k nodes consumes exactly k supply nodes.
+    - A minting agent tiles through two successors on a supply promised at
+      10^100 and materializes exactly the 37,919 nodes it mints; built on
+      the definable `out` it walks the whole supply at its first step.
+    - Found while testing: `:d` is not a label of L (user labels are
+      `:a :b :c`); a Σ at ω cannot hold a linear component; the REPL helper
+      had kept an old start script because a `pkill -f` pattern matched its
+      own shell, the same slip recorded in LESSONS.md.
+    - Suites: fast 71 tests / 582 assertions, extended 90 / 1908, all green.
 
 ## 2026-06-22
 

@@ -217,3 +217,172 @@ the cap arithmetic (step 2) are the verified ones of `lcert.verified`.
   No cap arithmetic enters: the interpretation never evaluates `r`. The
   bounded facts are true because of T1 for the extended calculus, above.
   **[paper]**
+
+---
+
+## 2. The primitive destructor, and lazy finite supplies (Step 2)
+
+### 2.1 `caseR`
+
+**Why it is needed.** R4 has one eliminator for certificates, `itR`, which
+iterates over the whole tree; the destructor `out : R ⊸ V` of R4 §4.7 is
+defined from it, so taking one node off a supply of `N` nodes costs `O(N)`
+and rebuilds every subtree. A parser that mints a certificate of `k` nodes
+from a supply of `N` therefore costs `O(k · N)` and touches all `N` supply
+nodes. A supply promised at 10^100 could not be used at all.
+
+**The rule** (a *rule extension*: `lcert.syntax/*extensions*` contains
+`:caseR` by default):
+
+```
+Γ₁ ⊢ r :¹ R      Γ ⊢ X type      Γ₂, a :ω Lbl ⊢ t_l :¹ X
+Γ₂, d :₁ ◇, a :ω Lbl, r₁ :₁ R, r₂ :₁ R ⊢ t_n :¹ X
+───────────────────────────────────────────────────────────
+Γ₁ + Γ₂ ⊢ caseR_X(r, a. t_l, d a r₁ r₂. t_n) :¹ X
+```
+
+- The motive `X` does not depend on `r`, as `itR`'s does not.
+- One branch runs, so the branches share `Γ₂`, as `if`'s do.
+- **Conversion** gains two ι-rules:
+  `caseR_X(leaf a′, …) ⇝ t_l[a′/a]` and
+  `caseR_X(node d′ a′ r₁′ r₂′, …) ⇝ t_n[d′, a′, r₁′, r₂′ / d, a, r₁, r₂]`.
+- **The model:** `⟦caseR_X(r, …)⟧ⁿη` is `⟦t_l⟧ⁿ(η, a ↦ ℓ)` when `⟦r⟧ⁿη` is
+  `leaf ℓ`, and `⟦t_n⟧ⁿ(η, d ↦ ◇, a ↦ ℓ, r₁ ↦ v₁, r₂ ↦ v₂)` when it is
+  `node ◇ ℓ v₁ v₂`.
+- **Encoding and `Check`:** two new labels, `:caseR` (the term) and `:CaseR`
+  (the rule); the term is encoded like `inspect`'s. `Check`'s new local
+  condition is structural, like `If`'s and `Inspect`'s.
+- `out-prim-form` rebuilds `out` on `caseR` with the same type and the same
+  views; `parse-prim-form` rebuilds the parser on it.
+
+**[test]** `lcert.caser-test`: typing and usages (a child or the token used
+twice is rejected), `Check` accepts `caseR` derivations and rejects a
+tampered one, conversion and both evaluators compute the ι-rules, the two
+`out`s agree on every tree tried, and so do the two parsers.
+
+### 2.2 The metatheory, re-checked
+
+Each result of R4, and of §1, with the new rule. **[paper]** unless marked.
+
+- **Syntactic lemmas (R4 §2).** Weakening, renaming, strengthening and
+  composition gain one case each, handled like `Inspect`'s. Skeletons: the
+  rule's premises are simply typed at `skel X`, and each ι-step preserves
+  skeletons.
+- **Strict overhead (Lemma 2.7)** is a property of every derivation-shaped
+  code, whatever its rule label: unchanged. **[Ansatz]**
+  `lcert.verified/strict_overhead` quantifies over the rule label.
+- **Denotation and conversion (Lemmas 3.1–3.2).** The new clause is
+  compositional; the ι-rules preserve denotations by the clause itself.
+- **The fundamental lemma, `caseR` case**, in R4's sets and in §1's.
+  The inner hypothesis gives `v = ⟦r⟧` with `‖v‖ ≤ k₁` and `k₁ + k₂ ≤ k`.
+  - On a leaf, the branch's environment is `Γ₂` plus a label: footprint `k₂`.
+  - On a node `node ◇ ℓ v₁ v₂`, the token lies in `V₁(◇)`, the children in
+    `V_{‖v₁‖}(R)` and `V_{‖v₂‖}(R)`, and the branch's footprint is
+    `k₂ + 1 + ‖v₁‖ + ‖v₂‖ = k₂ + ‖v‖ ≤ k`.
+
+  So the inner hypothesis applies to the branch. No cap enters. **[Ansatz]**
+  `lcert.supply/caser_node_env` is the node split.
+- **T1, T3** follow as before.
+- **T4 and T4′.** The evaluator's `caseR` takes one node apart: it
+  terminates, and since the runtime tree equals the carrier tree, both sides
+  take the same branch with related bindings. Erasure does not touch `caseR`
+  (no usage-0 position).
+- **P5.** *Step 1* (PA into λᶜᵉʳᵗ): translated PA proofs use no `caseR`, and
+  the extended `Check` accepts every derivation the old one did (its rule
+  table only grows); the PA-translation tests pass unchanged. *Step 2*
+  (λᶜᵉʳᵗ into E-PA^ω): `caseR` becomes definition by cases on tree codes,
+  primitive recursive; its ι-rules are provable equations (Lemma 6.2.3), and
+  Lemma 6.4's new case is the fundamental lemma's, in E-PA^ω.
+- **What changes in principle:** nothing new is inhabited that `out` did not
+  already give. `caseR` changes costs, not strength. But it does change the
+  proof system: `Check` now accepts derivations that use the `CaseR` rule,
+  and a checker without the extension rejects them (**[test]**
+  `the-extension-is-a-change-of-proof-system`). Step 4 uses exactly this.
+
+### 2.3 Lazy finite supplies
+
+**Definition.** A *lazy finite supply* is a pair `(N, σ)` of a natural number
+`N`, its *promise*, and a name `σ`. It denotes one finite certificate, the
+*spine of N*:
+
+```
+spine_σ(N) = node(τ_σ,0, a, leaf a, node(τ_σ,1, a, leaf a, … node(τ_σ,N−1, a, leaf a, leaf a)))
+```
+
+whose i-th token `τ_σ,i` belongs to `σ` alone. The evaluator represents the
+not-yet-taken suffix from index `i` as a thunk carrying `N − i`.
+
+- **Materialization.** Destructing a thunk yields `node(τ_σ,i, a, leaf a,
+  thunk(i+1))`, or `leaf a` at the end. Every operation that looks inside a
+  certificate destructs as it goes; `nodes` alone answers `N − i` from the
+  promise without materializing. `reflect` materializes a certificate within
+  its cap before checking it.
+- **The guard.** No run may materialize a node at index `L` or beyond of any
+  supply (`*materialize-limit*`, 10⁷ by default). It is not part of the
+  semantics: without it a walk over a 10^100 supply would never return.
+
+**Observational equality.** For every program `p` and every run, `p` on the
+lazy supply `(N, σ)` returns the value `p` returns on the tree
+`spine_σ(N)` — up to how much of the leftover supply has been materialized —
+provided the run does not reach the guard.
+
+*Proof.* The only operations that look into a certificate are `caseR`,
+`itR`, `print`, `inspect`, `reflect` and the evaluator's linearity check.
+Each destructs top-down, and destructing a thunk yields exactly the eager
+tree's node at that position, token included; `nodes` of a thunk equals the
+eager subtree's node count. The linearity check skips thunks; their tokens
+are fresh by construction, so no duplicate can involve them unless the
+thunk itself is duplicated, which affine typing excludes. ∎ **[paper]**;
+**[test]** `programs-cannot-tell-lazy-from-eager` (a count by `itR`, `print`,
+a two-level `caseR`, and the parser; sizes 0, 1, 2, 17 and 9).
+
+**The materialization bound.** Minting a well-formed code `c` from the spine
+of `N ≥ nodes(c)` with the parser on `caseR` returns `c` itself and the spine
+of `N − nodes(c)`; so it materializes exactly `nodes(c)` supply nodes.
+**[Ansatz]** `lcert.supply/parse_spine`, over a CT model of the parser whose
+compiled function agrees with lcert's program on 40 random codes
+(`the-compiled-parser-agrees-with-lcert's`); `spine_nodes` shows the promise
+is the real size. **[test]** `destructing-materializes-only-what-it-takes`:
+a 4-node code minted from a supply promised at 10^100 materializes 4 nodes.
+
+**Soundness with a lazy supply.** The model sees `spine_σ(N)`, a finite tree.
+A run on it is a run in `Θ_N`-worth of world, covered by T1 and Theorem 1.4
+at cap `n ≥ N`, for every finite `N`, 10^100 included: nothing in the
+metatheory depends on the size of `N`, and the implementation's caps are
+arbitrary-precision.
+
+**Why "finite" is essential.**
+- An endless supply is not an element of `C(R)`, which holds finite trees, so
+  the model does not interpret it, and T1 says nothing about a run on it.
+- The charged cap `n − ‖v‖ + m` needs a finite `n`; its strict descent is
+  what makes the model's recursion well founded.
+- T4 fails: `itR` over an endless supply does not terminate.
+- A chain that keeps finding its own certificate in an endless supply
+  delegates for ever and never acts: safe, but never done. With a finite
+  promise it acts after at most `N / min ‖v‖` delegations.
+
+  A promise of 10^100 costs nothing until it is spent, so finiteness is no
+  practical limit.
+
+### 2.4 Minting on a supply promised at 10^100
+
+`MintAgent = Π(cs :ω Syn). Π(s :₁ R). Σ(b :ω Nat). T(b ≠ 0)`, a first-order
+type (§1.2). The agent is handed a list of codes and a raw supply. It mints
+the first code into a certificate from the supply, checks it at `MintAgent`,
+reflects it under the charged cap, and runs it on the rest of the list and
+the rest of the supply. On an empty list, or a code that does not check, it
+takes the known-safe action 1. Its certificate has 18,831 nodes and declares
+no tokens; `Check` accepts it in about 0.1 s.
+
+**[test]** `lcert.minting-agent-test`, on a lazy supply promised at 10^100,
+with the chain *agent, agent, leaf agent* (the leaf takes action 2):
+- the result is `(2, ⋆)`, after three reflections;
+- exactly 37,919 = 2 × 18,831 + 257 supply nodes are materialized: the
+  certificates minted, and nothing else;
+- the charged caps run 10^100 → 10^100 − 18,831 → 10^100 − 37,662 →
+  10^100 − 37,919;
+- the same agent built on the definable `out` walks the whole supply at its
+  first step, and the guard stops it.
+
+The run takes a few seconds, dominated by minting and checking the three
+certificates.

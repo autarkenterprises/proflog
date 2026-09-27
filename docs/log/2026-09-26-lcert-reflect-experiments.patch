@@ -21,8 +21,8 @@ diff -ruN '--exclude=*.class' orig/lcert/src/lcert/check.clj lcert-rinput/src/lc
                        (= G (ctx+ (at 0) (at 1)))))
 diff -ruN '--exclude=*.class' orig/lcert/src/lcert/eval.clj lcert-rinput/src/lcert/eval.clj
 --- a/code/lcert/src/lcert/eval.clj	2026-09-26 22:58:30.629503453 +0000
-+++ b/code/lcert/src/lcert/eval.clj	2026-09-26 23:35:18.697544967 +0000
-@@ -31,6 +31,17 @@
++++ b/code/lcert/src/lcert/eval.clj	2026-09-27 02:17:05.206293605 +0000
+@@ -31,6 +31,23 @@
              [lcert.kernel :as k]
              [lcert.typing :as t]))
  
@@ -30,6 +30,12 @@ diff -ruN '--exclude=*.class' orig/lcert/src/lcert/eval.clj lcert-rinput/src/lce
 +  "Assessor's demo switch: when true, a reflected program runs under its
 +  caller's budget cap n instead of its own declared budget m."
 +  false)
++
++(def ^:dynamic *trace*
++  "Assessor's demo hook: when bound to a function, it receives one map per
++  inspect and per reflect, so a run can be narrated step by step.  The map's
++  :depth is the number of reflections the evaluating code sits under."
++  nil)
 +
 +(def ^:dynamic *charged-cap*
 +  "Assessor's demo switch: when true, a reflected program runs under the cap
@@ -40,18 +46,45 @@ diff -ruN '--exclude=*.class' orig/lcert/src/lcert/eval.clj lcert-rinput/src/lce
  (defrecord Token [id])
  
  (defn token "A runtime token." [id] (->Token id))
-@@ -188,7 +199,10 @@
+@@ -182,17 +199,32 @@
+       :h1 (do (doseq [x (rest t)] (go x)) :star)
+       :reflect (let [[_ D rr ev0] t
+                      v (go rr)
+-                     _ (go ev0)]
+-                 (if (and (<= (nodes v) n) (c/check (print-value v) (e/enc-exp D)))
++                     _ (go ev0)
++                     within-cap (<= (nodes v) n)
++                     checks (and within-cap (c/check (print-value v) (e/enc-exp D)))]
++                 (if checks
+                    ;; run the certified program on m of v's own tokens
                     (let [dd (e/dec-deriv (print-value v))
                           m (count (:ctx dd))
-                          toks (vec (take m (tokens v)))]
+-                         toks (vec (take m (tokens v)))]
 -                     (eval-deriv dd m (assoc opts :tokens toks)))
-+                     (eval-deriv dd (cond *charged-cap* (+ (- n (nodes v)) m)
-+                                          *dynamic-cap* n
-+                                          :else m)
-+                                 (assoc opts :tokens toks)))
-                    (default-value (c/skel D))))
+-                   (default-value (c/skel D))))
++                         toks (vec (take m (tokens v)))
++                         cap (cond *charged-cap* (+ (- n (nodes v)) m)
++                                   *dynamic-cap* n
++                                   :else m)]
++                     (when *trace*
++                       (*trace* {:event :reflect :depth (:depth opts 0) :type D :nodes (nodes v)
++                                 :cap n :runs true :m m :decoded-cap cap}))
++                     (eval-deriv dd cap (assoc opts :tokens toks :depth (inc (:depth opts 0)))))
++                   (do (when *trace*
++                         (*trace* {:event :reflect :depth (:depth opts 0) :type D :nodes (nodes v)
++                                   :cap n :runs false :within-cap within-cap}))
++                       (default-value (c/skel D)))))
        :inspect (let [[_ _X rr cc t1 t2] t
                       v (go rr)
+-                     ok (c/check (print-value v) (go cc))]
++                     tc (go cc)
++                     ok (c/check (print-value v) tc)]
++                 (when *trace*
++                   (*trace* {:event :inspect :depth (:depth opts 0) :type-code tc
++                             :nodes (nodes v) :ok ok}))
+                  (under [v :star] (if ok t1 t2)))
+       (throw (ex-info (str "cannot evaluate " (first t)) {:term t})))))
+ 
 diff -ruN '--exclude=*.class' orig/lcert/src/lcert/syntax.clj lcert-rinput/src/lcert/syntax.clj
 --- a/code/lcert/src/lcert/syntax.clj	2026-09-26 22:58:30.629695572 +0000
 +++ b/code/lcert/src/lcert/syntax.clj	2026-09-26 22:56:28.146083324 +0000
@@ -98,6 +131,138 @@ diff -ruN '--exclude=*.class' orig/lcert/src/lcert/typing.clj lcert-rinput/src/l
                       dr (sub-at rr [:R])
                       de (sub-at ev [:T [:chk [:print rr] (s/code->term (e/enc-exp D))]])]
                   (mk :Reflect (total "reflect" (:ctx dr) (:ctx de)) D [dr de]))
+diff -ruN '--exclude=*.class' orig/lcert/test/lcert/delegation_demo.clj lcert-rinput/test/lcert/delegation_demo.clj
+--- a/code/lcert/test/lcert/delegation_demo.clj	1970-01-01 00:00:00.000000000 +0000
++++ b/code/lcert/test/lcert/delegation_demo.clj	2026-09-27 02:28:59.294331379 +0000
+@@ -0,0 +1,128 @@
++(ns lcert.delegation-demo
++  "Assessor's demo (not part of jpt4/sjas): a self-similar delegation chain,
++  narrated step by step, and a supply-size scaling run.
++
++    java ... clojure.main -m lcert.delegation-demo            both parts
++    java ... clojure.main -m lcert.delegation-demo chain      the chain only
++    java ... clojure.main -m lcert.delegation-demo scaling    scaling only"
++  (:require [clojure.pprint :as pp]
++            [clojure.string :as str]
++            [lcert.syntax :as s]
++            [lcert.encode :as e]
++            [lcert.typing :as t]
++            [lcert.eval :as ev]
++            [lcert.core :as lc]
++            [lcert.ho-forms :as f]))
++
++(defn code-of [form]
++  (binding [s/*allow-resource-reflect* true] (:code (lc/certify 0 form))))
++
++(defn nodes-of [code]
++  (if (= :sn (first code)) (+ 1 (nodes-of (nth code 2)) (nodes-of (nth code 3))) 0))
++
++(defn cert-value
++  "A runtime certificate with the shape of code, one fresh token per node."
++  [code start]
++  (case (first code)
++    :sl [[:rl (second code)] start]
++    :sn (let [[_ l a b] code
++              tok (ev/token start)
++              [va n1] (cert-value a (inc start))
++              [vb n2] (cert-value b n1)]
++          [[:rn tok l va vb] n2])))
++
++(defn spare-tree
++  "A balanced tree of k spare nodes.  Balanced, not a spine: the evaluator's
++  runtime linearity check walks both subtrees at every node it builds, which is
++  quadratic on a spine."
++  [k]
++  (if (zero? k)
++    [:sl :a]
++    (let [left (quot (dec k) 2)]
++      [:sn :a (spare-tree left) (spare-tree (- (dec k) left))])))
++
++(defn supply-code
++  "The supply: a right spine whose left children are the given codes, ending
++  in `tail`."
++  ([codes] (supply-code codes [:sl :a]))
++  ([codes tail] (reduce (fn [rest c] [:sn :a c rest]) tail (reverse codes))))
++
++(defn run-agent
++  "Type check the agent closed, evaluate it under cap n (the supply's size),
++  and apply it to the supply.  mode is :fixed (the metatheory's cap: a
++  reflected program runs under its own budget m) or :charged (n − ‖v‖ + m)."
++  [mode supply-code' trace]
++  (let [[sv next] (cert-value supply-code' 1)
++        n (dec next)]
++    (binding [s/*allow-resource-reflect* true
++              ev/*charged-cap* (= mode :charged)
++              ev/*trace* trace]
++      (let [d (t/check-top 0 (s/parse-term [] f/agent-form))
++            agent-value (#'ev/ev (ev/erase d) [] n {:erase? true})]
++        {:tokens n :result (agent-value sv)}))))
++
++(defn fmt [n] (format "%,d" n))
++
++(defn narrate-chain []
++  (let [ca (code-of f/agent-form)
++        cl (code-of f/leaf-agent)
++        type-names {(e/enc-exp (s/parse-type [] f/agent-type)) "Agent"
++                    (e/enc-exp (s/parse-type [] f/sigma)) "Σ"}
++        name-of (fn [D-or-code]
++                  (or (type-names D-or-code)
++                      (type-names (e/enc-exp D-or-code))
++                      "?"))]
++    (println "== The programs ==")
++    (println "Safe action type  sigma = Σ(x :ω Nat). T(x ≠ 0)   (an action x with evidence x ≠ 0)")
++    (println "Agent type        Agent = Π(s :₁ R). sigma        (given a supply, return a safe action)")
++    (println "The agent, abbreviations unexpanded:")
++    (pp/pprint f/agent-template)
++    (println "The leaf agent:   " (pr-str (list 'fn '[s 1 R] (list 'pair 'SIGMA 2 'star))))
++    (println)
++    (println "Certificate of the agent:     " (fmt (nodes-of ca)) "nodes (declared budget 0: it is a closed program)")
++    (println "Certificate of the leaf agent:" (fmt (nodes-of cl)) "nodes")
++    (doseq [depth [0 1 2]
++            mode [:fixed :charged]]
++      (let [codes (concat (repeat depth ca) [cl])
++            events (atom [])
++            {:keys [tokens result]} (run-agent mode (supply-code codes) #(swap! events conj %))
++            [_ x _] result]
++        (println)
++        (println (format "== %d agent level%s, then the leaf agent; cap mode %s ==" depth (if (= depth 1) "" "s") (name mode)))
++        (println "Supply:" (str/join " → " (concat (map #(str "node[" (if (= % ca) "agent cert" "leaf-agent cert") "]") codes) ["leaf"]))
++                 (str "(" (fmt tokens) " tokens, one per node)"))
++        (doseq [{:keys [event depth nodes ok cap runs m decoded-cap type type-code within-cap]} @events]
++          (let [pad (apply str (repeat (* 2 depth) " "))]
++            (case event
++              :inspect (println (str pad "level " depth ": inspect a " (fmt nodes) "-node certificate against " (name-of type-code)
++                                     " → " (if ok "valid" "not valid")))
++              :reflect (if runs
++                         (println (str pad "level " depth ": reflect it at " (name-of type) " (cap here " (fmt cap)
++                                       "): runs the decoded program with " m " tokens under cap " (fmt decoded-cap)
++                                       "; " (fmt (- nodes m)) " tokens burnt"))
++                         (println (str pad "level " depth ": reflect it at " (name-of type) " (cap here " (fmt cap) "): "
++                                       (if within-cap "the check fails" (str "refused, " (fmt nodes) " nodes > cap " (fmt cap)))
++                                       " → returns the default value"))))))
++        (println "Result:" (pr-str result)
++                 (if (pos? x) (str "— action " x ", evidence valid (" x " ≠ 0)")
++                     (str "— action " x ", evidence claims T(0 ≠ 0): false")))))))
++
++(defn scaling []
++  (let [ca (code-of f/agent-form)
++        cl (code-of f/leaf-agent)]
++    (println)
++    (println "== Supply size: the same agent program, spare tokens appended after the leaf agent's certificate ==")
++    (println "The agent's certificate has" (fmt (nodes-of ca)) "nodes in every run; only the supply grows.")
++    (println (format "%12s  %14s  %10s  %s" "spare tokens" "supply tokens" "seconds" "result"))
++    (doseq [k [0 21135 42270 200000 1000000]]
++      (System/gc)
++      (let [t0 (System/nanoTime)
++            {:keys [tokens result]} (run-agent :charged (supply-code [ca cl] (spare-tree k)) nil)
++            secs (/ (- (System/nanoTime) t0) 1e9)]
++        (println (format "%12s  %14s  %10.2f  %s" (fmt k) (fmt tokens) secs (pr-str result)))))))
++
++(defn -main [& args]
++  (let [what (set args)]
++    (when (or (empty? what) (what "chain")) (narrate-chain))
++    (when (or (empty? what) (what "scaling")) (scaling))
++    (shutdown-agents)))
 diff -ruN '--exclude=*.class' orig/lcert/test/lcert/higher_order_reflect_test.clj lcert-rinput/test/lcert/higher_order_reflect_test.clj
 --- a/code/lcert/test/lcert/higher_order_reflect_test.clj	1970-01-01 00:00:00.000000000 +0000
 +++ b/code/lcert/test/lcert/higher_order_reflect_test.clj	2026-09-26 23:42:39.910218794 +0000
@@ -241,8 +406,8 @@ diff -ruN '--exclude=*.class' orig/lcert/test/lcert/higher_order_reflect_test.cl
 +        (is (= [:pv 0 :star] ((g bigv) :star)))))))
 diff -ruN '--exclude=*.class' orig/lcert/test/lcert/ho_forms.clj lcert-rinput/test/lcert/ho_forms.clj
 --- a/code/lcert/test/lcert/ho_forms.clj	1970-01-01 00:00:00.000000000 +0000
-+++ b/code/lcert/test/lcert/ho_forms.clj	2026-09-26 23:42:39.910082696 +0000
-@@ -0,0 +1,104 @@
++++ b/code/lcert/test/lcert/ho_forms.clj	2026-09-27 02:17:41.338863281 +0000
+@@ -0,0 +1,121 @@
 +(ns lcert.ho-forms
 +  "Assessor's demo forms (not part of jpt4/sjas): certificate-consuming
 +  functions at higher order, and a self-similar delegating agent."
@@ -327,6 +492,23 @@ diff -ruN '--exclude=*.class' orig/lcert/test/lcert/ho_forms.clj lcert-rinput/te
 +(def agent-type (list 'Pi '[s 1 R] sigma))
 +
 +(def fallback (list 'pair sigma 1 'star))
++
++(def agent-template
++  "The agent, with its abbreviations unexpanded: SIGMA = sigma, AGENT =
++  agent-type, K = ◇ ⊗ (R ⊗ R), OUT = the definable destructor of R,
++  FALLBACK = (pair SIGMA 1 star)."
++  '(fn [s 1 R]
++      (let-pair SIGMA [b q] (OUT s)
++        (let-pair SIGMA [a f] q
++          ((elim-bool [zz (-o (-o (T zz) K) SIGMA)] b
++             (fn [g 1 (-o (T tt) K)]
++               (let-pair SIGMA [d uv] (g star)
++                 (let-pair SIGMA [l r] uv
++                   (inspect SIGMA l (code AGENT)
++                     [x e] ((reflect AGENT x e) r)
++                     [x e] FALLBACK))))
++             (fn [g 1 (-o (T ff) K)] FALLBACK))
++           f)))))
 +
 +(def agent-form
 +  (walk/postwalk-replace

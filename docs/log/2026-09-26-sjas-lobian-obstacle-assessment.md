@@ -1485,3 +1485,89 @@ runs one chain. For example:
 (d/run-agent :charged (d/supply-code [ca ca cl]) prn)   ; prints each event; result (2, ⋆)
 (d/run-agent :fixed   (d/supply-code [ca ca cl]) prn)   ; result (0, ⋆)
 ```
+
+## Addendum: Does An Arbitrary, Lazily Produced Budget Resolve The Obstacle? (2026-09-27)
+
+The user's claim, verbatim:
+
+> The ability to specify an arbitrary token budget, produced lazily, seems to
+> substantially resolve the Tiling Agents/Lobian Obstacle problem, for all
+> agents feasible within the physical universe.
+
+**Assessment: it resolves one part of the problem, the telomere for tiling
+with an identical system.** That rests on two conditions not yet met, and the
+same part was already resolved in principle by Fallenstein's Tκ. The other
+parts remain.
+
+### What it resolves
+
+- **Indefinitely tiling trust with an identical system.**
+  - One agent program, approved once by type-checking, can trust successors
+    running the same calculus. The successors can trust theirs by the same
+    rule, with no per-generation weakening.
+  - The count of tokens is the only thing that falls. A budget chosen
+    arbitrarily large, and materialized only as used, makes that count
+    irrelevant for any lineage whose certificates are physically buildable.
+  - This is Yudkowsky and Herreshoff's A1 ≅ A0 target.
+- **What is new relative to Tκ.** Tκ already tiles indefinitely with
+  syntactically identical theories, sound for every κ (§4.2, "without loss of
+  mathematical strength"). λᶜᵉʳᵗ adds two things.
+  - *Epistemic:* the bound is not in the agent's goal or beliefs, and the
+    evidence it returns is for Safe(b) outright, not "safe for κ steps". This
+    answers Yudkowsky and Herreshoff's "odd mental state" objection to Tκ.
+  - *Computational:* agents are typed programs, and trust is a runtime
+    `inspect` plus `reflect`.
+
+### Conditions not yet met
+
+- **The key rule is not established.** `reflect` at Agent, a
+  certificate-consuming type, is not in λᶜᵉʳᵗ as built. Its soundness under
+  the charged cap is the assessor's paper argument for first- and
+  second-order types: not written up formally, not mechanized, not reviewed.
+  P5 for the extension is repaired on paper only for types without R and ◇.
+- **Laziness needs a calculus change.** The definable destructor `out`
+  iterates over the whole supply, so it would force a lazy supply to
+  materialize in full. A lazy budget therefore needs a primitive,
+  constant-time destructor for R; ADR-0005 lists it as a follow-up. That
+  changes the calculus, and its metatheory must be re-checked.
+- **The promise must be finite.** The consistency argument covers every
+  finite budget, however large. An unbounded generator is outside it. It also
+  loses liveness: a chain that keeps finding its own certificate in an endless
+  supply delegates forever and never acts. That is safe, but never done.
+
+### What remains
+
+- **Code-level quantified self-trust.**
+  - The agent cannot prove, as one theorem, that every code which checks as
+    an Agent is safe. That is P5, at every budget.
+  - With unlimited tokens it can mint and trust any code it actually
+    obtains, but only as a runtime act, never as a belief about all codes.
+  - Tκ lacks this too; Yudkowsky and Herreshoff note that it "does not
+    address reflectively coherent quantified belief".
+- **Successors with a different proof system.**
+  - Every generation shares one checker. A successor with improved or
+    extended rules produces certificates the parent's `Check` rejects.
+  - Translating them costs more than any fixed number of tokens can cover
+    (the child-efficiency addendum).
+  - Self-improvement of the reasoning system itself, the case the programme's
+    RSI motivation cares about, is untouched.
+- **Naturalistic trust.** Safe(b) is a proposition about a modelled world, and
+  the checker's implementation is trusted from outside.
+- **The physical bound is certificate size, not tokens.**
+  - Certificates record every judgment and conversion step: a trivial agent's
+    has 21,135 nodes.
+  - Agents whose types compute have correspondingly larger certificates.
+  - "Feasible within the physical universe" must therefore be read as "whose
+    certificates are feasible". A more compact encoding that keeps strict
+    overhead is an open item of R4.
+
+### What would make the claim solid
+
+1. Write the charged-cap model and prove the Reflect case for first-order
+   resource types. Mechanize the key inclusion.
+2. Add a primitive destructor for R, re-check the metatheory, and give lazy
+   finite supplies a semantics.
+3. Settle the higher-order case, for which a resource-counting realizability
+   model is the likely route.
+4. Test tiling across a changed proof system, to mark exactly where trust
+   stops.

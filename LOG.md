@@ -164,6 +164,19 @@ complete contemporaneous transcript.
       (0, ⋆).
 
     The addendum includes run instructions.
+- Merged the branch into main, then recorded an assessment of the user's claim
+  that an arbitrary, lazily produced budget substantially resolves the tiling
+  problem.
+  - **It resolves the telomere for identical-system tiling,** as Fallenstein's
+    Tκ already did in principle. It improves on Tκ epistemically: the bound is
+    not in the agent's goal, and the evidence is unrelativized.
+  - **It rests on conditions not yet met:**
+    - the extended reflect rule is unproven formally;
+    - laziness needs a primitive destructor;
+    - the promise must be finite.
+  - **It leaves open** code-level quantified self-trust (P5), trust across
+    changed proof systems, and naturalistic trust.
+  - **The physical bound is certificate size, not tokens.**
 
 ## 2026-06-22
 

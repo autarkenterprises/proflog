@@ -17,6 +17,30 @@
   relations when they demonstrate expressiveness but materially broaden the
   ordinary proof-search branching factor.
 
+## 2026-09-27
+
+- Never stop background processes with `pkill -f PATTERN` when PATTERN also
+  appears in the command that runs `pkill`: it matches its own shell and kills
+  it, and whatever the same command was to do afterwards silently never
+  happens. This happened twice in the λᶜᵉʳᵗ work; the second time a REPL
+  start script was never rewritten and later sessions talked to a stale JVM
+  on old code. Kill by PID, and start long-lived servers with `exec` so that
+  `$!` is the server's own PID.
+- Ansatz 0.2.115 as a proof assistant, from ADR-0143:
+  - A Type-valued or Prop-valued function (a type-indexed carrier, semantic
+    sets) is accepted by the kernel when written with the explicit recursor;
+    `match` infers the wrong universe for a Type-valued one, and the Clojure
+    compilation step always fails for it. Check the kernel constant, not the
+    `a/defn` return.
+  - `try` does not catch every elaboration error, so a proof that tries each
+    case lemma on all goals can abort. Handle induction goals in constructor
+    order, one lemma per case.
+  - `exfalso` drops hypotheses introduced by `intro`; make such a case a
+    separate lemma whose hypothesis is a parameter.
+  - Pin a key theorem's statement in a test (its rendered type), and re-run
+    the kernel on its stored proof; a green load alone would not notice a
+    statement weakened later.
+
 ## 2026-09-26
 
 - Implementation scope is not literature scope. A first answer about SJAS and

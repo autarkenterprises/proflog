@@ -1109,6 +1109,12 @@ assertions pass.
   the same, with no loss of trust per generation. In theories like PA the
   approval needs a reflection schema that Löb's theorem forbids, so each
   generation must be weaker (Tκ): the telomere.
+
+  > **Corrected (2026-09-27, next addendum).** The weakening tower is
+  > Yudkowsky and Herreshoff's T+1, T+2, …. Their Tκ (Fallenstein's
+  > parametric polymorphism) keeps syntactically identical theories and
+  > decrements a counter κ that may be any natural number. The token supply is
+  > the analogue of κ, not an escape from it.
 - **An agent is a program whose type is its guarantee.** Take
   Agent = Π(s :₁ R). Σ(b :ω Act). Safe(b): given a token supply, return an
   action with evidence that it is safe. Type-checking the agent is its
@@ -1248,3 +1254,234 @@ assertions pass.
     - the two evaluators agreeing;
     - no token duplicated at runtime when the reusable value is used many
       times.
+
+## Addendum: What The Token Supply Is, And The Delegation Demo Dissected (2026-09-27)
+
+Two follow-ups:
+
+1. Does the token supply occupy space, or is it only an indicator? What
+   changes when a program is given 42,000 tokens rather than 21,000? What
+   precludes a budget of 10^100, and what would it do?
+2. The delegation demo, dissected, with instructions for running it.
+
+The patch beside this note gains a trace hook (`*trace*`), the narrated
+runner `lcert.delegation-demo`, and the unexpanded agent template. It still
+passes all 62 tests on a fresh copy of `code/lcert` at `f5a8490`.
+
+### 1. What the token supply is
+
+- **A token carries nothing.** ◇ has one element in the model (C(◇) = {◇}).
+  Its only property is that it can be used once. It is a permission, not a
+  datum.
+- **Tokens are represented in unary.**
+  - A program's budget is the length of its token context Θₙ, one distinct
+    variable per token.
+  - A supply passed at runtime is a certificate tree with one token per node.
+  - In `code/lcert`, each token is also a runtime object.
+  - In the demo the tokens *are* the certificates' nodes, plus one per spine
+    node. There is no separate currency.
+- **Where unary is essential.** Inside certificates, a certificate lists every
+  token of the context it grants, entry by entry (property E3). So it always
+  has more nodes than the tokens it grants (strict overhead). That listing is
+  what makes the consistency argument descend. If a certificate could write
+  "m tokens" as a number, O(log m) nodes could grant m tokens and the descent
+  would fail (R4 draft §3).
+- **Where unary is incidental.** The root supply is never inside a
+  certificate unless someone certifies the root program. `code/lcert`
+  materializes it because that is the simplest correct representation. A
+  supply materialized lazily, as it is consumed, would be indistinguishable to
+  the program.
+- **42,000 tokens rather than 21,000.**
+  - The agent program does not change. It is closed, takes its supply as an
+    argument, and has a 21,135-node certificate in every run. Only the supply
+    argument doubles.
+  - Memory in `code/lcert` grows linearly with the supply.
+  - Time grows too, but that is an artifact of the implementation, not the
+    calculus:
+    - `out`, the destructor of R, is defined by iteration, so each agent
+      walks its whole remaining supply;
+    - the runtime linearity check walks both subtrees of every node it
+      rebuilds. That is quadratic on a spine, so the scaling run appends its
+      spare tokens as a balanced tree.
+
+  The scaling run (`delegation-demo scaling`): one agent level and the leaf
+  agent, under the charged cap, with spare tokens appended.
+
+  | spare tokens | supply tokens | seconds | result |
+  | --- | --- | --- | --- |
+  | 0 | 21,343 | 3.45 (includes JVM warm-up) | (2, ⋆) |
+  | 21,135 | 42,478 | 2.30 | (2, ⋆) |
+  | 42,270 | 63,613 | 4.96 | (2, ⋆) |
+  | 200,000 | 221,343 | 17.15 | (2, ⋆) |
+  | 1,000,000 | 1,021,343 | 51.86 | (2, ⋆) |
+- **10^100: nothing in the logic precludes it.** The consistency proof is by
+  induction on the budget and covers every finite budget with one argument.
+  The calculus is the same at every budget, and a larger budget adds no
+  strength.
+- **What precludes it is the representation.** `code/lcert` cannot build a
+  10^100-node supply. A lazily materialized supply, with a constant-time
+  primitive destructor for R, would make such a budget cheap to promise,
+  because a run materializes only what it uses.
+- **What a 10^100 budget would do.**
+  - *Soundness:* unaffected.
+  - *The self-trust boundary:* unaffected. Only held certificates are
+    trusted, P5 holds at every budget, and the justified reflect types are
+    the same.
+  - *Delegation depth:* bounded only by physical time and memory. At 21,136
+    tokens per agent level, 10^100 tokens would pay for about 4.7 × 10^95
+    levels.
+  - *So the token count stops constraining anything.* The earlier phrase "a
+    resource bill, not a decrement" gave the count too much weight. The
+    tokens are the consistency proof's accounting device. What does the work
+    is structural:
+    - no program can create tokens;
+    - a certificate always costs more than the budget it grants;
+    - a held certificate cannot be copied for free.
+- **Comparison with Fallenstein's Tκ, and a correction.** Yudkowsky and
+  Herreshoff §4.2 give Tκ a constant κ intended as any natural number.
+  - They prove it sound for every value by induction on the models
+    {N, κ=n}. It "demonstrates indefinite tiling without loss of mathematical
+    strength using a series of agents employing syntactically identical
+    theories".
+  - So a large κ costs nothing either. The token supply is the analogue of κ,
+    and a 10^100 budget is the analogue of choosing a large κ.
+  - It is the T+1, T+2, … tower of successively stronger theories where a
+    longer telomere costs strength. The previous addendum's "(Tκ)" label for
+    weakening generations was wrong; the pointer added there records this.
+  - What differs (the assessor's comparison):
+    - *Where the restriction sits.* Tκ weakens the conclusion: a child's
+      theorem φ holds only as φ[κ\κ−1], so agents prove their offspring
+      "safe for κ steps". λᶜᵉʳᵗ restricts the premise: only a held
+      certificate can be reflected, and the evidence returned is for Safe(b)
+      outright.
+    - *What the agent believes.* A Tκ agent reasons about a specific,
+      unknown, finite κ that appears in its goal: the "odd mental state"
+      Yudkowsky and Herreshoff object to. A λᶜᵉʳᵗ agent's type does not
+      mention its supply. The bound lives in what it holds, not in what it
+      believes.
+  - What is shared:
+    - each run is finite, and unbounded futures rest on the external
+      argument that the counter could be any number;
+    - soundness is proved outside the system by induction on the counter;
+    - neither has reflectively coherent quantified belief (P5 for λᶜᵉʳᵗ;
+      Yudkowsky and Herreshoff note Tκ does not address it).
+
+### 2. The delegation demo, dissected
+
+**The files** (all under `code/lcert/test/lcert/` with the patch applied):
+
+- `ho_forms.clj`: the programs. The agent is given both as a template with
+  abbreviations and expanded.
+- `delegation_demo.clj`: the narrated runner.
+- `higher_order_reflect_test.clj`: the assertions.
+
+The switches live in `src/lcert/eval.clj` and `src/lcert/syntax.clj`:
+
+- `*allow-resource-reflect*` lets `reflect` target types that mention R or ◇;
+- `*charged-cap*` runs a reflected program under n − ‖v‖ + m;
+- `*trace*` reports every `inspect` and `reflect`.
+
+**The types.**
+
+- `sigma` = Σ(x :ω Nat). T(x ≠ 0) is an action x with evidence that it is
+  safe. Safety here is the toy predicate x ≠ 0.
+- `Agent` = Π(s :₁ R). sigma: given a supply, return a safe action. `Agent`
+  mentions R, so reflecting at it needs `*allow-resource-reflect*`.
+
+**The agent, step by step** (SIGMA = sigma, AGENT = Agent,
+K = ◇ ⊗ (R ⊗ R), OUT = the definable destructor of R,
+FALLBACK = (pair SIGMA 1 star)):
+
+```clojure
+(fn [s 1 R]                                    ; the supply, usable once
+  (let-pair SIGMA [b q] (OUT s)                ; view the supply's root: b says node or leaf
+    (let-pair SIGMA [a f] q                    ; a: the label; f: yields a node's parts
+      ((elim-bool [zz (-o (-o (T zz) K) SIGMA)] b
+         (fn [g 1 (-o (T tt) K)]               ; a node:
+           (let-pair SIGMA [d uv] (g star)     ;   d: its token (discarded)
+             (let-pair SIGMA [l r] uv          ;   l: left child, r: right child (the rest)
+               (inspect SIGMA l (code AGENT)   ;   runtime Check: is l a certificate of AGENT?
+                 [x e] ((reflect AGENT x e) r) ;     yes: trust it, run it on the rest
+                 [x e] FALLBACK))))            ;     no: the known-safe action (1, ⋆)
+         (fn [g 1 (-o (T ff) K)] FALLBACK))    ; a leaf: nothing to delegate to
+       f))))
+```
+
+The leaf agent is `(fn [s 1 R] (pair SIGMA 2 star))`. Its certificate has 206
+nodes; the agent's has 21,135.
+
+**The supply.** It is a right spine of nodes whose left children are the
+successors' certificates, ending in a leaf:
+
+node[agent] → node[agent] → node[leaf agent] → leaf.
+
+Every node of every certificate carries its own token, and so does every spine
+node: 3 + 2 × 21,135 + 206 = 42,479 tokens.
+
+**The run, charged cap** (the trace, verbatim numbers):
+
+1. *Level 0.* The top agent runs directly under cap 42,479.
+   - It inspects a 21,135-node certificate against Agent: valid.
+   - It reflects it. The decoded program declares 0 tokens and runs under cap
+     42,479 − 21,135 = 21,344. The 21,135 tokens are burnt.
+2. *Level 1.* The successor, the same program, inspects the next 21,135-node
+   certificate: valid. It reflects it; the next successor runs under cap 209.
+3. *Level 2.* That successor inspects the 206-node leaf-agent certificate:
+   valid. It reflects it; the leaf agent runs under cap 3 and returns (2, ⋆).
+4. *The way back.* The evidence travels back up unchanged. The result is
+   (2, ⋆): action 2, with valid evidence.
+
+**The same run under the model's own cap.** The reflected program runs under
+its declared budget, 0.
+
+- Level 1's `reflect` is refused, since 21,135 nodes exceed cap 0. It returns
+  the default value of Agent's type: a function yielding (0, ⋆).
+- The result is (0, ⋆): action 0, with "evidence" of T(0 ≠ 0). This is the
+  "empty supplies" limitation, made visible.
+
+**What it shows.**
+
+- One agent program, approved once by type-checking, delegates repeatedly to
+  successors known only by their certificates.
+- Each successor is trusted by `reflect` after a runtime `inspect`.
+- The leaf's action returns with valid evidence.
+- Tokens are consumed exactly as certificates are.
+- A certificate that is not an agent's is rejected by `inspect`, and gets the
+  fallback action (tested).
+
+**What it does not show.**
+
+- That reflection at Agent is sound: that is the paper argument of the
+  previous addendum, not mechanized.
+- That successors can be discovered. The environment supplies the
+  certificates; minting found codes with the typed parser is skipped.
+- Realistic safety (x ≠ 0), or efficiency (21,135-node certificates, and
+  `out` linear in the supply).
+
+**How to run it.**
+
+```sh
+git clone https://github.com/jpt4/sjas.git && cd sjas
+git checkout f5a8490            # sjas-codification, as assessed
+patch -p1 < /path/to/proflog/docs/log/2026-09-26-lcert-reflect-experiments.patch
+cd code/lcert
+clojure -J-Xss1g -J-Xmx3g -J-Dstdout.encoding=UTF-8 -M:test -m lcert.delegation-demo chain
+clojure -J-Xss1g -J-Xmx4g -J-Dstdout.encoding=UTF-8 -M:test -m lcert.delegation-demo scaling
+clojure -J-Xss1g -J-Xmx3g -M:test -m lcert.test-runner fast lcert.higher-order-reflect-test
+```
+
+Without the Clojure CLI, put `clojure-1.12.0.jar`, `spec.alpha-0.5.238.jar`
+and `core.specs.alpha-0.4.74.jar` (Maven Central) on the classpath with `src`
+and `test`, then run
+`java -Xss1g -Xmx3g -Dstdout.encoding=UTF-8 -cp <jars>:src:test clojure.main -m lcert.delegation-demo chain`.
+
+From a REPL, `(lcert.delegation-demo/run-agent mode supply-code trace-fn)`
+runs one chain. For example:
+
+```clojure
+(require '[lcert.delegation-demo :as d] '[lcert.ho-forms :as f])
+(def ca (d/code-of f/agent-form))   ; the agent's certificate, as a code
+(def cl (d/code-of f/leaf-agent))
+(d/run-agent :charged (d/supply-code [ca ca cl]) prn)   ; prints each event; result (2, ⋆)
+(d/run-agent :fixed   (d/supply-code [ca ca cl]) prn)   ; result (0, ⋆)
+```

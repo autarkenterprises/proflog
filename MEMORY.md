@@ -31,7 +31,15 @@
   - Beyond that class, three higher-order shapes are open. The model fails
     there, but only on inputs no run can hold.
   - Pending: implement reusable reflected evidence (`reflect-w`) in `code/lcert`
-    of `jpt4/sjas`. The spec is in the 2026-09-26 note's last addendum.
+    of `jpt4/sjas`. The spec is in the 2026-09-26 note's
+    "Higher-Order Reflection, Delegation, Paying For Codes, And Reusable
+    Evidence" addendum.
+  - The token supply is the analogue of Fallenstein's κ (Yudkowsky and
+    Herreshoff §4.2, Tκ).
+    - Any finite budget, 10^100 included, is sound and adds no strength.
+    - Tokens are unary: essentially so inside certificates, incidentally so
+      for the root supply.
+    - The runnable demo is `lcert.delegation-demo`, from the same patch.
   - Reflection at ordinary types keeps T4/T4′; P5 needs its Step 2 default
     interpretation of reflect repaired.
   - The experiment patch is

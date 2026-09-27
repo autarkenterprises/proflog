@@ -133,6 +133,38 @@ complete contemporaneous transcript.
     an implementation note for `reflect-w` (Σ(a :ω A). 1, token-free
     certificates only).
 
+## 2026-09-27
+
+- Added an addendum to the SJAS/Löbian note on what λᶜᵉʳᵗ's token supply is,
+  plus a dissected, runnable delegation demo. The patch gains a trace hook and
+  a narrated runner, `lcert.delegation-demo`.
+  - **Tokens.**
+    - A token is a use-once permission represented in unary. Unary is
+      essential inside certificates (strict overhead), and incidental for the
+      root supply.
+    - Giving 42,000 tokens rather than 21,000 changes only the supply argument,
+      never the agent program. A scaling run from 21 thousand to 1 million
+      supply tokens gives the same result; time and memory grow, which is an
+      artifact of `code/lcert`.
+    - A 10^100 budget is sound and leaves the self-trust boundary unchanged.
+      It stops the count from constraining anything; `code/lcert` merely
+      cannot materialize it.
+  - **Correction.** The supply is the analogue of Fallenstein's κ in
+    Yudkowsky and Herreshoff's Tκ, which also tiles with any finite κ at no
+    cost in strength. The previous addendum's "(Tκ)" label for weakening
+    generations belonged to the T+n tower.
+    - What differs: Tκ weakens the conclusion (safe for κ steps), whereas
+      λᶜᵉʳᵗ restricts the premise (held certificates) and returns
+      unrelativized evidence.
+    - A λᶜᵉʳᵗ agent's type never mentions its supply.
+  - **The demo.** A step-by-step trace of the agent chain:
+    - under the charged cap, the caps run 42,479 → 21,344 → 209 → 3 and the
+      result is (2, ⋆);
+    - under the model's cap, level 1's reflect is refused and the result is
+      (0, ⋆).
+
+    The addendum includes run instructions.
+
 ## 2026-06-22
 
 - Revised ADR-0142 after the Codex review and recorded the V4 "descent" strawman

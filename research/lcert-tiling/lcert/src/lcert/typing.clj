@@ -89,7 +89,7 @@
 ;; ---------------------------------------------------------------------------
 ;; Raising a derivation's recorded context (admissible subusaging).
 
-(def ^:private axiom-rules #{:Var :Unit :TT :FF :Zero :Lbl})
+(def ^:private axiom-rules #{:Var :Unit :TT :FF :Zero :Lbl :AxCon :AxBot})
 
 (def ^:private absorbing-premise
   "For each non-axiom runtime rule, the premise that absorbs a raised usage:
@@ -206,6 +206,15 @@
       :zero (axiom :Zero [:Nat])
       :lbl (do (when-not (s/label? (second t)) (err "not a label" {:term t}))
                (axiom :Lbl [:Lbl]))
+
+      ;; the axioms of Step 4's changed proof systems: rules only in the
+      ;; systems that have them
+      :axCon (do (when-not (s/extension? :ax-con)
+                   (err "ax-con is not a rule of this calculus (extension :ax-con is off)" {:term t}))
+                 (axiom :AxCon s/con-type))
+      :axBot (do (when-not (s/extension? :ax-bot)
+                   (err "ax-bot is not a rule of this calculus (extension :ax-bot is off)" {:term t}))
+                 (axiom :AxBot [:Empty]))
 
       :lam (let [[_ u A body] t
                  dA (tf Γ A)

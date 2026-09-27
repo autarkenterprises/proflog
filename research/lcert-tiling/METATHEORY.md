@@ -579,3 +579,85 @@ meaning depends on the cap (Lemma 3.2 fails for it). An agent therefore
 states its safety as evidence it returns, not as a proposition about its own
 run. Soundness of more `reflect` instances does not add quantified
 self-trust: no budget derives `Con′` (P5).
+
+---
+
+## 4. Tiling across a changed proof system (Step 4)
+
+### 4.1 Set-up
+
+A *proof system* here is a set of rule extensions (`*extensions*`) with a
+reflect class (`*reflect-class*`). `chk′` names the `Check` of the system a
+program runs in, so a parent running in system `S` judges every successor's
+certificate by `S`'s rules, whoever produced it.
+
+The protocol is the delegation of §1: the parent reads a certificate from
+the front of its supply, checks it at its own type `Agent`, reflects it
+under the charged cap and runs it on the rest; otherwise it takes the safe
+action 1. A successor further down acts 2 (or another certified value).
+
+| System | Rules |
+| --- | --- |
+| `P0` | λᶜᵉʳᵗ₀ with the first-order charged reflect rule (§1); no `caseR` |
+| `P1` | `P0` + `caseR` (§2) |
+| `λᶜᵉʳᵗ₁` | `P1` with reflect at every closed `reflect`-free type (§3) |
+| `P-con` | `λᶜᵉʳᵗ₁` + an axiom `ax-con : Con′_ω` |
+| `P-bot` | `λᶜᵉʳᵗ₁` + an axiom `ax-bot : 0` |
+
+`Con′_ω = Π(c :ω Syn). T(chk′ c c⊥) → 0` says that no code checks as a
+refutation. As an axiom of `P-con` it is sound: every set
+`V(T(chk′ c c⊥))` is empty by Corollary 3.7, so any function inhabits
+`V(Con′_ω)`, and T1 survives. It is not derivable in `λᶜᵉʳᵗ₁` at any
+budget (P5). `ax-bot` is unsound.
+
+### 4.2 Results
+
+**[test]** `lcert.changed-system-test`, one case per row. Sizes are
+certificate nodes, measured.
+
+| Child's system, relative to the parent's | The parent's `Check` on the child's certificate | Translation into the parent's rules | Cost | Trust |
+| --- | --- | --- | --- | --- |
+| identical (`P0` → `P0`) | accepts | none needed | the certificate: 21,135 | **holds** (action 2) |
+| weaker (`P0` child, `P1` parent) | accepts: `P1`'s rules include `P0`'s | none needed | the certificate | **holds** (action 2) |
+| re-encoded (two rule labels swapped) | rejects | relabelling, a free code map; the parent re-checks its output, so the relabeller need not be trusted | none: same size | **holds after translation** |
+| definitional extension (`P1` child uses `caseR`; `P0` parent) | rejects; safe action 1 | replace `out` on `caseR` by the definable `out` and re-certify; re-checked by the parent | 9,181 → 21,135 nodes (×2.30); a minting agent 18,831 → 37,389 (×1.99); and the translated agent's destructor walks its supply, so it cannot use a lazy one (§2.4) | **holds after translation, at a cost** |
+| stronger reflection (`λᶜᵉʳᵗ₁` child reflects at shape (c); `P1` parent) | rejects; safe action 1 | none known: a translation would derive the stronger reflection inside the weaker system | — | **stops**; a `λᶜᵉʳᵗ₁` parent trusts it (certified action 5) |
+| true, unprovable axiom (`P-con` child; `λᶜᵉʳᵗ₁` parent) | rejects; safe action 1 | none: `Con′_ω` has a 10-node certificate in `P-con` and none at any budget in `λᶜᵉʳᵗ₁` (P5) | — | **stops**; a `P-con` parent trusts it (action 3) |
+| unsound axiom (`P-bot` child; `λᶜᵉʳᵗ₁` parent) | rejects; safe action 1 | none, and none may exist: `P-bot` has a 3-node refutation certificate | — | **stops, correctly**; a `P-bot` parent "certifies" action 0, with evidence of `T(0 ≠ 0)` |
+
+### 4.3 Where trust stops, exactly
+
+**A parent trusts a successor's certificate if and only if it is a valid
+derivation in the parent's own rules.** Trust in the rules themselves is the
+parent's metatheory (T1 for its system), established once, from outside. So:
+
+1. **A successor in the same or a weaker system** is trusted outright,
+   paying for its certificate in tokens.
+2. **A successor whose system adds only derivable rules** — macros, derived
+   rules, definitional extensions, a re-encoding — is trusted once its
+   certificate is translated into the parent's rules. The parent re-checks
+   the translated certificate with its own `Check`, so no translator needs
+   to be trusted. The price is the size of the translated certificate, and
+   whatever the derived rule was for: translated, `caseR` becomes a walk
+   over the supply again, and laziness is lost.
+3. **A successor whose system adds rules the parent cannot derive** — a new
+   axiom, even a true one such as the calculus's own consistency, or a
+   stronger reflection principle, even a sound one — is not trusted. No
+   translation exists (for `Con′_ω` by P5). Nor can the parent prove the
+   stronger system consistent: every derivation of the parent's is one of the
+   stronger system's, so a proof that the stronger system has no refutation
+   would give the parent its own `Con′`, which P5 forbids.
+   - It can adopt the stronger system, but only on grounds from outside, as
+     §3 justified `:all`. After adopting `λᶜᵉʳᵗ₁ + Con′`, it faces the same
+     question about `λᶜᵉʳᵗ₁ + Con′ + Con(λᶜᵉʳᵗ₁ + Con′)`, and so on: Yudkowsky
+     and Herreshoff's tower of strengthening theories reappears, for
+     successors that improve their proof system.
+4. **An unsound successor** is rejected, as it must be. A parent that
+   adopted its rules would certify an unsafe action; the metatheory, not the
+   runtime, is what rules that out.
+
+**The token budget does not move this boundary.** Every row of the table
+behaves the same with a budget of 10^100 as with the few thousand tokens
+used here: the budget pays for certificates the parent can check, and a
+certificate the parent cannot check is refused however many tokens come
+with it.

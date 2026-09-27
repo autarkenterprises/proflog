@@ -246,6 +246,22 @@ complete contemporaneous transcript.
       over plain variables. The session's REPL JVM was lost during a usage
       pause and the development was replayed from the scratch files.
     - Suites: fast 74 tests / 599 assertions, extended 95 / 2001, all green.
+  - **Step 4 done: trust stops exactly at derivability in the parent's own
+    rules.** [METATHEORY.md](research/lcert-tiling/METATHEORY.md) §4.
+    - Runs are parameterized by a proof system (rule extensions plus reflect
+      class); two test-only extensions add axioms: `ax-con : Con′_ω` (true
+      by T1, underivable by P5) and `ax-bot : 0` (unsound).
+    - `lcert.changed-system-test` runs seven child systems against a parent.
+      Identical and weaker children are trusted. A re-encoded child is
+      trusted after a free relabelling that the parent re-checks. A child
+      using `caseR` is refused by a parent without it and trusted after
+      translation to the definable `out`, which more than doubles its
+      certificate (9,181 → 21,135 nodes) and loses laziness. A child with a
+      stronger reflection rule, or with the axiom `Con′_ω`, is refused, and
+      no translation exists. An unsound child is refused; a parent that
+      adopted its axiom would certify action 0.
+    - The token budget moves none of these boundaries.
+    - Suites: fast 74 tests / 599 assertions, extended 102 / 2034, all green.
 
 ## 2026-06-22
 

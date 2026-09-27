@@ -38,7 +38,7 @@
   the assessor's higher-order reflect shapes with the delegation chain
   (proflog ADR-0143 setup)."
   '[lcert.verified-test lcert.charged-test lcert.supply-test lcert.kripke-test lcert.pa-test
-    lcert.higher-order-reflect-test])
+    lcert.higher-order-reflect-test lcert.changed-system-test])
 
 (defn -main [suite & only]
   (let [nss (cond

@@ -25,6 +25,7 @@
                                             (P binds 1, tl binds 1, tn binds 5)
             [:leaf a] [:node d a r1 r2] [:itR X g h r] [:print r]
             [:caseR X r tl tn]       (tl binds 1, tn binds 4; an extension)
+            [:axCon] [:axBot]        (axioms; extensions, for Step 4 only)
             [:lam u A t] [:app f u]                          (t binds 1)
             [:pair S a b] [:let C p t]          (S is the Σ type; t binds 2)
             [:chk c d] [:h1 r s c e1 e2] [:reflect D r e]
@@ -91,7 +92,9 @@
    :Leaf :Node :ItR :Print :Chk :H1 :Reflect :Inspect
    :EmptyF :UnitF :BoolF :NatF :LblF :SynF :DiaF :RF :TF :PiF :SigmaF
    ;; the primitive destructor of R, term and rule (proflog ADR-0143 Step 2)
-   :caseR :CaseR])
+   :caseR :CaseR
+   ;; two axioms, terms and rules, for the changed-system tests of Step 4
+   :axcon :AxCon :axbot :AxBot])
 
 (def user-labels
   "Labels with no role in the encoding, free for programs to use."
@@ -133,8 +136,16 @@
 ;; 4 relies on exactly that to test tiling across a change of proof system.
 
 (def ^:dynamic *extensions*
-  "The rule extensions in force.  :caseR — the primitive destructor of R."
+  "The rule extensions in force.
+    :caseR   the primitive destructor of R (Step 2), on by default;
+    :ax-con  an axiom ax-con : Con′_ω, the calculus's own code-level
+             consistency: true by T1, underivable by P5 (Step 4 only);
+    :ax-bot  an axiom ax-bot : 0, unsound (Step 4 only)."
   #{:caseR})
+
+(def con-type
+  "Con′_ω = Π(c :ω Syn). T(chk′ c c⊥) → 0, the type of the axiom ax-con."
+  [:Pi :w [:Syn] [:Pi :w [:T [:chk [:var 0] [:sleaf [:lbl :t0]]]] [:Empty]]])
 
 (defn extension?
   "Is the rule extension `x` in force?"
@@ -350,6 +361,7 @@
 ;;          (sleaf a) (snode a c1 c2) (rec-syn [x P] [a] tl [a c1 c2 y1 y2] tn c)
 ;;          (leaf a) (node d a r1 r2) (itr X g h r) (print r)
 ;;          (case-r X r [a] tl [d a r1 r2] tn)   (with the caseR extension)
+;;          ax-con  ax-bot                          (with the axiom extensions)
 ;;          (pair S a b) (let-pair C [x y] p t) (abort A t)
 ;;          (chk c d) (H1 r s c e1 e2) (reflect D r e) (H r e)
 ;;          (inspect X r c [x e] t1 [x e] t2)
@@ -455,6 +467,7 @@
     (case form
       star [:star], tt [:tt], ff [:ff], zero [:zero]
       c-bot c-bot-term
+      ax-con [:axCon], ax-bot [:axBot]
       (lookup scope form))
 
     (keyword? form)

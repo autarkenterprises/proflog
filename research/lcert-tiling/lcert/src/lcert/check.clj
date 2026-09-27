@@ -66,6 +66,8 @@
       (:tt :ff) [:Bool]
       :zero [:Nat]
       :lbl (when (s/label? (second t)) [:Lbl])
+      :axCon (when (s/extension? :ax-con) (skel s/con-type))
+      :axBot (when (s/extension? :ax-bot) (skel [:Empty]))
       :succ (when (is (second t) [:Nat]) [:Nat])
       :abort (let [[_ A x] t] (when (and (wf A) (is x [:Unit])) (skel A)))
       :if (let [[_ b x y] t sx (ty x)] (when (and sx (is b [:Bool]) (is y sx)) sx))
@@ -201,6 +203,10 @@
       :Zero (and (= term [:zero]) (= type [:Nat]) (zero? np))
       :Lbl (and (= :lbl (first term)) (= 2 (count term)) (s/label? (second term))
                 (= type [:Lbl]) (zero? np))
+      ;; the axioms of Step 4's changed proof systems: valid rule instances
+      ;; only in a system that has them
+      :AxCon (and (s/extension? :ax-con) (= term [:axCon]) (= type s/con-type) (zero? np))
+      :AxBot (and (s/extension? :ax-bot) (= term [:axBot]) (= type [:Empty]) (zero? np))
 
       :Lam (let [[tag u A1 body] term]
              (and (= tag :lam) (s/usages u) (= 2 np)

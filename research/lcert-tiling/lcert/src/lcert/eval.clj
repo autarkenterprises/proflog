@@ -179,7 +179,7 @@
         er (fn [i] (erase (nth p i)))
         t (:term d)]
     (case (:rule d)
-      (:Var :Unit :TT :FF :Zero :Lbl) t
+      (:Var :Unit :TT :FF :Zero :Lbl :AxCon :AxBot) t
       :Conv (er 0)
       :Lam (let [[_ u A _] t] [:lam u A (er 1)])
       :App (let [u (second (:type (nth p 0)))]
@@ -226,6 +226,11 @@
       :zero 0
       :succ (inc (go (second t)))
       :lbl (second t)
+      ;; Step 4's axioms.  Con′_ω's evidence argument is uninhabited in a
+      ;; consistent system, so its function never returns; ax-bot has no
+      ;; value, and yields the default of 0's skeleton, as abort does.
+      :axCon (fn [_c] (fn [_e] :star))
+      :axBot :star
       ;; call-by-value: the argument runs first (review E1); in a typed
       ;; program it cannot produce a value, so the default is never observed
       :abort (do (go (nth t 2)) (default-value (c/skel (second t))))

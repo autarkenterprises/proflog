@@ -65,7 +65,9 @@
 (def ^:private base-type-of (into {} (map (fn [[t l]] [l t]) base-type-labels)))
 
 (def ^:private nullary-term-labels
-  {[:star] :star [:tt] :tt [:ff] :ff [:zero] :nzero})
+  {[:star] :star [:tt] :tt [:ff] :ff [:zero] :nzero
+   ;; Step 4's axioms
+   [:axCon] :axcon [:axBot] :axbot})
 
 (def ^:private nullary-term-of (into {} (map (fn [[t l]] [l t]) nullary-term-labels)))
 
@@ -264,7 +266,7 @@
 (def rule-labels
   #{:Var :Unit :TT :FF :Zero :Lbl :Lam :App :Pair :Let :Abort :Conv
     :If :ElimBool :Succ :RecN :CaseLbl :SLeaf :SNode :RecSyn
-    :Leaf :Node :ItR :Print :Chk :H1 :Reflect :Inspect :CaseR
+    :Leaf :Node :ItR :Print :Chk :H1 :Reflect :Inspect :CaseR :AxCon :AxBot
     :EmptyF :UnitF :BoolF :NatF :LblF :SynF :DiaF :RF :TF :PiF :SigmaF})
 
 (defn- dec-deriv* [c]

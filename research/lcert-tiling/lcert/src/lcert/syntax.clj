@@ -235,6 +235,28 @@
   "The types reflect may target (R4-metatheory.md §1.2): T(b) is excluded."
   #{[:Empty] [:Unit] [:Bool] [:Nat] [:Lbl] [:Syn] [:R]})
 
+(defn- mentions-tag?
+  "Does expression e contain a subexpression whose head tag is in tags?"
+  [tags e]
+  (boolean (some #(and (vector? %) (contains? tags (first %)))
+                 (tree-seq vector? seq e))))
+
+(def ^:dynamic *allow-resource-reflect*
+  "Assessor's demo switch: when true, reflect may also target closed types
+  that mention R or ◇.  The metatheory's model does not justify this."
+  false)
+
+(defn reflectable-type?
+  "Assessor's experiment: the types reflect may target.  The base data types,
+  as built, and also every closed type in which neither R nor ◇ occurs and
+  whose T-arguments contain no reflect.  Such a type has the same semantic
+  set at every budget and footprint (R4-metatheory.md §3.3), which is all the
+  Reflect case of Lemma 3.6 needs."
+  [D]
+  (or (contains? base-data-types D)
+      (and (closed? D)
+           (not (mentions-tag? (if *allow-resource-reflect* #{:reflect} #{:R :Dia :reflect}) D)))))
+
 ;; ---------------------------------------------------------------------------
 ;; The surface syntax: EDN forms with named variables.
 ;;

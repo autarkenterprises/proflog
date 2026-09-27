@@ -354,8 +354,8 @@
                 [:Empty] [dr ds dc de1 de2]))
 
       :reflect (let [[_ D rr ev] t
-                     _ (when-not (s/base-data-types D)
-                         (err (str "reflect targets base data types only, not " (pr-str D)) {:term t}))
+                     _ (when-not (s/reflectable-type? D)
+                         (err (str "reflect targets base data types and R-free, ◇-free closed types only, not " (pr-str D)) {:term t}))
                      dr (sub-at rr [:R])
                      de (sub-at ev [:T [:chk [:print rr] (s/code->term (e/enc-exp D))]])]
                  (mk :Reflect (total "reflect" (:ctx dr) (:ctx de)) D [dr de]))

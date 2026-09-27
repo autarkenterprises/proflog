@@ -123,9 +123,11 @@
                (-o (T (chk (print r) c)) (T (chk (print s) (neg c))) Void)))))
            (type-of '(fn [r 1 R s 1 R c w Syn e1 1 (T (chk (print r) c)) e2 1 (T (chk (print s) (neg c)))]
                        (H1 r s c e1 e2))))))
-  (testing "reflect targets base data types only"
-    (is (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) (code (T tt))))]
-                                   (reflect (T tt) r e))))))
+  (testing "reflect targets base data types and R-free, ◇-free closed types (assessor's experiment)"
+    (is (not (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) (code (T tt))))]
+                                        (reflect (T tt) r e))))))
+    (is (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) (code (-o R Unit))))]
+                                   (reflect (-o R Unit) r e))))))
   (testing "inspect hands the certificate back to the branch that runs"
     (is (= (ty '(-o R R))
            (type-of '(fn [r 1 R] (inspect R r c-bot [x e] x [x e] x)))))))

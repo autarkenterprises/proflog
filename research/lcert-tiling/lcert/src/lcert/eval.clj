@@ -31,6 +31,23 @@
             [lcert.kernel :as k]
             [lcert.typing :as t]))
 
+(def ^:dynamic *dynamic-cap*
+  "Assessor's demo switch: when true, a reflected program runs under its
+  caller's budget cap n instead of its own declared budget m."
+  false)
+
+(def ^:dynamic *trace*
+  "Assessor's demo hook: when bound to a function, it receives one map per
+  inspect and per reflect, so a run can be narrated step by step.  The map's
+  :depth is the number of reflections the evaluating code sits under."
+  nil)
+
+(def ^:dynamic *charged-cap*
+  "Assessor's demo switch: when true, a reflected program runs under the cap
+  n − ‖v‖ + m, its caller's cap less the tokens the reflection burns.  It
+  takes precedence over *dynamic-cap*."
+  false)
+
 (defrecord Token [id])
 
 (defn token "A runtime token." [id] (->Token id))
@@ -182,17 +199,32 @@
       :h1 (do (doseq [x (rest t)] (go x)) :star)
       :reflect (let [[_ D rr ev0] t
                      v (go rr)
-                     _ (go ev0)]
-                 (if (and (<= (nodes v) n) (c/check (print-value v) (e/enc-exp D)))
+                     _ (go ev0)
+                     within-cap (<= (nodes v) n)
+                     checks (and within-cap (c/check (print-value v) (e/enc-exp D)))]
+                 (if checks
                    ;; run the certified program on m of v's own tokens
                    (let [dd (e/dec-deriv (print-value v))
                          m (count (:ctx dd))
-                         toks (vec (take m (tokens v)))]
-                     (eval-deriv dd m (assoc opts :tokens toks)))
-                   (default-value (c/skel D))))
+                         toks (vec (take m (tokens v)))
+                         cap (cond *charged-cap* (+ (- n (nodes v)) m)
+                                   *dynamic-cap* n
+                                   :else m)]
+                     (when *trace*
+                       (*trace* {:event :reflect :depth (:depth opts 0) :type D :nodes (nodes v)
+                                 :cap n :runs true :m m :decoded-cap cap}))
+                     (eval-deriv dd cap (assoc opts :tokens toks :depth (inc (:depth opts 0)))))
+                   (do (when *trace*
+                         (*trace* {:event :reflect :depth (:depth opts 0) :type D :nodes (nodes v)
+                                   :cap n :runs false :within-cap within-cap}))
+                       (default-value (c/skel D)))))
       :inspect (let [[_ _X rr cc t1 t2] t
                      v (go rr)
-                     ok (c/check (print-value v) (go cc))]
+                     tc (go cc)
+                     ok (c/check (print-value v) tc)]
+                 (when *trace*
+                   (*trace* {:event :inspect :depth (:depth opts 0) :type-code tc
+                             :nodes (nodes v) :ok ok}))
                  (under [v :star] (if ok t1 t2)))
       (throw (ex-info (str "cannot evaluate " (first t)) {:term t})))))
 

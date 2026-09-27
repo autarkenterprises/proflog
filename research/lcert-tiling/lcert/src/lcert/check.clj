@@ -115,7 +115,7 @@
             (when (and (is rr [:R]) (is ss [:R]) (is c [:Syn]) (is e1 [:Unit]) (is e2 [:Unit]))
               [:Unit]))
       :reflect (let [[_ D rr ev] t]
-                 (when (and (s/base-data-types D) (is rr [:R]) (is ev [:Unit])) (skel D)))
+                 (when (and (s/reflectable-type? D) (is rr [:R]) (is ev [:Unit])) (skel D)))
       :inspect (let [[_ X rr c t1 t2] t]
                  (when (wf X)
                    (let [sx (skel X)]
@@ -333,7 +333,7 @@
                  (= G (ctx+ (at 0) (at 1) (at 2) (at 3) (at 4)))))
 
       :Reflect (let [[tag D rr ev] term]
-                 (and (= tag :reflect) (= 2 np) (s/base-data-types D) (= type D)
+                 (and (= tag :reflect) (= 2 np) (s/reflectable-type? D) (= type D)
                       (sub? 0 rr [:R])
                       (sub? 1 ev [:T [:chk [:print rr] (s/code->term (e/enc-exp D))]])
                       (= G (ctx+ (at 0) (at 1)))))

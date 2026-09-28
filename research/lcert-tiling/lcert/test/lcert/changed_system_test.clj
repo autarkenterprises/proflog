@@ -40,8 +40,9 @@
   {:extensions #{:caseR} :reflect-class :all})
 
 (def P-con
-  "λᶜᵉʳᵗ₁ with an axiom asserting its own code-level consistency, Con′_ω:
-  true (by T1), and not derivable (by P5)."
+  "λᶜᵉʳᵗ₁ with an axiom asserting its own code-level consistency, Con′_ω, by
+  name (chk′ is P-con's Check).  Not derivable in λᶜᵉʳᵗ₁ (P5); whether
+  P-con is consistent is open (METATHEORY.md §4.1)."
   {:extensions #{:caseR :ax-con} :reflect-class :all})
 
 (def P-bot
@@ -203,7 +204,7 @@
         (is (:accepted r))
         (is (= [:pv 5 :star] (:result r)))))))
 
-(deftest a-true-but-unprovable-axiom
+(deftest a-self-referential-consistency-axiom
   (testing "Con′_ω, the calculus's own code-level consistency, as an axiom: certified at
             budget 0 in P-con, where Check accepts it"
     (let [{:keys [code type]} (certify-in P-con 'ax-con)]

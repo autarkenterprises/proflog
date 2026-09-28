@@ -52,6 +52,11 @@ proof system, and does not help successors that strengthen it.
 | 3. The higher-order case | R4's sets fail at shape (c); a world-indexed Kripke model validates reflect at every closed reflect-free type | `lcert/ansatz/lcert/kripke.clj`; `lcert.world-reflect-test` |
 | 4. Changed proof systems | Seven child systems against a parent; trust stops exactly at derivability in the parent's own rules | `lcert.changed-system-test` |
 
+[A later note](../../docs/log/2026-09-28-lcert-self-justification.md) asks
+whether the calculus is self-justifying, and whether its resource discipline
+is the reason. It also corrects Step 4: the soundness of `ax-con` is open,
+not "true by T1".
+
 The calculus these steps propose, λᶜᵉʳᵗ₁, is the vendored one run with
 `lcert.syntax/*extensions*` `#{:caseR}` (the default),
 `lcert.syntax/*reflect-class*` `:all` and `lcert.eval/*charged-cap*` `true`.

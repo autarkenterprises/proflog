@@ -30,9 +30,10 @@ and refuted for successors that strengthen it.**
 - **Refuted in its full scope.** "All agents feasible within the physical
   universe" includes agents whose successors improve their own reasoning.
   - A parent trusts exactly the successor programs that have derivations in
-    its own rules. A successor with a new axiom, even a true one, or a
+    its own rules. A successor with a new axiom, whatever its truth, or a
     stronger reflection principle, even a sound one, is refused, however
-    many tokens come with it.
+    many tokens come with it. (*Revisited 2026-09-28:* the axiom tested,
+    `ax-con`, was called true; its soundness is in fact open. See below.)
   - Adopting the stronger system needs justification from outside the
     system, and again at the next strengthening. The tower of strengthening
     theories that the Löbian obstacle produces returns there.
@@ -120,3 +121,35 @@ theorem binds.
   λᶜᵉʳᵗ₁ delegating agent's certificate has 9,181 nodes, a minting agent's
   18,831. A more compact encoding that keeps strict overhead is still
   open (R4).
+
+## Revisited 2026-09-28
+
+Examining the motivation of λᶜᵉʳᵗ, that its self-justification comes from a
+resource discipline
+([note](../log/2026-09-28-lcert-self-justification.md)), exposed an error in
+Step 4.
+
+- **The error.** METATHEORY §4.1 called `P-con`'s axiom
+  `ax-con : Con′_ω` sound, "since every set `V(T(chk′ c c⊥))` is empty by
+  Corollary 3.7". But `chk′` names the running system's `Check`, and
+  `P-con`'s `Check` accepts `ax-con`. So the axiom asserts `P-con`'s own
+  consistency, and Corollary 3.7 for `P-con`'s `Check` *is* that
+  consistency. The argument was circular. T1's induction on budgets does not
+  reach the axiom either, since the axiom quantifies over codes of every
+  size.
+- **The correct status.** Whether `P-con` is consistent is open. No
+  derivation of `0` is known: the Gödel–Löb arguments against a consistency
+  axiom need D2 and D3 for the opaque `chk′`, which R4 §4.5 expects not to
+  hold. It is a Feferman-style question. A true axiom of the kind intended
+  would fix the checker to `λᶜᵉʳᵗ₁`'s rules; the implementation has none.
+- **What changes.** The labels in METATHEORY §4.1–4.3, `MEMORY.md`, the
+  axiom's docstring, and the name of the test, now
+  `a-self-referential-consistency-axiom`. The test's assertions are
+  unchanged and still hold.
+- **What does not.** The verdict. A parent refuses a rule that is not its
+  own whatever the rule's truth. The refusal of a *sound* strengthening
+  rests on the stronger-reflection row, whose soundness §3 proves.
+- **Why it matters beyond Step 4.** `ax-con` is exactly λᶜᵉʳᵗ's
+  consistency constant with the resource discipline taken away. Its open
+  status is part of the answer to whether the discipline is what makes
+  λᶜᵉʳᵗ self-justifying (the note, §4).

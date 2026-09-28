@@ -1,5 +1,25 @@
 # Memory
 
+## 2026-09-28 Is λᶜᵉʳᵗ Self-Justifying, And Why
+
+- The motivation, that the resource discipline makes self-justification
+  possible, is right for reflection: with reusable proofs (free codes, or
+  certificates at ω) reflection at the Gödel type is inconsistent by
+  Willard 2001 Thm 7.2's diagonal, which needs only δ on one closed code;
+  affine, massive certificates block it where the proof is used twice (T1).
+  For bare consistency (`H` at 0), the discipline is sufficient, but whether
+  it is necessary is open (`P-con`).
+- It does not preclude G2: P5 keeps `Con′_ω` unprovable at every budget.
+  In P5's proof, `H` at budget n is the bounded fact BF₀(n), which PA
+  proves, so λᶜᵉʳᵗ proves no arithmetic sentence PA does not. Its
+  self-trust is metered finitistic consistency: one constant rule, paid
+  per use by the tokens of the proof held.
+- Self-justifying in `Willard2016` Def 3.4's sense, for the certificate
+  representation, and as legalistic as Willard's (the constant is
+  assumed; `H°` is internally strictly weaker than `Con′`). It goes beyond
+  Willard in form (PA-strength, and reflection rather than only
+  consistency). Note: `docs/log/2026-09-28-lcert-self-justification.md`.
+
 ## 2026-09-26 SJAS And The Löbian Obstacle
 
 - Willard 2001 ISλ(A)/ISREF(A) prove a tangibility reflection principle, so
@@ -54,10 +74,13 @@
 - Verdict on "an arbitrary, lazily produced token budget substantially
   resolves tiling": solidified for successors that keep their parent's proof
   system; refuted for successors that strengthen it (a parent trusts exactly
-  the programs with derivations in its own rules; a true new axiom such as
-  `Con′_ω`, or a sound stronger reflection rule, is refused whatever the
+  the programs with derivations in its own rules; a new axiom, whatever its
+  truth, or a sound stronger reflection rule, is refused whatever the
   budget, and adopting it needs outside justification each time).
   Quantified self-trust (P5) and naturalistic trust are untouched.
+- Correction (2026-09-28): Step 4's `ax-con : Con′_ω` is self-referential
+  (`chk′` is `P-con`'s own `Check`), so calling it "true by T1" was
+  circular; `P-con`'s consistency is open. The verdict does not change.
 - λᶜᵉʳᵗ₁ = λᶜᵉʳᵗ₀ + `caseR` + reflect at every closed reflect-free type +
   the caller-charged cap `n − ‖v‖ + m`. A lazy finite supply is a promise N
   denoting the spine of N nodes; a lineage on 10^100 materializes only the

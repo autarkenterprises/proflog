@@ -250,7 +250,9 @@ complete contemporaneous transcript.
     rules.** [METATHEORY.md](research/lcert-tiling/METATHEORY.md) §4.
     - Runs are parameterized by a proof system (rule extensions plus reflect
       class); two test-only extensions add axioms: `ax-con : Con′_ω` (true
-      by T1, underivable by P5) and `ax-bot : 0` (unsound).
+      by T1, underivable by P5) and `ax-bot : 0` (unsound). *Corrected
+      2026-09-28: `ax-con` is self-referential, "true by T1" was circular,
+      and its soundness is open; see that day's entry.*
     - `lcert.changed-system-test` runs seven child systems against a parent.
       Identical and weaker children are trusted. A re-encoded child is
       trusted after a free relabelling that the parent re-checks. A child
@@ -269,6 +271,48 @@ complete contemporaneous transcript.
     system, and refuted for successors that strengthen it. Quantified
     self-trust and naturalistic trust are untouched. ADR-0143 is marked
     completed.
+
+## 2026-09-28
+
+- Examined λᶜᵉʳᵗ's motivating claim, that self-justification results from a
+  usage discipline on proof resources that precludes the consumption G2
+  demands. Also examined whether λᶜᵉʳᵗ is self-justifying. The full
+  reasoning is in
+  [the note](docs/log/2026-09-28-lcert-self-justification.md).
+  - **The discipline is decisive for reflection.**
+    - With reusable proofs (free codes, or certificates at ω), reflection at
+      a Gödel sentence yields `0` in three lines. This is Willard 2001
+      Theorem 7.2's diagonal, found in the corpus text while checking the
+      argument. It needs δ on one closed code and the reuse of the proof,
+      not D2 or D3.
+    - Affine, token-built certificates stop it at the reuse, and T1 rules
+      out repairs.
+    - For bare consistency (`H` at `0`), the discipline is sufficient, but
+      whether it is necessary is open.
+  - **G2 is confined, not precluded.** P5 keeps `Con′_ω` unprovable. In
+    P5's proof, `H` at budget n is the bounded fact BF₀(n), which PA
+    proves. So λᶜᵉʳᵗ proves no arithmetic sentence PA does not, and its
+    self-trust is finitistic consistency, uniform and paid per use in
+    tokens.
+  - **Self-justifying in `Willard2016` Definition 3.4's sense**, for
+    certificates, and as legalistic as Willard's systems. It goes beyond
+    them in form: PA-strength arithmetic, and reflection rather than only
+    consistency.
+  - **Measured.** One step of D3 costs a certificate of roughly `50‖v‖²`
+    nodes (`‖v‖` = 3, 13, 27, 45 gives 897; 8,231; 34,226; 103,521).
+- **Exploration trail.** A first pass credited the opaque checker `chk′` as a
+  second protection, alongside resources, against reflection without
+  resources. Tested against the simplest diagonal, the credit was wrong: the
+  diagonal needs only δ on a closed code, which `chk′` supplies.
+- **Correction to ADR-0143 Step 4.** METATHEORY §4.1 called `P-con`'s
+  `ax-con : Con′_ω` sound by Corollary 3.7. That is circular: `chk′` names
+  `P-con`'s own `Check`, so Corollary 3.7 there is `P-con`'s consistency.
+  - `P-con`'s consistency is open.
+  - Corrected: METATHEORY §4.1–4.3, AAR-0143 (with a "Revisited" section),
+    `MEMORY.md`, the `lcert.syntax` docstring, and the test name, now
+    `a-self-referential-consistency-axiom`.
+  - The verdict of AAR-0143 stands.
+  - Fast suite re-run after the rename.
 
 ## 2026-06-22
 

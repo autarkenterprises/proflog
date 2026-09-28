@@ -1610,7 +1610,10 @@ system, and refuted for successors that strengthen it.**
     rules.
   - A new axiom, even a true one such as the calculus's own consistency, or
     a stronger reflection rule, even a sound one, is refused, and cannot be
-    translated.
+    translated. *Corrected 2026-09-28: the axiom tested states the
+    calculus's consistency by name, so it is not known to be true; see
+    [the 2026-09-28 note](2026-09-28-lcert-self-justification.md), §6. The
+    refusal holds whatever the axiom's truth.*
   - Adopting it needs justification from outside the system, and again at
     each further strengthening: Yudkowsky and Herreshoff's tower returns
     for self-improving reasoners.

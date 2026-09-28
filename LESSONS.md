@@ -17,6 +17,23 @@
   relations when they demonstrate expressiveness but materially broaden the
   ordinary proof-search branching factor.
 
+## 2026-09-28
+
+- A soundness argument for an axiom that names the system's own checker must
+  not use any consequence of that system's consistency. ADR-0143 Step 4
+  called `ax-con : Con′_ω` "true by T1" through Corollary 3.7. But `chk′`
+  names the running system's `Check`, so for `P-con` Corollary 3.7 *is*
+  `P-con`'s consistency. Before calling a self-referential axiom sound, check
+  two things: which system each occurrence of the checker names, and
+  whether the induction measure (here the budget) bounds what the axiom
+  quantifies over (here codes of every size).
+- Test a claimed defence against self-reference on the simplest diagonal
+  first. Willard 2001 Theorem 7.2's argument needs only one true closed
+  instance of the proof predicate (δ on one closed code) and the reuse of a
+  hypothesis; it needs neither D2 nor D3. An opaque checker blocks D2 and
+  D3, not this. A first pass of the 2026-09-28 analysis credited opacity as
+  a second protection for reflection, and was wrong.
+
 ## 2026-09-27
 
 - Never stop background processes with `pkill -f PATTERN` when PATTERN also

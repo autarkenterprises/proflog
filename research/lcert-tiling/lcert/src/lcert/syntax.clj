@@ -139,7 +139,10 @@
   "The rule extensions in force.
     :caseR   the primitive destructor of R (Step 2), on by default;
     :ax-con  an axiom ax-con : Con′_ω, the calculus's own code-level
-             consistency: true by T1, underivable by P5 (Step 4 only);
+             consistency, by name: chk′ is this system's Check, which
+             accepts ax-con.  Underivable without the axiom (P5); whether
+             the system with it is consistent is open (METATHEORY.md
+             §4.1) (Step 4 only);
     :ax-bot  an axiom ax-bot : 0, unsound (Step 4 only)."
   #{:caseR})
 

@@ -605,10 +605,33 @@ action 1. A successor further down acts 2 (or another certified value).
 | `P-bot` | `λᶜᵉʳᵗ₁` + an axiom `ax-bot : 0` |
 
 `Con′_ω = Π(c :ω Syn). T(chk′ c c⊥) → 0` says that no code checks as a
-refutation. As an axiom of `P-con` it is sound: every set
-`V(T(chk′ c c⊥))` is empty by Corollary 3.7, so any function inhabits
-`V(Con′_ω)`, and T1 survives. It is not derivable in `λᶜᵉʳᵗ₁` at any
-budget (P5). `ax-bot` is unsound.
+refutation. Because `chk′` names the running system's `Check`, and
+`P-con`'s `Check` accepts `ax-con`, the axiom says that `P-con` itself has
+no refutation. It is Willard's "I am consistent" axiom (`Willard2016`
+Example 3.5, item ⊕), stated over codes with an opaque checker. It is not
+derivable in `λᶜᵉʳᵗ₁` at any budget (P5). `ax-bot` is unsound.
+
+**Whether `P-con` is consistent is open.** *[Corrected 2026-09-28.]* An
+earlier state of this section called the axiom sound, "since every set
+`V(T(chk′ c c⊥))` is empty by Corollary 3.7". That argument is circular:
+- Corollary 3.7 is a consequence of T1 for the system whose `Check` `chk′`
+  names. For `P-con`'s `Check` it is the consistency of `P-con`, the thing to
+  be shown.
+- T1's induction on budgets does not reach it either. Validating `ax-con` at
+  budget `n` needs every code, of any size, to fail as a refutation: the
+  theorem at every budget, not at smaller ones.
+
+No derivation of `0` in `P-con` is known either. Gödel's and Löb's arguments
+against a consistency axiom need D2 and D3 for `chk′` on open codes, which
+the opaque checker does not supply (R4 §4.5). The analysis is in
+[the 2026-09-28 note](../../docs/log/2026-09-28-lcert-self-justification.md).
+
+A true axiom of the same kind would fix the checker: `λᶜᵉʳᵗ₁ + Con(λᶜᵉʳᵗ₁)`,
+whose axiom says that no code checks as a refutation *under `λᶜᵉʳᵗ₁`'s
+rules*. It is sound by T1 and Corollary 3.7 for `λᶜᵉʳᵗ₁`. The implementation
+has no checker fixed that way, so this system is not tested. The `P-con` row
+below still tests what it was built for: a parent refuses a rule that is not
+its own, whatever the rule's truth.
 
 ### 4.2 Results
 
@@ -622,7 +645,7 @@ certificate nodes, measured.
 | re-encoded (two rule labels swapped) | rejects | relabelling, a free code map; the parent re-checks its output, so the relabeller need not be trusted | none: same size | **holds after translation** |
 | definitional extension (`P1` child uses `caseR`; `P0` parent) | rejects; safe action 1 | replace `out` on `caseR` by the definable `out` and re-certify; re-checked by the parent | 9,181 → 21,135 nodes (×2.30); a minting agent 18,831 → 37,389 (×1.99); and the translated agent's destructor walks its supply, so it cannot use a lazy one (§2.4) | **holds after translation, at a cost** |
 | stronger reflection (`λᶜᵉʳᵗ₁` child reflects at shape (c); `P1` parent) | rejects; safe action 1 | none known: a translation would derive the stronger reflection inside the weaker system | — | **stops**; a `λᶜᵉʳᵗ₁` parent trusts it (certified action 5) |
-| true, unprovable axiom (`P-con` child; `λᶜᵉʳᵗ₁` parent) | rejects; safe action 1 | none: `Con′_ω` has a 10-node certificate in `P-con` and none at any budget in `λᶜᵉʳᵗ₁` (P5) | — | **stops**; a `P-con` parent trusts it (action 3) |
+| self-referential consistency axiom, soundness open (`P-con` child; `λᶜᵉʳᵗ₁` parent) | rejects; safe action 1 | none: `Con′_ω` has a 10-node certificate in `P-con` and none at any budget in `λᶜᵉʳᵗ₁` (P5) | — | **stops**; a `P-con` parent trusts it (action 3), soundly only if `P-con` is consistent (§4.1) |
 | unsound axiom (`P-bot` child; `λᶜᵉʳᵗ₁` parent) | rejects; safe action 1 | none, and none may exist: `P-bot` has a 3-node refutation certificate | — | **stops, correctly**; a `P-bot` parent "certifies" action 0, with evidence of `T(0 ≠ 0)` |
 
 ### 4.3 Where trust stops, exactly
@@ -641,17 +664,22 @@ parent's metatheory (T1 for its system), established once, from outside. So:
    whatever the derived rule was for: translated, `caseR` becomes a walk
    over the supply again, and laziness is lost.
 3. **A successor whose system adds rules the parent cannot derive** — a new
-   axiom, even a true one such as the calculus's own consistency, or a
-   stronger reflection principle, even a sound one — is not trusted. No
-   translation exists (for `Con′_ω` by P5). Nor can the parent prove the
+   axiom, whatever its truth, or a stronger reflection principle, even a
+   sound one — is not trusted. The tests use `ax-con`, whose soundness is
+   open (§4.1), `ax-bot`, which is unsound, and `λᶜᵉʳᵗ₁`'s reflection,
+   which §3 proves sound. The parent's `Check` refuses all three for the
+   same reason: the rule is not one of its own. No translation exists (for
+   `Con′_ω` by P5). Nor can the parent prove the
    stronger system consistent: every derivation of the parent's is one of the
    stronger system's, so a proof that the stronger system has no refutation
    would give the parent its own `Con′`, which P5 forbids.
    - It can adopt the stronger system, but only on grounds from outside, as
-     §3 justified `:all`. After adopting `λᶜᵉʳᵗ₁ + Con′`, it faces the same
-     question about `λᶜᵉʳᵗ₁ + Con′ + Con(λᶜᵉʳᵗ₁ + Con′)`, and so on: Yudkowsky
-     and Herreshoff's tower of strengthening theories reappears, for
-     successors that improve their proof system.
+     §3 justified `:all`. After adopting `λᶜᵉʳᵗ₁ + Con(λᶜᵉʳᵗ₁)` (the fixed
+     statement of §4.1, true by T1, not `ax-con`'s self-referential one), it
+     faces the same question about
+     `λᶜᵉʳᵗ₁ + Con(λᶜᵉʳᵗ₁) + Con(λᶜᵉʳᵗ₁ + Con(λᶜᵉʳᵗ₁))`, and so on:
+     Yudkowsky and Herreshoff's tower of strengthening theories reappears,
+     for successors that improve their proof system.
 4. **An unsound successor** is rejected, as it must be. A parent that
    adopted its rules would certify an unsafe action; the metatheory, not the
    runtime, is what rules that out.

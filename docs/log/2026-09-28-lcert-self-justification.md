@@ -41,7 +41,8 @@ it exposed an error in ADR-0143's Step 4, which §6 records and corrects.
     budget.
   - In P5's proof, `H` used at budget `n` is exactly a bounded consistency
     fact that PA proves by computation. So λᶜᵉʳᵗ proves no arithmetic
-    sentence PA does not.
+    sentence PA does not. Here "arithmetic" means a type that means the
+    same at every budget; `H°` is not one (Addendum A1).
   - The cost that G2 attaches to consistency proofs is paid per use, in the
     tokens of the proof being trusted.
 - **Self-justifying in Willard's sense, and as legalistic as Willard's
@@ -285,16 +286,19 @@ consistency. It is true because of T1, and PA proves each instance by
 computation (S2).
 
 The proof shows more than P5 states. Lemma 6.4 holds at every node of every
-derivation at budget `n`. So for any type whose semantic formula is an
-arithmetic sentence, a derivation at any budget gives an E-PA^ω proof, and by
-S3 a PA proof. Conversely λᶜᵉʳᵗ₀ interprets PA (§6.2). **So λᶜᵉʳᵗ's
+derivation at budget `n`. Take an O-type: one with no `R`, `◇` or `reflect`,
+whose meaning is the same at every budget (R4 §3.3). A derivation of it at
+any budget gives an E-PA^ω proof, and, when it is an arithmetic sentence, a
+PA proof by S3. Conversely λᶜᵉʳᵗ₀ interprets PA (§6.2). **So λᶜᵉʳᵗ's
 arithmetic theorems are exactly PA's; the self-trust adds no arithmetic
 strength.** This is my reading of R4 §6 and METATHEORY §1.5, on paper.
+`H°` is not an O-type; Addendum A1 explains why it is no exception.
 
-Theories must pay for bounded consistency. Pudlák (1986; from memory, not
-re-read here) showed that a theory's own proofs of its finitistic
-consistency statements `Con(n)` grow at least as `n^ε`, and can be kept
-polynomial for sequential theories. λᶜᵉʳᵗ exhibits both ways of paying:
+Theories must pay for bounded consistency. Pudlák (1986) showed that a
+theory's own proofs of its finitistic consistency statements `Con(n)` grow
+at least as `n^ε`, and can be kept polynomial for sequential theories
+(Addendum A3 gives the argument and its verification status). λᶜᵉʳᵗ
+exhibits both ways of paying:
 - **In proof size.** R4 Proposition 4.9 gives a token-free closed term for
   code consistency up to depth `k`, of size doubly exponential in `k`.
 - **In held mass.** `H°` is one constant term, but a certificate of `n`
@@ -372,7 +376,8 @@ counterpart for numbers.
 
 **What it amounts to: metered finitistic self-trust.**
 - λᶜᵉʳᵗ trusts every proof it holds, soundly, by one constant rule.
-- It cannot trust proofs it does not hold.
+- It cannot trust proofs it does not hold. It may find or receive any proof
+  freely; holding one means paying to mint it (Addendum A2).
 - It never learns an arithmetic truth that PA does not know.
 
 That is exactly what identical-system succession needs (AAR-0143). It offers
@@ -425,7 +430,9 @@ it is not tested.
   - the reading of Lemma 6.4 as arithmetic conservativity (§4.2);
   - the roles of the ingredients (§3.3);
   - the circularity of §6.
-- **From memory, not re-read:** Pudlák 1986's bounds.
+- **Pudlák 1986's bounds:** the statements are corroborated by web-search
+  summaries. The primary text could not be opened (egress policy). The
+  proof sketches are reconstructions (Addendum A3).
 - **Open:**
   - `P-con`'s consistency;
   - whether affinity without mass suffices;
@@ -440,3 +447,215 @@ it is not tested.
   unprovable axiom.
 - **`P-con`.** Attempt a consistency proof by induction on the length of
   `Check`'s computation, or a refutation.
+
+## Addendum: Three Follow-Up Questions (2026-09-28)
+
+> λᶜᵉʳᵗ proves no arithmetic sentence PA doesn't. The self-trust adds no
+> strength <- Is the SelfCons sentence (which lambda-cert can prove
+> trivially, as an axiom, but PA cannot) not an "arithmetic" sentence?
+>
+> It can't trust proofs it doesn't hold <- How does it gain proofs in the
+> first place?
+>
+> Elaborate on Pudlák's argument.
+
+### A1. Is `H°` an arithmetic sentence?
+
+No, and that is the point of the design.
+
+**Which sentences are arithmetic.** A λᶜᵉʳᵗ type means the same at every
+budget exactly when it contains no `R`, `◇` or `reflect`: the O-types (R4
+§3.3; METATHEORY §1.2). Those are its arithmetic sentences, and §4.2's
+conservativity is about them.
+
+**`H°` is budget-indexed.** `H° = Π(r :₁ R). T(chk′ (print r) c⊥) ⊸ 0`
+mentions `R`. In R4's model the usage-1 `Π` ranges only over arguments that
+fit in the budget:
+
+    Vₖ(Π(x :₁ A). B) = { f : ∀j ≤ n−k. ∀a ∈ Vⱼ(A). f(a) ∈ Vₖ₊ⱼ(B) }
+
+So at budget `n`, `H°` means `BF₀(n)`: no code of at most `n` nodes is a
+refutation. PA proves each `BF₀(n)` by computation (R4 Lemma 6.3).
+
+**λᶜᵉʳᵗ cannot state the all-budgets reading.** "At every budget" would be
+`Con_λ`. But:
+- the budget is the length of the judgment's token context, not a term, so
+  λᶜᵉʳᵗ cannot quantify over it;
+- a usage-ω quantifier over `R` ranges over `V₀(R)`, which contains only
+  leaves.
+
+The only λᶜᵉʳᵗ sentence that means `Con_λ` is `Con′_ω`, an O-type, and P5
+makes it underivable.
+
+**There are three sentences, not one.**
+
+| Sentence | What it says | λᶜᵉʳᵗ | PA |
+| --- | --- | --- | --- |
+| `H°` | at budget `n`: `BF₀(n)` | proves it (T2) | proves every instance `BF₀(n)` |
+| `Con′_ω` | `Con_λ`, at every budget | cannot prove it (P5) | — |
+| `Con_λ` | no code checks as a refutation | — | cannot prove it (it implies `Con_PA`) |
+
+No arithmetic sentence separates λᶜᵉʳᵗ from PA.
+
+**`H°` does carry `Con_λ` externally.** The metatheorem that `H°` holds at
+every budget (T1 with T2) is equivalent to `Con_λ`. It is established in the
+metatheory, which is stronger than PA, and λᶜᵉʳᵗ cannot cash it into any
+arithmetic conclusion (Prop 4.8). This is the representation-relative half of
+Willard's "legalistic" objection, in its sharpest form.
+
+**A better description of `H°`.** It is the finitistic consistency schema
+`{Con_λ(n)}`, with its index moved out of the formula and into the context:
+- PA's `Con_PA(n̄)` carries `n` in a numeral of `O(log n)` symbols;
+- `H°` carries it in `Θₙ`, which has `n` entries.
+
+A3 shows why that placement matters.
+
+**Where the intuition is right: Willard, and `P-con`.**
+- **Willard's systems do prove arithmetic sentences beyond PA.** `IS(A)`'s
+  Group-2 axioms (Willard 2001, eq. (7)) are
+  `∀y {TransProof_A(⌜Φ⌝, y) ⊃ Φ}` for every `Π₁⁻` sentence `Φ`. At
+  `Φ = (0 = 1)` that is `Con(A)`, so `IS(PA)` proves `Con(PA)`. Its SelfCons
+  is a `Π₁` sentence as well. It pays by not proving multiplication total
+  (the 2001 systems do not prove even addition total).
+- **The λᶜᵉʳᵗ variant with an arithmetic SelfCons axiom exists.** It is Step
+  4's `P-con`, whose `ax-con` is `Con′_ω`, by name. If `P-con` is consistent,
+  it proves an arithmetic sentence PA cannot. That is the open question of
+  §3.4 and §6.
+- **λᶜᵉʳᵗ trades the other way.** It keeps all of PA, and its self-trust adds
+  no arithmetic theorem.
+
+### A2. How does λᶜᵉʳᵗ gain proofs?
+
+**As data, freely.** Codes (`Syn`) cost no tokens to search for, compute,
+receive, store or check. `chk′` and `inspect` cost computation only. An
+agent can find proofs by search, build them, or be sent them.
+
+**As evidence, by paying.** To act on what a code proves, a program:
+1. mints the code into a certificate with the typed parser, spending one
+   supply token per node (R4 §4.7; ADR-0143 `parse_spine`);
+2. checks the certificate with `inspect`;
+3. reflects it.
+
+The minting agent of METATHEORY §2.4 does exactly this. It is handed a list of
+codes and a raw supply. It mints the first code, checks it at its own type,
+reflects it, and runs it on the rest. On a code that does not check, it takes
+its safe action.
+
+**By receipt.** A certificate can arrive already minted, as an argument. The
+delegating agent reads one from the front of its supply.
+
+**By being written in.** A proof in the program's own text is a term. Its
+conclusion holds by typing and costs nothing. Only proofs found or received
+at runtime pay.
+
+**Where tokens come from.** Only from the caller. No program creates tokens
+(T3).
+- The root program's budget, a token context or a lazily promised supply, is
+  set by whoever runs it.
+- Each agent passes the rest of its supply down.
+- A lazy supply promised at `N` costs nothing until it is minted. The
+  three-generation lineage on `10^100` materialized 37,919 nodes, exactly its
+  certificates.
+
+**What "hold" rules out.** It does not stop an agent finding or receiving
+proofs. It stops the agent trusting, in advance, proofs not yet minted and
+checked. That advance, universal trust would be `Con′_ω` (P5).
+
+### A3. Pudlák's argument
+
+**Verification status.** The primary text could not be opened:
+`users.math.cas.cz` and `arxiv.org` are blocked by this environment's egress
+policy. The primary text is Pudlák, "On the length of proofs of finitistic
+consistency statements in first order theories", *Logic Colloquium '84*,
+North-Holland 1986, pp. 165–196. His survey "Incompleteness in the finite
+domain" (*BSL*, 2017) was also unreachable. Web-search summaries corroborate
+the two statements below. The proof sketches are my reconstructions of the
+standard argument.
+
+**Statements.** `Con_T(n)` says "no T-proof of `0 = 1` has at most `n`
+symbols". Written with a binary numeral it has `O(log n)` symbols.
+- **Lower bound** (Pudlák; also credited to Friedman). Let `T` be
+  consistent, extend a weak bounded arithmetic such as `S¹₂`, and have
+  polynomial-time recognizable axioms. Then there is `ε > 0` such that, for
+  large `n`, every T-proof of `Con_T(n̄)` has at least `n^ε` symbols.
+- **Upper bound** (Pudlák). For sequential `T`, suitably axiomatized (for
+  instance finitely), `T` proves `Con_T(n̄)` with proofs of size polynomial
+  in `n`.
+
+So, inside `T`, the price of consistency up to size `n` lies between `n^ε`
+and `n^c`. That is exponential in the length of the statement.
+
+**The lower bound is G2 with the sizes counted.**
+1. **A sentence that says it has no short proof.** By the diagonal lemma,
+   `δ(x) ↔` "`δ(ẋ)` has no T-proof with at most `x` symbols".
+2. **Each `δ(n̄)` is true, and has no proof of at most `n` symbols.**
+   Suppose `p` proves `δ(n̄)` with `|p| ≤ n`. Then "`δ(n̄)` has a proof of at
+   most `n` symbols" is a true bounded `Σ₁` sentence. `T` proves such
+   sentences, so it would prove `¬δ(n̄)` as well as `δ(n̄)`.
+3. **`T` knows step 2, efficiently.** The key lemma is formalized
+   `Σ₁`-completeness with a polynomial bound: `T` proves that a true bounded
+   `Σ₁` statement with a witness of size `s` has a T-proof of size `q(s)`,
+   for a fixed polynomial `q`. `S¹₂` proves this, which is why it is the
+   base. So `T` proves once, with a fixed proof `π₀`,
+   `∀x (Con_T(m(x)) → δ(x))`, where `m(x) = x + q(x) + c`. From a short proof
+   of `δ(x)` it would build a proof of `0 = 1` of at most `m(x)` symbols.
+4. **Instantiate.** For each `n`, `Con_T(m̄) → δ(n̄)` has a T-proof of size
+   `|π₀| + poly(log n)`, with `m = m(n)`.
+5. **Conclude.** A T-proof of `Con_T(m̄)` of size `L` gives a proof of
+   `δ(n̄)` of size `L + |π₀| + poly(log n)`. Step 2 says that exceeds `n`, so
+   `L > n − poly(log n) − |π₀|`. Since `m ≤ n^k`, this gives `L ≥ m^ε` for
+   any `ε < 1/k`.
+
+Step 3 is D3, formalized `Σ₁`-completeness, with its cost stated. G2 is the
+limit `n → ∞`: consistency for all proofs has no finite price.
+
+**The upper bound uses partial truth.**
+- In a sequential theory, satisfaction for formulas of at most `n` symbols is
+  definable by a formula of polynomial size in `n`. Its Tarski clauses have
+  proofs of polynomial size.
+- Every axiom is true, every rule preserves truth, and `0 = 1` is false.
+- The induction along a proof of at most `n` lines may be beyond a weak
+  theory's induction. It is carried out on a definable cut that provably
+  contains `n̄` (Pudlák's shortening of cuts).
+
+**What it says about resources.** G2 does demand resource consumption, in a
+precise sense. To be sure that no proof of up to `n` symbols is a refutation,
+a theory must spend at least `n^ε` symbols of proof. Nothing precludes that
+consumption: the upper bound says the theory can pay it. What cannot exist is
+one price for every `n`.
+
+**What it means for λᶜᵉʳᵗ.**
+- **Where the price is paid.** At budget `n`, `H°` means `Con_λ(n)`, with
+  size counted in certificate nodes (A1). λᶜᵉʳᵗ proves `H°` with one constant
+  term. That does not contradict the lower bound:
+  - `H°` is not the sentence `Con_λ(n̄)`. Getting that sentence from `H°`
+    needs the parser's correctness inside the calculus, which is not
+    established (R4 §4.7).
+  - Its content at size `n` is exercised only in two ways, and both cost at
+    least `n`. One is a derivation at budget `n`, which has more than `n`
+    nodes (R4 Lemma 2.7: E3 writes the token context out). The other is a run
+    on a supply of `n` nodes, which materializes and checks every certificate
+    it trusts.
+- **The other currency.** Prop 4.9 pays in proof size: a token-free term for
+  depth `≤ k`, doubly exponential in `k`. The upper bound suggests a
+  polynomial one exists: T1's model up to budget `n`, formalized inside as a
+  partial truth definition. None has been built.
+- **A design constraint, from a second direction.** Suppose a variant wrote
+  budgets compactly (`O(log n)` nodes for `n` tokens) and verified parsing
+  inside the calculus.
+  - Then `λc h e. H (parse c s) (transport e)` would derive `Con(n̄)` in
+    `O(log n)` nodes, below `n^ε`.
+  - If the variant meets the theorem's hypotheses, it would be inconsistent.
+    It extends PA; the efficiency conditions are not checked here.
+  - So Pudlák's bound independently requires what T1's descent requires:
+    granting `n` tokens must cost proof size that grows with `n`. T1's proof
+    uses linear growth, which is E3 and strict overhead.
+- **The motivation, in these terms.** G2's demand for resources is not
+  precluded. λᶜᵉʳᵗ builds it into its types and charges it per trusted proof.
+  What λᶜᵉʳᵗ precludes is trust without payment, which is exactly what G2
+  forbids.
+
+**Further (from memory).** Krajíček and Pudlák (*JSL* 1989) related a
+question to the existence of optimal propositional proof systems, which is
+open. The question: does some single theory prove every theory's `Con(n̄)`
+with proofs of polynomial size?

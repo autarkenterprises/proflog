@@ -11,9 +11,21 @@
   it is necessary is open (`P-con`).
 - It does not preclude G2: P5 keeps `Con′_ω` unprovable at every budget.
   In P5's proof, `H` at budget n is the bounded fact BF₀(n), which PA
-  proves, so λᶜᵉʳᵗ proves no arithmetic sentence PA does not. Its
-  self-trust is metered finitistic consistency: one constant rule, paid
-  per use by the tokens of the proof held.
+  proves, so λᶜᵉʳᵗ proves no arithmetic sentence PA does not. Arithmetic
+  means an O-type (no `R`, `◇` or `reflect`), which means the same at every
+  budget. `H°` is not one: it is the finitistic schema `{Con_λ(n)}` with
+  the index in the token context, and its all-budgets reading, `Con_λ`,
+  holds only in the metatheory. Its self-trust is metered finitistic
+  consistency: one constant rule, paid per use by the tokens of the proof
+  held.
+- Contrast: Willard's `IS(PA)` does prove Π₁ sentences beyond PA. Its
+  Group-2 axioms (Willard 2001 eq. (7)) give `Con(PA)`, paid for by not
+  proving multiplication total.
+- Pudlák 1986: T-proofs of `Con_T(n̄)` need at least `n^ε` symbols, and
+  sequential theories achieve polynomial size. This is G2 with the sizes
+  counted. The primary text is unreachable here (egress policy).
+  - It independently forces E3/strict overhead: compact budgets plus
+    internal parse correctness would beat `n^ε`.
 - Self-justifying in `Willard2016` Def 3.4's sense, for the certificate
   representation, and as legalistic as Willard's (the constant is
   assumed; `H°` is internally strictly weaker than `Con′`). It goes beyond

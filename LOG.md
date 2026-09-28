@@ -313,6 +313,22 @@ complete contemporaneous transcript.
     `a-self-referential-consistency-axiom`.
   - The verdict of AAR-0143 stands.
   - Fast suite re-run after the rename.
+- Follow-up questions, answered in an addendum to the same note.
+  - **Is SelfCons an arithmetic sentence?** Not in λᶜᵉʳᵗ.
+    - `H°` is budget-indexed: at budget n it is BF₀(n). It is the
+      finitistic schema with its index in the token context.
+    - λᶜᵉʳᵗ cannot quantify over budgets. The arithmetic form,
+      `Con′_ω`, is the one it cannot prove.
+    - Willard's `IS(PA)` does prove Π₁ sentences beyond PA (its Group-2
+      gives `Con(PA)`). So would `P-con`, if it is consistent.
+  - **How does it gain proofs?** It finds or receives codes freely. To
+    trust one, it mints it into a certificate (one token per node), checks
+    it, and reflects it. Tokens come only from the caller.
+  - **Pudlák.** The finitistic G2 (proofs of `Con_T(n̄)` need at least
+    `n^ε` symbols) is reconstructed step by step.
+    - It independently requires E3/strict overhead.
+    - `users.math.cas.cz` and `arxiv.org` are blocked by the egress policy,
+      so the statements rest on web-search summaries.
 
 ## 2026-06-22
 

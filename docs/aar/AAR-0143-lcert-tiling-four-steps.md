@@ -153,3 +153,12 @@ Step 4.
   consistency constant with the resource discipline taken away. Its open
   status is part of the answer to whether the discipline is what makes
   λᶜᵉʳᵗ self-justifying (the note, §4).
+- **2026-09-29: an audit of the runtime's token accounting.** The addendum
+  "Pudlák Read In Full, Pudlák And Willard, And A Machine Model" (§C4)
+  re-ran Step 2's minting lineage with every token creation recorded.
+  - All 37,919 tokens came from the supply, and `reflect` created none.
+  - But the evaluator does not itself check the reflect handoff: `m < ‖v‖`
+    and the exact token count are assumed from `Check`'s encoding rule.
+  - Step 2's materialization result stands. What stands on the checker
+    rather than on the runtime is now stated. The hardening is proposed as
+    [ADR-0144](../adr/ADR-0144-lcert-resource-machine.md).

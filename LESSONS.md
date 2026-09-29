@@ -17,6 +17,20 @@
   relations when they demonstrate expressiveness but materially broaden the
   ordinary proof-search branching factor.
 
+## 2026-09-29
+
+- A theorem reconstructed from memory can have the right shape and the
+  wrong setting. The first account of Pudlák 1986 put it over `S¹₂` with a
+  single universal implication. That is the 2017 survey's framing. The 1986
+  paper works over `Q` with instance-wise bounds. The account also invented
+  a cut-based upper-bound proof. Read the primary text before stating
+  hypotheses or methods, and keep "from memory" labels until then.
+- Audit a property believed to be mechanical before relying on it. The
+  evaluator's token conservation looked like a runtime fact. An audit showed
+  that the runtime never creates tokens, but that the reflect handoff
+  (`m < ‖v‖`, exact token count) is assumed from the checker's encoding rule
+  rather than checked. Mismatches misbind silently.
+
 ## 2026-09-28
 
 - A soundness argument for an axiom that names the system's own checker must

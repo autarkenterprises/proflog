@@ -12,6 +12,26 @@
   (a scheme, selector-proved; Willard LFCS 2020 calls it "Infinite-Ranged"),
   sliced by proof size, with a constant selector and standard proofs only.
   This is why it keeps PA and gains nothing arithmetic.
+- Pudlák, read in full (2026-09-29). Pudlák 1986 (Logic Colloquium '84,
+  165–196), Theorem 3.1: for consistent `A ⊇ Q` and any `P` meeting four
+  finitistic derivability conditions, no `n` has an `n^ε`-symbol proof of
+  `Con_A(n̄)`. Upper bound: Theorems 5.4/5.5 give polynomial proofs for
+  sequential theories, by chained partial truth, with no cuts. Theorem
+  4.3(1): `A` cannot prove its own consistency even on a definable cut. The
+  2017 survey restates the theorem over `S¹₂`, adds CONᴺ/CONᴺ⁺, and calls
+  self-provable consistency "not important".
+- Pudlák 1985 (JSL 50; via Willard 2001, since the paper itself was not
+  reachable): finitely axiomatized sequential theories prove their own
+  Herbrand consistency on a definable cut. Willard adds unrelativized
+  `∀y ¬Prf` (V), reflection (VI) and Hilbert deduction (VII), at the price
+  of totality. λᶜᵉʳᵗ keeps PA and relativizes to an external budget, not a
+  definable cut. That is why it escapes Theorem 4.3(1): entering budget n
+  costs more than n nodes, where a numeral enters a cut in poly(|n|).
+- The machine-model audit (2026-09-29): the evaluator never creates tokens
+  mid-run (37,919 of 37,919 came from the supply). But it does not check
+  the reflect handoff: `m < ‖v‖` and exact token count are assumed from E3.
+  ADR-0144 (proposed) hardens that and adds a Scheme/miniKanren cell
+  machine.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

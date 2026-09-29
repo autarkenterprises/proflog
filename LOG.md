@@ -354,6 +354,39 @@ complete contemporaneous transcript.
     - Definition 3.4 is met in its letter, with Artemov-style content.
   - Artemov's papers were known only through web-search summaries, because
     `arxiv.org` is blocked by the egress policy.
+- Network access was granted. Pudlák's 1986 paper (32 pages, from the scan)
+  and his 2017 survey (51 pages) were read in full, and Addendum A3's
+  reconstruction was reviewed against them.
+  - A3 had the right shape. Three details were wrong, and are corrected in
+    place:
+    - the base is `Q`, not `S¹₂`;
+    - the conditions are instance-wise;
+    - the upper bound uses chained partial truth, not cuts.
+  - Recorded in a third addendum to
+    [the note](docs/log/2026-09-28-lcert-self-justification.md):
+    - Theorem 4.3(1): no theory proves its own consistency on a cut;
+    - Problems 1–2;
+    - the survey's CONᴺ/CONᴺ⁺ and "finite Gödel theorem";
+    - Pudlák's view that self-provable consistency is unimportant.
+  - The 1985 JSL paper (cuts) is behind Cambridge's login and was not read.
+    Willard 2001 §1 reports it: finitely axiomatized sequential theories
+    prove their own Herbrand consistency on a definable cut. Willard lists
+    what he adds (V–VII) and says no hybrid can have everything.
+  - λᶜᵉʳᵗ sits on the Pudlák–Nelson side of that trade, with an external
+    budget in place of a definable cut.
+- Machine model. The user doubts that an encoding rule can be trusted not to
+  be "just changed". An audit of the 10^100 minting lineage found:
+  - every token (37,919) came from the supply; reflect created none, and
+    burned 18,831, 18,831 and 257;
+  - but the evaluator does not check the reflect handoff. Given too few
+    tokens, a program misbinds (a de Bruijn shift) or hits an incidental
+    `IndexOutOfBoundsException`. A phantom-token default exists on
+    unreachable paths.
+  - Wrote [ADR-0144](docs/adr/ADR-0144-lcert-resource-machine.md) (proposed):
+    - harden the evaluator;
+    - build an independent Scheme/miniKanren cell machine, with the checker
+      as an oracle and a mutation test;
+    - cross-validate token accounts.
 
 ## 2026-06-22
 

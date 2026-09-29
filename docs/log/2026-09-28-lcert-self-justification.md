@@ -569,60 +569,99 @@ checked. That advance, universal trust would be `Con′_ω` (P5).
 
 ### A3. Pudlák's argument
 
-**Verification status.** The primary text could not be opened:
-`users.math.cas.cz` and `arxiv.org` are blocked by this environment's egress
-policy. The primary text is Pudlák, "On the length of proofs of finitistic
-consistency statements in first order theories", *Logic Colloquium '84*,
-North-Holland 1986, pp. 165–196. His survey "Incompleteness in the finite
-domain" (*BSL*, 2017) was also unreachable. Web-search summaries corroborate
-the two statements below. The proof sketches are my reconstructions of the
-standard argument.
+**Verification status.** *Revised 2026-09-29.* Both texts were read in
+full once network access was granted:
+- Pudlák, "On the length of proofs of finitistic consistency statements in
+  first order theories", *Logic Colloquium '84*, North-Holland 1986,
+  pp. 165–196;
+- Pudlák, "Incompleteness in the finite domain", *BSL* 2017.
+
+The first version of this section was written without them. It had the right
+shape and three wrong details, now corrected in place. Addendum C lists what
+changed.
 
 **Statements.** `Con_T(n)` says "no T-proof of `0 = 1` has at most `n`
 symbols". Written with a binary numeral it has `O(log n)` symbols.
-- **Lower bound** (Pudlák; also credited to Friedman). Let `T` be
-  consistent, extend a weak bounded arithmetic such as `S¹₂`, and have
-  polynomial-time recognizable axioms. Then there is `ε > 0` such that, for
-  large `n`, every T-proof of `Con_T(n̄)` has at least `n^ε` symbols.
-- **Upper bound** (Pudlák). For sequential `T`, suitably axiomatized (for
-  instance finitely), `T` proves `Con_T(n̄)` with proofs of size polynomial
-  in `n`.
+- **Lower bound.** Friedman proved it in 1979, in an unpublished typescript;
+  Pudlák proved it independently as his Theorem 3.1.
+  - *Hypotheses, in Pudlák's form:* `A` is a consistent axiomatization
+    containing Robinson's `Q`. `P(x, y)` is any formula that meets four
+    finitistic derivability conditions (below). Natural arithmetizations of
+    NP axiomatizations meet them.
+  - *Conclusion:* there is `ε > 0` such that, for **no** `n`, does `A` prove
+    `¬P(n̄, ⌜⊥⌝)`, which is `Con_A(n̄)`, with at most `n^ε` symbols.
+  - *Correction:* an earlier state said "extends `S¹₂`, with
+    polynomial-time axioms". That is the 2017 survey's setting, not the
+    1986 paper's.
+- **Upper bound** (Pudlák, Theorems 5.4 and 5.5). For sequential `T`, `T`
+  proves `Con_T(n̄)` with proofs of size polynomial in `n`. This covers
+  finite axiomatizations, and axiomatizations by a schema of the kind PA and
+  ZF have.
+- **The measure** is the number of symbols in the proof, formulas included.
+  Pudlák did not know whether a similar bound holds for the number of lines.
 
 So, inside `T`, the price of consistency up to size `n` lies between `n^ε`
 and `n^c`. That is exponential in the length of the statement.
 
 **The lower bound is G2 with the sizes counted.**
 1. **A sentence that says it has no short proof.** By the diagonal lemma,
-   `δ(x) ↔` "`δ(ẋ)` has no T-proof with at most `x` symbols".
-2. **Each `δ(n̄)` is true, and has no proof of at most `n` symbols.**
-   Suppose `p` proves `δ(n̄)` with `|p| ≤ n`. Then "`δ(n̄)` has a proof of at
-   most `n` symbols" is a true bounded `Σ₁` sentence. `T` proves such
-   sentences, so it would prove `¬δ(n̄)` as well as `δ(n̄)`.
-3. **`T` knows step 2, efficiently.** The key lemma is formalized
-   `Σ₁`-completeness with a polynomial bound: `T` proves that a true bounded
-   `Σ₁` statement with a witness of size `s` has a T-proof of size `q(s)`,
-   for a fixed polynomial `q`. `S¹₂` proves this, which is why it is the
-   base. So `T` proves once, with a fixed proof `π₀`,
-   `∀x (Con_T(m(x)) → δ(x))`, where `m(x) = x + q(x) + c`. From a short proof
-   of `δ(x)` it would build a proof of `0 = 1` of at most `m(x)` symbols.
-4. **Instantiate.** For each `n`, `Con_T(m̄) → δ(n̄)` has a T-proof of size
-   `|π₀| + poly(log n)`, with `m = m(n)`.
-5. **Conclude.** A T-proof of `Con_T(m̄)` of size `L` gives a proof of
-   `δ(n̄)` of size `L + |π₀| + poly(log n)`. Step 2 says that exceeds `n`, so
-   `L > n − poly(log n) − |π₀|`. Since `m ≤ n^k`, this gives `L ≥ m^ε` for
-   any `ε < 1/k`.
+   `Q ⊢ D(x) ↔ ¬P(x, ⌜D(ẋ)⌝)`: "`D(ẋ)` has no proof with at most `x`
+   symbols". Each instance has a proof polynomial in `|m|`.
+2. **Each `D(m̄)` is true, and has no proof of at most `m` symbols.**
+   Suppose `p` proves `D(m̄)` with `|p| ≤ m`. By condition (1), `A` proves
+   "`D(m̄)` has a proof of at most `m` symbols", and so, by the diagonal,
+   proves `¬D(m̄)` as well as `D(m̄)`. So, since `A` is consistent, no such
+   `p` exists (Pudlák's "(ii) not `A ⊢ᵐ D(m̄)`").
+3. **`T` knows step 2, efficiently.** Pudlák's four conditions are
+   finitistic derivability conditions. Each is a family of numerical
+   instances whose proofs have length polynomial in the lengths of the
+   numerals:
+   - (0) monotonicity in the length bound;
+   - (1) the finitistic D1: `A ⊢ⁿ φ` implies `A ⊢^{p₁(n)} P(n̄, ⌜φ⌝)`;
+   - (2) the finitistic D3, the key lemma:
+     `A ⊢^{p₂(|n|,|m|)} P(n̄, m̄) → P(q₁(n̄), ⌜P(n̄, m̄)⌝)`;
+   - (3) the finitistic D2, which is modus ponens under `P`.
 
-Step 3 is D3, formalized `Σ₁`-completeness, with its cost stated. G2 is the
-limit `n → ∞`: consistency for all proofs has no finite price.
+   Write `S(m)` for "`D(m̄)` has a proof of at most `m` symbols". From
+   `S(m)` the conditions yield bounded proofs of `S(m)` and of `¬S(m)`,
+   hence of `⊥`. This gives, for each `m`, a proof of length `p₄(|m|)` of
+   `Con_A(q₅(m̄)) → D(m̄)`.
+
+   Pudlák proves the conditions for natural arithmetizations in `IΔ₀ + exp`,
+   and moves each numerical instance down to `Q` by his Lemma 2.1, which uses
+   cuts after Paris and Wilkie.
+
+   *Correction:* an earlier state had `T` prove the single sentence
+   `∀x (Con_T(m(x)) → δ(x))` once, over `S¹₂`, and then instantiate it. That
+   variant works over a stronger base, but it is not Pudlák's proof.
+4. **Instantiate.** For each `m`, `Con_A(q₅(m̄)) → D(m̄)` has a proof of
+   length `p₄(|m|)`, which is polynomial in the length of the numeral.
+5. **Conclude.** A proof of `Con_A(q₅(m̄))` of `L` symbols gives a proof of
+   `D(m̄)` of `L + p₄(|m|) + |D(m̄)|` symbols. Step 2 says that exceeds `m`.
+   Pudlák: "does not hold for any sufficiently large m. The theorem now
+   follows using an easy computation and condition (0)." Since `q₅` is a
+   polynomial, `L ≥ n^ε` for `n = q₅(m)`. Choosing `ε` small enough gives it
+   for every `n`.
+
+Step 3 is D3, formalized `Σ₁`-completeness, with its cost stated. The
+survey (§3.3) makes the link to G2 exact. If `T` proved `Con_T`, each
+`Con_T(n̄)` would follow by substitution in `O(log n)` symbols, which the
+lower bound forbids. So "Friedman's lower bound can also be viewed as the
+finite Gödel theorem".
 
 **The upper bound uses partial truth.**
 - In a sequential theory, satisfaction for formulas of at most `n` symbols is
   definable by a formula of polynomial size in `n`. Its Tarski clauses have
   proofs of polynomial size.
 - Every axiom is true, every rule preserves truth, and `0 = 1` is false.
-- The induction along a proof of at most `n` lines may be beyond a weak
-  theory's induction. It is carried out on a definable cut that provably
-  contains `n̄` (Pudlák's shortening of cuts).
+- There is no induction axiom and no cut. The partial satisfaction formula
+  `Sat_n` has length linear in `n`: it is defined by iterating a formula in
+  which the recursive occurrence appears once, a Ferrante–Rackoff technique.
+- Soundness of every proof of at most `n` symbols is proved by chaining
+  `θ₀ → θ₁ → … → θ_n`, each step of polynomial length (Theorem 5.4).
+- *Correction:* an earlier state said the induction runs on a definable cut.
+  That was wrong. In this paper cuts appear only in the lower bound's
+  reduction to `Q` (§2) and in Theorem 4.2.
 
 **What it says about resources.** G2 does demand resource consumption, in a
 precise sense. To be sure that no proof of up to `n` symbols is a refutation,
@@ -661,10 +700,10 @@ one price for every `n`.
   What λᶜᵉʳᵗ precludes is trust without payment, which is exactly what G2
   forbids.
 
-**Further (from memory).** Krajíček and Pudlák (*JSL* 1989) related a
-question to the existence of optimal propositional proof systems, which is
-open. The question: does some single theory prove every theory's `Con(n̄)`
-with proofs of polynomial size?
+**Further (confirmed by the survey, §5).** Krajíček and Pudlák (*JSL*
+1989) showed that Conjecture CONᴺ is equivalent to "there is no
+length-optimal propositional proof system". CONᴺ says that for every `S`
+there is a `T` such that `S` has no polynomial-size proofs of `Con_T(n̄)`.
 
 ## Addendum: How Tokens Are Supplied, And Artemov's Infinite-Ranged Consistency (2026-09-29)
 
@@ -822,3 +861,254 @@ is Artemov's kind, not Willard's. Taxonomy:
 (`nachlass/codification/sources-text/willard2020-lfcs.txt`). Artemov's
 notions come from web-search summaries of his papers; the papers themselves
 were not read here, because `arxiv.org` is blocked by the egress policy.
+
+## Addendum: Pudlák Read In Full, Pudlák And Willard, And A Machine Model (2026-09-29)
+
+> What is the Pudlak reference cited? And what does Willard contribute beyond
+> its results? It appears as though Pudlak already constructs a
+> self-justifying axiom system.
+>
+> because the encoding writes out every token <- I understand in an academic
+> sense that rules on the primitive components of a formal system constrain
+> that formal system, but there remains the unsatisfied sense that this
+> encoding, or any other such rule, could "just" be changed, and the system
+> would lose its desirable properties. A machine model would tie the
+> enforcement of the encoding to a mechanical operation, and increase my
+> confidence in its inviolability.
+>
+> Network permissions added, please read Pudlak in his entirety and review
+> your reconstructed argument for correctness.
+
+### C1. The references, read
+
+- **Cited in A3.** P. Pudlák, "On the length of proofs of finitistic
+  consistency statements in first order theories", in *Logic Colloquium '84*
+  (J. B. Paris, A. J. Wilkie, G. M. Wilmers, eds.), North-Holland 1986,
+  pp. 165–196. All 32 pages were read, from the author's scan: the OCR text
+  throughout, and the page images for §3's theorem and proof, §4 and §6.
+- **The survey.** P. Pudlák, "Incompleteness in the finite domain",
+  *Bull. Symb. Logic* 2017 (author's version of 21 November 2017, 51 pages),
+  read in full.
+- **Cited by Willard.** Willard 2001 cites Pudlák as [28], "Cuts, consistency
+  statements and interpretations", *JSL* 50(2), 1985, pp. 423–441, and as
+  [13], Hájek and Pudlák, *Metamathematics of First-Order Arithmetic*. The
+  1985 paper sits behind Cambridge's login and was not read. Its content
+  below comes from Willard 2001 and from Pudlák 1986, which restates part
+  of it.
+
+**What the 1986 paper proves.**
+- **Theorem 3.1, the lower bound.** Stated for any formula `P` meeting the
+  four finitistic derivability conditions, over any consistent `A ⊇ Q`.
+- **Theorems 3.2–3.5 and Lemma 2.1: why natural arithmetizations meet them.**
+  - NP relations are polynomially numerable in `Q`.
+  - `IΔ₀ + exp` proves that NP computations have short proofs.
+  - Instances of what `IΔ₀ + exp` proves have short `Q`-proofs, by cuts.
+- **Theorem 3.6.** The bound extends to consistency statements indexed by
+  closed terms, not only by numerals.
+- **Corollary 4.1.** `A + Con_A` has a large speed-up over `A` on
+  `Con_A(2^0_k)`.
+- **Theorem 4.2.** GB proves `Con_ZF` on a cut, after Solovay. So GB proves
+  `Con_ZF(2^0_k)` in `p(k)` symbols, while ZF needs `(2^0_k)^ε`.
+- **Theorem 4.3(1).** If `I` is a cut in `A`, then
+  `A + ∃x(I(x) ∧ ¬Con_A(x))` is consistent. `A` cannot prove its own
+  consistency even on a cut: such a proof would give each `Con_A(n̄)` a
+  proof of `p(|n|)` symbols, since numerals lie in cuts with short proofs
+  (Lemma 2.2), and `p(|n|) < n^ε` for large `n`.
+- **Theorems 5.4 and 5.5, the polynomial upper bound.** For sequential
+  theories, including PA and ZF.
+- **§6.**
+  - Problem 1 (Mycielski): does some finite `A ⊇ Q` prove
+    `Con_{A+Con_A}(n̄)` in polynomially many symbols?
+  - Problem 2: does some finite `A ⊇ Q` prove `Con_A(n̄)` in polynomially
+    many symbols with formulas of bounded complexity?
+  - Pudlák conjectures "no" to both. Proposition 6.2: a negative answer to
+    either implies NP ≠ coNP.
+- **A footnote on priority.** "After the paper had been typed, I learned
+  that H. Friedman had proved a lower bound of the form n^ε."
+
+**What the survey adds.**
+- **Theorem 3.1 in modern form**, for the class `𝒯` of consistent extensions
+  of `S¹₂` with polynomial-time axioms. It cites Friedman 1979, Pudlák 1986,
+  and Pudlák 1987. The 1987 paper improves the lower bound to
+  `Ω(n/log² n)` with Rosser's C-rule, and the upper bound to linear.
+- **The proof idea in one paragraph**, which is A3's: "instead of the
+  original diagonal formula, one uses a formula δ(n̄) with intended meaning 'I
+  do not have a T-proof of length ≤ n'… Then one proves that δ_T(n̄) can be
+  derived from Con_T(n̄) by a short proof."
+- **§3.3.** The lower bound implies G2, so it is "the finite Gödel theorem".
+- **The conjectures on stronger theories.**
+  - CONᴺ: for every `S` there is `T` such that `S` has no polynomial-size
+    proofs of `Con_T(n̄)`.
+  - CONᴺ⁺: if `T ⊢ Con_S`, then `S`-proofs of `Con_T(n̄)` are not
+    polynomially bounded.
+  - Hrubeš: adding a true unprovable Π₁ sentence need not make bounded
+    consistency hard.
+  - Finite uniform Σᵇ₁ reflection `Σᵇ₁RFN_T(n̄)`, and its conjecture
+    RFNᴺ₁.
+- **Pudlák's own view.** Self-provable consistency "is not important —
+  having a proof of consistency in a theory that we do not a priori believe
+  is consistent would be useless. What is important is the consequence of
+  Gödel's Theorem that there is no theory that could prove the consistency
+  of all other consistent theories."
+
+### C2. The reconstruction in A3, reviewed
+
+**Right:**
+- the statement of both bounds, and that the gap between them is only
+  polynomial;
+- the diagonal sentence "I have no proof of length ≤ n";
+- that each instance is true and has no proof of at most `n` symbols;
+- that the proof is G2's argument with sizes counted, the key lemma being a
+  finitistic D3;
+- the arithmetic of the conclusion;
+- that the measure is symbols;
+- the credit to Friedman;
+- the Krajíček–Pudlák connection.
+
+**Wrong, and corrected in place:**
+1. **The base theory.** The 1986 paper needs only `Q ⊆ A`, and a formula
+   meeting four finitistic derivability conditions. "`S¹₂` with
+   polynomial-time axioms" is the 2017 survey's setting.
+2. **The key lemma's form.** Pudlák's conditions are families of numerical
+   instances whose proofs are polynomial in numeral length. He proves them
+   in `IΔ₀ + exp` and transfers instances to `Q` by cuts. He never proves a
+   single universal implication and instantiates it. That route is sound
+   only over a stronger base.
+3. **The upper bound.** It uses no cut and no induction. It chains
+   `θ_k → θ_{k+1}` for `k < n` with a partial satisfaction formula of
+   linear length. A3 had said the induction runs on a definable cut.
+
+**Minor:** the theorem holds for no `n` at all, not merely for large `n`.
+
+### C3. Does Pudlák construct a self-justifying system? What Willard adds
+
+**Not in 1986.** Every sequential theory proves each `Con_A(n̄)`, in
+polynomially many symbols. That is the infinite-ranged, instance-by-instance
+self-knowledge of Addendum B2. And Theorem 4.3(1) shows that `A` cannot even
+prove its own Hilbert-style consistency on a cut.
+
+**In the 1985 paper, in a restricted sense** (as Willard 2001 §1 reports).
+Following Nelson for `Q`, Pudlák proved that finitely axiomatized sequential
+theories, such as `IΣ₀`, `IΣ₀+Exp`, `ACA₀` and GB, prove their own
+**Herbrand** consistency **on a definable cut**. That is Willard's
+equation (3):
+
+    ∀y {Tang(y) ⊃ ¬Prf_α(⌜0 = 1⌝, y)}
+
+These are ordinary, widely studied theories, which keep multiplication
+total. The consistency statement is relativized to a cut the theory cannot
+prove to be everything, and it uses a cut-free apparatus. Kreisel and
+Takeuti's cut-free systems are an earlier instance. The survey (§4.3)
+explains why the cut-free and Hilbert versions differ so much in the finite
+domain: "the transformation of standard proofs into sets of terms that
+witness provability in Herbrand's theorem is nonelementary."
+
+**What Willard adds, in his own words** (Willard 2001 §1). He lists the
+prior literature's advantages first:
+- (I) widely studied systems, rather than ones built with Kleene's fixed
+  point;
+- (II) multiplication total;
+- (III) `Tang` recognized as a definable cut;
+- (IV) `IΣ₀` proving that `SuperExp` totality implies its consistency.
+
+Then his own:
+- **(V)** "The variable y in Equation (2) will not need to be required to
+  satisfy any form of restricting predicate Tang(y)". His systems prove
+  `∀y ¬Prf_α(⌜0=1⌝, y)`.
+- **(VI)** A reflection principle, tangibility reflection (his equation (2)),
+  "inherently broader" than consistency.
+- **(VII)** "unlike previous efforts at self-verification", "Prf" may be a
+  Hilbert system or Gentzen with cuts.
+
+The price: his systems do not prove addition or multiplication total, and
+`ISREF` does not even prove successor total. He adds that no hybrid can have
+all of (I)–(VII), because it "would violate one of the four variants, (A)
+through (D)" of G2. His later papers map that boundary exactly, by growth
+type and apparatus.
+
+**Where λᶜᵉʳᵗ sits.**
+- **On the Pudlák–Nelson side of Willard's trade.** It keeps multiplication
+  (all of PA) and relativizes its self-consistency. But it relativizes to an
+  *external* budget, not a definable cut.
+- **It still has (VI) and (VII).** Its self-trust is reflection, and its
+  proof system is natural deduction, not a cut-free system. For a definable
+  cut, Pudlák's Theorem 4.3(1) forbids that combination.
+- **How it escapes 4.3(1).** That proof turns consistency on a cut into
+  short proofs of `Con(n̄)`, because putting a numeral into a cut costs
+  `poly(|n|)` symbols (Lemma 2.2). In λᶜᵉʳᵗ, entering budget `n` costs more
+  than `n` nodes (R4 Lemma 2.7).
+- **This is A3's design constraint, grounded.** It is Pudlák's own argument
+  for 4.3(1). A cheap way to enter the relativizing predicate would make it
+  inconsistent.
+- **Willard's "no hybrid" claim is not contradicted.** His (A)–(D) concern
+  definable predicates, and λᶜᵉʳᵗ's relativization is not one.
+
+**A quantitative addition to AAR-0143 (conjectural).** CONᴺ⁺ says that a
+theory has no polynomial-size proofs of the bounded consistency of a
+successor that proves the theory's consistency. So bounded, metered trust in
+a strictly stronger successor would cost more than any polynomial number of
+tokens. The conjecture implies NP ≠ coNP and is unproved. Pudlák's Problem 1
+is its instance for `A + Con_A`. For self-trust the cost is polynomial
+(Theorem 5.4), even linear with the C-rule (1987).
+
+### C4. A machine model: what it would make mechanical
+
+**An audit of the existing evaluator.**
+- **The run audited.** The ADR-0143 minting lineage, promised `10^100`
+  tokens. Every token creation was recorded by wrapping `lcert.eval/token`,
+  and every reflection through `*trace*`.
+- **Result:**
+  - `[:pv 2 :star]`;
+  - 37,919 tokens created, all by lazy-supply materialization. That is
+    exactly the certificate nodes minted;
+  - none created by `reflect`, and no phantom;
+  - reflections burned 18,831, 18,831 and 257 tokens. Each handed on
+    `m = 0`, since the agents are closed. The caps fell by exactly those
+    amounts.
+- **A gap.** A derivation typed at budget 2 was run with only one token.
+  - When it spent `$2` alone, it silently used token 1: a de Bruijn shift.
+  - When it spent `$1` and `$2`, it failed with an incidental
+    `IndexOutOfBoundsException`.
+
+  `reflect` hands on `(take m (tokens v))` without checking `m < ‖v‖`. On
+  unreachable paths, `default-value` at `◇` creates a phantom token. So the
+  evaluator never *creates* tokens during a run, but strict overhead is
+  enforced upstream, by `Check` (E3), not by the runtime. The objection is
+  correct about the implementation.
+
+**What a machine would secure, independent of the encoding.**
+- **Carrying, not describing.** Build certificates from cells, with no
+  allocation instruction, and let `reflect` hand on cells of the certificate
+  itself after destroying its root. Then a certificate cannot grant more
+  than `‖v‖ − 1` cells, whatever its code says. Strict overhead becomes the
+  arithmetic of the `reflect` instruction, checked at every step.
+- **Bounded reflection.** With at least one cell destroyed per reflection, a
+  run on `N` cells reflects at most `N` times. T1's induction on the budget
+  becomes induction on live cells.
+- **No fabricated evidence**, once defaults become traps. A terminating run
+  never produces a value of an empty type, because no constructor makes one.
+  Honest evidence comes only from checked conversions and runtime `inspect`.
+  This holds with or without resources, even in the inconsistent free
+  variant of §3.1, whose diagonal diverges rather than fabricates. What
+  resources add operationally is **termination**: runs end, or trap, rather
+  than hang.
+
+**What a machine cannot secure.** The logic's consistency, meaning what a
+*type* guarantees before anything runs, stays a theorem about the typing
+rules (T1). The machine pins E3's role. E3 is exactly the typing rule under
+which a well-typed `reflect` never traps. It amounts to progress on a
+conserving machine. Change it, and typing promises tokens the machine cannot
+hand over. The change shows up as traps, never as created tokens.
+
+**Proposed:** [ADR-0144](../adr/ADR-0144-lcert-resource-machine.md). It has
+three parts:
+1. harden the evaluator: checked handoff, traps instead of phantom defaults,
+   and a conservation monitor;
+2. an independent cell machine in Scheme with miniKanren, whose checker is
+   an oracle parameter. This follows the user's preference, and Chez 9.5 and
+   Guile 3.0 are installable here. A mutation test gives the machine a
+   cell-creating instruction and requires the miniKanren search to find the
+   violation;
+3. cross-validation of token accounts, node for node.
+
+It awaits the user's go-ahead.

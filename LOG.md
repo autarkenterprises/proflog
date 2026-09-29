@@ -330,6 +330,31 @@ complete contemporaneous transcript.
     - `users.math.cas.cz` and `arxiv.org` are blocked by the egress policy,
       so the statements rest on web-search summaries.
 
+## 2026-09-29
+
+- Further follow-ups on λᶜᵉʳᵗ, answered in a second addendum to
+  [the 2026-09-28 note](docs/log/2026-09-28-lcert-self-justification.md).
+  - **How tokens are supplied.** Per program invocation, as linear
+    arguments.
+    - Either a budget (`Θₙ`, tokens `$1 … $n` bound to fresh runtime
+      tokens by `lcert.core/run`), or a supply given to a closed program
+      (an eager tree, or `lcert.eval/lazy-supply`).
+    - Never per call, and never a global. Inside a run, tokens move only by
+      linear data flow. `reflect` runs the decoded program on `m` of the
+      certificate's tokens and burns the rest.
+  - **Artemov.** The user observed that `H°` at budget n (BF₀(n), each
+    PA-provable) reads like Artemov's consistency, Willard's
+    "Infinite-Ranged" exception (LFCS 2020 §1). Agreed and sharpened:
+    - `H` is declarative in form but infinite-ranged in content: a
+      constant selector, a size-indexed scheme, standard proofs only.
+    - That explains the trade the user asked to emphasize, now at the top
+      of the note's Summary and of `MEMORY.md`: λᶜᵉʳᵗ keeps all of PA's
+      arithmetic and gains no arithmetic theorem, where Willard's
+      declarative systems trade arithmetic strength for Π₁ self-knowledge.
+    - Definition 3.4 is met in its letter, with Artemov-style content.
+  - Artemov's papers were known only through web-search summaries, because
+    `arxiv.org` is blocked by the egress policy.
+
 ## 2026-06-22
 
 - Revised ADR-0142 after the Codex review and recorded the V4 "descent" strawman

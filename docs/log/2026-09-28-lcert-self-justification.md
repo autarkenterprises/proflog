@@ -24,6 +24,12 @@ it exposed an error in ADR-0143's Step 4, which §6 records and corrects.
 
 ## Summary
 
+- **The trade, which matters most.** Willard gives up arithmetic strength
+  to gain arithmetic self-knowledge. His declarative systems do not prove
+  multiplication total, and they prove Π₁ theorems that PA does not
+  (`IS(PA)` proves `Con(PA)`, and its own consistency). **λᶜᵉʳᵗ trades the
+  other way: it keeps all of PA's arithmetic and gains no arithmetic
+  theorem.** Its self-trust lives entirely in the resource layer (A1, B2).
 - **Right about consistency, wrong about G2.** Stated precisely, the
   motivation correctly explains why λᶜᵉʳᵗ's self-trust is consistent. It is
   wrong to say that G2 is precluded.
@@ -659,3 +665,160 @@ one price for every `n`.
 question to the existence of optimal propositional proof systems, which is
 open. The question: does some single theory prove every theory's `Con(n̄)`
 with proofs of polynomial size?
+
+## Addendum: How Tokens Are Supplied, And Artemov's Infinite-Ranged Consistency (2026-09-29)
+
+> Trusting one costs tokens <- Operationally, how are tokens supplied to the
+> system? Is it per program, per function call, a global variable defined in
+> the source code, or some other method?
+>
+> So at budget n, H° means BF₀(n): "no code of at most n nodes is a
+> refutation". PA proves each BF₀(n) by computation. <- This reads like
+> Artemov's notion of consistency, what Willard calls the "Infinite Ranging"
+> approach.
+>
+> λᶜᵉʳᵗ trades the other way: it keeps all of PA's arithmetic and gains no
+> arithmetic theorem. <- Important to remember/emphasize.
+
+The last point now leads the Summary and `MEMORY.md`.
+
+### B1. How tokens are supplied
+
+**Per program invocation, as linear arguments.** Tokens are never granted
+per function call, and never come from a global in the source. There are
+two entry points, both chosen by whoever runs the program:
+- **A budget.** `(lcert.core/run n form)`, like `certify` for the
+  certificate, type-checks `form` in the context `Θₙ`. There the tokens are
+  variables named `$1 … $n`; evaluation binds them to `n` fresh runtime
+  `Token` objects.
+  - The source spends a token by naming it, as in `(node $3 a l r)`.
+  - It cannot create one: `◇` has no closed terms, and `$k` for `k > n` is
+    an unbound variable.
+  - So the source fixes the least budget it needs. The runner may give
+    more.
+- **A supply.** A closed program (budget 0) of type `Π(s :₁ R). …` is
+  applied to a certificate tree whose nodes carry tokens. The tree is built
+  either:
+  - eagerly, as in Step 4's `supply` helper: the child's certificate, then
+    spare tokens; or
+  - lazily, as `(lcert.eval/lazy-supply N)`. This promises `N` nodes and
+    materializes node `i`, with token `[:lazy sid i]`, only when the
+    program takes the supply apart.
+
+  All the ADR-0143 agents enter this way. The minting agent's certificate
+  declares no tokens; the driver hands it a code list and a supply.
+
+**Inside a run, tokens move only by explicit linear data flow.**
+- A function has tokens only if its caller passes them, as `◇` arguments or
+  as an `R` supply.
+- Unused tokens come back in results. For example
+  `parse : Π(c :ω Syn). R ⊸ R ⊗ R` returns the certificate and the rest of
+  the supply.
+- The usage checker enforces use-at-most-once statically, and the runtime
+  re-checks it (`assert-linear!`).
+
+**At `reflect`, a certificate's tokens are recycled.**
+- The certificate is consumed.
+- Its code is decoded to a derivation over `Θₘ`, and the decoded program
+  runs on `m` of the certificate's own tokens.
+- The other `‖v‖ − m` tokens, at least one by strict overhead, are burned.
+
+**What is global.** The evaluator carries a cap `n`, a bound on the tokens
+in play: `n − ‖v‖ + m` after a reflect under the charged cap. Some dynamic
+variables select the calculus's version: `*charged-cap*`, `*reflect-class*`
+and `*extensions*`. `*materialize-limit*` guards lazy supplies. None of them
+is a source of tokens.
+
+**Where they come from, finally.** From the runner. A real deployment would
+back the root supply by whatever resource it meters, such as memory for
+materialized certificates. A lazy promise costs nothing until a program
+mints from it.
+
+### B2. Artemov's consistency, and Willard's "Infinite-Ranged" exception
+
+**The reading is right.** Willard (LFCS 2020, §1) distinguishes two kinds of
+exception to G2:
+- **His own "Declarative Exceptions".** These are "I am consistent" axioms
+  in systems weak enough to stay consistent. Such systems "can be arranged to
+  prove more Π1 like theorems than Peano Arithmetic".
+- **Artemov's "Infinite-Ranged Exception".** In it, "PA will generate an
+  infinite set of theorems T1, T2, T3 ... where each Ti shows some subset Si
+  of PA is unable to prove 0 = 1", and "an infinite schema of theorems
+  replaces one single unified consistency theorem".
+
+Willard calls the two "nicely compatible": each accepts that G2 "will admit
+no full-scale exceptions". Artemov (arXiv 1902.07404; *J. Logic Comput.*,
+"Serial properties, selector proofs and the provability of consistency")
+treats consistency as a serial property. PA *selector-proves* it: a
+selector yields a proof of each instance, and PA verifies that it does.
+Meanwhile the formula `Con(PA)`, which also covers nonstandard proofs, stays
+unprovable.
+
+`{BF₀(n)}` is such an infinite-ranged family.
+- Each member is PA-provable, and no unified sentence is proved (P5).
+- The slicing differs:
+  - Willard describes Artemov's family by an increasing chain of
+    subtheories `Sᵢ` whose union is PA;
+  - Artemov's scheme is indexed by individual derivations;
+  - `BF₀` is indexed by proof size, Pudlák's finitistic consistency.
+- The three families cover the same thing in the limit: all standard proofs.
+- Slicing by size needs no infinite axiom set. It works for λᶜᵉʳᵗ's finite
+  rule set, where slicing by subtheories would reach the whole calculus at a
+  finite stage.
+
+**What λᶜᵉʳᵗ adds: declarative in form, infinite-ranged in content.** `H` is
+a Willard-style declaration: one constant, stating the calculus's own
+consistency, by name. But its meaning at each budget is one member of the
+infinite-ranged family. That combination explains both halves of the trade:
+- **It keeps PA.** Willard's declarative systems must weaken arithmetic
+  because what they declare is the unified Π₁ sentence. λᶜᵉʳᵗ's declaration
+  never has unified content inside the calculus, so nothing forces
+  weakening.
+- **It gains no arithmetic theorem.** Artemov's PA selector-proves its
+  consistency scheme and is still PA. Each member of `{BF₀(n)}` is already a
+  PA theorem.
+
+**It is like a selector proof with a constant selector.**
+- Artemov's selector returns, for each instance, a proof whose size grows
+  with the instance.
+- λᶜᵉʳᵗ's "selector" is the same term, `λr e. H r e`, at every budget. The
+  instance is chosen by the budget, which is external, and which costs
+  derivation size (R4 Lemma 2.7; A3).
+- The verification that every instance is covered is weakening of the token
+  context, a structural fact.
+
+**Standard proofs only.** Artemov's point is that the formula also speaks of
+nonstandard proofs, and the scheme does not. λᶜᵉʳᵗ enforces that restriction
+by typing:
+- a budget is the length of an actual context, hence standard;
+- at budget `n`, `H°` covers only standard trees of at most `n` nodes;
+- the formula-level statement is `Con′_ω`, which ranges over codes at ω and
+  is unprovable (P5).
+
+Props 4.7 and 4.8 (`Con′ ⊸ H°`, and not conversely) are λᶜᵉʳᵗ's instance of
+"the formula is strictly stronger than the scheme". That phrase is the title
+claim of arXiv 2508.20346, which was not read.
+
+**Reflection is serial too** (my analysis, on paper). For each standard proof
+`p` of `φ`, `Prf(p̄, ⌜φ⌝) → φ` is PA-provable. The serial scheme of local
+reflection is harmless. Willard 2001 Theorem 7.2's diagonal needs the formula
+version, instantiated at a proof the argument itself produces. That is the
+step §3.2 showed affinity blocks. So λᶜᵉʳᵗ₁'s resourced `reflect` behaves as
+an internalized *serial* reflection principle, which is why it can hold at
+every closed reflect-free type.
+
+**The verdict on Definition 3.4, refined.** λᶜᵉʳᵗ meets the letter of
+`Willard2016` Definition 3.4: one theorem, `H°`, states the system's
+consistency, and the system is consistent. But the content of that theorem
+is Artemov's kind, not Willard's. Taxonomy:
+
+| | Arithmetic | Self-consistency content | Where it lives |
+| --- | --- | --- | --- |
+| Willard, declarative (`IS(A)`) | weakened (no total multiplication) | one Π₁ sentence, plus `Con(A)` from Group-2 | an axiom |
+| Artemov, infinite-ranged (PA) | all of PA | a scheme; no unified sentence | meta-level selector proofs |
+| λᶜᵉʳᵗ | all of PA; **gains no arithmetic theorem** | a scheme indexed by budget; unified only in the metatheory | one internal constant, usable at runtime (`reflect`) |
+
+**Sources.** Willard's words are quoted from the corpus text of LFCS 2020
+(`nachlass/codification/sources-text/willard2020-lfcs.txt`). Artemov's
+notions come from web-search summaries of his papers; the papers themselves
+were not read here, because `arxiv.org` is blocked by the egress policy.

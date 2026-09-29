@@ -1,7 +1,22 @@
 # Memory
 
-## 2026-09-28 Is λᶜᵉʳᵗ Self-Justifying, And Why
+## 2026-09-28/29 Is λᶜᵉʳᵗ Self-Justifying, And Why
 
+- **Remember and emphasize (the user's flag): λᶜᵉʳᵗ trades the other way
+  from Willard. It keeps all of PA's arithmetic and gains no arithmetic
+  theorem.** Willard's declarative systems give up total multiplication and
+  gain Π₁ theorems beyond PA (`IS(PA)` ⊢ `Con(PA)`, and their own
+  consistency). λᶜᵉʳᵗ's self-trust lives entirely in the resource layer.
+- `H` is declarative in form (Willard's ⊕, by name) but infinite-ranged in
+  content: at budget n it means BF₀(n). That is Artemov's kind of exception
+  (a scheme, selector-proved; Willard LFCS 2020 calls it "Infinite-Ranged"),
+  sliced by proof size, with a constant selector and standard proofs only.
+  This is why it keeps PA and gains nothing arithmetic.
+- Tokens are supplied per program invocation, never per call and never by a
+  global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
+  closed program receives a supply (an eager tree, or `lazy-supply N`).
+  Inside a run they move only as linear arguments and results. `reflect`
+  recycles `m` of the certificate's tokens and burns the rest.
 - The motivation, that the resource discipline makes self-justification
   possible, is right for reflection: with reusable proofs (free codes, or
   certificates at ω) reflection at the Gödel type is inconsistent by

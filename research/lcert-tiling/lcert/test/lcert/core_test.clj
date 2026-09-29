@@ -1,13 +1,23 @@
 (ns lcert.core-test
   "End-to-end tests of the public API, and executable versions of results in
   R4-metatheory.md: Proposition 4.10 (H° from H₁ at a constant budget, from
-  review R4-02), the definable destructor of §4.7 (review R4-03), and
-  Proposition 4.9 at depth 0 (bounded code consistency with no tokens)."
+  review R4-02), the definable destructor of §4.7 (review R4-03),
+  Proposition 4.9 at depth 0 (bounded code consistency with no tokens), and
+  the form of H° that Addendum D1 of the 2026-09-28 self-justification note
+  relies on (one sentence, one term, at every budget)."
   (:require [clojure.test :refer [deftest is testing]]
             [lcert.core :as lc]
             [lcert.examples :as ex]
             [lcert.eval :as ev]
-            [lcert.kernel :as k]))
+            [lcert.kernel :as k]
+            [lcert.syntax :as s]
+            [lcert.typing :as t]))
+
+(defn- rejects?
+  "True iff checking `form` at budget n raises a type error."
+  [n form]
+  (try (t/check-top n (s/parse-term (s/token-scope n) form)) false
+       (catch clojure.lang.ExceptionInfo e (= :lcert/type-error (:type (ex-data e))))))
 
 (deftest the-api
   (testing "certify a closed program, then check its certificate"
@@ -49,6 +59,35 @@
     (let [{:keys [type budget]} (lc/certify 0 (ex/bounded-con 0))]
       (is (= 0 budget))
       (is (= (ex/bounded-con-type 0) type)))))
+
+;; Artemov's consistency scheme, regrouped by proof size, is Pudlák's family
+;; Con(n); H° at budget n has that content. What differs is form: H° is ONE
+;; sentence, proved by ONE term at every budget, whose proof quantifier ranges
+;; over certificates held. These assertions pin the three facts the note's
+;; Addendum D1 uses: the same term and type at every budget, with only the
+;; certificate growing; no free-code (usage-ω, Syn) variant; no second use of
+;; one held certificate. They pin existing behaviour (green when written).
+(deftest h-is-one-sentence-at-every-budget
+  (let [h '(fn [r 1 R] (fn [e 1 (T (chk (print r) c-bot))] (H r e)))
+        h-type (s/parse-type [] '(Pi [r 1 R] (-o (T (chk (print r) c-bot)) Void)))
+        certs (for [n [0 1 5 40]] (assoc (lc/certify n h) :n n))]
+    (testing "the identical term proves the identical type at budgets 0, 1, 5 and 40"
+      (doseq [{:keys [n type budget]} certs]
+        (is (= h-type type) (str "type at budget " n))
+        (is (= n budget) (str "declared budget at budget " n))))
+    (testing "only the certificate grows, since E3 writes the token context out"
+      (is (apply < (map :nodes certs)))
+      (is (every? #(> (:nodes %) (:n %)) certs))))
+  (testing "the bound cannot be dropped: the free-code (usage-ω, Syn) variant is rejected"
+    (doseq [n [0 40]]
+      (is (rejects? n '(fn [c w Syn] (fn [e 1 (T (chk c c-bot))] (H c e)))))))
+  (testing "one held certificate is spent once: control accepted, second use rejected"
+    (is (not (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) c-bot))]
+                                        (fn [f 1 (T (chk (print r) c-bot))]
+                                          (pair (Sigma [x 1 Void] Unit) (H r e) star)))))))
+    (is (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) c-bot))]
+                                   (fn [f 1 (T (chk (print r) c-bot))]
+                                     (pair (Sigma [x 1 Void] Void) (H r e) (H r f)))))))))
 
 (deftest parsing-a-runtime-code-into-a-certificate
   (testing "review RR2-10: a typed parser threads a supply of tokens through a code"

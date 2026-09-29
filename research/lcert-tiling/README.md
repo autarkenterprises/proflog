@@ -56,10 +56,13 @@ proof system, and does not help successors that strengthen it.
 whether the calculus is self-justifying, and whether its resource discipline
 is the reason. It also corrects Step 4: the soundness of `ax-con` is open,
 not "true by T1". Its main finding: **λᶜᵉʳᵗ keeps all of PA's arithmetic
-and gains no arithmetic theorem.** Its self-trust is a budget-indexed,
-Artemov-style consistency scheme in the resource layer. That is the
-opposite trade from Willard's systems, which weaken the arithmetic to prove
-their own consistency.
+and gains no arithmetic theorem.** At each budget, its self-trust has the
+content of Artemov's consistency scheme regrouped by proof size. Its form is
+one internal sentence, `H°`, proved by one term at every budget, whose proof
+quantifier ranges over certificates held (the note's Addendum D1; pinned by
+`lcert.core-test/h-is-one-sentence-at-every-budget`). That is the opposite
+trade from Willard's systems, which weaken the arithmetic to prove their own
+consistency.
 
 The calculus these steps propose, λᶜᵉʳᵗ₁, is the vendored one run with
 `lcert.syntax/*extensions*` `#{:caseR}` (the default),

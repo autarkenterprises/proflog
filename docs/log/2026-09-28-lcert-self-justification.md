@@ -29,7 +29,18 @@ it exposed an error in ADR-0143's Step 4, which §6 records and corrects.
   multiplication total, and they prove Π₁ theorems that PA does not
   (`IS(PA)` proves `Con(PA)`, and its own consistency). **λᶜᵉʳᵗ trades the
   other way: it keeps all of PA's arithmetic and gains no arithmetic
-  theorem.** Its self-trust lives entirely in the resource layer (A1, B2).
+  theorem.** Its self-trust lives entirely in the resource layer (A1, B2,
+  D1).
+- **Artemov, re-checked against his papers (D1).**
+  - At each budget, `H°` has the content of Artemov's consistency scheme
+    regrouped by proof size, which is Pudlák's `Con(n)`. The indexing is no
+    difference.
+  - The difference is form. `H°` is one internal sentence whose proof
+    quantifier ranges over certificates held, and whose bound is fixed by
+    the runner's tokens rather than written into the proof.
+  - That is what lets a parent trust a proof its child has not produced
+    yet. Artemov's uniform sentence is about provability only, and as a
+    formal notion it is trivially available (Gadsby, Prop. 4.1).
 - **Right about consistency, wrong about G2.** Stated precisely, the
   motivation correctly explains why λᶜᵉʳᵗ's self-trust is consistent. It is
   wrong to say that G2 is precluded.
@@ -775,6 +786,15 @@ mints from it.
 
 ### B2. Artemov's consistency, and Willard's "Infinite-Ranged" exception
 
+*Corrected in place, 2026-09-29 (Addendum D1), after reading Artemov's
+papers and Gadsby's.* This section located the difference between λᶜᵉʳᵗ and
+Artemov in the wrong place.
+- Indexing by budget is only a regrouping of the same scheme.
+- The difference is the form of `H°`: one internal sentence whose proof
+  quantifier ranges over certificates held, and whose bound is fixed by the
+  runner rather than written into the proof.
+- The table and three paragraphs below are marked where they changed.
+
 **The reading is right.** Willard (LFCS 2020, §1) distinguishes two kinds of
 exception to G2:
 - **His own "Declarative Exceptions".** These are "I am consistent" axioms
@@ -794,13 +814,16 @@ Meanwhile the formula `Con(PA)`, which also covers nonstandard proofs, stays
 unprovable.
 
 `{BF₀(n)}` is such an infinite-ranged family.
-- Each member is PA-provable, and no unified sentence is proved (P5).
+- Each member is PA-provable. The unrestricted sentence `Con′_ω` is not
+  proved (P5). *(Corrected: `H°` itself is one sentence, proved once; D1.)*
 - The slicing differs:
   - Willard describes Artemov's family by an increasing chain of
     subtheories `Sᵢ` whose union is PA;
   - Artemov's scheme is indexed by individual derivations;
   - `BF₀` is indexed by proof size, Pudlák's finitistic consistency.
 - The three families cover the same thing in the limit: all standard proofs.
+  *(Added: they are one family regrouped, so the slicing is no difference
+  between the approaches; D1.)*
 - Slicing by size needs no infinite axiom set. It works for λᶜᵉʳᵗ's finite
   rule set, where slicing by subtheories would reach the whole calculus at a
   finite stage.
@@ -817,11 +840,16 @@ infinite-ranged family. That combination explains both halves of the trade:
   consistency scheme and is still PA. Each member of `{BF₀(n)}` is already a
   PA theorem.
 
-**It is like a selector proof with a constant selector.**
+~~It is like a selector proof with a constant selector.~~ *Corrected (D1):
+the analogy hid the point.* In PA, a selector whose every output is one
+fixed proof, instantiated, is a proof of `Con_PA` itself: Artemov's
+"strongly provable".
 - Artemov's selector returns, for each instance, a proof whose size grows
   with the instance.
-- λᶜᵉʳᵗ's "selector" is the same term, `λr e. H r e`, at every budget. The
-  instance is chosen by the budget, which is external, and which costs
+- λᶜᵉʳᵗ uses the same term, `λr e. H r e`, at every budget. It can do so
+  only because `H°`'s meaning moves with the budget, and no rule quantifies
+  over budgets.
+- The instance is chosen by the budget, which is external, and which costs
   derivation size (R4 Lemma 2.7; A3).
 - The verification that every instance is covered is weakening of the token
   context, a structural fact.
@@ -836,15 +864,21 @@ by typing:
 
 Props 4.7 and 4.8 (`Con′ ⊸ H°`, and not conversely) are λᶜᵉʳᵗ's instance of
 "the formula is strictly stronger than the scheme". That phrase is the title
-claim of arXiv 2508.20346, which was not read.
+claim of arXiv 2508.20346. *(Read in D1: Artemov compares the formula with
+the* set *of sentences, and his Proposition 2 shows that the formalized
+"every member holds" is PA-equivalent to `Con_PA`.)*
 
-**Reflection is serial too** (my analysis, on paper). For each standard proof
+**Reflection is serial too** (my analysis, on paper; *a known result:
+Gadsby's Example 3.5, after Gödel and Feferman 1962, shows that the explicit
+reflection scheme is even selector-provable; D1*). For each standard proof
 `p` of `φ`, `Prf(p̄, ⌜φ⌝) → φ` is PA-provable. The serial scheme of local
 reflection is harmless. Willard 2001 Theorem 7.2's diagonal needs the formula
 version, instantiated at a proof the argument itself produces. That is the
 step §3.2 showed affinity blocks. So λᶜᵉʳᵗ₁'s resourced `reflect` behaves as
 an internalized *serial* reflection principle, which is why it can hold at
-every closed reflect-free type.
+every closed reflect-free type. *(Clarified, D1: it internalizes explicit
+reflection as one sentence whose proof quantifier ranges over certificates
+held, which is neither the scheme nor the formula.)*
 
 **The verdict on Definition 3.4, refined.** λᶜᵉʳᵗ meets the letter of
 `Willard2016` Definition 3.4: one theorem, `H°`, states the system's
@@ -854,13 +888,19 @@ is Artemov's kind, not Willard's. Taxonomy:
 | | Arithmetic | Self-consistency content | Where it lives |
 | --- | --- | --- | --- |
 | Willard, declarative (`IS(A)`) | weakened (no total multiplication) | one Π₁ sentence, plus `Con(A)` from Group-2 | an axiom |
-| Artemov, infinite-ranged (PA) | all of PA | a scheme; no unified sentence | meta-level selector proofs |
-| λᶜᵉʳᵗ | all of PA; **gains no arithmetic theorem** | a scheme indexed by budget; unified only in the metatheory | one internal constant, usable at runtime (`reflect`) |
+| Artemov, infinite-ranged (PA) | all of PA | closed instances `¬n̄:⊥`; the only uniform sentence is about provability, `∀x[t(x):¬x:⊥]` | a PA proof of that sentence (a selector proof) |
+| λᶜᵉʳᵗ | all of PA; **gains no arithmetic theorem** | per budget, the same instances regrouped (`Con_λ(n)`); in form, one sentence `H°` whose proof quantifier ranges over certificates held | one internal constant, usable at runtime (`reflect`); "at every budget" only in the metatheory |
+
+*Corrected table (D1).* It had given Artemov "a scheme; no unified sentence;
+meta-level selector proofs" and λᶜᵉʳᵗ "a scheme indexed by budget; unified
+only in the metatheory". Both rows misplaced the difference.
 
 **Sources.** Willard's words are quoted from the corpus text of LFCS 2020
 (`nachlass/codification/sources-text/willard2020-lfcs.txt`). Artemov's
 notions come from web-search summaries of his papers; the papers themselves
 were not read here, because `arxiv.org` is blocked by the egress policy.
+*(Superseded later the same day: with network access granted, all three of
+Artemov's papers and Gadsby's were read; D1.)*
 
 ## Addendum: Pudlák Read In Full, Pudlák And Willard, And A Machine Model (2026-09-29)
 
@@ -1112,3 +1152,346 @@ three parts:
 3. cross-validation of token accounts, node for node.
 
 It awaits the user's go-ahead.
+
+## Addendum: Artemov Re-Checked, Sequential Theories, Herbrand Consistency (2026-09-29)
+
+> Double check your assessment of the Artemov <> lambda-cert relationship,
+> and explain it better - "a scheme" and "a scheme indexed by a budget" do
+> not seem different.
+>
+> What is a "sequential" theory?
+>
+> How does Herbrand consistency differ from consistency statements used thus
+> far, like Willard's "no simultaneous proofs of p and ~p"?
+
+**Read for this addendum.**
+- Artemov:
+  - "The Provability of Consistency" (arXiv 1902.07404v5, 2020);
+  - "Serial Properties, Selector Proofs, and the Provability of
+    Consistency" (arXiv 2403.12272; *J. Logic Comput.* 35(3), 2025);
+  - "Consistency formula is strictly stronger in PA than PA-consistency"
+    (arXiv 2508.20346, 2025).
+- Gadsby, "Properties of Selector Proofs" (arXiv 2509.19373, 2025).
+- Willard: 2001 *JSL* §1, 2005 *JSL* §1, 2009 *Inf. Comput.* §§1–2, and
+  LFCS 2020.
+- Pudlák 1986 §5.
+
+### D1. Artemov and λᶜᵉʳᵗ, re-checked
+
+**The objection is right: indexing by budget is only a regrouping.**
+- Take Artemov's instances `¬d:⊥`, one per derivation `d`, and group them
+  by the size of `d`. Group `n` is Pudlák's `Con(n)`: no refutation of at
+  most `n` symbols.
+- Willard's description of Artemov groups the same instances by finite
+  subtheory (LFCS 2020 §1). That is PA's reflexivity.
+- `H°` at budget `n` means `BF₀(n)`, which is `Con_λ(n)` for λᶜᵉʳᵗ's
+  checker.
+
+These are one family of facts, sliced three ways. B2's table put "a scheme"
+and "a scheme indexed by budget" in different rows, as if that were the
+difference. It is not, and B2 is corrected in place.
+
+**Where the difference is: the form of the sentence, and who fixes the
+bound.** There are four ways to state a theory's own consistency, by where
+the quantifier over proofs sits:
+
+| Form | Example | Quantifier over proofs | Bound fixed by | What one proof covers | Provable? |
+| --- | --- | --- | --- | --- | --- |
+| Unrestricted sentence | `Con_PA = ∀x ¬x:⊥`; λᶜᵉʳᵗ's `Con′_ω` | inside the sentence, over every code | nobody: there is no bound | every proof, usable at a variable | no (G2; P5) |
+| Scheme (Artemov) | `{¬0:⊥, ¬1:⊥, …}`, with PA ⊢ `∀x[t(x):¬x:⊥]` | none in the instances; `∀x` only under provability | the prover, who names a numeral per instance | the *provability* of every instance | yes |
+| Bounded sentence (Pudlák) | `Con(n̄) = ∀x(‖x‖ ≤ n̄ → ¬x:⊥)` | inside, up to a numeral | the prover, in the sentence's text | proofs up to `n̄`; a new proof per `n̄`, of at least `n^ε` symbols | yes, each `n` |
+| Resource-bounded sentence (λᶜᵉʳᵗ) | `H° = Π(r :₁ R). T(chk′ (print r) c⊥) ⊸ 0` | inside, over certificates held | the runner, by the tokens it supplies | every certificate held, at any budget, usable at a variable | yes (T2), and consistently (T1) |
+
+The last three rows have the same content at each size. They differ in form,
+and form decides what a proof can be used for.
+
+**The fourth row in first-order arithmetic.** It is missing or costly.
+- **Generalization.** A PA proof with a free variable `x` is a proof of its
+  universal closure. So a PA proof that uses consistency at a proof not
+  known in advance proves `∀x`, which G2 blocks (and Löb blocks, for
+  reflection).
+- **Artemov** avoids this by keeping every instance closed.
+- **Pudlák** bounds the variable by a numeral. The proof must commit to
+  `n̄`, and grows with it.
+- **A definable cut** is the one-sentence version, Willard's equation (3):
+  `∀y(Tang(y) ⊃ ¬Prf(⌜0 = 1⌝, y))`.
+  - For Hilbert-style proofs, Pudlák's Theorem 4.3(1) rules it out.
+  - It exists only for Herbrand consistency (Nelson; Pudlák 1985; D3).
+- **λᶜᵉʳᵗ's budget** is a bound that is neither a numeral in the sentence
+  nor a definable predicate. Entering it costs more than `n` nodes, where a
+  numeral enters a cut in `poly(|n|)` symbols (C3).
+
+**Checked on the vendored implementation**, and pinned as the test
+`lcert.core-test/h-is-one-sentence-at-every-budget` (2026-09-29; green when
+written, since it pins existing behaviour). A hypothesis `r :₁ R` does not
+generalize to `Π(c :ω Syn)`:
+- **The same term at every budget.** The identical closed term
+  `λr e. H r e` checks at the identical type `H°` at budgets 0, 1, 5 and
+  40. Its certificate grows: 148, 160, 208 and 628 nodes, which is
+  148 + 12n, because E3 writes the token context out.
+- **No free-code variant.** `λ(c :ω Syn) e. H c e` is rejected at budgets 0
+  and 40.
+- **No reuse.** A term that applies `H` twice to one held certificate is
+  rejected. Its one-use control is accepted.
+
+So one derivation is valid at every budget, and its meaning at budget `n` is
+`Con_λ(n)`. The calculus still cannot say "at every budget". The budget is
+the length of the token context, not a term, and the sentence that would say
+it, `Con′_ω`, is underivable (P5). The nearest familiar device is typical
+ambiguity: a definition valid at every universe level, in a system with no
+quantifier over levels.
+
+**What the form buys: trust in a proof that does not exist yet.** Tiling
+asks a parent to prove, before its child exists: "whatever certificate my
+child hands me, if it checks as a proof of `Safe`, then `Safe`."
+- **Artemov's scheme cannot do this.**
+  - An instance names one numeral, a proof already known, and a known
+    proof can simply be checked.
+  - The uniform sentence `∀x[t(x):φ(x)]` gives `∀x □φ(x)`, not `∀x φ(x)`.
+  - Even the explicit reflection scheme `{n:A → A}` is selector-provable
+    (Gadsby, Example 3.5, after Gödel's Zilsel lecture and Feferman 1962).
+    Turning its `□` into truth at a variable is the uniform reflection that
+    Löb's theorem forbids.
+- **Pudlák's bounded sentences can, up to `n̄`.** The parent's proof must
+  contain `n̄`, and must be redone for a larger child. For consistency
+  itself, Pudlák's bound makes that proof at least `n^ε` symbols.
+- **A λᶜᵉʳᵗ parent can.**
+  - Its agent type is `Π(s :₁ R). …`, applied at run time to the child's
+    certificate (ADR-0143 Step 2; B1).
+  - The same derivation is correct whatever budget the runner supplies.
+  - The cost is paid at run time, in tokens: at least `n` for a
+    certificate of `n` nodes (A3).
+
+**How much Artemov's formal notion says: less than B2 implied.**
+- **Gadsby's Prop. 4.1** (after Ignjatović 1994). For `F` provably `Δ₁`,
+  `S ⊢ ∀x □_T F(x) ↔ (Con(T) → ∀x F(x))`. At `F(x) = ¬x:⊥` the right side
+  is `Con(T) → Con(T)`. So every theory in this setting formally
+  selector-proves its own consistency scheme.
+- **Artemov concedes the point.** The selector "if `x` proves `⊥`, derive
+  `¬x:⊥` from `⊥`; otherwise compute" fits the definition, and "is not a
+  consistency proof" (1902.07404 §4; 2403.12272 §5.2).
+- **His claim is contentual.** The partial-truth selector, with an
+  invariant `Tr_n` chosen per derivation, is a genuine consistency argument,
+  formalized in PA. Gadsby (Remark 4.2) keeps the distinction.
+
+So the relation is not "the same thing, indexed differently".
+- Artemov's uniform sentence is weak, and trivially available.
+- `H°` is a non-trivial rule, and its consistency needed T1.
+- Its free-code forms are worse off. For reflection at general types
+  (λᶜᵉʳᵗ₁'s `reflect`), the free-code form is inconsistent (§3.1). For
+  bare consistency, the free-code form is `P-con`'s axiom `Con′_ω`, whose
+  consistency is open (§3.4, §6).
+
+**What the texts confirm.**
+1. **No arithmetic theorem gained.** Artemov: "Proving serial properties
+   does not add any new theorems to PA" (2403.12272, Corollary 2).
+   λᶜᵉʳᵗ: §4.2.
+2. **No trust in a stronger successor.**
+   - Kurahashi and Sinclaire: PA cannot selector-prove
+     `Con(PA + Con_PA)` (2403.12272 §4).
+   - Gadsby: `T` cannot selector-prove the consistency of any theory
+     containing `T + Con(T)`.
+   - λᶜᵉʳᵗ: Step 4.
+
+   Artemov says his results "eliminate such 'reflection towers'" (§4.1).
+   He means towers built to certify a fixed theory. The Löbian tower is the
+   tower of strengthenings, and it remains in both.
+3. **The all-instances statement is the unprovable one.**
+   - Artemov's own Proposition 2 (2508.20346): the formalized "every member
+     of the scheme holds", `∀y(S(y) → Tr₁(y))`, is PA-equivalent to
+     `Con_PA`. His "strictly stronger" compares the formula with the *set*
+     of sentences.
+   - In λᶜᵉʳᵗ, "at every budget" is `Con_λ`, reached only in the
+     metatheory (A1).
+4. **Actual proofs only.** Artemov locates G2's bite in nonstandard
+   "proofs", which the formula's `∀x` reaches (1902.07404 §2.2; 2508.20346
+   §2.1). He keeps the instances at numerals. λᶜᵉʳᵗ keeps its quantifier
+   inside the sentence, but restricted to certificates that are present.
+
+**Where λᶜᵉʳᵗ differs in status.** Artemov *derives* his scheme in PA from
+PA's axioms. λᶜᵉʳᵗ *postulates* `H`, and proves its consistency (T1)
+outside, in a metatheory stronger than PA.
+- In how it obtains self-trust, λᶜᵉʳᵗ is declarative, like Willard.
+- In content per budget it is finitistic, like Pudlák, and like Artemov
+  regrouped.
+- Its form, one resource-bounded sentence, is its own.
+
+**An open link, stated exactly.** By Ignjatović's form of Gadsby's Prop.
+4.1, PA selector-proves λᶜᵉʳᵗ's consistency scheme iff
+`S ⊢ Con(PA) → Con_λ`. §4.2's translation is syntactic, and T1's budget
+descent is an induction PA can run, so I expect this holds. It has not been
+checked.
+
+**What B2 got wrong** (each point corrected in place):
+- **The Artemov row.** The table said "no unified sentence" and "meta-level
+  selector proofs". In fact PA proves one sentence, `∀x[t(x):¬x:⊥]`
+  (1902.07404 eq. (4)). It is an object-level theorem, about provability.
+- **The λᶜᵉʳᵗ row.** The table said "a scheme indexed by budget; unified
+  only in the metatheory". `H°` is one internal sentence. Only the
+  all-budgets statement is metatheoretic.
+- **"A selector proof with a constant selector"** hid the point. In PA, a
+  selector whose every output is one fixed proof, instantiated, is a proof
+  of `Con_PA`: Artemov's "strongly provable".
+- **"Reflection is serial too (my analysis)"** is a known result.
+- **"The papers themselves were not read"** is superseded.
+
+### D2. Sequential theories
+
+**Definition** (Pudlák 1986 §5, stated as equivalent to his 1985 original).
+`T` is sequential if:
+1. `T` has equality;
+2. `Q` is interpretable in `T` relativized to some formula `N(x)`, a domain
+   of "numbers" inside `T`'s universe;
+3. some formula `x[t] = y` defines a total function, "the `t`-th element of
+   `x`", with `T ⊢ ∀x,y,t ∃z (N(t) → (∀s < t (z[s] = x[s]) ∧ z[t] = y))`.
+
+Pudlák glosses (3): "for a given t we can always replace the t-th element by
+an arbitrary one and all the elements which precede it will be preserved."
+The 2017 survey: theories "in which one can code any finite sequence of
+elements of the universe". The elements are arbitrary objects of the
+universe, sets in a set theory, not only numbers.
+
+**Examples** (Pudlák):
+- PA, where `x[t]` is the exponent of the `t`-th prime in `x`;
+- GB, `IΔ₀`, `IΔ₀ + exp`, ZF, Alternative Set Theory.
+
+Willard 2001 §1 adds `ACA₀`.
+
+**Non-examples.**
+- Condition 2 makes every sequential theory interpret `Q`, so every
+  sequential theory is essentially undecidable. A theory with a decidable
+  consistent extension is therefore not sequential: pure predicate logic,
+  Presburger arithmetic, dense linear orders.
+- `Q` itself is the standard non-example, though it interprets sequential
+  theories on a cut. That `Q` is not sequential is from the literature
+  (Jeřábek 2012, recalled rather than re-read here), which also shows that
+  the induction-free `PA⁻` is sequential.
+
+**Why it matters in this thread.** A sequence of arbitrary objects is an
+assignment for a satisfaction predicate. So sequentiality gives partial
+truth definitions `Sat_n` of polynomial length. Hence:
+- **Pudlák's upper bound** (Theorems 5.4 and 5.5; survey Theorem 3.1(2)). A
+  finitely axiomatized sequential theory proves each `Con(n̄)` in
+  polynomially many symbols. With the C-rule, linearly.
+- **Pudlák 1985**, as Willard reports it. Finitely axiomatized sequential
+  theories prove their own Herbrand consistency on a definable cut (C3).
+- **Artemov's selector** uses the same device: `Tr_n` for `Σ_n` formulas,
+  chosen per derivation.
+
+The *lower* bound (Theorem 3.1) needs only `Q ⊆ A`, not sequentiality.
+
+**Where λᶜᵉʳᵗ and Willard sit.**
+- **λᶜᵉʳᵗ** is a type theory. The notion applies to its arithmetic, which
+  is PA's, and PA is sequential. Its checker is a finite rule set, like a
+  finitely axiomatized theory. So slicing by size (Pudlák) is the slicing
+  that fits it (B2).
+- **Willard's systems** do not contain `Q`, since they do not prove
+  multiplication total. That is how they fall outside Theorem 3.1. Whether
+  any of them is sequential was not checked.
+
+### D3. Herbrand consistency, and the consistency statements used so far
+
+**Herbrand consistency.**
+- **Skolemize.** Each axiom of `T` becomes a universal sentence `∀x̄ φ(x̄)`.
+  Here `φ` is quantifier-free, in a language enriched with Skolem
+  functions.
+- **Herbrand's theorem.** `T` is inconsistent iff some finite set of ground
+  instances `φ(τ̄)` is propositionally unsatisfiable. The survey (§4.3)
+  states this for universal sentences.
+- **`HCon(T)`** says that every finite set of instances has a satisfying
+  truth assignment.
+- **No inference rules.** A Herbrand refutation uses no inference rule at
+  all: only substitution into axioms, and propositional unsatisfiability.
+  It is the extreme cut-free notion.
+
+**Two independent axes.** The consistency statements in this note differ
+along two axes.
+- **The deductive apparatus: what counts as a proof.**
+  - Hilbert-style, where modus ponens is a cut.
+  - Or cut-free: semantic tableaux, or Herbrand.
+- **The shape of the forbidden event.** Willard names the levels (2005
+  *JSL* §1):
+  - **Level(0-):** "there exists no proof of 0=1".
+  - **Level(n):** there is no `Π*ₙ` sentence `Υ` such that the system
+    "supports simultaneous proofs of both Υ and ¬Υ".
+
+  Herbrand's native shape is a third: no unsatisfiable finite set of
+  instances.
+
+So Willard's "no two simultaneous proofs" is not an alternative to Herbrand
+consistency. It is a shape, instantiated per apparatus, and Herbrand
+deduction is one of the apparatuses he uses.
+- The Group-3 axiom of `IS_D(β)` asserts Level-1 consistency under `D`
+  (LFCS 2020).
+- His 2001 systems verify their "Semantic Tableaux, Herbrand, and …"
+  consistency.
+
+**Equivalent when true, separable when proved.** Willard: "All the
+definitions of consistency, from Level(0-) up to Level(n) for any n, are
+equivalent to each other under strong enough models of arithmetic. However,
+many weak axiom systems do not have a mathematical strength to recognize
+this equivalence." The separations:
+- **Level(1) implies Level(0-), cheaply.** A proof of `0 = 1` pairs with
+  the proof of `¬(0 = 1)` that every such system has.
+- **The converse is the hard direction.** Combining proofs of `Υ` and `¬Υ`
+  into a refutation is a cut on `Υ`.
+  - A cut-free apparatus must eliminate that cut, at exponential cost or
+    worse.
+  - A Hilbert apparatus needs two modus ponens steps, but the system must
+    still know that the combined proof exists.
+
+  In a weak, cut-free setting, Level(1) is therefore the stronger
+  self-assertion. Willard counts reaching it as an improvement: "a Level(1)
+  (rather than Level(0-)) definition" (2005).
+- **Hilbert against Herbrand.**
+  - A Herbrand refutation converts cheaply into a Hilbert one.
+  - The converse is cut elimination, which is nonelementary: "the
+    transformation of standard proofs into sets of terms that witness
+    provability in Herbrand's theorem is nonelementary" (survey §4.3).
+
+  So `Con → HCon` is provable in weak theories, and `HCon → Con` only in
+  theories that prove Herbrand's theorem. The finite versions, `Con(n)` and
+  "no Herbrand refutation of size `n`", are "essentially different".
+- **The axiomatization.** `HCon` depends on the chosen axioms, since
+  Skolemization and term growth follow their syntax.
+  - Willard 2009: Kołodziejczyk observed that `IΣ₀`'s axiomatizations Ax-1
+    and Ax-2 (unbounded and bounded induction schemes) need not behave
+    alike.
+  - Willard builds a third, Ax-3, an extension of which "is capable of
+    recognizing its own Herbrand consistency".
+  - This evasion "does not generalize for semantic tableaux deduction".
+
+**Why it matters for G2's reach** (Willard 2001 §1; 2009 §1).
+- **Hilbert.**
+  - Pudlák: no extension of `Q` verifies its own Hilbert consistency.
+  - Solovay extends this to essentially every system that recognizes
+    successor as total.
+- **Herbrand.**
+  - Adamowicz and Zbierski: `IΣ₀ + Ω₁` cannot verify its Herbrand
+    consistency.
+  - Paris and Wilkie (1981) asked whether `IΣ₀` can. Willard's Ax-3
+    answers "yes, for one axiomatization".
+  - Nelson (`Q`) and Pudlák (finitely axiomatized sequential theories)
+    obtain it on a definable cut: Willard's equation (3).
+- **Tableaux.**
+  - Willard's positive results use Level(1) for `Π*₁` sentences, with
+    addition total.
+  - His negative results cover the `Tab-Σ*₂` and `Tab-Π*₂` methods, even at
+    Level(0-) (2005 *JSL* §1).
+
+**Where each statement in this note sits.**
+
+| Statement | Apparatus | Shape | Range of the proof quantifier |
+| --- | --- | --- | --- |
+| `Con_PA`; Artemov's `x:⊥` | Hilbert | Level(0-) | every code (the scheme: numerals) |
+| Pudlák's `Con_A(n̄)` | Hilbert | Level(0-) | size at most `n̄` |
+| Nelson and Pudlák; Willard's eq. (3) | Herbrand | Level(0-) | a definable cut |
+| Willard's `IS_D(β)`, Group-3 | `D`: tableaux, or Herbrand | Level(1), for `Π*₁` | every code |
+| λᶜᵉʳᵗ's `Con′_ω`, `H°`, `BF₀(n)` | λᶜᵉʳᵗ's `Check`: natural deduction with application, so with cut | Level(0-): a derivation of `0` | every code; certificates held; size at most `n` |
+
+λᶜᵉʳᵗ also has a Level(1)-shaped constant, `H₁`: two held certificates, of
+`c` and of `neg c`, give `0` (typing test `self-reference-constants`).
+
+λᶜᵉʳᵗ uses neither of Willard's levers, weak arithmetic or a cut-free
+checker. Its lever is a third one, the resource discipline, which bounds the
+proof quantifier by what is held.

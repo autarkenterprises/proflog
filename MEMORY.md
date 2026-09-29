@@ -8,10 +8,34 @@
   gain Π₁ theorems beyond PA (`IS(PA)` ⊢ `Con(PA)`, and their own
   consistency). λᶜᵉʳᵗ's self-trust lives entirely in the resource layer.
 - `H` is declarative in form (Willard's ⊕, by name) but infinite-ranged in
-  content: at budget n it means BF₀(n). That is Artemov's kind of exception
-  (a scheme, selector-proved; Willard LFCS 2020 calls it "Infinite-Ranged"),
-  sliced by proof size, with a constant selector and standard proofs only.
-  This is why it keeps PA and gains nothing arithmetic.
+  content: at budget n it means BF₀(n) = `Con_λ(n)`. Per size, that is
+  Artemov's consistency scheme regrouped (Pudlák's `Con(n)`), which is why
+  it keeps PA and gains nothing arithmetic.
+- **Corrected 2026-09-29 (note Addendum D1):** "a scheme indexed by budget"
+  is *not* the difference from Artemov, since regrouping is no difference.
+  The difference is form.
+  - `H°` is one internal sentence, proved by one term at every budget.
+  - Its proof quantifier ranges over certificates held, and its bound is
+    fixed by the runner's tokens, not written into the proof.
+  - So it is usable at a certificate that does not exist yet, which tiling
+    needs.
+  - Artemov's only uniform sentence, `∀x[t(x):¬x:⊥]`, is about
+    provability. As a formal notion it is trivial: Gadsby Prop. 4.1 gives
+    `∀x□F ↔ (Con(T) → ∀xF)`.
+  - First-order logic's generalization rule leaves only closed instances
+    (Artemov), numeral bounds (Pudlák), or a definable cut (Herbrand
+    consistency only).
+  - Pinned by `lcert.core-test/h-is-one-sentence-at-every-budget`.
+- Consistency statements vary on two axes (note D3):
+  - apparatus: Hilbert (with cut), or cut-free (tableaux, Herbrand);
+  - shape: Willard's Level(0-) "no proof of 0=1", or his Level(n) "no
+    simultaneous proofs of Υ and ¬Υ" for Π*ₙ.
+
+  All are equivalent when true, and separable in weak theories: HCon → Con
+  needs cut elimination, which is nonelementary. λᶜᵉʳᵗ's `Check` is a
+  with-cut apparatus, and its statements are Level(0-). Sequential theory =
+  can code finite sequences of arbitrary objects (Pudlák 1986 §5), which
+  gives partial truth, and hence the polynomial `Con(n)` proofs.
 - Pudlák, read in full (2026-09-29). Pudlák 1986 (Logic Colloquium '84,
   165–196), Theorem 3.1: for consistent `A ⊇ Q` and any `P` meeting four
   finitistic derivability conditions, no `n` has an `n^ε`-symbol proof of

@@ -387,6 +387,62 @@ complete contemporaneous transcript.
     - build an independent Scheme/miniKanren cell machine, with the checker
       as an oracle and a mutation test;
     - cross-validate token accounts.
+- Artemov re-checked, on the user's challenge that "a scheme" and "a scheme
+  indexed by a budget" do not seem different. The user was right.
+  Recorded in a fourth addendum
+  ([the note](docs/log/2026-09-28-lcert-self-justification.md), D1–D3), with
+  B2 corrected in place.
+  - **Read:**
+    - Artemov 1902.07404v5, 2403.12272 (*JLC* 2025) and 2508.20346;
+    - Gadsby 2509.19373;
+    - Willard's Level(n) definitions (2005 *JSL*) and his Herbrand paper
+      (2009 *Inf. Comput.*).
+  - **The correction.** Regrouping Artemov's instances by size gives
+    Pudlák's `Con(n)`, which is `H°`'s content at budget n. The difference
+    is form.
+    - `H°` is one internal sentence, proved by one term at every budget.
+    - Its proof quantifier ranges over certificates held, and the runner's
+      tokens fix its bound. So it applies to a certificate the child
+      produces later.
+    - B2's table had misplaced this. It gave Artemov "no unified sentence"
+      (PA proves `∀x[t(x):¬x:⊥]`, about provability), and λᶜᵉʳᵗ "a scheme
+      indexed by budget". Its "constant selector" analogy also hid the
+      point.
+  - **Gadsby Prop. 4.1** (Ignjatović): selector provability of a `Δ₁` `F`
+    is `Con(T) → ∀xF`. So the formal notion trivially gives every theory
+    its own consistency scheme. Artemov's claim is contentual.
+  - **Confirmed parallels:**
+    - no new arithmetic theorems (Artemov's Cor. 2);
+    - no trust in `T + Con(T)` (Kurahashi–Sinclaire; Step 4);
+    - the formalized "every instance holds" is `Con_PA` (Artemov's own
+      Prop. 2).
+  - **Pinned** by a new test,
+    `lcert.core-test/h-is-one-sentence-at-every-budget`. It covers:
+    - the same term and type at budgets 0/1/5/40, with certificates of
+      148 + 12n nodes;
+    - the free-code variant rejected;
+    - a second use of one certificate rejected.
+
+    Green when written, since it pins existing behaviour.
+  - **An open link:** whether PA proves `Con(PA) → Con_λ`. By Gadsby's
+    Prop. 4.1 that is equivalent to PA selector-proving λᶜᵉʳᵗ's consistency
+    scheme. Expected, but not checked.
+- The user's two further questions, answered in the same addendum.
+  - **What a sequential theory is** (D2). Pudlák 1986 §5: it interprets `Q`
+    on a domain `N`, and has a sequence apparatus for arbitrary objects.
+    - Examples: PA, `IΔ₀`, ZF, GB.
+    - Non-examples: `Q`, and decidable theories.
+    - It is what gives partial truth, and so the polynomial proofs of
+      `Con(n)`.
+  - **Herbrand consistency against the rest** (D3). There are two axes.
+    - **The apparatus.** Hilbert, or cut-free: tableaux, Herbrand.
+    - **The shape.** Willard's Level(0-), "no proof of 0=1", or Level(n),
+      "no simultaneous proofs of Υ and ¬Υ".
+    - All are equivalent when true, and separable in weak theories.
+      `HCon → Con` needs nonelementary cut elimination. `HCon` also depends
+      on the axiomatization (Willard 2009's Ax-3 for `IΣ₀`).
+    - λᶜᵉʳᵗ's `Check` has cut. Its lever is neither weak arithmetic nor a
+      cut-free checker, but resources.
 
 ## 2026-06-22
 

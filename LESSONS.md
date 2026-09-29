@@ -30,6 +30,19 @@
   that the runtime never creates tokens, but that the reflect handoff
   (`m < ‖v‖`, exact token count) is assumed from the checker's encoding rule
   rather than checked. Mismatches misbind silently.
+- When comparing two ways of stating a property (a scheme, a family of
+  bounded sentences, one resource-bounded sentence), separate *content per
+  index* from *logical form*, and put the difference only where it
+  survives. The Artemov comparison called λᶜᵉʳᵗ's `H°` "a scheme indexed by
+  budget". That is only a regrouping of Artemov's scheme, and the user saw
+  through it. The real difference was the form: one internal sentence, one
+  proof, a quantifier over held certificates, and the bound fixed at run
+  time. That form decides what a proof can be used for.
+- A comparison table written from summaries needs re-checking against the
+  papers before it is relied on. B2's table was built from web-search
+  summaries of Artemov. It was wrong about his side too: PA does prove one
+  uniform sentence, about provability. It also missed that his formal notion
+  is trivial (Gadsby, Prop. 4.1), so that the substance is contentual.
 
 ## 2026-09-28
 

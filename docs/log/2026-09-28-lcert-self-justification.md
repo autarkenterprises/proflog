@@ -63,7 +63,11 @@ it exposed an error in ADR-0143's Step 4, which §6 records and corrects.
   - The cost that G2 attaches to consistency proofs is paid per use, in the
     tokens of the proof being trusted.
 - **Self-justifying in Willard's sense, and as legalistic as Willard's
-  systems.**
+  systems.** *(Revised 2026-09-30, Addendum E2: this holds only in the
+  letter of a permissive reading of Definition 3.4. In substance λᶜᵉʳᵗ is
+  not an analogue of Willard's systems but their trade inverted. Its
+  self-consistency statement is restricted, and its arithmetic is kept
+  whole.)*
   - Both clauses of `Willard2016` Definition 3.4 hold, for the certificate
     representation.
   - The consistency constant is assumed, not derived, and `H°` is internally
@@ -333,6 +337,11 @@ both of `H`'s arguments, which R4 made runtime so that an erased argument
 cannot hide a refutation from the descent.
 
 ## 5. Is λᶜᵉʳᵗ self-justifying?
+
+*Revised 2026-09-30 (Addendum E2).* "Yes" below holds only under a
+permissive reading of the definition, one that counts a consistency
+statement restricted to held certificates. In substance, λᶜᵉʳᵗ is not an
+analogue of Willard's systems.
 
 **By definition, yes.** `Willard2016` Definition 3.4 calls `(α, d)` self
 justifying when:
@@ -1495,3 +1504,164 @@ this equivalence." The separations:
 λᶜᵉʳᵗ uses neither of Willard's levers, weak arithmetic or a cut-free
 checker. Its lever is a third one, the resource discipline, which bounds the
 proof quantifier by what is held.
+
+## Addendum: Which Way Cut Elimination Runs, And Whether λᶜᵉʳᵗ Is An Analogue Of Willard's Systems (2026-09-30)
+
+> If HCon is cut-free, why does _inferring_ cuts count as "cut
+> elimination"?
+>
+> If lambda-cert is a type level restatement of Artemov's selector proofs,
+> this suggests that lambda-cert is _not_ an analogue to Willard's SJAS.
+
+### E1. Why concluding `Con` from `HCon` is cut elimination
+
+**Inferring by a cut and eliminating a cut are opposite operations.** D3's
+wording ran two levels together.
+- **What `HCon` is.** It is a statement *about* cut-free refutations. It
+  says the class of Herbrand refutations of `⊥` is empty. It says nothing
+  about proofs that use cuts, and it can itself be proved by any means.
+- **Which way implications run.** A consistency statement is negative. So
+  an implication between two of them runs against the proof transformation
+  that establishes it: `Con_A → Con_B` is proved by turning every
+  B-refutation into an A-refutation.
+
+| Implication | Proved by turning | into | Cost |
+| --- | --- | --- | --- |
+| `Con → HCon` | a Herbrand refutation | a Hilbert refutation | elementary |
+| `HCon → Con` | a Hilbert refutation, which may use cuts | a Herbrand refutation, which has none | nonelementary: cut elimination |
+
+The implication `HCon → Con` points toward cuts. The transformation that
+proves it points away from them. Concluding `Con` from `HCon` is not an
+inference *by* cut. It shows that every cut in a hypothetical refutation
+could be removed.
+
+**Why a weak theory can hold `HCon` and not `Con`.** A Hilbert refutation of
+`n` symbols may have cut-free counterparts only of size a tower of
+exponentials in `n`. Statman and Orevkov proved such nonelementary lower
+bounds (1979); they are cited here from memory. A theory that cannot prove
+that growth total cannot conclude the counterpart exists. That is why the
+survey calls the finite versions "essentially different" (§4.3).
+
+**A precision on D3's "cheaply".** The easy direction is cheap when the
+Herbrand proof carries its own propositional refutation. That is Willard's
+definition, after Adamowicz, Hájek–Pudlák and Kołodziejczyk (2009 §4): "a
+finite collection of Herbrandized instances of α together with a proof, in
+the pure propositional calculus, that the conjunction of these instances is
+an anti-tautology". The survey's form (§4.3) gives only the instances. There
+the propositional refutation must first be found, at up to exponential cost.
+Either way the direction is elementary, and D3's comparison stands.
+
+**The same pattern in miniature: Level(0-) to Level(1) in tableaux.**
+- **The contrapositive.** From Tab-proofs of `Υ` and of `¬Υ`, produce a
+  Tab-refutation.
+- **Where the cut comes in.** The natural glue is one cut on `Υ`, and Tab
+  has no cut rule. So the glued object is not a Tab-proof, and making it
+  one means eliminating that cut.
+- **Willard's Xtab has the glue.** It is Tab with `φ ∨ ¬φ` allowed as a
+  node, which is Tab with cut (LFCS 2020 §4).
+  - Its proof of `ψ` from proofs of `φ` and `φ → ψ` starts at the root
+    `¬ψ`, adds a node `φ ∨ ¬φ`, and branches.
+  - A proof of `φ → ψ` goes under `φ`, and a proof of `φ` under `¬φ`.
+  - Its length is the sum of the parts. This is his "Linear-Sum Effect",
+    the tableau form of modus ponens.
+
+**Why the gap is where Willard's systems live** (LFCS 2020, Theorems 4.4
+and 4.5).
+- `IS_Tab(β)` and `IS_Tab-1(β)` are consistency preserving. Tab-1 allows
+  cuts only on Rank-1* lemmas: a proof is a list of Tab-proofs of `Π*₁` or
+  `Σ*₁` sentences, each from the earlier ones.
+- `IS_Xtab(β)` is automatically inconsistent whenever `β` proves the
+  ordinary `Π*₁` laws of addition and multiplication.
+
+So, with addition total, an unrestricted "I am consistent" survives when
+"I" names an apparatus whose cuts the system cannot afford to eliminate.
+Then its cut-free self-consistency does not commit it to the with-cut
+statement on which the diagonal argument runs. Once cut is primitive,
+proofs compose cheaply, and the exception collapses.
+
+Willard 2001 shows the other side of the same trade. Its variant (i)
+allows Hilbert proofs, or Gentzen proofs with cuts, but its systems then
+recognize neither addition nor multiplication as total. Its variant (ii)
+recognizes addition as total, but only for a cut-free apparatus (Herbrand
+or tableaux). Either way, the system cannot afford the composition of
+proofs that the diagonal argument needs:
+- in variant (i), for lack of growth to form the composed proof;
+- in variant (ii), for lack of cut.
+
+**A clarified sentence elsewhere.** The 2026-09-26 assessment said: "In a
+tableau system that is cut elimination, which is proof composition." It
+meant this: a tableau system has no cut rule, so composing proofs through a
+lemma must be done by eliminating the lemma's cut. The sentence is
+clarified in place.
+
+### E2. Is λᶜᵉʳᵗ an analogue of Willard's self-justifying systems?
+
+**The premise needs one correction. The conclusion holds for what Willard's
+programme is about.**
+
+**The premise.** λᶜᵉʳᵗ is not a type-level restatement of selector proofs,
+though it shares their content (D1).
+- **What is shared.** Per budget, λᶜᵉʳᵗ's self-consistency has the content
+  of Artemov's scheme regrouped by size. Like Artemov, it gains no
+  arithmetic theorem.
+- **Status.** Artemov derives his scheme in PA. λᶜᵉʳᵗ posits `H`.
+- **Form.** Artemov's uniform sentence is about provability. λᶜᵉʳᵗ's `H°`
+  is used at certificates that exist only at run time.
+- **Extensionally the premise may become exact.** Suppose PA proves
+  `Con(PA) → Con_λ` (D1's open link). Then PA selector-proves λᶜᵉʳᵗ's
+  consistency scheme.
+
+**The conclusion.** What makes Willard's systems self-justifying is the
+content of their Group-3 axiom.
+- It is an unrestricted `Π₁` statement: "There is no proof (using d's
+  deduction method) of 0 = 1 from" the system itself (Willard 2011, the
+  `SelfRef` example). Its proof variable "will not need to be required to
+  satisfy any form of restricting predicate Tang(y)" (2001 §1, item (V)).
+- They pay for it with weakness. Multiplication is never total. Then
+  either addition is not total either (Hilbert proofs, 2001 variant (i)),
+  or the self-referenced apparatus lacks full cut (2001 variant (ii);
+  LFCS 2020's Tab and Tab-1; E1).
+
+λᶜᵉʳᵗ has the opposite on every count:
+
+| | Willard's systems | λᶜᵉʳᵗ |
+| --- | --- | --- |
+| Self-consistency statement | unrestricted `Π₁`, item (V) | restricted to held certificates; the unrestricted `Con′_ω` is unprovable (P5) |
+| Arithmetic | weakened: no total multiplication | all of PA |
+| Apparatus the self-reference names | with cut only if addition is not total either (2001 (i)); with addition total, cut-free or cuts on Rank-1* lemmas only (2001 (ii); Tab, Tab-1). Xtab, full cut, is inconsistent | with cut (application), and PA's full growth |
+| Arithmetic theorems gained | `Π₁` sentences beyond `A` (`IS(PA)` proves `Con(PA)`) | none |
+| Willard's taxonomy (LFCS 2020 §1) | a Declarative Exception | Infinite-Ranged (Artemov's kind) in content; declarative only in form |
+| Willard 2001's features (C3) | (V), (VI), and (VII) in some variants | (II), (VI), (VII), and not (V): the Pudlák–Nelson side, relativized |
+
+So λᶜᵉʳᵗ is Willard's trade inverted.
+- Willard weakens the system to keep an unrestricted self-statement.
+- λᶜᵉʳᵗ restricts the self-statement to keep the system.
+
+The Summary's "λᶜᵉʳᵗ trades the other way" already said this. The user's
+point is that the trade *is* the substance of self-justification in
+Willard's sense, so the other way is not an analogue of it.
+
+**What survives of the analogy.**
+1. **The letter of Definition 3.4, under a permissive reading.**
+   - Willard's definitions ask for a theorem asserting consistency "using
+     some reasonable definition of consistency" (2006 *APAL*). His
+     canonical example is the unrestricted `SelfRef` (2011).
+   - `H°` qualifies only if consistency restricted to held certificates
+     counts as reasonable.
+   - Willard's own 2001 survey files relativized self-consistency,
+     consistency on a definable cut, under the prior literature that his
+     item (V) improves on.
+2. **Declaration.** Like Willard's Group-3 axiom, `H` is a posited
+   self-referential principle, shown consistent from outside (T1).
+3. **The shape of the mechanism (§5).** Self-trust is confined to a
+   representation of proofs into which the system cannot uniformly
+   translate the standard one:
+   - for Willard, cut elimination (E1);
+   - for λᶜᵉʳᵗ, parsing codes into certificates, which costs tokens.
+
+**Revised verdict.** λᶜᵉʳᵗ is not an analogue of Willard's
+self-justifying systems in substance. The best description remains §5's:
+metered finitistic self-trust, declared rather than derived. It is the dual
+of Willard's trade. §5 and the Summary are marked. The tiling results do not
+change (AAR-0143): they rest on the form of `H°` (D1), not on its standing
+as self-justification.

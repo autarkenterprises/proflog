@@ -714,8 +714,10 @@ the parent cannot verify.
    the parent (the assessor's derivation).**
    - Take E ⊆ Thm(parent): pure lemma axioms.
    - To prove the child consistent, the parent must turn any child refutation
-     into one of its own, inlining a proof of each lemma at each use. In a
-     tableau system that is cut elimination, which is proof composition.
+     into one of its own, inlining a proof of each lemma at each use. A
+     tableau system has no cut rule, so that inlining is cut elimination:
+     composing proofs through a lemma means eliminating the lemma's cut.
+     *(Wording clarified 2026-09-30; see the 2026-09-28 note, Addendum E1.)*
    - Even a constant-factor increase in proof length squares the proof code, and
      IS(A) proves no squaring total. So the parent cannot prove the
      transformation total, and cannot prove the child consistent.

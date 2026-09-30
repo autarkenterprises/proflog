@@ -17,6 +17,26 @@
   relations when they demonstrate expressiveness but materially broaden the
   ordinary proof-search branching factor.
 
+## 2026-09-30
+
+- When citing a cost for an implication between consistency statements,
+  name the direction of the proof transformation. `Con_A → Con_B` is proved
+  by turning B-refutations into A-refutations. So `HCon → Con` is cut
+  elimination, although it reads as moving toward cuts. The earlier note
+  said "HCon → Con is cut elimination" without the contravariance, and the
+  user reasonably asked why *inferring* cuts is called eliminating them.
+- Meeting the letter of a permissive definition says little. Willard's
+  definition of self-justifying accepts "some reasonable definition of
+  consistency". Compare instead on the feature the programme exists for:
+  here, an unrestricted self-consistency statement bought by weakness. On
+  that feature λᶜᵉʳᵗ is the opposite of an analogue. The note had filed this
+  as "trades the other way" without drawing the conclusion; the user drew
+  it.
+- Check a generalization about an author's systems against each variant
+  before writing it. "Willard's apparatus lacks full cut" is true of his
+  addition-total systems. It is false of his 2001 Hilbert variant, which
+  pays instead by not proving addition total.
+
 ## 2026-09-29
 
 - A theorem reconstructed from memory can have the right shape and the

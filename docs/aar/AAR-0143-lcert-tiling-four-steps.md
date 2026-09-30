@@ -162,3 +162,11 @@ Step 4.
   - Step 2's materialization result stands. What stands on the checker
     rather than on the runtime is now stated. The hardening is proposed as
     [ADR-0144](../adr/ADR-0144-lcert-resource-machine.md).
+- **2026-09-30: λᶜᵉʳᵗ's standing as self-justification.** The note's
+  Addendum E2 concludes that λᶜᵉʳᵗ is not an analogue of Willard's
+  self-justifying systems in substance, but their trade inverted.
+  - Willard proves an unrestricted self-consistency statement in a weakened
+    system. λᶜᵉʳᵗ proves a restricted one and keeps PA.
+  - This verdict does not depend on that. Identical-system tiling rests on
+    the form of `H°`: one sentence, usable at a runtime certificate, with
+    its bound fixed by tokens (Addendum D1). That form is unchanged.

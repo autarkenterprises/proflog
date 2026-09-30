@@ -90,6 +90,27 @@
   assumed; `H°` is internally strictly weaker than `Con′`). It goes beyond
   Willard in form (PA-strength, and reflection rather than only
   consistency). Note: `docs/log/2026-09-28-lcert-self-justification.md`.
+- **Revised 2026-09-30 (note E2; the user's point): λᶜᵉʳᵗ is NOT an
+  analogue of Willard's SJAS in substance. It is Willard's trade
+  inverted.**
+  - Willard's substance is an unrestricted Π₁ self-consistency axiom
+    (2001 item (V), no Tang restriction). It is bought by weakness.
+    Multiplication is never total. Then either addition is not total either
+    (Hilbert proofs, 2001 (i)), or the apparatus lacks full cut (2001 (ii);
+    LFCS 2020 Tab/Tab-1). `IS_Xtab`, which has full cut, is inconsistent
+    (LFCS 2020 Thm 4.5).
+  - λᶜᵉʳᵗ has a restricted statement, and keeps all of PA and cut.
+  - Only Def 3.4's letter survives, under a permissive reading ("some
+    reasonable definition of consistency"). Declaration and the mechanism
+    shape (§5) survive too.
+  - Its content is Artemov/Pudlák (Infinite-Ranged, in Willard's own
+    taxonomy).
+  - Not a restatement of selector proofs, though: `H` is posited, and `H°`
+    is used at runtime certificates.
+- Implications between consistency statements run against the proof
+  transformations that prove them: `Con_A → Con_B` is proved by turning
+  B-refutations into A-refutations. So `HCon → Con` is cut elimination
+  (nonelementary), and `Con → HCon` is elementary (note E1).
 
 ## 2026-09-26 SJAS And The Löbian Obstacle
 

@@ -330,6 +330,46 @@ complete contemporaneous transcript.
     - `users.math.cas.cz` and `arxiv.org` are blocked by the egress policy,
       so the statements rest on web-search summaries.
 
+## 2026-09-30
+
+- Two more questions on the λᶜᵉʳᵗ note, answered in a fifth addendum
+  ([the note](docs/log/2026-09-28-lcert-self-justification.md), E1–E2).
+  - **"If HCon is cut-free, why does inferring cuts count as cut
+    elimination?"** (E1)
+    - Implications between consistency statements run against the proof
+      transformations that prove them. `HCon → Con` is proved by turning a
+      Hilbert refutation, with cuts, into a Herbrand one, without. That is
+      cut elimination, and it is nonelementary.
+    - D3's "cheaply" for the other direction is made precise. It is cheap
+      when the Herbrand proof carries its propositional refutation
+      (Willard 2009's definition), and up to exponential otherwise.
+    - The Level(0-) → Level(1) step in Tab is the same pattern, with one
+      cut. Willard's Xtab (LFCS 2020) is Tab plus cut via `φ ∨ ¬φ`, his
+      "Linear-Sum Effect".
+      - `IS_Tab` and `IS_Tab-1` are consistency preserving (Thm 4.4).
+      - `IS_Xtab` is inconsistent (Thm 4.5).
+    - The 2026-09-26 note's sentence "that is cut elimination, which is
+      proof composition" is clarified in place.
+  - **"λᶜᵉʳᵗ is not an analogue to Willard's SJAS."** Agreed in substance
+    (E2), with one correction to the premise.
+    - **The premise.** λᶜᵉʳᵗ is not a restatement of selector proofs: `H`
+      is posited, and `H°` is used at runtime certificates. It shares their
+      content, though, and would match them extensionally if PA proves
+      `Con(PA) → Con_λ`.
+    - **The conclusion.** Willard's substance is an unrestricted Π₁
+      self-consistency axiom (2001 item (V)), bought by weakness.
+      Multiplication is never total. Then either addition is not total
+      either (Hilbert, 2001 (i)), or the apparatus lacks full cut (2001
+      (ii); Tab, Tab-1). λᶜᵉʳᵗ restricts the statement and keeps PA and cut:
+      Willard's trade inverted.
+    - **What survives.** Definition 3.4's letter, under a permissive
+      reading; declaration; and §5's mechanism shape.
+    - §5, the Summary and `MEMORY.md` are marked or revised. The tiling
+      verdict (AAR-0143) does not depend on this and is unchanged.
+  - A first draft of E2 said Willard's apparatus always lacks full cut. His
+    2001 variant (i) uses Hilbert proofs, without total addition. Corrected
+    before commit.
+
 ## 2026-09-29
 
 - Further follow-ups on λᶜᵉʳᵗ, answered in a second addendum to

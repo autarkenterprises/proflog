@@ -369,6 +369,28 @@ complete contemporaneous transcript.
   - A first draft of E2 said Willard's apparatus always lacks full cut. His
     2001 variant (i) uses Hilbert proofs, without total addition. Corrected
     before commit.
+- Follow-up: the user asked for a justification of "Con_A → Con_B is proved
+  by turning B-refutations into A-refutations", which read as non-standard.
+  Recorded as note E3.
+  - It is contraposition of material implication. Unfold `Con` as
+    `¬∃ refutation`, contrapose, and prenex:
+    `∀q (Ref_B(q) → ∃p Ref_A(p))`.
+  - Example: "no real solutions ⟹ no rational solutions" is proved by
+    `ℚ ⊆ ℝ`. The converse fails for `x² = 2`.
+  - Inside a theory, witnessing theorems (Parikh for `IΔ₀`) make any proof
+    of the `Π₂` implication yield a transformation the theory proves total.
+    Caveat: for a consistent theory the refutations are nonstandard, so
+    separations are proved case by case.
+  - Two cases:
+    - Willard 2001's `IS(A)`/`ISλ(A)` prove their own tableaux consistency.
+      Solovay forbids them their own Hilbert consistency.
+    - Willard 2009's Ax-3 extension proves its own `HCon`. Pudlák forbids
+      it its own `Con`.
+  - Two overstatements in D3/E1 corrected in place:
+    - "HCon → Con *only* in theories proving Herbrand's theorem": that is
+      sufficient, not shown necessary.
+    - "provable in weak theories": the easy direction still needs the
+      conversion's growth.
 
 ## 2026-09-29
 

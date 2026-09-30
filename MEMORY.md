@@ -111,6 +111,12 @@
   transformations that prove them: `Con_A → Con_B` is proved by turning
   B-refutations into A-refutations. So `HCon → Con` is cut elimination
   (nonelementary), and `Con → HCon` is elementary (note E1).
+  - This is contraposition. `Con_A → Con_B ⟺ ∀q(Ref_B(q) → ∃p Ref_A(p))`.
+  - Within a theory, witnessing theorems make that a provably total
+    transformation.
+  - Separations are case by case: Willard's `IS(A)` proves its own
+    tableaux consistency, but not, by Solovay, its Hilbert consistency
+    (note E3).
 
 ## 2026-09-26 SJAS And The Löbian Obstacle
 

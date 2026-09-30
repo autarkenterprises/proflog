@@ -25,6 +25,14 @@
   elimination, although it reads as moving toward cuts. The earlier note
   said "HCon → Con is cut elimination" without the contravariance, and the
   user reasonably asked why *inferring* cuts is called eliminating them.
+  When asked, show the contraposition itself: unfold `Con` as
+  `¬∃ refutation`, contrapose, and prenex. Give a familiar instance: no real
+  solutions ⟹ no rational ones, by `ℚ ⊆ ℝ`. Do not only assert the rule.
+- Keep "sufficient" and "necessary" apart when citing what a theory needs.
+  "HCon → Con only in theories proving Herbrand's theorem" turned a
+  sufficient condition into a necessary one. The defensible claim is
+  sufficiency, plus specific separations (Willard's systems, via Solovay
+  and Pudlák).
 - Meeting the letter of a permissive definition says little. Willard's
   definition of self-justifying accepts "some reasonable definition of
   consistency". Compare instead on the feature the programme exists for:

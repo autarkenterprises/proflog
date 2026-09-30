@@ -1461,6 +1461,13 @@ this equivalence." The separations:
   So `Con → HCon` is provable in weak theories, and `HCon → Con` only in
   theories that prove Herbrand's theorem. The finite versions, `Con(n)` and
   "no Herbrand refutation of size `n`", are "essentially different".
+  *(Corrected 2026-09-30, E3.)*
+  - "Only" overstated. Proving Herbrand's theorem is sufficient for
+    `HCon → Con`, not shown necessary. What is known is that particular
+    weak theories cannot prove the implication about themselves.
+  - "Weak theories" was too loose. The easy direction needs whatever
+    growth the conversion needs: polynomial, or exponential. Willard's
+    systems, which cannot prove squaring total, may lack even that.
 - **The axiomatization.** `HCon` depends on the chosen axioms, since
   Skolemization and term growth follow their syntax.
   - Willard 2009: Kołodziejczyk observed that `IΣ₀`'s axiomatizations Ax-1
@@ -1523,7 +1530,8 @@ wording ran two levels together.
 - **Which way implications run.** A consistency statement is negative. So
   an implication between two of them runs against the proof transformation
   that establishes it: `Con_A → Con_B` is proved by turning every
-  B-refutation into an A-refutation.
+  B-refutation into an A-refutation. (This is contraposition of ordinary
+  material implication, justified in E3.)
 
 | Implication | Proved by turning | into | Cost |
 | --- | --- | --- | --- |
@@ -1541,6 +1549,10 @@ exponentials in `n`. Statman and Orevkov proved such nonelementary lower
 bounds (1979); they are cited here from memory. A theory that cannot prove
 that growth total cannot conclude the counterpart exists. That is why the
 survey calls the finite versions "essentially different" (§4.3).
+*(Qualified in E3.)* For a consistent theory, this paragraph is a guide,
+not a proof. The theory has no actual refutations; the transformation must
+work on the nonstandard ones in nonstandard models. Unprovability is proved
+case by case, and E3 gives two cases.
 
 **A precision on D3's "cheaply".** The easy direction is cheap when the
 Herbrand proof carries its own propositional refutation. That is Willard's
@@ -1665,3 +1677,87 @@ metered finitistic self-trust, declared rather than derived. It is the dual
 of Willard's trade. §5 and the Summary are marked. The tiling results do not
 change (AAR-0143): they rest on the form of `H°` (D1), not on its standing
 as self-justification.
+
+### E3. The flip, justified (follow-up, 2026-09-30)
+
+> This seems highly non-standard with respect to the usual meaning of
+> implication. Justify it.
+
+**It is ordinary material implication, contraposed.** Write `Ref_A(p)` for
+"`p` is an A-proof of `⊥`", a decidable (`Δ₀`) relation, and
+`Con_A = ¬∃p Ref_A(p)`. Then:
+
+    Con_A → Con_B
+      ⟺  ¬∃p Ref_A(p) → ¬∃q Ref_B(q)        definitions
+      ⟺  ∃q Ref_B(q) → ∃p Ref_A(p)          contraposition: (¬X → ¬Y) ⟺ (Y → X)
+      ⟺  ∀q (Ref_B(q) → ∃p Ref_A(p))       q is not free in ∃p Ref_A(p)
+
+The last line says that every B-refutation comes with an A-refutation. To
+prove it, take an arbitrary B-refutation and produce an A-refutation. That
+is all "turning B-refutations into A-refutations" means.
+- **Which steps need classical logic.** The right-to-left direction of each
+  step is valid intuitionistically, and it is the direction used to prove
+  an implication from a transformation. Left to right, the second step
+  needs `¬¬∃p Ref_A(p) → ∃p Ref_A(p)`, Markov's principle for a decidable
+  relation. Every theory in this note is classical.
+- **Nothing here is special to consistency.** Negation reverses the
+  direction of implication. Consistency statements are negations of
+  existence claims.
+
+**A familiar instance.** "If the equation has no real solutions, it has no
+rational solutions" is proved by the inclusion `ℚ ⊆ ℝ`: every rational
+solution is a real one. The implication between the absence claims runs
+from the larger class to the smaller. The map between witnesses runs from
+the smaller to the larger. The converse, "no rational solutions, so no
+real ones", would need a map from real solutions to rational ones. It is
+false for `x² = 2`.
+- **`Con → HCon` is the inclusion.** A Herbrand refutation becomes a
+  Hilbert one by a cheap translation. So "no Hilbert refutation" implies
+  "no Herbrand refutation".
+- **`HCon → Con` is the converse.** It needs a map from Hilbert refutations
+  to Herbrand ones. For refutations such a map exists, by Herbrand's
+  theorem, which is cut elimination. It can raise size by a tower of
+  exponentials.
+
+**Proved inside a theory, the transformation must be one the theory can
+afford.**
+- Inside a theory `W`, the implication is the `Π₂` sentence
+  `∀q (Ref_B(q) → ∃p Ref_A(p))`.
+- Witnessing theorems turn a `W`-proof of a `Π₂` sentence into a witness
+  function that `W` proves total. For `IΔ₀` this is Parikh's theorem: the
+  witness is bounded by a polynomial term. (Cited from standard knowledge,
+  not re-read here.)
+- So a `W`-proof of `Con_A → Con_B` contains, implicitly, a transformation
+  of B-refutations into A-refutations, of growth that `W` can prove total.
+
+That is the sense in which the cost of the transformation governs
+provability.
+
+One caveat.
+- For a consistent theory there are no actual refutations. The
+  transformation must work on the nonstandard refutations of `W`'s
+  nonstandard models.
+- So general lower bounds on cut elimination do not by themselves make the
+  implication unprovable for a given theory. Separations are proved case by
+  case.
+
+**Two cases, from the texts.**
+1. **Willard 2001.**
+   - `IS(A)` and `ISλ(A)` prove their own semantic-tableaux and Herbrand
+     consistency (§1).
+   - They recognize addition as total, hence successor.
+   - They prove PA's `Π₁⁻` theorems about subtraction and division.
+   - Solovay's theorem (§1, item (B)) says such a system cannot prove its
+     own Hilbert consistency.
+
+   So they cannot prove "tableaux-consistent → Hilbert-consistent" about
+   themselves, or modus ponens would give the forbidden conclusion. The
+   missing step is exactly a transformation of Hilbert refutations into
+   tableau refutations: cut elimination.
+2. **Willard 2009.** An extension of Ax-3 proves its own Herbrand
+   consistency. It contains `Q`, so Pudlák's theorem (2001 §1, item (A))
+   forbids it its own Hilbert consistency. Hence it cannot prove
+   `HCon(self) → Con(self)`.
+
+In both cases the provable direction concerns the cut-free apparatus and
+the unprovable one needs cuts eliminated, as the contraposition predicts.

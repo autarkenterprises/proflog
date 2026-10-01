@@ -1819,3 +1819,81 @@ That is the precise sense of "unrestricted" (Willard) against "restricted"
 (λᶜᵉʳᵗ) in E2. The earlier chat answer said "no restriction on which proofs
 it covers" without this distinction, and the user's question was right to
 press it.
+
+### E5. Would Willard-style self-justification give a tiling agent more? (follow-up, 2026-10-01)
+
+> Would Willard style self-justification provide more capabilities to a
+> tiling agent?
+
+**Bare self-consistency adds nothing.** Tiling needs soundness for the goal
+formula: from a successor's proof of `G`, conclude `G`. Consistency alone
+does not give that.
+- In a PA-strength theory, `Con(T)` is equivalent to `Π₁` reflection (E4).
+  Inside Willard's weak systems that equivalence is not available.
+  Theorem 7.2 forbids them `Π₁` self-reflection, and their self-consistency
+  axiom survives only because they cannot derive it.
+- What Willard's systems offer a tiling agent comes from their reflection
+  principles, his item (VI): ISλ and ISREF. It does not come from
+  self-justification as such. The 2026-09-26 assessment (§4 and its
+  addendum A1–A2) worked this out; the comparison below sets it against
+  λᶜᵉʳᵗ₁ (AAR-0143).
+
+| Capability | Willard's ISλ/ISREF (uniform form ISλ_U) | λᶜᵉʳᵗ₁ |
+| --- | --- | --- |
+| Self-trust for bounded and existential (`Σ₁`) goals | exact, for any proof that exists, held or not; costs nothing | exact, only for certificates held; each use burns tokens |
+| Same-theory tiling for time-window goals | indefinitely, with no budget, if ISλ_U is consistent (Willard 2001 Remark 6.3; the proof is unpublished) | to any depth the budget pays for; budgets can be promised arbitrarily large, and lazily |
+| Self-trust for `Π₁` and higher goals | only on tangible instances; the horizon shrinks with each delegation (the numeric telomere) | exact, at every closed reflect-free type, for certificates held |
+| Discharging `□φ → φ` inside a proof ("if my child can prove it, then it holds") | yes, for bounded and `Σ₁` `φ` | no: provability of a free code is not dischargeable without minting the certificate |
+| Arithmetic for the agent's world model | no total multiplication (ISλ); not even total addition (ISREF) | all of PA |
+| Proof apparatus | cut-free tableaux (ISλ), or Hilbert-style without total addition (ISREF) | natural deduction with cut |
+| Successors with changed axioms | refused (§4(d)) | refused (Step 4) |
+| Status of the guarantee | the uniform form rests on an unpublished consistency proof | T1 proved; key cases kernel-checked |
+
+**The one thing Willard's systems add.** They give unmetered, declarative
+self-trust for bounded and existential goals, over proofs the agent does
+not hold. That is E4's unrestricted *proof* quantifier, applied to
+reflection.
+- It allows Yudkowsky and Herreshoff's original architecture. The parent
+  reasons about what the child *could* prove, and discharges it.
+- λᶜᵉʳᵗ instead forces a proof-carrying architecture: each action is gated
+  by a certificate the runtime consumes.
+- For time-window goals Willard's form tiles with no budget at all, while
+  λᶜᵉʳᵗ needs one, however large and lazily produced.
+
+**It cannot be added to λᶜᵉʳᵗ.** Willard 2001 Theorem 7.4 (verified in the
+text):
+- **Hypotheses.** A consistent system that recognizes multiplication as
+  total, has a `Δ₀` proof predicate for a sound and complete deduction
+  method, and proves PAX's `Π₁⁻` theorems and the mild instantiation bound
+  (76).
+- **Conclusion.** It cannot prove the uniform reflection (77),
+  `∀a {[∃q Prf(⌜φ(ȧ)⌝, q)] ⊃ φ(a)}`, for all `Δ₀` `φ`.
+- **Why.** With multiplication total, instantiating proofs is affordable.
+  Uniform bounded reflection then yields `Π₁` reflection, which Theorem 7.2
+  forbids.
+
+So unmetered uniform self-trust, even for bounded goals, is incompatible
+with PA's arithmetic. The capability is not an oversight in λᶜᵉʳᵗ; it is
+what Willard buys by giving up multiplication.
+
+**Verdict: neither dominates.**
+- **Willard is ahead** for bounded or existential goals: unmetered, with
+  no budget and with discharge of `□`. This holds only if ISλ_U is
+  consistent, and only for an agent whose world model can do without total
+  multiplication.
+- **λᶜᵉʳᵗ is ahead** for `Π₁` and higher goals: exact, with no shrinking
+  horizon. It keeps PA's arithmetic and its proofs keep cut. Its guarantee
+  is proved.
+- **The same on both sides:** neither trusts a successor with changed
+  axioms, so neither touches the logical side of the obstacle.
+- **In practice.** With lazily produced budgets the metering rarely binds
+  a physically feasible agent. AAR-0143 found the practical bound to be
+  certificate size and checking time. What Willard's systems take away
+  (multiplication, exact `Π₁` trust) costs more than what they add.
+
+**Not a self-justification capability: trust in a fixed external theory.**
+`IS(A)`'s Group-2 schema makes it trust `A`'s `Π₁` theorems, even for
+`A = ZF`. So it could accept a successor that proves `Π₁` safety in ZF. Any
+system gains that by adding the true reflection schema for the fixed theory
+as axioms. It is trust in another theory, not self-trust, and it moves the
+tower's problem to that theory's own successors.

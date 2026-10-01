@@ -351,6 +351,24 @@ complete contemporaneous transcript.
   - **The sharpened E2 contrast.** Willard restricts sentences and
     reflection instances, which leave the fact intact. λᶜᵉʳᵗ restricts
     proofs, which weakens it.
+- Then: would Willard-style self-justification give a tiling agent more
+  capabilities? Answered in note E5, building on the 2026-09-26 assessment
+  (§4, A1–A2) and AAR-0143.
+  - **Bare self-consistency adds nothing.** Tiling needs goal-formula
+    soundness. The capabilities come from Willard's reflection principles
+    (ISλ/ISREF), not from self-justification as such.
+  - **One real addition.** Unmetered, declarative self-trust for bounded
+    and `Σ₁` goals over proofs not held. That means budget-free tiling for
+    time-window goals, and discharge of `□φ → φ` in reasoning. It is
+    conditional on ISλ_U's unpublished consistency proof.
+  - **It cannot be added to λᶜᵉʳᵗ.** Willard 2001 Thm 7.4, verified in the
+    text: total multiplication plus the instantiation bound (76) rules out
+    uniform `Δ₀` self-reflection (77).
+  - **Willard loses more:** total multiplication, and exact `Π₁` trust
+    (his numeric telomere, against λᶜᵉʳᵗ's exact reflection at every
+    closed reflect-free type).
+  - **Both refuse changed axioms.** Neither dominates. For physically
+    feasible agents with lazy budgets, λᶜᵉʳᵗ's trade costs less.
 
 ## 2026-09-30
 

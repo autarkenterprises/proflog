@@ -114,6 +114,13 @@
       exception: the same in ℕ, weaker only as an assumption.
     - Willard restricts only sentences (Level(1)) and reflection instances
       (`Tang(x)`). λᶜᵉʳᵗ restricts proofs.
+  - For tiling (note E5): Willard-style systems add exactly one thing,
+    unmetered self-trust for bounded/`Σ₁` goals over proofs not held.
+    - That gives budget-free tiling for time-window goals, if ISλ_U is
+      consistent (unpublished).
+    - It is impossible with total multiplication (Willard 2001 Thm 7.4).
+    - They lose multiplication and exact `Π₁` trust. Bare
+      self-consistency adds nothing for tiling. Neither dominates.
 - Implications between consistency statements run against the proof
   transformations that prove them: `Con_A → Con_B` is proved by turning
   B-refutations into A-refutations. So `HCon → Con` is cut elimination

@@ -434,6 +434,22 @@ complete contemporaneous transcript.
     interpretable in `Q⁻`).
   - **The cost.** No provable composition of plans or programs, which is
     worse for an agent than losing multiplication.
+- Then: "These seem directly implementable as a programming language." Note
+  F4. Both of F3's designs exist as studied languages (confirmed by web
+  search):
+  - Jones's cons-free programs: no constructors, read-only data; exactly
+    PTIME, and LOGSPACE when tail-recursive.
+  - Hofmann's LFPL: construction paid by `◇`; non-size-increasing
+    polynomial time.
+  - λᶜᵉʳᵗ's `◇` is Hofmann's (as the 2026-09-26 assessment had noted).
+  - Synthesis: three ways to pay for growth. Willard pays in proof
+    symbols, Hofmann in input cells, λᶜᵉʳᵗ in supply tokens.
+  - A cons-free language can check proofs but not find them.
+  - Implementing it gives mechanical non-size-increase (ADR-0144's cell
+    machine is LFPL's discipline), not self-justification, which is a
+    property of a theory.
+  - The matching theory must prove total only non-size-increasing
+    operations. `S¹₂` (polynomial time, with smash) is already too strong.
 
 ## 2026-09-30
 

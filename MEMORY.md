@@ -148,6 +148,16 @@
     - optionally, tangible composition within a workspace.
 
     It buys at most Willard's soft part, and it cannot block duplication.
+  - As languages (note F4), F3's designs exist already:
+    - Jones's cons-free programs: analysis only; exactly PTIME, or LOGSPACE
+      when tail-recursive.
+    - Hofmann's LFPL: construction paid by `◇`; non-size-increasing.
+      λᶜᵉʳᵗ's `◇` is Hofmann's.
+  - Three ways to pay for growth: Willard in proof symbols, Hofmann in
+    input cells, λᶜᵉʳᵗ in tokens.
+  - Such a language checks proofs but cannot find them. Self-justification
+    still needs a theory proving only non-size-increasing operations total
+    (`S¹₂` is too strong).
 - Implications between consistency statements run against the proof
   transformations that prove them: `Con_A → Con_B` is proved by turning
   B-refutations into A-refutations. So `HCon → Con` is cut elimination

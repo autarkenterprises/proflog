@@ -2264,3 +2264,79 @@ Source for the `Q⁻` claim, found by the same web search: Švejdar, "An
 Interpretation of Robinson Arithmetic in its Grzegorczyk's Weaker Variant"
 (semanticscholar.org). The title states the result; the paper itself was
 not read here.
+
+### F4. F3's signature as a programming language (follow-up, 2026-10-01)
+
+> These seem directly implementable as a programming language.
+
+**They are, and both of F3's designs already exist as well-studied
+languages.** Both claims were confirmed by web search on 2026-10-01; the
+papers were not read here.
+- **Analysis only: Jones's cons-free programs.**
+  - A pure functional language whose function bodies contain no data
+    constructors. Data are read-only: they can be taken apart and compared,
+    never built.
+  - With general recursion it decides exactly the polynomial-time
+    relations. Its tail-recursive fragment decides exactly the
+    logarithmic-space relations (Jones, "LOGSPACE and PTIME characterized
+    by programming languages", *TCS* 1999).
+  - This is F3, item 1, in its extreme form.
+- **Paid construction: Hofmann's LFPL** (LICS 1999).
+  - An affine language in which construction is allowed only when paid
+    for by a value of type `◇`, obtained by taking input apart.
+  - Its functions are non-size-increasing and polynomial-time.
+  - This is F3, item 5, made affine.
+  - λᶜᵉʳᵗ's `◇` is Hofmann's (the 2026-09-26 assessment: "λᶜᵉʳᵗ's ◇
+    comes from" Hofmann's resource-counting realizability). λᶜᵉʳᵗ's
+    evidence sort is an LFPL-style discipline for certificates, beside a
+    free data layer.
+
+**Three ways of paying for growth** (my synthesis).
+- **Willard.** His Grounding functions are non-growth, which for numbers
+  means non-size-increasing. The one growth he keeps, addition, gains at
+  most a bit per step, and each step costs a proof step. So his `◇` is a
+  proof symbol: Fact D.3's budget.
+- **Hofmann.** His `◇` is an input cell.
+- **λᶜᵉʳᵗ.** Its `◇` is a supply token.
+
+All three bound the objects a computation, or a proof, can bring into
+existence by a budget it must spend.
+
+**What a cons-free language is good for: checking, not finding.**
+- Checking a derivation is analysis. It walks the given proof and compares
+  subterms, so a cons-free program can be a proof checker.
+- Finding a proof needs candidates to be built, so it cannot be a prover.
+- An agent written wholly in such a language must take its proofs from an
+  untrusted outside prover, and check them, much as an LCF-style kernel or
+  proof-carrying code does.
+- That is the role λᶜᵉʳᵗ gives its two sorts: search happens in free
+  `Syn`, and trust attaches only to the LFPL-like `R`.
+
+**What implementing it would establish, and what it would not.**
+- **Would.**
+  - Mechanical enforcement of non-size-increase: no program builds data
+    larger than it was given, or paid for.
+  - A checker written within the discipline.
+  - Executable tests of both.
+
+  This is ADR-0144's cell machine: a heap with no allocation instruction,
+  where `node` turns one free cell into a certificate node. That is LFPL's
+  discipline at the machine level.
+- **Would not.** Self-justification is a property of a *theory*: what it
+  proves about its own proofs. Willard's consistency arguments require a
+  theory whose provably total operations are this restricted, a
+  self-referential consistency principle, and a consistency proof. A
+  language supplies the computational side only. And Theorem 7.2's
+  limit on `Π₁` self-reflection holds whatever the language.
+- **A caution about strength.** A theory proving every polynomial-time
+  function total is already too strong for Willard's escape. `S¹₂` proves
+  smash total, and it contains `Q`, so Pudlák's theorem forbids it its own
+  Hilbert consistency. The matching theory must prove total only the
+  non-size-increasing operations, which corresponds to LFPL, not to
+  polynomial time in general.
+
+Sources: Jones's cons-free characterization (researchgate.net, "Some
+Programming Languages for Logspace and Ptime"; arXiv 1611.10334); Hofmann's
+LFPL (arXiv cs/0011037, "A syntactical analysis of non-size-increasing
+polynomial time computation"; arXiv 2605.12893, "LFPL: Revisited and
+Mechanized").

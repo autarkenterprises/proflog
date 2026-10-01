@@ -489,6 +489,23 @@ complete contemporaneous transcript.
     - Part 3: legacy against kernel-client mode, in one JVM.
   - `org.clojure/core.logic` 1.1.1 checked reachable on Maven Central. The
     ADR index row and MEMORY are updated, and the note's §C4 is marked.
+- The user asked how the kernel's guarantees could "not depend on the
+  evaluator, the encoding or the checker being correct". That was
+  overstated, and ADR-0144 is qualified.
+  - **Why the core holds.** The resource theorems are invariants of the
+    kernel's transitions, over all client instructions and all oracle
+    answers. The kernel checks what it relies on against its own state (a
+    held handle, the cell kind, `m` against the actual node count). This is
+    the LCF principle.
+  - **What it still rests on:**
+    - the kernel's correctness: small, searched in core.logic, its model
+      checked in Ansatz, the model-to-code agreement tested;
+    - **complete mediation**, which fails today, since `lcert.eval` makes
+      tokens itself. Part 1 makes the kernel the only creator of tokens
+      and handles, with opaque, identity-checked handles and a static scan
+      (red now). On the JVM this isolation is a discipline, not hardware;
+    - resource properties only. T1, and whether runs trap (theorem 6),
+      still depend on the checker.
 
 ## 2026-09-30
 

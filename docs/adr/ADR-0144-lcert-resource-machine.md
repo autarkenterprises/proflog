@@ -93,8 +93,48 @@ over linear cell handles.
   its own, and every operation on tokens or certificates is a kernel
   instruction.
 - The theorems below quantify over every instruction sequence, every
-  initial heap and every checker. So they do not depend on the evaluator,
-  the encoding or the checker being correct.
+  initial heap and every oracle answer.
+  - The client only chooses which instructions to issue, and the oracle
+    only chooses answers.
+  - The kernel checks what it relies on against its own state: that the
+    handle is held, that the cell is of the right kind, and `m` against
+    the tree's actual node count.
+  - So the *resource* theorems hold whatever the evaluator asks and
+    whatever the checker answers. They are invariants of the transitions,
+    not facts trusted from callers.
+  - This is the LCF principle. Theorems are an abstract type whose only
+    constructors are the inference rules, so untrusted tactic code cannot
+    forge one. Here cells are such a type, and the six instructions are
+    its only operations.
+
+  *(Qualified 2026-10-01; the first version said flatly "they do not depend
+  on the evaluator, the encoding or the checker being correct".)* What the
+  theorems still depend on is under "What the guarantee rests on" below.
+
+**What the guarantee rests on.**
+- **The kernel's own correctness.** It is small; it is searched
+  exhaustively in core.logic; and its definition's theorems are checked in
+  Ansatz. The Ansatz proofs concern a model, so the agreement between the
+  Clojure kernel and that model is tested, not proved.
+- **Complete mediation.** The client must reach cells *only* through the
+  kernel: it must be unable to create a token, forge a handle, or touch
+  the heap.
+  - Today this fails. The evaluator makes tokens itself (`token`, and
+    `default-value` at `◇`), and the theorems say nothing about tokens
+    made outside the kernel.
+  - Part 1 therefore makes the kernel the only creator of tokens and
+    handles. Handles are opaque objects that the kernel checks by identity
+    against `K`, so a forged handle traps.
+  - On the JVM, this isolation is a discipline enforced by code inspection
+    and tests, not by hardware. Reflection can reach private state. So the
+    guarantee covers clients that use only the kernel's interface, which a
+    static test checks.
+- **Resources only.** The theorems are about cells. Whether an accepted
+  certificate is a genuine derivation, and so the logic's consistency (T1),
+  still depends on the checker and λᶜᵉʳᵗ's typing rules. Whether runs
+  *trap* also depends on the checker: theorem 6 is exactly that
+  dependence. A checker that breaks E3 cannot create cells, but it can
+  make runs trap.
 
 **Values.**
 - **Data**: labels, codes, numbers, Booleans, closures and decoded
@@ -211,6 +251,12 @@ Build it in three parts, test-first, in Clojure with core.logic.
 - A switch runs the evaluator as a kernel client, following the contract
   above. Without it, the evaluator keeps its current behaviour on every path
   that a well-typed program reaches.
+- **Complete mediation.** In client mode the kernel is the only creator of
+  tokens and handles.
+  - Token construction moves into `lcert.machine`.
+  - Handles are opaque, and are checked by identity against the held set.
+  - No other namespace may construct a token or handle, or read kernel
+    state.
 
 **Part 2 — the kernel, its logic model, and its proofs.**
 - `lcert.machine`: the kernel as a pure step function on states (Clojure
@@ -242,9 +288,11 @@ as the oracle, in one JVM.
 - The research directory gains `lcert.machine`, its tests, and an Ansatz
   namespace. No Scheme component is added. Proflog's suites do not run it,
   as with the rest of `research/lcert-tiling`.
-- The conservation argument no longer depends on trusting the encoding, the
-  evaluator or the checker. It depends on six instructions, which are small
-  enough to audit.
+- The conservation argument no longer depends on trusting the encoding,
+  the evaluator or the checker. It depends on six instructions, which are
+  small enough to audit, and on the evaluator reaching cells only through
+  them (complete mediation, tested). It says nothing about logical
+  consistency, which stays with T1.
 - The evaluator's behaviour changes only on paths that well-typed runs do
   not reach. Mismatched token handoffs, phantom defaults and rejected
   reflections now trap.
@@ -258,6 +306,12 @@ Red first, then green.
   - A test that a `reflect` whose certificate declares `m ≥ ‖v‖` traps. The
     certificate is forged below `Check`, at the evaluator level.
   - Tests that default `◇`, and a reflection the checker rejects, trap.
+  - **Mediation tests.**
+    - A forged handle, one never issued by the kernel, traps at every
+      instruction.
+    - A static scan finds no construction of tokens or handles, and no read
+      of kernel state, outside `lcert.machine`. It is red now, because
+      `lcert.eval` constructs tokens.
 - **Part 2.**
   - Unit tests per instruction, each covering its precondition, effect and
     counts.
@@ -275,6 +329,6 @@ Red first, then green.
 
 | Part | Succeeds if | Fails (and is then recorded) if |
 | --- | --- | --- |
-| 1 | All handoff mismatches and rejected reflections trap; the fast and extended suites stay green | A well-typed run trips the new checks. Then E3 or T3 has a gap, which would be a finding against the calculus |
+| 1 | All handoff mismatches and rejected reflections trap; in client mode the kernel is the only creator of cells (mediation tests green); the fast and extended suites stay green | A well-typed run trips the new checks. Then E3 or T3 has a gap, which would be a finding against the calculus |
 | 2 | Theorems 1–4 hold in the search under every oracle; both mutants are caught; theorem 6's traps appear exactly for oracles that break `m < ‖c‖`; Ansatz checks theorems 2 and 3 | A kernel run creates a cell, or a `REFLECT` burns none |
 | 3 | Results and accounts agree node for node | They disagree. Then one of the two is wrong, and the discrepancy is the finding |

@@ -390,6 +390,28 @@ complete contemporaneous transcript.
   - **λᶜᵉʳᵗ** also falls, but additively in tokens, and its reflection
     stays exact. E5's verdict is strengthened. Willard's advantage remains
     only for bounded and `Σ₁` goals.
+- Then: compare Willard and λᶜᵉʳᵗ for tiling again, and consider "symbolic
+  rather than numeric" self-justification. Recorded in a new addendum F.
+  - **F1, the consolidated comparison.** A table folds in E4–E6.
+    - Willard: unmetered self-trust for bounded/`Σ₁` goals over any proof,
+      and `□` discharge.
+    - λᶜᵉʳᵗ: exact trust for `Π₁` and higher, PA, cut, and a proved
+      guarantee.
+    - Both refuse changed axioms. Thm 7.4 forbids having both in a
+      PA-strength system.
+    - Shared: both make trust-evidence from data unaffordable, in numbers
+      or in tokens.
+  - **F2, symbolic rather than numeric.** The carrier is irrelevant to the
+    limits. Newly corroborated by web search: Grzegorczyk's string theory
+    TC is mutually interpretable with `Q` (Visser–Sterken; Ganea; Švejdar
+    2009).
+    - A free term algebra is *less* hospitable to Willard's evasion: its
+      total constructors are length-additive, like multiplication.
+    - What matters is sorting, structural rules on the evidence sort, and
+      intensional size.
+    - Verdict: "two-sorted and resourced rather than one-sorted" is the
+      productive axis. That is why Willard pays in arithmetic and λᶜᵉʳᵗ in
+      tokens.
 
 ## 2026-09-30
 

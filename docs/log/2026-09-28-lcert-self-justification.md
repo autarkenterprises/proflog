@@ -1974,3 +1974,168 @@ found `J₂ ≈ {t : tᵏ ∈ J}` per level for ISλ's `TangRoot`):
   conditional on ISλ_U. Stated as in A1 (Σ₁ per time, one proof per
   action), nothing there is capped, at any depth. Every level discharges
   the proof variable with its own unrestricted reflection axiom.
+
+## Addendum: Willard And λᶜᵉʳᵗ For Tiling, Consolidated; Symbolic Rather Than Numeric Self-Justification (2026-10-01)
+
+> Compare again the advantages of Willard vs lambda-cert for tiling agents;
+> separately, consider the basic question of "symbolic rather than numeric"
+> self-justification.
+
+### F1. The comparison, with E5–E6's corrections folded in
+
+The Willard column is ISλ, with its uniform form ISλ_U, and ISREF where
+noted. Its sources are the 2026-09-26 assessment (§4 and A1–A2) and E5–E6
+here. The λᶜᵉʳᵗ column is λᶜᵉʳᵗ₁ as in AAR-0143.
+
+| | Willard (ISλ, ISλ_U; ISREF) | λᶜᵉʳᵗ₁ |
+| --- | --- | --- |
+| **Trust attaches to** | any proof that exists, held or not: the proof variable is unrestricted | certificates held: affine, and built from tokens |
+| **Bounded and `Σ₁` goals** (time windows stated `Σ₁`, A1) | exact; same theory; no decrement; no budget | exact; same theory; the budget falls by each generation's certificate |
+| **`Π₁` and higher goals** | tangible instances only. After `d` delegations about `H^(1/k^(d+1))` in ISλ; a constant per level in ISREF (E6) | exact, at every closed reflect-free type |
+| **Inherited claims about proofs** | the proof codes covered shrink like the horizon (E6) | bounded only by the remaining budget |
+| **`□φ → φ` inside reasoning** | yes for bounded and `Σ₁` `φ`. It allows Yudkowsky and Herreshoff's architecture: reason about what the child *could* prove | no: a proof-carrying architecture, in which the runtime consumes certificates |
+| **Coherent quantified belief** (Y&H property 2) | yes for bounded and `Σ₁` `φ`; no for `Π₁` (Theorem 7.2) | uniform over certificates held; none at code level (P5) |
+| **Arithmetic for the world model** | no total multiplication; ISREF not even total addition | all of PA, and HA in finite types |
+| **The agent's own proof apparatus** | cut-free tableaux, with Tab-1 lemmas (ISλ); Hilbert-style without total addition (ISREF) | natural deduction with cut |
+| **Runtime cost of trust** | none | at least one token burned per reflection; the ADR-0143 agents' certificates have 9,181 and 18,831 nodes |
+| **Successors with changed axioms** | refused (§4(d)) | refused (Step 4) |
+| **Self-consistency statement** | unrestricted: all proofs (E4) | restricted to certificates held |
+| **Arithmetic theorems beyond the base** | `A`'s `Π₁` theorems, through Group-2: trust in a fixed external `A`, not self-trust | none |
+| **The guarantee** | published for IS, ISλ and ISREF, assuming `A` proves no false `Π₁` sentence. The uniform form ISλ_U is unpublished (Remark 6.3). A1's premises P2 and P3 are open | T1 proved on paper; the key cases kernel-checked; not independently reviewed |
+| **Implementation here** | Proflog implements IS(A)-style consistency profiles; ISλ's reflection is not implemented | runnable lineages, including one on a lazy supply of 10^100 tokens; tests |
+
+**How to choose.**
+- **Willard's form fits an agent:**
+  - whose goals are bounded or `Σ₁` time windows;
+  - whose world model can do without total multiplication;
+  - which can rest on an unpublished consistency proof.
+
+  It gets unmetered tiling with no budget.
+- **λᶜᵉʳᵗ fits an agent:**
+  - with `Π₁` or richer goals;
+  - with a strong world model;
+  - that needs a proved guarantee.
+
+  It pays by metering and by holding.
+- **Neither** trusts strengthened successors, or gives naturalistic trust.
+- **No PA-strength system has both.** Willard 2001 Theorem 7.4 (E5) rules
+  it out.
+
+**What the two share.** Both block Löb at the same step: making
+trust-bearing evidence out of freely copyable data.
+- Willard makes it unaffordable in numbers. The codes are too large to
+  name, and composing proofs is not provably total.
+- λᶜᵉʳᵗ makes it unaffordable in tokens. Minting costs tokens, and reuse
+  is impossible.
+
+Both reproduce a telomere wherever trust compounds:
+- Willard's is numeric: iterated roots, for `Π₁` goals.
+- λᶜᵉʳᵗ's is in resources: additive tokens.
+
+They differ in where the cost falls: on the whole arithmetic (Willard), or
+on the evidence sort alone (λᶜᵉʳᵗ). F2 explains why.
+
+### F2. "Symbolic rather than numeric" self-justification
+
+**The question.** Would representing proofs as symbols, rather than as
+numbers, change what self-justification can achieve? The symbols could be
+strings, trees, terms or types. This motivates much of `jpt4/sjas`, and the
+2026-09-26 addenda "Non-Numeric Translations And The Obstacle" and "Why
+Proof Predicates Range Over Codes". Those addenda are re-checked and
+extended here.
+
+**1. The carrier does not change the limits.**
+- **Every proof predicate ranges over a representation.** An internal
+  proof predicate ranges over objects of the theory, whatever the carrier.
+  Numbers are what one-sorted arithmetic forces, not the essence.
+- **The limitative results pass through computable codings.**
+  - G2 and Löb need the derivability conditions for the representation
+    chosen.
+  - Willard's Theorem 7.2 needs only three things: the system checks its
+    own concrete proofs, its substitution is provably unique, and its
+    deduction method is sound and complete. Strings, trees and terms supply
+    all three.
+- **Corroboration, newly checked.** Grzegorczyk's theory of concatenation
+  TC, whose objects are strings, is mutually interpretable with Robinson's
+  `Q`. This was shown independently by Visser and Sterken, by Ganea, and by
+  Švejdar (*NDJFL* 50(1), 2009). The symbolic counterpart of `Q` stands
+  exactly where `Q` stands.
+- **Löb in type-theoretic form.** Kavvos reads the Gödel–Löb axiom as
+  intensional recursion in a modal λ-calculus. Adding an evaluation map
+  `□A → A` then inhabits every type. (Cited from standard knowledge,
+  2026-09-26.)
+
+**2. A free symbolic carrier makes Willard's evasion harder, not easier.**
+- **What the evasion is.** Willard's evasion is a growth restriction:
+  composing proofs must not be provably total (Theorem 7.4, and its
+  transfer to any coding in the 2026-09-26 addendum).
+- **Which operations are safe.** Successor, addition, doubling and
+  appending a symbol grow description length by a constant. Multiplication,
+  concatenation, pairing and grafting add lengths.
+- **Numbers make the restriction cheap.** In arithmetic, dropping
+  multiplication blocks composition and keeps addition.
+- **Free term algebras make it impossible to keep.** The constructors that
+  build a proof from its subproofs (pairing, `cons`, grafting) are total by
+  construction. They are the symbolic counterpart of total multiplication,
+  and TC's total concatenation is such an operation.
+- **The consequence.** A one-sorted symbolic SJAS must cripple its
+  constructors as Willard cripples multiplication. Without that, it is
+  `Q`-like.
+- **Already seen here.** The 2026-09-26 assessment found this risk in
+  Proflog's own symbolic layer: the byte-sequence and structural codes of
+  ADR-0067 to ADR-0070 change the carrier, and Workstream C's `pair/2` and
+  `cons` (ADR-0123, ADR-0128) are total growth functions.
+
+**3. What matters: sorting, structural rules, and intensional size.**
+- **Sorting.** In one-sorted arithmetic, proof codes are the world model's
+  numbers. So restricting how proofs compose restricts the agent's
+  arithmetic, which is Willard's price. A typed setting can give trusted
+  evidence its own sort, separate from data. In λᶜᵉʳᵗ, codes (`Syn`) are
+  free and fully arithmetical, and certificates (`R`) are the only thing
+  reflected (§5).
+- **Structural rules on the evidence sort.**
+  - *Free* (codes as data): inspection, runtime discovery and
+    diagonalization, and with them Löb.
+  - *Opaque modal* (Pfenning and Davies' □, Artemov's Logic of Proofs,
+    Brown and Palsberg's `unquote`): consistent uniform reflection, but only
+    for closed, statically quoted proofs. That is not enough for tiling,
+    where proofs are found at run time.
+  - *Affine and metered* (λᶜᵉʳᵗ): evidence can be made from data, at a
+    price, and cannot be used twice. This is the working option for tiling.
+- **Intensional size.**
+  - Every SJAS mechanism measures proof size: Fact D.3, Willard's additive
+    margin, λᶜᵉʳᵗ's strict overhead. So the representation must be
+    intensional.
+  - A quotation that respects β-conversion cannot tell `(λz.z)t` from `t`
+    (the PTS note on `jpt4/sjas`, §9).
+  - Higher-order, or up-to-conversion, symbolic representations lose the
+    measure.
+
+**4. What no representation changes.**
+- **The free data representation still satisfies the derivability
+  conditions.** So unrestricted self-consistency at the level of codes
+  stays unprovable: P5 for λᶜᵉʳᵗ, G2 in general.
+- **What a sorted design does.** It lets a second, restricted notion of
+  evidence be self-trusted, and it lets the world model stay strong. It
+  relocates the cost of self-trust; it does not remove it.
+
+**Verdict.** Taken literally, "symbolic rather than numeric" is the wrong
+axis.
+- **Changing the carrier changes nothing**, and a free term algebra is less
+  hospitable to Willard's evasion than numbers are.
+- **The productive version is "two-sorted and resourced, rather than
+  one-sorted".** Keep data free and fully arithmetical, symbolic codes
+  included. Give trusted evidence its own type, with affine structural
+  rules and an intensional size.
+- **Where each design sits.** λᶜᵉʳᵗ is that design. Willard's numeric
+  systems are the one-sorted extreme. A one-sorted symbolic SJAS would be
+  either `Q`-like, with total constructors, or as crippled as Willard's,
+  without them.
+
+This is also the root of F1. One sort forces Willard to pay in arithmetic;
+two sorts let λᶜᵉʳᵗ pay in tokens.
+
+Sources for the TC claim, found by web search on 2026-10-01: Švejdar, "On
+Interpretability in the Theory of Concatenation", *NDJFL* 50(1)
+(projecteuclid.org); Ganea, "Arithmetic on semigroups", *JSL*
+(cambridge.org).

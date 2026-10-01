@@ -128,6 +128,17 @@
       axiom are never bounded.
     - Proof codes shrink only when a parent inherits a child's *proved*
       claim about proofs.
+- **"Symbolic rather than numeric" self-justification (note F2): the
+  carrier is the wrong axis.**
+  - Limits transfer through codings: string theory TC is mutually
+    interpretable with `Q`.
+  - A free term algebra's total constructors are length-additive, the
+    analogue of total multiplication. That makes Willard-style evasion
+    harder, not easier.
+  - The productive axis is two-sorted and resourced versus one-sorted:
+    free data, and an affine evidence sort with intensional size. That is
+    λᶜᵉʳᵗ's design. It is why Willard pays in arithmetic and λᶜᵉʳᵗ in
+    tokens.
 - Implications between consistency statements run against the proof
   transformations that prove them: `Con_A → Con_B` is proved by turning
   B-refutations into A-refutations. So `HCon → Con` is cut elimination

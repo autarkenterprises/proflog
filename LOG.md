@@ -330,6 +330,28 @@ complete contemporaneous transcript.
     - `users.math.cas.cz` and `arxiv.org` are blocked by the egress policy,
       so the statements rest on web-search summaries.
 
+## 2026-10-01
+
+- The user asked whether "unrestricted" (Willard's self-consistency, note
+  E2) meant proofs or sentences, and which consistency statements would not
+  mean consistency for all sentences. Answered in note E4.
+  - **Proofs.** Willard 2001 item (V): his systems prove
+    `∀y ¬Prf(⌜0=1⌝, y)` with `y` unrestricted.
+  - **Three restriction sites.**
+    - *Which contradiction* (sentences): Willard's Level(0-)/Level(1),
+      Herbrand's form. These never change the truth value: an inconsistent
+      classical theory proves everything (for cut-free apparatus, by
+      soundness and completeness).
+    - *Which proofs*: Pudlák's `Con(n̄)`, λᶜᵉʳᵗ's `H°`, Artemov instances,
+      finite subtheories. These are genuinely weaker. Definable cuts are
+      the exception: the same in ℕ, weaker only as an assumption.
+    - *Which instances* in reflection: Willard's `Tang(x)`.
+  - **"No proof of 0=1"** is equivalent, over a weak base, to uniform `Π₁`
+    reflection (cited in Gadsby's proof of his Prop. 4.1).
+  - **The sharpened E2 contrast.** Willard restricts sentences and
+    reflection instances, which leave the fact intact. λᶜᵉʳᵗ restricts
+    proofs, which weakens it.
+
 ## 2026-09-30
 
 - Two more questions on the λᶜᵉʳᵗ note, answered in a fifth addendum

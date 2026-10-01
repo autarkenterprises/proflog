@@ -1761,3 +1761,61 @@ One caveat.
 
 In both cases the provable direction concerns the cut-free apparatus and
 the unprovable one needs cuts eliminated, as the contraposition predicts.
+
+### E4. Restricted *what*? Proofs, sentences, instances (follow-up, 2026-10-01)
+
+> No restrictions on proofs? Or do you mean sentences? What consistency
+> statements would not mean consistency for all sentences of a theory?
+
+**Proofs.** Willard's item (V) is about the proof variable: his systems
+prove `∀y ¬Prf_α(⌜0 = 1⌝, y)`, with `y` unrestricted (2001 §1). A
+consistency statement can be restricted at three different places, and only
+one of them can change what the statement means as a fact.
+
+| Restricted | Examples | Does the true statement still mean "consistent"? |
+| --- | --- | --- |
+| **which contradiction** (sentences) | Willard's Level(0-), "no proof of 0=1"; Level(1), "no proofs of `Υ` and `¬Υ`" for `Π*₁` `Υ`; Herbrand's "no unsatisfiable set of instances" | **Yes, always.** |
+| **which proofs** | Pudlák's `Con(n̄)` (length ≤ `n`); λᶜᵉʳᵗ's `H°` (certificates held); an Artemov instance `¬n̄:⊥` (one proof); a finite subtheory's `Con(S)` (proofs from part of the axioms) | **No.** These are genuinely weaker. |
+| | consistency on a definable cut, `∀y(Tang(y) ⊃ ¬Prf(⌜0=1⌝, y))` | **Yes in ℕ**, since a cut holds of every natural number for a true theory. **Weaker as an assumption**: in a nonstandard model, a refutation can lie beyond the cut. |
+| **which apparatus** | tableaux, or Herbrand, against Hilbert | **Yes in ℕ**, by soundness and completeness. Weaker as an assumption in weak theories (E1, E3). |
+| **which instances** (in reflection) | Willard's tangibility reflection: `Tang(x)` restricts the instance `x` of the reflected `Ψ`, "only x is so restricted" (2001 eq. (2), item (V)) | Not a consistency restriction. It limits which *instances* reflection certifies. |
+
+**Why restricting sentences never changes the fact.** A classical theory
+that proves one contradiction proves every sentence.
+- **Inconsistent means every kind is witnessed.** An inconsistent theory
+  proves every sentence and its negation. So "no contradiction of kind K is
+  provable" is false of it, for any nonempty K.
+- **Consistent means none is.** A consistent theory proves no sentence
+  together with its negation, so the statement is true of it. The
+  single-absurdity form, "no proof of S", needs one more thing: the theory
+  must prove `¬S`. Every theory here proves `¬(0 = 1)`.
+- **For a cut-free apparatus**, the same follows by soundness and
+  completeness, rather than by an explosion step.
+
+So Level(0-), Level(1) and "no sentence together with its negation" all
+have the same truth value. They differ only in what a *weak* system can
+*derive* from one to another. Willard: "All the definitions of consistency,
+from Level(0-) up to Level(n) for any n, are equivalent to each other under
+strong enough models of arithmetic. However, many weak axiom systems do not
+have a mathematical strength to recognize this equivalence."
+
+**"Consistency for all sentences" is in fact stronger than it looks.** Over a
+weak base, `Con(T)` is equivalent to uniform `Π₁` reflection: every `Π₁`
+theorem of `T` is true. Gadsby cites this in the proof of his Proposition
+4.1. So "no proof of 0=1", a statement naming one sentence, certifies every
+`Π₁` theorem. Willard's `IS(A)` Group-2 schema, `∀p {HilbPrf(⌜Φ⌝, p) ⇒ Φ}`
+for every `Π*₁` `Φ`, is that reflection for `A`. At `Φ = (0 = 1)` it gives
+`Con(A)`.
+
+**What this means for the comparison (E2).**
+- Willard's restrictions fall on *sentences* (Level(1), `Π*₁`) and on
+  reflection *instances* (`Tang(x)`). Neither weakens his self-consistency
+  as a fact.
+- λᶜᵉʳᵗ's restriction falls on *proofs*. At budget `n`, `H°` means
+  `Con_λ(n)`, which an inconsistent calculus whose shortest refutation is
+  longer would also satisfy.
+
+That is the precise sense of "unrestricted" (Willard) against "restricted"
+(λᶜᵉʳᵗ) in E2. The earlier chat answer said "no restriction on which proofs
+it covers" without this distinction, and the user's question was right to
+press it.

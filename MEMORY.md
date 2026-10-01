@@ -107,6 +107,13 @@
     taxonomy).
   - Not a restatement of selector proofs, though: `H` is posited, and `H°`
     is used at runtime certificates.
+  - "Unrestricted" means the *proof* variable (note E4).
+    - Restricting *sentences* never changes a consistency statement's
+      truth value: an inconsistent theory proves everything.
+    - Restricting *proofs* can (`Con(n̄)`, `H°`). Definable cuts are the
+      exception: the same in ℕ, weaker only as an assumption.
+    - Willard restricts only sentences (Level(1)) and reflection instances
+      (`Tang(x)`). λᶜᵉʳᵗ restricts proofs.
 - Implications between consistency statements run against the proof
   transformations that prove them: `Con_A → Con_B` is proved by turning
   B-refutations into A-refutations. So `HCon → Con` is cut elimination

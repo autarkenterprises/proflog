@@ -54,8 +54,17 @@
 - The machine-model audit (2026-09-29): the evaluator never creates tokens
   mid-run (37,919 of 37,919 came from the supply). But it does not check
   the reflect handoff: `m < ‖v‖` and exact token count are assumed from E3.
-  ADR-0144 (proposed) hardens that and adds a Scheme/miniKanren cell
-  machine.
+  ADR-0144 (proposed) hardens that and adds a cell machine.
+  - Revised 2026-10-01 at the user's direction: Clojure with core.logic,
+    for one environment with lcert and Ansatz.
+  - It now has a real definition: a resource kernel. Its state is
+    `⟨heap, handles, burned, status⟩`, with six instructions: `NODE`,
+    `SPLIT`, `READ`, `INSPECT`, `DROP`, `REFLECT`. There is no allocation
+    or copy, and the checker is an oracle.
+  - `REFLECT` hands on the first `m` cells in preorder, as the evaluator
+    does, and burns the rest.
+  - The theorems (Own, conservation, burn, bound, physical cap, progress
+    iff E3) hold for every instruction sequence and every oracle.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

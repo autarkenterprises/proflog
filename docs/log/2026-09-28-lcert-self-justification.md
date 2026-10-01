@@ -1157,7 +1157,9 @@ three parts:
    an oracle parameter. This follows the user's preference, and Chez 9.5 and
    Guile 3.0 are installable here. A mutation test gives the machine a
    cell-creating instruction and requires the miniKanren search to find the
-   violation;
+   violation. *(Revised 2026-10-01: Clojure with core.logic, at the user's
+   direction. The ADR now defines the machine as a resource kernel, with a
+   state, six instructions and their theorems.)*
 3. cross-validation of token accounts, node for node.
 
 It awaits the user's go-ahead.

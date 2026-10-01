@@ -461,6 +461,34 @@ complete contemporaneous transcript.
   ADR-0144 gained only a prior-art note (Hofmann's non-size-increasing
   discipline as the model for Part 2's conservation theorem) and an
   explicit scope line.
+- ADR-0144 revised at the user's direction. The user pointed out that the
+  ADR contained nothing recognizable as an abstract machine instruction
+  set, and directed Clojure with core.logic, for one environment with lcert
+  and Ansatz.
+  - **The definition, now in the ADR.** A resource kernel.
+    - State: `⟨H, K, b, σ⟩`, that is heap, held handles, burned count and
+      status.
+    - An ownership invariant.
+    - Six instructions, each with precondition, effect and cell counts:
+      `NODE`, `SPLIT`, `READ`, `INSPECT`, `DROP`, `REFLECT`. There is no
+      allocation and no copy.
+    - An oracle interface, `reject | accept(m, p)`.
+    - A client contract mapping each λᶜᵉʳᵗ construct to instructions.
+    - Theorems 1–8 (Own, conservation, burn, bound, physical cap, progress
+      iff E3, termination, no fabricated evidence), for every instruction
+      sequence and every oracle.
+  - **A correction to the previous chat description.** The evaluator hands
+    on the *first* `m` cells in preorder, root included, not "all but the
+    root". `REFLECT` is defined to match, so the two modes agree node for
+    node.
+  - **The plan.**
+    - Part 2: a pure Clojure step function, and a core.logic model in which
+      the oracle's answer is a fresh logic variable. Exhaustive search to
+      bounds `L` and `N`, two mutants that must be caught, and Ansatz
+      checks of conservation and burn.
+    - Part 3: legacy against kernel-client mode, in one JVM.
+  - `org.clojure/core.logic` 1.1.1 checked reachable on Maven Central. The
+    ADR index row and MEMORY are updated, and the note's §C4 is marked.
 
 ## 2026-09-30
 

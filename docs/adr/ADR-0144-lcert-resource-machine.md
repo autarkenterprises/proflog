@@ -1,7 +1,9 @@
 # ADR-0144: A Resource-Conserving Machine For λᶜᵉʳᵗ
 
 - Status: proposed
-- Date: 2026-09-29
+- Date: 2026-09-29; revised 2026-10-01
+  - Clojure and core.logic, at the user's direction.
+  - A machine definition, which the first draft lacked.
 - Branch: `claude/sjas-lobian-obstacle-r3csa9`, the branch of this research
   line (see ADR-0143)
 - AAR: none yet
@@ -22,26 +24,28 @@ out every token of a derivation's context. The user's objection (2026-09-29):
 
 **What an audit of the existing evaluator shows** (2026-09-29; the addendum
 of the
-[2026-09-28 note](../log/2026-09-28-lcert-self-justification.md), §C3):
+[2026-09-28 note](../log/2026-09-28-lcert-self-justification.md), §C4):
 - **Conservation holds on a real run.** On the minting lineage promised
   10^100 tokens, 37,919 tokens were created, all by materializing the lazy
   supply. That is exactly the certificate nodes minted. `reflect` created
   none. Each reflection burned its whole certificate: 18,831, 18,831 and 257
   nodes, since `m = 0` for these closed agents.
 - **The handoff is not checked, but assumed.**
-  - `reflect` hands the decoded program `(take m (tokens v))`, the
-    certificate's own tokens. It never checks `m < ‖v‖`; it relies on
-    `Check`, that is on E3.
+  - `reflect` hands the decoded program `(take m (tokens v))`: the first `m`
+    of the certificate's own tokens, in preorder, root first. It never checks
+    `m < ‖v‖`; it relies on `Check`, that is on E3.
   - `eval-deriv` does not check that it received exactly `m` tokens. Handed
     too few, a program either binds a token variable to the wrong token
     silently (de Bruijn shift), or fails with an incidental
     `IndexOutOfBoundsException`.
-  - On unreachable paths, `default-value` at `◇` creates a phantom token.
+  - On unreachable paths, `default-value` at `◇` creates a phantom token, and
+    a `reflect` whose certificate fails `Check` returns a default value
+    instead of failing.
 
 So today strict overhead is enforced by a checker rule upstream, not by the
 runtime. The user's suspicion is correct about the implementation.
 
-**What a machine can and cannot secure** (the note, §C3):
+**What a machine can and cannot secure** (the note, §C4):
 - **It can** make three properties mechanical, whatever the encoding:
   - no instruction creates a token;
   - a certificate *carries* the tokens it grants, rather than *describing*
@@ -62,12 +66,12 @@ runtime. The user's suspicion is correct about the implementation.
 
 **Prior art** (added 2026-10-01; the
 [2026-09-28 note](../log/2026-09-28-lcert-self-justification.md), §F4).
-- Part 2 makes one discipline mechanical: a node is made only by consuming
-  a free cell, and there is no allocation instruction. That is Hofmann's
-  non-size-increasing discipline (LFPL, LICS 1999).
+- The machine makes one discipline mechanical: a node is made only by
+  consuming a free cell, and there is no allocation instruction. That is
+  Hofmann's non-size-increasing discipline (LFPL, LICS 1999).
 - λᶜᵉʳᵗ's `◇` descends from it (2026-09-26 assessment).
-- LFPL's non-size-increasing theorem is the model for Part 2's
-  conservation theorem.
+- LFPL's non-size-increasing theorem is the model for the conservation
+  theorem below.
 
 **Scope.** This ADR is a machine model *of λᶜᵉʳᵗ*.
 - The checker stays an oracle, so that the machine's theorems hold for
@@ -75,63 +79,175 @@ runtime. The user's suspicion is correct about the implementation.
 - A general cons-free or LFPL-style language, of the one-sorted kind the
   note's F3–F4 discuss, is out of scope. It would need its own ADR.
 
+**Language** (the user, 2026-10-01). Clojure with core.logic, Clojure's
+miniKanren, rather than Scheme with miniKanren. This keeps one language
+environment with the λᶜᵉʳᵗ implementation and the Ansatz proofs.
+- `org.clojure/core.logic` 1.1.1 is on Maven Central, checked reachable
+  2026-10-01. For JVM use it needs only Clojure.
+
+## The machine
+
+**What it is.** A *resource kernel*: a heap of cells, and six instructions
+over linear cell handles.
+- λᶜᵉʳᵗ's evaluator becomes a *client* of the kernel. It holds no cells of
+  its own, and every operation on tokens or certificates is a kernel
+  instruction.
+- The theorems below quantify over every instruction sequence, every
+  initial heap and every checker. So they do not depend on the evaluator,
+  the encoding or the checker being correct.
+
+**Values.**
+- **Data**: labels, codes, numbers, Booleans, closures and decoded
+  programs. It may be copied. The kernel never inspects it except to return
+  it.
+- **Handles**: names of cells. They are linear. An instruction that takes a
+  handle consumes it, so a second use of the same handle traps, even if the
+  client has duplicated it.
+- **R-values**, λᶜᵉʳᵗ's certificates: either `(leaf ℓ)`, which is data and
+  owns no cell, or a handle to a node cell.
+
+**State.** `Σ = ⟨H, K, b, σ⟩`, where:
+- `H` is the heap: a finite map from cell ids to contents, each either
+  `free` (a token, λᶜᵉʳᵗ's `◇`) or `(node ℓ r₁ r₂)`, with `r₁` and `r₂`
+  R-values;
+- `K` is the set of handles the client holds;
+- `b` is the number of cells burned so far;
+- `σ` is the status: `run`, or `(trap reason)`.
+
+**Ownership (Own).** Every cell id in `dom H` is in `K` or is a child of
+exactly one node in `H`, never both. Trees are finite and acyclic.
+
+**Initial states.** Any `⟨H₀, K₀, 0, run⟩` satisfying Own. Two are used:
+- **budget `n`**: `n` free cells, all in `K₀`. These are λᶜᵉʳᵗ's tokens
+  `$1 … $n`.
+- **supply `N`**: one spine of `N` node cells, with its root in `K₀`. This
+  is λᶜᵉʳᵗ's supply certificate. A lazy supply implements the same initial
+  state, laying out each cell when it is first touched. Its equivalence to
+  the eager one is a lemma, as in ADR-0143 Step 2.
+
+`supplied = |dom H₀|`.
+
+**Size and order.** `‖c‖` is the number of node cells in the tree at `c`.
+Preorder lists them root first, then left before right.
+
+**Instruction set.** Every instruction names handles that must be in `K`.
+Using a handle not in `K`, or a cell of the wrong kind, traps. A trap stops
+the machine; no instruction fails in any other way.
+
+| Instruction | Precondition | Effect | free | node | burned |
+| --- | --- | --- | --- | --- | --- |
+| `NODE c ℓ r₁ r₂ → c` | `H(c) = free`; each `rᵢ` a leaf or a node handle in `K`; the two distinct | `H(c) := (node ℓ r₁ r₂)`; `r₁`, `r₂` leave `K` | −1 | +1 | 0 |
+| `SPLIT c → (c, ℓ, r₁, r₂)` | `H(c) = (node ℓ r₁ r₂)` | `H(c) := free`; the children's handles enter `K` | +1 | −1 | 0 |
+| `READ c → code` | `H(c)` a node | none; returns the tree's code, as data | 0 | 0 | 0 |
+| `INSPECT c D → bool` | `H(c)` a node | none; returns whether the oracle accepts `(READ c, D)` | 0 | 0 | 0 |
+| `DROP c` | — | removes `c`'s tree from `H` and `c` from `K` | −1 if free | −‖c‖ if node | +1, or +‖c‖ |
+| `REFLECT c D → (p, d₁ … d_m)` | `H(c)` a node; the oracle returns `accept(m, p)` on `(READ c, D)`; `m < ‖c‖` | of the tree's `k = ‖c‖` cells in preorder, the first `m` become free and enter `K` as `d₁ … d_m`; the other `k − m` are removed | +m | −k | +(k − m) |
+
+There is no allocation instruction and no copy instruction. A `REFLECT` the
+oracle rejects traps.
+
+**The oracle.** `O : (code, type code) → reject | accept(m, p)`. It is a
+parameter of the machine.
+- **For λᶜᵉʳᵗ**: accept iff `Check(code, ⌜D⌝)`. Then `p` is the decoded
+  derivation, and `m` is the length of its context.
+- **To the kernel**, `p` is opaque data.
+
+**How λᶜᵉʳᵗ runs on it.** This is the client contract, which Part 1's
+hardened evaluator follows.
+
+| λᶜᵉʳᵗ | Kernel |
+| --- | --- |
+| tokens `$1 … $n` | the budget-`n` initial handles |
+| `node d ℓ r₁ r₂` | `NODE` |
+| `caseR` on a node; `itR` | `SPLIT`; `itR` recursively |
+| `caseR` on a leaf; `leaf ℓ` | nothing (data) |
+| `inspect` | `INSPECT` |
+| `print r` | `READ`, then `DROP` |
+| `reflect D r e` | `REFLECT`, then run `p` on `d₁ … d_m` |
+| an R-value or `◇` left unused | stays held, or `DROP` |
+| everything else | nothing |
+
+The handoff order, the first `m` cells in preorder, is the evaluator's own
+`(take m (tokens v))`. So the client and legacy modes agree node for node.
+
+**Theorems.** For every initial state, every oracle and every finite
+instruction sequence:
+1. **Own is preserved.**
+2. **Conservation.** free + node + `b` = `supplied`, at every state.
+3. **Burn.** A `REFLECT` that does not trap increases `b` by
+   `k − m ≥ 1`.
+4. **Bound.** At most `supplied` `REFLECT`s do not trap.
+5. **Physical cap.** No certificate given to `REFLECT` has more than
+   `supplied − b` nodes. The evaluator's charged cap `n − ‖v‖ + m` is this
+   live-cell count: a consequence, not a parameter.
+6. **Progress iff E3.** Under an oracle `O`, no `REFLECT` of an accepted
+   certificate traps iff `O` accepts only certificates whose `m` is less
+   than their node count. λᶜᵉʳᵗ's `Check` has that property by E3 (R4 Lemma
+   2.7). A compact-budget oracle does not.
+
+At the client level, for λᶜᵉʳᵗ running on the kernel:
+7. **Termination.** Every run ends or traps. This follows from 4, and from
+   the termination of λᶜᵉʳᵗ without `reflect`, which has only structural
+   recursion.
+8. **No fabricated evidence.** No run that ends yields a value of the empty
+   type.
+   - λᶜᵉʳᵗ has no constructor of `0`.
+   - A rejected `REFLECT` traps.
+   - 4 bounds the depth of reflection.
+
+Theorems 1–6 are proved by cases on the instruction table, 7–8 by induction
+on `b`.
+
 ## Decision
 
-Build the machine in three parts, test-first.
+Build it in three parts, test-first, in Clojure with core.logic.
 
-**Part 1 — harden the Clojure evaluator.**
+**Part 1 — harden the evaluator, and make it a client of the kernel.**
 - `reflect` checks `m < ‖v‖` and hands on exactly `m` tokens, trapping
-  otherwise.
+  otherwise. A certificate that fails `Check` traps.
 - `eval-deriv` checks that it received exactly as many tokens as the context
   declares.
 - `default-value` at `◇` traps instead of creating a phantom token.
-- A conservation monitor (a dynamic var) records tokens created, handed on
-  and burned. Tests assert, on the ADR-0143 runs, that:
-  - `created = supplied`;
-  - every reflect burns at least one token;
-  - the tokens live at the end plus those burned equal those created.
+- A switch runs the evaluator as a kernel client, following the contract
+  above. Without it, the evaluator keeps its current behaviour on every path
+  that a well-typed program reaches.
 
-**Part 2 — an independent abstract machine, in Scheme with miniKanren.**
-This follows the user's standing preference for Scheme and miniKanren. Chez
-Scheme 9.5 and Guile 3.0 are installable here via apt; the choice between
-them is made at implementation.
-- A heap of cells, with linear pointers. `node` turns one free cell into a
-  certificate node. There is no allocation instruction.
-- `reflect` takes a certificate pointer:
-  - reads the code;
-  - calls a checker, which is a *parameter* (an oracle);
-  - destroys the root cell;
-  - hands `m` of the remaining cells to the decoded program;
-  - destroys the rest.
+**Part 2 — the kernel, its logic model, and its proofs.**
+- `lcert.machine`: the kernel as a pure step function on states (Clojure
+  maps), with the oracle as an argument.
+- A core.logic model of the same step relation, with counts in
+  `core.logic.fd`.
+  - At each `REFLECT` the oracle's answer is a fresh logic variable, so every
+    accept, reject and `m` is explored.
+  - The search covers all instruction sequences up to length `L`, from all
+    initial heaps of at most `N` cells. The test fixes `L` and `N`, tuned for
+    runtime.
+  - It must find no violation of theorems 1–4.
+- **Mutation tests.** The search must find violations in two altered
+  kernels:
+  - one with an `ALLOC` instruction, which makes a free cell;
+  - one whose `REFLECT` lacks the `m < ‖c‖` check, and makes up any cells
+    it lacks.
+- **Ansatz.** Theorems 2 and 3 are stated over a list-of-cells model and
+  checked by the Ansatz kernel, as ADR-0143 checked its key lemmas.
+- `bin/deps` fetches `org.clojure/core.logic` 1.1.1 from Maven Central.
 
-  If `m ≥ ‖v‖`, it traps.
-- Machine theorems, for every checker oracle, proved on paper and tested:
-  - conservation;
-  - at least one cell burned per `reflect`;
-  - at most `N` reflects on `N` cells;
-  - no value of an empty type in a terminating run.
-- A miniKanren relational model of the step relation searches exhaustively
-  for small programs, up to a fixed size, that violate the invariants. None
-  is expected.
-- The theorem "E3 ⟺ progress for reflect" is proved on paper. It is shown
-  by running the machine with λᶜᵉʳᵗ's checker (no traps) and with a
-  compact-budget checker (traps).
-
-**Part 3 — cross-validation.** The Scheme machine and the hardened evaluator
-run the ADR-0143 delegation and minting lineages. Their token accounts must
-agree node for node. Certificates go from Clojure to Scheme as S-expression
-codes. The Scheme side uses a recorded oracle (the accept/reject decisions
-Clojure's `Check` made) rather than reimplementing `Check`.
+**Part 3 — cross-validation.** The evaluator runs ADR-0143's delegation and
+minting lineages twice: in legacy mode, and as a kernel client. Results and
+token accounts must agree node for node. Both runs use λᶜᵉʳᵗ's real `Check`
+as the oracle, in one JVM.
 
 ## Consequences
 
-- The research directory gains a Scheme component with its own run script.
-  Proflog's suites do not run it, as with the rest of
-  `research/lcert-tiling`.
-- The conservation argument no longer depends on trusting the encoding. It
-  depends on the machine's instruction set, which is small enough to audit.
-- The evaluator's behaviour changes only on paths that are unreachable in
-  well-typed runs: mismatched token handoffs and phantom defaults now trap.
+- The research directory gains `lcert.machine`, its tests, and an Ansatz
+  namespace. No Scheme component is added. Proflog's suites do not run it,
+  as with the rest of `research/lcert-tiling`.
+- The conservation argument no longer depends on trusting the encoding, the
+  evaluator or the checker. It depends on six instructions, which are small
+  enough to audit.
+- The evaluator's behaviour changes only on paths that well-typed runs do
+  not reach. Mismatched token handoffs, phantom defaults and rejected
+  reflections now trap.
 
 ## Test Obligations
 
@@ -141,20 +257,24 @@ Red first, then green.
     misbinds).
   - A test that a `reflect` whose certificate declares `m ≥ ‖v‖` traps. The
     certificate is forged below `Check`, at the evaluator level.
-  - A test that default `◇` traps.
-  - Conservation-monitor tests on the minting and delegation lineages.
+  - Tests that default `◇`, and a reflection the checker rejects, trap.
 - **Part 2.**
-  - Unit tests per instruction.
-  - Invariant tests under two oracles (λᶜᵉʳᵗ-style, and compact-budget).
-  - The miniKanren search returns no counterexample up to the stated bound,
-    and does return one when the machine is deliberately given a
-    cell-creating instruction (a mutation test).
-- **Part 3.** Token accounts agree on both lineages.
+  - Unit tests per instruction, each covering its precondition, effect and
+    counts.
+  - Invariant tests under three oracles:
+    - λᶜᵉʳᵗ's `Check`;
+    - a compact-budget oracle, which must trap, as theorem 6 predicts;
+    - the unconstrained oracle of the core.logic search.
+  - The search finds no counterexample up to the stated bounds, and finds
+    one in each mutant.
+  - The Ansatz statements of theorems 2 and 3 check.
+- **Part 3.** The two modes agree, in results and in token accounts, on
+  both lineages.
 
 ## Exit Criteria
 
 | Part | Succeeds if | Fails (and is then recorded) if |
 | --- | --- | --- |
-| 1 | All handoff mismatches trap; the monitor shows conservation and burn ≥ 1 on every ADR-0143 run; the fast and extended suites stay green | A well-typed run trips the new checks (then E3 or T3 has a gap, which would be a finding against the calculus) |
-| 2 | The invariants hold under every oracle tested; the mutation test is caught; progress holds exactly for oracles that respect `m < ‖v‖` | A conserving-machine run creates a cell, or burns none at some reflect |
-| 3 | Accounts agree node for node | They disagree (then one of the two is wrong, and the discrepancy is the finding) |
+| 1 | All handoff mismatches and rejected reflections trap; the fast and extended suites stay green | A well-typed run trips the new checks. Then E3 or T3 has a gap, which would be a finding against the calculus |
+| 2 | Theorems 1–4 hold in the search under every oracle; both mutants are caught; theorem 6's traps appear exactly for oracles that break `m < ‖c‖`; Ansatz checks theorems 2 and 3 | A kernel run creates a cell, or a `REFLECT` burns none |
+| 3 | Results and accounts agree node for node | They disagree. Then one of the two is wrong, and the discrepancy is the finding |

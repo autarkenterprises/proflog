@@ -79,6 +79,19 @@
   - The trusted base is the metatheory, `Check` (data is free, so a program
     can search for a checker bug), and mediation against Clojure code
     (ADR-0144).
+- **What type-checks, and what can be trusted** (note F6;
+  `lcert.trusted-program-test`).
+  - On data, System T. Ackermann passes closed, packaged as R4's
+    `Σ(x :ω A). 1`. As a logic, PA.
+  - Usage-1 values: no double use, no use in a recursion step, and no
+    `ω`-argument. Data can be reused by promotion or packaging; tokens
+    never can.
+  - A program is trusted when another program reflects its held, checked
+    certificate at a reflectable type.
+  - Worked example: a controller `2^t` with a proof of `∀t. 2^t ≠ 0` (8,977
+    nodes, the proof 7,909). A closed parent checks its code for free, mints
+    it from a supply, and reflects it. It then drives an actuator that
+    demands safety evidence, with no runtime checks.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

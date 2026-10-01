@@ -13,9 +13,11 @@
 
 (def fast-namespaces
   "The language's own tests, which need no Ansatz, and every example of
-  TUTORIAL.md (lcert.tutorial-test), so the tutorial cannot drift.  The last
-  two are the assessor's reflect experiments (proflog ADR-0143 setup):
-  reflect at ordinary types, and the fixed-cap failure at a resource type."
+  TUTORIAL.md (lcert.tutorial-test), so the tutorial cannot drift.  The
+  namespaces after the tutorial are the assessor's (proflog ADR-0143 and its
+  follow-ups): reflect at ordinary types, the fixed-cap failure at a
+  resource type, the four steps' fast tests, and a worked example of a
+  trusted program (lcert.trusted-program-test)."
   '[lcert.syntax-test
     lcert.encode-test
     lcert.reduce-test
@@ -30,7 +32,8 @@
     lcert.caser-test
     lcert.lazy-supply-test
     lcert.minting-agent-test
-    lcert.world-reflect-test])
+    lcert.world-reflect-test
+    lcert.trusted-program-test])
 
 (def extended-namespaces
   "Tests of the Ansatz kernel itself, run before the fast suite is repeated,

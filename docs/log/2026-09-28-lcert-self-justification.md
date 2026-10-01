@@ -2466,3 +2466,154 @@ never sees L′'s violations, and does not need to.
 can trust the successor only through its own `Check` or through a
 soundness proof it can give. An interpreter is a way to run a successor
 whose trust the agent cannot ground, not a way around the Löbian obstacle.
+
+### F6. What type-checks, and a non-trivial program that can be trusted (follow-up, 2026-10-01)
+
+> What lambda-cert programs then can type check? What is an example of a
+> non-trivial lambda-cert program that can be trusted?
+
+**[test]** `lcert.trusted-program-test` pins every claim below marked
+*(test)*. Two mutations turn it red (LOG.md, 2026-10-01).
+
+**What type-checks.** A program is a term `t` with `Θₙ ⊢ t :¹ A`: it may
+spend `n` tokens. Six things decide which terms pass.
+1. **Everything terminates.** Recursion is structural only: `recN` on
+   numbers, `recSyn` on codes, `itR` and `caseR` on certificates. There is
+   no general recursion, so an interpreter needs fuel (F5).
+2. **On data, the strength of Gödel's System T, whose functions are those
+   PA proves total.**
+   - Ackermann's function is not primitive recursive. It type-checks closed
+     (705 nodes) and computes `A(3,3) = 61` *(test)*. It needs recursion at
+     a function type.
+   - System T in general embeds the same way: package recursion results,
+     and promote numbers held at usage 1 by recursion (item 3). An
+     Ackermann written with System T's `ω` arrows passes *(test)*. The full
+     embedding is my synthesis; only Ackermann is tested.
+   - Upward, R4 §6.3 translates every term into System T, with `reflect`
+     read as a default, so reflect-free terms compute nothing more.
+   - A program that reflects certificates from its input runs whatever
+     programs they carry, as ADR-0143's agents do. No bound is claimed for
+     that here.
+   - As a logic: dependent types over Boolean tests (`T(b)`, `Π`, `Σ`), so
+     programs carry proofs. Every PA theorem translates (R4 §6.2; `lcert.pa`
+     checks every axiom scheme). And λᶜᵉʳᵗ proves no arithmetic sentence
+     that PA does not (§4.2).
+3. **Usages.** Each variable is declared at `0` (types only), `1` (at most
+   once at runtime) or `ω`.
+   - A usage-1 variable may not be used twice. It may not be used in a
+     recursion's step, which may run more than once. It may not be the
+     argument of an `ω`-function, which would scale it to `ω`. The last rule
+     rejected my first Ackermann.
+   - Data can still be reused. Rebuild it by recursion, which binds the
+     predecessor at `ω` (`promote : Nat ⊸ Σ(v :ω Nat). 1`), or package it
+     as `Σ(x :ω A). 1` (R4's device for its induction lemma). Ackermann's
+     recursion result must be packaged. Without the packaging, the step
+     uses the usage-1 result twice, once inside a nested recursion's step,
+     and is rejected *(test)*.
+   - Tokens, and anything built from them, cannot be packaged at `ω`: the
+     package's contents would need `ω` tokens. So they stay affine.
+4. **Resources.**
+   - `◇` has no constructor. Tokens come only from the budget, or back from
+     `reflect`.
+   - A certificate node takes one token. `caseR` and `itR` take a
+     certificate apart and hand its tokens back.
+   - `print` turns a certificate into its code, as free data, and consumes
+     the certificate.
+   - `inspect` branches on `Check`, for free, and hands the certificate
+     back with evidence. `reflect` needs that evidence, and consumes the
+     certificate.
+5. **Reflection targets.** Closed, reflect-free types. The default class
+   takes the ordinary ones, with no `R`, `◇` or `reflect` anywhere. Those
+   include data, functions and dependent specifications.
+6. **Truth.** A type with no inhabitant has no program. A false
+   specification fails the type checker: a controller "identity, never 0"
+   is rejected *(test)*.
+
+**Examples.** All are closed (budget 0); sizes are certificate nodes. The
+agent's is METATHEORY §4.2's measurement; the rest were measured for this
+answer.
+
+| Program | Type | Nodes |
+| --- | --- | --- |
+| `not` | `Bool → Bool` | 35 |
+| Ackermann | `Π(m :ω Nat). Nat ⊸ Nat` | 705 |
+| `2^t` | `Nat → Nat` | 188 |
+| its safety proof, `∀t. 2^t ≠ 0` | `Π(t :ω Nat). T(2^t ≠ 0)` | 7,909 |
+| the child below: `2^t` with that proof | `Controller` | 8,977 |
+| the typed parser (primitive destructor) | `Π(c :ω Syn). R ⊸ R ⊗ R` | 8,022 |
+| the delegating agent (ADR-0143, with `caseR`) | `Π(s :₁ R). Σ(x :ω Nat). T(x ≠ 0)` | 9,181 |
+| the parent below | `Π(c :ω Syn). R ⊸ Controller` | 18,506 |
+
+The proof costs 42 times the program it is about, because a certificate
+writes out every judgment of its derivation. Trust is priced mostly by the
+proof.
+
+**What "trusted" means.** A program is trusted when another program
+reflects its certificate. That needs four things:
+- the certificate checks at the type, under λᶜᵉʳᵗ's `Check`;
+- it is held, which means minted, at one token per node;
+- the type is reflectable;
+- the certificate fits the caller's cap.
+
+`reflect` then returns the program's value *with* its type's guarantee.
+At an ordinary type that is sound on paper. R4 Lemma 3.6's Reflect case
+goes through unchanged, since an ordinary type's semantic set does not
+depend on the cap (R4 §3.3; `lcert.ordinary-reflect-test`). The
+kernel-checked Reflect case (METATHEORY §1.4) covers non-dependent types
+only, and the type below is dependent.
+
+**A non-trivial trusted program** *(test)*.
+- **The child**: a controller `f(t) = 2^t`, with a proof
+  `p : Π(t :ω Nat). T(f t ≠ 0)`, "safe at every time".
+  - The proof is by induction. `2^(k+1)` is `dbl 2^k`, which conversion
+    cannot evaluate for an open `k`, so the step uses the hypothesis and a
+    lemma: `dbl a ≠ 0` when `a ≠ 0`, proved by cases.
+  - Its type is `Controller := Σ(f :ω Nat → Nat). Σ(p :ω Π(t :ω Nat).
+    T(f t ≠ 0)). 1`. That type is ordinary, so the default class reflects
+    at it.
+- **The parent**, `Π(c :ω Syn). R ⊸ Controller`, is closed. It receives the
+  child's code as data, from anywhere, and a supply of tokens.
+  1. It checks the code as data, for free (`chk′`).
+  2. If the code checks, it mints the certificate with the typed parser,
+     one supply node per certificate node.
+  3. It checks the minted certificate (`inspect`). That yields the evidence
+     `reflect` needs, and it reflects.
+  4. Otherwise it returns its own controller, `t ↦ 1`, which is safe by
+     computation.
+- **The use.** An actuator accepts a command only with evidence that it is
+  safe: `act : Π(a :ω Nat). T(a ≠ 0) → Nat`. It is driven for ten steps from
+  the controller and its proof, with no runtime checks. The calls
+  type-check only because the proof supplies the evidence.
+- **Results**, measured:
+
+| Input | Tokens minted | Sum of commands |
+| --- | --- | --- |
+| the child's code, supply of exactly 8,977 | 8,977 | 1,023 = 2⁰ + … + 2⁹ |
+| the same, supply promised at 10^100 (probe, not in the test) | 8,977 | 1,023 |
+| the same, one token short | 8,976 | 10: the truncated certificate fails `inspect` |
+| the code with one label changed | 0 | 10: it fails the free check |
+| a certificate of another type (`2^t` without its proof) | 0 | 10 |
+
+An earlier probe minted before checking. The tampered code then cost all
+8,977 tokens before `inspect` refused it. Checking the code first is free,
+and the parent above does it.
+
+**What the trust buys.** The parent learns a `Π₁` fact, safety at *every*
+`t`, about a program it first saw at runtime, before any `t` occurs. No
+finite amount of checking yields that.
+- Without the proof, the parent would need a runtime check before each
+  command, with a fallback each time.
+- Safety here (`≠ 0`) is decidable step by step, which keeps the example
+  small. For a safety property with its own quantifier, step-by-step checks
+  are impossible, and only a proof will do.
+- This is tiling in miniature. The parent trusts its successor's proof
+  about all future situations. The trust is the `reflect` step, at a price
+  of 8,977 tokens, all burned: the child is closed, so `m = 0`.
+
+**Mutation checks** (LOG.md):
+- With both usage checks removed, the unpackaged Ackermann passes.
+- With a `reflect` that never runs, the parent's sum is 0, not 1,023. The
+  actuator then accepts a command of 0 with "evidence" that it is not 0.
+  That is the evaluator failing, not the calculus. It is the kind of bug in
+  the trusted base that F5 lists, and ADR-0144's kernel does not catch it:
+  its guarantee covers resources only.

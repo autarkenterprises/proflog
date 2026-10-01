@@ -569,6 +569,50 @@ complete contemporaneous transcript.
     was too slow and was stopped; the test uses 7 nodes and the primitive
     destructor. `/usr/bin/time` is not installed in this container, so the
     shell's `time` was used.
+- The user asked which λᶜᵉʳᵗ programs type-check, and for a non-trivial
+  program that can be trusted. Answered in note F6, with a new fast-suite
+  namespace, `lcert.trusted-program-test`, registered in the test runner
+  (whose stale description of its list was corrected).
+  - **What type-checks.**
+    - Total programs only, by structural recursion.
+    - On data, System T. Ackermann passes closed (705 nodes, `A(3,3) =
+      61`), packaged as R4's `Σ(x :ω A). 1`. A System T-style variant with
+      `ω` arrows passes once usage-1 numbers are promoted by recursion. R4
+      §6.3 bounds reflect-free terms above by System T.
+    - As a logic, PA (R4 §6.2).
+    - The usage rules: no double use, no use in a recursion step, no
+      `ω`-argument.
+    - Resources affine, `reflect` at ordinary closed types by default, and
+      false specifications uninhabited.
+  - **The trusted program.**
+    - The child is `2^t` with a proof of `∀t. 2^t ≠ 0` (induction plus a
+      lemma; 8,977 nodes, of which the proof is 7,909).
+    - The parent (18,506 nodes, closed) takes the child's code as data and
+      a supply. It checks the code for free, mints it (one token per node),
+      `inspect`s it and reflects it, and otherwise falls back to `t ↦ 1`.
+    - The parent then drives an actuator that demands `T(a ≠ 0)` for ten
+      steps, with no runtime checks.
+    - Measured: sum 1,023 with exactly 8,977 tokens minted (also from a
+      supply promised at 10^100). Ten with one token short (8,976 minted).
+      Ten with a tampered code or a wrong-type code (none minted).
+  - **Mutation checks.** Removing both of typing's usage checks
+    (`check-omega-scaled` and `check-within`) let the unpackaged Ackermann
+    through. Removing only the first left it rejected, since `check-within`
+    also catches the double use. A `reflect` that never runs gave a sum of
+    0 instead of 1,023.
+  - **Slips.**
+    - My first Ackermann used `ω` arrows, and passing the inner
+      recursion's usage-1 result to them was rejected. Fixed with `⊸`, or
+      with promotion.
+    - Minting the 8,977-node certificate inside a budget-8,977 program ran
+      out of heap in the type checker, since each derivation node carries
+      the whole token context. The test mints from a lazy supply with the
+      typed parser instead, as the minting agent does.
+    - `ex/plus-form` does not exist; R4's `PLUS` is defined locally.
+  - The research README now names the F5 and F6 tests. F5's had been
+    missed in the previous commit.
+  - **Suites.** Fast: 79 tests, 649 assertions, 0 failures. Extended:
+    107 tests, 2,084 assertions, 0 failures (1 min 59 s).
 
 ## 2026-09-30
 

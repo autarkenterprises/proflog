@@ -34,6 +34,21 @@
   red (note F5). Then name the trusted base separately. A system with free
   computation over codes can *search* for a checker bug, so the checker is
   part of that base.
+- Writing λᶜᵉʳᵗ programs (note F6):
+  - A value held at usage 1 cannot be passed to an `ω`-function, since
+    application scales the argument's usage. Use `⊸`, or promote the value
+    by recursion first. My first Ackermann failed this way.
+  - Do not mint a large certificate inside a program whose budget is its
+    size. The type checker carries the whole token context at every
+    derivation node, and 8,977 tokens exhausted the heap. Mint from a supply
+    with the typed parser, as the minting agent does.
+  - Check a code as data, which is free, before minting it. A parent that
+    minted first spent all 8,977 tokens on a tampered code before
+    `inspect` refused it.
+  - A mutation that leaves a test green may only show a second, independent
+    check. Disabling `check-omega-scaled` alone left the unpackaged
+    Ackermann rejected by `check-within`. Disable both to see the test go
+    red.
 
 ## 2026-09-30
 

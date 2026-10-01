@@ -64,6 +64,17 @@ quantifier ranges over certificates held (the note's Addendum D1; pinned by
 trade from Willard's systems, which weaken the arithmetic to prove their own
 consistency.
 
+Two follow-ups in that note are pinned by tests as well:
+- **F5.** An interpreter written in λᶜᵉʳᵗ for a language that breaks its
+  rules breaks them only in data
+  (`lcert.core-test/interpreted-violations-stay-data`).
+- **F6.** What type-checks, with Ackermann's function as the data-layer
+  example, and a program trusted at runtime
+  (`lcert.trusted-program-test`). The program is a controller with a proof
+  that it is safe at every time. A parent receives it as a code, mints it,
+  checks it and reflects it. The parent then drives an actuator that
+  demands safety evidence, with no runtime checks.
+
 The calculus these steps propose, λᶜᵉʳᵗ₁, is the vendored one run with
 `lcert.syntax/*extensions*` `#{:caseR}` (the default),
 `lcert.syntax/*reflect-class*` `:all` and `lcert.eval/*charged-cap*` `true`.

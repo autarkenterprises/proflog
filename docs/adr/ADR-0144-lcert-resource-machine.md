@@ -236,6 +236,17 @@ The handoff order, the first `m` cells in preorder, is the evaluator's own
   operational semantics. That keeps the trusted part to six instructions.
   A full abstract machine for λᶜᵉʳᵗ, with this kernel as its store (a
   CESK-style machine), would be a separate, larger step.
+- **Interpreters** (added 2026-10-01). A λᶜᵉʳᵗ program may interpret a
+  language L′ whose rules break λᶜᵉʳᵗ's, for example by copying
+  certificates.
+  - Interpreting is data computation, so it issues no kernel instructions.
+    No instruction could carry out a copy.
+  - L′'s results reach the kernel only through `NODE`, at one held cell per
+    node, and through `REFLECT`, whose oracle is λᶜᵉʳᵗ's own `Check`.
+  - The language-level argument and its test are in the
+    [2026-09-28 note, F5](../log/2026-09-28-lcert-self-justification.md).
+    The one gap is code outside λᶜᵉʳᵗ, which complete mediation (above)
+    must close.
 
 **Theorems.** For every initial state, every oracle and every finite
 instruction sequence:

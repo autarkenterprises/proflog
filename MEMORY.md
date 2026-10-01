@@ -65,6 +65,20 @@
     does, and burns the rest.
   - The theorems (Own, conservation, burn, bound, physical cap, progress
     iff E3) hold for every instruction sequence and every oracle.
+- **An interpreter cannot export a violation** (note F5; tested in
+  `lcert.core-test/interpreted-violations-stay-data`). A λᶜᵉʳᵗ program may
+  interpret any L′, even one that copies certificates or trusts unchecked
+  proofs, but whatever L′ does stays in data.
+  - Data reaches the protected types only three ways. A token: none can be
+    made, since `◇` has no introduction rule. A certificate: one held token
+    per node. Trust: `chk′` names the running system's `Check`.
+  - L′'s results are trusted only as minted λᶜᵉʳᵗ derivations, or through a
+    λᶜᵉʳᵗ proof that L′ is sound for a class. No such proof exists if L′
+    proves a false arithmetic statement of the class (note §4.2), or if L′
+    includes λᶜᵉʳᵗ and the class contains `0` (P5).
+  - The trusted base is the metatheory, `Check` (data is free, so a program
+    can search for a checker bug), and mediation against Clojure code
+    (ADR-0144).
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

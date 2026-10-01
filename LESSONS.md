@@ -26,6 +26,14 @@
   own choice of an oracle checker, made so that the machine's theorems hold
   for every checker. Offer adjacent ideas as separate ADRs, and add to an
   existing ADR only what serves its goal (here, prior art).
+- To ask whether a system can escape its rules by simulating another
+  language, first locate the rules. Invariants of *types*, proved for every
+  well-typed term, cover an interpreter as they cover any program. The
+  question then becomes which operations lead from data into the protected
+  types. List them and test each one, with a mutation that turns each test
+  red (note F5). Then name the trusted base separately. A system with free
+  computation over codes can *search* for a checker bug, so the checker is
+  part of that base.
 
 ## 2026-09-30
 

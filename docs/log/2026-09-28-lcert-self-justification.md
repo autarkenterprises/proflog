@@ -2342,3 +2342,127 @@ Programming Languages for Logspace and Ptime"; arXiv 1611.10334); Hofmann's
 LFPL (arXiv cs/0011037, "A syntactical analysis of non-size-increasing
 polynomial time computation"; arXiv 2605.12893, "LFPL: Revisited and
 Mechanized").
+
+### F5. Can λᶜᵉʳᵗ escape its rules through an interpreter? (follow-up, 2026-10-01)
+
+> What prevents lambda-cert from writing an interpreter for a new language
+> L' that violates the lambda-cert invariants?
+
+**Nothing prevents writing it or running it. What it cannot do is carry a
+violation out of the simulation.** **[test]**
+`lcert.core-test/interpreted-violations-stay-data` pins every claim below
+marked *(test)*. It passes, and two mutations turn it red, as recorded in
+LOG.md for 2026-10-01.
+
+**What the interpreter can do.**
+- λᶜᵉʳᵗ computes freely on data: codes (`Syn`), numbers and Booleans. Only
+  certificate nodes cost tokens. `recN` gives primitive recursion, and the
+  arithmetic interprets PA (R4 §6.2). So it can interpret any L′ whose
+  single steps are primitive recursive, which covers ordinary languages
+  and proof systems.
+- It needs fuel. Every λᶜᵉʳᵗ program terminates (T4), so a diverging L′
+  program shows up as "out of fuel".
+- Inside the simulation L′ may do anything: copy certificates, make them
+  from nothing, reflect without checking, prove `0`.
+- The test's L′ has one instruction, COPY, which duplicates a certificate.
+  Its interpreter is a closed program. At budget 0 it produces 2,047 nodes
+  of simulated certificates from ten COPYs *(test)*.
+
+**Why the invariants survive.**
+- They are theorems about every well-typed program: T1 (consistency), T3
+  (size soundness) and T4 (evaluation), each proved for all terms (R4 §§3,
+  5). An interpreter is one more well-typed program, so they already cover
+  it.
+- They constrain the protected types: tokens `◇`, certificates `R`,
+  evidence `T(b)`, and what `reflect` accepts. They say nothing about what
+  data *represents*. L′'s certificates are codes, which carry no invariant.
+- So the question becomes: by which ways can data reach the protected
+  types? There are three, and each is closed or priced.
+
+| Way out | What blocks it | Shown by *(test)* |
+| --- | --- | --- |
+| **Make a token** | `◇` has no introduction rule and no eliminator (R4 §1.4). The only tokens are the runner's `n`, and those `reflect` hands back from a certificate already held | A function `Π(d :ω ◇). R` can be written, but never applied to a token, since `$1` is declared at usage 1 |
+| **Make a certificate from a code** | Each node needs a token. A closed `Syn ⊸ R` yields only leaves (R4 Prop. 4.1), and with `k` tokens at most `k` nodes | The direct promotion, a held token at every node, is rejected at budgets 1 and 40, since a recursion's node method may run more than once. The typed parser rebuilds the interpreter's 7-node output from 7 tokens, and not from 6 |
+| **Be trusted** | `reflect` and `inspect` consult `chk′`, which names the *running* system's `Check`. That accepts only valid derivations in the running system's rules (R4 §1.6; METATHEORY §4.1) | L′'s own checker, written in λᶜᵉʳᵗ and accepting every code, gives evidence `T((λc. tt) (print r))`, which `reflect` rejects. L′ = these rules + `ax-bot` refutes itself in 3 nodes. As data at budget 0, `chk′` answers false. Minted at full price, 3 tokens, the certificate sends `inspect` to its refusing branch. The same program run under L′'s rules takes the accepting branch |
+
+So COPY is free inside the simulation and full price outside it: each copy,
+made real, costs its own tokens. And the trust row is ADR-0143 Step 4's
+boundary seen from inside: a parent trusts exactly what derives in its own
+rules (METATHEORY §4.3).
+
+**What may legitimately cross.**
+- **L′ output that is a λᶜᵉʳᵗ derivation.** It is no violation. Held,
+  which means minted, and checked, it can be reflected. A translator into
+  λᶜᵉʳᵗ derivations need not be trusted, since its output is re-checked
+  (Step 4's re-encoded and definitional-extension rows).
+- **An L′ that λᶜᵉʳᵗ proves sound.** This is proof by reflection in the
+  proof-assistant sense, and my synthesis; it is not tested here.
+  - Prove once, as a λᶜᵉʳᵗ term, that L′'s checker is sound for a class of
+    statements. Then use L′'s proofs as data. Evidence that the checker
+    returned `tt` comes by case analysis on the Boolean, as the typed parser
+    gets its `T(b)`.
+  - It costs no tokens and adds no theorems: each conclusion follows from
+    the soundness term.
+  - Prop. 4.9 is an instance. For each `k`, a closed token-free term proves
+    that no code of depth at most `k` is a refutation.
+  - It is impossible if L′ proves a false arithmetic statement of the
+    class. λᶜᵉʳᵗ would prove it too, but λᶜᵉʳᵗ proves no arithmetic
+    statement that PA does not (§4.2), and PA's are true. A false equation
+    would even give λᶜᵉʳᵗ a refutation of itself, against T1.
+  - It is impossible if L′ includes λᶜᵉʳᵗ and the class contains `0`.
+    Soundness at `0` is L′'s consistency, which would give λᶜᵉʳᵗ its own
+    `Con′`, against P5 (METATHEORY §4.3, item 3).
+- **Facts about runs.** "L′ derives `X` in `k` steps" is a true Boolean the
+  interpreter computed. It says something about L′, and nothing about `X`.
+
+**The nearest L′: λᶜᵉʳᵗ without its token discipline.** (My synthesis.)
+- An interpreter for λᶜᵉʳᵗ's own derivations, run on simulated tokens,
+  reproduces what a certified program *computes*. It does not reproduce
+  what the program's *type* says about the result.
+  - Evidence such as `T(safe a)`, for an action `a`, must come from the
+    interpreting program's own typed terms: case analysis when `safe` is
+    decidable, or a proof the program contains.
+  - Otherwise it comes from reflecting a held certificate. A simulation
+    produces none.
+- No interpreter written in λᶜᵉʳᵗ runs all of λᶜᵉʳᵗ's programs of type
+  `Syn → Nat` without fuel. If `eval` did, the closed program
+  `g(c) := eval(c)(c) + 1`, applied to its own code, would give
+  `g(⌜g⌝) = g(⌜g⌝) + 1`, yet every run terminates (T4).
+- A fuel-free interpreter over free codes would be free reflection at a
+  data type. §3.1 shows that this breaks T4, by Kleene's recursion
+  theorem.
+- The primitive `reflect` is the one fuel-free self-interpreter, for
+  certificates held, and it pays in tokens instead. The same diagonal built
+  on it must use its certificate twice, once to run and once as the
+  argument, and stops at the reuse (§3.2).
+
+**On the machine** (ADR-0144). An interpreter is data computation and
+issues no kernel instructions. The kernel has no allocation instruction
+and no copy instruction, so no instruction could carry out COPY. The kernel
+never sees L′'s violations, and does not need to.
+
+**What this rests on.**
+- **The metatheory.** T1, T3 and T4 are R4's paper proofs. λᶜᵉʳᵗ₁'s
+  Reflect case is kernel-checked over non-dependent types (§7). A gap
+  there is a hole for every program, interpreters included.
+- **The checker and the type checker.** Both are in the trusted base, as
+  an LCF kernel is.
+  - The type checker vets each program before it runs. `Check` vets each
+    certificate before it is trusted.
+  - Data is free, so a program can even *search* codes at runtime for one
+    that a buggy `Check` accepts, then mint it.
+  - `Check` is small, shares no logic with the type checker, and is tested
+    against it.
+  - ADR-0144's kernel would bound the resource damage of such a bug, but
+    not its logical damage ("Resources only").
+- **Code outside λᶜᵉʳᵗ.** A λᶜᵉʳᵗ program has no foreign-function
+  interface: its term formers are those of R4 §1.3 and the extensions
+  listed in METATHEORY §4.1, so it cannot call Clojure. Clojure code in the
+  same JVM can. `lcert.eval/token` is public, and `eval-deriv` accepts
+  caller-supplied tokens. This is ADR-0144's complete-mediation obligation,
+  unmet today.
+
+**For tiling.** An agent can build a successor in any L′ and run it. It
+can trust the successor only through its own `Check` or through a
+soundness proof it can give. An interpreter is a way to run a successor
+whose trust the agent cannot ground, not a way around the Löbian obstacle.

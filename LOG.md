@@ -518,6 +518,57 @@ complete contemporaneous transcript.
     the lineage's reflections by the cells supplied.
   - The machine models resource semantics only. A full CESK-style machine
     would be a separate step.
+- The user asked what prevents λᶜᵉʳᵗ from writing an interpreter for a new
+  language L′ that violates λᶜᵉʳᵗ's invariants. Answered in note F5, with a
+  test, and cross-referenced from ADR-0144's "Programs and the machine".
+  - **Nothing prevents writing or running it. A violation cannot leave the
+    simulation.** T1, T3 and T4 are theorems about every well-typed term,
+    interpreters included. They constrain the protected types (`◇`, `R`,
+    `T(b)`, what `reflect` accepts), not what data represents.
+  - **Three ways from data to the protected types, each closed or priced:**
+    - a token: `◇` has no introduction rule (R4 §1.4, re-read);
+    - a certificate: one held token per node (R4 Prop. 4.1, re-read);
+    - trust: `chk′` names the running system's `Check` (R4 §1.6).
+  - **Legitimate crossings.**
+    - L′ output that is a λᶜᵉʳᵗ derivation, minted and checked.
+    - An L′ that λᶜᵉʳᵗ proves sound for a class: proof by reflection, of
+      which Prop. 4.9 is an instance. Impossible if L′ proves a false
+      arithmetic statement of the class (note §4.2), or if L′ includes
+      λᶜᵉʳᵗ and the class contains `0` (P5).
+  - **Fuel.** No interpreter written in λᶜᵉʳᵗ runs all its programs without
+    fuel (the diagonal; §3.1's Kleene argument). `reflect` is the one
+    fuel-free self-interpreter, and it pays in tokens; the diagonal built
+    on it stops at the reuse (§3.2).
+  - **What it rests on.** The metatheory. `Check`, as trusted base: data is
+    free, so a program can search codes for a checker bug. Complete
+    mediation, for Clojure code: λᶜᵉʳᵗ has no foreign-function interface
+    (its term formers checked against `typing.clj`'s dispatch).
+  - **Test** `lcert.core-test/interpreted-violations-stay-data`. It pins
+    existing behaviour, so it was green when written.
+    - The L′ is COPY-only. Its interpreter is closed, and at budget 0 it
+      yields 2,047 nodes from ten COPYs.
+    - The direct promotion is rejected at budgets 1 and 40. The typed
+      parser rebuilds the 7-node output from 7 tokens, and not from 6.
+    - A `Π(d :ω ◇)` function cannot be applied to `$1`.
+    - L′'s permissive checker gives evidence that `reflect` rejects, at `0`
+      and at `Nat`.
+    - `ax-bot`'s 3-node refutation: `chk′` answers false as data, `inspect`
+      refuses the minted certificate, and the same program accepts it under
+      L′'s rules.
+  - **Mutation checks**, both red as required.
+    - (a) Typing's ω-scaled-premise check (`check-omega-scaled`) disabled
+      in a scratch copy placed first on the classpath: the promotion
+      assertions failed at both budgets.
+    - (b) The test run with `ax-bot` among the running system's
+      extensions: the two trust assertions failed.
+  - **Suites.** Fast: 76 tests, 630 assertions, 0 failures (25.7 s).
+    Extended: 104 tests, 2,065 assertions, 0 failures (1 min 59 s).
+  - **Slips.** A probe first counted an R value's nodes with
+    `lcert.kernel/nodes`, which counts codes, and got 0; `lcert.eval/nodes`
+    is the R-value count. A 2,047-token parse on the definable destructor
+    was too slow and was stopped; the test uses 7 nodes and the primitive
+    destructor. `/usr/bin/time` is not installed in this container, so the
+    shell's `time` was used.
 
 ## 2026-09-30
 

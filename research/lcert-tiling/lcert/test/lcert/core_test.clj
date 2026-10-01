@@ -4,8 +4,11 @@
   review R4-02), the definable destructor of §4.7 (review R4-03),
   Proposition 4.9 at depth 0 (bounded code consistency with no tokens), and
   the form of H° that Addendum D1 of the 2026-09-28 self-justification note
-  relies on (one sentence, one term, at every budget)."
+  relies on (one sentence, one term, at every budget), and Addendum F5's
+  claim that an interpreter written in λᶜᵉʳᵗ for a language that breaks
+  λᶜᵉʳᵗ's rules breaks them only in data."
   (:require [clojure.test :refer [deftest is testing]]
+            [clojure.walk :as walk]
             [lcert.core :as lc]
             [lcert.examples :as ex]
             [lcert.eval :as ev]
@@ -111,3 +114,91 @@
       (is (= 35 (count (filter #(= :rn %) (flatten v)))))
       (is (= code (ev/print-value v))))))
 
+
+;; An interpreter, written in λᶜᵉʳᵗ, for a language L′ that breaks λᶜᵉʳᵗ's
+;; rules. L′'s certificates are codes, and its one instruction, COPY,
+;; duplicates a certificate, so in L′ certificates are not affine. The
+;; interpreter is an ordinary closed program, and everything L′ does happens
+;; to data (Syn). A violation would have to leave the simulation, and the
+;; assertions below pin each way out as closed (the 2026-09-28 note,
+;; Addendum F5):
+;;   - a code becomes a certificate only at one held token per node;
+;;   - a token cannot be copied, even through a usage-ω binder;
+;;   - trust (reflect, inspect) is keyed to the running system's Check by
+;;     name, so L′'s own checker gives evidence reflect refuses, and a
+;;     certificate of L′'s proof of 0, minted at full price, is refused.
+;; They pin existing behaviour (green when written). Mutation checks made
+;; them fail: removing typing's ω-scaled-premise check, and running the
+;; trust probe under L′'s rules (LOG.md, 2026-10-01).
+
+(def ^:private copy-form
+  "copy : Syn ⊸ Syn ⊗ Syn. Codes are data: the node method rebuilds the node
+  twice from the subcodes c1, c2, which recSyn binds at usage ω."
+  '(fn [c 1 Syn]
+     (rec-syn [x (tensor Syn Syn)]
+              [a] (pair (tensor Syn Syn) (sleaf a) (sleaf a))
+              [a c1 c2 y1 y2] (pair (tensor Syn Syn) (snode a c1 c2) (snode a c1 c2))
+              c)))
+
+(def ^:private l-prime-interp
+  "The interpreter for L′, of type Π(p :ω Syn). Syn. An L′ program is a code.
+  A leaf is SEED, which yields a one-node L′ certificate. A node runs its
+  left child and COPYs the result, pairing the two copies under :b."
+  (walk/postwalk-replace
+   {'COPY copy-form}
+   '(fn [p w Syn]
+      (rec-syn [x Syn]
+               [a] (snode :a (sleaf :a) (sleaf :a))
+               [a c1 c2 y1 y2] (let-pair Syn [u v] (COPY y1) (snode :b u v))
+               p))))
+
+(defn- copies "The L′ program that COPYs SEED k times; it yields 2^(k+1) − 1 nodes." [k]
+  (nth (iterate (fn [p] [:sn :b p [:sl :a]]) [:sl :a]) k))
+
+(defn- run-l-prime "The λᶜᵉʳᵗ program that interprets (copies k)." [k]
+  (list l-prime-interp (list 'code-literal (copies k))))
+
+(defn- spine "A supply code: a right spine of n nodes." [n]
+  (nth (iterate (fn [s] [:sn :a [:sl :a] s]) [:sl :a]) n))
+
+(defn- parse-with-supply
+  "Run, at budget n, the typed parser (primitive destructor) on code-form with
+  a supply certificate of n nodes, and return the certificate it builds."
+  [n code-form]
+  (lc/run n (list 'let-pair 'R '[t rest]
+                  (list ex/parse-prim-form code-form (lc/certificate-form (spine n)))
+                  't)))
+
+(deftest interpreted-violations-stay-data
+  (testing "the interpreter is closed, and at budget 0 its L′ run yields 2047 nodes of copies"
+    (is (= 0 (:budget (lc/certify 0 l-prime-interp))))
+    (is (= 2047 (k/nodes (lc/run 0 (run-l-prime 10))))))
+  (testing "a code becomes a certificate only at one held token per node"
+    (testing "the direct promotion, a held token at each node, is rejected at any budget"
+      (doseq [n [1 40]]
+        (is (rejects? n '(fn [c w Syn] (rec-syn [x R] [a] (leaf a)
+                                                [a c1 c2 y1 y2] (node $1 a y1 y2) c))))))
+    (testing "the typed parser rebuilds the 7-node output from 7 tokens, and not from 6"
+      (let [out (lc/run 0 (run-l-prime 2))]
+        (is (= 7 (k/nodes out)))
+        (is (= out (ev/print-value (parse-with-supply 7 (run-l-prime 2)))))
+        (let [short (parse-with-supply 6 (run-l-prime 2))]
+          (is (= 6 (ev/nodes short)))
+          (is (not= out (ev/print-value short)))))))
+  (testing "a token cannot be copied, even through a usage-ω binder"
+    (is (not (rejects? 1 '(fn [d w Dia] (node d :a (node d :a (leaf :a) (leaf :a)) (leaf :a))))))
+    (is (rejects? 1 '((fn [d w Dia] (node d :a (node d :a (leaf :a) (leaf :a)) (leaf :a))) $1))))
+  (testing "trust is keyed to the running system's Check, by name"
+    (testing "L′'s checker, written in λᶜᵉʳᵗ and accepting every code: reflect refuses its evidence"
+      (is (rejects? 0 '(fn [r 1 R] (fn [e 1 (T ((fn [c w Syn] tt) (print r)))] (H r e)))))
+      (is (rejects? 0 '(fn [r 1 R] (fn [e 1 (T ((fn [c w Syn] tt) (print r)))] (reflect Nat r e)))))
+      (is (not (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) c-bot))] (H r e)))))))
+    (testing "L′ = these rules + ax-bot refutes itself in 3 nodes; minted, the certificate is refused"
+      (let [in-l-prime #(binding [s/*extensions* (conj s/*extensions* :ax-bot)] (%))
+            bot (in-l-prime #(lc/certify 0 'ax-bot))
+            probe (list 'inspect 'Bool (lc/certificate-form (:code bot)) 'c-bot
+                        '[x e] 'tt '[x e] 'ff)]
+        (is (= 3 (:nodes bot)))
+        (is (false? (lc/run 0 (list 'chk (list 'code-literal (:code bot)) 'c-bot))))
+        (is (false? (lc/run 3 probe)))
+        (is (true? (in-l-prime #(lc/run 3 probe))))))))

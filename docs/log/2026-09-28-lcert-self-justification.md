@@ -2139,3 +2139,128 @@ Sources for the TC claim, found by web search on 2026-10-01: Švejdar, "On
 Interpretability in the Theory of Concatenation", *NDJFL* 50(1)
 (projecteuclid.org); Ganea, "Arithmetic on semigroups", *JSL*
 (cambridge.org).
+
+### F3. What crippling the constructors would look like (follow-up, 2026-10-01)
+
+> So a one-sorted symbolic system must cripple its constructors the way
+> Willard cripples multiplication <- What might such a crippling be?
+
+**Willard's template** (2001 §2, read in the text).
+- **Grounding functions.** The language keeps seven *non-growth* function
+  symbols, with `F(a₁, …, aⱼ) ≤ Maximum(a₁, …, aⱼ)`: subtraction, division,
+  predecessor, maximum, logarithm, root and bit-count.
+- **Addition and multiplication survive only as relations.** Their graphs
+  are definable from those functions by bounded formulas. Their laws are
+  kept as `Π₁` axioms.
+- **Totality.** Multiplication's totality is never asserted. Addition's
+  is asserted only as an axiom, in ISλ (2001 eq. 6), never as a function
+  symbol.
+
+So the inverses are total, the forward growth operations are relations, and
+their laws are kept without their totality. The symbolic transfer, design
+by design, follows. It is my derivation, not a published system.
+
+**1. Destructors total, constructors relational.**
+- **The total functions are analysis, all non-growth:**
+  - `head`, `tail`, `left`, `right`, subterm-at-path;
+  - `prefix(x, n)`, `suffix(x, n)`;
+  - the length of `x` (the analogue of Logarithm);
+  - dropping the last symbol (Predecessor);
+  - the longer of two strings (Maximum);
+  - the first `1/k` of a string (Root);
+  - symbol counts (Count).
+- **Binary constructors become relations.** Concatenation `C(x, y, z)`,
+  pairing, binary `cons`, grafting and substitution are graphs, definable
+  with the destructors by bounded formulas. For example, `Pair(x, y, z)`
+  iff `left(z) = x ∧ right(z) = y`.
+- **Their laws are `Π₁` axioms.** Functionality (`C(x,y,z) ∧ C(x,y,z′) →
+  z = z′`), associativity, cancellation, and unique readability of pairing
+  are axioms. Totality, `∀x∀y∃z C(x, y, z)`, is not.
+
+The system can then check and take apart any proof it is given, since
+checking is decomposition. But it cannot prove that two arbitrary proofs
+combine into a third.
+
+**2. Which constructors may stay total: the description-length rule.**
+- **What may stay total.** An operation that lengthens its result by at
+  most a constant beyond its longest input:
+  - appending one symbol (the analogue of successor);
+  - a unary constructor (size + 1);
+  - `cons` of an *atom* onto a list;
+  - pointwise operations, whose output is no longer than the longer input
+    (Willard 2001 allows bitwise-or).
+- **What may not.** An operation that adds lengths: concatenating two
+  arbitrary strings, pairing two arbitrary terms, grafting, substitution.
+- **Why.** Iterating `x ↦ x·x` reaches length `2^L` in `L` steps. That is
+  the string form of the squaring chain behind Willard's failure for total
+  multiplication (JSL2 Lemma 4.7). It breaks the "short proofs cannot
+  establish much larger objects" budget (Willard 2011 Fact D.3).
+- **The edge is not sharp.** As refined-sjas §5 found for numbers, the
+  exact boundary is an additive margin (Willard 2011 Definition 4.5). The
+  rule is the safe side of it, not the boundary.
+
+**3. The deduction method decides how much may stay total, as in Willard's
+two 2001 variants.**
+- **With a cut-free apparatus** (tableaux), appending can stay total. This
+  parallels his variant (ii), where addition is total.
+- **With Hilbert-style proofs**, even appending must lose totality, as
+  successor does in ISREF. Solovay's theorem (2001 §1, item (B)) covers
+  systems that recognize successor as total. Unary strings with appending
+  *are* such a successor. (The transfer is by interpretation, and is
+  plausible rather than checked.)
+
+**4. Induction must stay bounded.** Totality of concatenation follows from
+total appending by `Σ₁` induction on `y` in `∃z C(x, y, z)`. This is the
+string form of "total addition plus `Σ₁` induction gives total
+multiplication". So induction may range only over bounded properties.
+- Willard's systems have no `Σ₁` induction. Their Group-2 imports only `Π₁`
+  theorems, and `Π₁` statements assert no new objects.
+
+**5. A softer option: tangible composition.**
+- **The idea.** Let constructors be total *within* an existing object.
+  For example, `C(x, y, z)` exists whenever `|x| + |y| ≤ |w|` for some
+  existing `w`. This is the analogue of Willard's tangibility predicates.
+- **What it allows.** Ordinary modular work (lemmas, subroutines, plans
+  built from parts) stays available inside a workspace.
+- **What it costs.** Nested composition shrinks the usable range, by
+  halving or `k`-th roots per level depending on the bound. This is E6's
+  telomere again.
+- **The one-sorted shadow of λᶜᵉʳᵗ.** A λᶜᵉʳᵗ certificate node exists only
+  by consuming a supply token. Tangible composition bounds by size, but the
+  workspace `w` is data, so it can be reused. It caps growth, not use.
+
+**What no crippling can buy.**
+- **At most Willard's soft part.** Crippling the constructors buys at most
+  what crippling multiplication buys: self-consistency, and exact bounded
+  and `Σ₁` self-reflection. Theorem 7.2 still forbids exact `Π₁`
+  self-reflection, in any coding (F2).
+- **Duplication stays free.** In one sort, data can always be duplicated.
+  So no crippling can block the second use of a proof that Theorem 7.2's
+  diagonal makes. λᶜᵉʳᵗ's affine evidence sort blocks exactly that, which
+  is why it reflects `Π₁` and higher for certificates it holds.
+- **Non-totality does not weaken interpretability.** Švejdar showed that
+  `Q` is interpretable in Grzegorczyk's `Q⁻`, whose operations are
+  non-total. A crippled TC may well interpret `Q` on a cut, as Willard's
+  systems do. What the crippling must deny is narrower: proof that the
+  system's *own*, unrelativized proofs compose.
+
+**What it costs an agent.**
+- The agent can extend a plan or proof one step at a time, and can take
+  apart anything it is given.
+- It cannot prove that two arbitrary plans, programs or proofs combine,
+  nor reason uniformly about substitution or nesting. Modularity is
+  composition, so this costs an agent more than losing total
+  multiplication would.
+- That again recommends F2's two-sorted design: free construction for
+  data, and restriction only for evidence.
+
+**A miniKanren reading.** Willard's three-place relation `M(x, y, z)` is
+multiplication read as a relation. Concatenation read the same way is
+miniKanren's `appendo`. The crippling keeps the relation, which every mode
+can check and decompose against a given `z`. It drops only the axiom that
+the forward mode, from `x` and `y` to `z`, always succeeds.
+
+Source for the `Q⁻` claim, found by the same web search: Švejdar, "An
+Interpretation of Robinson Arithmetic in its Grzegorczyk's Weaker Variant"
+(semanticscholar.org). The title states the result; the paper itself was
+not read here.

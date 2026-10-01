@@ -412,6 +412,28 @@ complete contemporaneous transcript.
     - Verdict: "two-sorted and resourced rather than one-sorted" is the
       productive axis. That is why Willard pays in arithmetic and λᶜᵉʳᵗ in
       tokens.
+- Then: what would crippling a one-sorted symbolic system's constructors
+  look like? Note F3, my derivation from Willard's template, checked in
+  2001 §2.
+  - **The template.** Seven non-growth "Grounding" functions (subtraction,
+    division, predecessor, maximum, logarithm, root, count). Addition and
+    multiplication survive only as relations with `Π₁` laws.
+  - **The symbolic transfer.**
+    - Destructors total (head, tail, projections, prefix, suffix, length,
+      count).
+    - Binary constructors (concatenation, pairing, `cons`, grafting,
+      substitution) only as relations, with their laws and no totality.
+    - Appending one symbol may stay total for a cut-free apparatus, not for
+      Hilbert proofs (Solovay's analogue).
+    - Induction must stay bounded: `Σ₁` induction turns total appending
+      into total concatenation.
+    - A softer option: tangible composition within an existing workspace.
+  - **Limits.** At most Willard's soft part. No exact `Π₁` self-reflection,
+    and no block on duplication, which only an affine sort gives.
+    Non-totality does not weaken interpretability (Švejdar: `Q` is
+    interpretable in `Q⁻`).
+  - **The cost.** No provable composition of plans or programs, which is
+    worse for an agent than losing multiplication.
 
 ## 2026-09-30
 

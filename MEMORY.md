@@ -139,6 +139,15 @@
     free data, and an affine evidence sort with intensional size. That is
     λᶜᵉʳᵗ's design. It is why Willard pays in arithmetic and λᶜᵉʳᵗ in
     tokens.
+  - Crippling a one-sorted symbolic system (note F3) means:
+    - non-growth destructors total;
+    - binary constructors (concatenation, pairing, `cons`, substitution)
+      only as relations, with `Π₁` laws;
+    - appending one symbol total only for a cut-free apparatus;
+    - bounded induction only;
+    - optionally, tangible composition within a workspace.
+
+    It buys at most Willard's soft part, and it cannot block duplication.
 - Implications between consistency statements run against the proof
   transformations that prove them: `Con_A → Con_B` is proved by turning
   B-refutations into A-refutations. So `HCon → Con` is cut elimination

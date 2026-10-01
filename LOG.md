@@ -369,6 +369,27 @@ complete contemporaneous transcript.
     closed reflect-free type).
   - **Both refuse changed axioms.** Neither dominates. For physically
     feasible agents with lazy budgets, λᶜᵉʳᵗ's trade costs less.
+- Then: "The shrinking tangibility horizon is not a loss? This
+  progressively restricts which proofs self-consistency covers." Answered
+  in note E6.
+  - **It is a loss.** E5 counted it only as "exact `Π₁` trust"; it is now
+    explicit.
+  - **What it restricts** (Willard 2001's definition of `Φⁱ` and Remark
+    6.3, read in the text): only unbounded universal quantifiers *inside*
+    the reflected sentence. The proof variable `y`, the uniform form's
+    parameter `v` and the self-consistency axiom are never bounded.
+  - **Where proofs do shrink.** A parent relying on a child's *proof* of a
+    claim that quantifies over proofs (an inherited consistency or trust
+    claim) recovers it only for proof codes below its tangible bound, and
+    again at each level. There the user's description holds. It does not
+    hold of an agent's own axiom.
+  - **How fast** (derived from 2026-09-26 A2): about `H^(1/k^(d+1))` after
+    `d` levels. That falls below 2 after about `log_k log₂ H` delegations,
+    about ten for `k = 2`, `H = 2^1000`. A fixed horizon needs a root proof
+    exponential in depth. ISREF loses a constant per level.
+  - **λᶜᵉʳᵗ** also falls, but additively in tokens, and its reflection
+    stays exact. E5's verdict is strengthened. Willard's advantage remains
+    only for bounded and `Σ₁` goals.
 
 ## 2026-09-30
 

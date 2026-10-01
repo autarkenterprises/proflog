@@ -1842,7 +1842,7 @@ does not give that.
 | --- | --- | --- |
 | Self-trust for bounded and existential (`Σ₁`) goals | exact, for any proof that exists, held or not; costs nothing | exact, only for certificates held; each use burns tokens |
 | Same-theory tiling for time-window goals | indefinitely, with no budget, if ISλ_U is consistent (Willard 2001 Remark 6.3; the proof is unpublished) | to any depth the budget pays for; budgets can be promised arbitrarily large, and lazily |
-| Self-trust for `Π₁` and higher goals | only on tangible instances; the horizon shrinks with each delegation (the numeric telomere) | exact, at every closed reflect-free type, for certificates held |
+| Self-trust for `Π₁` and higher goals | only on tangible instances; the horizon shrinks with each delegation by iterated k-th roots, the numeric telomere (quantified in E6) | exact, at every closed reflect-free type, for certificates held; the budget falls additively per generation |
 | Discharging `□φ → φ` inside a proof ("if my child can prove it, then it holds") | yes, for bounded and `Σ₁` `φ` | no: provability of a free code is not dischargeable without minting the certificate |
 | Arithmetic for the agent's world model | no total multiplication (ISλ); not even total addition (ISREF) | all of PA |
 | Proof apparatus | cut-free tableaux (ISλ), or Hilbert-style without total addition (ISREF) | natural deduction with cut |
@@ -1890,6 +1890,8 @@ what Willard buys by giving up multiplication.
   a physically feasible agent. AAR-0143 found the practical bound to be
   certificate size and checking time. What Willard's systems take away
   (multiplication, exact `Π₁` trust) costs more than what they add.
+  *(Made explicit in E6: the lost `Π₁` trust is a horizon that collapses
+  within about `log_k log H` delegations.)*
 
 **Not a self-justification capability: trust in a fixed external theory.**
 `IS(A)`'s Group-2 schema makes it trust `A`'s `Π₁` theorems, even for
@@ -1897,3 +1899,78 @@ what Willard buys by giving up multiplication.
 system gains that by adding the true reflection schema for the fixed theory
 as axioms. It is trust in another theory, not self-trust, and it moves the
 tower's problem to that theory's own successors.
+
+### E6. The shrinking horizon: what it restricts, and how fast (follow-up, 2026-10-01)
+
+> The shrinking tangibility horizon is not a loss? This progressively
+> restricts which proofs self-consistency covers (by shrinking the number
+> corresponding to encoded proofs).
+
+**It is a loss, and E5 counted it, but only as "exact `Π₁` trust".** It
+deserved to be spelled out, because it is the largest item on Willard's
+side of the ledger for tiling.
+
+**What the bound restricts (Willard 2001 §1 and Remark 6.3, read in the
+text).**
+- **The definition.** `Φⁱ` is `Φ` "except that each unbounded universally
+  quantified variable from `Φ` is bounded by `i`"; bounded quantifiers keep
+  their range.
+- **The reflection principles.** Tangibility reflection concludes `Ψˣ`, or
+  `Ψ_μ(v̇)ˣ` in the uniform form (60), from
+  `∃y Prf(⌜Ψ⌝, y) ∧ Tangible(x)`.
+- **What is never bounded.**
+  - The proof variable `y` (item (V): "Only x is so restricted").
+  - The uniform form's parameter `v`.
+  - The self-consistency axiom `∀y ¬Prf(⌜0 = 1⌝, y)`.
+- **So an agent's own self-consistency, and its direct trust in any proof,
+  cover every proof, of any size.** What shrinks is the unbounded universal
+  quantifiers inside the sentences it reflects.
+
+**Where proofs do shrink: claims about proofs, inherited down a chain.**
+- **The mechanism.** Suppose a parent relies on a child's *proof* of a
+  sentence that quantifies over proofs. For example, the child proved
+  "system `S′` is consistent", `∀y ¬Prf_S′(⌜0 = 1⌝, y)`, or "every proof my
+  successor finds of `b → Safe` is sound". That proof quantifier is one of
+  the bounded ones, so the parent recovers the claim only for proof codes
+  below its tangible bound. Each further level bounds it again.
+- **Where the user's description holds.** For inherited consistency and
+  trust claims it is exactly right.
+- **Where it does not.** It does not hold of the agent's own axiom.
+  Instances shrink in the same way whenever a goal's universal quantifier
+  ranges over anything, actions or times. Proofs are one case.
+
+**How fast** (my derivation from the 2026-09-26 assessment's A2, which
+found `J₂ ≈ {t : tᵏ ∈ J}` per level for ISλ's `TangRoot`):
+- **The shrink.** After `d` delegations the guaranteed range is
+  `J_{d+1} ≈ {t : t^(k^d) ∈ J}`. If the root can exhibit numbers up to `H`,
+  the horizon is about `H^(1/k^(d+1))`. It falls below 2 after about
+  `log_k log₂ H` delegations. With `k = 2` and `H = 2^1000`, that is about
+  ten.
+- **The cost of a fixed horizon.** Exhibiting a number of `m` bits takes
+  about `m` doublings.
+  - In ISλ, addition is total by axiom (2001 eq. 6), so each doubling is a
+    proof step.
+  - In Willard's later U-Grounding language it takes fewer than `3m`
+    symbols (LFCS 2020, Group-zero).
+
+  To keep a horizon `T` through `d` delegations, the root must exhibit a
+  number of about `k^(d+1)·log₂ T` bits. The proof doing so grows
+  exponentially with the depth.
+- **ISREF loses only a constant per level** (A2). But it does not prove
+  even addition total.
+- **λᶜᵉʳᵗ's coverage also falls, but additively.**
+  - Each generation's reflection burns its certificate: about 18,831
+    tokens for the minting agent (AAR-0143).
+  - The certificates a descendant can reflect are bounded by the remaining
+    budget, so depth is linear in the budget.
+  - The budget can be promised lazily, at any size.
+  - What is reflected stays exact, at every closed reflect-free type.
+
+**Effect on E5's verdict: it strengthens it.**
+- **`Π₁` goals and inherited claims.** Willard's guarantee decays by
+  iterated roots: the telomere Yudkowsky and Herreshoff anticipated for
+  his systems. λᶜᵉʳᵗ's decays additively, and its conclusions are exact.
+- **Bounded and existential goals.** Willard's advantage survives in full,
+  conditional on ISλ_U. Stated as in A1 (Σ₁ per time, one proof per
+  action), nothing there is capped, at any depth. Every level discharges
+  the proof variable with its own unrestricted reflection axiom.

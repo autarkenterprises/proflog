@@ -121,6 +121,13 @@
     - It is impossible with total multiplication (Willard 2001 Thm 7.4).
     - They lose multiplication and exact `Π₁` trust. Bare
       self-consistency adds nothing for tiling. Neither dominates.
+    - The lost `Π₁` trust is a horizon of about `H^(1/k^(d+1))` after `d`
+      delegations: under 2 after about `log_k log₂ H` levels (note E6).
+    - Tangibility bounds only universal quantifiers *inside* the
+      reflected sentence. The proof variable and the self-consistency
+      axiom are never bounded.
+    - Proof codes shrink only when a parent inherits a child's *proved*
+      claim about proofs.
 - Implications between consistency statements run against the proof
   transformations that prove them: `Con_A → Con_B` is proved by turning
   B-refutations into A-refutations. So `HCon → Con` is cut elimination

@@ -17,6 +17,16 @@
   relations when they demonstrate expressiveness but materially broaden the
   ordinary proof-search branching factor.
 
+## 2026-10-01
+
+- Before proposing to extend an ADR, re-read its stated purpose and design
+  constraints. The F4 answer proposed folding a cons-free language and a
+  checker into ADR-0144, which was written as a machine model of λᶜᵉʳᵗ.
+  That imported an unrelated, one-sorted question. It also broke the ADR's
+  own choice of an oracle checker, made so that the machine's theorems hold
+  for every checker. Offer adjacent ideas as separate ADRs, and add to an
+  existing ADR only what serves its goal (here, prior art).
+
 ## 2026-09-30
 
 - When citing a cost for an implication between consistency statements,

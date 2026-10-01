@@ -60,6 +60,21 @@ runtime. The user's suspicion is correct about the implementation.
   tokens the machine cannot hand over, and that shows up as traps, never as
   created tokens.
 
+**Prior art** (added 2026-10-01; the
+[2026-09-28 note](../log/2026-09-28-lcert-self-justification.md), §F4).
+- Part 2 makes one discipline mechanical: a node is made only by consuming
+  a free cell, and there is no allocation instruction. That is Hofmann's
+  non-size-increasing discipline (LFPL, LICS 1999).
+- λᶜᵉʳᵗ's `◇` descends from it (2026-09-26 assessment).
+- LFPL's non-size-increasing theorem is the model for Part 2's
+  conservation theorem.
+
+**Scope.** This ADR is a machine model *of λᶜᵉʳᵗ*.
+- The checker stays an oracle, so that the machine's theorems hold for
+  every checker.
+- A general cons-free or LFPL-style language, of the one-sorted kind the
+  note's F3–F4 discuss, is out of scope. It would need its own ADR.
+
 ## Decision
 
 Build the machine in three parts, test-first.

@@ -450,6 +450,17 @@ complete contemporaneous transcript.
     property of a theory.
   - The matching theory must prove total only non-size-increasing
     operations. `S¹₂` (polynomial time, with smash) is already too strong.
+- The chat answer to F4 had proposed folding a cons-free/LFPL language and
+  a cons-free checker into ADR-0144. The user asked whether ADR-0144 was
+  not meant to be a machine model for λᶜᵉʳᵗ. It was, and the proposal is
+  withdrawn, for two reasons:
+  - it imported the one-sorted question of F3–F4, which is not λᶜᵉʳᵗ;
+  - it contradicted Part 2's design, in which the checker is an oracle so
+    that the machine's theorems hold for every checker.
+
+  ADR-0144 gained only a prior-art note (Hofmann's non-size-increasing
+  discipline as the model for Part 2's conservation theorem) and an
+  explicit scope line.
 
 ## 2026-09-30
 

@@ -210,6 +210,33 @@ hardened evaluator follows.
 The handoff order, the first `m` cells in preorder, is the evaluator's own
 `(take m (tokens v))`. So the client and legacy modes agree node for node.
 
+**Programs and the machine** (added 2026-10-01).
+- **Not a compilation target.** λᶜᵉʳᵗ programs are type-checked, erased
+  and run by the evaluator, as now. Each run issues a *trace* of kernel
+  instructions: one for each operation on tokens or certificates.
+  Everything else stays in the evaluator: functions, arithmetic, codes,
+  and `chk′` on codes.
+- **Two guarantees, from two sources.**
+  - *Typing* promises that a well-typed program's trace never traps.
+    Tokens are used once, certificates are built from held tokens, and
+    reflected certificates check with `m` below their node count. This is
+    λᶜᵉʳᵗ's evaluation theorems, T4 and T4′ with T3 and E3, restated for
+    the kernel. This ADR tests it on the ADR-0143 runs rather than proving
+    it again; a trap there is a finding against the calculus.
+  - *The kernel* promises conservation and burning for every trace, typed
+    or not.
+- **Reflection makes it recursive.** A decoded program is itself a λᶜᵉʳᵗ
+  derivation, which the checker accepted at budget `m`. The evaluator runs
+  it as a client, on the cells `REFLECT` handed back. So a whole lineage
+  (parent, child, grandchild) runs on one heap with one burn count.
+  - Theorem 4 then bounds the reflections of the entire lineage by the
+    cells supplied. This is the machine-level form of AAR-0143's "to any
+    finite depth the budget pays for".
+- **Scope.** The machine models λᶜᵉʳᵗ's resource semantics, not its full
+  operational semantics. That keeps the trusted part to six instructions.
+  A full abstract machine for λᶜᵉʳᵗ, with this kernel as its store (a
+  CESK-style machine), would be a separate, larger step.
+
 **Theorems.** For every initial state, every oracle and every finite
 instruction sequence:
 1. **Own is preserved.**

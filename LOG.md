@@ -506,6 +506,18 @@ complete contemporaneous transcript.
       (red now). On the JVM this isolation is a discipline, not hardware;
     - resource properties only. T1, and whether runs trap (theorem 6),
       still depend on the checker.
+- The user asked how λᶜᵉʳᵗ programs relate to the machine. ADR-0144 gained
+  a "Programs and the machine" section.
+  - Programs are not compiled to the kernel. A run issues a trace of kernel
+    instructions for its resource operations only.
+  - Typing promises that the trace never traps (T4/T4′ with T3 and E3,
+    tested here rather than re-proved). The kernel promises conservation
+    for any trace.
+  - Reflection is recursive: decoded programs are clients on the cells
+    handed back, so a whole lineage shares one heap. Theorem 4 then bounds
+    the lineage's reflections by the cells supplied.
+  - The machine models resource semantics only. A full CESK-style machine
+    would be a separate step.
 
 ## 2026-09-30
 

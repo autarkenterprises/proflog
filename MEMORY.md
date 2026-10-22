@@ -92,6 +92,18 @@
     nodes, the proof 7,909). A closed parent checks its code for free, mints
     it from a supply, and reflects it. It then drives an actuator that
     demands safety evidence, with no runtime checks.
+- **Token provisioning: everything but creation is internal** (note F7;
+  `lcert.token-provisioning-test`, extended suite).
+  - Internal: a parent applies a token-abstracted child to its own tokens;
+    `reflect` hands the decoded program the certificate's first `m` tokens;
+    a self-reproducing agent mints, checks and reflects its own code, going
+    `⌊N / ‖c‖⌋` generations deep on one supply.
+  - The grant must be external: it is the measure that termination and T1's
+    induction stand on. A token source faces a dilemma. An unbounded cap
+    means non-termination. A fixed cap means a refused reflection returns a
+    default; measured, action 0 with a `σ` claiming `0 ≠ 0`.
+  - On paper: a `mint` with `print (mint c) ⇝ c` derives the free variant,
+    and so inconsistency (§3.1).
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

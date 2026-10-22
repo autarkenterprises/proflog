@@ -37,11 +37,13 @@
 
 (def extended-namespaces
   "Tests of the Ansatz kernel itself, run before the fast suite is repeated,
-  and the slower probes: the embedding of PA (step 1 of Proposition 5), and
-  the assessor's higher-order reflect shapes with the delegation chain
-  (proflog ADR-0143 setup)."
+  and the slower probes: the embedding of PA (step 1 of Proposition 5), the
+  assessor's higher-order reflect shapes with the delegation chain (proflog
+  ADR-0143 setup), the changed-system tests (Step 4), and the
+  token-provisioning lineages (lcert.token-provisioning-test)."
   '[lcert.verified-test lcert.charged-test lcert.supply-test lcert.kripke-test lcert.pa-test
-    lcert.higher-order-reflect-test lcert.changed-system-test])
+    lcert.higher-order-reflect-test lcert.changed-system-test
+    lcert.token-provisioning-test])
 
 (defn -main [suite & only]
   (let [nss (cond

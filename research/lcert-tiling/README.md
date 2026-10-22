@@ -64,7 +64,7 @@ quantifier ranges over certificates held (the note's Addendum D1; pinned by
 trade from Willard's systems, which weaken the arithmetic to prove their own
 consistency.
 
-Two follow-ups in that note are pinned by tests as well:
+Three follow-ups in that note are pinned by tests as well:
 - **F5.** An interpreter written in λᶜᵉʳᵗ for a language that breaks its
   rules breaks them only in data
   (`lcert.core-test/interpreted-violations-stay-data`).
@@ -74,6 +74,12 @@ Two follow-ups in that note are pinned by tests as well:
   that it is safe at every time. A parent receives it as a code, mints it,
   checks it and reflects it. The parent then drives an actuator that
   demands safety evidence, with no runtime checks.
+- **F7.** Token provisioning (`lcert.token-provisioning-test`, extended
+  suite). Everything but creation is internal: a self-reproducing agent
+  provisions its own lineage from one supply, exactly as deep as the supply
+  pays for. The grant cannot be internal. On a supply promised at 10^100,
+  only an outside guard stops the agent. Tokens beyond the cap let a
+  refused reflection fabricate evidence.
 
 The calculus these steps propose, λᶜᵉʳᵗ₁, is the vendored one run with
 `lcert.syntax/*extensions*` `#{:caseR}` (the default),

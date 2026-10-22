@@ -50,6 +50,18 @@
     Ackermann rejected by `check-within`. Disable both to see the test go
     red.
 
+## 2026-10-22
+
+- Before calling an external dependency a gap, ask what the metatheory
+  inducts on. λᶜᵉʳᵗ's outer runner looked like an implementation
+  dependency. It is the base of the induction behind T1, T3 and
+  termination (note F7), so internalizing it would remove the proofs, not
+  improve the design.
+- Assert on resource counts, not only on results. A runner that
+  over-supplied a lineage gave the right result, because the evaluator's
+  cap, an independent bound, still stopped it at the right depth. Only the
+  counts of tokens spent and reflections refused exposed the mutation.
+
 ## 2026-09-30
 
 - When citing a cost for an implication between consistency statements,

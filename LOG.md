@@ -614,6 +614,60 @@ complete contemporaneous transcript.
   - **Suites.** Fast: 79 tests, 649 assertions, 0 failures. Extended:
     107 tests, 2,084 assertions, 0 failures (1 min 59 s).
 
+## 2026-10-22
+
+- The user asked again where tokens come from: "Formally they seem to
+  require an outer runner, on which lambda-cert relies - can lambda-cert be
+  self-hosting in its token provisioning?" (A first attempt at this answer
+  did not complete; this is the retry, from a clean tree at `24ca2a8`.)
+  Answered in note F7, with a new extended-suite namespace,
+  `lcert.token-provisioning-test`.
+  - **Everything but creation is internal.**
+    - A parent runs a child on its own tokens, once the child's token
+      context is abstracted (a closed `◇ ⊸ ◇ ⊸ R`).
+    - `reflect` runs the decoded program on the certificate's first `m`
+      tokens: a 111-node certificate of a budget-2 child yields a result
+      built from tokens 1 and 2.
+    - A self-reproducing agent (15,448 nodes, closed) mints, checks and
+      reflects its own code from one supply, exactly `⌊N / ‖c‖⌋`
+      generations deep: three deep on three times its size, two deep with
+      one token fewer.
+  - **The grant cannot be internal.**
+    - On a supply promised at 10^100, the lineage stopped only at the
+      materialization guard (set to three times its size), which METATHEORY
+      §2.3 places outside the semantics.
+    - A passing variant (13,239 nodes), given twice the supply its cap
+      allows, returned action 0 with a `σ` claiming `0 ≠ 0`: a refused
+      reflection's default value. With an honest grant it returned the safe
+      action 1.
+    - So a token source faces a dilemma: unbound the cap, and termination
+      fails (T4, ADR-0144 theorem 7); keep it, and evidence can be
+      fabricated.
+  - **Paper-level additions** (my derivations).
+    - A `mint : Syn → R` with `print (mint c) ⇝ c` derives §3.1's free
+      variant, so the diagonal gives a closed `0`.
+    - A bare token source leaves only the evidence obstacle, §3.3's open
+      question.
+    - Tokens earned by computation would be unbounded, since data
+      computation is free.
+    - Tokens are reflection's fuel (F5), which is why their source must be
+      outside.
+  - Citation corrected while writing: T1 follows from R4 Lemma 3.6, whose
+    proof is the strong induction on `n` (§3.5); §3.8 only applies it.
+  - **Mutation checks**, all red, each an `eval.clj` copy placed first on
+    the classpath.
+    - (m1) `reflect` hands the decoded program fresh tokens: the handoff
+      test failed.
+    - (m2) A lazy supply delivers twice its promise: the depth test and the
+      honest-grant case failed. The cap still stopped the lineage, so only
+      the counts of tokens spent and reflections refused exposed it.
+    - (m3) Supplies end at node 30,000: the depth, guard and fabrication
+      tests failed.
+    - The application test is not covered by these mutations.
+  - **Suites.** Extended: 112 tests, 2,100 assertions, 0 failures (2 min
+    27 s). Fast: 79 tests, 649 assertions, 0 failures (unchanged; the new
+    namespace is extended-only).
+
 ## 2026-09-30
 
 - Two more questions on the λᶜᵉʳᵗ note, answered in a fifth addendum

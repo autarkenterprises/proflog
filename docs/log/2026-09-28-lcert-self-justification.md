@@ -2617,3 +2617,151 @@ finite amount of checking yields that.
   That is the evaluator failing, not the calculus. It is the kind of bug in
   the trusted base that F5 lists, and ADR-0144's kernel does not catch it:
   its guarantee covers resources only.
+
+### F7. Where tokens come from, and whether λᶜᵉʳᵗ can provision its own (follow-up, 2026-10-22)
+
+> The source of tokens is still mysterious. Formally they seem to require an
+> outer runner, on which lambda-cert relies - can lambda-cert be
+> self-hosting in its token provisioning?
+
+**It can host everything about tokens except their creation.** A λᶜᵉʳᵗ
+program can act as the runner for other λᶜᵉʳᵗ programs, and a whole lineage
+can provision itself from one grant. The grant itself must come from
+outside. That is not a gap that better engineering could close. The grant
+is the finite number on which λᶜᵉʳᵗ's termination and its consistency proof
+are inductions. **[test]** `lcert.token-provisioning-test` pins every claim
+marked *(test)*. Three mutations turn it red (LOG.md, 2026-10-22).
+
+**What the outer runner supplies: one finite number, entering twice**
+(B1):
+- as tokens: `Θₙ` for a budget, or a supply certificate of `N` nodes,
+  possibly lazy (a promise);
+- as the evaluator's cap, the bound on every token in play.
+
+Under the charged cap, and with an honest runner, the two are the same
+number. After each reflection the cap, `n − ‖v‖ + m`, is the count of
+tokens still alive (ADR-0144 theorem 5). Reason 3 below is what happens
+when they differ. Nothing else about tokens is external.
+
+**What λᶜᵉʳᵗ provisions itself** *(test)*.
+- **A parent runs a child on its own tokens.** Abstracting a child's token
+  context (`Lam` at usage 1) turns `Θ₂ ⊢ t :¹ R` into a closed
+  `λd₁ d₂. t : ◇ ⊸ ◇ ⊸ R`. A parent with two tokens applies it, and gets
+  exactly what the outer runner would have produced.
+- **`reflect` is a built-in runner.** It runs the decoded program on `m` of
+  the certificate's own tokens, the first `m` in preorder, and burns the
+  other `‖v‖ − m`. Measured: the certificate of a budget-2 child has 111
+  nodes. The reflected result is built from the certificate's tokens 1 and
+  2, and the other 109 are burned.
+- **A lineage provisions itself from one grant.** A self-reproducing agent
+  receives its own code, as free data, and a supply. It mints its code into
+  a certificate, checks the certificate at its own type, reflects it, and
+  runs the result on the same code and the rest of the supply.
+  - Its certificate is 15,448 nodes, and closed.
+  - It goes exactly `⌊N / ‖c‖⌋` generations deep. On a supply of three
+    times its size it goes three deep. The next mint is truncated, `inspect`
+    refuses it, and the safe action is taken. With one token fewer it goes
+    two deep.
+  - Every generation after the root is provisioned inside the language. The
+    only external act is the root grant.
+- **Recycling.** `caseR` and `itR` take a certificate apart and return its
+  tokens, so certificates are stored tokens. Only reflection consumes them,
+  at least one token each (strict overhead).
+
+**What it cannot provision: the grant.** There are three reasons, and the
+last two are measured.
+1. **No rule creates a token.** `◇` has no introduction rule (R4 §1.4), and
+   a closed certificate is a leaf (Prop. 4.1).
+2. **The grant is the termination measure.** In the self-reproducing
+   lineage, only the supply running out stops the recursion.
+   - On a supply promised at 10^100, the lineage runs on. In the test it
+     stops after three generations, and only because the evaluator's
+     materialization guard throws at the limit the test sets *(test)*.
+     That guard is outside the semantics: "without it a walk over a 10^100
+     supply would never return" (METATHEORY §2.3).
+   - A token source inside the language would let the agent make its own
+     supply at every generation. With the cap tracking the tokens in play,
+     as the charged cap does, the cap would be unbounded too. This
+     well-typed program would then never terminate, against T4 and against
+     ADR-0144 theorem 7, which rests on theorem 4: at most `supplied`
+     reflections.
+3. **Tokens the cap does not account for fabricate evidence.** Keep the cap
+   finite instead, and let the tokens exceed it: a runner that gives more
+   than it declares, or a token source under a fixed cap. Then a
+   certificate larger than the cap can pass its check. `reflect` refuses
+   it, and the refusal returns the type's default value.
+   - Measured with a lineage that passes its deepest result up (13,239
+     nodes). With an honest grant, supply equal to cap at twice its size,
+     the lineage ends in the safe action 1. With twice the supply the cap
+     allows, it returns action 0, with a `σ` claiming `0 ≠ 0` *(test)*.
+   - In λᶜᵉʳᵗ that path is unreachable because of T3: a certificate never
+     has more nodes than there are tokens in play.
+
+So a token source faces a dilemma. Unbound the cap, and termination fails;
+keep it, and evidence can be fabricated. **The outer number can be moved,
+from the tokens to the cap, but not removed.**
+
+**What the metatheory stands on.**
+- T1 follows from R4 Lemma 3.6, which is proved by strong induction on the
+  budget `n` (R4 §§3.5, 3.8). Its Reflect and `H₁` cases lower the budget
+  strictly before using the outer hypothesis (R4 §3.6). METATHEORY Theorem
+  1.4 descends from `n` to `n − ‖v‖ + m < n` (Lemma 1.1).
+- T3 bounds every output by the tokens given.
+- T4's proof, and ADR-0144's theorems 4 and 7, are inductions on the cap,
+  or on the cells supplied.
+
+The runner's grant is the base all of them start from. §3.3's
+finite-budgets row says so: "an unbounded supply is not covered".
+
+**Why the source must be outside: tokens are reflection's fuel.** (My
+synthesis.)
+- F5 showed that no interpreter written in λᶜᵉʳᵗ runs all its programs
+  without fuel, by the diagonal argument. The primitive `reflect` is the one
+  fuel-free self-interpreter, and it pays in tokens instead.
+- The self-reproducing lineage is that diagonal, metered: a program that
+  runs itself.
+- A λᶜᵉʳᵗ that made its own tokens would make its own fuel, and the
+  diagonal would diverge. That is the termination failure above.
+- The two senses of "self-hosting" meet here. A λᶜᵉʳᵗ evaluator written in
+  λᶜᵉʳᵗ needs the same external fuel.
+
+**Minting from codes would be worse: inconsistency.** (My derivation, on
+paper.)
+- Suppose a primitive `mint : Syn → R` came with the natural rule
+  `print (mint c) ⇝ c`. Then for any code `c` with
+  `e : T(chk′ c ⌜A⌝)`, the term `reflect_A (mint c) e` type-checks by
+  conversion. That is §3.1's free variant, `reflectω_A`.
+- At the Gödel type `L := Π(c :ω Syn). T(chk′ c ⌜L⌝) → 0`, which is
+  ordinary and so reflectable in every class, §3.1's diagonal then gives a
+  closed term of `0`.
+- A bare token source, without such a rule, leaves only the evidence
+  obstacle between λᶜᵉʳᵗ and the diagonal. Whether that suffices is §3.3's
+  open question, affinity without mass.
+
+**Earning tokens by computation fails too.** (My synthesis.) Data
+computation is free and has System T's strength (F6). So any rate of tokens
+per step would make tokens unbounded: a program could compute
+Ackermann-many steps, mint itself from the proceeds, and recurse.
+
+**So what is the outer runner, concretely?** It is whatever finite resource
+the deployment meters.
+- In ADR-0144's machine it is the kernel's initial heap,
+  `supplied = |dom H₀|` cells, with no allocation instruction and
+  conservation as theorem 2.
+- The analogy is memory. An operating system can fork processes and hand
+  them memory, and a process can sub-allocate, but no program creates RAM.
+- A lazy supply already provisions on demand. The runner fixes only the
+  promise, a number, and a promise of 10^100 costs nothing until used.
+
+**An analogy, not a theorem.** A theory's trust in its own rules comes from
+its metatheory, outside it (METATHEORY §4.3). λᶜᵉʳᵗ's self-trust is
+internal, but metered, and the meter's capacity comes from outside in the
+same way. What λᶜᵉʳᵗ adds is that the outside part is a single number.
+
+**For tiling.**
+- An agent lineage needs one grant, at the root. It can then provision
+  every successor itself, by minting, checking and reflecting, for as many
+  generations as the grant pays for.
+- A long-lived agent needs income: further grants from its environment,
+  each finite.
+- It cannot earn tokens by thinking.

@@ -62,6 +62,17 @@
   cap, an independent bound, still stopped it at the right depth. Only the
   counts of tokens spent and reflections refused exposed the mutation.
 
+## 2026-10-23
+
+- Give every test at least one mutation that turns it red; do not choose
+  mutations only per new mechanism. Doing so left a baseline test
+  uncovered, because it exercised only shared code.
+- An equality between two runs of the same machinery is blind to faults in
+  that machinery: both sides change alike. Pair it with an absolute
+  expectation. Mutation m6 failed only the absolute assertion.
+- When a scripted mutation reports green, check that it applied. A pattern
+  that matched twice aborted the script, and two "mutants" ran unchanged.
+
 ## 2026-09-30
 
 - When citing a cost for an implication between consistency statements,

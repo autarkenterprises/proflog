@@ -663,10 +663,38 @@ complete contemporaneous transcript.
       the counts of tokens spent and reflections refused exposed it.
     - (m3) Supplies end at node 30,000: the depth, guard and fabrication
       tests failed.
-    - The application test is not covered by these mutations.
+    - The application test is not covered by these mutations. *(Covered
+      on 2026-10-23, below.)*
   - **Suites.** Extended: 112 tests, 2,100 assertions, 0 failures (2 min
     27 s). Fast: 79 tests, 649 assertions, 0 failures (unchanged; the new
     namespace is extended-only).
+
+## 2026-10-23
+
+- The user asked why no mutation covered the application test in
+  `lcert.token-provisioning-test`.
+  - **Why.** m1–m3 were chosen one per new mechanism: the `reflect`
+    handoff and the lazy supply. The application test executes neither.
+    It runs `eval-deriv`'s fresh tokens through plain `:lam`/`:app`. I
+    recorded the gap instead of closing it.
+  - **Closed.** Three mutations on its path, each a file copy placed first
+    on the classpath; all red.
+    - (m4) Erasure drops usage-1 arguments (`erase`, `:App`): error, "a
+      token was used twice".
+    - (m5) Typing scales usage-1 arguments to `ω` (the `:app` case of
+      `synth`): error, "variable used beyond its declared usage in an
+      application".
+    - (m6) The runner numbers tokens from 0 (`eval-deriv`): failure, but
+      only on the explicit token-list assertion. `direct = hosted` still
+      held, since both runs take their tokens from the same mutated runner.
+  - m4 and m5 sit on the application path that nearly every other test
+    uses. A fault there is not specific to provisioning, which is why
+    per-mechanism selection passed over it.
+  - The test gained a comment saying why its absolute token assertion is
+    needed. The note's F7 count and the test docstring are updated.
+  - A slip on the way: the first m5 pattern matched twice in `typing.clj`,
+    the script stopped before writing m5 and m6, and both first ran
+    unmutated (green). They were rerun with a unique pattern.
 
 ## 2026-09-30
 

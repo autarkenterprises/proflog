@@ -2630,7 +2630,8 @@ can provision itself from one grant. The grant itself must come from
 outside. That is not a gap that better engineering could close. The grant
 is the finite number on which λᶜᵉʳᵗ's termination and its consistency proof
 are inductions. **[test]** `lcert.token-provisioning-test` pins every claim
-marked *(test)*. Three mutations turn it red (LOG.md, 2026-10-22).
+marked *(test)*. Six mutations turn it red, at least one per test (LOG.md,
+2026-10-22 and 2026-10-23).
 
 **What the outer runner supplies: one finite number, entering twice**
 (B1):

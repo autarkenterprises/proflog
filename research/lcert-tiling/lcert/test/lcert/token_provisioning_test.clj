@@ -23,7 +23,7 @@
       that 0 ≠ 0. So the supply and the cap must be one number.
 
   These tests pin existing behaviour (green when written). Mutation checks
-  made them fail: see LOG.md, 2026-10-22."
+  made each of them fail: see LOG.md, 2026-10-22 and 2026-10-23."
   (:require [clojure.test :refer [deftest is testing]]
             [clojure.walk :as walk]
             [lcert.core :as lc]
@@ -51,6 +51,9 @@
     (let [direct (lc/run 2 child)
           hosted (lc/run 2 (list abstracted-child '$1 '$2))]
       (is (= direct hosted))
+      ;; Both runs take their tokens from the same runner, so a fault there
+      ;; changes both alike and the equality above still holds. This
+      ;; absolute check is what catches it (mutation m6, LOG.md 2026-10-23).
       (is (= [(ev/token 1) (ev/token 2)] (ev/tokens hosted))))))
 
 (deftest reflect-runs-the-decoded-program-on-the-certificates-own-tokens

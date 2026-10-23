@@ -710,6 +710,31 @@ complete contemporaneous transcript.
     witnesses to be exhibited. `Σ₁` induction re-imports totality.
   - Textbook instance, cited from memory: `IΔ₀`'s `Δ₀` graph of `2^x`
     without totality (Parikh), and `EFA`.
+- The user asked whether Gödel's arithmetized "programming language" in PA
+  could be replaced by an actual language, such as miniKanren. Answered in
+  note F9.
+  - Three layers: representation, program (`Prf`/`Prov`), and a theory
+    proving D1–D3 about the program. A language replaces the first two.
+    G2 needs the third, which is a logic of the language with induction.
+  - Corroborated by web search: Paulson 2015 (both theorems in Isabelle,
+    on HF sets, G2 5,000 of 14,000 lines); Shankar 1986/1994 (G1 in
+    Boyer–Moore, Lisp); Byrd, Holk and Friedman 2012 (relational quines).
+  - Demo in core.logic 1.0.1. No Scheme is installed. The project vendors
+    only an overlay of core.logic, so the jar was fetched from Maven
+    Central with its SHA-1 checked. A relational K/S/MP checker:
+    - forwards it checks `S K K`;
+    - backwards it finds a most general `S K K` for `p → p` in about 20 ms;
+    - bounded searches for the atom `p` return none at depths 0–3;
+    - the unbounded search never returns.
+  - λᶜᵉʳᵗ is the opaque case. `chk′` is a primitive run only on closed
+    codes, so D2 and D3 fail internally. G2 holds by an external proof
+    (P5), and `P-con` stays open.
+  - Slips:
+    - The first demo run hung: core.logic ignores thread interruption, so
+      timed-out searches kept the JVM alive. Fixed with daemon threads and
+      an explicit exit.
+    - `pkill -f hilbert.clj` matched my own shell command and killed it.
+      Processes were then selected by command name.
 
 ## 2026-09-30
 

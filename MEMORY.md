@@ -112,6 +112,14 @@
     in proof cost per use.
   - `Σ₁` induction can re-import totality. `IΔ₀` with the graph of `2^x`
     is the textbook instance.
+- **Arithmetization versus a programming language** (note F9).
+  - A language (miniKanren included) can replace the representation and
+    the checker; `Prov` is the checker run backwards.
+  - G2 also needs a theory proving D2 and D3 about the checker, by
+    induction over its data. Paulson's HF-set G2 is the mechanized
+    instance.
+  - A transparent language changes nothing. An opaque primitive, like
+    λᶜᵉʳᵗ's `chk′`, blocks the internal proof of G2 but not G2 itself.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

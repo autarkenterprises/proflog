@@ -2868,3 +2868,127 @@ demands a method, and a universal Horn law demands nothing.
 
 Willard takes the second regime for numbers. λᶜᵉʳᵗ takes the first for
 numbers and the third for evidence.
+
+### F9. Replacing Gödel's arithmetization by a programming language, such as miniKanren (follow-up, 2026-10-23)
+
+> Godel's proof of G2 uses FOL + the Peano axioms of arithmetic, in which he
+> then essentially writes a programming language to encode proof objects
+> and their manipulation as numbers and arithmetical operations; could the
+> latter be replaced by an actual programming language, e.g. a minimal
+> relational lang like miniKanren?
+
+**Yes for the encoding. For the part G2 needs, only if a theory of the
+language comes with it.** Gödel's construction has three layers:
+1. **Representation**: syntax as data. Gödel used numbers; any data will do.
+2. **A program**: `Prf(p, φ)`, a primitive recursive checker, and
+   `Prov(φ) = ∃p Prf(p, φ)`, an unbounded search.
+3. **A theory that proves facts about the program.**
+   - D1: every true instance is provable (Σ₁-completeness).
+   - D2 and D3: these are proved inside the theory for every `φ`, by
+     induction over the data. D3 is `Prov(φ) → Prov(Prov(φ))`, formalized
+     Σ₁-completeness.
+
+G1 needs layers 1 and 2, D1 and the diagonal lemma. G2 needs layer 3.
+
+A programming language replaces layers 1 and 2. Layer 3 needs a logic of
+the language: its semantics as axioms, plus induction over its data. That
+is what the existing mechanizations provide (checked by web search on
+2026-10-23):
+- **Shankar** (thesis 1986, book 1994) checked G1, for Cohen's Z2, in the
+  Boyer–Moore prover. A secondhand account says he built the Gödel sentence
+  in Lisp. The prover's logic is a theory of Lisp data with induction,
+  which is layer 3.
+- **Paulson** (J. Automated Reasoning 55, 2015), following Świerczkowski,
+  proved both theorems in Isabelle/HOL. He coded syntax as hereditarily
+  finite sets, avoiding arithmetical encodings and with them the need to
+  formalize number theory. G1 took 9,000 lines and G2 5,000. His
+  abstract describes it as the first mechanized G2.
+- **Smullyan's elementary formal systems** (from memory, not re-checked)
+  represent syntax with Horn-clause systems over strings, which is to say
+  logic programs.
+- F2 recorded that the carrier is irrelevant to the limits: Grzegorczyk's
+  string theory TC is mutually interpretable with `Q`.
+
+**miniKanren fits layers 1 and 2 unusually well.**
+- **One relation is both `Prf` and `Prov`.** A checker written as a
+  relation, run with the proof unknown, is the search `∃p Prf(p, φ)`.
+  `fresh` is `∃`, and complete interleaving search semi-decides Σ₁.
+- **Terms are the data.** Quotation is free, and no numbers are needed.
+- **`Prf` stays decidable.** Run forwards on a ground proof term, the
+  checker terminates, by structural recursion on the proof. That is the
+  analogue of `Prf` being primitive recursive.
+- **The diagonal lemma has a known relational form.** Byrd, Holk and
+  Friedman (Scheme Workshop 2012) generate quines by running a relational
+  interpreter for Scheme backwards.
+
+**A demonstration.** This was run in core.logic 1.0.1, Clojure's
+miniKanren. The jar was fetched from Maven Central with its SHA-1
+verified; the script was a scratch file, not committed. The logic is
+implicational, with axioms K and S and modus ponens. Formulas and proofs
+are plain terms, with no numbers.
+
+```clojure
+(defn proveso [proof fml]          ; Prf(proof, fml), as a relation
+  (conde
+    [(fresh [a b] (== proof [:K a b]) (== fml [:imp a [:imp b a]]))]
+    [(fresh [a b c] (== proof [:S a b c])
+       (== fml [:imp [:imp a [:imp b c]] [:imp [:imp a b] [:imp a c]]]))]
+    [(fresh [p q a] (== proof [:mp p q]) (proveso p [:imp a fml]) (proveso q a))]))
+```
+
+| Query | Result |
+| --- | --- |
+| forwards: `S K K` checked as a proof of `p → p` | yes (24 ms) |
+| forwards: the same proof, against `q → q` | no (4 ms) |
+| backwards: `(run 1 [pf] (proveso pf [:imp :p :p]))`, which is `Prov(p → p)` | finds `S K K` with one formula left schematic, a most general proof (19 ms) |
+| proofs of the atom `p`, with modus ponens nested at most 0, 1, 2, 3 deep | none, at each bound (each under 10 ms) |
+| unbounded search for a proof of `p` | no answer; stopped at 10 s |
+
+**What miniKanren cannot supply is layer 3.** A run is Σ₁: it finds a
+proof, or it exhausts a bounded search. "No proof of `p` exists" is
+`Π₁`, and no run establishes it. Each bounded search settles its bound,
+which is the `Con(n)` pattern of A3 and D1; the unbounded one never
+returns.
+- The fact is true. Every theorem of this system is a tautology, and `p`
+  is not one. But that is an induction over all proofs: a theorem *about*
+  `proveso`.
+- D3 is a statement of the same kind.
+
+So a G2 built on miniKanren needs miniKanren plus a theory of its
+relations: for instance, their least-model or completion semantics, with
+structural induction on terms.
+- G2 then holds for that theory just as for PA, since the carrier is
+  irrelevant.
+- Such a theory has the growth that G2 feeds on. Unification constructs
+  terms freely, so it is a Type-M system in F2–F3's sense.
+- A Willard-style escape would need its constructors crippled. A cons-free
+  relational checker can check a given proof, but cannot run backwards to
+  find one (F4).
+
+**What λᶜᵉʳᵗ shows: a primitive the theory can only run.** λᶜᵉʳᵗ already
+replaces arithmetization. Its codes are trees over labels (R4 §1.6, E1–E5),
+`Check` is a program, and `chk′` names it. But `chk′` is opaque: it reduces
+only on closed canonical codes, by δ.
+- D1 holds instance by instance, by computation (Prop. 4.2).
+- D2 and D3 on open codes are not available internally (R4 §4.5,
+  Conjecture 4.6; §2's evidence obstacle). So Gödel's own proof of G2
+  cannot be carried out inside λᶜᵉʳᵗ.
+- G2 still holds (P5). It was proved outside, by translating PA into
+  λᶜᵉʳᵗ and λᶜᵉʳᵗ into E-PA^ω, where the trees are coded back as numbers
+  (R4 §6.3). Arithmetic re-enters in the metatheory.
+- This opacity is what leaves `P-con` open. Gödel's and Löb's arguments
+  against a self-referential consistency axiom need D2 and D3 (METATHEORY
+  §4.1).
+
+**Two ways to replace arithmetization by a language.** (My synthesis.)
+- **Transparent.** The theory can reason about the language's programs.
+  Nothing changes: G1 and G2 go through, and the carrier is irrelevant.
+- **Opaque.** The language is a primitive the theory can only run on
+  closed inputs. G2 still holds, but its internal proof fails, and
+  self-reference becomes an open question rather than a refuted one.
+
+Sources: [Paulson 2015](https://www.repository.cam.ac.uk/handle/1810/247014);
+[Shankar's book page](https://www.csl.sri.com/~shankar/goedel-book.html);
+[Cambridge, Shankar 1994](https://www.cambridge.org/core/books/metamathematics-machines-and-godels-proof/statement-of-the-incompleteness-theorem/1C6F3965BB9AF9EA81D91F0085A8A763);
+[FOM review, 2001](https://cs.nyu.edu/pipermail/fom/2001-September/005019.html);
+[Byrd, Holk and Friedman 2012](https://www.schemeworkshop.org/2012/papers/byrd-holk-friedman-paper-sfp12.pdf).

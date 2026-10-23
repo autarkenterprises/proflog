@@ -72,6 +72,11 @@
   expectation. Mutation m6 failed only the absolute assertion.
 - When a scripted mutation reports green, check that it applied. A pattern
   that matched twice aborted the script, and two "mutants" ran unchanged.
+- core.logic searches ignore thread interruption. Run bounded probes on
+  daemon threads, and end with an explicit exit; cancelling a future does
+  not stop a diverging search.
+- Never `pkill -f` on a pattern that also appears in your own command
+  line. Select processes by command name instead.
 
 ## 2026-09-30
 

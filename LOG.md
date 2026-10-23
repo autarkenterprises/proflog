@@ -758,6 +758,14 @@ complete contemporaneous transcript.
   - A self-correction while drafting: I first concluded that `P-con` would
     prove `¬β`, and so be unsound. That fails: as a hypothesis, `β` cannot
     give `□L`, because `P-con` cannot prove `β`. That claim was dropped.
+- The user asked whether "neither direction is known" meant that λᶜᵉʳᵗ
+  does not assert its own consistency. It does not mean that.
+  - λᶜᵉʳᵗ₁ asserts it as `H°`, over held certificates, and is consistent
+    (T1).
+  - "Open" concerns `P-con`, which adds the free-code form `Con′_ω`. That
+    form is underivable in λᶜᵉʳᵗ₁ (P5).
+  - The chat wording, "proves no general consistency statement", invited
+    the misreading. F10 now states the distinction in place.
 
 ## 2026-09-30
 

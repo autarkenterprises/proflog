@@ -3046,6 +3046,19 @@ proof by reflection (F5, F6).
 system's `Check`, which accepts `ax-con`, so the axiom says "`P-con` has no
 refutation". It is Willard's "I am consistent" (§3.4).
 
+*(Clarified 2026-10-23.)* λᶜᵉʳᵗ₁ itself already asserts its own
+consistency, and is consistent. "Open" below is about `P-con` only.
+- **λᶜᵉʳᵗ₁'s assertion.** `H°` says that no certificate the program holds
+  is a refutation, with `chk′` naming λᶜᵉʳᵗ's own `Check`. It is proved by
+  one term at every budget, and T1 shows the system consistent.
+- **The difference is the quantifier.**
+  - `H°` ranges over held certificates (`R`, usage 1, metered by tokens).
+  - `ax-con` ranges over free codes (`Syn`, usage `ω`).
+- **Their relation** (§5). Externally `H°` is equivalent to consistency.
+  Internally it is strictly weaker: `Con′ ⊸ H°` (Prop. 4.7), but no budget
+  derives `H° → Con′_ω` (Prop. 4.8), and λᶜᵉʳᵗ₁ cannot derive `Con′_ω` at
+  all (P5).
+
 **One expects a refutation.** With a standard provability predicate, a
 theory that has its own consistency as an axiom is inconsistent. By Löb's
 theorem, `T ⊢ □0 → 0` gives `T ⊢ 0`. Löb's proof needs the diagonal lemma

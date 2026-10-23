@@ -766,6 +766,12 @@ complete contemporaneous transcript.
     form is underivable in λᶜᵉʳᵗ₁ (P5).
   - The chat wording, "proves no general consistency statement", invited
     the misreading. F10 now states the distinction in place.
+- The user asked for a succinct demonstration of closed versus open codes.
+  A scratch probe, recorded in F10:
+  - evidence `star` type-checks for `chk` on the literal of `not`'s code at
+    `Bool → Bool`, and is rejected at `Nat → Nat`;
+  - it is rejected for a variable code `c`;
+  - the same `chk` on `c` computes `true` at runtime.
 
 ## 2026-09-30
 

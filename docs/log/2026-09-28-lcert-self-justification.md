@@ -3115,6 +3115,22 @@ consistent, then bare self-consistency needs only an opaque checker, a
 Feferman-style nonstandard predicate, and the token discipline is what
 *reflection* needs (§3.4).
 
+**Closed versus open codes, demonstrated** (2026-10-23; a scratch probe,
+not a committed test). Let `C` be the 35-node certificate code of
+`not : Bool → Bool`, and `lit` its literal term.
+
+| Term | Result |
+| --- | --- |
+| `(the (T (chk lit (code (-> Bool Bool)))) star)` | type-checks: δ computes `Check`, and `T(tt) ≡ 1` |
+| `(the (T (chk lit (code (-> Nat Nat)))) star)` | rejected: δ gives `T(ff) ≡ 0` |
+| `(fn [c w Syn] (the (T (chk c (code (-> Bool Bool)))) star))` | rejected: `chk c …` is stuck on the variable `c` |
+| `((fn [c w Syn] (chk c (code (-> Bool Bool)))) lit)`, run | `true`: at runtime `c` is bound to a value, so `chk` computes |
+
+So the opacity is a matter of proof, not of computation. A program can
+always run `Check` on whatever code it gets. A type can only rely on
+`Check`'s answer for a code written out in full, and D2 and D3 are
+statements about variables.
+
 **Back to the first question.** Identifying the logic with its object
 language *transparently* is exactly the bridge. Systems that do so, such as
 ACL2 and Coq, are subject to Gödel and Löb in full, and must not assert

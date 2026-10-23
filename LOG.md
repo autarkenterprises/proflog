@@ -695,6 +695,21 @@ complete contemporaneous transcript.
   - A slip on the way: the first m5 pattern matched twice in `typing.clj`,
     the script stopped before writing m5 and m6, and both first ran
     unmutated (green). They were rerun with a unique pattern.
+- The user asked what the computational content of a totality axiom is
+  under BHK and realizability, against a relation, e.g. total versus
+  relational multiplication. Answered in note F8. No code.
+  - A totality axiom's realizer is an algorithm. Relational laws are
+    universal Horn formulas, self-realizing and computationally empty:
+    constraints, not capabilities.
+  - There are three levels: function symbol, totality axiom (Willard's ISλ
+    for addition), relation. The first two share their content and differ
+    in proof economics (a step per use); the third has none.
+  - My argument: true `Π₁` axioms add no provably recursive functions over
+    `T ⊇ IΣ₁`. Search for a witness of the disjunction with `¬π`.
+  - Growth: function symbols name `2^(2^n)` in `n` lines; relations force
+    witnesses to be exhibited. `Σ₁` induction re-imports totality.
+  - Textbook instance, cited from memory: `IΔ₀`'s `Δ₀` graph of `2^x`
+    without totality (Parikh), and `EFA`.
 
 ## 2026-09-30
 

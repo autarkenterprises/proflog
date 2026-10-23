@@ -104,6 +104,14 @@
     default; measured, action 0 with a `σ` claiming `0 ≠ 0`.
   - On paper: a `mint` with `print (mint c) ⇝ c` derives the free variant,
     and so inconsistency (§3.1).
+- **Totality versus relation, constructively** (note F8).
+  - A totality axiom is realized by an algorithm. Relational laws (`Π₁`,
+    Horn) are self-realizing and add no provably recursive functions,
+    since true `Π₁` axioms never do.
+  - A function symbol and a totality axiom share their content and differ
+    in proof cost per use.
+  - `Σ₁` induction can re-import totality. `IΔ₀` with the graph of `2^x`
+    is the textbook instance.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

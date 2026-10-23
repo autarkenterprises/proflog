@@ -2766,3 +2766,105 @@ same way. What λᶜᵉʳᵗ adds is that the outside part is a single number.
 - A long-lived agent needs income: further grants from its environment,
   each finite.
 - It cannot earn tokens by thinking.
+
+### F8. Total versus relational multiplication, under BHK and realizability (follow-up, 2026-10-23)
+
+> What is the difference, under a BHK/realizability/constructive
+> perspective, in the computational content of an axiom that asserts a
+> function is total, and a relation? E.g., total functional multiplication
+> versus relational multiplication?
+
+**A totality axiom is a program; relational laws are not.** The logic facts
+here are standard, cited from memory and not re-read in this session. The
+arguments are mine.
+- **Totality.** A BHK proof of `∀x∀y∃z M(x,y,z)` is a method that takes `x`
+  and `y` and returns a `z` with evidence of `M(x,y,z)`. Its Kleene
+  realizer is an index of a multiplication algorithm.
+- **A function symbol** `·` with its defining equations has the same
+  content, built in. Realizability interprets terms by computable
+  functions, so the symbol is sound only if multiplication is computable.
+- **Relational laws** are universal formulas over atoms: `M(x,0,0)`,
+  `M(x,y,z) → M(x,Sy,z+x)`, and functionality, `M(x,y,z) ∧ M(x,y,z′) → z = z′`.
+  - Atomic and negative formulas are self-realizing: a realizer carries no
+    information, and the formula is realizable iff it is true.
+  - So these laws are constraints, not capabilities. They let a proof
+    reason about a product it already holds, and check it. They never
+    produce one.
+
+**Three levels, not two.** Willard's ISλ makes the middle one visible: it
+asserts addition's totality as an axiom, never as a function symbol (F3;
+2001 eq. 6).
+
+| Form | Realizer | What a proof pays to use `x·y` |
+| --- | --- | --- |
+| function symbol `x·y` | multiplication, built into term evaluation | nothing: terms nest freely |
+| axiom `∀x∀y∃z M(x,y,z)` | multiplication | an instantiation step and a fresh variable per use |
+| relation `M` with `Π₁` laws | none | a witness `z` that the proof must already have |
+
+The first two have the same computational content. They differ in proof
+economics, which is what Willard's budget counts: Fact D.3's "short proofs
+cannot establish much larger objects", where his `◇` is a proof symbol
+(F4). The third differs in content.
+
+**Extraction: true `Π₁` axioms add no provably total functions.** (My
+argument; the result is standard.)
+- Let `T ⊇ IΣ₁` be classical, and `π = ∀u δ(u)` a true `Π₁` sentence.
+- Suppose `T + π ⊢ ∀x∃y θ(x,y)`. Then `T ⊢ ∀x∃w (¬δ((w)₀) ∨ θ(x,(w)₁))`,
+  so searching for such a `w` is `T`-provably total.
+- Since `π` is true, the first disjunct never holds, and the search returns
+  a witness for `θ`. So `T + π` has the same provably recursive functions
+  as `T`.
+
+Relational multiplication's laws are `Π₁`, so they add no function. A
+totality axiom adds multiplication, and everything built from it by
+composition and recursion.
+
+**Growth: naming versus exhibiting.** A function symbol is a compressed
+name, and so, at one step per use, is a totality axiom.
+- With total multiplication, `n` lines prove `∃z (z = 2^(2^n))` by repeated
+  squaring.
+- With total addition alone, `n` lines reach `2^n`.
+- With multiplication only as a relation, a proof asserts `∃z M(x,y,z)`
+  only by exhibiting `z`, or by deriving its existence some other way. So
+  the numbers a short proof can name stay small.
+
+This is the squaring chain behind Willard's failure for total
+multiplication (F3; JSL2 Lemma 4.7), and E6's tangibility horizon is the
+same phenomenon.
+
+**Induction can bring the content back.** `Σ₁` induction on `y`, for
+`∃z M(x,y,z)` with the closure law, proves totality. Its realizer is the
+recursor, which builds multiplication from addition. So a relational
+system must keep induction away from such formulas (F3: `Σ₁` induction
+"turns total appending into total concatenation").
+
+**The textbook instance is exponentiation in `IΔ₀`.**
+- `IΔ₀` has a `Δ₀` formula for the graph of `y = 2^x`, and proves its basic
+  recursive properties.
+- By Parikh's theorem it does not prove totality: its provably total
+  functions are polynomially bounded.
+- `EFA` adds the one `Π₂` axiom "exponentiation is total", and with it the
+  elementary functions.
+
+Willard's Type-A systems do to multiplication what `IΔ₀` does to
+exponentiation.
+
+**The distinction is not about intuitionistic logic.** In classical
+arithmetic `¬¬∃` and `∃` agree for `Π₂` sentences: PA is `Π₂`-conservative
+over HA, by Friedman's A-translation. So the question is only which `Π₂`
+sentences are axioms or theorems. BHK makes the answer visible: `∃`
+demands a method, and a universal Horn law demands nothing.
+
+**In λᶜᵉʳᵗ, three regimes.**
+- **Free totality.** `TIMES : Nat → Nat → Nat` (R4 §6.2) is a closed
+  program, and data has System T's strength (F6).
+- **No totality.** A relation would be a family of evidence types with
+  closure lemmas whose runtime value is `⋆`. A program that needs `x·y`
+  must then be handed `z` with its evidence: checked, not computed (F4's
+  cons-free reading).
+- **Metered totality.** LFPL's construction, and λᶜᵉʳᵗ's certificates:
+  building is allowed, and paid per node in `◇` (F4's three ways to pay for
+  growth).
+
+Willard takes the second regime for numbers. λᶜᵉʳᵗ takes the first for
+numbers and the third for evidence.

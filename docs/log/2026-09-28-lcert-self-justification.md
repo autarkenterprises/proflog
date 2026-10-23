@@ -270,8 +270,11 @@ Remove the discipline from `H`, reflection at `0`, and it becomes
   `chk′` on open codes, which the opaque checker does not supply.
 - A model needs `P-con`'s own consistency, which is circular (§6).
 
-So whether `P-con` is consistent is open. If it is, bare self-consistency
-needs only the opaque checker, a Feferman-style nonstandard predicate. The
+So whether `P-con` is consistent is open. *(Sharpened 2026-10-23, F10: with
+a transparent checker, `P-con` plus a bridge axiom is refuted by Löb's
+argument, on paper. Any consistency proof must exceed PA.)* If it is
+consistent, bare self-consistency needs only the opaque checker, a
+Feferman-style nonstandard predicate. The
 discipline would then be what makes *reflection*, and certified evaluation,
 possible, rather than what makes consistency possible. Reflection is what
 tiling uses (AAR-0143).
@@ -473,6 +476,8 @@ it is not tested.
   unprovable axiom.
 - **`P-con`.** Attempt a consistency proof by induction on the length of
   `Check`'s computation, or a refutation.
+- **F10's transparent-checker refutation.** Mechanize `P-con + β ⊢ 0`:
+  define `CHECK` in λᶜᵉʳᵗ, prove D2 and D3 for it, and run Löb's argument.
 
 ## Addendum: Three Follow-Up Questions (2026-09-28)
 
@@ -2992,3 +2997,122 @@ Sources: [Paulson 2015](https://www.repository.cam.ac.uk/handle/1810/247014);
 [Cambridge, Shankar 1994](https://www.cambridge.org/core/books/metamathematics-machines-and-godels-proof/statement-of-the-incompleteness-theorem/1C6F3965BB9AF9EA81D91F0085A8A763);
 [FOM review, 2001](https://cs.nyu.edu/pipermail/fom/2001-September/005019.html);
 [Byrd, Holk and Friedman 2012](https://www.schemeworkshop.org/2012/papers/byrd-holk-friedman-paper-sfp12.pdf).
+
+### F10. The logic as its own object language, and why `P-con` is open (follow-up, 2026-10-23)
+
+> What stops a prover's logic from also being a programming language,
+> namely the same programming language being used at the object level?
+> And, please explain `P-con is open rather than refuted`.
+
+**Nothing stops it, and it is common.** (Checked by web search on
+2026-10-23, except where marked.)
+- Curry–Howard systems: Coq, Lean and Agda programs are proofs (from
+  memory).
+- ACL2's logic is applicative Common Lisp, and `apply$` lets it apply its
+  own functions as objects.
+- MetaCoq formalizes Coq's type checker in Coq and verifies it.
+- λᶜᵉʳᵗ's certificates are λᶜᵉʳᵗ derivations, which `reflect` runs.
+
+What identifying the levels cannot do is let the language certify itself
+wholesale. There are three diagonal limits, and each system marks where it
+stops.
+1. **Termination.** A logic must be total, since a non-terminating "proof",
+   such as a fixed point at type `0`, would prove anything. And a total
+   language cannot contain a total interpreter for all its own programs
+   (F5).
+   - Lisp's `eval` is harmless because Lisp is not a logic.
+   - ACL2 admits only terminating definitions. It restricts `apply$` to
+     "tame" functions, and requires "warrants", hypotheses about
+     `apply$`'s behaviour. Its manual shows that a naive warrant for a
+     Russell-style function is contradictory.
+2. **Truth.** By Tarski, there is no truth predicate for all of the
+   language's own sentences; only partial ones, of bounded complexity, are
+   available (from memory).
+3. **Soundness.** By G2 and Löb, the language cannot prove its own
+   consistency.
+   - MetaCoq's checker is verified *assuming* strong normalization of
+     Coq's theory, as a postulate, because a proof inside Coq is
+     impossible by Gödel. Its authors call this moving from a trusted code
+     base to a trusted theory base.
+   - λᶜᵉʳᵗ marks the limit differently. It trusts the certificates it
+     holds (`reflect`, `H°`), metered by tokens, and proves no `Con′` (P5).
+
+What the levels can share safely: running programs, checking proofs, and
+proving restricted fragments sound, such as a decision procedure used by
+proof by reflection (F5, F6).
+
+**What `P-con` is.** It is λᶜᵉʳᵗ₁ plus the axiom
+`ax-con : Con′_ω = Π(c :ω Syn). T(chk′ c c⊥) → 0`. `chk′` names the running
+system's `Check`, which accepts `ax-con`, so the axiom says "`P-con` has no
+refutation". It is Willard's "I am consistent" (§3.4).
+
+**One expects a refutation.** With a standard provability predicate, a
+theory that has its own consistency as an axiom is inconsistent. By Löb's
+theorem, `T ⊢ □0 → 0` gives `T ⊢ 0`. Löb's proof needs the diagonal lemma
+and the derivability conditions D1–D3 for `□`.
+
+**The refutation does not go through.** G2 is intensional (Feferman 1960):
+it is a theorem about provability predicates that the theory can reason
+about. `P-con`'s predicate is `chk′`, a primitive that computes only on
+closed codes.
+- D1 holds instance by instance, by computation.
+- D2 and D3 are statements about *open* codes. For example: if `c₁` proves
+  `A → B` and `c₂` proves `A`, then the combined code proves `B`. `chk′`
+  does not reduce on open codes, and `P-con` has no other means of
+  reasoning about it (R4 §§4.4–4.5; §2's evidence obstacle).
+- §3.1's diagonal needs no D2 or D3, but it needs reflection at a Gödel
+  sentence. `ax-con` reflects only at `0` (§3.4).
+
+**Consistency is not proved either.**
+- λᶜᵉʳᵗ₁'s consistency proof, T1, is an induction on the budget. `H°` only
+  ever reflects held certificates, whose size the budget bounds, and strict
+  overhead makes every reflection descend.
+- `ax-con` instead quantifies over free codes. A derivation can *compute*
+  the code it feeds to `ax-con`, by free System T computation, at any size.
+  So validating `ax-con` at budget `n` needs every code of every size to
+  fail as a refutation. That is `P-con`'s consistency itself (§6).
+- Any consistency proof must also go beyond PA. (My derivation.) PA
+  provably translates its own proofs into λᶜᵉʳᵗ derivations (R4
+  Prop. 6.1), and `P-con`'s checker accepts them, since its rules include
+  λᶜᵉʳᵗ₀'s. So `PA ⊢ Con(P-con) → Con(PA)`, and a PA proof of `Con(P-con)`
+  would give `PA ⊢ Con(PA)`.
+
+So the status is open: there is no refutation and no consistency proof,
+and any proof must exceed PA.
+
+**The opacity is the whole margin.** (My derivation, on paper and not
+mechanized; the D2 and D3 steps are the standard argument, not worked out
+here.)
+- Make the checker transparent. `Check` is primitive recursive, so let
+  `CHECK` be a λᶜᵉʳᵗ program computing the running system's `Check`. Add
+  the bridge axiom `β : Π(c d :ω Syn). T(chk′ c d ⇔ CHECK c d)`.
+- **Without `ax-con`, λᶜᵉʳᵗ₁ + `β` is consistent.** T1's model reads `chk′`
+  as `Check`, which `CHECK` computes, so `β` is valid there.
+- **With `ax-con`, `P-con` + `β` is inconsistent.** D2 and D3 should hold
+  for `CHECK` by structural induction on codes, as they do for PA's
+  predicate, and `β` carries them over to `chk′`. With §3.1's Gödel type
+  `L ≡ (□L → 0)`, and `ax-con` as `□0 → 0`, Löb's argument derives `0`.
+- The bridge must be an axiom of the system that `chk′` names. As a mere
+  hypothesis inside `P-con` it does not suffice: the last step, `□L`, would
+  need `P-con` to prove `β`, which it cannot.
+
+So the refutation exists as soon as the checker can be reasoned about.
+`P-con` survives, so far, only because `chk′` is a black box. If `P-con` is
+consistent, then bare self-consistency needs only an opaque checker, a
+Feferman-style nonstandard predicate, and the token discipline is what
+*reflection* needs (§3.4).
+
+**Back to the first question.** Identifying the logic with its object
+language *transparently* is exactly the bridge. Systems that do so, such as
+ACL2 and Coq, are subject to Gödel and Löb in full, and must not assert
+their own consistency. λᶜᵉʳᵗ shares data and execution with its object
+level: its codes are λᶜᵉʳᵗ derivations, and `reflect` runs them. But it
+keeps checking opaque. `P-con` is the experiment on what that opacity buys.
+
+Sources: [ACL2 `apply$`](https://cs.utexas.edu/~moore/acl2/manuals/current/manual/index-seo.php/ACL2____APPLY_42);
+[ACL2 `warrant`](https://cs.utexas.edu/~moore/acl2/manuals/current/manual/index-seo.php/ACL2____WARRANT);
+[Kaufmann and Moore, report](https://www.cs.utexas.edu/users/kaufmann/papers/apply/report.pdf);
+[Sozeau et al. 2020, "Coq Coq Correct!"](https://www.ps.uni-saarland.de/Publications/documents/SozeauEtAl_2020_CoqCoqCorrect.pdf);
+[Sozeau et al., JACM](https://rocq-prover.org/papers/correct-and-complete-type-checking-and-certified-erasure-for-coq-in-coq);
+[Feferman 1960, IMPAN](https://www.impan.pl/en/publishing-house/journals-and-series/fundamenta-mathematicae/all/49/1/94633/arithmetization-of-metamathematics-in-a-general-setting);
+[Franks on intensional arithmetization](https://www.lps.uci.edu/files/grad-alumni/CFranks/veryweak.pdf).

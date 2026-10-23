@@ -77,6 +77,11 @@
   not stop a diverging search.
 - Never `pkill -f` on a pattern that also appears in your own command
   line. Select processes by command name instead.
+- In a Löb-style argument, check whether each extra assumption is an axiom
+  of the system the box names, or only a hypothesis. The final step needs
+  `□L`, a closed proof in that system. A hypothesis the system cannot
+  prove blocks that step; I nearly concluded that `P-con` is unsound from
+  this mistake.
 
 ## 2026-09-30
 

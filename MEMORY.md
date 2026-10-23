@@ -120,6 +120,13 @@
     instance.
   - A transparent language changes nothing. An opaque primitive, like
     λᶜᵉʳᵗ's `chk′`, blocks the internal proof of G2 but not G2 itself.
+- **`P-con`'s open status, sharpened** (note F10; my derivations on paper).
+  - It is open because Löb needs D2 and D3, which opaque `chk′` lacks, and
+    because `ax-con`'s free codes defeat T1's budget descent.
+  - Any consistency proof must exceed PA.
+  - With a transparent checker plus a bridge axiom `β`, `P-con + β` is
+    refuted, while λᶜᵉʳᵗ₁ + `β` stays consistent. Opacity is the whole
+    margin.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

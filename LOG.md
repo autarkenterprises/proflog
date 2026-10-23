@@ -735,6 +735,29 @@ complete contemporaneous transcript.
       an explicit exit.
     - `pkill -f hilbert.clj` matched my own shell command and killed it.
       Processes were then selected by command name.
+- The user asked what stops a prover's logic from also being the
+  programming language of its own object level, and why `P-con` is "open
+  rather than refuted". Answered in note F10.
+  - Nothing stops it: Coq, Lean, ACL2 (`apply$`), MetaCoq and λᶜᵉʳᵗ all do
+    it. Three diagonal limits remain: termination (ACL2's tameness and
+    warrants), truth (Tarski), and soundness (MetaCoq postulates strong
+    normalization). These were checked by web search, except the
+    Curry–Howard and Tarski remarks.
+  - `P-con` is open because Löb's refutation needs D2 and D3, which the
+    opaque `chk′` does not supply. The consistency proof fails because
+    `ax-con` ranges over free codes, which can be computed at any size; T1's
+    budget descent covers only held certificates.
+  - New, my derivations on paper:
+    - any consistency proof of `P-con` must exceed PA, since
+      `PA ⊢ Con(P-con) → Con(PA)` by Prop. 6.1;
+    - with a transparent checker, `CHECK` plus a bridge axiom `β`,
+      `P-con + β` is refuted by Löb, while λᶜᵉʳᵗ₁ + `β` stays consistent;
+    - `β` must be an axiom, not a hypothesis.
+  - §3.4 now carries a pointer to F10, and §8 a follow-up to mechanize the
+    refutation.
+  - A self-correction while drafting: I first concluded that `P-con` would
+    prove `¬β`, and so be unsound. That fails: as a hypothesis, `β` cannot
+    give `□L`, because `P-con` cannot prove `β`. That claim was dropped.
 
 ## 2026-09-30
 

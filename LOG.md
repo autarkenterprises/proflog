@@ -59,6 +59,27 @@ complete contemporaneous transcript.
   Certificates become plain EDN; noms print as `<nom:...>` and cannot be read
   back. My second revision had compared nominal logic only with `!=`-on-names,
   not with de Bruijn indices.
+- Fourth ADR-0149 revision: Layer 1 uses named bound variables, neither
+  nominal logic nor de Bruijn indices. The owner asked whether nominal logic
+  (as in the αleanTAP lineage) would make the code read more like Fitting's
+  paper. It would beat de Bruijn indices, but the paper's own named variables
+  are closer still, and closed-term substitution makes them capture-free.
+  Checked against `LPTableaus.pdf`:
+  - §2 defines `ϕ(t̄)` as substitution "for all free occurrences", which
+    becomes a two-case `substo` with no freshness side conditions.
+  - §4 closes on "both A and ¬A for some sentence A", which is syntactic
+    identity. Nominal unification and de Bruijn indices both identify
+    alpha-variants, so they would close `(∀x)P(x)` against `¬(∀y)P(y)` in one
+    step where the paper needs δ, γ and an atomic closure.
+  - §4 makes δ's parameter new "on the branch", which is the per-branch
+    counter, not `nom/fresh`'s global freshness.
+
+  No rule creates a variable name, so name distinctness is a finite table
+  generated from the program text, and Layer 1 stays within
+  `==`/`conde`/`fresh`. The cost: soundness rests on the closed-term
+  invariant, which is now a structural relation with a falsifier. This
+  revision also restored the `### 3. Layer 2` heading, which the third
+  revision's edit had merged into the preceding paragraph.
 
 ## 2026-11-07
 

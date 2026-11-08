@@ -821,6 +821,22 @@ complete contemporaneous transcript.
   - Web-checked: `Sat_Γ` and `IΣₙ` finite axiomatizability, Mostowski,
     Ryll-Nardzewski. From memory, and marked: vanilla meta-interpreter,
     McCarthy, Kleene's `T`.
+- The user asked whether finite, circuit-checkable proofs in super-Turing
+  systems (higher-order, classical, choice) make instances of super-Turing
+  problems Turing-decidable. Answered in note F13.
+  - Single instances are trivially decidable. Proofs add certified answers.
+  - The systems are r.e., so the circuit checks a `Σ₁` fact; the
+    super-Turing part is semantic.
+  - Relative to a sound r.e. `S`, proof search decides exactly an r.e. set
+    of instances, never all. Stronger systems settle more `Π₁` instances.
+    Correctness rests on soundness, which is external.
+  - Proofs do not make the objects computable (Specker sequences).
+  - Content is Turing-level when the statement is of low complexity: choice
+    is conservative for arithmetic (L) and `Σ¹₂` (Shoenfield); `Π₂`
+    witnesses come by A-translation; Kohlenbach's proof mining extracts
+    bounds under dependent choice.
+  - Web-checked: Kohlenbach, the arithmetical conservativity of choice,
+    Shoenfield, Specker. The FOM `Π¹₄` claim is reported, not checked.
 
 ## 2026-09-30
 

@@ -147,6 +147,13 @@
     exist for a total `L`.
   - So PA's schema cannot collapse (Ryll-Nardzewski); PA is reflexive
     (Mostowski).
+- **Finite proofs in super-Turing systems** (note F13).
+  - They certify a `Σ₁` fact (`S ⊢ φ`). Proof search in a sound r.e. `S`
+    decides an r.e. set of instances, never all, and is correct only
+    under `S`'s soundness.
+  - They do not make the objects computable (Specker).
+  - Content is Turing-level for low-complexity statements: choice is
+    conservative for arithmetic and `Σ¹₂`; `Π₂` witnesses; proof mining.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

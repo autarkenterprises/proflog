@@ -3366,3 +3366,79 @@ Sources: [Satisfaction classes with approximate disjunctive correctness, arXiv 2
 [FOM: reflexivity of PA](https://cs.nyu.edu/pipermail/fom/2001-May/004917.html);
 [Non-finite axiomatizability of first-order PA](https://diposit.ub.edu/items/cf52c05c-0b58-4b1d-b5fa-23556990b478/full);
 [FOM: finite axiomatisation](https://cs.nyu.edu/pipermail/fom/2008-August/013007.html).
+
+### F13. Finite proofs in super-Turing systems, and Turing-decidable instances (follow-up, 2026-11-08)
+
+> Various computer proof systems use theories that are super-Turing in the
+> general case, like higher order logics, or non-computable, like classical
+> theories, or the Axiom of Choice. However, particular theorems in these
+> more powerful systems can be proven by, ultimately, nothing more than
+> finite boolean circuits. Does this imply that certain instances of in
+> general super-Turing problem classes are Turing decidable?
+
+**Yes, in a precise but limited sense. Three things need separating: the
+certificate, the instance's answer, and the objects the theorem is about.**
+(My synthesis. Supporting facts web-checked on 2026-11-08 unless marked.)
+
+**1. Every single instance is decidable, trivially.** One of the two constant
+machines, "yes" or "no", decides it. Decidability is a property of
+*uniform* families. What a proof adds is a *certified* answer: a machine we
+can exhibit, with a reason to believe it.
+
+**2. The systems themselves are Turing-level; their semantics is not.** The
+theorems of Henkin-complete higher-order logic, ZFC, classical PA and ZFC
+with choice are all recursively enumerable, and proof checking is
+decidable. The circuit checks a `Σ₁` fact: "`S` proves `φ`". The
+super-Turing aspects lie elsewhere (from memory): validity in full
+higher-order semantics is not r.e., and choice asserts sets that no
+procedure produces.
+
+**3. Relative to a sound r.e. system `S`, instances become decidable.**
+- "Search for an `S`-proof of `φ` or of `¬φ`" is a Turing machine. It
+  answers correctly on exactly the instances `S` settles.
+- That domain is r.e., never the whole class. For the halting problem this
+  is Gödel and Turing, from memory: a sound r.e. `S` deciding every
+  instance would decide halting.
+- "`P` halts" needs no `S`, since running `P` settles it. What `S`
+  contributes is the `Π₁` instances, "`P` never halts".
+- Stronger systems settle more of them; ZFC, for instance, settles the
+  consistency of PA. That is what their power buys, instance by instance,
+  and the ladder has no top.
+- Correctness rests on `S`'s soundness for that class. `S` cannot prove its
+  own soundness (G2). It is the external assumption, as the token grant is
+  for λᶜᵉʳᵗ (F7).
+
+**4. What a finite proof does not do: make the objects computable.** A
+Specker sequence is a computable, increasing, bounded sequence of
+rationals whose limit is not computable. "The limit exists" has a short
+proof, and a circuit checks it. The real it asserts cannot be computed.
+Classical and choice-based proofs certify existence without supplying a
+witness (F8, F11).
+
+**5. When the content is Turing-level: low logical complexity.** The
+dividing line is the complexity of the proved *statement*, not the
+strength of the system that proved it.
+- **Arithmetic sentences.** ZFC, even with GCH, is conservative over ZF for
+  them. Provably in ZF, choice and GCH hold in Gödel's L, and arithmetic is
+  absolute between V and L.
+- **`Σ¹₂` sentences.** These are absolute between V and L by Shoenfield, so
+  choice is eliminable for them too. Informal FOM posts report
+  conservativity up to `Π¹₄` sentences of analysis; not checked here.
+- **`Π₂` arithmetic theorems of classical theories** carry computable
+  witness functions, by A-translation (F8).
+- **`∀∃` theorems of classical analysis with full dependent choice.**
+  Kohlenbach's proof-mining metatheorems guarantee extraction of computable
+  bounds, defined by bar recursion.
+
+**The connection to this research.**
+- λᶜᵉʳᵗ's `Check`, and ADR-0144's kernel, are the finite circuit.
+- Trust in what passes them is soundness: external, or in λᶜᵉʳᵗ metered.
+- What a passed certificate *means* computationally depends on the
+  statement's logical form (F8, F11, F12).
+
+Sources: [Kohlenbach, logical metatheorems](https://www2.mathematik.tu-darmstadt.de/~kohlenbach/amsmeta.pdf);
+[Proof mining in metric fixed point and ergodic theory, arXiv 0903.1529](https://arxiv.org/pdf/0903.1529);
+[Absoluteness, Wikipedia](https://en.wikipedia.org/wiki/Absoluteness_(logic));
+[FOM: arithmetical conservativity of ZFC + GCH over ZF](https://cs.nyu.edu/pipermail/fom/2015-May/018735.html);
+[FOM: eliminating AC from statements of analysis](https://cs.nyu.edu/pipermail/fom/2013-March/017192.html);
+[Specker sequence, Wikipedia](https://en.wikipedia.org/wiki/Specker_sequence).

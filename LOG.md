@@ -35,6 +35,17 @@ complete contemporaneous transcript.
   locates rejections. The independence that matters is Layer 1 against the
   engine; using the engine as its own checker (the ADR-0117 pattern) stays
   rejected.
+- Second ADR-0149 revision, also after owner review: nominal logic is allowed
+  back into Layer 1. Excluding it alongside `conda`/`condu`/`project` was a
+  category error, since those are impure while nominal logic is relational
+  (alphaKanren, the αleanTAP lineage). Quantifiers use ties, and γ/δ
+  instantiation is capture-avoiding substitution with `nom/fresh` and `hash`,
+  replacing the `!=`-on-noms approach in root `subst.clj:123,136`. δ parameters
+  are tie-bound in the certificate, `(delta (tie p sub))`, so freshness holds
+  by construction in both prove and check mode; this replaces the per-branch
+  counter. `!=`, `fd`, and `conda`/`condu`/`project` stay excluded. The
+  checkout's uncommitted vendor `nominal.clj` patch (`tie-fieldso`) was checked
+  and is a speed helper, not a correctness fix; `main` has no nominal patches.
 
 ## 2026-11-07
 

@@ -46,6 +46,19 @@ complete contemporaneous transcript.
   counter. `!=`, `fd`, and `conda`/`condu`/`project` stay excluded. The
   checkout's uncommitted vendor `nominal.clj` patch (`tie-fieldso`) was checked
   and is a speed helper, not a correctness fix; `main` has no nominal patches.
+- Third ADR-0149 revision: nominal logic excluded again. The owner allowed
+  exclusion if it could be justified, and it can. Every substitution in
+  Fitting's calculus inserts a closed term (γ, δ, call arguments,
+  Substitutivity), so capture cannot occur and de Bruijn indices reduce the
+  only name question to the structural relations `i = d` / `i < d`.
+  Parameters enter a branch only through rule steps, because tableau roots are
+  parameter-free (queries are literals of L; calls fire only on atoms of L).
+  A per-branch counter therefore gives freshness by construction. A renaming
+  lemma shows no Fitting tableau is lost; a substitution lemma justifies
+  restricting γ to terms over L and the parameters already on the branch.
+  Certificates become plain EDN; noms print as `<nom:...>` and cannot be read
+  back. My second revision had compared nominal logic only with `!=`-on-names,
+  not with de Bruijn indices.
 
 ## 2026-11-07
 

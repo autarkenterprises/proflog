@@ -22,6 +22,15 @@ relational, and it is the natural tool for binders and for Fitting's "new
 parameter". δ parameters are now bound by a tie in the certificate, replacing
 the per-branch counter.
 
+A third revision the same day excludes nominal logic again, because it is not
+required. The owner's condition was that it could be excluded if that could be
+justified. The justification is in Decision §2, "Why no nominal logic":
+every substitution in Fitting's calculus inserts a closed term, so de Bruijn
+indices and a per-branch parameter counter do the same work in plain
+`==`/`conde`/`fresh`, and certificates become plain data. The second revision
+had weighed nominal logic only against `!=`-on-names, not against de Bruijn
+indices.
+
 ## Context
 
 The repository began as an implementation of Melvin Fitting, *Tableaus for
@@ -138,30 +147,36 @@ no code with Layer 2.
 
 - `proflog.fitting.syntax`: plain data constructors for L, terms, parameters,
   formulas, programs (at most one clause per relation) and queries (ground
-  literals of L). It makes no semantic decisions.
+  literals of L). Named constructors such as `(forall x (P x))` compile bound
+  variables to de Bruijn indices, and diagnostics print names back. Its only
+  decision is scope resolution, which is tested directly.
 - **Certificate format.** A certificate is a tableau tree. Each node names its
-  rule, its premise (by position on the branch), and any γ term. A δ node binds
-  its parameter with a nominal tie over its subtree, `(delta (tie p sub))`.
-  Each leaf names its closure: `false`, `A`/`¬A`, a Free Closure case, or a
-  Procedure Call carrying the nested certificate for `φ(t̄)` or `¬φ(t̄)`.
-- **Relational subset only:** `==`, `conde`, `fresh`, and core.logic's nominal
-  logic (`nom/fresh`, `tie`, `hash`), plus relations built from these over
-  finite tables. No `!=`, no `clojure.core.logic.fd`, no
-  `conda`/`condu`/`project`. Side conditions are stated without negation:
-  - Binders: quantified formulas use ties. Instantiating γ or δ uses
-    capture-avoiding substitution in the alphaKanren style. The binder is
-    renamed apart with `nom/fresh` and `hash`, and `hash` separates distinct
-    names, so no `!=` is needed. Unifying ties treats sentences that differ only
-    in bound-variable names as equal, which also covers closure on complementary
-    sentences with quantifiers.
-  - δ freshness: `nom/fresh` creates the parameter, and the certificate's tie
-    unifies against it in check mode. The parameter is therefore new to the
-    branch by construction, and the tie's scope is exactly the part of the
-    proof where it must be new.
+  rule, its premise (by position on the branch), and any γ term. A δ node names
+  its parameter `(par k)`. Each leaf names its closure: `false`, `A`/`¬A`, a
+  Free Closure case, or a Procedure Call carrying the nested certificate for
+  `φ(t̄)` or `¬φ(t̄)`. Certificates are plain EDN data: they can be written by
+  hand, printed and read back.
+- **Pure subset only:** `==`, `conde`, `fresh`, and relations built from them
+  over finite tables. No nominal logic, no `!=`, no `clojure.core.logic.fd`,
+  no `conda`/`condu`/`project`. Side conditions are stated without negation:
+  - Binders: bound variables are de Bruijn indices in successor form.
+    Instantiating a quantified sentence with a closed term `t` replaces each
+    index equal to its binder depth and keeps each smaller index. In a
+    sentence no index exceeds its depth, and `t` is closed, so no shifting
+    is needed. `i = d` and `i < d` are structural relations, so no `!=` is
+    needed. A clause body `φ(x₁…xₙ)` is stored under `n` binders and opened
+    once per argument. Formulas that differ only in bound-variable names are
+    identical, so closure on complementary sentences with quantifiers is
+    plain `==`.
+  - δ freshness: each branch carries a counter of the parameters introduced
+    on it. δ introduces `(par k)` with `k` the counter and increments it, so
+    the parameter is new to the branch by construction.
+  - γ terms: closed terms over L's symbols and the parameters already on the
+    branch. Only when no such term exists, which needs an L with no constant
+    symbol, does γ use the next parameter and increment the counter.
   - Free Closure's "distinct symbols of L": a finite table of distinct symbol
     pairs generated from L.
-  - "Atom of L" for calls and "closed term of Lpar" for γ: structural
-    relations over L's signature and the parameters in scope.
+  - "Atom of L" for calls: a structural relation over L's signature.
 - **Check mode is search-free.** Every `conde` clause unifies the certificate's
   rule tag before anything else, so with a ground certificate all clauses but
   one fail immediately.
@@ -173,7 +188,49 @@ no code with Layer 2.
   failing node and rule. The walk only locates the failure; acceptance is
   decided by `tableauo` alone.
 
-### 3. Layer 2 — free-variable engine (§8), core.logic
+#### Why no nominal logic
+
+Nominal logic earns its place when substitution can capture variables, or when
+freshness cannot be made structural. Neither is the case in Fitting's
+calculus.
+
+1. **Every substitution inserts a closed term:** γ instantiates with a closed
+   term of Lpar, δ with a parameter, the Procedure Call Rule with the ground
+   arguments `t̄`, and Substitutivity replaces one closed term by another. A
+   closed term has no free variables, so it cannot be captured. The only
+   question substitution asks of a name is whether an occurrence is the
+   variable being instantiated. De Bruijn indices turn that into the
+   structural comparison described under Binders above.
+2. **Parameters enter a branch only through rule steps.** The root of the
+   main tableau is a literal of L, and the root of each subsidiary tableau is
+   `φ(t̄)` or `¬φ(t̄)` with `t̄` in L, because the Procedure Call Rule fires only
+   on atoms of L. Neither contains parameters.
+   - *Renaming lemma:* renaming each δ parameter to `(par k)` throughout the
+     subtree below its δ node maps any closed Fitting tableau to a closed
+     counter-form tableau. Free Closure and the Procedure Call Rule mention
+     parameters only to exclude them, and the other rules ignore which
+     parameter is which.
+   - *Substitution lemma:* replace a γ-introduced parameter `q`, one not yet on
+     the branch, by a closed term `t₀` over L and the parameters already on
+     the branch, throughout the subtree. Closed tableaux stay closed.
+     - No δ step below can introduce `q` or a parameter of `t₀`, since all of
+       them are on the branch.
+     - Existing calls are on atoms of L, which do not contain `q`.
+     - Free Closure does not involve parameters.
+
+     This justifies the γ-term restriction above.
+3. **Certificates are artifacts.** Paper-example certificates are written by
+   hand, golden files are stored, and engine output is handed to the checker.
+   Noms print as `<nom:y__14286>` and cannot be read back. De Bruijn terms
+   with counter parameters are plain EDN.
+4. **Independence.** The engine (Layer 2) keeps the root code's nominal
+   representation. Layer 1 uses different binder machinery, so the two
+   layers cannot share a binder bug. The grounding step converts between
+   them.
+
+Neither lemma depends on nominal versus non-nominal representation. Both are
+needed for any finite reading of "any closed term of Lpar" and "a new
+parameter". — free-variable engine (§8), core.logic
 
 Extracted from the keep-list in Appendix A, with these changes:
 
@@ -241,13 +298,12 @@ debt.
 - Layer 1 and Layer 2 both depend on stock core.logic. Layer 1 uses only its
   relational subset, and the hand-derived §3 values in the tests stay an
   external check on both layers.
-- The nominal module is the least-exercised part of core.logic. In 1.0.1,
-  `nom` is a function, not a macro, so each namespace needs a local macro.
-  Unifying ties is slower than plain unification. `main` carries no nominal
-  patches.
+- De Bruijn formulas are harder to read than named ones. The named
+  constructors and name-printing diagnostics in `proflog.fitting.syntax`
+  mitigate this, and scope resolution there becomes code that must be tested.
 - The engine's grounding step must emit certificates in Layer 1's format
-  exactly. In particular, each δ step's Skolem term becomes a parameter bound
-  by a tie at that δ node.
+  exactly. It converts nominal ties to de Bruijn indices, and maps each
+  branch's Skolem terms to `(par k)` in the order of that branch's δ steps.
 - Removing `once-forall` and the call-free γ gate will make some searches
   slower. Fuel turns this into `:unresolved`, never into a wrong answer.
 - Rejected alternatives:
@@ -273,21 +329,25 @@ Red first, in this order. Each test states its `s_P` value and the §3 argument.
    examples are accepted. Each check terminates with exactly one answer.
 3. `tableauo` check mode, falsifiers (each must be rejected, and `stepo`
    diagnostics must name the offending node):
-   - a certificate that closes only by identifying a δ parameter with one
-     already on the branch;
-   - a γ or δ instantiation that substitutes under an inner binder of the
-     same variable;
+   - a δ parameter `(par j)` whose index is not the branch's counter, that is,
+     one already on the branch;
+   - an instantiation that replaces an index bound by an inner quantifier;
    - a call on an atom containing a parameter;
-   - a γ instance that is not a closed term of Lpar;
+   - a γ term outside the allowed set (L symbols and parameters already on
+     the branch);
    - an open leaf;
    - a wrong α or β component;
    - Free Closure applied to `p = c` with `p` a parameter.
 4. `tableauo` prove mode: certificates for the values stated in the paper for
    P1 and P2, and for the §8 factored-`move` non-example. Every certificate it
    produces is also accepted in check mode.
-5. Purity: a source test asserting that Layer 1 namespaces use no `!=`, `fd`,
-   `conda`, `condu` or `project`. A positive test that a complementary pair
-   differing only in bound-variable names, `∀x P(x)` and `¬∀y P(y)`, closes.
+5. Purity and syntax:
+   - a source test asserting that Layer 1 namespaces use no nominal logic,
+     `!=`, `fd`, `conda`, `condu` or `project`;
+   - formulas that differ only in bound-variable names compile identically,
+     and an inner binder shadows an outer one with the same name;
+   - `∀x P(x)` and `¬∀y P(y)` close against each other;
+   - every certificate in the suite prints and reads back equal.
 6. Engine, copied unchanged from Appendix A: the D1–D5 table above, reproduced
    red. Required results:
    - D1: no closure; `t(0)` is not `:fails`.

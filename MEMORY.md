@@ -127,6 +127,13 @@
   - With a transparent checker plus a bridge axiom `β`, `P-con + β` is
     refuted, while λᶜᵉʳᵗ₁ + `β` stays consistent. Opacity is the whole
     margin.
+- **Schemas replaced by existentials** (note F11):
+  - by a universal object, as in ACA₀ = RCA₀ + "jumps exist" and NBG's
+    Gödel operations;
+  - by a uniform witness, `∀∃` to `∃∀`, conservative by compactness (IST's
+    Idealization, reflection with a constant `κ`);
+  - under BHK a schema's universal closure is `∃` a uniform method,
+    Artemov's selector.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

@@ -3145,3 +3145,95 @@ Sources: [ACL2 `apply$`](https://cs.utexas.edu/~moore/acl2/manuals/current/manua
 [Sozeau et al., JACM](https://rocq-prover.org/papers/correct-and-complete-type-checking-and-certified-erasure-for-coq-in-coq);
 [Feferman 1960, IMPAN](https://www.impan.pl/en/publishing-house/journals-and-series/fundamenta-mathematicae/all/49/1/94633/arithmetization-of-metamathematics-in-a-general-setting);
 [Franks on intensional arithmetization](https://www.lps.uci.edu/files/grad-alumni/CFranks/veryweak.pdf).
+
+### F11. Replacing an axiom schema by an existential, not a universal (follow-up, 2026-11-08)
+
+> We wish to determine the difference between axiom schemae and
+> quantification, or the replacement of axiom schema with a single quantified
+> axiom. We know this can be done, or that this is done, for the replacement
+> of a series of axioms defined by a schema with a single axiom which closes
+> over quantification with a universal quantifier. However, are there any
+> instances of replacing an axiom schema with an existential quantifier?
+
+**Yes, in three distinct senses.** Evidence: web search on 2026-11-08 for
+ACA₀, NBG and IST; the rest is from memory and marked.
+
+**First, what the universal replacement needs.** A schema ranges over
+formulas, so a single axiom replacing it must quantify over formulas, or
+over what they define.
+- Classes: NBG's class-replacement axiom.
+- Sets: second-order induction.
+- A truth predicate for a complexity class: `IΣₙ`, for `n ≥ 1`, is
+  finitely axiomatized as `∀φ ∈ Σₙ Ind(φ)` (from memory).
+
+In the theory's own language this is impossible for PA (Ryll-Nardzewski)
+and ZF (Montague) (from memory). Every replacement, universal or
+existential, extends the language.
+
+**1. "There exists a universal object": comprehension schemas.** Each
+instance of a comprehension schema is itself existential:
+`∀p̄ ∃X ∀n (n ∈ X ↔ φ(n, p̄))`. The schema can be replaced by asserting that
+one object exists from which every instance's witness is definable.
+- **ACA₀ = RCA₀ + `∀X ∃Y (Y = X′)`.** The arithmetical comprehension schema
+  becomes one `Π¹₂` sentence asserting that the Turing jump exists (checked
+  by web search; Simpson's book is the standard reference).
+- **NBG.** The class comprehension schema, for formulas quantifying only
+  over sets, follows from finitely many class-existence axioms, Gödel's
+  operations, each of the form `∀∃`. That is Gödel's class existence
+  theorem, and it makes NBG finitely axiomatizable (checked by web search).
+- **When the universal object is not itself an instance, the axiom is
+  stronger.** In ACA₀ the jump is arithmetical in `X`, so it is an
+  instance, and nothing is gained. A full truth set for arithmetic is not
+  arithmetical (Tarski). ACA₀ plus "a full arithmetical truth set exists"
+  proves `Con(PA)`, by set induction over proofs (from memory).
+
+**2. "There exists a uniform witness": the swap from `∀∃` to `∃∀`.** A schema
+of existentials, `{∃x φᵢ(x)}ᵢ`, says each condition has a witness. The
+existential axiom `∃x ∀i φᵢ(x)` says one witness serves all of them, which
+is strictly stronger. It is consistent, and conservative, when the theory
+proves a common witness for every finite subset: compactness, internalized.
+- **With a new constant** `c` and the schema `{φᵢ(c)}ᵢ`, the result is
+  conservative, since a proof uses finitely many instances. Example:
+  reflection in ZF. ZF proves each `∃α (V_α ≺_φ V)`, and every finite set
+  of formulas reflects simultaneously. So ZF plus a constant `κ` and the
+  schema `V_κ ≺_φ V` is conservative over ZF (from memory). This is still a
+  schema, but with a single existential witness.
+- **As one sentence**, `∃x ∀i φᵢ(x)` needs a way to quantify over the
+  instances. Nelson's Idealization in IST does this with the predicate
+  `st`. If every standard finite set of conditions has a common witness,
+  then one `x` satisfies all standard conditions. For example, there is a
+  finite set containing every standard element. IST is conservative over
+  ZFC (checked by web search).
+- **Without the restriction to standard instances it is inconsistent.**
+  `∃c ∀n (c > n)` is false in arithmetic, though each finite subset of
+  `{c > n̄}` is satisfiable.
+
+**3. At the level of proofs, the universal replacement is itself an
+existential.** (My synthesis; connects to F8 and D1.)
+- A schema provable instance by instance says `∀n ∃p Prf(p, φ(n̄))`.
+- Under BHK the universal closure says
+  `∃f ∀n (f(n) proves φ(n))`: one uniform method.
+- The gap between them is ω-incompleteness. PA proves every instance
+  `¬Prf(n̄, ⌜0=1⌝)`, but not `∀n ¬Prf(n, ⌜0=1⌝)`.
+- Artemov's selector proofs (D1) make this existential explicit: a scheme
+  is strongly provable when a selector `t` exists with
+  `PA ⊢ ∀x [t(x) : φ(x)]`.
+- `H°` is the uniform method made internal: one term, `λr e. H r e`, for
+  every held certificate. The budget bounds what it ranges over.
+
+**The computational content of each form** (connects to F8).
+- **A schema** has a realizer per instance: a family, not an object.
+- **A universal axiom** needs one uniform realizer, `∃e ∀n`.
+- **A universal-object existential** (sense 1) is realized only if the
+  object is computable. The jump is not, which is why ACA₀ lies beyond
+  RCA₀'s computable sets.
+- **A uniform-witness existential** (sense 2) has no realizer at all in
+  general. Its witness is ideal (nonstandard), which is why it is
+  conservative but non-constructive.
+
+Sources: [Shore, slides](https://pi.math.cornell.edu/~shore/papers/pdf/ATHA32.pdf);
+[arXiv 2407.13504](https://www.arxiv.org/pdf/2407.13504);
+[NBG, Wikipedia](https://en.wikipedia.org/wiki/Von_Neumann%E2%80%93Bernays%E2%80%93G%C3%B6del_set_theory);
+[Britannica, NBG axioms](https://www.britannica.com/topic/set-theory/The-Neumann-Bernays-Godel-axioms);
+[Sanders, "The computational content of Nonstandard Analysis"](https://arxiv.org/pdf/1606.06386);
+[Nonstandard proof methods in toposes](https://ar5iv.labs.arxiv.org/html/2308.16030).

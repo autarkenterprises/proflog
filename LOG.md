@@ -773,6 +773,23 @@ complete contemporaneous transcript.
   - it is rejected for a variable code `c`;
   - the same `chk` on `c` computes `true` at runtime.
 
+## 2026-11-08
+
+- The user asked whether an axiom schema has ever been replaced by an
+  existential rather than a universal axiom. Answered in note F11: yes, in
+  three senses.
+  1. A universal object for comprehension schemas: ACA₀ = RCA₀ +
+     `∀X ∃Y (Y = X′)`, and NBG's finitely many class-existence axioms.
+     Stronger when the object is not an instance, e.g. a full truth set.
+  2. A uniform witness, the swap from `∀∃` to `∃∀`: a new constant
+     (reflection with `κ`) or Nelson's Idealization in IST, conservative by
+     compactness.
+  3. Under BHK the universal closure of a schema is `∃f ∀n`, Artemov's
+     selector. The gap is ω-incompleteness.
+  - Web-checked: ACA₀'s jump formulation, NBG's finite axiomatization, IST's
+    conservativity. From memory, and marked: `IΣₙ` and PA axiomatizability,
+    reflection with `κ`, and the truth-set strengthening.
+
 ## 2026-09-30
 
 - Two more questions on the λᶜᵉʳᵗ note, answered in a fifth addendum

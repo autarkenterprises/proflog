@@ -99,6 +99,29 @@ complete contemporaneous transcript.
   complete, and already the root engine's practice at
   `kernel_support.clj:72`). It also adds a binder-escape falsifier to the
   engine tests.
+- Fifth ADR-0149 revision. The owner asked that existing code not be
+  over-weighted: the question about nominal logic came from tableau precedent
+  (αleanTAP), not from a presumption that it is needed. They asked what
+  result Fitting expects under the binder hazard and what the implementation
+  must do.
+  - Answer, from the paper alone: §8 makes a free variable a placeholder for
+    γ's "any closed term", so each unifier must fill it with a term.
+  - Witness: the satisfiable sentence
+    `S = ∀x[(∀yR(x,y)∧¬∀yR(y,y)) ∨ (∀yQ(x,y)∧¬∀yQ(y,y))]`. For `p(w)←S`,
+    `s_P(p(0)) = ⊥`.
+  - Named `==` under binders refutes S: escape `v := (var y)` on the left,
+    then capture on the right. Nominal unification closes only the left
+    branch, `v := a_0`, which is still unjustified.
+  - Required: closure on literals only, equality on literals and terms only
+    (§5's "closed term"), and run-time Skolemization. These rules are
+    representation-independent, so no unifier ever sees a binder.
+
+  Consequence: the engine now uses named binders too, a decision made on the
+  merits rather than inherited from the root code. Nominal logic's real role
+  in αleanTAP (replacing `copy_term`, and running on partly unknown formulas)
+  does not arise in Fitting's proposal, where only terms are unknown. Added a
+  query-level binder-capture falsifier, and extended the probe with the
+  two-branch S.
 
 ## 2026-11-07
 

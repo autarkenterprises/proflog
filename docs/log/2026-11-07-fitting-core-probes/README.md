@@ -25,7 +25,7 @@ same on stock 1.0.1 and on the vendored copy:
 
 | Script | Question | Observed |
 |---|---|---|
-| `binder-escape.clj` | Can unification of quantified formulas bind a free (§8) variable to a bound occurrence? | Named `==`: `v := (var y)`. Nominal without `hash`: `v := a_0`. Nominal with `a # v`: blocked. Atomic literals: no hazard. |
+| `binder-escape.clj` | Can unification of quantified formulas bind a free (§8) variable to a bound occurrence? | Named `==`: `v := (var y)`. Nominal without `hash`: `v := a_0`. Nominal with `a # v`: blocked. Atomic literals: no hazard. On the satisfiable two-branch `S`, named `==` closes both branches (escape, then capture), refuting `S`. Nominal closes only the left branch, which is still unjustified. |
 
 These are probes, not tests. ADR-0149's test obligations turn them into red
 tests in the `fitting/` subproject.

@@ -42,6 +42,12 @@ written, with no capture-avoidance. The third revision had counted
 readability only as a cost to mitigate. See Decision §2, "Why named variables,
 not nominal logic or de Bruijn indices".
 
+A fifth revision the same day settles the engine's binder representation on
+its merits rather than inheriting it from the root code. It also states what
+Fitting requires of free-variable unification: the expected result and the
+rules that achieve it. The engine now uses named variables as well. See
+Decision §2, "With §8's free variables".
+
 ## Context
 
 The repository began as an implementation of Melvin Fitting, *Tableaus for
@@ -258,10 +264,9 @@ paper's own: named variables.
      are stored, and engine output is handed to the checker. Noms print as
      `<nom:y__14286>`, ties print as `[<nom:…>] body`, and neither can be
      read back.
-4. **Independence.** The engine (Layer 2) keeps the root code's nominal
-   representation, and Layer 1 uses named variables, so the two layers cannot
-   share a binder bug. Certificates contain rule tags, branch positions and
-   terms, but no formulas, so binders never cross between the layers.
+4. **Independence.** Layer 1 and Layer 2 share no rule code: each has its own
+   substitution and closure. Certificates contain rule tags, branch positions
+   and terms, but no formulas, so binders never cross between the layers.
 
 The cost is that named substitution is correct only because the inserted
 terms are closed. An open term would be captured silently, where nominal
@@ -270,43 +275,101 @@ logic would stay correct. The invariant is therefore enforced, not assumed.
 closed-term-of-Lpar relation, which has no case for `(var x)`, and a
 falsifier tests this (Test Obligation 3).
 
-**With §8's free variables.** The free-variable engine inserts terms that are
-not closed:
+Neither lemma depends on the binder representation. Both are needed for any
+finite reading of "any closed term of Lpar" and "a new parameter".
+
+#### With §8's free variables
+
+§8 replaces γ's "any closed term" with "a free variable, followed by later
+unification to close branches". A free variable is therefore a placeholder
+for a closed term of Lpar that is chosen later. A free-variable tableau is
+correct only if every closure it makes is one the ground calculus of §4–§6
+could make once the placeholders are filled. Grounding plus Layer 1 checks
+exactly that (Decision §4).
+
+**Substitution stays capture-free.** The terms §8 inserts are not closed:
 
 - γ inserts a logic variable;
 - run-time Skolemization inserts `(sk i v₁ … vₙ)`;
-- a free-variable call inserts its atom's arguments, which may contain logic
-  variables.
+- a free-variable call inserts arguments that may contain logic variables.
 
-None of these contains a bound-variable occurrence `(var x)`, because logic
-variables are a separate sort that no binder can bind. Named substitution is
-therefore still capture-free. The general invariant is that an inserted term
-contains no `(var x)`; "closed" is its ground case.
+None of them contains a bound occurrence `(var x)`, because logic variables
+are a separate sort that no binder binds. The invariant becomes "an inserted
+term contains no `(var x)`"; "closed" is its ground case.
 
-Two other §8 options would break the invariant:
+**Unification under a binder is the one new hazard.** Unification fills
+placeholders, so it is correct only if it fills each one with a term. Applied
+to formulas that still contain quantifiers, it can instead fill a placeholder
+with a bound occurrence.
 
-- *Ahead-of-time Skolemization* (§8 offers it as an alternative) inserts
-  `f(x₁,…,xₙ)` inside the scope of `x₁…xₙ`. An inner binder with the same
-  name would capture it, so it needs capture-avoiding substitution.
-- *Unifying formulas that still contain binders* can bind a logic variable to
-  a bound occurrence, so the bound name escapes its scope. In
-  `docs/log/2026-11-07-fitting-core-probes/binder-escape.clj`, `(∀y)P(v)`
-  unifies with `¬(∀y)P(y)`'s `(∀y)P(y)`, giving `v := (var y)` with named
-  `==`. Nominal logic does not prevent this either: nominal unification gives
-  `v := a_0`, unless the freshness constraint `a # v` is stated for every
-  binder that `v` was introduced outside of.
+- *Example.* Let S be
+  `(∀x)[((∀y)R(x,y) ∧ ¬(∀y)R(y,y)) ∨ ((∀y)Q(x,y) ∧ ¬(∀y)Q(y,y))]`, with
+  L = {0}, no function symbols, and no clauses for R or Q.
+  - S is satisfiable. Take the domain {d, e}, with R false only at (d,d) and
+    Q false only at (e,e).
+  - S is false in the one-element model {0}.
+- *Fitting's expected result.* S has no closed tableau. For the program
+  `p(w) ← S`, p(0) is true in the two-element weak Herbrand model and false
+  in the one-element one, so s_P(p(0)) = ⊥: p(0) neither succeeds nor fails.
+- *The hazard.*
+  - γ introduces the placeholder `v`, and β splits.
+  - On the left, unifying `(∀y)R(v,y)` with `(∀y)R(y,y)` binds
+    `v := (var y)`.
+  - The binding is global, so on the right `(∀y)Q(v,y)` becomes
+    `(∀y)Q(y,y)`. The escaped name is captured by another binder, and the
+    branch closes against `¬(∀y)Q(y,y)`.
+  - The result: S is refuted and p(0) fails. The probe
+    `docs/log/2026-11-07-fitting-core-probes/binder-escape.clj` reproduces
+    both steps with named `==`.
+- *Why it is wrong in Fitting's terms.* No closed term `t` makes `(∀y)R(t,y)`
+  identical to `(∀y)R(y,y)`, so the left closure has no ground counterpart.
+  Grounding would find `v` bound to `(var y)`, which is not a closed term, and
+  Layer 1 would reject the certificate. The engine must not produce such a
+  certificate.
 
-Both are excluded for the engine whatever its binder representation; see
-Decision §3. Under those exclusions named variables work for §8 as well. They
-are not adopted in the engine only because it is extracted as-is (Appendix A).
+Nominal logic changes this only in part. Nominal unification also closes the
+left branch, with `v := a₀`, because unknowns may be instantiated with names
+by design. Names are globally distinct, so the right branch is not then
+captured, and S is not refuted in the probe. The left closure is still
+unjustified. Only an explicit freshness constraint `a # v`, stated for every
+binder that `v` was introduced outside of, blocks it.
 
-Neither lemma depends on the binder representation. Both are needed for any
-finite reading of "any closed term of Lpar" and "a new parameter".
+**What the engine must do,** whatever its representation, is unify only what
+Fitting's free-variable calculus unifies:
+
+- *Closure on literals only.* Free-variable tableaux, which §8 refers to [4]
+  for, close a branch by unifying complementary atomic formulas. Nothing is
+  lost: closure on a complementary compound pair is derivable from atomic
+  closures after decomposition.
+- *Equality on literals and terms only.* §5's Substitutivity rewrites "an
+  occurrence of a closed term". In a free-variable tableau that means an
+  occurrence containing no bound variable, and literals contain none.
+- *Run-time Skolemization* (D1). Ahead-of-time Skolemization, which §8 also
+  offers, inserts `f(x₁,…,xₙ)` under the binders of `x₁…xₙ` and would need
+  capture-avoiding substitution.
+
+Under these rules no unifier ever sees a binder. Nominal unification's
+alpha-equivalence would never be exercised, so the engine uses named
+variables like Layer 1 (Decision §3).
+
+**Where nominal logic earns its place.** The tableau precedent is αleanTAP.
+There, nominal logic replaces leanTAP's non-logical `copy_term` for
+instantiating universals, and it lets the prover run on partly unknown
+formulas. That second use is where unification under binders cannot be
+avoided. In Proflog, formulas come from the program text and a ground query,
+so only terms are ever unknown. Nominal logic would become relevant if
+Proflog were run backward over formulas, for example to synthesize clauses
+from certificates. That is outside Fitting's proposal.
 
 ### 3. Layer 2 — free-variable engine (§8), core.logic
 
 Extracted from the keep-list in Appendix A, with these changes:
 
+- **Named binders.** The engine uses Layer 1's notation, `(forall x ϕ)` with
+  occurrences `(var x)`, and has its own `substo` that inserts logic
+  variables, Skolem terms and call arguments. This replaces the root code's
+  nominal ties. The choice is made on its merits (Decision §2, "With §8's
+  free variables"), not inherited.
 - **D1:** run-time Skolemization. A δ step binds `(sk i v₁ … vₙ)`, where `i`
   is unique to that δ application and `v₁ … vₙ` are the free variables
   introduced on the branch so far (tracked explicitly in branch state). The
@@ -330,17 +393,16 @@ Extracted from the keep-list in Appendix A, with these changes:
 - **Free-variable calls (§8):** an atom with free variables may be called
   only if its final grounding lies in L (no parameters or Skolem terms).
   Grounding enforces this, and the certificate checker detects any violation.
-- **Binder invariants (§8).** These hold for any binder representation; see
-  "With §8's free variables" in Decision §2.
+- **Binder invariants (§8).** These follow from Fitting's free-variable
+  calculus, not from any existing code; see "With §8's free variables" in
+  Decision §2.
   - Skolemization happens only at run time (D1).
-  - Unification, both for closure and for equality and disunification,
-    applies only to literals and terms. A literal on a branch has no binder
-    above it, so it contains no bound occurrence, and every unifier binds
-    logic variables to terms without `(var x)`.
-  - Atomic closure is complete for free-variable tableaux, so nothing is
-    lost. The root engine already closes only on literals
-    (`kernel_support.clj:72`, `complementary-lito`). This ADR makes that a
-    tested invariant rather than an accident of structure.
+  - Unification applies only to literals and terms. This covers closure,
+    Substitutivity, Free Closure and disunification, and call arguments. A
+    literal on a branch has no binder above it, so it contains no bound
+    occurrence. Every unifier therefore binds logic variables to terms
+    without `(var x)`.
+  - Closure on literals is complete, so nothing is lost.
 
 ### 4. Proof-carrying answers
 
@@ -387,8 +449,8 @@ debt.
   only for closed terms. That invariant is a structural relation with a
   falsifier, not an assumption.
 - The engine's grounding step must emit certificates in Layer 1's format
-  exactly. Certificates carry no formulas, so the engine's nominal binders
-  never reach Layer 1. Grounding maps logic-variable bindings to closed terms,
+  exactly. Certificates carry no formulas, so binders never cross between the
+  layers. Grounding maps logic-variable bindings to closed terms,
   and maps each branch's Skolem terms to `(par k)` in the order of that
   branch's δ steps.
 - Removing `once-forall` and the call-free γ gate will make some searches
@@ -411,6 +473,14 @@ debt.
   - *De Bruijn indices in Layer 1* (third revision). Rejected 2026-11-08.
     They are correct, but the code and certificates no longer read like the
     paper, and scope resolution becomes extra code to test.
+  - *Nominal logic in the engine*, carried over from the root code until
+    2026-11-08. Rejected on its merits.
+    - The engine never unifies under a binder, so alpha-equivalence is never
+      used.
+    - Where unification under a binder does happen, nominal logic still needs
+      explicit freshness constraints to be sound.
+    - Using different binder machinery in the two layers adds little, because
+      they share no code and each `substo` is small and tested directly.
 
 ## Test Obligations
 
@@ -462,6 +532,12 @@ Red first, in this order. Each test states its `s_P` value and the §3 argument.
      engine's only route is γ giving `P(v)`, δ giving `¬P(sk i v)`, and the
      occurs check rejecting `v := sk i v`. One-step unification of the
      quantified pair would bind `v := (var y)`.
+   - **Binder-capture falsifier:** with L = {0}, no function symbols, and no
+     clauses for R or Q, the program `p(w) ← S` (S as in Decision §2, "With
+     §8's free variables") gives `s_P(p(0)) = ⊥`. The result must not be
+     `:fails`, and the engine must not emit a certificate that Layer 1
+     rejects. Unification under binders refutes S through escape and then
+     capture.
    - **D5 falsifier:** with L = {0} and no function symbols, `q0(w)←∀u(u=0)`
      gives a ⊥ value for `q0(0)`. The model `{0}` satisfies the body, and a
      model with one extra element falsifies it. The result must not be
@@ -491,10 +567,10 @@ Halting conditions:
 
 | Root namespace | Lines | Fitting role | Trim |
 |---|---|---|---|
-| `ast` | 304 | §2 terms, formulas | drop bounded quantifiers and `once-forall` |
+| `ast` | 304 | §2 terms, formulas | drop bounded quantifiers and `once-forall`; binders become named (Decision §3) |
 | `language` | 474 | §2 language, validation, clause grouping (multiple surface clauses are combined into one disjunctive body, recovering one clause per relation) | drop guarded-alternative IR (`language.clj:251-377`) |
 | `normalize` | 126 | NNF, ¬¬/¬true/¬false | drop SJAS bounded-quantifier lowering; ¬∃ becomes ∀ |
-| `subst` | 288 | substitution | drop `acyclic-unifyo` (occurs check off, SJAS) |
+| `subst` | 288 | substitution | drop `acyclic-unifyo` (occurs check off, SJAS); rewritten for named binders, with no ties and no `!=` on names |
 | `program` | 166 | §6 lookup and argument binding | keep `call-clauseo` and its helpers only |
 | `equality` | 532 | §5 Free Closure, One-One, occurs check, disequality store | keep |
 | `kernel_support` | 445 | complementary closure, "atom of L" guard, fair selection, fuel | drop `call-free-formulao` |

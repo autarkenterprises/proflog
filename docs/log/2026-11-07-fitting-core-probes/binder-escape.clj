@@ -36,3 +36,29 @@
 
 (println "atomic control     :"
   (run* [v] (== (list 'P v) (list 'P '(c)))))
+
+;; Whole-tableau consequence. Let
+;;   S = ∀x[ (∀y R(x,y) ∧ ¬∀y R(y,y)) ∨ (∀y Q(x,y) ∧ ¬∀y Q(y,y)) ].
+;; S is satisfiable on {d,e}, with R false only at (d,d) and Q false only at
+;; (e,e), so Fitting's calculus has no closed tableau for it. After γ (v) and
+;; β, each branch "closes" if its quantified pair unifies. The binding of v is
+;; global (rigid), so one binding must serve both branches.
+;; Expected output:
+;;   named: both branches close   : ((var y))  ; escape left, capture right: S refuted
+;;   nominal: both branches close : ()         ; names globally distinct: no recapture
+;;   nominal: left branch alone   : (a_0)      ; but the left closure is still bogus
+(println "named: both branches close   :"
+  (run* [v]
+    (== (list 'forall 'y (list 'R v (list 'var 'y)))
+        (list 'forall 'y (list 'R (list 'var 'y) (list 'var 'y))))
+    (== (list 'forall 'y (list 'Q v (list 'var 'y)))
+        (list 'forall 'y (list 'Q (list 'var 'y) (list 'var 'y))))))
+
+(println "nominal: both branches close :"
+  (run* [v] (nom/fresh [a b c d]
+              (== (nom/tie a (list 'R v a)) (nom/tie b (list 'R b b)))
+              (== (nom/tie c (list 'Q v c)) (nom/tie d (list 'Q d d))))))
+
+(println "nominal: left branch alone   :"
+  (run* [v] (nom/fresh [a b]
+              (== (nom/tie a (list 'R v a)) (nom/tie b (list 'R b b))))))

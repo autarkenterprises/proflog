@@ -83,6 +83,14 @@
   prove blocks that step; I nearly concluded that `P-con` is unsound from
   this mistake.
 
+## 2026-11-08
+
+- When a question asks which quantifier binds a variable, check the answer
+  against that variable. Asked for schemas replaced by an existential, I
+  gave three cases where the `∃` binds something else (a witness, a proof)
+  while the schema's index stays universal. Only on reading back did I see
+  that I had answered a neighbouring question.
+
 ## 2026-09-30
 
 - When citing a cost for an implication between consistency statements,

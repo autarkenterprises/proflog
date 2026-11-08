@@ -3155,8 +3155,50 @@ Sources: [ACL2 `apply$`](https://cs.utexas.edu/~moore/acl2/manuals/current/manua
 > over quantification with a universal quantifier. However, are there any
 > instances of replacing an axiom schema with an existential quantifier?
 
-**Yes, in three distinct senses.** Evidence: web search on 2026-11-08 for
-ACA₀, NBG and IST; the rest is from memory and marked.
+*(Corrected 2026-11-08, on re-reading.)* The first version answered "yes,
+in three distinct senses". In none of the three is the schema's own
+variable closed by an existential: the quantifier over the instances stays
+universal (`∀X`, `∀i`, `∀n`), and the `∃` sits elsewhere. They are kept
+below, relabelled, after the genuine cases, which are added.
+
+**Yes. The genuine cases close the schema's variable existentially, over
+auxiliary relations.** Evidence: web search on 2026-11-08 for Kleene,
+Craig–Vaught, ACA₀, NBG and IST. The rest is from memory, or my argument,
+and is marked.
+- **Kleene (1952); Craig and Vaught (1958).** An axiomatizable theory is
+  finitely axiomatizable using additional predicates: without identity
+  always, and with identity when it has only infinite models (Craig–Vaught
+  relax this to finitely many finite models up to isomorphism).
+  - The method: the new predicates axiomatize a weak arithmetic able to
+    formalize semantics, and then assert that the original axioms hold.
+  - Read with the new predicates quantified existentially, the theory
+    becomes a single existential second-order sentence `∃P̄ A(P̄)`. It has
+    exactly the same first-order consequences: the schema is replaced by
+    "there exist relations satisfying finitely many axioms".
+- **PA concretely.** (My argument, from standard facts.) A model `M`
+  satisfies PA iff some family `𝒮` of subsets makes `(M, 𝒮)` a model of
+  ACA₀, which is finitely axiomatizable.
+  - Forward: take `𝒮 = Def(M)`, the parametrically definable sets. PA's
+    induction schema gives ACA₀'s set induction on them, and arithmetical
+    comprehension stays inside `Def(M)`.
+  - Backward: ACA₀ proves every instance of PA's induction schema.
+  - Coding `𝒮` as the sections of one binary relation `R`, PA's model
+    class is that of one sentence `∃R φ(R)`. The equivalence holds for
+    models, not only for consequences.
+
+**This is the difference between a schema and its quantified forms.**
+- **The universal closure over all subsets** is Dedekind's second-order
+  induction, `∀P (P0 ∧ ∀n(Pn → P(n+1)) → ∀n Pn)`. In full semantics it is
+  categorical, and strictly stronger than the schema.
+- **The universal closure over the sets that exist** (Henkin semantics, or
+  two-sorted theories such as ACA₀) gives back the schema only together
+  with comprehension. Comprehension is the existential principle that the
+  set defined by each formula exists.
+- **So the schema is the existential closure**: there is a family of sets,
+  closed under definability, over which induction holds. The universal
+  replacement silently relies on that existential.
+
+**The existentials elsewhere: the three senses of the first version.**
 
 **First, what the universal replacement needs.** A schema ranges over
 formulas, so a single axiom replacing it must quantify over formulas, or
@@ -3167,10 +3209,11 @@ over what they define.
   finitely axiomatized as `∀φ ∈ Σₙ Ind(φ)` (from memory).
 
 In the theory's own language this is impossible for PA (Ryll-Nardzewski)
-and ZF (Montague) (from memory). Every replacement, universal or
-existential, extends the language.
+and ZF (Montague) (from memory). It is possible for `IΣₙ`, whose `Σₙ` truth
+predicate is definable in arithmetic. *(Corrected: the first version said
+every replacement extends the language.)*
 
-**1. "There exists a universal object": comprehension schemas.** Each
+**1. The `∃` is in the instances: "there exists a universal object".** Each
 instance of a comprehension schema is itself existential:
 `∀p̄ ∃X ∀n (n ∈ X ↔ φ(n, p̄))`. The schema can be replaced by asserting that
 one object exists from which every instance's witness is definable.
@@ -3187,7 +3230,8 @@ one object exists from which every instance's witness is definable.
   arithmetical (Tarski). ACA₀ plus "a full arithmetical truth set exists"
   proves `Con(PA)`, by set induction over proofs (from memory).
 
-**2. "There exists a uniform witness": the swap from `∀∃` to `∃∀`.** A schema
+**2. The `∃` is on the witness: the swap from `∀∃` to `∃∀`, with the index
+still closed by `∀`.** A schema
 of existentials, `{∃x φᵢ(x)}ᵢ`, says each condition has a witness. The
 existential axiom `∃x ∀i φᵢ(x)` says one witness serves all of them, which
 is strictly stronger. It is consistent, and conservative, when the theory
@@ -3208,8 +3252,9 @@ proves a common witness for every finite subset: compactness, internalized.
   `∃c ∀n (c > n)` is false in arithmetic, though each finite subset of
   `{c > n̄}` is satisfiable.
 
-**3. At the level of proofs, the universal replacement is itself an
-existential.** (My synthesis; connects to F8 and D1.)
+**3. The `∃` is on the proof: under BHK the universal closure is an
+existential over methods, with `∀n` still universal.** (My synthesis;
+connects to F8 and D1.)
 - A schema provable instance by instance says `∀n ∃p Prf(p, φ(n̄))`.
 - Under BHK the universal closure says
   `∃f ∀n (f(n) proves φ(n))`: one uniform method.
@@ -3231,7 +3276,10 @@ existential.** (My synthesis; connects to F8 and D1.)
   general. Its witness is ideal (nonstandard), which is why it is
   conservative but non-constructive.
 
-Sources: [Shore, slides](https://pi.math.cornell.edu/~shore/papers/pdf/ATHA32.pdf);
+Sources: [Craig and Vaught 1958, JSL](https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/finite-axiomatizability-using-additional-predicates/E8B479F590BC22A5948BD6BD8BA17625);
+[JSL review of Kleene and Craig–Vaught](https://www.cambridge.org/core/journals/journal-of-symbolic-logic/article/s-c-kleene-finite-axiomatizability-of-theories-in-the-predicate-calculus-using-additional-predicate-symbols-a-revised-reprint-of-xix-622-two-papers-on-the-predicate-calculus-by-s-c-kleene-memoirs-of-the-american-mathematical-society-no-10-lithographed-providence-1967-pp-2766-w-craig-and-r-l-vaught-finite-axiomatizability-using-additional-predicates-the-journal-of-symbolic-logic-vol-23-no-3-for-1958-pub-1959-pp-289308/EE49B9B01A34B519698309F00C130113);
+[Zach, on Craig–Vaught](https://richardzach.org/?p=2714);
+[Shore, slides](https://pi.math.cornell.edu/~shore/papers/pdf/ATHA32.pdf);
 [arXiv 2407.13504](https://www.arxiv.org/pdf/2407.13504);
 [NBG, Wikipedia](https://en.wikipedia.org/wiki/Von_Neumann%E2%80%93Bernays%E2%80%93G%C3%B6del_set_theory);
 [Britannica, NBG axioms](https://www.britannica.com/topic/set-theory/The-Neumann-Bernays-Godel-axioms);

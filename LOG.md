@@ -789,6 +789,19 @@ complete contemporaneous transcript.
   - Web-checked: ACA₀'s jump formulation, NBG's finite axiomatization, IST's
     conservativity. From memory, and marked: `IΣₙ` and PA axiomatizability,
     reflection with `κ`, and the truth-set strengthening.
+- Asked to read the answer back, I found it answered a neighbouring
+  question. F11 is corrected in place.
+  - In none of the three senses is the schema's variable closed by `∃`: the
+    index stays universal (`∀X`, `∀i`, `∀n`).
+  - The genuine cases are added (web-checked): Kleene 1952 and Craig–Vaught
+    1958, finite axiomatizability with additional predicates, read as
+    `∃P̄ A(P̄)`.
+  - Also added, my argument: PA's models are exactly the first-order parts
+    of ACA₀ models, via `Def(M)`. So the schema is the existential closure
+    over a comprehension-closed family of sets, while Dedekind's universal
+    closure over all subsets is categorical.
+  - Also corrected: "every replacement extends the language" is false for
+    `IΣₙ`.
 
 ## 2026-09-30
 

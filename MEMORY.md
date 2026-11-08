@@ -127,13 +127,16 @@
   - With a transparent checker plus a bridge axiom `β`, `P-con + β` is
     refuted, while λᶜᵉʳᵗ₁ + `β` stays consistent. Opacity is the whole
     margin.
-- **Schemas replaced by existentials** (note F11):
-  - by a universal object, as in ACA₀ = RCA₀ + "jumps exist" and NBG's
-    Gödel operations;
-  - by a uniform witness, `∀∃` to `∃∀`, conservative by compactness (IST's
-    Idealization, reflection with a constant `κ`);
-  - under BHK a schema's universal closure is `∃` a uniform method,
-    Artemov's selector.
+- **Schemas closed existentially** (note F11, corrected 2026-11-08).
+  - The genuine cases close the schema's variable with `∃` over auxiliary
+    relations. Kleene 1952 and Craig–Vaught 1958: finite axiomatizability
+    with additional predicates, read as `∃P̄ A(P̄)`.
+  - PA's models are exactly the first-order parts of ACA₀ models, via
+    `Def(M)`. So the schema is the `∃`-closure over a
+    comprehension-closed family of sets; Dedekind's `∀` over all subsets
+    is categorical, hence stronger.
+  - Not genuine, because the index stays universal: ACA₀'s jump axiom,
+    IST's Idealization, and BHK selectors.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

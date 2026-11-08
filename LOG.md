@@ -80,6 +80,25 @@ complete contemporaneous transcript.
   invariant, which is now a structural relation with a falsifier. This
   revision also restored the `### 3. Layer 2` heading, which the third
   revision's edit had merged into the preceding paragraph.
+- Owner asked how named variables fare once §8's free-variable terms are
+  included. The terms §8 inserts are not closed: a logic variable from γ,
+  `(sk i v̄)` from run-time Skolemization, and logic variables in call
+  arguments. None contains `(var x)`, though, so substitution stays
+  capture-free; the invariant generalizes from "closed" to "no bound
+  occurrence".
+
+  The new hazard is unification under binders. Probe
+  `docs/log/2026-11-07-fitting-core-probes/binder-escape.clj` shows a logic
+  variable bound to a bound occurrence (`v := (var y)`) under named `==`, and
+  `v := a_0` under nominal unification unless `a # v` is stated explicitly.
+  Nominal logic therefore does not remove the hazard by itself.
+
+  ADR-0149 now records engine binder invariants for any representation:
+  run-time Skolemization only (ahead-of-time Skolemization inserts open terms
+  under binders), and unification only on literals and terms (atomic closure,
+  complete, and already the root engine's practice at
+  `kernel_support.clj:72`). It also adds a binder-escape falsifier to the
+  engine tests.
 
 ## 2026-11-07
 

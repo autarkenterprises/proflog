@@ -270,6 +270,36 @@ logic would stay correct. The invariant is therefore enforced, not assumed.
 closed-term-of-Lpar relation, which has no case for `(var x)`, and a
 falsifier tests this (Test Obligation 3).
 
+**With §8's free variables.** The free-variable engine inserts terms that are
+not closed:
+
+- γ inserts a logic variable;
+- run-time Skolemization inserts `(sk i v₁ … vₙ)`;
+- a free-variable call inserts its atom's arguments, which may contain logic
+  variables.
+
+None of these contains a bound-variable occurrence `(var x)`, because logic
+variables are a separate sort that no binder can bind. Named substitution is
+therefore still capture-free. The general invariant is that an inserted term
+contains no `(var x)`; "closed" is its ground case.
+
+Two other §8 options would break the invariant:
+
+- *Ahead-of-time Skolemization* (§8 offers it as an alternative) inserts
+  `f(x₁,…,xₙ)` inside the scope of `x₁…xₙ`. An inner binder with the same
+  name would capture it, so it needs capture-avoiding substitution.
+- *Unifying formulas that still contain binders* can bind a logic variable to
+  a bound occurrence, so the bound name escapes its scope. In
+  `docs/log/2026-11-07-fitting-core-probes/binder-escape.clj`, `(∀y)P(v)`
+  unifies with `¬(∀y)P(y)`'s `(∀y)P(y)`, giving `v := (var y)` with named
+  `==`. Nominal logic does not prevent this either: nominal unification gives
+  `v := a_0`, unless the freshness constraint `a # v` is stated for every
+  binder that `v` was introduced outside of.
+
+Both are excluded for the engine whatever its binder representation; see
+Decision §3. Under those exclusions named variables work for §8 as well. They
+are not adopted in the engine only because it is extracted as-is (Appendix A).
+
 Neither lemma depends on the binder representation. Both are needed for any
 finite reading of "any closed term of Lpar" and "a new parameter".
 
@@ -300,6 +330,17 @@ Extracted from the keep-list in Appendix A, with these changes:
 - **Free-variable calls (§8):** an atom with free variables may be called
   only if its final grounding lies in L (no parameters or Skolem terms).
   Grounding enforces this, and the certificate checker detects any violation.
+- **Binder invariants (§8).** These hold for any binder representation; see
+  "With §8's free variables" in Decision §2.
+  - Skolemization happens only at run time (D1).
+  - Unification, both for closure and for equality and disunification,
+    applies only to literals and terms. A literal on a branch has no binder
+    above it, so it contains no bound occurrence, and every unifier binds
+    logic variables to terms without `(var x)`.
+  - Atomic closure is complete for free-variable tableaux, so nothing is
+    lost. The root engine already closes only on literals
+    (`kernel_support.clj:72`, `complementary-lito`). This ADR makes that a
+    tested invariant rather than an accident of structure.
 
 ### 4. Proof-carrying answers
 
@@ -415,6 +456,12 @@ Red first, in this order. Each test states its `s_P` value and the §3 argument.
    - D4: `false` closes; `r(x)←false` gives `:fails`; `r2(x)←true` gives
      `:succeeds`.
    - D5: `q0(0)` is `:fails` with and without the unrelated clauses.
+   - **Binder-escape falsifier:** with `v` registered as a free variable of
+     the branch, a branch holding only `(∀y)P(v)` and `¬(∀y)P(y)` does not
+     close. For every closed `t`, `{P(t), (∃y)¬P(y)}` is satisfiable. The
+     engine's only route is γ giving `P(v)`, δ giving `¬P(sk i v)`, and the
+     occurs check rejecting `v := sk i v`. One-step unification of the
+     quantified pair would bind `v := (var y)`.
    - **D5 falsifier:** with L = {0} and no function symbols, `q0(w)←∀u(u=0)`
      gives a ⊥ value for `q0(0)`. The model `{0}` satisfies the body, and a
      model with one extra element falsifies it. The result must not be

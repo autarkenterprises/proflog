@@ -20,5 +20,12 @@ Scripts that test the generic kernel alone replace
 | `d5-closed-term-gamma.clj` | D5 | `q0(0)` `:unresolved` (expected `:fails`); `q(0)` times out |
 | `d5-unrelated-clause.clj` | D5 | `q0(0)` is `:fails` alone but `:unresolved` once unrelated clauses are added |
 
+Design probe (2026-11-08). It needs only core.logic, and its output is the
+same on stock 1.0.1 and on the vendored copy:
+
+| Script | Question | Observed |
+|---|---|---|
+| `binder-escape.clj` | Can unification of quantified formulas bind a free (§8) variable to a bound occurrence? | Named `==`: `v := (var y)`. Nominal without `hash`: `v := a_0`. Nominal with `a # v`: blocked. Atomic literals: no hazard. |
+
 These are probes, not tests. ADR-0149's test obligations turn them into red
 tests in the `fitting/` subproject.

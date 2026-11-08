@@ -20,6 +20,22 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-11-08
+
+- Revised [ADR-0149](docs/adr/ADR-0149-fitting-core-extraction.md) Layer 1
+  after owner review. The first draft paired a plain-Clojure certificate
+  checker with a separate reference prover. That requires two artifacts that
+  must be correct and agree. Layer 1 is now one core.logic relation,
+  `tableauo`, with a certificate argument in the leanTAP/αleanTAP style: it
+  proves with a fresh certificate and checks with a ground one. It is
+  restricted to `==`/`conde`/`fresh`, with no `!=`, nominal logic, `fd`,
+  `conda`/`condu` or `project`. δ freshness comes from a per-branch parameter
+  counter and symbol distinctness from finite tables. Rule tags are unified
+  first so check mode does not search, and a host-side walk over `stepo` only
+  locates rejections. The independence that matters is Layer 1 against the
+  engine; using the engine as its own checker (the ADR-0117 pattern) stays
+  rejected.
+
 ## 2026-11-07
 
 - Identified the Fitting-only core of the code base and opened

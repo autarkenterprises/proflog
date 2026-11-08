@@ -7,6 +7,15 @@
   the commit every probe below was run against)
 - AAR: pending
 
+## Revision note (2026-11-08)
+
+The first draft wrote Layer 1 in plain Clojure with a separate certificate
+checker. The owner pointed out that this requires two artifacts, the prover
+and the checker, to be correct and to stay in sync. Layer 1 is now a single
+core.logic relation with a certificate argument: with the certificate fresh it
+proves, and with the certificate ground it checks. The independence that
+matters is between Layer 1 and the engine, and that is unchanged.
+
 ## Context
 
 The repository began as an implementation of Melvin Fitting, *Tableaus for
@@ -107,25 +116,49 @@ The extraction lives in a new Leiningen project at `fitting/` on branch
 - The root project is not modified apart from documentation, so the branch can
   merge into `main` without regressing anything.
 
-### 2. Layer 1 — reference tableau (§2, §4–§7, literally)
+### 2. Layer 1 — reference relation (§2, §4–§7, literally)
 
-Plain Clojure, deliberately **not** core.logic, so that it is independent of
-both the engine and core.logic.
+One core.logic relation, `proflog.fitting.reference/tableauo`, transcribes
+Tables 1–2, §5 and §6 over ground sentences of Lpar. Formulas keep ¬, ⊃, `true`
+and `false` as written, with no NNF, so the rules are Fitting's and not a
+normal-form variant. Following leanTAP and αleanTAP, the relation has a
+certificate argument:
 
-- `proflog.fitting.syntax`: language L, terms, parameters, formulas with ¬, ⊃,
-  `true`, `false` kept as written (no NNF); programs with at most one clause per
-  relation; queries as ground literals of L.
-- `proflog.fitting.tableau`: the certificate format and `check`. A certificate
-  is a tableau tree whose nodes carry the formula, the rule used, and
-  references to the premise nodes above it on the same branch. `check`
-  accepts iff every node is the root or follows from earlier nodes on its
-  branch by one rule of Table 2 or §5, every δ parameter is new to its branch,
-  and every leaf branch is closed by `false`, `A`/`¬A`, a Free Closure case on
-  symbols of L, or a Procedure Call whose atom is of L and whose nested
-  certificate closes `φ(t̄)` or `¬φ(t̄)`.
-- `proflog.fitting.reference`: a fair, fuel-bounded systematic prover in the
-  §7 style (γ over closed terms of Lpar in a fair enumeration) that returns a
-  certificate or nothing. It is slow by design.
+- with the certificate fresh, it is the reference prover;
+- with a ground certificate, it is the checker for engine output.
+
+Prover and checker are the same code, so they cannot disagree. Layer 1 shares
+no code with Layer 2.
+
+- `proflog.fitting.syntax`: plain data constructors for L, terms, parameters,
+  formulas, programs (at most one clause per relation) and queries (ground
+  literals of L). It makes no semantic decisions.
+- **Certificate format.** A certificate is a tableau tree. Each node names its
+  rule, its premise (by position on the branch), and any γ term or δ
+  parameter. Each leaf names its closure: `false`, `A`/`¬A`, a Free Closure
+  case, or a Procedure Call carrying the nested certificate for `φ(t̄)` or
+  `¬φ(t̄)`.
+- **Pure subset only:** `==`, `conde`, `fresh`, and relations built from them
+  over finite tables. No `!=`, no nominal logic, no
+  `clojure.core.logic.fd`, no `conda`/`condu`/`project`. Negative side
+  conditions become positive structure:
+  - δ freshness: each branch carries a parameter counter. δ introduces
+    `(par k)` with `k` the counter and increments it, so the parameter is new
+    to the branch by construction.
+  - Free Closure's "distinct symbols of L": a finite table of distinct symbol
+    pairs generated from L.
+  - "Atom of L" for calls and "closed term of Lpar" for γ: structural
+    relations over L's signature and the branch's parameters.
+- **Check mode is search-free.** Every `conde` clause unifies the certificate's
+  rule tag before anything else, so with a ground certificate all clauses but
+  one fail immediately.
+- **Prove mode is complete in the limit.** Completeness comes from miniKanren's
+  interleaving search, with γ terms enumerated lazily; fuel bounds each run. It
+  is slow by design.
+- **Rejection diagnostics.** When a certificate is rejected, a plain-Clojure
+  walk re-runs the per-step relation `stepo` on each node to name the first
+  failing node and rule. The walk only locates the failure; acceptance is
+  decided by `tableauo` alone.
 
 ### 3. Layer 2 — free-variable engine (§8), core.logic
 
@@ -162,8 +195,8 @@ rigid substitution is applied. Each distinct ground Skolem term becomes a fresh
 parameter, and each unbound variable becomes a closed L-term consistent with
 the D5 constraints. The result is emitted as a Layer 1 certificate.
 
-- `query-status` returns `:succeeds` or `:fails` **only if `tableau/check`
-  accepts the certificate**. A rejected certificate is reported as an engine
+- `query-status` returns `:succeeds` or `:fails` **only if `tableauo`
+  accepts the certificate in check mode**. A rejected certificate is reported as an engine
   defect, never as an answer. The search is not trusted; the checker is.
 - ⊥ has no certificate. `:unresolved` means no certificate was found within
   fuel.
@@ -192,6 +225,12 @@ debt.
 - There are two implementations of one specification. That is the point:
   Layer 1 is the oracle and certificate checker for Layer 2, and its own
   correctness is reviewable rule by rule against Tables 1–2 and §5–§6.
+- Layer 1 and Layer 2 both depend on stock core.logic. Layer 1 uses only its
+  pure subset, and the hand-derived §3 values in the tests stay an external
+  check on both layers.
+- The engine's grounding step must emit certificates in Layer 1's format
+  exactly. In particular, each branch's Skolem terms become `(par k)` in the
+  order of that branch's δ steps.
 - Removing `once-forall` and the call-free γ gate will make some searches
   slower. Fuel turns this into `:unresolved`, never into a wrong answer.
 - Rejected alternatives:
@@ -201,6 +240,10 @@ debt.
   - *Keep `once-forall` as a §8 compromise.* Rejected; see Context.
   - *Engine only, no reference.* Rejected because the existing audit shows that
     assertions of fidelity without an independent oracle let D1–D5 through.
+  - *Plain-Clojure checker beside a separate reference prover* (first draft).
+    Rejected 2026-11-08: it needs two artifacts that are correct and agree.
+  - *The engine as its own checker* (the ADR-0117 pattern). Rejected because
+    it accepts its own unsound proofs.
 
 ## Test Obligations
 
@@ -209,18 +252,22 @@ Red first, in this order. Each test states its `s_P` value and the §3 argument.
 1. Subproject skeleton: a namespace-closure test asserting that the transitive
    requires of `proflog.fitting.*` are within `clojure.*`, `clojure.core.logic*`,
    and `proflog.fitting.*`.
-2. Checker, positive: hand-written certificates for paper examples are
-   accepted.
-3. Checker, falsifiers (each must be rejected):
+2. `tableauo` check mode, positive: hand-written certificates for paper
+   examples are accepted. Each check terminates with exactly one answer.
+3. `tableauo` check mode, falsifiers (each must be rejected, and `stepo`
+   diagnostics must name the offending node):
    - a δ parameter already on the branch;
    - a call on an atom containing a parameter;
    - a γ instance that is not a closed term of Lpar;
    - an open leaf;
    - a wrong α or β component;
    - Free Closure applied to `p = c` with `p` a parameter.
-4. Reference prover: the values stated in the paper for P1 and P2, and the §8
-   factored-`move` non-example.
-5. Engine, copied unchanged from Appendix A: the D1–D5 table above, reproduced
+4. `tableauo` prove mode: certificates for the values stated in the paper for
+   P1 and P2, and for the §8 factored-`move` non-example. Every certificate it
+   produces is also accepted in check mode.
+5. Purity: a source test asserting that Layer 1 namespaces use no `!=`,
+   nominal, `fd`, `conda`, `condu` or `project`.
+6. Engine, copied unchanged from Appendix A: the D1–D5 table above, reproduced
    red. Required results:
    - D1: no closure; `t(0)` is not `:fails`.
    - D2: no closure; `r(0)` is `:succeeds`.
@@ -233,14 +280,14 @@ Red first, in this order. Each test states its `s_P` value and the §3 argument.
      model with one extra element falsifies it. The result must not be
      `:fails`; naive core.logic `!=` disunification, which assumes an infinite
      domain, would return `:fails`.
-6. Differential: engine against reference on the test corpus.
+7. Differential: engine against reference on the test corpus.
 
 ## Exit Criteria
 
 - All obligations above are green in both layers, with the reference within
   its fuel budget.
 - Every definite engine answer in the suite carries a certificate that
-  `tableau/check` accepts.
+  `tableauo` accepts in check mode.
 - Engine and reference never give opposite definite answers on the corpus.
 - The namespace-closure test passes.
 - An AAR records line counts, performance relative to the root kernel on

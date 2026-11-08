@@ -3442,3 +3442,67 @@ Sources: [Kohlenbach, logical metatheorems](https://www2.mathematik.tu-darmstadt
 [FOM: arithmetical conservativity of ZFC + GCH over ZF](https://cs.nyu.edu/pipermail/fom/2015-May/018735.html);
 [FOM: eliminating AC from statements of analysis](https://cs.nyu.edu/pipermail/fom/2013-March/017192.html);
 [Specker sequence, Wikipedia](https://en.wikipedia.org/wiki/Specker_sequence).
+
+### F14. How theorems can be r.e. while their semantics is not (follow-up, 2026-11-08)
+
+> How can theorems be Turing enumerable, but their semantics super-Turing?
+
+**Proofs capture what holds in every model of the axioms. The
+"super-Turing" semantics is truth in one intended model, which the axioms
+do not pin down.** (Web-checked on 2026-11-08 where marked; the rest is
+standard, from memory.)
+- **Completeness.** For first-order logic, a sentence is provable from the
+  axioms iff it is true in *every* model of them (Gödel). That set is
+  r.e.: enumerate proofs.
+- **The intended semantics** is truth in *one* structure: ℕ, the full power
+  set, or V with choice. True arithmetic is not r.e., and not even
+  arithmetically definable (Tarski).
+- **The gap.** A sentence true in ℕ but unprovable in PA, such as `Con(PA)`
+  or a Gödel sentence, is false in some nonstandard model. The proof system
+  cannot tell the intended model from the others. So theorems ⊆ intended
+  truths (soundness), and the inclusion is strict (incompleteness). The
+  difference is not r.e., so no proof system closes it.
+
+**Higher-order logic is the sharpest case** (checked).
+- **Full semantics.** Second-order variables range over *all* subsets.
+  Second-order PA is then categorical: its only model is ℕ.
+- **Full validity is not r.e.** If it were, then "`φ` is true in ℕ" iff
+  "`PA² → φ` is valid" would make true arithmetic r.e., contradicting Gödel
+  and Tarski.
+- **Henkin semantics.** Variables range over *some* family of subsets
+  closed under comprehension. It is complete, by reduction to many-sorted
+  first-order logic, and is no longer categorical.
+- **Proof assistants for higher-order logic** implement a system sound for
+  full semantics but complete only for Henkin semantics. Each theorem is a
+  full-semantic truth, but not every full-semantic truth is a theorem.
+
+**How one finite proof can be about uncountably many non-computable
+objects: by generality, not inspection.**
+- A proof of `∀x φ(x)` reasons about an arbitrary `x`, by the
+  generalization rule, and never visits the objects.
+- So a theorem can quantify over all reals, all subsets, or all choice
+  functions, and still be checked by a circuit.
+- A theorem's *content* can also be non-computable. Classical trichotomy,
+  "every real is `< 0`, `= 0` or `> 0`", has a short proof, but deciding
+  which case holds is not computable for computable reals. F13's Specker
+  limit is another example.
+- **Skolem's paradox is the extreme case.** ZFC proves "uncountable sets
+  exist", yet has countable models. "Uncountable" is relative to the
+  model; the proof holds in all of them.
+
+**Two different kinds of "super-Turing" are in play.**
+1. *The set of truths* is not r.e. Proofs enumerate an r.e. part of it.
+2. *A single theorem's content* may assert non-computable objects or
+   decisions. Proofs assert them without computing them; F13 says when the
+   content can be extracted.
+
+**In the terms of this note.** A checker verifies syntax against rules that
+are sound for a semantics the checker never evaluates. λᶜᵉʳᵗ's `Check` is
+primitive recursive, while T1's model interprets types as semantic sets.
+That is the same split between a decidable certificate and the truth it
+certifies (F10, F13).
+
+Sources: [Zach, incompleteness of second-order logic](https://richardzach.org/2006/04/incompleteness-of-second-order-logic/);
+[Koch, bachelor's thesis](https://ps.uni-saarland.de/~koch/bachelor/thesis.pdf);
+[Restricted second-order logics, arXiv 2207.02709](https://arxiv.org/pdf/2207.02709);
+[Second-order logic, Encyclopedia.com](https://www.encyclopedia.com/humanities/encyclopedias-almanacs-transcripts-and-maps/second-order-logic).

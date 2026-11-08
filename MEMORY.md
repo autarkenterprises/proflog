@@ -154,6 +154,12 @@
   - They do not make the objects computable (Specker).
   - Content is Turing-level for low-complexity statements: choice is
     conservative for arithmetic and `Σ¹₂`; `Π₂` witnesses; proof mining.
+- **r.e. theorems, super-Turing semantics** (note F14).
+  - Theorems are truth in all models; the intended semantics is truth in
+    one model. The gap is incompleteness, and it is not r.e.
+  - Full second-order validity is not r.e. (`PA²` is categorical); Henkin
+    semantics is complete.
+  - Finite proofs reach uncountable domains by generality.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

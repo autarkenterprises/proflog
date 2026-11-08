@@ -837,6 +837,17 @@ complete contemporaneous transcript.
     bounds under dependent choice.
   - Web-checked: Kohlenbach, the arithmetical conservativity of choice,
     Shoenfield, Specker. The FOM `Π¹₄` claim is reported, not checked.
+- The user asked how theorems can be r.e. while their semantics is
+  super-Turing. Answered in note F14.
+  - Proofs capture truth in *all* models (completeness). The intended
+    semantics is truth in *one* model, which the axioms do not pin down. The
+    gap is not r.e.
+  - Full second-order validity is not r.e., by the categoricity of `PA²`;
+    Henkin semantics is complete but not categorical (web-checked).
+  - Finite proofs reach uncountable domains by generality, not inspection;
+    Skolem's paradox is the extreme case.
+  - Two kinds of super-Turing are distinguished: the set of truths, and a
+    single theorem's content.
 
 ## 2026-09-30
 

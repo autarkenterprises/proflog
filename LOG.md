@@ -20,6 +20,31 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-11-07
+
+- Identified the Fitting-only core of the code base and opened
+  [ADR-0149](docs/adr/ADR-0149-fitting-core-extraction.md) (branch
+  `adr-0149-fitting-core-extraction`, off `origin/main` `f1d6ed0`). The ADR
+  places the extraction in a self-contained `fitting/` subproject with two
+  layers: a plain-Clojure reference tableau with an independent certificate
+  checker (§2, §4–§7 as written), and the §8 free-variable engine extracted
+  from the root kernel. Engine answers are reported only when the checker
+  accepts their certificate.
+- Probes against `main` `849fd55` found five defects in the root generic
+  kernel: δ unsound (no dependence on branch variables), β unsound (branch-local
+  equality bindings leak left to right), `once-forall` incomplete, no `false`
+  rule, and closed-term γ disabled program-wide by any call (an unrelated
+  clause flips `q0(0)` from `:fails` to `:unresolved`). Public `query-status`
+  returns `:fails` for a ⊥ query (D1) and a disproof for a true query (D2).
+  Probe scripts and results:
+  [docs/log/2026-11-07-fitting-core-probes/](docs/log/2026-11-07-fitting-core-probes/README.md).
+- `once-forall` rationale traced to `6373687` (2026-03-04, DESIGN.md "AV4"),
+  which claimed single use is complete. That claim is false; a paired probe shows
+  the same subsidiary formula closing through a positive call and not through a
+  negative one. The 2026-06 fidelity audit's ✅ for `once-forall` and its open
+  δ-freshness item are superseded by ADR-0149.
+- The root kernel is not repaired here; D1–D5 there are recorded as debt.
+
 ## 2026-09-26
 
 - Recorded a literature assessment of what SJAS contribute to resolving the

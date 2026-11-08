@@ -1,5 +1,13 @@
 # Fitting-Fidelity Audit of the Proflog Core
 
+> **Superseded in part (2026-11-07).** Probes against `849fd55` show the δ rule
+> and β rule of the generic kernel are unsound, `once-forall` is incomplete, the
+> generic kernel has no `false` rule, and closed-term γ is disabled by any call
+> in the program. The ✅ verdicts below for δ, `once-forall`, and first-order
+> soundness do not hold. See
+> [ADR-0149](adr/ADR-0149-fitting-core-extraction.md) and its
+> [probes](log/2026-11-07-fitting-core-probes/README.md).
+
 **Purpose.** The greenfield core under `src/proflog/` is an implementation of *Proflog* —
 Melvin Fitting's logic-programming language whose operational semantics is the semantic-tableau
 proof procedure (Fitting, *Tableaus for Logic Programming*, 1993; repo copy `LPTableaus.pdf`).

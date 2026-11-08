@@ -848,6 +848,21 @@ complete contemporaneous transcript.
     Skolem's paradox is the extreme case.
   - Two kinds of super-Turing are distinguished: the set of truths, and a
     single theorem's content.
+- The user asked whether nonstandard elements carry useful content, and
+  whether any true statements of arithmetic are nonstandard elements.
+  Answered in note F15.
+  - Individually, no: a statement's code is standard in every model.
+  - Collectively, yes. By overspill on `Sat_Σₙ` (my derivation), one element
+    codes `0⁽ⁿ⁾` in a model satisfying the true `Π₁` sentences. A
+    recursively saturated model of `Th(ℕ)` codes all of `Th(ℕ)` (Wilmers).
+  - That content is non-computable (Tennenbaum). Nonstandard elements are
+    the tool for independence proofs (Paris–Harrington).
+  - In a model of `¬Con(PA)`, the "proof of `0=1`" must be nonstandard.
+  - The analogy that `H°`'s held certificates are always standard is
+    labelled as not part of λᶜᵉʳᵗ's metatheory.
+  - Web-checked: Tennenbaum, Wilmers, Enayat's coding, Paris–Harrington.
+    The nonstandard-proof claim is argued from the definitions, since the
+    search did not confirm it.
 
 ## 2026-09-30
 

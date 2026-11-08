@@ -3506,3 +3506,82 @@ Sources: [Zach, incompleteness of second-order logic](https://richardzach.org/20
 [Koch, bachelor's thesis](https://ps.uni-saarland.de/~koch/bachelor/thesis.pdf);
 [Restricted second-order logics, arXiv 2207.02709](https://arxiv.org/pdf/2207.02709);
 [Second-order logic, Encyclopedia.com](https://www.encyclopedia.com/humanities/encyclopedias-almanacs-transcripts-and-maps/second-order-logic).
+
+### F15. Content in nonstandard elements; can true statements be nonstandard? (follow-up, 2026-11-08)
+
+> Is there useful content in non-standard elements of models? That is, are
+> any of the true statements of arithmetic themselves non-standard
+> elements?
+
+**No single true statement is a nonstandard element, but a single
+nonstandard element can hold *all* of them, or all of a given complexity.**
+(Web-checked on 2026-11-08 where marked; the overspill derivations are mine,
+from standard facts.)
+
+**Individually: no.** A statement of arithmetic is a finite string. Its code
+is a standard number, and the standard numbers form an initial segment of
+every model of PA. So the code is standard in every model.
+
+**Collectively: yes. Nonstandard elements code sets of true statements.**
+- **True `Σ₁` sentences, in one element.** (My derivation.)
+  - PA proves that every bounded definable set is coded. Apply this to the
+    definable partial truth predicate `Sat_Σ₁` (F12), with a nonstandard
+    bound `x`. Some element `c` then codes `{φ < x : Sat_Σ₁(φ)}`.
+  - Its standard part is the set of standard `Σ₁` sentences true in the
+    model.
+  - If the model satisfies every true `Π₁` sentence, as a nonstandard model
+    of true arithmetic does, that is exactly the set of true `Σ₁`
+    sentences: the halting problem, `0′`.
+  - Likewise `0⁽ⁿ⁾` for each `n`, using `Sat_Σₙ`.
+- **All of true arithmetic, in one element.** A recursively saturated
+  model codes its own complete theory (Wilmers; checked). So a recursively
+  saturated nonstandard model of `Th(ℕ)` has an element whose standard part
+  is exactly `Th(ℕ)`. Enayat uses such a code of `Th(ℕ)` in his arguments
+  (checked).
+- So the non-r.e. set of truths of F14 becomes one object, finite as the
+  model sees it.
+
+**That content is real, but not computable.** By Tennenbaum (checked), the
+standard system of every countable nonstandard model of PA contains a
+non-recursive set. The proof uses overspill and a pair of recursively
+inseparable sets. So neither `+` nor `×` of such a model is recursive.
+- The model holds information that no proof system enumerates (F14). The
+  price is that the model itself cannot be computed. The information is
+  there, but no algorithm reads it out.
+
+**The working use: independence proofs.** Nonstandard elements are the
+standard tool for showing that a true statement is unprovable. For
+Paris–Harrington (checked), one builds an initial segment between the
+standard and the nonstandard elements that is a model of PA and falsifies
+the principle. Kanamori and McAloon simplified the argument.
+
+**Elements a model takes for statements or proofs, and which are not.**
+- **Nonstandard "sentences"** are of nonstandard length, infinite from
+  outside. The definable partial truth predicates evaluate those of
+  bounded complexity. Full satisfaction classes exist only in some models,
+  and need not agree on nonstandard sentences (from memory).
+- **Nonstandard "proofs".** Take a model of PA + `¬Con(PA)`, which exists
+  by G2 and completeness. The element `p` with "`p` proves `0=1`" must be
+  nonstandard: a standard `p` would be a real proof, and PA would be
+  inconsistent. G2's model is a "refutation" that exists only as a
+  nonstandard element. It has no content as a proof; it marks exactly what
+  PA cannot exclude.
+
+**An analogy with λᶜᵉʳᵗ, not a theorem of its metatheory.** (My synthesis.)
+- `Con′_ω` quantifies over all codes. Read in a nonstandard model, its
+  failure would be witnessed by a nonstandard "refutation code".
+- `H°` quantifies over certificates actually built from tokens. Those are
+  finite by construction, so the nonstandard proofs that falsify
+  consistency in nonstandard models are exactly the ones no runner could
+  hold.
+- T1's model interprets codes as standard finite trees, so this is a
+  heuristic for why the token discipline makes self-trust safe. It is not
+  part of the proof.
+
+Sources: [Tennenbaum's theorem, Wikipedia](https://en.wikipedia.org/wiki/Tennenbaum%27s_theorem);
+[Reid, arXiv 1311.6375](https://arxiv.org/pdf/1311.6375);
+[Kaye, Tennenbaum's theorem notes](https://web.mat.bham.ac.uk/R.W.Kaye/papers/tennenbaum/tennrosser);
+[Automorphism groups of arithmetically saturated models, arXiv 1311.0772](https://arxiv.org/pdf/1311.0772);
+[Nonstandard models of arithmetic 27 (Enayat's argument)](https://diagonalargument.com/2023/02/12/nonstandard-models-of-arithmetic-27/);
+[Nonstandard models of arithmetic 21 (Paris–Harrington)](https://diagonalargument.com/2020/10/18/non-standard-models-of-arithmetic-21/);
+[Switzer, arXiv 1906.04273](https://arxiv.org/pdf/1906.04273).

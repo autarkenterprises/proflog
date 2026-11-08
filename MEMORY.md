@@ -160,6 +160,14 @@
   - Full second-order validity is not r.e. (`PA²` is categorical); Henkin
     semantics is complete.
   - Finite proofs reach uncountable domains by generality.
+- **Nonstandard elements** (note F15).
+  - No single true statement is nonstandard: codes are standard in every
+    model.
+  - One nonstandard element can code `0⁽ⁿ⁾`, by overspill on `Sat_Σₙ`, or
+    all of `Th(ℕ)` in a recursively saturated model.
+  - That content is non-computable (Tennenbaum). Nonstandard elements drive
+    independence proofs.
+  - In models of `¬Con`, the refutation is nonstandard.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

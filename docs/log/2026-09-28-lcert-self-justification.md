@@ -3285,3 +3285,84 @@ Sources: [Craig and Vaught 1958, JSL](https://www.cambridge.org/core/journals/jo
 [Britannica, NBG axioms](https://www.britannica.com/topic/set-theory/The-Neumann-Bernays-Godel-axioms);
 [Sanders, "The computational content of Nonstandard Analysis"](https://arxiv.org/pdf/1606.06386);
 [Nonstandard proof methods in toposes](https://ar5iv.labs.arxiv.org/html/2308.16030).
+
+### F12. Schema, axiom schema, single axiom: what a meta-interpreter needs (follow-up, 2026-11-08)
+
+> More to the point, there ought to be a computational difference between a
+> schema, an axiom schema, and a single quantified axiom. For instance, what
+> does it mean to have an interpreter for a language? Rather, a
+> meta-interpreter. Is it possible to have a meta-interpreter for a
+> language? That is to say, an interpreter for L written in L, if L is
+> defined by an axiom schema of infinite count of instances.
+
+**Three computational roles.** (My synthesis. The supporting facts were
+web-checked on 2026-11-08 unless marked.)
+- **A schema is a finite generator.** It recognizes, or produces, its
+  instances by pattern match and substitution. Examples: the
+  primitive-recursion scheme, a rule schema, a Horn clause with variables.
+  The infinite count lives in the instances, not in the description.
+- **An axiom schema uses that generator to grant instances without
+  evaluating them.** A proof checker matches a line against the template
+  and accepts it. Nothing computes whether the instance is true.
+- **A single quantified axiom over formulas** must *evaluate* arbitrary
+  instances inside the language. It needs an object-level meta-interpreter,
+  a satisfaction predicate, for the formulas it ranges over.
+
+**"An interpreter for L written in L" has three readings.**
+1. **Execution or provability: always available for an r.e. `L`.** Only
+   *recognizing* instances is needed, so the infinite count is irrelevant.
+   - Gödel's `Prov_PA` is a PA formula that interprets PA's derivability,
+     induction schema included, through a primitive recursive
+     is-an-instance test.
+   - Prolog's vanilla meta-interpreter does the same over `clause/2`. A
+     clause with variables, such as `nat(s(X)) :- nat(X)`, already is a
+     schema over terms (from memory).
+   - McCarthy's `eval` and miniKanren's relational interpreters are the
+     same thing (from memory, and F9). This is the universal-machine
+     theorem: execution is `Σ₁`, so it is uniformly definable.
+2. **Truth: only for bounded complexity.** No single formula of `L` defines
+   the truth of all `L`-sentences (Tarski). For each `n ≥ 1` there is a
+   partial satisfaction predicate `Sat_Σₙ` that provably satisfies the
+   Tarski clauses for `Σₙ` formulas (checked).
+3. **Total running: not for a total `L`.** A language whose programs all
+   terminate cannot contain a total interpreter for itself, by the
+   diagonal (F5). The primitive recursive functions are an example; they
+   are themselves defined by schemas of composition and primitive
+   recursion. A fuel-bounded interpreter does exist, since Kleene's `T`
+   predicate is primitive recursive (from memory).
+
+**This is exactly the schema/single-axiom question.** A schema collapses to
+one universally quantified axiom precisely when `L` has a truth
+meta-interpreter for the schema's range.
+- **`IΣₙ`.** Its instances are `Σₙ`, and `Sat_Σₙ` is definable. So
+  `∀φ ∈ Σₙ Ind(φ)` is one axiom, and `IΣₙ` is finitely axiomatizable for
+  `n ≥ 1` (checked).
+- **PA.** Its instances span every complexity, and no single meta-interpreter
+  covers them. PA is not finitely axiomatizable (Ryll-Nardzewski). PA is
+  reflexive: it proves the consistency of each of its finitely axiomatized
+  subtheories (Mostowski 1952). One bounded meta-interpreter per level, but
+  no uniform one. That is the same pattern as `H°`, one per budget, and as
+  Artemov's scheme (D1).
+- **Extending the language supplies the missing meta-interpreter.** It can
+  be supplied *by definition* (NBG's classes, a truth predicate with
+  axioms), or *by assumption*, as Craig–Vaught's existentially quantified
+  auxiliary predicates (F11). Neither makes it computable.
+
+**Where running stops: instances with a universal part.** A meta-interpreter
+that runs is a `Σ₁` search. An induction instance has the premise
+`∀n (φ(n) → φ(n+1))`, which a search can never confirm. It can only test
+finitely many `n`, which is F9's bounded searches again. That is why
+induction is granted as an axiom rather than computed.
+
+**λᶜᵉʳᵗ's place in this.**
+- Its `reflect` is a meta-interpreter for its own certified programs. It is
+  total because it is metered by tokens, in the role that fuel and `Σₙ`
+  bounds play elsewhere.
+- Its `chk′` is a provability meta-interpreter given as a primitive. It is
+  opaque, as in F10, rather than defined.
+
+Sources: [Satisfaction classes with approximate disjunctive correctness, arXiv 2308.07463](https://arxiv.org/pdf/2308.07463);
+[Tightness and solidity in fragments of PA, arXiv 2512.09120](https://arxiv.org/pdf/2512.09120);
+[FOM: reflexivity of PA](https://cs.nyu.edu/pipermail/fom/2001-May/004917.html);
+[Non-finite axiomatizability of first-order PA](https://diposit.ub.edu/items/cf52c05c-0b58-4b1d-b5fa-23556990b478/full);
+[FOM: finite axiomatisation](https://cs.nyu.edu/pipermail/fom/2008-August/013007.html).

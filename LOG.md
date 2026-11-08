@@ -802,6 +802,25 @@ complete contemporaneous transcript.
     closure over all subsets is categorical.
   - Also corrected: "every replacement extends the language" is false for
     `IΣₙ`.
+- The user asked for the computational difference between a schema, an
+  axiom schema and a single quantified axiom, and whether `L` can have a
+  meta-interpreter written in `L` when `L` is defined by an infinite
+  schema. Answered in note F12.
+  - The three roles: a schema is a generator; an axiom schema grants its
+    instances without evaluating them; a single quantified axiom needs an
+    object-level truth meta-interpreter.
+  - The meta-interpreter question has three readings.
+    - Provability or execution: always available for r.e. `L`
+      (`Prov_PA`, vanilla Prolog, `eval`).
+    - Truth: available only for bounded complexity (`Sat_Σₙ`; Tarski).
+    - Total running: not available for a total `L` (diagonal), though a
+      fuel-bounded one is.
+  - A schema collapses to one axiom exactly when the language interprets
+    its range: `IΣₙ` does; PA does not (Ryll-Nardzewski), and is reflexive
+    (Mostowski).
+  - Web-checked: `Sat_Γ` and `IΣₙ` finite axiomatizability, Mostowski,
+    Ryll-Nardzewski. From memory, and marked: vanilla meta-interpreter,
+    McCarthy, Kleene's `T`.
 
 ## 2026-09-30
 

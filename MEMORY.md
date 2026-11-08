@@ -137,6 +137,16 @@
     is categorical, hence stronger.
   - Not genuine, because the index stays universal: ACA₀'s jump axiom,
     IST's Idealization, and BHK selectors.
+- **Meta-interpreters and schemas** (note F12).
+  - A schema is a generator; an axiom schema grants its instances
+    unevaluated; a single quantified axiom needs an in-language truth
+    meta-interpreter.
+  - A provability meta-interpreter always exists for r.e. `L`. A truth
+    meta-interpreter exists only at bounded complexity (`Sat_Σₙ`, hence
+    `IΣₙ` is finitely axiomatizable). A total self-interpreter does not
+    exist for a total `L`.
+  - So PA's schema cannot collapse (Ryll-Nardzewski); PA is reflexive
+    (Mostowski).
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

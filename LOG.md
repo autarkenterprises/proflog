@@ -864,6 +864,61 @@ complete contemporaneous transcript.
     The nonstandard-proof claim is argued from the definitions, since the
     search did not confirm it.
 
+## 2026-11-09
+
+- The user asked whether a theory can be "pinned" to a model made of its
+  own syntax (Herbrand or term models, proof-theoretic semantics) instead
+  of to all models. Answered in note F16: yes, in four senses, and none of
+  them escapes "all models".
+  - Premise corrected. Incompleteness gives models that change which
+    sentences are true. Compactness gives nonstandard models even of the
+    complete `Th(ℕ)`, and these change none. So the thing to pin is the
+    completion, not the domain.
+  1. The Lindenbaum term model (Rasiowa–Sikorski). Truth equals
+     provability, but the model is Boolean-valued. Its two-valued points
+     are all the models, up to elementary equivalence.
+  2. The Henkin term model. It is two-valued once a completion is chosen,
+     and that choice is not effective. If the completion contains
+     `¬Con(PA)`, the model is nonstandard: the Henkin constant is the
+     nonstandard element.
+  3. The Herbrand model on numerals only. It pins ℕ, but its consequence
+     relation is ω-logic, which is `Th(ℕ)` and not r.e. Classical PA proves
+     a drinker existential that no numeral provably witnesses; otherwise
+     PA would prove `Con(PA)`.
+  4. Proof-theoretic semantics. Validity of open arguments through their
+     closed instances is the ω-rule again. Prawitz's completeness
+     conjecture is refuted for one reconstruction (Harrop's rule).
+  - The effective pin covers theorems only, constructively: HA's existence
+    and disjunction properties.
+  - miniKanren demonstration (core.logic 1.0.1, in scratch; the whole
+    script is reproduced in the note), on plus/3:
+    - success, finite failure, and divergence on `plus(Q,1,Q)`;
+    - the least Herbrand model equals the success set on 2,197 ground atoms;
+    - the greatest fixpoint equals the least over finite terms;
+    - a Z-chain model of Clark's completion satisfies `plus(c₀,1,c₀)`
+      (checked on 8,000 triples), so the query cannot finitely fail.
+    - Two mutations of the model's relation each made the completion check
+      fail.
+  - The container had been recycled since F15 and the scratch directory
+    was gone. The jars were fetched again from Maven Central and
+    SHA1-verified; one checksum fetch hit HTTP 429 and was retried.
+  - Web-checked:
+    - the Rasiowa–Sikorski term model;
+    - van Emden–Kowalski and Apt–van Emden;
+    - Shoenfield's recursive ω-rule;
+    - the 2015 refutation of Prawitz's conjecture;
+    - HA's existence and disjunction properties, and Friedman's result;
+    - the failure of the disjunction property for extensions of PA.
+  - From memory, and marked:
+    - Gödel–Rosser essential undecidability, and the `2^ℵ₀` completions;
+    - `Π¹₁` for ω-proofs;
+    - Herbrand's theorem;
+    - Clark's soundness of finite failure;
+    - coinductive logic programming.
+  - The λᶜᵉʳᵗ analogy is labelled as such. `H°` pins trust to closed syntax,
+    the existence-property move. `Con′_ω` reaches the Henkin-constant
+    positions, where `chk′` is opaque.
+
 ## 2026-09-30
 
 - Two more questions on the λᶜᵉʳᵗ note, answered in a fifth addendum

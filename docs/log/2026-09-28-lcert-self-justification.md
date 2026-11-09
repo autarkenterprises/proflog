@@ -3585,3 +3585,351 @@ Sources: [Tennenbaum's theorem, Wikipedia](https://en.wikipedia.org/wiki/Tennenb
 [Nonstandard models of arithmetic 27 (Enayat's argument)](https://diagonalargument.com/2023/02/12/nonstandard-models-of-arithmetic-27/);
 [Nonstandard models of arithmetic 21 (Paris–Harrington)](https://diagonalargument.com/2020/10/18/non-standard-models-of-arithmetic-21/);
 [Switzer, arXiv 1906.04273](https://arxiv.org/pdf/1906.04273).
+
+### F16. Pinning a theory to a model made of its own syntax (follow-up, 2026-11-09)
+
+> So proofs are conservative about the properties they claim to prove, to
+> wit that a sentence provable in a sound theory must be true in all models
+> with which the theory can be put in correspondence. No effective proof
+> theory can rule out non-standard models, because diagonalization allows
+> us to build, within the theory, sentences that correspond to non-standard
+> elements. What if we take a proof-theoretic semantics/Herbrand
+> interpretation attitude, and concern ourselves only with those models
+> whose domains are the theory elements themselves, or the syntax of theory
+> sentences with no further interpretation? Can we 'pin' a theory only to a
+> model of itself, rather than 'all models'?
+
+**Yes, in four precise senses, and none of them escapes "all models".**
+Each one does one of two things. It keeps every model inside it, or it
+pins one model and gives up effective proof.
+
+Evidence levels:
+- Claims marked "checked" were web-checked on 2026-11-09.
+- The miniKanren demonstration below was run.
+- Everything else is from memory or my own derivation, as marked.
+
+**First, a correction to the premise.** Nonstandard models have two
+separate sources, and only one of them matters for which sentences are true.
+- **Incompleteness (diagonalization).** It gives models that disagree on
+  some sentence. A model of PA + `¬Con(PA)` is not elementarily equivalent
+  to ℕ, so these models change which sentences are true.
+- **Compactness and Löwenheim–Skolem.** These give nonstandard models even
+  of true arithmetic `Th(ℕ)`, which is complete. Add a constant `c` and the
+  axioms `c > 0̄`, `c > 1̄`, …. Such models are elementarily equivalent to ℕ,
+  so they change the truth value of no sentence.
+- So pinning the *domain* is aimed at the wrong target. Which sentences are
+  true depends on the *completion*, the complete theory a model satisfies,
+  not on the model.
+- The real question is therefore: can a theory be pinned, by its own
+  syntax, to one completion?
+
+**Sense 1: the theory itself, as a many-valued model. Canonical and
+effective, but not two-valued.**
+- **The construction.** The domain is the theory's own terms. The truth
+  values form its Lindenbaum algebra: formulas modulo provable equivalence.
+  The value of `φ` is its class `[φ]`.
+- **The quantifier clause.** Rasiowa and Sikorski showed that
+  `[∀x φ] = inf_y [φ(y)]`, with `y` ranging over variables. So the term
+  structure is a model valued in a Boolean algebra (checked).
+- **What it gives.** In this one model, value 1 means exactly "provable".
+  It is the nearest thing to "the theory with no further interpretation".
+- **What it lacks.** It is not two-valued. PA proves neither `Con(PA)`
+  (G2) nor `¬Con(PA)` (soundness), so `[Con(PA)]` lies strictly between 0
+  and 1.
+- **Getting two values.** Choose an ultrafilter that respects the
+  quantifier infima; the Rasiowa–Sikorski lemma supplies one (checked).
+  Each such choice is a completion of the theory and gives a two-valued
+  term model.
+- **Every completion arises this way.** (My derivation.) Take an
+  ultrafilter of this kind for the completion's own Lindenbaum algebra and
+  pull it back to the theory's.
+- **So the many models are not excluded.** The two-valued points of this
+  one model are all the models, nonstandard ones included, up to
+  elementary equivalence. "True in all models" is the same as "value 1
+  here".
+- Pinning a theory to itself does not shut out the other models. They are
+  folded into one object.
+
+**Sense 2: closed terms plus names for witnesses (Henkin). Two-valued, but
+a completion must be chosen, and the result can be nonstandard though built
+from syntax.**
+- **The construction.** Henkin's proof builds a model from closed terms,
+  plus one new constant for each existential sentence, modulo provable
+  equality in a complete extension.
+- **Choosing the completion is not effective.** PA has no decidable
+  consistent completion (Gödel–Rosser; from memory), and it has `2^ℵ₀`
+  completions (from memory).
+- **The term model can be nonstandard.** (My derivation.)
+  - Complete PA + `¬Con(PA)`. It proves `∃p Prf(p, ⌜0=1⌝)`.
+  - For each numeral `n̄`, it also proves `¬Prf(n̄, ⌜0=1⌝)`, a true `Δ₀`
+    sentence.
+  - So no numeral witnesses the existential, and the Henkin constant for it
+    is a nonstandard element.
+  - Yet it is syntax: a name for a witness that the theory asserts but
+    cannot exhibit.
+- So a domain made of the theory's syntax does not exclude nonstandard
+  elements. Seen syntactically, that is what they are (compare F15).
+
+**Sense 3: only the closed terms of the original language (Herbrand). One
+model is pinned, at the cost of effective proof.**
+- **The pinned model is ℕ.** In PA's language the closed terms denote the
+  numerals, so the only model of PA with this domain is ℕ. Its consequence
+  relation is ω-logic.
+- **ω-logic proves exactly true arithmetic.** The ω-rule infers `∀x φ(x)`
+  from `φ(0̄), φ(1̄), …`. PA with it proves every true sentence, and
+  Shoenfield showed the recursive ω-rule suffices (checked).
+- **Its proofs cannot be checked effectively.** The rule has infinitely
+  many premises. A recursive ω-proof is a finite code for an infinite
+  well-founded tree, and recognizing one means checking well-foundedness,
+  which is not effective (from memory: `Π¹₁`).
+- So the pin succeeds, but what it pins is `Th(ℕ)`, which is not r.e.
+  (F14). No effective theory can be pinned this way.
+- **Even classical theorems resist this domain.** (My derivation.)
+  - PA proves the drinker instance `∃x (∃y Prf(y,⌜0=1⌝) → Prf(x,⌜0=1⌝))`.
+  - Suppose PA proved it for some numeral `n̄`. PA also proves
+    `¬Prf(n̄,⌜0=1⌝)`. Together these give `¬∃y Prf(y,⌜0=1⌝)`, which is
+    `Con(PA)`, against G2.
+  - So PA proves an existential that no numeral provably witnesses.
+  - Every closed term of PA is provably equal to a numeral, so no closed
+    term of its language witnesses it either.
+
+**Where Herbrand pinning works: universal and Horn theories.** This is
+logic programming, and so miniKanren's own territory.
+- **A universal theory** has a model if and only if it has a Herbrand model
+  (Herbrand; from memory).
+- **A definite (Horn) program** has a least Herbrand model: the least
+  fixpoint of its immediate-consequence operator `T_P` (van Emden and
+  Kowalski 1976; checked). It equals the success set, the ground atoms that
+  resolution proves (Apt and van Emden 1982, and others; checked).
+- So, for atoms, this pin is canonical and effective.
+- **It is not effective for the first-order theory of the pinned model.**
+  (My derivation, from Tarski's undefinability and F14.)
+  - Add a program for times. The least Herbrand model then contains the
+    graphs of `+` and `×`, so its first-order theory is `Th(ℕ)`.
+  - Negative and universal facts true in the least model are not, in
+    general, provable by resolution.
+
+**A miniKanren demonstration.** It was run on 2026-11-09 with core.logic
+1.0.1, SHA1-verified from Maven Central. It lives only in scratch, so the
+whole script is reproduced below the results. Its program is:
+
+```
+plus(z, Y, Y).
+plus(s(X), Y, s(O)) :- plus(X, Y, O).
+```
+
+| query or check | result |
+|---|---|
+| `plus(2, 1, Q)` | `Q = 3` |
+| `plus(Q, 1, 0)` | no answers: finite failure |
+| `plus(Q, 1, Q)` | no answer in 3 s. The search sets `Q = s(Q1)` and calls `plus(Q1, 1, Q1)`, without end |
+| least Herbrand model (arguments ≤ 12), by iterating `T_P` | the graph of `+`, 91 atoms, with no `plus(x, 1, x)` |
+| success set against least model, all 2,197 ground atoms | equal |
+| greatest against least fixpoint, finite terms only | equal: over syntax alone, `T_P` has one fixpoint |
+| Clark's completion, on ℕ plus a Z-chain `… c₋₁, c₀, c₁ …` | holds on all 8,000 triples of a 20-element window, with `plus(c₀, 1, c₀)` true |
+
+- **Over finite terms (the syntax), the model is unique.** In it, no `x`
+  has `x + 1 = x`.
+- **The last row is the point: Clark's completion has another model.** The
+  completion is the first-order theory that negation as failure is sound
+  for. (My construction.)
+  - Add a Z-chain: an element `c_k` for every integer `k`, with
+    `s(c_k) = c_{k+1}`.
+  - The successor stays injective and acyclic, `0` is still no successor,
+    and every other element is still a successor.
+  - For `x` on the chain, let `plus(x, y, o)` hold whenever `o` is on the
+    chain. Then `plus(c₀, 1, c₀)` holds.
+  - The run checks the completion's biconditional on a finite window. Two
+    mutations of the relation each made the check fail.
+- **So the divergence is forced.** (My derivation, using Clark's soundness
+  of finite failure for the completion, from memory.)
+  - If `∃x plus(x, 1, x)` finitely failed, the completion would entail its
+    negation. The Z-chain model shows it does not.
+  - The search's endless descent `Q = s(Q1), Q1 = s(Q2), …` is that
+    Z-chain, an infinite descending sequence of predecessors.
+- **Ruling the chain out takes induction.** An induction schema is
+  first-order, so the theory with induction has nonstandard models again.
+- This is the question in miniature: the syntax pins the model, but the
+  effective proof theory still sees the other models.
+- **Coinductive logic programming takes the other side.** It would answer
+  `plus(Q, 1, Q)` with the infinite term `Q = s(s(s(…)))`. There the
+  nonstandard element appears as an infinite term. (Simon, Mallya, Bansal
+  and Gupta 2006; from memory.)
+
+<details><summary>The whole script (<code>herbrand_demo.clj</code>). Run with Clojure 1.12.0, spec.alpha 0.5.238, core.specs.alpha 0.4.74 and core.logic 1.0.1 on the classpath: <code>java -cp …:src clojure.main -m herbrand-demo</code>, about 7 s.</summary>
+
+```clojure
+(ns herbrand-demo
+  "Pinning a theory to its own syntax, in miniature (note F16).
+  One definite program, plus/3 over Peano terms, read four ways:
+    1. top-down (core.logic): success, finite failure, and divergence;
+    2. bottom-up: the least Herbrand model, as the least fixpoint of T_P;
+    3. over syntax only (finite Peano terms), T_P has one fixpoint;
+    4. over syntax plus a Z-chain, Clark's completion has a second model,
+       in which some x satisfies x + 1 = x."
+  (:refer-clojure :exclude [==])
+  (:require [clojure.core.logic :refer [run run* fresh conde ==]]))
+
+;; Peano terms: :z, [:s :z], [:s [:s :z]], ...
+(defn num [n] (if (zero? n) :z [:s (num (dec n))]))
+(defn value [t] (if (= t :z) 0 (inc (value (second t)))))
+
+(defn pluso
+  "plus(z, Y, Y).   plus(s(X), Y, s(O)) :- plus(X, Y, O)."
+  [x y o]
+  (conde
+    [(== x :z) (== y o)]
+    [(fresh [x1 o1]
+       (== x [:s x1])
+       (== o [:s o1])
+       (pluso x1 y o1))]))
+
+(defn within
+  "Run f on a daemon thread; its value, or ::no-answer after ms.
+  core.logic ignores interruption, so a diverging search is left running
+  and the JVM is ended with System/exit."
+  [ms f]
+  (let [p (promise)]
+    (doto (Thread. #(deliver p (f))) (.setDaemon true) (.start))
+    (deref p ms ::no-answer)))
+
+;; --- 1. top-down -----------------------------------------------------------
+(println "1. top-down, core.logic")
+(println "   plus(2, 1, Q):" (mapv value (run* [q] (pluso (num 2) (num 1) q))))
+(println "   plus(Q, 1, 0):" (vec (run* [q] (pluso q (num 1) :z))) "(finite failure)")
+(println "   plus(Q, 1, Q):" (within 3000 #(vec (run 1 [q] (pluso q (num 1) q)))))
+
+;; --- 2. bottom-up, on the atoms whose arguments are at most N --------------
+(def N 12)
+(def base (set (for [a (range (inc N)) b (range (inc N)) c (range (inc N))] [a b c])))
+(defn tp
+  "Immediate consequence: heads of clause instances whose bodies are in I."
+  [I]
+  (into (set (for [y (range (inc N))] [0 y y]))
+        (for [[a b c] I :when (and (< a N) (< c N))] [(inc a) b (inc c)])))
+(defn fix [f x] (let [y (f x)] (if (= x y) x (recur f y))))
+(def lfp (fix tp #{}))
+(def gfp (fix #(into #{} (filter base) (tp %)) base))
+(def graph (set (for [[a b c] base :when (= c (+ a b))] [a b c])))
+(println "2. least Herbrand model (bounded to" N ")")
+(println "   lfp = graph of + :" (= lfp graph) " atoms:" (count lfp))
+(println "   some x with plus(x,1,x) in lfp:" (boolean (some (fn [[a b c]] (and (= b 1) (= a c))) lfp)))
+(println "   success set = lfp, all" (count base) "ground atoms:"
+         (every? (fn [[a b c]] (= (contains? lfp [a b c])
+                                  (boolean (seq (run 1 [q] (pluso (num a) (num b) (num c)))))))
+                 base))
+(println "3. over finite terms only: gfp = lfp:" (= gfp lfp))
+
+;; --- 4. a nonstandard model of Clark's completion --------------------------
+;; Domain: naturals n, plus a Z-chain [:c k], k any integer.
+;; s(n) = n+1, s([:c k]) = [:c k+1]; 0 is no successor; s is injective and
+;; has no cycles; every nonzero element is a successor.
+(defn chain? [x] (vector? x))
+(defn succ [x] (if (chain? x) [:c (inc (second x))] (inc x)))
+(defn pred [x] (if (chain? x) [:c (dec (second x))] (dec x)))
+(defn plus?
+  "The relation: for standard x, o = s^x(y); for x on the chain, o on the chain."
+  [x y o]
+  (if (chain? x) (chain? o) (= o (nth (iterate succ y) x))))
+(defn completion-rhs
+  "plus(x,y,o) <-> (x = 0 & y = o) v (exists x1 o1. x = s x1 & o = s o1 & plus(x1,y,o1))"
+  [x y o]
+  (or (and (= x 0) (= y o))
+      (and (not= x 0) (not= o 0) (plus? (pred x) y (pred o)))))
+(def M 6) (def K 6)
+(def window (concat (range (inc M)) (for [k (range (- K) (inc K))] [:c k])))
+(println "4. Z-chain model of the completion")
+(println "   completion holds on" (count window) "^3 =" (Math/pow (count window) 3) "triples:"
+         (every? (fn [[x y o]] (= (plus? x y o) (completion-rhs x y o)))
+                 (for [x window y window o window] [x y o])))
+(println "   no cycles s^k(x) = x, k = 1..20, on the window:"
+         (not-any? (fn [x] (some #(= x (nth (iterate succ x) %)) (range 1 21))) window))
+(println "   plus(c0, 1, c0):" (plus? [:c 0] 1 [:c 0]))
+(shutdown-agents)
+(System/exit 0)
+```
+
+</details>
+
+**Sense 4: proof-theoretic semantics proper. Meaning lies in proofs, and the
+ω-rule returns.**
+- **The programme.** For Prawitz and Dummett, a sentence's meaning is
+  given by its canonical proofs. An argument is valid relative to a base of
+  atomic rules. This is "the syntax of theory sentences with no further
+  interpretation".
+- **Where the ω-rule comes back.** An open argument is valid when all its
+  closed instances are (from memory). Over the numerals, that is the ω-rule
+  again, inside the definition of validity.
+- **The match with a calculus is not free, even for pure logic.**
+  - In 1973 Prawitz conjectured that intuitionistic logic is complete for
+    his notion of validity.
+  - Piecha, de Campos Sanz and Schroeder-Heister (2015) showed that
+    Harrop's rule is valid, refuting the conjecture for their
+    reconstruction based on atomic systems (checked).
+  - For some other variants the question is reported open (checked, with
+    that caveat).
+
+**What can be pinned effectively: theorems, constructively.**
+- **Heyting arithmetic's theorems are self-witnessing.** HA has the
+  existence and disjunction properties (Kleene; checked). If HA proves a
+  closed `∃x φ(x)`, it proves `φ(n̄)` for some numeral `n̄`. So its theorems
+  are true in the numeral term model, with no Henkin constants needed.
+- That is the most a theory can do, effectively, to pin itself to its own
+  syntax.
+- **It covers what is proved, not what is undecided.** HA is incomplete
+  too; it proves neither `Con(HA)` nor its negation.
+- **Classical theories lose even this.**
+  - No consistent recursive extension of PA has the disjunction property,
+    by G1 (checked).
+  - The drinker instance above shows the existential version.
+- **The property cannot be self-certified.** A recursive extension of HA
+  that proves it has the disjunction property proves itself inconsistent
+  (Friedman; checked).
+
+**Answer.**
+- **Can a theory be pinned to a model of itself?** Yes, in four ways:
+  - one canonical many-valued model, the Lindenbaum term model, where truth
+    is provability;
+  - a two-valued term model, once a completion is chosen;
+  - a unique Herbrand model, ℕ, whose theory is true arithmetic;
+  - a constructive theory whose theorems witness themselves.
+- **What none of them pins.** None gives an effective, complete, two-valued
+  semantics, and none can. Truth equal to provability needs completeness,
+  and an effective theory with enough arithmetic is not complete (G1).
+- **Where the non-effective step goes.** The choice between "all models"
+  and "one model" is a choice of where to put it:
+  - in the many models: the conservative semantics described in the
+    question;
+  - in the choice of completion: Henkin;
+  - or in the proof rules: the ω-rule.
+
+**λᶜᵉʳᵗ, read through this.** (My synthesis. It is an analogy, not a theorem
+of λᶜᵉʳᵗ's metatheory.)
+- **`H°` is the existence-property move.** It quantifies over held
+  certificates. These are closed finite trees, on which `chk′` computes to
+  a canonical value. Self-trust is pinned to the closed, numeral-like part
+  of the syntax.
+- **`Con′_ω` reaches the Henkin-constant positions.** It quantifies over all
+  codes, open ones included, and `chk′` is opaque on open codes (F10). In
+  the Lindenbaum reading, `T(chk′ c c⊥)` for a variable `c` has no
+  determined value.
+- **The split, restated.** λᶜᵉʳᵗ separates `H°` (inhabited) from `Con′_ω`
+  (underivable). That is the split between the closed term model and the
+  whole Lindenbaum model.
+- λᶜᵉʳᵗ pins its self-trust to its own closed syntax, which is the
+  effective pin. It does not pin open codes, which no effective system can.
+
+Sources: [Rasiowa–Sikorski lemma, course notes (UvA)](https://staff.fnwi.uva.nl/n.bezhanishvili/MSL/Scott.pdf);
+[Fitting on Rasiowa](https://id144254.securedata.net/melvinfitting/bookspapers/pdf/papers/Rasiowa.pdf);
+[Topologies and all that, arXiv 1503.00875](https://arxiv.org/pdf/1503.00875);
+[van Emden and Kowalski 1976](https://typeset.io/pdf/the-semantics-of-predicate-logic-as-a-programming-language-1u2ms3dxy8.pdf);
+[CWI report on logic-programming semantics](https://ir.cwi.nl/pub/10546/10546D.pdf);
+[Syntax and semantics of logic programming, Wikipedia](https://www.wikipedia.com/wiki/Stratified_negation);
+[Completeness of the primitive recursive ω-rule, arXiv 2110.01270](https://arxiv.org/pdf/2110.01270);
+[The completeness of PA with the ω-rule, M-Phi](https://m-phi.blogspot.com/2011/03/completeness-of-pa-with-omega-rule.html);
+[Iterating reflection over intuitionistic arithmetic, arXiv 2411.07777](https://arxiv.org/html/2411.07777v5);
+[arXiv 2312.06626](https://arxiv.org/html/2312.06626v3);
+[Failure of completeness in proof-theoretic semantics (Tübingen)](https://publikationen.uni-tuebingen.de/xmlui/handle/10900/64707);
+[Piecha, publications (PhilPeople)](https://philpeople.org/profiles/thomas-piecha/publications?app=616);
+[Disjunction and existence properties, Wikipedia](https://en.wikipedia.org/wiki/Disjunction_and_existence_properties);
+[Heyting arithmetic, Wikipedia](https://en.wikipedia.org/wiki/Heyting_arithmetic).

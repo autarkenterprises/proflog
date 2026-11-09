@@ -91,6 +91,18 @@
   while the schema's index stays universal. Only on reading back did I see
   that I had answered a neighbouring question.
 
+## 2026-11-09
+
+- When a proposal narrows the class of models, ask whether it narrows the
+  truths (the completions) or only the domains (models elementarily
+  equivalent to one another). Excluding nonstandard elements sounds like
+  the first and is often only the second. Compactness gives nonstandard
+  models of the complete `Th(ℕ)`, and they change no truth value.
+- Scratch directories do not survive a container being recycled. The full
+  F9 core.logic script was lost that way; only an excerpt of its relation
+  is in the note. Reproduce the whole of any demonstration program an
+  answer rests on in the note itself, or commit it.
+
 ## 2026-09-30
 
 - When citing a cost for an implication between consistency statements,

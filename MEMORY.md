@@ -168,6 +168,17 @@
   - That content is non-computable (Tennenbaum). Nonstandard elements drive
     independence proofs.
   - In models of `¬Con`, the refutation is nonstandard.
+- **Pinning a theory to its own syntax** (note F16).
+  - Nonstandard models have two sources. Incompleteness changes which
+    sentences are true; compactness does not. Pin the completion, not the
+    domain.
+  - The Lindenbaum term model makes truth equal provability, but it is
+    many-valued. Its two-valued points are all the models.
+  - Henkin term models need a non-effective completion, and can be
+    nonstandard. The Herbrand model on numerals pins ℕ, but its
+    consequence relation is ω-logic, which is `Th(ℕ)`.
+  - Effective pinning covers theorems only, constructively (HA's
+    existence property). `H°` makes that move.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

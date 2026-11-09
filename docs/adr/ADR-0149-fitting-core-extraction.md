@@ -1,12 +1,14 @@
 # ADR-0149: Fitting-Core Extraction — Reference Tableau and Repaired Free-Variable Engine
 
 - Status: accepted. Layer 1, the language, was implemented in revision 6
-  (2026-11-09). Layer 2, the §8 engine, is deferred.
+  (2026-11-09) and restructured in revision 7 (2026-11-09): the relation
+  has no bound, Definition 6.1 is a relation, and `proflog.fitting/ask` is
+  the entry point. Layer 2, the §8 engine, is deferred.
 - Date: 2026-11-07
 - Branch: `adr-0149-fitting-core-extraction`
 - Base: `origin/main` `f1d6ed0` (its `src/` is byte-identical to `849fd55`,
   the commit every probe below was run against)
-- AAR: pending
+- AAR: [AAR-0149](../aar/AAR-0149-fitting-core-extraction.md)
 
 ## Revision note (2026-11-08)
 
@@ -96,6 +98,137 @@ following points, each decided from the paper. Decision §2,
    take a hundred times longer than finding the proof one level up.
 6. The {d, e} model in the binder example is now justified from §3 (Def
    3.1, 3.3–3.5, 3.7), as the owner asked on 2026-11-08.
+
+## Revision 7 (2026-11-09): no bound in the relation; Definition 6.1 as a relation; one entry point
+
+The owner asked three questions about revision 6:
+- Does `tableauo` need fuel?
+- Can a fuelless relation be primary, with a fueled one defined from it by a
+  wrapper?
+- Why is the query API needed at all?
+
+The owner then asked for the three recommendations that followed, and for
+the entry point to be one procedure in the `proflog.fitting` namespace that
+takes the language, the program and the query.
+
+**Evidence.** Fitting's language has no step bound. core.logic's
+interleaving search is complete for answers at finite depth: `conde`
+interleaves, conjunction interleaves the streams it combines, every
+recursive call of the relation is delayed by a `conde`, and the γ term
+generator is productive. A closed tableau is a finite certificate. So prove
+mode needs no bound to find one.
+
+Measured in one JVM with the revision-6 relation and its fuel left fresh,
+which is unbounded:
+
+| Query | Side searched | Fuel 16 | No bound |
+|---|---|---|---|
+| win(s(0)) succeeds | ¬win(s(0)) | 1010 ms (warm-up) | 147 ms |
+| win(s(s(s(0)))) fails | win(s(s(s(0)))) | 1780 ms | 1272 ms |
+| even(s(0)) fails | even(s(0)) | 116 ms | 73 ms |
+| odd(s(0)) succeeds | ¬odd(s(0)) | 216 ms | 213 ms |
+| even(s(s(0))) succeeds | ¬even(s(s(0))) | 4613 ms | 4049 ms |
+| (no closed tableau) | ¬win(s(s(s(0)))) | over 30 s | over 30 s |
+
+Every certificate found with no bound passed check mode. A bound buys only
+a finite "no": `:unresolved :exhausted` says that no closed tableau exists
+within the bound, which a timeout cannot say. At the default fuel 16 the
+side with no tableau did not finish in 30 s anyway, so exhaustion is useful
+only at the small bounds the ⊥ tests use.
+
+Definition 6.1 written as a `conde` over the two tableaus, run on one
+thread, found the same certificate as the parallel `query-status` for every
+query above, in 1.0–1.5 times the time.
+
+**Decisions.**
+
+1. **The relation has no bound.** The rules are written once, as the
+   construction (`proflog.fitting.tableau/construction`), with open
+   recursion. Some steps are choices that can repeat without end on one
+   path:
+   - a γ instance;
+   - a procedure call;
+   - a One-One step;
+   - a Substitutivity step;
+   - each argument of a γ term, in the term generator.
+
+   Each choice is taken at the construction's next stage, written
+   `(then :gamma-stepo …)` and so on. Everything after a choice, up to the
+   next one, stays at that stage. `tableauo [P X cert]` ties the knot so
+   that the next stage is the construction itself, which gives Fitting's
+   rules with no bound. The rules mention no fuel.
+2. **Fuel is a wrapper.** `fueled-tableauo [P X n cert]` ties the same
+   construction through n stages. The stage after the last fails every
+   choice at once, but forced steps (Table 2's α, β, δ and negation rules,
+   and setting aside γ sentences and literals) and closures that need no
+   further step still run there. The meaning of n:
+   - at most n choices on each path;
+   - no γ term deeper than the number of choices left after its γ instance.
+
+   This differs from revision 6, where each function symbol of a γ term
+   cost a unit from the same budget as the rest of the branch. The stages
+   are host values, and a term's size is known only during the search.
+   Charging the term to the remaining path budget would need `project`, or
+   a logic variable passed through the rules, which is fuel in the rules
+   again. The search at each n is still finite.
+
+   A first version took each choice's work at the current stage and called
+   only the step after it at the next stage. At the last stage, a choice
+   then did all its work (γ term generation, substitution, the equality
+   steps) before failing, and exhausting the binder-capture query at n = 6
+   took 30 s, against 12 s in revision 6. With the whole choice taken at
+   the next stage it fails at once, and that query takes 7 s.
+3. **Definition 6.1 is a relation.** `queryo [P A status cert]` holds when
+   `status` is `:succeeds` and cert is a closed P-tableau for ¬A, or
+   `status` is `:fails` and cert is a closed P-tableau for A.
+   `fueled-queryo` is the same over `fueled-tableauo`. With `status` fresh,
+   interleaving races the two sides. With `status` ground, it is one side.
+   With cert ground, it checks.
+4. **One entry point.** `proflog.fitting/ask [language program query opts]`
+   takes the language as data (`{:constants … :functions … :relations …}`),
+   the program as its clauses, and the query. It validates them (§2,
+   Definition 2.1), runs `queryo` with core.logic's `run` on the calling
+   thread, re-checks the certificate with `tableauo`, and returns the
+   status. By default there is no bound and no timeout. A ⊥ query then runs
+   forever, which is what Definition 6.1 allows ("it just means that
+   P-tableaus for A and for ¬A do not close"). Options:
+   - `:fuel n`, which uses `fueled-queryo` and reports `:unresolved
+     :exhausted` when neither side closes within n;
+   - `:parallel`, `:timeout-ms` and `:both`, which use the parallel runner.
+5. **The parallel runner is optional.** `proflog.fitting.query` now only
+   runs `queryo` with `status` fixed to `:succeeds` on one thread and to
+   `:fails` on another. It cancels the loser and stops both at a timeout.
+   `succeeds`, `fails`, `closed-tableau` and `query-status` are removed,
+   because `queryo` and `ask` say the same.
+6. **The paper's programs are text.** `proflog.fitting.programs` holds each
+   language and program as the data `ask` takes.
+
+**Success criteria:**
+- The rules in `tableau.clj` mention no fuel, and `tableauo` has the arity
+  `[P X cert]`.
+- Unbounded prove mode finds the paper's §6 certificate, and check mode
+  accepts it.
+- `fueled-tableauo` ends on the ⊥ tests, and every certificate it finds is
+  accepted by `tableauo`.
+- Every semantic test runs through `ask`.
+- The default and slow suites are green. The paper's examples take at most
+  1.5 times their revision-6 times.
+
+**Failure criteria:** the restructuring is reverted if any of these hold:
+- the rules read less like the paper than with fuel passed through them;
+- a fueled certificate is rejected by `tableauo`;
+- the paper's examples slow down by more than 1.5 times.
+
+**Outcome against the criteria (2026-11-09).** All met except the last, for
+the deep queries. The shallow paper queries run within 1.5 times revision
+6. odd(s(s(0))) takes 1.7–2.1 times as long in every revision-7 mode, and
+win(s⁴(0)) 1.5 times by default (0.8 times with `:parallel`). AAR-0149 has
+the table. The cause is the absence of a bound, not the open recursion:
+revision 6's default bound charged γ terms to the branch and so pruned deep
+ones. A revert would not restore the times while the default is unbounded,
+so the restructuring is kept and this criterion is recorded as not met. The
+remedies (γ terms charged to the branch in the fueled wrapper; the parallel
+runner as the default) are open for the owner's decision.
 
 ## Context
 
@@ -317,18 +450,23 @@ only decides how the relation is run.
 - **Check mode is search-free.** Every clause unifies the certificate's rule
   tag, or the shape of the sentence being expanded, before anything else. A
   check of the paper's certificate has exactly one answer.
-- **Fuel.** Each γ application, call, One-One step and Substitutivity step
-  costs one unit, and a γ term costs one more unit per function symbol in
-  it. The bound is per branch path, so each run is a finite search. In check
-  mode the fuel is fresh.
-- **Search control** (`proflog.fitting.query`):
+- **Fuel** (revision 6; superseded by revision 7). Each γ application,
+  call, One-One step and Substitutivity step cost one unit, and a γ term
+  cost one more unit per function symbol in it. The bound was per branch
+  path, so each run was a finite search. In check mode the fuel was fresh.
+  Since revision 7 the relation has no bound, and fuel is the wrapper
+  `fueled-tableauo` (see "Revision 7" above).
+- **Search control** (revision 6; superseded by revision 7)
+  (`proflog.fitting.query`):
   - one prove-mode run per side at the fuel bound;
   - the two sides in parallel, with the first closed tableau winning and
     the other search cancelled;
   - every certificate re-checked in check mode before it is reported.
 
   Cancellation steps core.logic's stream directly, with the same loop as
-  `run`, and checks for thread interruption.
+  `run`, and checks for thread interruption. Since revision 7, `ask` runs
+  `queryo` with core.logic's `run` and re-checks every certificate. The
+  parallel runner is optional.
 - **Not built:** rejection diagnostics, meaning a host walk that names the
   first failing node of a rejected certificate. Acceptance never depended on
   it.

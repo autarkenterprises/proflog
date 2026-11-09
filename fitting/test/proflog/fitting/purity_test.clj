@@ -34,3 +34,12 @@
                        spec (rest c)]
                    (if (sequential? spec) (first spec) spec))]
     (is (= '[clojure.core.logic] (vec requires)))))
+
+(deftest the-rules-mention-no-fuel
+  ;; ADR-0149 revision 7: Fitting's rules have no step bound, so the
+  ;; construction that transcribes them has none. A bound is a wrapper that
+  ;; ties the same construction through finitely many stages.
+  (let [construction (first (filter #(and (seq? %) (= 'construction (second %)))
+                                    (forms relation-source)))]
+    (is (some? construction) "tableau.clj defines the construction")
+    (is (empty? (filter #(re-find #"(?i)fuel" (name %)) (symbols-in [construction]))))))

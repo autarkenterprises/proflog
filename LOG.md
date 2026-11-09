@@ -69,6 +69,42 @@ complete contemporaneous transcript.
   two-element model is a weak Herbrand model with a non-standard element (§3
   drops domain closure, and Def 3.1 is vacuous for L = {0}). s_P(p(0)) = ⊥
   now follows from Defs 3.3–3.5 and 3.7.
+- Owner questions on the result:
+  - what `P` is in `substo`: a carrier for the finite tables (names,
+    function and relation symbols) that replace `!=` in the pure subset;
+  - whether `tableauo` needs fuel: no;
+  - whether fuel could be a wrapper;
+  - why a query API is needed;
+  - what a query is: a ground literal of L, not a program clause.
+
+  Measured with revision 6's fuel left fresh (unbounded): every paper query
+  found the same certificate as at fuel 16, as fast or faster. A one-thread
+  `conde` over the two sides of Definition 6.1 matched the parallel
+  `query-status` in 1.0–1.5 times the time.
+- The owner asked for the recommendations, which became
+  [ADR-0149](docs/adr/ADR-0149-fitting-core-extraction.md) revision 7:
+  - `tableauo [P X cert]` has no bound;
+  - the rules are written once with open recursion: each choice is taken at
+    the construction's next stage, `fueled-tableauo` ties them through n
+    stages, and the rules mention no fuel;
+  - `queryo` is Definition 6.1 as a relation;
+  - `proflog.fitting/ask` takes the language, program and query, and is the
+    entry point;
+  - `proflog.fitting.query` is reduced to an optional parallel runner;
+  - the paper's programs are text.
+- Dead end, kept in the AAR: first, only the step after a choice was taken
+  at the next stage. At the exhausted stage a choice then did all its work
+  before failing, and the binder-capture ⊥ test went from 12 s (revision 6)
+  to 30 s. Taking the whole choice at the next stage brought it to 7 s.
+- Default suite: 74 tests, 224 assertions, 44 s. Details are in
+  [AAR-0149](docs/aar/AAR-0149-fitting-core-extraction.md), revision 7
+  section.
+- Slow suite green, but the deep queries are slower than revision 6:
+  odd(s(s(0))) 110.8 s against 52.4 s (2.1×); win(s⁴(0)) 112.6 s against
+  73.7 s (1.5×). Revision 6's default bound charged γ terms to the branch
+  and pruned deep ones, and an unbounded search cannot. The ADR's 1.5×
+  criterion is recorded as not met for these, and the remedies are left to
+  the owner.
 
 ## 2026-11-08
 

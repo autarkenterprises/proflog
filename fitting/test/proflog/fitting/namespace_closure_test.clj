@@ -9,14 +9,18 @@
             [clojure.test :refer [deftest is testing]]))
 
 (def ^:private expected-namespaces
-  "The namespaces the extraction is made of (ADR-0149, Decision §2)."
-  '#{proflog.fitting.syntax
+  "The namespaces the extraction is made of (ADR-0149, Decision §2;
+  `proflog.fitting`, the entry point, since revision 7)."
+  '#{proflog.fitting
+     proflog.fitting.syntax
      proflog.fitting.tableau
      proflog.fitting.query
      proflog.fitting.programs})
 
-(defn- source-files []
-  (->> (file-seq (io/file "src/proflog/fitting"))
+(defn- source-files
+  "Every source file of the subproject."
+  []
+  (->> (file-seq (io/file "src"))
        (filter #(str/ends-with? (.getName ^java.io.File %) ".clj"))))
 
 (defn- ns-form
@@ -36,6 +40,7 @@
 (defn- allowed-lib? [lib]
   (let [s (str lib)]
     (or (str/starts-with? s "clojure.")
+        (= s "proflog.fitting")
         (str/starts-with? s "proflog.fitting."))))
 
 (deftest the-extraction-has-its-namespaces

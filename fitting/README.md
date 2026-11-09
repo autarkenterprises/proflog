@@ -16,38 +16,50 @@ tests. The decision record is
 
 ## Quick start
 
+The entry point is `proflog.fitting/ask`. It takes a language, a program
+written in it, and a query:
+
 ```clojure
-(require '[proflog.fitting.programs :refer [P1 P2]]
-         '[proflog.fitting.query :as q])
+(require '[proflog.fitting :refer [ask]])
 
-(q/query-status P2 '(win (s (s (s 0)))) {})
+(ask '{:constants [0] :functions {s 1} :relations {win 1}}
+     '[(<- (win x) (exists y (and (or (= x (s y)) (= x (s (s y)))) (not (win y)))))]
+     '(win (s (s (s 0)))))
 ;; => {:status :fails, :certificate [:call (win (s (s (s 0)))) [:delta ...]]}
+```
 
-(q/query-status P1 '(odd (s 0)) {})
+The paper's programs are in `proflog.fitting.programs`, as text:
+
+```clojure
+(require '[proflog.fitting.programs :refer [L1 P1]])
+
+(ask L1 P1 '(odd (s 0)))
 ;; => {:status :succeeds, :certificate [:call (not (odd (s 0))) ...]}
 ```
 
 A query is a ground literal of L. It **succeeds** if there is a closed
 P-tableau for ¬A, and **fails** if there is a closed P-tableau for A
 (Definition 6.1). Every answer carries its certificate, the closed tableau,
-and the relation that found it has re-checked it. `:unresolved` means that
-no closed tableau was found within the fuel or time allowed. By Theorem 7.2
-this is the only answer a ⊥ query can get.
+which the relation has re-checked.
+
+Like the paper, `ask` sets no bound on the search. "It is possible for a
+query A to neither succeed nor fail" (§6). By Theorem 7.2 that happens
+exactly when s_P(A) is ⊥, and then the search may never end. It ends with
+`{:status :unresolved :reason :exhausted}` only when nothing is left to try.
+Options:
+
+| Option | Effect |
+|---|---|
+| `:fuel n` | At most n choices on each branch (γ instances, calls, One-One and Substitutivity steps), and no γ term deeper than the choices left after its γ instance. The search ends, and if it finds no closed tableau the answer is `:unresolved :exhausted :fuel n`. |
+| `:parallel true` | The two sides of the query run on two threads. |
+| `:timeout-ms t` | A wall-clock bound, giving `:unresolved :timeout`. This uses the parallel runner. |
+| `:both true` | Wait for both sides, and throw if both close (Lemma 7.5 says they cannot). This uses the parallel runner, so it needs `:fuel` or `:timeout-ms` to end. |
 
 ## Writing programs
 
-```clojure
-(require '[proflog.fitting.syntax :as syntax])
-
-(def L (syntax/language {:constants '[0] :functions '{s 1} :relations '{win 1}}))
-
-(def P2
-  (syntax/program L
-    '[(<- (win x) (exists y (and (or (= x (s y)) (= x (s (s y)))) (not (win y)))))]))
-```
-
 | Paper | Here |
 |---|---|
+| L: constants, function symbols, relation symbols | `{:constants [0] :functions {s 1} :relations {win 1}}` |
 | constant `0`, function `s(t)` | `0`, `(s t)` |
 | variable `x` | `x`, any symbol that is not a symbol of L |
 | parameter (§4) | `(par)`, `(par 1)`, `(par 1 1)`, … (unary) |
@@ -56,20 +68,20 @@ this is the only answer a ⊥ query can get.
 | `(∀x)Φ`, `(∃x)Φ`, true, false | `(forall x Φ)`, `(exists x Φ)`, `true`, `false` |
 | `R(x1,…,xn) ← ϕ` | `(<- (R x1 … xn) ϕ)` |
 
-`syntax/program` enforces Definition 2.1:
+`ask` checks Definition 2.1:
 - at most one clause for each relation;
 - distinct head variables;
 - every free variable of a body occurs in its head.
 
 The language is fixed first and a program is written in it, as in §2: "A
 program, written in a language L, can only answer questions about things
-that have names in L."
+that have names in L." Equality is always a relation symbol of L.
 
 ## Certificates
 
 A certificate is the closed tableau, written as nested vectors. This one is
-§6's worked example, exactly as `query-status` finds it. Comments give the
-paper's line numbers.
+§6's worked example, exactly as `ask` finds it. Comments give the paper's
+line numbers.
 
 ```clojure
 [:call (win (s (s (s 0))))                          ; Procedure Call Rule
@@ -114,15 +126,23 @@ Rule tags:
 | `:one-one e`, `:substitutivity e X X'` | §5 extension |
 | `:call A` | §6 |
 
-Certificates are plain EDN. `(q/certificate? P X cert)` checks one with
-the same relation that found it. The checker accepts the systematic
-construction's normal form, described below, not every closed tableau that
-Fitting's rules allow. Every closed tableau has a counterpart in normal form,
-so which queries succeed or fail is unchanged. A hand-written certificate has
-to follow the construction's order, and so would certificates from a future
-§8 engine.
+Certificates are plain EDN. `(proflog.fitting/certificate? L P X cert)`
+checks one with the same relation that finds them. The checker accepts the
+systematic construction's normal form, described below, not every closed
+tableau that Fitting's rules allow. Every closed tableau has a counterpart
+in normal form, so which queries succeed or fail is unchanged. A
+hand-written certificate has to follow the construction's order, and so
+would certificates from a future §8 engine.
 
 ## How it works
+
+| Namespace | Role |
+|---|---|
+| `proflog.fitting` | the entry point, `ask` |
+| `proflog.fitting.syntax` | §2: the language, programs and queries, and the finite tables the relation consults |
+| `proflog.fitting.tableau` | §4–§7: the relation `tableauo`; Definition 6.1 as the relation `queryo` |
+| `proflog.fitting.query` | an optional parallel runner with timeouts |
+| `proflog.fitting.programs` | the paper's programs, as text |
 
 `proflog.fitting.tableau/tableauo` is a single relation in core.logic's pure
 subset: `==`, `conde`, `fresh`, and relations built from them. There is no
@@ -153,8 +173,27 @@ The relation is §7's systematic construction:
   `proflog.fitting.tableau` gives the completeness argument for each
   restriction.
 
-Fuel bounds the steps on each branch. The query API searches the success and
-failure sides in parallel at one fuel bound, and cancels the slower search.
+**No bound, and fuel as a wrapper.** Fitting's rules have no step bound, and
+neither has `tableauo`. core.logic's interleaving search reaches every
+answer at a finite depth, so prove mode finds a closed tableau whenever one
+exists. The rules are written once, with open recursion. Each choice that
+can repeat without end on a branch is taken at the construction's next
+stage:
+- a γ instance;
+- a procedure call;
+- a One-One or Substitutivity step;
+- each argument of a γ term.
+
+`tableauo` makes the next stage the construction itself.
+`fueled-tableauo` gives the same construction n stages, which is what
+`:fuel n` uses. Forced steps and closures that need no further step are
+free.
+
+**Definition 6.1 is a relation.** `(queryo P A status cert)` holds when
+status is `:succeeds` and cert closes ¬A, or status is `:fails` and cert
+closes A. With status fresh, interleaving races the two sides; `ask` runs it
+with core.logic's `run`. The parallel runner runs it with the status fixed,
+one side per thread.
 
 This is the ground calculus of §4–§6, which Fitting says "is not suitable
 for implementation" because of how γ chooses its terms. §8's remedy, free
@@ -165,6 +204,6 @@ the language. It would be a follow-up ADR.
 
 ```sh
 lein test         # default suite
-lein test :slow   # deeper P1 and P2 queries (about a minute each)
+lein test :slow   # deeper P1 and P2 queries
 lein test :all
 ```

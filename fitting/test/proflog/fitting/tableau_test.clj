@@ -6,7 +6,7 @@
   `tableauo` with a ground certificate. A test that expects rejection says
   which rule of the paper the certificate breaks."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [run run* == fresh lvar]]
+  (:require [clojure.core.logic :refer [run run*]]
             [clojure.test :refer [deftest is testing]]
             [proflog.fitting.syntax :as syntax]
             [proflog.fitting.tableau :as t]))
@@ -30,7 +30,7 @@
 (defn- checks?
   "Does tableauo accept cert as a closed P-tableau for X?"
   [P X cert]
-  (boolean (seq (run 1 [q] (t/tableauo (syntax/with-sentence P X) X (lvar) cert)))))
+  (boolean (seq (run 1 [q] (t/tableauo (syntax/with-sentence P X) X cert)))))
 
 ;;; ---------------------------------------------------------------------
 ;;; §2: ϕ(t), substitution of t for the free occurrences of x
@@ -140,7 +140,7 @@
   ;; With a ground certificate every step is fixed, so the check has a
   ;; single answer.
   (let [X '(win (s (s (s 0))))]
-    (is (= 1 (count (run* [q] (t/tableauo (syntax/with-sentence P2 X) X (lvar) win-3-fails)))))))
+    (is (= 1 (count (run* [q] (t/tableauo (syntax/with-sentence P2 X) X win-3-fails)))))))
 
 (deftest certificates-print-and-read-back
   (is (= win-3-fails (read-string (pr-str (syntax/pretty win-3-fails))))))
@@ -228,9 +228,10 @@
 ;;; Review findings (2026-11-09 independent fidelity review)
 
 (defn- proves?
-  "Does prove mode find a closed P-tableau for X within fuel n?"
+  "Does prove mode find a closed P-tableau for X with at most n choices on
+  each branch?"
   [P X n]
-  (boolean (seq (run 1 [c] (t/tableauo (syntax/with-sentence P X) X (t/fuel n) c)))))
+  (boolean (seq (run 1 [c] (t/fueled-tableauo (syntax/with-sentence P X) X n c)))))
 
 (deftest gamma-is-never-stuck-in-a-language-without-function-symbols
   ;; With finitely many closed terms of L, the γ sentence at the head of
@@ -292,3 +293,85 @@
   (let [X '(and (and (P 0) (not (P 0))) (forall x (Q x)))]
     (is (not (checks? empty-program X '[:alpha [:alpha [:gamma 0 [:close (P 0)]]]])))
     (is (checks? empty-program X '[:alpha [:alpha [:close (P 0)]]]))))
+
+;;; ---------------------------------------------------------------------
+;;; No bound in the relation; fuel as a wrapper (ADR-0149 revision 7)
+
+(deftest the-relation-has-no-bound
+  ;; Fitting's rules have no step bound, and neither has tableauo. Unbounded
+  ;; prove mode finds the paper's own tableau for win(s(s(s(0)))). That
+  ;; tableau makes 7 choices on its longest branch, and every closed tableau
+  ;; for this root makes at least 4 (a call, One-One, Substitutivity and a
+  ;; second call), so a bound of 3 finds nothing.
+  (let [X '(win (s (s (s 0))))
+        P (syntax/with-sentence P2 X)]
+    (is (= [win-3-fails] (map syntax/pretty (run 1 [c] (t/tableauo P X c)))))
+    (is (empty? (run 1 [c] (t/fueled-tableauo P X 3 c))))))
+
+(deftest fuel-counts-the-choices-on-each-branch
+  ;; fueled-tableauo with n accepts the tableaus with at most n choices on
+  ;; each branch: γ instances, procedure calls, One-One and Substitutivity
+  ;; steps. The paper's tableau makes 7 on its right-hand branch: the call
+  ;; on win(s(s(s(0)))), two One-One steps, Substitutivity, the call on
+  ;; ¬win(s(0)), γ with 0, and the call on win(0).
+  (let [X '(win (s (s (s 0))))
+        P (syntax/with-sentence P2 X)]
+    (is (empty? (run 1 [q] (t/fueled-tableauo P X 6 win-3-fails))))
+    (is (seq (run 1 [q] (t/fueled-tableauo P X 7 win-3-fails))))))
+
+(deftest forced-steps-and-closure-need-no-fuel
+  ;; α and closure on A and ¬A are not choices, so they run with fuel 0.
+  (let [X '(and (P 0) (not (P 0)))]
+    (is (= '[[:alpha [:close (P 0)]]]
+           (map syntax/pretty
+                (run* [c] (t/fueled-tableauo (syntax/with-sentence empty-program X) X 0 c))))))
+  (testing "γ is a choice"
+    (let [X '(and (forall x (P x)) (not (P 0)))
+          P (syntax/with-sentence empty-program X)]
+      (is (empty? (run* [c] (t/fueled-tableauo P X 0 c))))
+      (is (= '[[:alpha [:gamma 0 [:close (P 0)]]]]
+             (map syntax/pretty (run* [c] (t/fueled-tableauo P X 1 c))))))))
+
+(deftest gamma-terms-are-no-deeper-than-the-fuel-left
+  ;; The bound also limits the terms γ may choose, so that each bounded
+  ;; search is finite: a γ term is no deeper than the choices left after
+  ;; its γ instance. Closing (∀x)P(x) ∧ ¬P(s(s(0))) needs γ with s(s(0)),
+  ;; of depth 2, so one choice for γ and two more for the term.
+  (let [X '(and (forall x (P x)) (not (P (s (s 0)))))
+        P (syntax/with-sentence empty-program X)]
+    (is (empty? (run* [c] (t/fueled-tableauo P X 2 c))))
+    (is (= '[[:alpha [:gamma (s (s 0)) [:close (P (s (s 0)))]]]]
+           (map syntax/pretty (run* [c] (t/fueled-tableauo P X 3 c)))))))
+
+(deftest a-fueled-search-ends
+  ;; (∀x)(∃y)¬(y = x) is true in every weak Herbrand model (y = s(x)), so
+  ;; no tableau for it closes. Unbounded, the search would never end. With
+  ;; a bound it is finite: run* returns, with nothing.
+  (let [X '(forall x (exists y (not (= y x))))]
+    (is (empty? (run* [c] (t/fueled-tableauo (syntax/with-sentence empty-program X) X 3 c))))))
+
+(deftest every-fueled-certificate-is-a-certificate
+  ;; fueled-tableauo ties the same rules as tableauo through n stages, so
+  ;; whatever it finds, tableauo accepts.
+  (doseq [[P X] [[P2 '(win 0)]
+                 [P2 '(not (win (s 0)))]
+                 [empty-program '(and (forall x (P x)) (not (P (s (s 0)))))]]]
+    (let [certs (run 3 [c] (t/fueled-tableauo (syntax/with-sentence P X) X 6 c))]
+      (is (seq certs))
+      (doseq [c certs]
+        (is (checks? P X c))))))
+
+;;; ---------------------------------------------------------------------
+;;; Definition 6.1 as a relation (ADR-0149 revision 7)
+
+(deftest definition-6-1-is-a-relation
+  ;; "A query A succeeds with program P if there is a closed P-tableau for
+  ;; ¬A. A query A fails with program P if there is a closed P-tableau for
+  ;; A."
+  (let [A '(win (s (s (s 0))))]
+    (testing "with the status fresh, the two sides race and the first closed tableau answers"
+      (is (= [[:fails win-3-fails]] (map syntax/pretty (run 1 [s c] (t/queryo P2 A s c))))))
+    (testing "with the certificate ground, it is checked: the paper's tableau shows that A fails"
+      (is (= [:fails] (run* [s] (t/queryo P2 A s win-3-fails)))))
+    (testing "with the status ground, one side: no closed tableau for ¬A within the bound"
+      (is (empty? (run 1 [c] (t/fueled-queryo P2 A 4 :succeeds c)))))))

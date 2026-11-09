@@ -1,18 +1,17 @@
 (ns proflog.fitting.tableau
   "Sections 4–6 of M. Fitting, \"Tableaus for Logic Programming\" (1993),
   and the systematic construction of §7, as one pure core.logic relation:
-  `tableauo`.
+  `tableauo`. Definition 6.1 is the relation `queryo`.
 
-  `(tableauo P X fuel cert)` holds when `cert` describes a closed P-tableau
-  for the sentence X (Definition 6.1: a tableau built with the Branch
-  Extension Rules of §4, the Equality Rules of §5 and the Procedure Call Rule
-  of §6).
+  `(tableauo P X cert)` holds when `cert` describes a closed P-tableau for
+  the sentence X (Definition 6.1: a tableau built with the Branch Extension
+  Rules of §4, the Equality Rules of §5 and the Procedure Call Rule of §6).
 
-  - With `cert` fresh and `fuel` ground, it is a prover. It searches for a
-    closed tableau whose branches use at most `fuel` choices each.
-  - With `cert` ground (and `fuel` fresh), it is a checker. Every clause
-    unifies the certificate's rule tag, or the shape of the sentence being
-    expanded, before anything else, so a check does not search.
+  - With `cert` fresh, it is a prover. It searches for a closed tableau,
+    with no bound, as Fitting's rules have none.
+  - With `cert` ground, it is a checker. Every clause unifies the
+    certificate's rule tag, or the shape of the sentence being expanded,
+    before anything else, so a check does not search.
 
   Prover and checker are the same code, so they cannot disagree (ADR-0149,
   Decision §2).
@@ -106,22 +105,35 @@
   - No literal is added twice, and no equation t = t is added.
   - Every closure uses a literal that is new since the previous saturation
     point, or one derived from such a literal. A closure from older literals
-    alone was already possible at the previous saturation point with more
-    fuel. The tableau that closes there is smaller, so nothing is lost. This
-    also stops one branch from closing in the same way at every later
+    alone was already possible at the previous saturation point, in a
+    smaller tableau with fewer choices on the branch, so nothing is lost.
+    This also stops one branch from closing in the same way at every later
     saturation point, which would multiply the search for its β sibling.
 
-  Fuel
-  ----
-  `fuel` is a unary list, `(1 1 1)`. Each γ application, procedure call,
-  One-One step (which adds all n component equations) and Substitutivity
-  step uses one unit, and a γ term uses one more unit for each function
-  symbol in it, so γ(0) costs 1 and γ(s(s(0))) costs 3. The bound is per
-  branch path, so each run is a finite search. The query API
-  (`proflog.fitting.query`) runs the relation at a fuel bound. In a check,
-  `fuel` is fresh and unconstrained."
+  No bound, and fuel as a wrapper
+  -------------------------------
+  The construction is written once, with open recursion (`construction`).
+  Its choices, the steps that can repeat without end on one path, are taken
+  at the construction's next stage:
+  - a γ instance;
+  - a procedure call;
+  - a One-One step;
+  - a Substitutivity step;
+  - each argument of a γ term, in the term generator.
+
+  `tableauo` makes the next stage the construction itself, so it has no
+  bound. Its search finds every closed tableau, because core.logic's
+  interleaving search reaches every answer at a finite depth. It need not
+  end when there is none.
+
+  `fueled-tableauo` gives the same construction n stages, so a branch makes
+  at most n choices, and no γ term is deeper than the number of choices
+  left after its γ instance. Each such search is finite, so it can end with
+  \"no closed tableau within n\". Forced steps (¬¬, ¬true, ¬false, α, β,
+  δ, setting aside γ sentences and literals) and the closures that need no
+  further step are free (ADR-0149, revision 7)."
   (:refer-clojure :exclude [==])
-  (:require [clojure.core.logic :refer [== conde fresh defne lcons llist conso appendo membero]]))
+  (:require [clojure.core.logic :refer [== conde fresh defne lcons llist conso appendo membero fail]]))
 
 ;;; =====================================================================
 ;;; Finite tables of L and of the program (built by proflog.fitting.syntax)
@@ -299,6 +311,9 @@
 
 ;;; =====================================================================
 ;;; Closed terms
+;;;
+;;; The γ term generator itself is part of the construction below, because
+;;; each argument of a term is a recursive call that a bound must reach.
 
 (defn- belowo
   "The unary number j is less than k."
@@ -308,35 +323,6 @@
     (conde
      [(== j k')]
      [(belowo j k')])))
-
-(declare closed-termo)
-
-(defn- closed-termso
-  "ts is a list of closed terms, one for each 1 in arity, paid for from fuel
-  with fuel' left over."
-  [P k fuel arity ts fuel']
-  (conde
-   [(== arity ()) (== ts ()) (== fuel' fuel)]
-   [(fresh [n u us fuel1]
-      (== arity (lcons 1 n))
-      (== ts (lcons u us))
-      (closed-termo P k fuel u fuel1)
-      (closed-termso P k fuel1 n us fuel'))]))
-
-(defn closed-termo
-  "t is a closed term built from the symbols of L and the parameters below
-  k, the parameters already on the branch. Each function symbol in t costs
-  one unit of fuel, and fuel' is what is left, so in prove mode this
-  enumerates a finite set."
-  [P k fuel t fuel']
-  (conde
-   [(constanto P t) (== fuel' fuel)]
-   [(fresh [j] (== t (lcons 'par j)) (belowo j k) (== fuel' fuel))]
-   [(fresh [fuel1 f arity ts]
-      (== fuel (lcons 1 fuel1))
-      (== t (lcons f ts))
-      (functiono P f arity)
-      (closed-termso P k fuel1 arity ts fuel'))]))
 
 (declare l-termso)
 
@@ -363,20 +349,6 @@
   (conde
    [(== (:functions (:language P)) ())]
    [(== (:constants (:language P)) ()) (== k ())]))
-
-(defn- gamma-termo
-  "t is the closed term of Lpar given to γ, and k' the branch's parameter
-  count afterwards. The term is a closed term of L or a parameter already on
-  the branch, or, where `new-parameter-allowedo` says so, the new parameter
-  (par . k). fuel' is the fuel left after paying for the term's function
-  symbols."
-  [P k fuel t k' fuel']
-  (conde
-   [(closed-termo P k fuel t fuel') (== k' k)]
-   [(new-parameter-allowedo P k)
-    (== t (lcons 'par k))
-    (== k' (lcons 1 k))
-    (== fuel' fuel)]))
 
 ;;; =====================================================================
 ;;; Telling ground terms and literals apart
@@ -562,7 +534,7 @@
   "The One-One Rule (§5): from f(t1,...,tn) = f(u1,...,un), with f a
   function symbol of L, the branch may be extended by ti = ui. es holds all
   n of them, which is n applications of the rule (the systematic
-  construction charges one unit of fuel for all of them)."
+  construction counts them as one choice)."
   [P e es]
   (fresh [f arity ts us]
     (== e ['= (lcons f ts) (lcons f us)])
@@ -623,48 +595,18 @@
      [(== e ['= t u])]
      [(== e ['= u t])])
     (replace-in-literalo P X t u X')))
-
 ;;; =====================================================================
 ;;; The branch: Table 2 (§4), closure (§4, §5, §6), and the systematic
 ;;; construction (§7)
 
-(declare brancho)
-
-(defn- callo
-  "The Procedure Call Rule (§6). A tableau branch is closed if:
-
-  1. it contains a ground atom R(t1,...,tn) of L, there is a clause
-     R(x1,...,xn) ← ϕ(x1,...,xn) in P, and there exists a closed tableau for
-     ϕ(t1,...,tn);
-  2. it contains a negated ground atom ¬R(t1,...,tn) of L, there is such a
-     clause, and there exists a closed tableau for ¬ϕ(t1,...,tn).
-
-  \"The ground atom R(t1,...,tn) or the negated ground atom ¬R(t1,...,tn),
-  must be of L, not of Lpar\": `l-termso` rejects parameters. Equality has no
-  clause, so it is never called. cert describes the subsidiary tableau."
-  [P A fuel cert]
-  (fresh [R ts xs phi root]
-    (conde
-     [(== A (lcons R ts))
-      (clauseo P R xs phi)
-      (l-termso P ts)
-      (instanceo P phi xs ts root)]
-     [(fresh [phi-t]
-        (== A ['not (lcons R ts)])
-        (clauseo P R xs phi)
-        (l-termso P ts)
-        (instanceo P phi xs ts phi-t)
-        (== root ['not phi-t]))])
-    ;; A subsidiary tableau is a new tableau for a sentence of L.
-    (brancho P [root] () () () () fuel cert)))
-
 ;;; Every closure, and every literal an equality step derives, uses the
 ;;; branch's literals. `new` holds those added since the branch was last
 ;;; saturated, together with those derived from them. A closure that uses
-;;; only older literals was already possible at the previous saturation point,
-;;; with at least as much fuel, so the systematic construction requires each
-;;; closure to use a new literal. This loses no closed tableau, and it stops
-;;; one branch from closing in the same way at every later saturation point.
+;;; only older literals was already possible at the previous saturation
+;;; point, in a smaller tableau with fewer choices on the branch, so the
+;;; systematic construction requires each closure to use a new literal. This
+;;; loses no closed tableau, and it stops one branch from closing in the same
+;;; way at every later saturation point.
 
 (defn- new-premiseo
   "Of the two premises A and B, both among lits, at least one is new. The
@@ -690,59 +632,6 @@
     (== lits' (lcons X lits))
     (== new' new)]))
 
-(defn- closeo
-  "The saturated branch with literals lits, of which new are new, is
-  closed. cert says how."
-  [P lits new fuel cert]
-  (conde
-   ;; §4: "a branch is closed if it contains ... both A and ¬A for some
-   ;; sentence A."
-   [(fresh [A]
-      (== cert [:close A])
-      (new-premiseo P A ['not A] lits new))]
-   ;; §5 Reflexivity: "for any closed term t of Lpar, t = t can be added to
-   ;; the end of any tableau branch". With ¬(t = t) on the branch, the
-   ;; branch then has A and ¬A.
-   [(fresh [t]
-      (== cert [:reflexivity t])
-      (membero ['not ['= t t]] new))]
-   ;; §5 Free Closure.
-   [(fresh [e]
-      (== cert [:free-closure e])
-      (membero e new)
-      (free-closureo P e))]
-   ;; §6 Procedure Call Rule.
-   [(fresh [A sub fuel']
-      (== cert [:call A sub])
-      (== fuel (lcons 1 fuel'))
-      (membero A new)
-      (callo P A fuel' sub))]
-   ;; §5 One-One: extend the branch with those ti = ui that are new, then
-   ;; close it. The added equations are new exactly when e is, so `new`
-   ;; stays a part of `lits`.
-   [(fresh [e es lits' new' added rest fuel']
-      (== cert [:one-one e rest])
-      (== fuel (lcons 1 fuel'))
-      (membero e lits)
-      (one-oneo P e es)
-      (add-new-literalso P lits es lits' added)
-      (fresh [first-added more] (== added (lcons first-added more)))
-      (conde
-       [(membero e new) (appendo added new new')]
-       [(not-on-brancho P e new) (== new' new)])
-      (closeo P lits' new' fuel' rest))]
-   ;; §5 Substitutivity: extend the branch with X', if it is new, then close
-   ;; it.
-   [(fresh [e X X' lits' new' rest fuel']
-      (== cert [:substitutivity e X X' rest])
-      (== fuel (lcons 1 fuel'))
-      (membero e lits)
-      (membero X lits)
-      (substitutivityo P e X X')
-      (new-literalo P X' lits)
-      (conclusiono P e X X' lits new lits' new')
-      (closeo P lits' new' fuel' rest))]))
-
 (defn- unusedo
   "The closed term t is none of the terms in used."
   [P t used]
@@ -753,110 +642,337 @@
       (differento P t u)
       (unusedo P t more))]))
 
-(defn- saturatedo
-  "The branch has expanded everything but its γ sentences. It closes, or γ
-  is applied once more (Table 2: γ / γ(t), for any closed term t of Lpar).
+;;; The construction is written once, with open recursion. Most of its
+;;; steps are forced. The others are choices that can be repeated without
+;;; end on one path:
+;;;
+;;; - a γ instance (with its term);
+;;; - a procedure call;
+;;; - a One-One step;
+;;; - a Substitutivity step;
+;;; - each argument of a γ term, in the term generator.
+;;;
+;;; Each choice is taken at the construction's next stage, written
+;;; `(then :relation args...)`. Everything after a choice, up to the next
+;;; one, stays at that stage.
+;;;
+;;; `tableauo` ties the knot so that the next stage is the construction
+;;; itself: Fitting's rules, with no bound. `fueled-tableauo` ties it through
+;;; n stages, then a stage at which every choice fails at once. Both run
+;;; these rules, so a certificate the fueled relation finds is one the
+;;; unbounded relation accepts.
 
-  Each entry of gammas is [γ used], with used the terms γ has already been
-  given on this branch. A second instance with the same term would add
-  nothing, so the term must be unused."
-  [P gammas lits new k fuel cert]
-  (conde
-   [(closeo P lits new fuel cert)]
-   [(fresh [gamma used others x matrix t instance fuel1 fuel' k' gammas' rest]
-      (== cert [:gamma t rest])
-      (== fuel (lcons 1 fuel1))
-      (conso [gamma used] others gammas)
-      (gammao gamma x matrix)
-      (gamma-termo P k fuel1 t k' fuel')
-      (unusedo P t used)
-      (substo P matrix x t instance)
-      ;; The γ sentence stays on the branch for later use, at the back of
-      ;; the queue. The branch is saturated, so nothing is new any more.
-      (appendo others [[gamma (lcons t used)]] gammas')
-      (brancho P [instance] gammas' lits () k' fuel' rest))]))
+(defn- construction
+  "The relations of the systematic construction, as a map from names to
+  relations. `next-stage` is a delay of the map whose relations take the
+  choices."
+  [next-stage]
+  (letfn [(then [relation & args]
+            ;; A choice, taken at the construction's next stage.
+            (apply (relation (force next-stage)) args))
 
-(defn- expando
-  "Expand Z, the head of the branch's queue, by the rule of Table 2 that
-  fits it. The rest of the queue is todo."
-  [P Z todo gammas lits new k fuel cert]
-  (conde
-   ;; ¬¬Z / Z
-   [(fresh [Y rest]
-      (== cert [:not-not rest])
-      (== Z ['not ['not Y]])
-      (brancho P (lcons Y todo) gammas lits new k fuel rest))]
-   ;; ¬true / false
-   [(fresh [rest]
-      (== cert [:not-true rest])
-      (== Z ['not true])
-      (brancho P (lcons false todo) gammas lits new k fuel rest))]
-   ;; ¬false / true
-   [(fresh [rest]
-      (== cert [:not-false rest])
-      (== Z ['not false])
-      (brancho P (lcons true todo) gammas lits new k fuel rest))]
-   ;; α / α1, α2
-   [(fresh [a1 a2 rest]
-      (== cert [:alpha rest])
-      (alphao Z a1 a2)
-      (brancho P (llist a1 a2 todo) gammas lits new k fuel rest))]
-   ;; β / β1 | β2
-   [(fresh [b1 b2 left right]
-      (== cert [:beta left right])
-      (betao Z b1 b2)
-      (brancho P (lcons b1 todo) gammas lits new k fuel left)
-      (brancho P (lcons b2 todo) gammas lits new k fuel right))]
-   ;; δ / δ(p), "for a new parameter p": "p is to be a parameter that has
-   ;; not previously occurred on the branch". The branch has introduced the
-   ;; parameters below k, and no other parameter can be on it (its root is a
-   ;; sentence of L), so (par . k) is new.
-   [(fresh [x matrix instance rest]
-      (== cert [:delta rest])
-      (deltao Z x matrix)
-      (substo P matrix x (lcons 'par k) instance)
-      (brancho P (lcons instance todo) gammas lits new (lcons 1 k) fuel rest))]
-   ;; "a branch is closed if it contains an explicit contradiction: false"
-   [(== cert [:false])
-    (== Z false)]
-   ;; A γ sentence is kept and applied when the branch is saturated.
-   [(fresh [x matrix gammas']
-      (gammao Z x matrix)
-      (appendo gammas [[Z ()]] gammas')
-      (brancho P todo gammas' lits new k fuel cert))]
-   ;; true: no rule applies, and it cannot close a branch.
-   [(== Z true)
-    (brancho P todo gammas lits new k fuel cert)]
-   ;; A literal joins the branch's literals, as a new one.
-   [(literalo P Z)
-    (brancho P todo gammas (lcons Z lits) (lcons Z new) k fuel cert)]))
+          ;; -------------------------------------------------------------
+          ;; Closed terms for γ
 
-(defn- brancho
-  "The branch with queue todo, γ sentences gammas, literals lits (new of
-  them new since it was last saturated) and parameter count k closes, as
-  cert describes."
-  [P todo gammas lits new k fuel cert]
-  (conde
-   [(== todo ())
-    (saturatedo P gammas lits new k fuel cert)]
-   [(fresh [Z more]
-      (conso Z more todo)
-      (expando P Z more gammas lits new k fuel cert))]))
+          ;; ts is a list of closed terms, one for each 1 in arity. Each is
+          ;; generated at the next stage, so a bound on the stages bounds the
+          ;; depth of a term.
+          (closed-termso [P k arity ts]
+            (conde
+             [(== arity ()) (== ts ())]
+             [(fresh [n u us]
+                (== arity (lcons 1 n))
+                (== ts (lcons u us))
+                (then :closed-termo P k u)
+                (closed-termso P k n us))]))
+
+          ;; t is a closed term built from the symbols of L and the
+          ;; parameters below k, the parameters already on the branch.
+          (closed-termo [P k t]
+            (conde
+             [(constanto P t)]
+             [(fresh [j] (== t (lcons 'par j)) (belowo j k))]
+             [(fresh [f arity ts]
+                (== t (lcons f ts))
+                (functiono P f arity)
+                (closed-termso P k arity ts))]))
+
+          ;; t is the closed term of Lpar given to γ, and k' the branch's
+          ;; parameter count afterwards. The term is a closed term of L or a
+          ;; parameter already on the branch, or, where
+          ;; `new-parameter-allowedo` says so, the new parameter (par . k).
+          (gamma-termo [P k t k']
+            (conde
+             [(closed-termo P k t) (== k' k)]
+             [(new-parameter-allowedo P k)
+              (== t (lcons 'par k))
+              (== k' (lcons 1 k))]))
+
+          ;; -------------------------------------------------------------
+          ;; The choices
+
+          ;; Table 2: γ / γ(t), for any closed term t of Lpar, applied to the
+          ;; γ sentence at the head of the queue gammas. Each entry of gammas
+          ;; is [γ used], with used the terms γ has already been given on
+          ;; this branch. A second instance with the same term would add
+          ;; nothing, so the term must be unused.
+          (gamma-stepo [P gammas lits k cert]
+            (fresh [gamma used others x matrix t instance k' gammas' rest]
+              (== cert [:gamma t rest])
+              (conso [gamma used] others gammas)
+              (gammao gamma x matrix)
+              (gamma-termo P k t k')
+              (unusedo P t used)
+              (substo P matrix x t instance)
+              ;; The γ sentence stays on the branch for later use, at the
+              ;; back of the queue. The branch is saturated, so nothing is
+              ;; new any more.
+              (appendo others [[gamma (lcons t used)]] gammas')
+              (brancho P [instance] gammas' lits () k' rest)))
+
+          ;; §6. The Procedure Call Rule. A tableau branch is closed if:
+          ;;
+          ;; 1. it contains a ground atom R(t1,...,tn) of L, there is a
+          ;;    clause R(x1,...,xn) ← ϕ(x1,...,xn) in P, and there exists a
+          ;;    closed tableau for ϕ(t1,...,tn);
+          ;; 2. it contains a negated ground atom ¬R(t1,...,tn) of L, there
+          ;;    is such a clause, and there exists a closed tableau for
+          ;;    ¬ϕ(t1,...,tn).
+          ;;
+          ;; "The ground atom R(t1,...,tn) or the negated ground atom
+          ;; ¬R(t1,...,tn), must be of L, not of Lpar": `l-termso` rejects
+          ;; parameters. Equality has no clause, so it is never called. The
+          ;; called literal A is new; sub describes the subsidiary tableau.
+          (call-stepo [P new cert]
+            (fresh [A sub R ts xs phi root]
+              (== cert [:call A sub])
+              (membero A new)
+              (conde
+               [(== A (lcons R ts))
+                (clauseo P R xs phi)
+                (l-termso P ts)
+                (instanceo P phi xs ts root)]
+               [(fresh [phi-t]
+                  (== A ['not (lcons R ts)])
+                  (clauseo P R xs phi)
+                  (l-termso P ts)
+                  (instanceo P phi xs ts phi-t)
+                  (== root ['not phi-t]))])
+              ;; A subsidiary tableau is a new tableau for a sentence of L.
+              (brancho P [root] () () () () sub)))
+
+          ;; §5 One-One: extend the branch with those ti = ui that are new,
+          ;; then close it. The added equations are new exactly when e is,
+          ;; so `new` stays a part of `lits`.
+          (one-one-stepo [P lits new cert]
+            (fresh [e es lits' new' added rest]
+              (== cert [:one-one e rest])
+              (membero e lits)
+              (one-oneo P e es)
+              (add-new-literalso P lits es lits' added)
+              (fresh [first-added more] (== added (lcons first-added more)))
+              (conde
+               [(membero e new) (appendo added new new')]
+               [(not-on-brancho P e new) (== new' new)])
+              (closeo P lits' new' rest)))
+
+          ;; §5 Substitutivity: extend the branch with X', if it is new,
+          ;; then close it.
+          (substitutivity-stepo [P lits new cert]
+            (fresh [e X X' lits' new' rest]
+              (== cert [:substitutivity e X X' rest])
+              (membero e lits)
+              (membero X lits)
+              (substitutivityo P e X X')
+              (new-literalo P X' lits)
+              (conclusiono P e X X' lits new lits' new')
+              (closeo P lits' new' rest)))
+
+          ;; -------------------------------------------------------------
+          ;; The saturated branch with literals lits, of which new are new,
+          ;; is closed. cert says how.
+          (closeo [P lits new cert]
+            (conde
+             ;; §4: "a branch is closed if it contains ... both A and ¬A for
+             ;; some sentence A."
+             [(fresh [A]
+                (== cert [:close A])
+                (new-premiseo P A ['not A] lits new))]
+             ;; §5 Reflexivity: "for any closed term t of Lpar, t = t can be
+             ;; added to the end of any tableau branch". With ¬(t = t) on
+             ;; the branch, the branch then has A and ¬A.
+             [(fresh [t]
+                (== cert [:reflexivity t])
+                (membero ['not ['= t t]] new))]
+             ;; §5 Free Closure.
+             [(fresh [e]
+                (== cert [:free-closure e])
+                (membero e new)
+                (free-closureo P e))]
+             ;; §6 Procedure Call Rule.
+             [(then :call-stepo P new cert)]
+             ;; §5 One-One, then closure.
+             [(then :one-one-stepo P lits new cert)]
+             ;; §5 Substitutivity, then closure.
+             [(then :substitutivity-stepo P lits new cert)]))
+
+          ;; -------------------------------------------------------------
+          ;; The branch has expanded everything but its γ sentences. It
+          ;; closes, or γ is applied once more.
+          (saturatedo [P gammas lits new k cert]
+            (conde
+             [(closeo P lits new cert)]
+             [(then :gamma-stepo P gammas lits k cert)]))
+
+          ;; -------------------------------------------------------------
+          ;; Expand Z, the head of the branch's queue, by the rule of
+          ;; Table 2 that fits it. The rest of the queue is todo.
+          (expando [P Z todo gammas lits new k cert]
+            (conde
+             ;; ¬¬Z / Z
+             [(fresh [Y rest]
+                (== cert [:not-not rest])
+                (== Z ['not ['not Y]])
+                (brancho P (lcons Y todo) gammas lits new k rest))]
+             ;; ¬true / false
+             [(fresh [rest]
+                (== cert [:not-true rest])
+                (== Z ['not true])
+                (brancho P (lcons false todo) gammas lits new k rest))]
+             ;; ¬false / true
+             [(fresh [rest]
+                (== cert [:not-false rest])
+                (== Z ['not false])
+                (brancho P (lcons true todo) gammas lits new k rest))]
+             ;; α / α1, α2
+             [(fresh [a1 a2 rest]
+                (== cert [:alpha rest])
+                (alphao Z a1 a2)
+                (brancho P (llist a1 a2 todo) gammas lits new k rest))]
+             ;; β / β1 | β2
+             [(fresh [b1 b2 left right]
+                (== cert [:beta left right])
+                (betao Z b1 b2)
+                (brancho P (lcons b1 todo) gammas lits new k left)
+                (brancho P (lcons b2 todo) gammas lits new k right))]
+             ;; δ / δ(p), "for a new parameter p": "p is to be a parameter
+             ;; that has not previously occurred on the branch". The branch
+             ;; has introduced the parameters below k, and no other parameter
+             ;; can be on it (its root is a sentence of L), so (par . k) is
+             ;; new.
+             [(fresh [x matrix instance rest]
+                (== cert [:delta rest])
+                (deltao Z x matrix)
+                (substo P matrix x (lcons 'par k) instance)
+                (brancho P (lcons instance todo) gammas lits new (lcons 1 k) rest))]
+             ;; "a branch is closed if it contains an explicit
+             ;; contradiction: false"
+             [(== cert [:false])
+              (== Z false)]
+             ;; A γ sentence is kept and applied when the branch is
+             ;; saturated.
+             [(fresh [x matrix gammas']
+                (gammao Z x matrix)
+                (appendo gammas [[Z ()]] gammas')
+                (brancho P todo gammas' lits new k cert))]
+             ;; true: no rule applies, and it cannot close a branch.
+             [(== Z true)
+              (brancho P todo gammas lits new k cert)]
+             ;; A literal joins the branch's literals, as a new one.
+             [(literalo P Z)
+              (brancho P todo gammas (lcons Z lits) (lcons Z new) k cert)]))
+
+          ;; -------------------------------------------------------------
+          ;; The branch with queue todo, γ sentences gammas, literals lits
+          ;; (new of them new since it was last saturated) and parameter
+          ;; count k closes, as cert describes.
+          (brancho [P todo gammas lits new k cert]
+            (conde
+             [(== todo ())
+              (saturatedo P gammas lits new k cert)]
+             [(fresh [Z more]
+                (conso Z more todo)
+                (expando P Z more gammas lits new k cert))]))]
+
+    {:brancho brancho
+     :closed-termo closed-termo
+     :gamma-stepo gamma-stepo
+     :call-stepo call-stepo
+     :one-one-stepo one-one-stepo
+     :substitutivity-stepo substitutivity-stepo}))
 
 ;;; =====================================================================
 ;;; The relation
+
+(def ^:private unbounded
+  "The construction tied to itself: Fitting's rules, with no bound."
+  (construction (delay unbounded)))
+
+(def ^:private exhausted
+  "The stage after the last: every choice fails. `fail` is the goal that
+  has no answer."
+  (let [no-choice (fn [& _] fail)]
+    {:closed-termo no-choice
+     :gamma-stepo no-choice
+     :call-stepo no-choice
+     :one-one-stepo no-choice
+     :substitutivity-stepo no-choice}))
+
+(def ^:private stage
+  "The construction with n stages after it, then `exhausted`. One map for
+  each n."
+  (memoize
+   (fn [n]
+     (construction (delay (if (pos? n) (stage (dec n)) exhausted))))))
 
 (defn tableauo
   "cert describes a closed P-tableau for the sentence X of L (§4, §6).
 
   P is a program from `proflog.fitting.syntax/program`. Its names table must
-  cover X, which `syntax/with-sentence` arranges. With cert ground, this
-  checks it. With cert fresh and fuel a ground unary list, it searches for a
-  certificate whose branches use at most that much fuel."
-  [P X fuel cert]
-  (brancho P [X] () () () () fuel cert))
+  cover X, which `syntax/with-sentence` arranges; a ground literal of L is
+  always covered. With cert ground, this checks it. With cert fresh, it
+  searches for one, with no bound: if there is a closed tableau the search
+  finds it, and if there is none the search may not end."
+  [P X cert]
+  ((:brancho unbounded) P [X] () () () () cert))
 
-(defn fuel
-  "The unary fuel list for n."
-  [n]
-  (apply list (repeat n 1)))
+(defn fueled-tableauo
+  "tableauo, for the closed tableaus with at most n choices on each branch
+  (γ instances, procedure calls, One-One and Substitutivity steps), and
+  with no γ term deeper than the number of choices left after its γ
+  instance. n is a natural number. The search is finite."
+  [P X n cert]
+  {:pre [(nat-int? n)]}
+  ((:brancho (stage n)) P [X] () () () () cert))
+
+;;; =====================================================================
+;;; Definition 6.1
+
+(defn- definition-6-1
+  "Definition 6.1, for the closed-tableau relation closed-tableauo."
+  [closed-tableauo P A status cert]
+  (conde
+   [(== status :succeeds) (closed-tableauo P ['not A] cert)]
+   [(== status :fails) (closed-tableauo P A cert)]))
+
+(defn queryo
+  "Definition 6.1: \"A query A succeeds with program P if there is a closed
+  P-tableau for ¬A. A query A fails with program P if there is a closed
+  P-tableau for A.\"
+
+  status is :succeeds or :fails, and cert is the closed tableau that shows
+  it. A is a ground literal of L.
+  - With status fresh, the two searches are interleaved, so the first
+    closed tableau on either side answers.
+  - With status ground, only that side is searched.
+  - With cert ground, it is checked.
+
+  \"It is possible for a query A to neither succeed nor fail\". The search
+  for such a query does not end."
+  [P A status cert]
+  (definition-6-1 tableauo P A status cert))
+
+(defn fueled-queryo
+  "queryo over `fueled-tableauo` with the bound n, so the search is finite."
+  [P A n status cert]
+  (definition-6-1 (fn [P X cert] (fueled-tableauo P X n cert)) P A status cert))

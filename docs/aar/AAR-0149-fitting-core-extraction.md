@@ -1,10 +1,12 @@
 # AAR-0149: Fitting's Proflog as One core.logic Relation
 
 - Date: 2026-11-09
-- ADR: [ADR-0149](../adr/ADR-0149-fitting-core-extraction.md) (revision 6)
+- ADR: [ADR-0149](../adr/ADR-0149-fitting-core-extraction.md) (revisions 6
+  and 7)
 - Branch: `adr-0149-fitting-core-extraction`
 - Code: [`fitting/`](../../fitting/README.md)
-- Status: Layer 1 (the language) complete; Layer 2 (§8 engine) deferred
+- Status: Layer 1 (the language) complete; Layer 2 (§8 engine) deferred.
+  Revisited for revision 7 (see the last section).
 
 ## Outcome
 
@@ -173,3 +175,125 @@ completeness, fidelity and tests. It wrote and ran its own probes.
   certificate checker. It needs its own forms of the search restrictions,
   because those use structural difference on ground terms.
 - Optional: rejection diagnostics for hand-written certificates.
+
+## Revision 7 (2026-11-09): no bound in the relation, `queryo`, and `ask`
+
+The owner asked three questions about revision 6:
+- whether the relation needs fuel;
+- whether fuel could be a wrapper around a fuelless relation;
+- why the query API is needed at all.
+
+The owner then asked for the three recommendations that followed, and for
+one entry point in `proflog.fitting` that takes the language, the program
+and the query. ADR-0149's revision 7 records the decision.
+
+**Outcome.**
+- **No bound.** `tableauo [P X cert]` has no bound. The rules are written
+  once, with open recursion, and mention no fuel.
+- **Fuel is a wrapper.** `fueled-tableauo [P X n cert]` ties the same rules
+  through n stages.
+- **Definition 6.1 is a relation.** `queryo [P A status cert]`, with
+  `fueled-queryo` over the wrapper.
+- **One entry point.** `proflog.fitting/ask` takes the language as data,
+  the program's clauses and the query. It runs `queryo` with core.logic's
+  `run` and re-checks the certificate.
+- **The parallel runner is optional.** `proflog.fitting.query/race` is
+  reached through `:parallel`, `:timeout-ms` or `:both`.
+- **The paper's programs are text,** in `proflog.fitting.programs`.
+
+| | Lines |
+|---|---|
+| `fitting.clj` (`ask`, `certificate?`) | 105 |
+| `syntax.clj` | 317 |
+| `tableau.clj` (the construction, `tableauo`, `queryo`) | 978 |
+| `query.clj` (the parallel runner) | 112 |
+| `programs.clj` | 58 |
+| tests | 887 |
+
+**Tests.**
+- Default suite: 74 tests, 224 assertions, all green, in 44 s wall time
+  (it was 57 tests in 25 s). The extra time is mostly the binder-capture ⊥
+  falsifier (8 s, now run on one thread), and the new relation-level tests
+  of the unbounded search, which each find the 3 s `win(s(s(s(0))))` proof.
+- Slow suite: 2 tests, 3 assertions, all green. It took 6 m 42 s at a
+  maximum RSS of 2.35 GB while the default suite ran beside it; the three
+  queries alone take about 4 minutes (below). Revision 6 took 2 m 17 s.
+
+New tests, red first:
+- the unbounded relation finds the paper's tableau, which a bound of 3
+  cannot;
+- n counts the choices on each branch: the paper's tableau checks at 7 and
+  not at 6;
+- forced steps and closure run at n = 0;
+- γ terms are no deeper than the fuel left after the γ instance;
+- a bounded search ends;
+- every fueled certificate is accepted by `tableauo`;
+- `queryo` in prove, check and one-sided mode;
+- `ask` validates the language, the program and the query;
+- an unbounded search ends with `:exhausted` when nothing is left to try
+  (a relation with no clause);
+- the parallel runner gives the same answers as `ask`;
+- the rules mention no fuel (a source check, like the purity test).
+
+**Measurements that shaped the revision.**
+1. **No bound is needed to find a proof.** With revision 6's fuel left
+   fresh, which is unbounded, every query the paper uses found the same
+   certificate as at fuel 16, at the same speed or faster (ADR-0149
+   revision 7 has the table). A bound buys only a finite "no".
+2. **Interleaving is the race.** `queryo` with its status fresh, run on one
+   thread, found the same certificate as revision 6's parallel
+   `query-status` for every query, in 1.0–1.5 times the time.
+3. **Where the bound acts matters.** A first version charged a choice by
+   calling the step after it at the next stage. At the last stage, a choice
+   then did all its work before failing. Exhausting the binder-capture
+   query at n = 6 took 30 s, against 12 s in revision 6, and the D5
+   falsifier took 9.3 s against 1.5 s. Taking the whole choice at the next
+   stage, so that the exhausted stage fails it at once, brought them to
+   7.3 s and 1.0 s, below revision 6. This did not change the unbounded
+   search order: each moved clause body is the same `fresh`, called from
+   its `conde` clause.
+
+4. **The deep paper queries are slower without a bound.** All times on the
+   project machine, with nothing else running:
+
+   | Query | Rev 6 (parallel, fuel 16; 20 for win) | Rev 7 `ask` (one thread, no bound) | Rev 7 parallel, no bound | Rev 7 one thread, fuel 16 |
+   |---|---|---|---|---|
+   | even(s(s(0))) | 7.3 s | 10.2 s (1.4×) | 5.0 s | 7.9 s |
+   | odd(s(s(0))) | 52.4 s | 110.8 s (2.1×) | 90.5 s (1.7×) | 108.3 s |
+   | win(s⁴(0)) | 73.7 s | 112.6 s (1.5×) | 61.9 s (0.8×) | 109.4 s |
+
+   The shallow paper queries are within the ADR's 1.5× criterion
+   (win(s(s(s(0)))): 3.0–3.5 s against 3.2 s). The deep ones are not:
+   odd(s(s(0))) is 1.7–2.1× in every revision-7 mode. The cause is the
+   bound, not the restructuring. Revision 6's default bound charged each
+   function symbol of a γ term to the branch, which pruned γ choices with
+   deep terms. A search with no bound interleaves them, and revision 7's
+   fuel no longer charges them. Running the two sides on one thread adds
+   the rest. The open recursion itself costs nothing measurable: with no
+   bound, revision 7 matches revision 6 with its fuel left fresh.
+
+   The ADR's failure criterion called for a revert above 1.5×. A revert
+   would not restore these times while the default stays unbounded, which
+   the owner asked for, so the restructuring is kept and the criterion is
+   recorded as not met for the deep queries. Two remedies are open:
+   - make the fueled wrapper charge γ terms to the branch as revision 6 did,
+     by having the term generator hand the branch's continuation the stage
+     it ends at (a host-level continuation, still pure), so that `:fuel 16`
+     reproduces revision 6;
+   - make `ask` use the parallel runner by default, which brings
+     win(s⁴(0)) under revision 6 and odd(s(s(0))) to 1.7×.
+
+**Deviations.**
+- **What n means.** The bound counts choices, and a γ term may be no deeper
+  than the choices left after its γ instance. In revision 6, a γ term's
+  function symbols were charged to the same per-path budget. A host-level
+  stage cannot be charged by a term size that is known only during the
+  search without `project`, or without passing fuel through the rules. Each
+  bounded search is still finite.
+- **The ⊥ tests** keep revision 6's bound of 6. That is the same number of
+  choices, but in a language with function symbols it now allows deeper γ
+  terms, so the search is larger than before: `move`'s `win(0)` exhausts
+  in 1.0 s and D1's `t(0)` in 0.6 s. In function-free languages (D5,
+  binder capture) the two revisions count the same.
+- `query-status`, `succeeds`, `fails` and `closed-tableau` are removed. They
+  are `ask`, and `queryo` with its status ground.

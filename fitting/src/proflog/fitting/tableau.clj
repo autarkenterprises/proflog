@@ -55,9 +55,9 @@
      needs nothing. A γ sentence joins `gammas`, and a literal joins `lits`.
      None of these is a choice.
   3. When `todo` is empty the branch is *saturated*. It then either closes,
-     or applies γ to its oldest γ sentence with some closed term, moves that
-     sentence to the back of `gammas`, and continues. The rotation makes the
-     construction fair.
+     or applies γ to the γ sentence at the head of `gammas` with some closed
+     term and moves that sentence to the back. The rotation makes the
+     construction fair: every γ sentence is reached again.
   4. A saturated branch closes by:
      - both A and ¬A (§4);
      - Reflexivity against ¬(t = t) (§5);
@@ -71,30 +71,55 @@
   and which equality steps. It also records a tag for every rule application,
   so a certificate reads as the tableau it describes.
 
-  Restrictions of this normal form, each harmless for completeness
-  -----------------------------------------------------------------
+  The normal form, and why it loses nothing
+  -----------------------------------------
+  The relation accepts the tableaus of this construction only, not every
+  closed tableau Fitting's rules allow. A tableau that applies rules in
+  another order, or makes a step the restrictions below exclude, is
+  rejected. For every closed P-tableau, though, there is one in this normal
+  form, so t_P is unchanged (Theorem 7.2). The restrictions:
+
   - Closure on A and ¬A is checked on literals only. A closure on compound A
     is reached after decomposing A, as in Fitting's book.
   - Substitutivity rewrites literals only, which suffices for ground equality
-    reasoning.
-  - Reflexivity is used only to close against ¬(t = t), its only use that
-    can contribute to closing a branch. t = t is never a call (equality has
-    no clause), never a Free Closure, and replacing t by t changes nothing.
+    reasoning. One-One and Substitutivity happen only on the way to a
+    closure, because a derived literal can feed nothing but closures and
+    further equality steps.
+  - Reflexivity is used only to close against ¬(t = t). t = t is never
+    called (equality has no clause), never closes by Free Closure, and
+    rewriting t to t changes nothing. Fitting also uses t = t to derive
+    symmetry (u = t from t = u). That use is not needed here, because Free
+    Closure and Substitutivity already accept an equation in either
+    orientation, and ¬(u = t) with t = u becomes ¬(u = u) by rewriting.
   - γ's closed term is drawn from the closed terms of L and the parameters
-    already on the branch. When L has no constant symbol and the branch has
-    no parameter, there is no such term, and γ uses a new parameter. A
-    parameter that is not yet on the branch can be renamed to one of these
-    terms throughout the subtree, so nothing is lost (ADR-0149, Decision §2,
-    substitution lemma).
+    already on the branch. A parameter that is not yet on the branch can be
+    renamed to one of these terms throughout the subtree (ADR-0149, Decision
+    §2, substitution lemma). There are two exceptions, where γ uses a new
+    parameter `(par . k)` and counts it:
+    - when L has no constant and the branch no parameter, so that there is
+      no such term at all;
+    - when L has no function symbol, so that there are only finitely many
+      such terms. The γ sentence at the head of the queue could otherwise
+      use up its terms and block every γ sentence behind it.
+  - Each closed term is given to a γ sentence at most once on a branch,
+    because a second instance adds nothing.
+  - No literal is added twice, and no equation t = t is added.
+  - Every closure uses a literal that is new since the previous saturation
+    point, or one derived from such a literal. A closure from older literals
+    alone was already possible at the previous saturation point with more
+    fuel. The tableau that closes there is smaller, so nothing is lost. This
+    also stops one branch from closing in the same way at every later
+    saturation point, which would multiply the search for its β sibling.
 
   Fuel
   ----
   `fuel` is a unary list, `(1 1 1)`. Each γ application, procedure call,
-  One-One step and Substitutivity step uses one unit, and a γ term uses one
-  more unit for each function symbol in it, so γ(0) costs 1 and γ(s(s(0)))
-  costs 3. The bound is per branch path. Each fuel level is therefore a
-  finite search, and the query API (`proflog.fitting.query`) deepens it. In a
-  check, `fuel` is fresh and unconstrained."
+  One-One step (which adds all n component equations) and Substitutivity
+  step uses one unit, and a γ term uses one more unit for each function
+  symbol in it, so γ(0) costs 1 and γ(s(s(0))) costs 3. The bound is per
+  branch path, so each run is a finite search. The query API
+  (`proflog.fitting.query`) runs the relation at a fuel bound. In a check,
+  `fuel` is fresh and unconstrained."
   (:refer-clojure :exclude [==])
   (:require [clojure.core.logic :refer [== conde fresh defne lcons llist conso appendo membero]]))
 
@@ -330,17 +355,25 @@
    [(== ts ())]
    [(fresh [u us] (conso u us ts) (l-termo P u) (l-termso P us))]))
 
+(defn- new-parameter-allowedo
+  "γ may use a new parameter: L has no function symbol (only finitely many
+  closed terms), or L has no constant and the branch no parameter (no
+  closed term at all). Both are properties of L and k known in advance."
+  [P k]
+  (conde
+   [(== (:functions (:language P)) ())]
+   [(== (:constants (:language P)) ()) (== k ())]))
+
 (defn- gamma-termo
   "t is the closed term of Lpar given to γ, and k' the branch's parameter
   count afterwards. The term is a closed term of L or a parameter already on
-  the branch. When there is no such term (L has no constant and the branch
-  no parameter), it is a new parameter. fuel' is the fuel left after paying
-  for the term's function symbols."
+  the branch, or, where `new-parameter-allowedo` says so, the new parameter
+  (par . k). fuel' is the fuel left after paying for the term's function
+  symbols."
   [P k fuel t k' fuel']
   (conde
    [(closed-termo P k fuel t fuel') (== k' k)]
-   [(== (:constants (:language P)) ())
-    (== k ())
+   [(new-parameter-allowedo P k)
     (== t (lcons 'par k))
     (== k' (lcons 1 k))
     (== fuel' fuel)]))
@@ -462,7 +495,7 @@
 
 (defn- add-new-literalso
   "lits' is lits extended by those of es that are new (`new-literalo`), and
-  added counts them in unary."
+  added lists exactly those."
   [P lits es lits' added]
   (conde
    [(== es ()) (== lits' lits) (== added ())]
@@ -478,7 +511,7 @@
         (add-new-literalso P lits more lits' added)]
        [(fresh [added']
           (new-literalo P e lits)
-          (== added (lcons 1 added'))
+          (== added (lcons e added'))
           (add-new-literalso P (lcons e lits) more lits' added'))]))]))
 
 ;;; =====================================================================
@@ -528,7 +561,8 @@
 (defn one-oneo
   "The One-One Rule (§5): from f(t1,...,tn) = f(u1,...,un), with f a
   function symbol of L, the branch may be extended by ti = ui. es holds all
-  n of them, which is n applications of the rule."
+  n of them, which is n applications of the rule (the systematic
+  construction charges one unit of fuel for all of them)."
   [P e es]
   (fresh [f arity ts us]
     (== e ['= (lcons f ts) (lcons f us)])
@@ -684,18 +718,18 @@
       (membero A new)
       (callo P A fuel' sub))]
    ;; §5 One-One: extend the branch with those ti = ui that are new, then
-   ;; close it.
+   ;; close it. The added equations are new exactly when e is, so `new`
+   ;; stays a part of `lits`.
    [(fresh [e es lits' new' added rest fuel']
       (== cert [:one-one e rest])
       (== fuel (lcons 1 fuel'))
       (membero e lits)
       (one-oneo P e es)
+      (add-new-literalso P lits es lits' added)
+      (fresh [first-added more] (== added (lcons first-added more)))
       (conde
-       [(membero e new) (add-new-literalso P lits es lits' added)
-        (appendo es new new')]
-       [(not-on-brancho P e new) (add-new-literalso P lits es lits' added)
-        (== new' new)])
-      (fresh [more] (== added (lcons 1 more)))
+       [(membero e new) (appendo added new new')]
+       [(not-on-brancho P e new) (== new' new)])
       (closeo P lits' new' fuel' rest))]
    ;; §5 Substitutivity: extend the branch with X', if it is new, then close
    ;; it.

@@ -254,14 +254,28 @@ only decides how the relation is run.
     clash, and rewriting t to t changes nothing;
   - **γ terms are closed terms of L or parameters already on the branch,**
     each used at most once per γ sentence on a branch. This rests on the
-    substitution lemma below. A repeated instance adds nothing. A new
-    parameter is used only when no such term exists;
+    substitution lemma below. A repeated instance adds nothing. γ may also
+    take a new parameter in two cases:
+    - when L has no constant and the branch no parameter, so that no such
+      term exists;
+    - when L has no function symbol, so that only finitely many exist.
+
+    The second case was added after the independent review. Without it, the
+    γ sentence at the head of the queue can use up its terms and block every
+    γ sentence behind it. For example, `(∀x)(∀y)r(x,y) ∧ ¬r(a,a)` with
+    L = {a} never closed;
   - **no literal is added twice, and no t = t is added;**
   - **every closure uses a literal that is new since the previous saturation
     point,** directly or through the equality steps that derived it. A
     closure from older literals alone was available earlier with at least as
     much fuel. This is what stops a branch from closing again in the same
     way at every later saturation point.
+- **The checker accepts the normal form, not every closed tableau.** A
+  closed tableau that applies Fitting's rules in another order, or makes a
+  step the restrictions exclude, is rejected. Every closed tableau has a
+  normal-form counterpart, so t_P is unchanged. A future engine must emit
+  certificates in this normal form: agenda order, queue rotation and the
+  newness rule.
 - **Certificate format.** A certificate is the closed tableau as nested EDN
   vectors. There is one node per rule application, tagged:
   - Table 2: `:not-not`, `:not-true`, `:not-false`, `:alpha`, `:beta`

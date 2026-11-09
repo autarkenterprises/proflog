@@ -20,6 +20,56 @@ Entries before that date are reconstructed from git history and existing
 documentation, so they intentionally summarize rather than pretend to be a
 complete contemporaneous transcript.
 
+## 2026-11-09
+
+- Owner goal: implement only and exactly Fitting's Proflog as a core.logic
+  logic programming language, as near to a direct translation of the paper
+  as possible. Built Layer 1 of
+  [ADR-0149](docs/adr/ADR-0149-fitting-core-extraction.md) as the language
+  in `fitting/` (commit `d5a0446`), and recorded the design as ADR
+  revision 6.
+  - `proflog.fitting.tableau/tableauo` is one pure relation (`==`, `conde`,
+    `fresh`) that proves and checks.
+  - It implements Tables 1–2, §5 and §6 as §7's systematic construction.
+  - Notation is closer to the paper than the ADR's earlier draft: bare-symbol
+    variables, and clauses written `(<- (R x...) phi)`.
+  - The paper's §6 tableau for `win(s(s(s(0))))` was written by hand as a
+    certificate. Check mode accepts it, and prove mode finds exactly it.
+- Prove-mode performance, measured. Details are in
+  [AAR-0149](docs/aar/AAR-0149-fitting-core-extraction.md).
+  - The first version needed 70s just to exhaust fuel 5 for
+    `win(s(s(s(0))))`, which needs fuel 7. Most of the search re-derived
+    equalities that were already on the branch.
+  - Systematic-construction restrictions removed the redundant search. Each
+    is pure over ground syntax:
+    - no repeated literals and no t = t;
+    - each γ term used once per γ sentence;
+    - every closure uses a literal new since the last saturation point.
+  - Iterative deepening turned out to be the remaining cost. For even(s(0)),
+    exhausting fuel 5 took 127s, and fuel 6 then found the proof in 47ms.
+    Time to the first proof is flat in the fuel once the fuel is enough. The
+    query API therefore runs each side once at a fuel bound, races the two
+    sides, and cancels the loser by stepping core.logic's stream with an
+    interrupt check.
+- Deferred to a follow-up ADR: the §8 free-variable engine (Layer 2). §8
+  discusses implementation and is not part of the language. Layer 1's search
+  restrictions rely on ground terms, so the engine needs its own forms of
+  them.
+- An independent fidelity review by a subagent, given only the paper and the
+  code, found no soundness defect. It found one completeness defect: with no
+  function symbols in L, the γ sentence at the head of the queue could use
+  up its finitely many terms and block the γ sentences behind it, so
+  function-free queries whose s_P value was false came out `:unresolved`.
+  - Fixed by letting γ use a new parameter when L has no function symbol.
+    The counterexamples became tests, red first.
+  - Also fixed: a One-One invariant, documentation wording (the checker
+    accepts the normal form only), and twelve missing tests.
+  - Default suite: 57 tests in 25s. `:slow`: 2m17s.
+- Folded the 2026-11-08 {d, e} question into the ADR. The binder example's
+  two-element model is a weak Herbrand model with a non-standard element (§3
+  drops domain closure, and Def 3.1 is vacuous for L = {0}). s_P(p(0)) = ⊥
+  now follows from Defs 3.3–3.5 and 3.7.
+
 ## 2026-11-08
 
 - Revised [ADR-0149](docs/adr/ADR-0149-fitting-core-extraction.md) Layer 1

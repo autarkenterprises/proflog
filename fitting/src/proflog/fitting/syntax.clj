@@ -174,9 +174,10 @@
     :else #{}))
 
 (defn free-variables
-  "The free variables of a formula. Every symbol in a term position that is
-  not a constant is a variable here, so this needs no language; it is used on
-  well-formed formulas only."
+  "The free variables of a formula X of L. With L, variables are the symbols
+  that are not symbols of L. Without L, every symbol in a term position counts
+  as a variable, constants included, so `(free-variables '(p a))` is `#{a}`.
+  Use the one-argument form only when X has no symbolic constants."
   ([X] (free-variables nil X))
   ([L X]
    (let [term-vars (fn [t] (if L

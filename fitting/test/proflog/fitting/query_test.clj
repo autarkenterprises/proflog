@@ -62,9 +62,14 @@
   (is (= :succeeds (status programs/P2 '(win (s (s 0))))))
   (testing "§6's worked example: prove mode finds the paper's own tableau"
     (is (= {:status :fails :certificate win-3-fails}
-           (query/query-status programs/P2 '(win (s (s (s 0)))) {:max-fuel 12}))))
-  (testing "a definite answer at a fuel bound far above what the proof needs"
-    (is (= :succeeds (status programs/P2 '(win (s (s (s (s 0))))) :max-fuel 20)))))
+           (query/query-status programs/P2 '(win (s (s (s 0)))) {:max-fuel 12})))))
+
+(deftest ^:slow program-p2-deeper
+  ;; win(s⁴(0)) succeeds by moving to s³(0), which needs γ with s(s(s(0)))
+  ;; and then the whole §6 proof that win(s³(0)) fails. Fuel 20 is far above
+  ;; what that needs, so this also checks that a generous bound still finds
+  ;; it (about a minute).
+  (is (= :succeeds (status programs/P2 '(win (s (s (s (s 0))))) :max-fuel 20))))
 
 (deftest certificates-print-and-read-back
   (doseq [A '[(win 0) (win (s 0)) (win (s (s 0)))]]
@@ -187,3 +192,37 @@
     (is (unresolved? P '(p 0) 6))
     (testing "control: the same machinery refutes a contradictory body"
       (is (= :fails (status P '(c 0) :max-fuel 6))))))
+
+;;; ---------------------------------------------------------------------
+;;; Review findings (2026-11-09 independent fidelity review)
+
+(deftest function-free-programs
+  ;; p(z) ← (∀x)(∀y)r(x,y) ∧ ¬r(a,a) with L = {a}: the body is false in every
+  ;; weak Herbrand model, so s_P(p(a)) is false.
+  (let [La (syntax/language {:constants '[a] :functions {} :relations '{p 1 r 2}})
+        P (syntax/program La '[(<- (p z) (and (forall x (forall y (r x y))) (not (r a a))))])]
+    (is (= :fails (status P '(p a) :max-fuel 8))))
+  (let [Lab (syntax/language {:constants '[a b] :functions {} :relations '{q 1 r3 3}})
+        P (syntax/program Lab '[(<- (q w) (and (forall x (forall y (forall z (r3 x y z))))
+                                               (not (r3 a a a))))])]
+    (is (= :fails (status P '(q a) :max-fuel 10)))))
+
+(deftest a-call-substitutes-free-occurrences-only
+  ;; q(x) ← (∃x)¬(x = 0). The body has no free x, so ϕ(0) is the same
+  ;; sentence, true with x = s(0): q(0) succeeds. Substituting under the
+  ;; binder would give (∃x)¬(0 = 0), and q(0) would fail.
+  (let [Lq (syntax/language {:constants '[0] :functions '{s 1} :relations '{q 1}})
+        P (syntax/program Lq '[(<- (q x) (exists x (not (= x 0))))])]
+    (is (= :succeeds (status P '(q 0) :max-fuel 6)))))
+
+(deftest zero-place-relations-and-equality-queries
+  (let [Lp (syntax/language {:constants '[0] :functions '{s 1} :relations '{p 0 r 0}})
+        P (syntax/program Lp '[(<- (p) true) (<- (r) (not (p)))])]
+    (is (= :succeeds (status P '(p) :max-fuel 3)))
+    (is (= :fails (status P '(r) :max-fuel 3)))
+    ;; Equality has no clause; its literals are settled by §5 alone.
+    (is (= :fails (status P '(= 0 (s 0)) :max-fuel 3)))
+    (is (= :succeeds (status P '(= (s 0) (s 0)) :max-fuel 3)))))
+
+(deftest the-both-option-searches-both-sides
+  (is (= :succeeds (:status (query/query-status programs/P2 '(win (s 0)) {:max-fuel 6 :both true})))))

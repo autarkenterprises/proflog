@@ -115,7 +115,12 @@ Rule tags:
 | `:call A` | §6 |
 
 Certificates are plain EDN. `(q/certificate? P X cert)` checks one with
-the same relation that found it.
+the same relation that found it. The checker accepts the systematic
+construction's normal form, described below, not every closed tableau that
+Fitting's rules allow. Every closed tableau has a counterpart in normal form,
+so which queries succeed or fail is unchanged. A hand-written certificate has
+to follow the construction's order, and so would certificates from a future
+§8 engine.
 
 ## How it works
 
@@ -143,6 +148,10 @@ The relation is §7's systematic construction:
   - no literal is added twice;
   - every closure uses a literal that is new since the previous saturation
     point.
+- When L has no function symbols, γ may also use a new parameter, so that a
+  finite supply of terms cannot block it. The namespace docstring of
+  `proflog.fitting.tableau` gives the completeness argument for each
+  restriction.
 
 Fuel bounds the steps on each branch. The query API searches the success and
 failure sides in parallel at one fuel bound, and cancels the slower search.
@@ -156,6 +165,6 @@ the language. It would be a follow-up ADR.
 
 ```sh
 lein test         # default suite
-lein test :slow   # deeper P1 queries (seconds to a minute each)
+lein test :slow   # deeper P1 and P2 queries (about a minute each)
 lein test :all
 ```

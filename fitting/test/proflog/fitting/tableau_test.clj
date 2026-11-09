@@ -223,3 +223,72 @@
   (is (not (checks? empty-program '(not false) '[:not-false [:false]])))
   (is (checks? empty-program '(not (not (and (P 0) (not (P 0)))))
                '[:not-not [:alpha [:close (P 0)]]])))
+
+;;; ---------------------------------------------------------------------
+;;; Review findings (2026-11-09 independent fidelity review)
+
+(defn- proves?
+  "Does prove mode find a closed P-tableau for X within fuel n?"
+  [P X n]
+  (boolean (seq (run 1 [c] (t/tableauo (syntax/with-sentence P X) X (t/fuel n) c)))))
+
+(deftest gamma-is-never-stuck-in-a-language-without-function-symbols
+  ;; With finitely many closed terms of L, the γ sentence at the head of
+  ;; the queue can use up its terms. γ may then use a new parameter ("any
+  ;; closed term of Lpar"), so the γ sentences behind it are still reached.
+  (testing "L = {a}: (∀x)(∀y)r(x,y) ∧ ¬r(a,a) is unsatisfiable"
+    (let [La (syntax/language {:constants '[a] :functions {} :relations '{r 2}})]
+      (is (proves? (syntax/program La []) '(and (forall x (forall y (r x y))) (not (r a a))) 8))))
+  (testing "no constants: (∀x)(∀y)r(x,y) ∧ ¬(∀z)r(z,z) is unsatisfiable"
+    (let [L0 (syntax/language {:constants [] :functions {} :relations '{r 2}})]
+      (is (proves? (syntax/program L0 []) '(and (forall x (forall y (r x y))) (not (forall z (r z z)))) 8))))
+  (testing "a new parameter for γ is a closed term of Lpar, so the certificate checks"
+    (let [La (syntax/language {:constants '[a] :functions {} :relations '{r 2}})]
+      (is (checks? (syntax/program La []) '(and (forall x (forall y (r x y))) (not (r a a)))
+                   '[:alpha [:gamma a [:gamma (par) [:gamma a [:close (r a a)]]]]])))))
+
+(deftest falsifier-delta-parameter-must-be-new
+  ;; ∃x p(x) ∧ ∃y ¬p(y) is satisfiable. Each δ takes the next parameter, so
+  ;; the two witnesses are (par) and (par 1), and the branch stays open.
+  (let [X '(and (exists x (P x)) (exists y (not (P y))))]
+    (is (not (checks? empty-program X '[:alpha [:delta [:delta [:close (P (par))]]]])))
+    (is (not (checks? empty-program X '[:alpha [:delta [:delta [:close (P (par 1))]]]])))))
+
+(deftest falsifier-call-polarity-and-clause
+  (let [P-true (syntax/program L '[(<- (P x) true)])]
+    (testing "a positive call needs a closed tableau for ϕ(t̄), here `true`"
+      (is (not (checks? P-true '(P 0) '[:call (P 0) [:not-true [:false]]]))))
+    (testing "a relation with no clause cannot be called"
+      (is (not (checks? P-true '(not (Q 0)) '[:call (not (Q 0)) [:not-true [:false]]]))))))
+
+(deftest falsifier-one-one-needs-one-function-symbol-of-L
+  (is (not (checks? empty-program '(exists y (and (= y (s 0)) (not (= 0 0))))
+                    '[:delta [:alpha [:one-one (= (par) (s 0)) [:reflexivity 0]]]])))
+  (testing "One-One on s(s(0)) = s(0) gives s(0) = 0, which Free Closure closes"
+    (is (checks? empty-program '(= (s (s 0)) (s 0))
+                 '[:one-one (= (s (s 0)) (s 0)) [:free-closure (= (s 0) 0)]]))))
+
+(deftest falsifier-substitutivity-needs-the-equation-on-the-branch
+  (is (not (checks? empty-program '(and (P 0) (not (P (s 0))))
+                    '[:alpha [:substitutivity (= 0 (s 0)) (P 0) (P (s 0)) [:close (P (s 0))]]]))))
+
+(deftest falsifier-free-closure-needs-distinct-symbols
+  (is (not (checks? empty-program '(= 0 0) '[:free-closure (= 0 0)])))
+  (is (not (checks? empty-program '(= (s 0) (s (s 0))) '[:free-closure (= (s 0) (s (s 0)))]))))
+
+(deftest normal-form-gamma-term-once-per-sentence
+  ;; The checker accepts the systematic construction's normal form only. A
+  ;; second instance of a γ sentence with the same term adds nothing, so
+  ;; it is not a step of that construction.
+  (is (not (checks? empty-program '(and (forall x (P x)) (not (P 0)))
+                    '[:alpha [:gamma (s 0) [:gamma (s 0) [:close (P 0)]]]])))
+  (is (checks? empty-program '(and (forall x (P x)) (not (P 0)))
+               '[:alpha [:gamma 0 [:close (P 0)]]])))
+
+(deftest normal-form-closure-uses-a-new-literal
+  ;; P(0) and ¬P(0) are both on the branch before γ is applied. A closure
+  ;; on them after γ was already possible before it, so the systematic
+  ;; construction closes there.
+  (let [X '(and (and (P 0) (not (P 0))) (forall x (Q x)))]
+    (is (not (checks? empty-program X '[:alpha [:alpha [:gamma 0 [:close (P 0)]]]])))
+    (is (checks? empty-program X '[:alpha [:alpha [:close (P 0)]]]))))

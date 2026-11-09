@@ -1,0 +1,225 @@
+(ns proflog.fitting.tableau-test
+  "The tableau relation, rule by rule: §2 substitution, Table 1, and check
+  mode on hand-written certificates (ADR-0149 Test Obligations 2, 3 and 5).
+
+  Every certificate below is checked by the same relation that proves:
+  `tableauo` with a ground certificate. A test that expects rejection says
+  which rule of the paper the certificate breaks."
+  (:refer-clojure :exclude [==])
+  (:require [clojure.core.logic :refer [run run* == fresh lvar]]
+            [clojure.test :refer [deftest is testing]]
+            [proflog.fitting.syntax :as syntax]
+            [proflog.fitting.tableau :as t]))
+
+;;; ---------------------------------------------------------------------
+;;; A language and programs for the tests
+
+(def L
+  (syntax/language {:constants '[0]
+                    :functions '{s 1}
+                    :relations '{win 1 P 1 Q 1 R 2}}))
+
+(def P2
+  "Program P2 of §2: nim with moves of 1 or 2."
+  (syntax/program
+   L
+   '[(<- (win x) (exists y (and (or (= x (s y)) (= x (s (s y)))) (not (win y)))))]))
+
+(def empty-program (syntax/program L []))
+
+(defn- checks?
+  "Does tableauo accept cert as a closed P-tableau for X?"
+  [P X cert]
+  (boolean (seq (run 1 [q] (t/tableauo (syntax/with-sentence P X) X (lvar) cert)))))
+
+;;; ---------------------------------------------------------------------
+;;; §2: ϕ(t), substitution of t for the free occurrences of x
+
+(defn- subst [P phi x term]
+  (run* [out] (t/substo P phi x term out)))
+
+(deftest substitution-replaces-free-occurrences
+  (let [P (syntax/with-sentence empty-program '(forall x (R x (s x))))]
+    (is (= '[(R 0 (s 0))] (map syntax/pretty (subst P '(R x (s x)) 'x 0))))))
+
+(deftest substitution-stops-at-an-inner-binder-of-the-same-name
+  ;; Occurrences of x under an inner (∀x) are not free (§2).
+  (let [phi '(and (P x) (forall x (Q x)))
+        P (syntax/with-sentence empty-program (list 'forall 'x phi))]
+    (is (= '[(and (P (s 0)) (forall x (Q x)))]
+           (map syntax/pretty (subst P phi 'x '(s 0)))))))
+
+(deftest substitution-leaves-other-variables-and-parameters
+  (let [phi '(exists y (R x y))
+        P (syntax/with-sentence empty-program (list 'forall 'x phi))]
+    (is (= '[(exists y (R (par 1) y))]
+           (map syntax/pretty (subst P phi 'x '(par 1)))))))
+
+;;; ---------------------------------------------------------------------
+;;; Table 1: sentence categories
+
+(deftest table-1-alpha
+  (is (= '[[(P 0) (Q 0)]] (run* [a b] (t/alphao '(and (P 0) (Q 0)) a b))))
+  (is (= '[[(not (P 0)) (not (Q 0))]]
+         (map syntax/pretty (run* [a b] (t/alphao '(not (or (P 0) (Q 0))) a b)))))
+  (is (= '[[(P 0) (not (Q 0))]]
+         (map syntax/pretty (run* [a b] (t/alphao '(not (implies (P 0) (Q 0))) a b)))))
+  (is (empty? (run* [a b] (t/alphao '(or (P 0) (Q 0)) a b)))))
+
+(deftest table-1-beta
+  (is (= '[[(not (P 0)) (not (Q 0))]]
+         (map syntax/pretty (run* [a b] (t/betao '(not (and (P 0) (Q 0))) a b)))))
+  (is (= '[[(P 0) (Q 0)]] (run* [a b] (t/betao '(or (P 0) (Q 0)) a b))))
+  (is (= '[[(not (P 0)) (Q 0)]]
+         (map syntax/pretty (run* [a b] (t/betao '(implies (P 0) (Q 0)) a b)))))
+  (is (empty? (run* [a b] (t/betao '(and (P 0) (Q 0)) a b)))))
+
+(deftest table-1-gamma-and-delta
+  ;; γ(t) is Φ(t) or ¬Φ(t); the relations give x and the matrix Φ or ¬Φ.
+  (is (= '[[x (P x)]] (run* [x m] (t/gammao '(forall x (P x)) x m))))
+  (is (= '[[x (not (P x))]]
+         (map syntax/pretty (run* [x m] (t/gammao '(not (exists x (P x))) x m)))))
+  (is (= '[[x (P x)]] (run* [x m] (t/deltao '(exists x (P x)) x m))))
+  (is (= '[[x (not (P x))]]
+         (map syntax/pretty (run* [x m] (t/deltao '(not (forall x (P x))) x m)))))
+  (is (empty? (run* [x m] (t/gammao '(exists x (P x)) x m))))
+  (is (empty? (run* [x m] (t/deltao '(forall x (P x)) x m)))))
+
+;;; ---------------------------------------------------------------------
+;;; Check mode: the paper's own tableau (§6)
+
+;; §6's worked example, as certificates. The paper writes the δ parameters
+;; c and d; here each is (par), the first parameter of its own tableau. The
+;; numbers in comments are the paper's line numbers.
+
+(def win-0-fails
+  "The paper's third tableau: a closed P2-tableau for win(0)."
+  '[:call (win 0)
+    ;; (1) (∃y)[(0 = s(y) ∨ 0 = s(s(y))) ∧ ¬win(y)]
+    [:delta                                   ; (2), new parameter d
+     [:alpha                                  ; (3), (4)
+      [:beta                                  ; (5) | (6)
+       [:free-closure (= 0 (s (par)))]
+       [:free-closure (= 0 (s (s (par))))]]]]])
+
+(defn- calling-not-win
+  "A call on ¬win(n), for n = s(s(0)) or s(0), closed as the paper closes
+  its line (7): γ with the term 0, then Reflexivity on one side of β and a
+  call on win(0) on the other."
+  [n]
+  [:call (list 'not (list 'win n))
+   ;; (1) ¬(∃y)[(n = s(y) ∨ n = s(s(y))) ∧ ¬win(y)]
+   [:gamma 0                                  ; (2), with the term 0
+    [:beta                                    ; (3) | (7)
+     [:alpha                                  ; (4), (5)
+      [:reflexivity n]]                       ; (6) n = n
+     [:not-not                                ; (8) win(0)
+      win-0-fails]]]])
+
+(def win-3-fails
+  "§6's worked example: a closed P2-tableau for win(s(s(s(0)))), so
+  win(s(s(s(0)))) fails. The right-hand branch, which the paper leaves to
+  the reader, is closed in the same way as the left."
+  [:call '(win (s (s (s 0))))
+   ;; (1) (∃y)[(s³0 = s(y) ∨ s³0 = s(s(y))) ∧ ¬win(y)]
+   [:delta                                    ; (2), new parameter c
+    [:alpha                                   ; (3), (4)
+     [:beta                                   ; (5) | (8)
+      [:one-one '(= (s (s (s 0))) (s (par)))  ; (6) s(s(0)) = c
+       [:substitutivity '(= (s (s 0)) (par)) '(not (win (par))) '(not (win (s (s 0))))  ; (7)
+        (calling-not-win '(s (s 0)))]]
+      [:one-one '(= (s (s (s 0))) (s (s (par))))  ; (9) s(s(0)) = s(c)
+       [:one-one '(= (s (s 0)) (s (par)))         ; (10) s(0) = c
+        [:substitutivity '(= (s 0) (par)) '(not (win (par))) '(not (win (s 0)))  ; (11)
+         (calling-not-win '(s 0))]]]]]]])
+
+(deftest the-papers-tableau-is-accepted
+  (is (checks? P2 '(win (s (s (s 0)))) win-3-fails)))
+
+(deftest a-check-is-deterministic
+  ;; With a ground certificate every step is fixed, so the check has a
+  ;; single answer.
+  (let [X '(win (s (s (s 0))))]
+    (is (= 1 (count (run* [q] (t/tableauo (syntax/with-sentence P2 X) X (lvar) win-3-fails)))))))
+
+(deftest certificates-print-and-read-back
+  (is (= win-3-fails (read-string (pr-str (syntax/pretty win-3-fails))))))
+
+;;; ---------------------------------------------------------------------
+;;; Check mode: falsifiers. Each certificate breaks one rule of the paper.
+
+(deftest falsifier-gamma-with-a-parameter-not-yet-on-the-branch
+  ;; (∀x)(∃y)¬(y = x) is true in every weak Herbrand model of this L
+  ;; (y = s(x) is a witness), so no tableau for it closes. The certificate
+  ;; instantiates γ with (par) before δ introduces (par), so δ's parameter
+  ;; is no longer new (§4) and the branch would close by Reflexivity.
+  (is (not (checks? empty-program '(forall x (exists y (not (= y x))))
+                    '[:gamma (par) [:delta [:reflexivity (par)]]]))))
+
+(deftest falsifier-gamma-term-not-closed-or-outside-Lpar
+  ;; γ needs a closed term of Lpar (Table 2). ¬(∃x)(x = x) closes with any
+  ;; closed term, so only the term itself is at issue.
+  (let [X '(not (exists x (= x x)))]
+    (testing "x is a variable, not a closed term"
+      (is (not (checks? empty-program X '[:gamma x [:reflexivity x]]))))
+    (testing "f is not a function symbol of L"
+      (is (not (checks? empty-program X '[:gamma (f 0) [:reflexivity (f 0)]]))))
+    (testing "s(0) is a closed term of L"
+      (is (checks? empty-program X '[:gamma (s 0) [:reflexivity (s 0)]])))))
+
+(deftest falsifier-closure-on-alpha-variants
+  ;; Closure needs "both A and ¬A for some sentence A" (§4): syntactic
+  ;; identity. (∀x)P(x) and ¬(∀y)P(y) are different sentences.
+  (let [X '(and (forall x (P x)) (not (forall y (P y))))]
+    (is (not (checks? empty-program X '[:alpha [:close (forall x (P x))]])))
+    (testing "the paper's closure goes through δ, γ and an atomic closure"
+      (is (checks? empty-program X '[:alpha [:delta [:gamma (par) [:close (P (par))]]]])))))
+
+(deftest falsifier-call-on-an-atom-with-a-parameter
+  ;; The Procedure Call Rule applies to atoms of L, not of Lpar (§6). With
+  ;; P(x) ← true, every P(t) with t in L is true, but a non-standard element
+  ;; need not satisfy P, so (∃y)¬P(y) has value ⊥ and no tableau for it may
+  ;; close. Calling on ¬P(c) for the δ parameter c would close it.
+  (let [P-true (syntax/program L '[(<- (P x) true)])]
+    (is (not (checks? P-true '(exists y (not (P y)))
+                      '[:delta [:call (not (P (par))) [:not-true [:false]]]])))
+    (testing "the same call on an atom of L is allowed"
+      (is (checks? P-true '(not (P 0)) '[:call (not (P 0)) [:not-true [:false]]])))))
+
+(deftest falsifier-open-leaf
+  (is (not (checks? empty-program '(and (P 0) (not (Q 0))) '[:alpha [:close (P 0)]])))
+  (is (not (checks? empty-program '(P 0) '[:false]))))
+
+(deftest falsifier-wrong-rule-for-the-sentence
+  ;; P(0) ∧ ¬P(0) is α, not β.
+  (is (not (checks? empty-program '(and (P 0) (not (P 0)))
+                    '[:beta [:close (P 0)] [:close (P 0)]])))
+  (is (checks? empty-program '(and (P 0) (not (P 0))) '[:alpha [:close (P 0)]])))
+
+(deftest falsifier-free-closure-on-a-parameter
+  ;; Free Closure concerns symbols of L; (par) is a parameter, so
+  ;; (par) = 0 does not close a branch (§5).
+  (is (not (checks? empty-program '(exists y (= y 0)) '[:delta [:free-closure (= (par) 0)]])))
+  (testing "it does close on s(0) = 0"
+    (is (checks? empty-program '(= (s 0) 0) '[:free-closure (= (s 0) 0)]))))
+
+(deftest falsifier-substitutivity-must-replace-one-occurrence
+  (let [X '(and (= 0 (s 0)) (and (P 0) (not (P (s (s 0))))))]
+    ;; One replacement of 0 by s(0) in P(0) gives P(s(0)), not P(s(s(0))).
+    (is (not (checks? empty-program X
+                      '[:alpha [:alpha [:substitutivity (= 0 (s 0)) (P 0) (P (s (s 0)))
+                                        [:close (P (s (s 0)))]]]])))))
+
+(deftest falsifier-reflexivity-needs-identical-sides
+  (is (not (checks? empty-program '(not (= 0 (s 0))) '[:reflexivity 0])))
+  (is (checks? empty-program '(not (= (s 0) (s 0))) '[:reflexivity (s 0)])))
+
+;;; ---------------------------------------------------------------------
+;;; Table 2's propositional rules and constants
+
+(deftest table-2-negation-rules
+  (is (checks? empty-program false '[:false]))
+  (is (checks? empty-program '(not true) '[:not-true [:false]]))
+  (is (not (checks? empty-program '(not false) '[:not-false [:false]])))
+  (is (checks? empty-program '(not (not (and (P 0) (not (P 0)))))
+               '[:not-not [:alpha [:close (P 0)]]])))

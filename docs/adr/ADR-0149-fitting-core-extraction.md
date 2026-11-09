@@ -1,6 +1,7 @@
 # ADR-0149: Fitting-Core Extraction — Reference Tableau and Repaired Free-Variable Engine
 
-- Status: proposed
+- Status: accepted. Layer 1, the language, was implemented in revision 6
+  (2026-11-09). Layer 2, the §8 engine, is deferred.
 - Date: 2026-11-07
 - Branch: `adr-0149-fitting-core-extraction`
 - Base: `origin/main` `f1d6ed0` (its `src/` is byte-identical to `849fd55`,
@@ -47,6 +48,54 @@ its merits rather than inheriting it from the root code. It also states what
 Fitting requires of free-variable unification: the expected result and the
 rules that achieve it. The engine now uses named variables as well. See
 Decision §2, "With §8's free variables".
+
+## Revision 6 (2026-11-09): Layer 1 implemented as the language
+
+The owner set the goal: implement only and exactly the Proflog language
+Fitting defines, as a logic programming language that uses core.logic to
+simplify the implementation and is as near to a direct translation of the
+paper as possible. Existing material, this ADR included, is not to be
+over-indexed. Layer 1 now exists in `fitting/`. Building it settled the
+following points, each decided from the paper. Decision §2,
+"Implementation as built", has the details.
+
+1. **The language is §2–§7.** §8 is Fitting's discussion of implementation
+   ("Implementation and Other Issues"). Its free-variable engine (Layer 2,
+   Decision §3) is not part of the language, so it is deferred to a
+   follow-up ADR. The ground calculus runs the paper's examples within
+   seconds (AAR-0149).
+2. **Notation closer to the paper.**
+   - Variables are bare symbols: `(forall x (P x))`, not
+     `(forall x (P (var x)))`.
+   - Clauses are written `(<- (R x1 … xn) ϕ)`.
+   - `substo` is still §2's two cases. The names table now pairs each
+     variable with every variable and constant.
+3. **The relation is §7's systematic construction.** Branches expand their
+   sentences in agenda order. Choices happen only at *saturation points*:
+   which closure, which γ term, which equality steps. Certificates name
+   every rule application. They contain literals and γ terms but no
+   quantified formulas, so they read as the tableau they describe.
+4. **Normal-form restrictions that keep completeness.** Each is the
+   systematic construction's, not the paper's rules:
+   - closure on A/¬A is checked on literals;
+   - Substitutivity rewrites literals;
+   - Reflexivity is used only to close against ¬(t = t);
+   - γ terms are drawn from L's closed terms and the parameters already on
+     the branch, and each is used at most once per γ sentence on a branch;
+   - no literal is added twice, and no equation t = t is added;
+   - every closure uses a literal that is new since the previous saturation
+     point.
+
+   Ground terms make every "different" test structural, so the
+   restrictions are pure relations over the distinctness tables.
+5. **The query API is search control only.** Each side is one prove-mode
+   run at a fuel bound, and the two sides run in parallel. The first closed
+   tableau wins, the other search is cancelled, and the certificate is
+   re-checked in check mode. Iterative deepening was measured and rejected
+   (see the AAR). An insufficient fuel level must be exhausted, which can
+   take a hundred times longer than finding the proof one level up.
+6. The {d, e} model in the binder example is now justified from §3 (Def
+   3.1, 3.3–3.5, 3.7), as the owner asked on 2026-11-08.
 
 ## Context
 
@@ -148,70 +197,127 @@ The extraction lives in a new Leiningen project at `fitting/` on branch
 - The root project is not modified apart from documentation, so the branch can
   merge into `main` without regressing anything.
 
-### 2. Layer 1 — reference relation (§2, §4–§7, literally)
+### 2. Layer 1 — the language (§2, §4–§7, literally)
 
-One core.logic relation, `proflog.fitting.reference/tableauo`, transcribes
-Tables 1–2, §5 and §6 over ground sentences of Lpar. Formulas keep ¬, ⊃, `true`
-and `false` as written, with no NNF, so the rules are Fitting's and not a
-normal-form variant. Following leanTAP and αleanTAP, the relation has a
-certificate argument:
+One core.logic relation, `proflog.fitting.tableau/tableauo`, transcribes
+Tables 1–2, §5 and §6 over ground sentences of Lpar, arranged as §7's
+systematic construction. Formulas keep ¬, ⊃, `true` and `false` as written,
+with no NNF, so the rules are Fitting's and not those of a normal-form
+variant. Following leanTAP and αleanTAP, the relation has a certificate
+argument:
 
-- with the certificate fresh, it is the reference prover;
-- with a ground certificate, it is the checker for engine output.
+- with the certificate fresh, it is the prover;
+- with a ground certificate, it is the checker.
 
-Prover and checker are the same code, so they cannot disagree. Layer 1 shares
-no code with Layer 2.
+Prover and checker are the same code, so they cannot disagree. Layer 1 is
+the whole language. The query API (`proflog.fitting.query`, Definition 6.1)
+only decides how the relation is run.
 
-- `proflog.fitting.syntax`: plain data for L, terms, parameters, formulas,
-  programs and queries, written in the paper's notation. `(∀x)P(x)` is
-  `(forall x (P (var x)))`, a parameter is `(par k)`, and a clause
-  `R(x₁,…,xₙ) ← ϕ` is `(R [x₁ … xₙ] ϕ)`. There is no compile step: the data is
-  the formula. The namespace only checks well-formedness: Def 2.1 (at most one
-  clause per relation, distinct head variables, every free variable of a body
-  among its head variables, so that `ϕ(t̄)` is a sentence) and that a query is
-  a ground literal of L.
-- **Certificate format.** A certificate is a tableau tree. Each node names its
-  rule, its premise (by position on the branch), and any γ term. A δ node names
-  its parameter `(par k)`. Each leaf names its closure: `false`, `A`/`¬A`, a
-  Free Closure case, or a Procedure Call carrying the nested certificate for
-  `φ(t̄)` or `¬φ(t̄)`. Certificates are plain EDN data: they can be written by
-  hand, printed and read back.
-- **Pure subset only:** `==`, `conde`, `fresh`, and relations built from them
-  over finite tables. No nominal logic, no `!=`, no `clojure.core.logic.fd`,
-  no `conda`/`condu`/`project`. Side conditions are stated without negation:
-  - Binders: bound variables are named, as in the paper. `substo` transcribes
-    Fitting's definition of `ϕ(t₁,…,tₙ)`, "substituting t₁,…,tₙ for all free
-    occurrences of x₁,…,xₙ" (§2). An occurrence `(var y)` is replaced if `y` is
-    being instantiated and kept otherwise. A quantifier that binds one of
-    the instantiated names stops substitution for that name below it. The
-    inserted terms are closed, so nothing can be captured, and no renaming
-    clause is needed. Closure on `A`/`¬A` is `==` on sentences, which is the
-    paper's syntactic identity. Alpha-variants such as `(∀x)P(x)` and
-    `(∀y)P(y)` are different sentences, as in the paper.
-  - Name distinctness: no rule creates a variable name, because γ, δ, calls
-    and Substitutivity insert only closed terms. The names in play are exactly
-    those written in the program, so the test that a name is not the one
-    being instantiated is a finite table of distinct name pairs generated
-    from the program text.
-  - δ freshness: each branch carries a counter of the parameters introduced
-    on it. δ introduces `(par k)` with `k` the counter and increments it, so
-    the parameter is new to the branch by construction.
-  - γ terms: closed terms over L's symbols and the parameters already on the
-    branch. Only when no such term exists, which needs an L with no constant
-    symbol, does γ use the next parameter and increment the counter.
-  - Free Closure's "distinct symbols of L": a finite table of distinct symbol
-    pairs generated from L.
-  - "Atom of L" for calls: a structural relation over L's signature.
-- **Check mode is search-free.** Every `conde` clause unifies the certificate's
-  rule tag before anything else, so with a ground certificate all clauses but
-  one fail immediately.
-- **Prove mode is complete in the limit.** Completeness comes from miniKanren's
-  interleaving search, with γ terms enumerated lazily; fuel bounds each run. It
-  is slow by design.
-- **Rejection diagnostics.** When a certificate is rejected, a plain-Clojure
-  walk re-runs the per-step relation `stepo` on each node to name the first
-  failing node and rule. The walk only locates the failure; acceptance is
-  decided by `tableauo` alone.
+#### Implementation as built (revision 6)
+
+- **Notation** (`proflog.fitting.syntax`). The notation is plain data in the
+  paper's form:
+  - `(∀x)P(x)` is `(forall x (P x))`, and variables are the symbols that
+    are not symbols of L;
+  - a parameter is `(par)`, `(par 1)`, `(par 1 1)`, … (unary);
+  - a clause `R(x₁,…,xₙ) ← ϕ` is `(<- (R x₁ … xₙ) ϕ)`.
+
+  There is no compile step: the data is the formula. The namespace checks
+  well-formedness only:
+  - Def 2.1: at most one clause per relation, distinct head variables, and
+    every free variable of a body among its head variables, so that `ϕ(t̄)`
+    is a sentence;
+  - a query is a ground literal of L.
+- **Systematic construction (§7).** A branch holds:
+  - a queue of unexpanded sentences;
+  - its γ sentences, each with the terms already given to it;
+  - its literals, and which of them are new since the last saturation
+    point;
+  - its parameter count.
+
+  The head of the queue is expanded by the one Table 2 rule its shape
+  selects: ¬¬, ¬true, ¬false, α, β or δ. `false` closes the branch,
+  `true` is dropped, a γ sentence is set aside, and a literal is recorded.
+  When the queue is empty the branch is *saturated*, and it either:
+  - closes: A/¬A, Reflexivity against ¬(t = t), Free Closure, or the
+    Procedure Call Rule, possibly after One-One and Substitutivity steps
+    that add literals;
+  - or applies γ to its oldest γ sentence and continues. Rotating the γ
+    sentences makes the construction fair.
+- **Normal-form restrictions,** each sound (it only selects among Fitting's
+  rule applications) and complete (it loses no closed tableau):
+  - **closure on A/¬A is checked for literals.** A compound A is decomposed
+    first;
+  - **Substitutivity rewrites literals.** That suffices for ground equality;
+  - **Reflexivity is used only to close against ¬(t = t),** its only use
+    that can contribute to a closure. Equality has no clause, t = t cannot
+    clash, and rewriting t to t changes nothing;
+  - **γ terms are closed terms of L or parameters already on the branch,**
+    each used at most once per γ sentence on a branch. This rests on the
+    substitution lemma below. A repeated instance adds nothing. A new
+    parameter is used only when no such term exists;
+  - **no literal is added twice, and no t = t is added;**
+  - **every closure uses a literal that is new since the previous saturation
+    point,** directly or through the equality steps that derived it. A
+    closure from older literals alone was available earlier with at least as
+    much fuel. This is what stops a branch from closing again in the same
+    way at every later saturation point.
+- **Certificate format.** A certificate is the closed tableau as nested EDN
+  vectors. There is one node per rule application, tagged:
+  - Table 2: `:not-not`, `:not-true`, `:not-false`, `:alpha`, `:beta`
+    (two subtrees), `:delta`, `:gamma t`;
+  - closures: `:false`, `:close A`, `:reflexivity t`, `:free-closure e`;
+  - §5 extensions: `:one-one e`, `:substitutivity e X X'`;
+  - `:call A` with the subsidiary tableau's certificate.
+
+  Certificates name literals and γ terms but no quantified formula, so they
+  contain no binders. They can be written by hand, printed and read back.
+  The paper's §6 tableau for `win(s(s(s(0))))` is in the test suite as
+  written, and prove mode finds exactly that certificate.
+- **Pure subset only:** `==`, `conde`, `fresh`, and relations built from
+  them (`defne`, `conso`, `appendo`, `membero`) over finite tables. There is
+  no nominal logic, `!=`, `clojure.core.logic.fd`, `conda`/`condu`/`onceo`
+  or `project`. Side conditions are stated without negation:
+  - **Binders** are named, as in the paper. `substo` transcribes Fitting's
+    definition of `ϕ(t₁,…,tₙ)`, "substituting t₁,…,tₙ for all free
+    occurrences of x₁,…,xₙ" (§2):
+    - an occurrence of the variable being instantiated is replaced, and any
+      other leaf is kept;
+    - a quantifier that binds the same name stops substitution below it;
+    - the inserted terms are closed, so nothing can be captured.
+
+    Closure on `A`/`¬A` is `==` on sentences, the paper's syntactic
+    identity.
+  - **Name distinctness:** a finite table of (variable, leaf) pairs built
+    from the program text, the root sentence and L's constants. No rule
+    creates a name.
+  - **δ freshness:** each branch counts the parameters it has introduced. δ
+    introduces `(par . k)` and increments the count, so the parameter is new
+    to the branch by construction.
+  - **"Distinct symbols of L"** (Free Closure), and term and literal
+    difference (the restrictions above), come from finite tables of distinct
+    constant, function and relation symbol pairs. On ground syntax,
+    difference is structural.
+  - **"Atom of L"** for calls is a structural relation that admits no
+    parameter.
+- **Check mode is search-free.** Every clause unifies the certificate's rule
+  tag, or the shape of the sentence being expanded, before anything else. A
+  check of the paper's certificate has exactly one answer.
+- **Fuel.** Each γ application, call, One-One step and Substitutivity step
+  costs one unit, and a γ term costs one more unit per function symbol in
+  it. The bound is per branch path, so each run is a finite search. In check
+  mode the fuel is fresh.
+- **Search control** (`proflog.fitting.query`):
+  - one prove-mode run per side at the fuel bound;
+  - the two sides in parallel, with the first closed tableau winning and
+    the other search cancelled;
+  - every certificate re-checked in check mode before it is reported.
+
+  Cancellation steps core.logic's stream directly, with the same loop as
+  `run`, and checks for thread interruption.
+- **Not built:** rejection diagnostics, meaning a host walk that names the
+  first failing node of a rejected certificate. Acceptance never depended on
+  it.
 
 #### Why named variables, not nominal logic or de Bruijn indices
 
@@ -265,20 +371,24 @@ paper's own: named variables.
      `<nom:y__14286>`, ties print as `[<nom:…>] body`, and neither can be
      read back.
 4. **Independence.** Layer 1 and Layer 2 share no rule code: each has its own
-   substitution and closure. Certificates contain rule tags, branch positions
-   and terms, but no formulas, so binders never cross between the layers.
+   substitution and closure. Certificates contain rule tags, literals and
+   terms, but no quantified formulas, so binders never cross between the
+   layers.
 
 The cost is that named substitution is correct only because the inserted
 terms are closed. An open term would be captured silently, where nominal
 logic would stay correct. The invariant is therefore enforced, not assumed.
 γ terms, call arguments and Substitutivity terms must satisfy the
-closed-term-of-Lpar relation, which has no case for `(var x)`, and a
+closed-term-of-Lpar relation, which has no case for a variable, and a
 falsifier tests this (Test Obligation 3).
 
 Neither lemma depends on the binder representation. Both are needed for any
 finite reading of "any closed term of Lpar" and "a new parameter".
 
 #### With §8's free variables
+
+(This analysis was written before revision 6 and writes a bound occurrence
+of y as `(var y)`. In revision 6's notation it is the bare symbol `y`.)
 
 §8 replaces γ's "any closed term" with "a free variable, followed by later
 unification to close branches". A free variable is therefore a placeholder
@@ -305,12 +415,25 @@ with a bound occurrence.
 - *Example.* Let S be
   `(∀x)[((∀y)R(x,y) ∧ ¬(∀y)R(y,y)) ∨ ((∀y)Q(x,y) ∧ ¬(∀y)Q(y,y))]`, with
   L = {0}, no function symbols, and no clauses for R or Q.
-  - S is satisfiable. Take the domain {d, e}, with R false only at (d,d) and
-    Q false only at (e,e).
-  - S is false in the one-element model {0}.
+  - S is false in the weak Herbrand model whose domain is exactly the
+    Herbrand universe {0}. At x = 0, each disjunct needs both R(0,0) (or
+    Q(0,0)) and its negation.
+  - S is true in the weak Herbrand model with domain {d, e}, 0ᴵ = d, and e
+    non-standard. §3 drops domain closure ("there may be other
+    'non-standard' items"), and Def 3.1 is vacuous for L = {0}. Take R false
+    only at (d,d) and Q false only at (e,e).
 - *Fitting's expected result.* S has no closed tableau. For the program
-  `p(w) ← S`, p(0) is true in the two-element weak Herbrand model and false
-  in the one-element one, so s_P(p(0)) = ⊥: p(0) neither succeeds nor fails.
+  `p(w) ← S`:
+  - s_P(p(0)) = s_P(S) by Def 3.5.
+  - R and Q have no clauses, so Φ_P gives every R and Q atom of L the value
+    ⊥ at every stage (Def 3.7), and so does s_P. Both models therefore
+    extend s_P (Def 3.3).
+  - S is true in one of them and false in the other, so s_P(S) = ⊥ (Def
+    3.4), and p(0) neither succeeds nor fails.
+
+  The tableau side agrees. The δ parameter for ¬(∀y)Q(y,y) can name the
+  non-standard element. It is not in L, so neither Free Closure nor a call
+  can use it, and no rule can show that the domain is {0}.
 - *The hazard.*
   - γ introduces the placeholder `v`, and β splits.
   - On the left, unifying `(∀y)R(v,y)` with `(∀y)R(y,y)` binds
@@ -363,7 +486,15 @@ from certificates. That is outside Fitting's proposal.
 
 ### 3. Layer 2 — free-variable engine (§8), core.logic
 
-Extracted from the keep-list in Appendix A, with these changes:
+**Deferred (revision 6).** §8 is Fitting's discussion of implementation, not
+part of the language. Layer 1 runs the paper's programs on its own, so the
+engine is deferred to a follow-up ADR, which starts from the design below.
+That ADR must also give the engine its own forms of Layer 1's search
+restrictions. Those use structural difference on ground terms, which a term
+holding an unbound logic variable does not support.
+
+The design as proposed: extracted from the keep-list in Appendix A, with
+these changes:
 
 - **Named binders.** The engine uses Layer 1's notation, `(forall x ϕ)` with
   occurrences `(var x)`, and has its own `substo` that inserts logic
@@ -406,6 +537,10 @@ Extracted from the keep-list in Appendix A, with these changes:
 
 ### 4. Proof-carrying answers
 
+Layer 1's query API already works this way. Every `:succeeds` or `:fails`
+carries a certificate that the relation has re-checked in check mode. The
+rest of this section is for the deferred engine.
+
 The engine returns certificates, not bare statuses. After a closure, the final
 rigid substitution is applied. Each distinct ground Skolem term becomes a fresh
 parameter, and each unbound variable becomes a closed L-term consistent with
@@ -438,6 +573,8 @@ debt.
 
 ## Consequences
 
+- Revision 6: the language is delivered by Layer 1 alone. The points below
+  about Layer 2 apply to the follow-up ADR.
 - There are two implementations of one specification. That is the point:
   Layer 1 is the oracle and certificate checker for Layer 2, and its own
   correctness is reviewable rule by rule against Tables 1–2 and §5–§6.
@@ -485,6 +622,22 @@ debt.
 ## Test Obligations
 
 Red first, in this order. Each test states its `s_P` value and the §3 argument.
+
+Status at revision 6 (in `fitting/test/proflog/fitting/`):
+- Obligations 1, 2, 4 and 5 are met.
+- Obligation 3 is met with the following changes:
+  - Certificates do not name δ parameters or rule components, because the
+    relation computes them. The δ-parameter falsifier is therefore replaced
+    by its γ counterpart: a γ term that is a parameter not yet on the
+    branch. That is D1's shape, and it would make the later δ parameter not
+    new.
+  - The wrong-component falsifier is replaced by a wrong rule tag for the
+    sentence.
+  - The `stepo` diagnostics are not built.
+- Obligation 6's D1–D5, binder-capture and D5 falsifier cases run against
+  Layer 1 at the query level, with positive controls. The binder-escape
+  falsifier and obligation 7 need the engine, so they move to the follow-up
+  ADR.
 
 1. Subproject skeleton: a namespace-closure test asserting that the transitive
    requires of `proflog.fitting.*` are within `clojure.*`, `clojure.core.logic*`,
@@ -546,6 +699,17 @@ Red first, in this order. Each test states its `s_P` value and the §3 argument.
 7. Differential: engine against reference on the test corpus.
 
 ## Exit Criteria
+
+Revision 6, for Layer 1 (this ADR):
+
+- Obligations 1–5 and the Layer 1 part of 6 are green in the default suite.
+  The deeper P1 queries are green in `lein test :slow`.
+- Prove mode finds the paper's §6 tableau.
+- An independent fidelity review of the code against the paper has been done
+  and its findings addressed.
+- An AAR records line counts, timings and the design measurements.
+
+As proposed, for both layers (the engine criteria move to the follow-up ADR):
 
 - All obligations above are green in both layers, with the reference within
   its fuel budget.

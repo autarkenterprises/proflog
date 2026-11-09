@@ -39,10 +39,12 @@
 
 ;; Whole-tableau consequence. Let
 ;;   S = ∀x[ (∀y R(x,y) ∧ ¬∀y R(y,y)) ∨ (∀y Q(x,y) ∧ ¬∀y Q(y,y)) ].
-;; S is satisfiable on {d,e}, with R false only at (d,d) and Q false only at
-;; (e,e), so Fitting's calculus has no closed tableau for it. After γ (v) and
-;; β, each branch "closes" if its quantified pair unifies. The binding of v is
-;; global (rigid), so one binding must serve both branches.
+;; S is true in the weak Herbrand model {d,e} with 0 ↦ d and e non-standard
+;; (§3 drops domain closure; Def 3.1 is vacuous for L = {0}), R false only at
+;; (d,d) and Q false only at (e,e). So Fitting's calculus has no closed
+;; tableau for it. After γ (v) and β, each branch "closes" if its quantified
+;; pair unifies. The binding of v is global (rigid), so one binding must serve
+;; both branches.
 ;; Expected output:
 ;;   named: both branches close   : ((var y))  ; escape left, capture right: S refuted
 ;;   nominal: both branches close : ()         ; names globally distinct: no recapture

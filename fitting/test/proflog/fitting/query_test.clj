@@ -10,7 +10,8 @@
   (:require [clojure.test :refer [deftest is testing]]
             [proflog.fitting.programs :as programs]
             [proflog.fitting.query :as query]
-            [proflog.fitting.syntax :as syntax]))
+            [proflog.fitting.syntax :as syntax]
+            [proflog.fitting.tableau-test :refer [win-3-fails]]))
 
 (defn- status [P A & {:as opts}]
   (:status (query/query-status P A (merge {:max-fuel 12} opts))))
@@ -59,8 +60,22 @@
   (is (= :fails (status programs/P2 '(win 0))))
   (is (= :succeeds (status programs/P2 '(win (s 0)))))
   (is (= :succeeds (status programs/P2 '(win (s (s 0))))))
-  (testing "§6's worked example"
-    (is (= :fails (status programs/P2 '(win (s (s (s 0)))))))))
+  (testing "§6's worked example: prove mode finds the paper's own tableau"
+    (is (= {:status :fails :certificate win-3-fails}
+           (query/query-status programs/P2 '(win (s (s (s 0)))) {:max-fuel 12}))))
+  (testing "a definite answer at a fuel bound far above what the proof needs"
+    (is (= :succeeds (status programs/P2 '(win (s (s (s (s 0))))) :max-fuel 20)))))
+
+(deftest certificates-print-and-read-back
+  (doseq [A '[(win 0) (win (s 0)) (win (s (s 0)))]]
+    (let [{:keys [certificate]} (query/query-status programs/P2 A {:max-fuel 8})]
+      (is (= certificate (read-string (pr-str certificate)))))))
+
+(deftest a-timeout-is-reported-as-such
+  ;; win(0) under the factored program is ⊥, so at a large fuel neither
+  ;; search ends quickly; the API stops them and says so.
+  (is (= {:status :unresolved :reason :timeout :max-fuel 40}
+         (query/query-status programs/move-program '(win 0) {:max-fuel 40 :timeout-ms 500}))))
 
 ;;; ---------------------------------------------------------------------
 ;;; Program P1: "even(t) is true just of those closed terms of the form

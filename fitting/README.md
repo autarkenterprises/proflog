@@ -84,6 +84,25 @@ paper's line numbers.
     ...]]]]
 ```
 
+A second example: why `odd(s(0))` succeeds under P1. The query succeeds
+because the tableau for ¬odd(s(0)) closes:
+
+```clojure
+[:call (not (odd (s 0)))           ; ¬odd(s(0)) calls ¬(∀y)[even(y) ⊃ ¬(s(0) = y)]
+ [:delta                           ; ¬[even(c) ⊃ ¬(s(0) = c)] for a new c
+  [:alpha                          ; even(c), ¬¬(s(0) = c)
+   [:not-not                       ; s(0) = c
+    [:substitutivity (= (s 0) (par)) (even (par)) (even (s 0))
+     [:call (even (s 0))           ; refute even(s(0)):
+      [:beta [:free-closure (= (s 0) 0)]           ;   s(0) = 0 is impossible
+             [:delta [:alpha                       ;   s(0) = s(d) ∧ odd(d)
+              [:one-one (= (s 0) (s (par)))        ;   0 = d
+               [:substitutivity (= 0 (par)) (odd (par)) (odd 0)
+                [:call (odd 0)                     ;   refute odd(0):
+                 [:gamma 0 [:beta [:call (not (even 0)) [:alpha [:reflexivity 0]]]
+                                  [:reflexivity 0]]]]]]]]]]]]]]]
+```
+
 Rule tags:
 
 | Tag | Rule |

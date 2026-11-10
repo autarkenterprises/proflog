@@ -105,6 +105,31 @@ complete contemporaneous transcript.
   and pruned deep ones, and an unbounded search cannot. The ADR's 1.5×
   criterion is recorded as not met for these, and the remedies are left to
   the owner.
+- The owner chose: "The speed is fine, increased code complexity is the
+  greater risk." No remedy; streamline the engine so it reads closer to the
+  paper. That became
+  [ADR-0149](docs/adr/ADR-0149-fitting-core-extraction.md) revision 8.
+  - Fitting gives the systematic construction no details ("we skip the
+    details"), so every restriction in the relation is ours. The first
+    version of the revision removed the three anti-repetition restrictions
+    (γ term once, no literal twice, closure on a new literal) and let γ
+    always take a new parameter.
+  - Dead end, measured. With no restriction, the unbounded search for the
+    paper's `win(s(s(s(0))))` tableau ran out of memory after 20 minutes.
+    With only "no literal twice" it took 27.6 s (2.5–3.3 s before) and the
+    ⊥ tests 5–70 times as long. A new γ parameter in every language made
+    D1's ⊥ test 105 s (1.8 s before). The machine was loaded and suspended
+    once, so the decisive runs were paired with revision 7 in one load.
+  - Kept: the restrictions, now in one clearly labelled section; one
+    structural `differento` over one table of distinct symbols instead of
+    seven typed relations; One-One adds one equation tᵢ = uᵢ, which the
+    certificate names (`[:one-one e (= t u) rest]`); the call rule's two
+    cases share one body. `tableau.clj` 978 → 898 lines.
+  - Found: revision 7's `normal-form-gamma-term-once-per-sentence` rejected
+    its certificate for a second reason (γ with s(0) cannot close against
+    ¬P(0)); fixed to repeat 0.
+  - Default suite: 76 tests, 230 assertions, green, 1 m 17 s on the loaded
+    machine. Slow suite green, 15 m 09 s (6 m 42 s in revision 7).
 
 ## 2026-11-08
 

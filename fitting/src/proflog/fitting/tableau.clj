@@ -22,13 +22,17 @@
   `conso`, `appendo`, `membero`) are used. There is no `!=`, no nominal
   logic, no `fd`, no `conda`/`condu` and no `project`. Each side condition
   the paper states negatively is a lookup in a finite table built by
-  `proflog.fitting.syntax`:
+  `proflog.fitting.syntax`, or holds by construction:
 
   - \"distinct constant/function symbols of L\" (Free Closure, §5);
   - \"an occurrence of the variable being substituted\" (§2), using the
     names table;
   - \"a new parameter\" (δ, §4): the branch counts its parameters, so
     `(par . k)` is new by construction.
+
+  The construction's own conditions (a literal not already on the branch,
+  a term a γ sentence has not had) are structural difference of ground
+  expressions, over the table of distinct symbols (`differento`).
 
   Representation
   --------------
@@ -42,9 +46,9 @@
 
   Systematic construction (§7)
   ----------------------------
-  Fitting's completeness proof (Proposition 7.7) uses \"a systematic tableau
-  construction\" in the style of Smullyan and of Fitting's own book, adapted
-  to §5 and §6. The relation is that construction.
+  Fitting's completeness proof (Proposition 7.7) adapts \"a systematic
+  tableau construction method\" from Smullyan or from his own book to §5
+  and §6, and \"we skip the details\". The relation is such a construction.
 
   1. A branch keeps a queue of sentences not yet expanded (`todo`), its γ
      sentences (`gammas`), its literals (`lits`), and the parameters it
@@ -70,13 +74,13 @@
   and which equality steps. It also records a tag for every rule application,
   so a certificate reads as the tableau it describes.
 
-  The normal form, and why it loses nothing
-  -----------------------------------------
+  What the construction leaves out, and why that loses nothing
+  ------------------------------------------------------------
   The relation accepts the tableaus of this construction only, not every
   closed tableau Fitting's rules allow. A tableau that applies rules in
-  another order, or makes a step the restrictions below exclude, is
-  rejected. For every closed P-tableau, though, there is one in this normal
-  form, so t_P is unchanged (Theorem 7.2). The restrictions:
+  another order, or makes a step the construction does not make, is
+  rejected. For every closed P-tableau, though, the construction makes one,
+  so t_P is unchanged (Theorem 7.2). What it does not do:
 
   - Closure on A and ¬A is checked on literals only. A closure on compound A
     is reached after decomposing A, as in Fitting's book.
@@ -90,6 +94,11 @@
     symmetry (u = t from t = u). That use is not needed here, because Free
     Closure and Substitutivity already accept an equation in either
     orientation, and ¬(u = t) with t = u becomes ¬(u = u) by rewriting.
+  - γ applies to the γ sentence at the head of the queue only. A tableau
+    that needs another γ sentence first reaches it by giving the ones ahead
+    of it a term they have not had, because more sentences never stop a
+    branch from closing. This is also why a certificate need name only the
+    term.
   - γ's closed term is drawn from the closed terms of L and the parameters
     already on the branch. A parameter that is not yet on the branch can be
     renamed to one of these terms throughout the subtree (ADR-0149, Decision
@@ -100,15 +109,22 @@
     - when L has no function symbol, so that there are only finitely many
       such terms. The γ sentence at the head of the queue could otherwise
       use up its terms and block every γ sentence behind it.
+
+  Three more restrictions keep the construction from repeating itself:
   - Each closed term is given to a γ sentence at most once on a branch,
     because a second instance adds nothing.
-  - No literal is added twice, and no equation t = t is added.
+  - An equality step adds no literal that is already on the branch, and no
+    equation t = t.
   - Every closure uses a literal that is new since the previous saturation
     point, or one derived from such a literal. A closure from older literals
     alone was already possible at the previous saturation point, in a
     smaller tableau with fewer choices on the branch, so nothing is lost.
     This also stops one branch from closing in the same way at every later
     saturation point, which would multiply the search for its β sibling.
+
+  These three are not needed to find a closed tableau, only to find it in
+  reasonable time. Without them, the search for the paper's own §6 tableau
+  ran out of memory after 20 minutes (ADR-0149, revision 8).
 
   No bound, and fuel as a wrapper
   -------------------------------
@@ -163,15 +179,20 @@
   [P f g]
   (membero [f g] (:distinct-functions (:language P))))
 
+(defn- symbolo
+  "a is a symbol that a ground literal of Lpar can contain."
+  [P a]
+  (membero a (:symbols (:language P))))
+
+(defn- distinct-symbolso
+  "a and b are different symbols that a ground literal of Lpar can contain."
+  [P a b]
+  (membero [a b] (:distinct-symbols (:language P))))
+
 (defn- distinct-nameso
   "The leaf s (a variable or a constant) is not the variable x."
   [P x s]
   (membero [x s] (:distinct-names P)))
-
-(defn- distinct-relationso
-  "R and S are distinct relation symbols of L (equality included)."
-  [P R S]
-  (membero [R S] (:distinct-relations (:language P))))
 
 (defn- clauseo
   "P has the clause R(x1,...,xn) ← ϕ, with xs = (x1 ... xn)."
@@ -351,142 +372,6 @@
    [(== (:constants (:language P)) ()) (== k ())]))
 
 ;;; =====================================================================
-;;; Telling ground terms and literals apart
-;;;
-;;; The systematic construction never adds a literal that is already on the
-;;; branch, and never adds an equation t = t (the only use of Reflexivity is
-;;; closure against ¬(t = t)). On ground syntax "different" is structural, so
-;;; it is a pure relation over the distinctness tables of L.
-
-(defn- applicationo
-  "t is f(t1,...,tn) for a function symbol f of L."
-  [P t]
-  (fresh [f arity ts]
-    (== t (lcons f ts))
-    (functiono P f arity)))
-
-(defn- parametero
-  "t is a parameter."
-  [t]
-  (fresh [k] (== t (lcons 'par k))))
-
-(defn- differ-unaryo
-  "The unary numbers j and k are different."
-  [j k]
-  (conde
-   [(== j ()) (fresh [k'] (== k (lcons 1 k')))]
-   [(== k ()) (fresh [j'] (== j (lcons 1 j')))]
-   [(fresh [j' k']
-      (== j (lcons 1 j'))
-      (== k (lcons 1 k'))
-      (differ-unaryo j' k'))]))
-
-(declare differ-termso)
-
-(defn differento
-  "t and u are different closed terms of Lpar. The clauses are exclusive,
-  so on ground terms there is at most one answer."
-  [P t u]
-  (conde
-   [(distinct-constantso P t u)]
-   [(constanto P t) (applicationo P u)]
-   [(applicationo P t) (constanto P u)]
-   [(constanto P t) (parametero u)]
-   [(parametero t) (constanto P u)]
-   [(applicationo P t) (parametero u)]
-   [(parametero t) (applicationo P u)]
-   [(fresh [j k]
-      (== t (lcons 'par j))
-      (== u (lcons 'par k))
-      (differ-unaryo j k))]
-   [(fresh [f g ts us]
-      (== t (lcons f ts))
-      (== u (lcons g us))
-      (distinct-functionso P f g))]
-   [(fresh [f arity ts us]
-      (== t (lcons f ts))
-      (== u (lcons f us))
-      (functiono P f arity)
-      (differ-termso P ts us))]))
-
-(defn- differ-termso
-  "The equally long lists of closed terms ts and us differ at some place;
-  the first such place is the one found."
-  [P ts us]
-  (fresh [t tr u ur]
-    (conso t tr ts)
-    (conso u ur us)
-    (conde
-     [(differento P t u)]
-     [(== t u) (differ-termso P tr ur)])))
-
-(defn- differ-atomso
-  "A and B are different ground atoms."
-  [P A B]
-  (fresh [R S ts us]
-    (== A (lcons R ts))
-    (== B (lcons S us))
-    (relationo P R)
-    (relationo P S)
-    (conde
-     [(distinct-relationso P R S)]
-     [(== R S) (differ-termso P ts us)])))
-
-(defn- differ-literalso
-  "X and Y are different ground literals."
-  [P X Y]
-  (conde
-   [(differ-atomso P X Y)]
-   [(atomo P X) (fresh [B] (== Y ['not B]))]
-   [(fresh [A] (== X ['not A])) (atomo P Y)]
-   [(fresh [A B]
-      (== X ['not A])
-      (== Y ['not B])
-      (differ-atomso P A B))]))
-
-(defn- not-on-brancho
-  "The ground literal X is not among lits."
-  [P X lits]
-  (conde
-   [(== lits ())]
-   [(fresh [Y more]
-      (conso Y more lits)
-      (differ-literalso P X Y)
-      (not-on-brancho P X more))]))
-
-(defn- new-literalo
-  "Adding X to a branch with literals lits adds something: X is not on the
-  branch, and X is not an equation t = t."
-  [P X lits]
-  (fresh [R ts]
-    (conde
-     [(fresh [t u] (== X ['= t u]) (differento P t u))]
-     [(== X (lcons R ts)) (distinct-relationso P R '=)]
-     [(fresh [A] (== X ['not A]))])
-    (not-on-brancho P X lits)))
-
-(defn- add-new-literalso
-  "lits' is lits extended by those of es that are new (`new-literalo`), and
-  added lists exactly those."
-  [P lits es lits' added]
-  (conde
-   [(== es ()) (== lits' lits) (== added ())]
-   [(fresh [e more]
-      (conso e more es)
-      (conde
-       ;; e = e, nothing to add.
-       [(fresh [t] (== e ['= t t]))
-        (add-new-literalso P lits more lits' added)]
-       ;; e is already on the branch.
-       [(fresh [t u] (== e ['= t u]) (differento P t u))
-        (membero e lits)
-        (add-new-literalso P lits more lits' added)]
-       [(fresh [added']
-          (new-literalo P e lits)
-          (== added (lcons e added'))
-          (add-new-literalso P (lcons e lits) more lits' added'))]))]))
-
-;;; =====================================================================
 ;;; §5. Rules for equality
 
 (defn free-closureo
@@ -519,27 +404,28 @@
       (== e ['= (lcons f ts) (lcons g us)])
       (distinct-functionso P f g))]))
 
-(defn- equationso
-  "es is (t1 = u1, ..., tn = un)."
-  [ts us es]
-  (conde
-   [(== ts ()) (== us ()) (== es ())]
-   [(fresh [t tr u ur er]
-      (conso t tr ts)
-      (conso u ur us)
-      (conso ['= t u] er es)
-      (equationso tr ur er))]))
+(defn- corresponding-argumentso
+  "t and u are the arguments at the same place i of the argument lists ts
+  and us, for some i."
+  [ts us t u]
+  (fresh [t1 tr u1 ur]
+    (conso t1 tr ts)
+    (conso u1 ur us)
+    (conde
+     [(== t t1) (== u u1)]
+     [(corresponding-argumentso tr ur t u)])))
 
 (defn one-oneo
-  "The One-One Rule (§5): from f(t1,...,tn) = f(u1,...,un), with f a
-  function symbol of L, the branch may be extended by ti = ui. es holds all
-  n of them, which is n applications of the rule (the systematic
-  construction counts them as one choice)."
-  [P e es]
-  (fresh [f arity ts us]
+  "The One-One Rule (§5): \"If f is a function symbol of L, a branch
+  containing f(t1,...,tn) = f(u1,...,un) may be extended by adding ti = ui
+  to the end, for any i = 1,...,n.\" e is the equation on the branch, and
+  e' is the ti = ui added."
+  [P e e']
+  (fresh [f arity ts us t u]
     (== e ['= (lcons f ts) (lcons f us)])
     (functiono P f arity)
-    (equationso ts us es)))
+    (== e' ['= t u])
+    (corresponding-argumentso ts us t u)))
 
 (declare replace-in-termso)
 
@@ -595,18 +481,65 @@
      [(== e ['= t u])]
      [(== e ['= u t])])
     (replace-in-literalo P X t u X')))
-;;; =====================================================================
-;;; The branch: Table 2 (§4), closure (§4, §5, §6), and the systematic
-;;; construction (§7)
 
-;;; Every closure, and every literal an equality step derives, uses the
-;;; branch's literals. `new` holds those added since the branch was last
-;;; saturated, together with those derived from them. A closure that uses
-;;; only older literals was already possible at the previous saturation
-;;; point, in a smaller tableau with fewer choices on the branch, so the
-;;; systematic construction requires each closure to use a new literal. This
-;;; loses no closed tableau, and it stops one branch from closing in the same
-;;; way at every later saturation point.
+;;; =====================================================================
+;;; What the construction does not repeat
+;;;
+;;; None of this is in the paper. The systematic construction (§7) uses it
+;;; to avoid repeating itself, and none of it loses a closed tableau (see
+;;; the namespace docstring):
+;;;
+;;; - an equality step adds only a literal that is not already on the
+;;;   branch, and never an equation t = t;
+;;; - each γ sentence is given each term at most once on a branch;
+;;; - every closure uses a literal that is new since the branch was last
+;;;   saturated, or one derived from such a literal.
+;;;
+;;; Without any of them, the search for the paper's own §6 tableau ran out
+;;; of memory after 20 minutes. With only the first, it took 11 times as
+;;; long, and the ⊥ tests 5 to 70 times as long (ADR-0149, revision 8). Ground literals and terms are different when
+;;; they differ as expressions, which is a pure relation over the table of
+;;; distinct symbols.
+
+(defn differento
+  "x and y are different ground expressions of Lpar: two different symbols,
+  a symbol and a list, lists of different lengths, or lists that differ at
+  some place. The clauses are exclusive, so on ground expressions there is
+  at most one answer."
+  [P x y]
+  (conde
+   [(symbolo P x) (distinct-symbolso P x y)]
+   [(symbolo P x) (fresh [a d] (== y (lcons a d)))]
+   [(fresh [a d] (== x (lcons a d))) (symbolo P y)]
+   [(== x ()) (fresh [a d] (== y (lcons a d)))]
+   [(fresh [a d] (== x (lcons a d))) (== y ())]
+   [(fresh [a d b e]
+      (== x (lcons a d))
+      (== y (lcons b e))
+      (conde
+       [(differento P a b)]
+       [(== a b) (differento P d e)]))]))
+
+(defn- not-amongo
+  "The ground expression x is different from each member of xs: a literal
+  that is not on the branch, or a term that γ has not been given."
+  [P x xs]
+  (conde
+   [(== xs ())]
+   [(fresh [y more]
+      (conso y more xs)
+      (differento P x y)
+      (not-amongo P x more))]))
+
+(defn- new-literalo
+  "Adding the literal X to a branch with literals lits adds something: X is
+  not on the branch, and X is not an equation t = t."
+  [P X lits]
+  (fresh [R ts t u]
+    (conde
+     [(== X ['= t u]) (differento P t u)]
+     [(== X (lcons R ts)) (distinct-symbolso P R '=)])
+    (not-amongo P X lits)))
 
 (defn- new-premiseo
   "Of the two premises A and B, both among lits, at least one is new. The
@@ -615,7 +548,7 @@
   [P A B lits new]
   (conde
    [(membero A new) (membero B lits)]
-   [(membero B new) (membero A lits) (not-on-brancho P A new)]))
+   [(membero B new) (membero A lits) (not-amongo P A new)]))
 
 (defn- conclusiono
   "A literal X derived from premises A and B: lits' and new' are the
@@ -625,22 +558,16 @@
    [(new-premiseo P A B lits new)
     (== lits' (lcons X lits))
     (== new' (lcons X new))]
-   [(not-on-brancho P A new)
-    (not-on-brancho P B new)
+   [(not-amongo P A new)
+    (not-amongo P B new)
     (membero A lits)
     (membero B lits)
     (== lits' (lcons X lits))
     (== new' new)]))
 
-(defn- unusedo
-  "The closed term t is none of the terms in used."
-  [P t used]
-  (conde
-   [(== used ())]
-   [(fresh [u more]
-      (conso u more used)
-      (differento P t u)
-      (unusedo P t more))]))
+;;; =====================================================================
+;;; The branch: Table 2 (§4), closure (§4, §5, §6), and the systematic
+;;; construction (§7)
 
 ;;; The construction is written once, with open recursion. Most of its
 ;;; steps are forced. The others are choices that can be repeated without
@@ -698,9 +625,10 @@
                 (closed-termso P k arity ts))]))
 
           ;; t is the closed term of Lpar given to γ, and k' the branch's
-          ;; parameter count afterwards. The term is a closed term of L or a
-          ;; parameter already on the branch, or, where
-          ;; `new-parameter-allowedo` says so, the new parameter (par . k).
+          ;; parameter count afterwards. The term is built from the symbols
+          ;; of L and the parameters already on the branch, or, where
+          ;; `new-parameter-allowedo` says so, it is the new parameter
+          ;; (par . k), which the branch then counts.
           (gamma-termo [P k t k']
             (conde
              [(closed-termo P k t) (== k' k)]
@@ -711,18 +639,17 @@
           ;; -------------------------------------------------------------
           ;; The choices
 
-          ;; Table 2: γ / γ(t), for any closed term t of Lpar, applied to the
-          ;; γ sentence at the head of the queue gammas. Each entry of gammas
-          ;; is [γ used], with used the terms γ has already been given on
-          ;; this branch. A second instance with the same term would add
-          ;; nothing, so the term must be unused.
+          ;; Table 2: γ / γ(t), "for any closed term t of Lpar", applied to
+          ;; the γ sentence at the head of the queue gammas. Each entry of
+          ;; gammas is [γ used], with used the terms γ has been given on this
+          ;; branch, and t is not one of them.
           (gamma-stepo [P gammas lits k cert]
             (fresh [gamma used others x matrix t instance k' gammas' rest]
               (== cert [:gamma t rest])
               (conso [gamma used] others gammas)
               (gammao gamma x matrix)
               (gamma-termo P k t k')
-              (unusedo P t used)
+              (not-amongo P t used)
               (substo P matrix x t instance)
               ;; The γ sentence stays on the branch for later use, at the
               ;; back of the queue. The branch is saturated, so nothing is
@@ -742,42 +669,35 @@
           ;; "The ground atom R(t1,...,tn) or the negated ground atom
           ;; ¬R(t1,...,tn), must be of L, not of Lpar": `l-termso` rejects
           ;; parameters. Equality has no clause, so it is never called. The
-          ;; called literal A is new; sub describes the subsidiary tableau.
+          ;; called literal A is new, and sub describes the subsidiary
+          ;; tableau, whose root is ϕ(t1,...,tn) or ¬ϕ(t1,...,tn).
           (call-stepo [P new cert]
-            (fresh [A sub R ts xs phi root]
+            (fresh [A sub R ts xs phi phi-t root]
               (== cert [:call A sub])
               (membero A new)
               (conde
-               [(== A (lcons R ts))
-                (clauseo P R xs phi)
-                (l-termso P ts)
-                (instanceo P phi xs ts root)]
-               [(fresh [phi-t]
-                  (== A ['not (lcons R ts)])
-                  (clauseo P R xs phi)
-                  (l-termso P ts)
-                  (instanceo P phi xs ts phi-t)
-                  (== root ['not phi-t]))])
+               [(== A (lcons R ts)) (== root phi-t)]
+               [(== A ['not (lcons R ts)]) (== root ['not phi-t])])
+              (clauseo P R xs phi)
+              (l-termso P ts)
+              (instanceo P phi xs ts phi-t)
               ;; A subsidiary tableau is a new tableau for a sentence of L.
               (brancho P [root] () () () () sub)))
 
-          ;; §5 One-One: extend the branch with those ti = ui that are new,
-          ;; then close it. The added equations are new exactly when e is,
-          ;; so `new` stays a part of `lits`.
+          ;; §5 One-One: extend the branch with ti = ui, if it is new, then
+          ;; close it.
           (one-one-stepo [P lits new cert]
-            (fresh [e es lits' new' added rest]
-              (== cert [:one-one e rest])
+            (fresh [e e' lits' new' rest]
+              (== cert [:one-one e e' rest])
               (membero e lits)
-              (one-oneo P e es)
-              (add-new-literalso P lits es lits' added)
-              (fresh [first-added more] (== added (lcons first-added more)))
-              (conde
-               [(membero e new) (appendo added new new')]
-               [(not-on-brancho P e new) (== new' new)])
+              (one-oneo P e e')
+              (new-literalo P e' lits)
+              ;; One-One has one premise, e, given here as both premises.
+              (conclusiono P e e e' lits new lits' new')
               (closeo P lits' new' rest)))
 
-          ;; §5 Substitutivity: extend the branch with X', if it is new,
-          ;; then close it.
+          ;; §5 Substitutivity: extend the branch with X', if it is new, then
+          ;; close it.
           (substitutivity-stepo [P lits new cert]
             (fresh [e X X' lits' new' rest]
               (== cert [:substitutivity e X X' rest])

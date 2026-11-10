@@ -74,13 +74,18 @@
   - `:relations`            ([R (1 ... 1)] ...), including [= (1 1)]
   - `:distinct-constants`   ([c d] ...), every ordered pair with c ≠ d
   - `:distinct-functions`   ([f g] ...), every ordered pair with f ≠ g
-  - `:distinct-relations`   ([R S] ...), every ordered pair with R ≠ S
+  - `:symbols`              every symbol a ground literal of Lpar can
+                            contain: those of L, and `not`, `par` and `1`
+  - `:distinct-symbols`     ([a b] ...), every ordered pair of different
+                            members of `:symbols`
 
   The constant and function tables are what the Free Closure Rule (§5)
-  means by \"distinct\" symbols of L. All three let the tableau relation
-  tell two ground literals apart without `!=`."
+  means by \"distinct\" symbols of L. The symbol tables let the tableau
+  relation tell two ground literals apart without `!=`."
   [{:keys [constants functions relations]}]
-  (let [constants (vec (distinct constants))]
+  (let [constants (vec (distinct constants))
+        symbols (distinct (concat constants (sort-by str (keys functions))
+                                  ['=] (sort-by str (keys relations)) '[not par 1]))]
     (doseq [c constants] (check-symbol! "constant" c))
     (doseq [[f n] functions]
       (check-symbol! "function symbol" f)
@@ -100,7 +105,8 @@
                                            (for [[r n] (sort-by str relations)] [r (unary n)])))
      :distinct-constants (apply list (distinct-pairs constants))
      :distinct-functions (apply list (distinct-pairs (sort-by str (keys functions))))
-     :distinct-relations (apply list (distinct-pairs (cons '= (sort-by str (keys relations)))))}))
+     :symbols            (apply list symbols)
+     :distinct-symbols   (apply list (distinct-pairs symbols))}))
 
 (defn- arity-of [table s]
   (some (fn [[sym arity]] (when (= sym s) (count arity))) table))

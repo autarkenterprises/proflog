@@ -3,7 +3,10 @@
 - Status: accepted. Layer 1, the language, was implemented in revision 6
   (2026-11-09) and restructured in revision 7 (2026-11-09): the relation
   has no bound, Definition 6.1 is a relation, and `proflog.fitting/ask` is
-  the entry point. Layer 2, the §8 engine, is deferred.
+  the entry point. Revision 8 (2026-11-09) streamlined the engine: one
+  difference relation, One-One as the paper states it, and the
+  construction's own restrictions in one section. Layer 2, the §8 engine,
+  is deferred.
 - Date: 2026-11-07
 - Branch: `adr-0149-fitting-core-extraction`
 - Base: `origin/main` `f1d6ed0` (its `src/` is byte-identical to `849fd55`,
@@ -230,6 +233,108 @@ so the restructuring is kept and this criterion is recorded as not met. The
 remedies (γ terms charged to the branch in the fueled wrapper; the parallel
 runner as the default) are open for the owner's decision.
 
+## Revision 8 (2026-11-09): a streamlined engine, closer to the paper
+
+The owner decided on revision 7's open question: "The speed is fine,
+increased code complexity is the greater risk." Neither remedy is taken, and
+the slowdown is accepted. The owner then asked for the relational engine to
+be streamlined, so that its correspondence to the paper is clearer.
+
+**Evidence.** Fitting does not give the systematic construction. Proposition
+7.7 says: "Suppose we adapt a systematic tableau construction method, from
+[10] or [4], modifying it to take into account the rules of Section 5 and
+Section 6. This is straightforward, and we skip the details." Every
+restriction in `tableau.clj` is therefore ours, not the paper's. Revision 6
+added three of them to prune the search. Each is sound and complete:
+- each γ term at most once per γ sentence on a branch (`used`);
+- no literal added twice by an equality step, and no equation t = t
+  (`new-literalo`);
+- every closure uses a literal that is new since the previous saturation
+  point (`new`).
+
+The first two need term and literal difference without `!=`. Revision 7
+wrote that as seven relations (`differento`, `differ-termso`,
+`differ-atomso`, `differ-literalso`, `differ-unaryo`, `applicationo`,
+`parametero`) over three distinctness tables, about 75 lines, plus
+`add-new-literalso` for One-One.
+
+Two more points differ from the text of the paper:
+- One-One adds all n equations tᵢ = uᵢ at once. The paper adds "tᵢ = uᵢ to
+  the end, for any i = 1, …, n", one equation per application.
+- The two cases of the Procedure Call Rule repeat the same steps.
+
+**What was tried, and measured.** The proposal (this revision's first
+version) removed all three restrictions, and let γ always take a new
+parameter. Each variant was run on the tests the restrictions affect. The
+machine was busy and once suspended, so the revision 7, E4 and E5 rows
+come from runs paired in the same load:
+
+| Variant | Paper's win(s³(0)) tableau, no bound | ⊥ tests at fuel 6 (move, D1, D5, binder capture) |
+|---|---|---|
+| Revision 7 | 2.9–3.3 s | 4.7–6.6 s, 1.0–1.8 s, 2.8–3.3 s, 15.5–16.1 s |
+| E1: no restriction | out of memory (2 GB) after 20 min | not reached |
+| E2: only "no literal twice" | 27.6 s | 104 s, 72 s, 87 s, 84 s |
+| E3: E2 and a simple newness rule | 15.8 s | 35 s, 20 s, 68 s, 53 s |
+| E4: all three, γ always may take a new parameter | 7.9 s | 45 s, 105 s, 11 s, 20 s |
+| E5: E4 with revision 7's rule for new γ parameters | 6.6 s | 5.8 s, 8.4 s, 16.3 s, 18.9 s |
+
+E2 and E3 ran while E1 did, so their times are inflated by up to about a
+third. Every variant that ended accepted the paper's certificate and found
+it first.
+
+The proposal met its own failure criterion: without the restrictions, a
+test that ends in revision 7 did not end within the hour, and ran out of
+memory. Keeping only "no literal twice" (E2) ends, but the ⊥ tests take 5 to
+70 times as long. A new γ parameter in every language (E4) multiplies the
+searches in languages with function symbols (D1: 105 s), because each new
+parameter also seeds new γ terms (s(par), s(s(par)), …).
+
+**Decisions.**
+
+1. **The three restrictions stay.** They are the construction's, not the
+   paper's, and the code says so: they sit in one section, "What the
+   construction does not repeat", after the paper's rules.
+2. **One difference relation.** `differento` says when two ground
+   expressions of Lpar differ: different symbols, a symbol and a list,
+   lists of different lengths, or lists that differ at some place. It uses
+   one table, L's `:distinct-symbols`, over the symbols a ground literal
+   can contain (those of L, and `not`, `par` and `1`). It replaces the
+   seven typed relations, and `:distinct-relations` goes. `not-amongo`
+   ("x differs from each member of xs") serves both "not on the branch"
+   and "a term this γ sentence has not had".
+3. **One-One adds one equation.** `(one-oneo P e e')` holds when e is
+   f(t₁,…,tₙ) = f(u₁,…,uₙ) and e' is tᵢ = uᵢ for some i. The certificate
+   names the equation it adds, `[:one-one e (= t u) rest]`, as
+   `[:substitutivity e X X' rest]` names its X'. In the paper's §6 tableau
+   these are its lines (6), (9) and (10). `equationso` and
+   `add-new-literalso` go.
+4. **The Procedure Call Rule's two cases share one body.** Only the root of
+   the subsidiary tableau differs: ϕ(t̄) or ¬ϕ(t̄).
+5. **γ keeps revision 7's rule for new parameters** (only when L has no
+   function symbol, or no constant and the branch no parameter). Table 2's
+   "any closed term of Lpar" is met up to renaming either way.
+6. **The speed is accepted.** E5 against revision 7 is 1.2 to 8 times on
+   the ⊥ tests and about 2 times on the paper's tableau. The likely cause
+   is the generic difference relation, which consults one larger table.
+   That is the trade the owner chose.
+
+**Success criteria:**
+- The paper's certificate, written with the new One-One form, is accepted,
+  and unbounded prove mode finds exactly it.
+- One-One adds one equation tᵢ = uᵢ of a two-place function symbol, in
+  that order, and one application adds one equation.
+- The normal-form tests still reject a repeated γ term, a closure on older
+  literals only, and an equality step whose conclusion is on the branch.
+- Every other test keeps its meaning and passes: the query values, the
+  falsifiers and the fuel tests. The default and slow suites are green.
+- `tableau.clj` loses the seven typed difference relations,
+  `add-new-literalso`, `equationso` and `distinct-relationso`, and L loses
+  `:distinct-relations`.
+
+**Failure criteria:** the revision is reverted if any of these hold:
+- a test that ends in revision 7 does not end within an hour;
+- the relation accepts a certificate that breaks one of Fitting's rules.
+
 ## Context
 
 The repository began as an implementation of Melvin Fitting, *Tableaus for
@@ -378,7 +483,9 @@ only decides how the relation is run.
   - or applies γ to its oldest γ sentence and continues. Rotating the γ
     sentences makes the construction fair.
 - **Normal-form restrictions,** each sound (it only selects among Fitting's
-  rule applications) and complete (it loses no closed tableau):
+  rule applications) and complete (it loses no closed tableau). Revision 8
+  measured the relation without them and kept them; see "Revision 8"
+  above:
   - **closure on A/¬A is checked for literals.** A compound A is decomposed
     first;
   - **Substitutivity rewrites literals.** That suffices for ground equality;
@@ -414,7 +521,8 @@ only decides how the relation is run.
   - Table 2: `:not-not`, `:not-true`, `:not-false`, `:alpha`, `:beta`
     (two subtrees), `:delta`, `:gamma t`;
   - closures: `:false`, `:close A`, `:reflexivity t`, `:free-closure e`;
-  - §5 extensions: `:one-one e`, `:substitutivity e X X'`;
+  - §5 extensions: `:one-one e`, `:substitutivity e X X'` (since revision
+    8, `:one-one e e'`, naming the one equation added);
   - `:call A` with the subsidiary tableau's certificate.
 
   Certificates name literals and γ terms but no quantified formula, so they

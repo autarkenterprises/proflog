@@ -142,4 +142,4 @@ Write an AAR when an ADR is complete enough to evaluate its effect on the projec
 | [AAR-0139](AAR-0139-sjas-boundary-synthesis-probe.md) | [ADR-0139](../adr/ADR-0139-sjas-boundary-synthesis-probe.md) | completed |
 | [AAR-0140](AAR-0140-sjas-boundary-proof-route-validation.md) | [ADR-0140](../adr/ADR-0140-sjas-boundary-proof-route-validation.md) | completed |
 | [AAR-0141](AAR-0141-sjas-boundary-completion.md) | [ADR-0141](../adr/ADR-0141-sjas-boundary-completion.md) | retracted (completion claim withdrawn 2026-06-22) |
-| [AAR-0149](AAR-0149-fitting-core-extraction.md) | [ADR-0149](../adr/ADR-0149-fitting-core-extraction.md) | Layer 1 completed; §8 engine deferred; revisited for revision 7 (unbounded relation, `queryo`, `ask`) |
+| [AAR-0149](AAR-0149-fitting-core-extraction.md) | [ADR-0149](../adr/ADR-0149-fitting-core-extraction.md) | Layer 1 completed; §8 engine deferred; revisited for revision 7 (unbounded relation, `queryo`, `ask`) and revision 8 (streamlined engine; the anti-repetition restrictions measured and kept) |

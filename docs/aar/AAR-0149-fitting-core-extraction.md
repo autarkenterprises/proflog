@@ -1,12 +1,12 @@
 # AAR-0149: Fitting's Proflog as One core.logic Relation
 
 - Date: 2026-11-09
-- ADR: [ADR-0149](../adr/ADR-0149-fitting-core-extraction.md) (revisions 6
-  and 7)
+- ADR: [ADR-0149](../adr/ADR-0149-fitting-core-extraction.md) (revisions 6,
+  7 and 8)
 - Branch: `adr-0149-fitting-core-extraction`
 - Code: [`fitting/`](../../fitting/README.md)
 - Status: Layer 1 (the language) complete; Layer 2 (§8 engine) deferred.
-  Revisited for revision 7 (see the last section).
+  Revisited for revisions 7 and 8 (see the last two sections).
 
 ## Outcome
 
@@ -297,3 +297,85 @@ New tests, red first:
   binder capture) the two revisions count the same.
 - `query-status`, `succeeds`, `fails` and `closed-tableau` are removed. They
   are `ask`, and `queryo` with its status ground.
+
+## Revision 8 (2026-11-09): a streamlined engine
+
+The owner settled revision 7's open question: "The speed is fine,
+increased code complexity is the greater risk." The slowdown is accepted,
+and the engine was streamlined so that it reads closer to the paper.
+
+**Outcome.**
+- **One difference relation.** `differento` tells two ground expressions
+  of Lpar apart structurally, over one table of distinct symbols. It
+  replaces seven typed relations and the `:distinct-relations` table.
+  `not-amongo` replaces both `not-on-brancho` and `unusedo`.
+- **One-One as the paper states it.** Each application adds one equation
+  tᵢ = uᵢ, and the certificate names it: `[:one-one e (= t u) rest]`. In
+  the paper's §6 tableau the named equations are its lines (6), (9) and
+  (10).
+- **The Procedure Call Rule's two cases share one body.**
+- **The construction's own restrictions are in one section,** "What the
+  construction does not repeat", after the paper's rules, and the
+  namespace docstring says which parts of the relation are Fitting's and
+  which are the construction's.
+- `tableau.clj` went from 978 to 898 lines. The difference machinery went
+  from about 75 lines to about 20; the docstring grew where it now explains
+  the construction's restrictions.
+
+**What was tried and reverted.** The revision as first written removed the
+construction's three anti-repetition restrictions (γ term once, no literal
+twice, closure on a new literal) and let γ always take a new parameter,
+because none of these is in the paper. The ADR's failure criterion caught
+it:
+- with no restriction, the unbounded search for the paper's own
+  `win(s(s(s(0))))` tableau ran for 20 minutes and ran out of memory
+  (2 GB heap);
+- with only "no literal twice", it took 27.6 s against 2.5–3.3 s, and the
+  ⊥ tests at fuel 6 took 5 to 70 times as long;
+- with all three kept but a new γ parameter allowed in every language, D1's
+  ⊥ test took 105 s against 1.8 s, because each new parameter also seeds
+  new γ terms.
+
+ADR-0149 revision 8 has the full table. The variants were measured paired
+with revision 7 where it mattered, because the machine was loaded by other
+work and suspended once during a run.
+
+**Tests.**
+- Default suite: 76 tests, 230 assertions, green, in 1 m 17 s on a loaded
+  machine (revision 7: 74 tests in 44 s on a quiet one).
+- Slow suite: 2 tests, 3 assertions, green, in 15 m 09 s at a maximum RSS
+  of 2.45 GB on the loaded machine (revision 7: 6 m 42 s). That is about
+  2.3 times as long, in line with the paired measurements.
+
+Red first, against revision 7:
+- the paper's certificate in the new One-One form;
+- One-One adds one equation of a two-place function symbol, in the order
+  tᵢ = uᵢ, and one application adds one equation;
+- the One-One falsifier in the new form.
+
+The revision's first version also had red tests for the removed
+restrictions (γ may repeat a term, a closure may use older literals,
+Substitutivity may add a literal already on the branch, γ may take a new
+parameter). They went green under that version and were replaced by
+normal-form tests when the restrictions came back.
+
+**Findings.**
+- **A test that rejected for the wrong reason.** Revision 7's
+  `normal-form-gamma-term-once-per-sentence` gave γ the term s(0) twice and
+  then closed on P(0). Its instance P(s(0)) can never close against ¬P(0),
+  so the certificate was rejected whether or not repeats were allowed. The
+  test now repeats the term 0, so that the repeat is the only fault, and
+  the first version of this revision showed it passing exactly when repeats
+  are allowed.
+- **The restrictions are about time, not about which tableaus exist.**
+  Every variant that ended found the paper's certificate first, as
+  revision 7 does.
+- **Uniform code costs time here.** The generic difference relation
+  consults a table of every pair of distinct symbols, larger than the typed
+  tables it replaces. Against revision 7 the ⊥ tests take 1.2 to 8 times as
+  long, and the paper's tableau about twice as long.
+
+**Deviations from the revision as first written.** Its decisions 1 and 2
+(remove the restrictions; always allow a new γ parameter) were reversed, by
+its own failure criterion and by measurement. Decisions 3 (One-One) and the
+streamlining were kept.

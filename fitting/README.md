@@ -88,7 +88,7 @@ line numbers.
  [:delta                                            ; (2) new parameter c = (par)
   [:alpha                                           ; (3), (4)
    [:beta                                           ; (5) | (8)
-    [:one-one (= (s (s (s 0))) (s (par)))           ; (6)
+    [:one-one (= (s (s (s 0))) (s (par))) (= (s (s 0)) (par))  ; (6)
      [:substitutivity (= (s (s 0)) (par)) (not (win (par))) (not (win (s (s 0))))  ; (7)
       [:call (not (win (s (s 0))))
        [:gamma 0 [:beta [:alpha [:reflexivity (s (s 0))]]
@@ -108,7 +108,7 @@ because the tableau for ¬odd(s(0)) closes:
      [:call (even (s 0))           ; refute even(s(0)):
       [:beta [:free-closure (= (s 0) 0)]           ;   s(0) = 0 is impossible
              [:delta [:alpha                       ;   s(0) = s(d) ∧ odd(d)
-              [:one-one (= (s 0) (s (par)))        ;   0 = d
+              [:one-one (= (s 0) (s (par))) (= 0 (par))  ; 0 = d
                [:substitutivity (= 0 (par)) (odd (par)) (odd 0)
                 [:call (odd 0)                     ;   refute odd(0):
                  [:gamma 0 [:beta [:call (not (even 0)) [:alpha [:reflexivity 0]]]
@@ -123,14 +123,14 @@ Rule tags:
 | `:gamma t` | Table 2, γ with the term `t` |
 | `:false`, `:close A` | §4 closure |
 | `:reflexivity t`, `:free-closure e` | §5 closure |
-| `:one-one e`, `:substitutivity e X X'` | §5 extension |
+| `:one-one e e'`, `:substitutivity e X X'` | §5 extension, adding `e'` or `X'` |
 | `:call A` | §6 |
 
 Certificates are plain EDN. `(proflog.fitting/certificate? L P X cert)`
 checks one with the same relation that finds them. The checker accepts the
-systematic construction's normal form, described below, not every closed
-tableau that Fitting's rules allow. Every closed tableau has a counterpart
-in normal form, so which queries succeed or fail is unchanged. A
+tableaus of the systematic construction, described below, not every closed
+tableau that Fitting's rules allow. For every closed tableau the
+construction makes one, so which queries succeed or fail is unchanged. A
 hand-written certificate has to follow the construction's order, and so
 would certificates from a future §8 engine.
 
@@ -157,17 +157,24 @@ finite table built from L and the program text. These cover distinct
 symbols, an occurrence of the variable being substituted, and a new
 parameter (a per-branch counter).
 
-The relation is §7's systematic construction:
+The relation is a systematic tableau construction, the kind §7's
+completeness proof uses. Fitting skips its details ("This is
+straightforward, and we skip the details"), so these are ours:
 - Each branch expands its sentences in order.
 - When only γ sentences are left, the branch is *saturated*. It then either
-  closes or applies γ again.
+  closes, possibly after One-One and Substitutivity steps, or applies γ to
+  its oldest γ sentence, which moves to the back of the queue.
 - The certificate records the choices: which closure, which γ term, and
   which equality steps.
 - Restrictions that lose nothing keep the search small:
   - each γ term is used once per γ sentence;
-  - no literal is added twice;
+  - an equality step adds no literal that is already on the branch;
   - every closure uses a literal that is new since the previous saturation
     point.
+
+  Without them, the search for the paper's own §6 tableau runs out of
+  memory. They need to tell two ground literals or terms apart, which one
+  relation, `differento`, does over a table of distinct symbols.
 - When L has no function symbols, γ may also use a new parameter, so that a
   finite supply of terms cannot block it. The namespace docstring of
   `proflog.fitting.tableau` gives the completeness argument for each

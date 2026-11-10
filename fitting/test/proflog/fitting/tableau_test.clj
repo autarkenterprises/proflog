@@ -125,11 +125,11 @@
    [:delta                                    ; (2), new parameter c
     [:alpha                                   ; (3), (4)
      [:beta                                   ; (5) | (8)
-      [:one-one '(= (s (s (s 0))) (s (par)))  ; (6) s(s(0)) = c
+      [:one-one '(= (s (s (s 0))) (s (par))) '(= (s (s 0)) (par))  ; (6)
        [:substitutivity '(= (s (s 0)) (par)) '(not (win (par))) '(not (win (s (s 0))))  ; (7)
         (calling-not-win '(s (s 0)))]]
-      [:one-one '(= (s (s (s 0))) (s (s (par))))  ; (9) s(s(0)) = s(c)
-       [:one-one '(= (s (s 0)) (s (par)))         ; (10) s(0) = c
+      [:one-one '(= (s (s (s 0))) (s (s (par)))) '(= (s (s 0)) (s (par)))  ; (9)
+       [:one-one '(= (s (s 0)) (s (par))) '(= (s 0) (par))                ; (10)
         [:substitutivity '(= (s 0) (par)) '(not (win (par))) '(not (win (s 0)))  ; (11)
          (calling-not-win '(s 0))]]]]]]])
 
@@ -263,11 +263,14 @@
       (is (not (checks? P-true '(not (Q 0)) '[:call (not (Q 0)) [:not-true [:false]]]))))))
 
 (deftest falsifier-one-one-needs-one-function-symbol-of-L
+  ;; (par) is a parameter, not f(t1,...,tn) for a function symbol f of L,
+  ;; so One-One gives nothing from (par) = s(0). The branch would close by
+  ;; Reflexivity anyway; the One-One step is the only fault.
   (is (not (checks? empty-program '(exists y (and (= y (s 0)) (not (= 0 0))))
-                    '[:delta [:alpha [:one-one (= (par) (s 0)) [:reflexivity 0]]]])))
+                    '[:delta [:alpha [:one-one (= (par) (s 0)) (= 0 0) [:reflexivity 0]]]])))
   (testing "One-One on s(s(0)) = s(0) gives s(0) = 0, which Free Closure closes"
     (is (checks? empty-program '(= (s (s 0)) (s 0))
-                 '[:one-one (= (s (s 0)) (s 0)) [:free-closure (= (s 0) 0)]]))))
+                 '[:one-one (= (s (s 0)) (s 0)) (= (s 0) 0) [:free-closure (= (s 0) 0)]]))))
 
 (deftest falsifier-substitutivity-needs-the-equation-on-the-branch
   (is (not (checks? empty-program '(and (P 0) (not (P (s 0))))
@@ -277,14 +280,18 @@
   (is (not (checks? empty-program '(= 0 0) '[:free-closure (= 0 0)])))
   (is (not (checks? empty-program '(= (s 0) (s (s 0))) '[:free-closure (= (s 0) (s (s 0)))]))))
 
+;;; ---------------------------------------------------------------------
+;;; The systematic construction does not repeat itself (its normal form)
+
 (deftest normal-form-gamma-term-once-per-sentence
   ;; The checker accepts the systematic construction's normal form only. A
-  ;; second instance of a γ sentence with the same term adds nothing, so
-  ;; it is not a step of that construction.
-  (is (not (checks? empty-program '(and (forall x (P x)) (not (P 0)))
-                    '[:alpha [:gamma (s 0) [:gamma (s 0) [:close (P 0)]]]])))
-  (is (checks? empty-program '(and (forall x (P x)) (not (P 0)))
-               '[:alpha [:gamma 0 [:close (P 0)]]])))
+  ;; second instance of a γ sentence with the same term adds nothing, so it
+  ;; is not a step of that construction. (Revision 7's version of this test
+  ;; repeated s(0), whose instance P(s(0)) cannot close against ¬P(0); the
+  ;; certificate was rejected for that reason too.)
+  (let [X '(and (forall x (P x)) (not (P 0)))]
+    (is (not (checks? empty-program X '[:alpha [:gamma 0 [:gamma 0 [:close (P 0)]]]])))
+    (is (checks? empty-program X '[:alpha [:gamma 0 [:close (P 0)]]]))))
 
 (deftest normal-form-closure-uses-a-new-literal
   ;; P(0) and ¬P(0) are both on the branch before γ is applied. A closure
@@ -293,6 +300,38 @@
   (let [X '(and (and (P 0) (not (P 0))) (forall x (Q x)))]
     (is (not (checks? empty-program X '[:alpha [:alpha [:gamma 0 [:close (P 0)]]]])))
     (is (checks? empty-program X '[:alpha [:alpha [:close (P 0)]]]))))
+
+(deftest normal-form-equality-steps-add-new-literals
+  ;; Substitutivity on 0 = s(0) turns P(0) into P(s(0)), which is already on
+  ;; the branch, so the construction does not add it; it closes at once.
+  (let [X '(and (= 0 (s 0)) (and (P 0) (and (P (s 0)) (not (P (s 0))))))]
+    (is (not (checks? empty-program X
+                      '[:alpha [:alpha [:alpha [:substitutivity (= 0 (s 0)) (P 0) (P (s 0))
+                                                [:close (P (s 0))]]]]])))
+    (is (checks? empty-program X '[:alpha [:alpha [:alpha [:close (P (s 0))]]]]))))
+
+;;; ---------------------------------------------------------------------
+;;; One-One as the paper states it (ADR-0149 revision 8)
+
+(def Lf
+  "A language with a two-place function symbol, for One-One."
+  (syntax/language {:constants '[0] :functions '{s 1 f 2} :relations {}}))
+
+(deftest one-one-adds-one-equation
+  ;; One-One: a branch containing f(t1,...,tn) = f(u1,...,un) "may be
+  ;; extended by adding ti = ui to the end, for any i = 1,...,n" (§5). The
+  ;; certificate names the equation it adds.
+  (let [P (syntax/program Lf [])
+        e '(= (f (s (s 0)) (s 0)) (f (s 0) 0))
+        X e]
+    (testing "i = 2 gives s(0) = 0, which Free Closure closes"
+      (is (checks? P X [:one-one e '(= (s 0) 0) '[:free-closure (= (s 0) 0)]])))
+    (testing "the equation is ti = ui, in that order"
+      (is (not (checks? P X [:one-one e '(= 0 (s 0)) '[:free-closure (= 0 (s 0))]]))))
+    (testing "one application adds one equation: after i = 1, s(0) = 0 is not yet on the branch"
+      (is (not (checks? P X [:one-one e '(= (s (s 0)) (s 0)) '[:free-closure (= (s 0) 0)]])))
+      (is (checks? P X [:one-one e '(= (s (s 0)) (s 0))
+                        [:one-one e '(= (s 0) 0) '[:free-closure (= (s 0) 0)]]])))))
 
 ;;; ---------------------------------------------------------------------
 ;;; No bound in the relation; fuel as a wrapper (ADR-0149 revision 7)

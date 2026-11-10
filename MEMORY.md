@@ -178,7 +178,17 @@
     nonstandard. The Herbrand model on numerals pins ℕ, but its
     consequence relation is ω-logic, which is `Th(ℕ)`.
   - Effective pinning covers theorems only, constructively (HA's
-    existence property). `H°` makes that move.
+    existence property).
+- **How λᶜᵉʳᵗ pins itself** (note F17, which corrects F16's analogy).
+  - It pins an index, the cap, not a model. Inside the theory `H°`'s
+    certificate is a variable and `chk′` is stuck on it; `H°` comes from the
+    primitive `H`, not from computation.
+  - At cap `n`, `H°` means `BF₀(n)`, a PA theorem, true in every model. The
+    cap is not a term, so "at every cap" (`Con_λ`) is only a metatheorem.
+  - Rasiowa–Sikorski's clause (∀ as an infimum over variables) locates the
+    line: closed instances compute; the generic code is stuck. The mechanism
+    is step-indexed and resource-indexed (guarded Löb induction, later
+    credits, BI), not an ultrafilter.
 - Tokens are supplied per program invocation, never per call and never by a
   global. Either the runner fixes a budget (`Θₙ`, tokens `$1 … $n`), or a
   closed program receives a supply (an eager tree, or `lazy-supply N`).

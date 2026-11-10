@@ -64,7 +64,7 @@ quantifier ranges over certificates held (the note's Addendum D1; pinned by
 trade from Willard's systems, which weaken the arithmetic to prove their own
 consistency.
 
-Three follow-ups in that note are pinned by tests as well:
+Four follow-ups in that note are pinned by tests as well:
 - **F5.** An interpreter written in λᶜᵉʳᵗ for a language that breaks its
   rules breaks them only in data
   (`lcert.core-test/interpreted-violations-stay-data`).
@@ -80,6 +80,10 @@ Three follow-ups in that note are pinned by tests as well:
   pays for. The grant cannot be internal. On a supply promised at 10^100,
   only an outside guard stops the agent. Tokens beyond the cap let a
   refused reflection fabricate evidence.
+- **F17.** Each closed instance of code consistency is derivable by
+  computation alone, while at a variable `chk′` does not compute: the body
+  of `Con′_ω` is rejected, and `H°`'s is accepted only through the
+  primitive `H` (`lcert.core-test/closed-instances-compute-the-generic-one-does-not`).
 
 The calculus these steps propose, λᶜᵉʳᵗ₁, is the vendored one run with
 `lcert.syntax/*extensions*` `#{:caseR}` (the default),

@@ -919,6 +919,57 @@ complete contemporaneous transcript.
     the existence-property move. `Con′_ω` reaches the Henkin-constant
     positions, where `chk′` is opaque.
 
+## 2026-11-10
+
+- The user asked how λᶜᵉʳᵗ pins itself, and whether Rasiowa–Sikorski is a
+  relevant comparison. Answered in note F17.
+  - **F16 corrected in place.** It said `H°` ranges over closed trees on
+    which `chk′` computes. Inside the theory, `H°`'s certificate is a
+    variable, `chk′ (print r) c⊥` is stuck, and `H°` comes from the
+    primitive `H`. The `Con′_ω` half stands.
+  - **Three layers.**
+    - Codes denote themselves in R4's model, a Herbrand pin, which makes
+      `Con′_ω` valid but underivable.
+    - Resource quantifiers are bounded by a cap that is not a term, so at
+      each cap `H°` is `BF₀(n)`, a PA theorem true in every model.
+    - The caps are linked by strong induction on the cap, a metatheorem
+      equivalent to `Con_λ`.
+  - **λᶜᵉʳᵗ pins an index, not a model.** The ω-rule is applied only to the
+    cap, and only in the metatheory.
+  - **Rasiowa–Sikorski is exact as a diagnostic.** Closed instances have
+    value 1; the universal takes the generic variable's value. It is not the
+    mechanism: no ultrafilter is chosen, the model is semantic and only
+    sound, and the logic is affine.
+  - **Closer comparisons:** step-indexed logical relations, Löb induction
+    in the topos of trees, Iris later credits, and BI's resource semantics.
+  - **Web-checked:**
+    - Rasiowa–Sikorski's Heyting algebras, propositional case only;
+    - later credits (ICFP 2022);
+    - the topos of trees and the Löb rule;
+    - step-indexed relations (Appel–McAllester, Ahmed, LSLR);
+    - Pym, O'Hearn and Yang's BI semantics.
+  - **From memory, and marked:** the predicate-level intuitionistic case;
+    residuated lattices; phase semantics.
+- **New fast test:**
+  `lcert.core-test/closed-instances-compute-the-generic-one-does-not`.
+  - It checks that three closed instances `T(chk′ ⌜K⌝ c⊥) → 0` are derivable
+    by computation at budget 0 without `H`. One is a 3,893-node certificate
+    for the code of `not`.
+  - It checks that the bodies of `Con′_ω` (at budgets 0 and 40) and of `H°`
+    are rejected when written without `H`.
+  - It pins existing behaviour, and was green when written.
+- **Mutation checks of `lcert.reduce`'s δ step,** each on a scratch copy
+  placed first on the classpath:
+  - m1, δ firing on open codes: three failures in the new test. No other
+    test noticed the generic case; the only other error was in
+    `h-from-h1-at-constant-budget`.
+  - m2, δ never firing: the new test's three closed instances error.
+- **Suites:** fast 80 tests / 656 assertions; extended 113 / 2,107; 0
+  failures. Each count is up by exactly the new test.
+- The deps were fetched again: the container had been recycled. Maven
+  returned HTTP 429 once; the jars already SHA1-verified in scratch were
+  seeded into `.deps`, and `bin/deps` then succeeded.
+
 ## 2026-09-30
 
 - Two more questions on the λᶜᵉʳᵗ note, answered in a fifth addendum

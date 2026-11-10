@@ -3904,20 +3904,28 @@ plus(s(X), Y, s(O)) :- plus(X, Y, O).
   - or in the proof rules: the ω-rule.
 
 **λᶜᵉʳᵗ, read through this.** (My synthesis. It is an analogy, not a theorem
-of λᶜᵉʳᵗ's metatheory.)
-- **`H°` is the existence-property move.** It quantifies over held
-  certificates. These are closed finite trees, on which `chk′` computes to
-  a canonical value. Self-trust is pinned to the closed, numeral-like part
-  of the syntax.
+of λᶜᵉʳᵗ's metatheory. *Corrected 2026-11-10, on the user's follow-up (F17).
+The first bullet said that `H°` ranges over closed finite trees, on which
+`chk′` computes, and called that the existence-property move. Inside the
+theory that is false.*)
+- **`H°` is pinned by a bound, not by closedness.**
+  - Inside the theory, `H°`'s certificate `r` is a variable, and
+    `chk′ (print r) c⊥` does not compute. `H°` is derived from the primitive
+    `H`, and the same body by computation alone is rejected (F17's test).
+  - At cap `n`, its quantifier ranges over certificates of at most `n`
+    nodes, so it means `BF₀(n)`, which PA proves.
+  - The cap is not a term (A1).
 - **`Con′_ω` reaches the Henkin-constant positions.** It quantifies over all
   codes, open ones included, and `chk′` is opaque on open codes (F10). In
   the Lindenbaum reading, `T(chk′ c c⊥)` for a variable `c` has no
   determined value.
 - **The split, restated.** λᶜᵉʳᵗ separates `H°` (inhabited) from `Con′_ω`
-  (underivable). That is the split between the closed term model and the
-  whole Lindenbaum model.
-- λᶜᵉʳᵗ pins its self-trust to its own closed syntax, which is the
-  effective pin. It does not pin open codes, which no effective system can.
+  (underivable).
+  - `H°` quantifies over a domain bounded by a cap the theory cannot name.
+  - `Con′_ω` quantifies over a variable the theory can name, at which
+    `chk′` is stuck.
+- **What λᶜᵉʳᵗ pins.** It pins an index, the cap, rather than a model. It
+  does not pin open codes, which no effective system can.
 
 Sources: [Rasiowa–Sikorski lemma, course notes (UvA)](https://staff.fnwi.uva.nl/n.bezhanishvili/MSL/Scott.pdf);
 [Fitting on Rasiowa](https://id144254.securedata.net/melvinfitting/bookspapers/pdf/papers/Rasiowa.pdf);
@@ -3933,3 +3941,200 @@ Sources: [Rasiowa–Sikorski lemma, course notes (UvA)](https://staff.fnwi.uva.n
 [Piecha, publications (PhilPeople)](https://philpeople.org/profiles/thomas-piecha/publications?app=616);
 [Disjunction and existence properties, Wikipedia](https://en.wikipedia.org/wiki/Disjunction_and_existence_properties);
 [Heyting arithmetic, Wikipedia](https://en.wikipedia.org/wiki/Heyting_arithmetic).
+
+### F17. How λᶜᵉʳᵗ pins itself, and whether Rasiowa–Sikorski is the right comparison (follow-up, 2026-11-10)
+
+> Elaborate on how lambdacert pins itself; is Ras-Sik a relevant comparison?
+
+**λᶜᵉʳᵗ does not pin a model. It pins an index it cannot name.**
+Rasiowa–Sikorski is the right lens for *where* the line between `H°` and
+`Con′_ω` falls. It is the wrong model of *how* λᶜᵉʳᵗ draws it.
+
+Evidence levels:
+- **Read:** METATHEORY.md §§1.4–1.5 and 3.2–3.5, and Addendum A1.
+- **Probed, then pinned by a new fast test:**
+  `lcert.core-test/closed-instances-compute-the-generic-one-does-not`.
+  Two mutations of δ each made it fail.
+- **Web-checked on 2026-11-10** where marked "checked"; the rest is from
+  memory or my own reading, as marked.
+
+**First, a correction to F16.** F16 said that `H°` ranges over closed finite
+trees on which `chk′` computes, which it called the existence-property move.
+Inside the theory that is false.
+- `H°`'s certificate `r` is a variable, `print r` is an open code, and
+  `chk′ (print r) c⊥` does not compute.
+- `H° = λr e. H r e` is derived from the primitive `H = reflect₀`, at a
+  generic certificate.
+- The same body by computation alone, `abort` in place of `H`, is
+  rejected; the new test pins this.
+- So the pin is a bound, not closedness (below). F16's paragraph is
+  corrected in place. Its `Con′_ω` half stands.
+
+**How λᶜᵉʳᵗ pins itself: three layers.**
+
+1. **Codes denote themselves.** (My reading of R4's clauses, as
+   METATHEORY §3.2 keeps them.)
+   - The model interprets `Syn` and `R` by standard finite trees, and
+     `chk′` by the real `Check`.
+   - For the self-referential types this is F16's Herbrand pin: syntax
+     denoting itself.
+   - It has F16's cost. By Corollary 3.7 no standard code checks as a
+     refutation, so every `T(chk′ c c⊥)` denotes `∅`, and `Con′_ω` is
+     valid in the model. λᶜᵉʳᵗ cannot derive it (P5). The theory is
+     incomplete for its own intended model.
+2. **Every resource quantifier is bounded by a cap the theory cannot name.**
+   - **The model is indexed.** It is indexed by a cap `n`, a world `w ≤ n`,
+     and a footprint `k ≤ w`, with `V_w^k(R) = {v : ‖v‖ ≤ k}`. The usage-1
+     `Π` clause quantifies only over arguments whose footprint fits in a
+     world no larger than `w`.
+   - **So `H°` means a bounded fact.** At cap `n`, `H°`'s quantifier ranges
+     over certificates of at most `n` nodes, and `H°` means `BF₀(n)`. PA
+     proves each `BF₀(n)` by computation (R4 Lemma 6.3; A1).
+   - **Every model agrees on it.** A PA theorem is true in every model of
+     PA, nonstandard ones included. So at each cap, λᶜᵉʳᵗ's self-trust is a
+     statement no model can falsify, and nothing has to be pinned.
+   - **The cap is not a term.** It is the length of the token context `Θₙ`
+     (A1). A closed term can be generic over the size of a certificate it is
+     handed, as `Π(r :₁ R)` or a supply. But every such argument comes from
+     a caller with at most `n` live tokens. "At every cap" is never an
+     internal sentence.
+   - **Contraction cannot widen the bound.** A usage-ω quantifier over `R`
+     ranges over `V₀(R)`, which holds only leaves (A1).
+3. **The caps are linked by a well-founded descent, justified outside the
+   theory.**
+   - The fundamental lemma (METATHEORY Theorem 3.3) is proved by strong
+     induction on the cap. Its Reflect case uses the hypothesis at the
+     charged cap `n′ = n − ‖v‖ + m < n`.
+   - "`H°` holds at every cap" is T1 with T2. That is equivalent to
+     `Con_λ`, and it is established in a metatheory stronger than PA (A1).
+   - The caps that occur are standard because they are real. The runner's
+     grant is a finite supply that actually materializes (F7; METATHEORY
+     §2.3).
+
+**What this pin is, in F16's terms.**
+- F16 Sense 3: deciding universal statements in the standard model needs
+  the ω-rule, which is not effective.
+- λᶜᵉʳᵗ applies the ω-rule to one index only, the cap, and makes that index
+  unnameable. The metatheory's "for every `n`" plays the part of the ω-rule's
+  infinitely many premises, one instance of T1 at each `n`.
+- The object theory states only instances. Each is effective, and the
+  theory stays r.e.; its type checking is decidable.
+- The uniform statement, the one on which nonstandard models disagree, stays
+  in the metatheory.
+- This is the move of Artemov's consistency scheme and Pudlák's `Con(n)`
+  (D1, A1), with the index moved from the formula into the context.
+
+**Is Rasiowa–Sikorski relevant? As a diagnostic, yes; as the mechanism,
+no.**
+
+**Where it is exact: the quantifier clause.**
+- **The clause.** Rasiowa and Sikorski's clause is
+  `[∀x φ] = inf_y [φ(y)]` with `y` ranging over *variables*, not over
+  closed terms (checked, F16).
+- **The gap, in PA.** Each `¬Prf(n̄, ⌜0=1⌝)` has value 1, so the infimum
+  over closed instances is 1. But `[Con(PA)] < 1`.
+- **That gap is ω-incompleteness, and it is where nonstandard models live.**
+  The variable is the position a nonstandard witness can occupy.
+- **λᶜᵉʳᵗ exhibits both sides, executably.**
+
+| statement | λᶜᵉʳᵗ | the Rasiowa–Sikorski reading |
+|---|---|---|
+| `T(chk′ ⌜K⌝ c⊥) → 0`, for a closed code `K` | derivable by computation alone: δ gives `ff`, and `T(ff)` is `0`. Budget 0, no `H`. For the code of `not`, a closed certificate of 3,893 nodes | each closed instance has value 1 |
+| the body of `Con′_ω = Π(c :ω Syn). T(chk′ c c⊥) → 0` | rejected at budgets 0 and 40: at a variable, `chk′` does not compute. P5: underivable | the universal's value is its value at a generic variable, which is not 1 |
+| `H° = Π(r :₁ R). T(chk′ (print r) c⊥) ⊸ 0` | rejected by computation; accepted through the primitive `H` | value 1 at the generic certificate, by an axiom-like rule |
+| "`H°` at every cap" | not expressible; a metatheorem, equivalent to `Con_λ` | the infimum is never formed, because there is no variable for the cap |
+
+- **What the diagnostic shows.** Nonstandard models can touch only
+  statements that quantify over a variable the theory can name, and whose
+  instances compute only when closed. `Con′_ω` is one. The cap is not even a
+  variable of the theory.
+- **What it cannot show.** To Rasiowa and Sikorski, `H°` at a generic
+  certificate is an ordinary axiom with value 1. Their picture alone cannot
+  say why that axiom is safe when the code version is not. That needs layer
+  2: at each cap, the generic certificate is bounded.
+
+**Where it is not: the construction.**
+- **Syntactic against semantic.** Rasiowa and Sikorski's model is
+  syntactic and complete: value 1 exactly when provable. R4's model is
+  semantic and only sound: its elements are set-theoretic denotations in
+  `C(skel A)`. `Con′_ω` is valid in it, and underivable.
+- **A choice against none.** Rasiowa and Sikorski get two values by
+  choosing an ultrafilter, and the Rasiowa–Sikorski lemma's choice is not
+  effective (checked, F16). λᶜᵉʳᵗ chooses nothing. At each cap its
+  self-trust is a PA theorem, so every model already agrees on it.
+- **Boolean against affine.**
+  - Their algebras are Boolean, and contraction (`x ∧ x = x`) is built into
+    the meet. λᶜᵉʳᵗ is constructive and affine.
+  - They extended the method to intuitionistic logic with pseudo-Boolean,
+    that is Heyting, algebras (checked for the propositional case; the
+    predicate case from memory).
+  - Substructural logics take residuated lattices, and linear logic its
+    phase semantics (from memory).
+  - So a Lindenbaum algebra for λᶜᵉʳᵗ would be of that kind, proof-relevant,
+    and indexed by caps. Neither sjas nor this note constructs one.
+
+**Closer comparisons for the mechanism.**
+- **Step-indexed logical relations.**
+  - Appel and McAllester index types by the number of remaining steps, and
+    later work reasons about the index through a "later" modality
+    (checked).
+  - METATHEORY's sets are downward-closed in the world (Lemma 3.1.1). Their
+    function clauses quantify over every smaller world, and the fundamental
+    lemma is proved by strong induction on the cap. That is the same shape
+    (my reading).
+- **Löb induction in the topos of trees.**
+  - Guarded type theory internalizes the step as a modality `▷`. Its Löb
+    rule, `(▷P → P) → P`, is sound by induction on step indices (checked).
+  - The Reflect case is such a step. Reflection at cap `n` is justified by
+    the program's validity at `n′ < n` (my synthesis).
+  - The contrast with provability logic: GL's Löb axiom is about
+    provability, and GL refutes reflection `□A → A`. Here the descent is in
+    the model, and reflection `□A ⊸ A` is sound because the box is a held
+    resource, not a bare provability claim.
+- **Later credits in Iris.**
+  - Spies, Gäher, Tassarotti, Jung, Krebbers, Birkedal and Dreyer (ICFP
+    2022) make "the right to eliminate a later" an ownable separation-logic
+    resource. Each program step yields a credit `£1`, which can be saved
+    and spent (checked).
+  - λᶜᵉʳᵗ's tokens are the same idea at the object level: the right to
+    descend, to reflect, is a linear resource the program holds (my
+    synthesis).
+  - The difference is the level. Iris's credits live in a program logic
+    about another language; λᶜᵉʳᵗ's live in the language that reflects on
+    itself.
+- **The Kripke resource semantics of BI.**
+  - Pym, O'Hearn and Yang (2004) interpret BI over a preordered commutative
+    monoid of resources, whose combination is partial for resources that
+    must not be duplicated (checked).
+  - The usage-1 `Π` clause, with footprints `k + j ≤ w′`, is that kind of
+    clause, for the monoid of token counts (my reading).
+
+**Answer.**
+- **How λᶜᵉʳᵗ pins itself: three layers.**
+  - Its codes denote themselves, a Herbrand pin, in the metatheory.
+  - Every resource quantifier is bounded by a cap the theory cannot name,
+    so each self-trust statement is a PA theorem, true in every model.
+  - Its caps are tied together by a well-founded descent, established
+    outside the theory and made real by the runner's finite grant.
+- **It pins an index, not a model.** F16's non-effective step, the ω-rule,
+  is applied only to that index, and only in the metatheory.
+- **Rasiowa–Sikorski: the right lens for where the line falls.** The line is
+  the gap between the infimum over closed instances and the infimum over
+  variables, and the new test exhibits both sides.
+- **The wrong model of how.** The mechanism is step-indexed and
+  resource-indexed: closer to guarded recursion, later credits and BI than
+  to an ultrafilter on a Lindenbaum algebra.
+
+Sources: [Fitting on Rasiowa](https://id144254.securedata.net/melvinfitting/bookspapers/pdf/papers/Rasiowa.pdf);
+[Heyting algebra, Encyclopedia of Mathematics](https://encyclopediaofmath.org/wiki/Heyting_algebra);
+[Stony Brook CSE371, ch. 7](https://www3.cs.stonybrook.edu/~cse371/CHAPTER7.pdf);
+[Rasiowa–Sikorski lemma, course notes (UvA)](https://staff.fnwi.uva.nl/n.bezhanishvili/MSL/Scott.pdf);
+[Logical step-indexed logical relations, arXiv 1103.0510](https://arxiv.org/pdf/1103.0510);
+[Ahmed, step-indexed syntactic logical relations (ESOP 2006)](https://link.springer.com/content/pdf/10.1007/11693024_6.pdf);
+[First steps in synthetic guarded domain theory, arXiv 1208.3596](https://ar5iv.arxiv.org/html/1208.3596);
+[Iris lecture 7: later](https://iris-project.org/tutorial-pdfs/lecture7-later.pdf);
+[A modal deconstruction of Löb induction](https://pure.au.dk/portal/en/publications/a-modal-deconstruction-of-l%C3%B6b-induction/);
+[Later credits, project page](https://plv.mpi-sws.org/later-credits/);
+[Later credits, ICFP 2022](https://icfp22.sigplan.org/details/icfp-2022-papers/11/Later-Credits-Resourceful-Reasoning-for-the-Later-Modality);
+[Possible worlds and resources: the semantics of BI (Bath)](https://researchportal.bath.ac.uk/en/publications/possible-worlds-and-resources-the-semantics-of-bi/);
+[The logic of bunched implications, Pym](https://cantab.net/users/david.pym/BI.htm).

@@ -103,6 +103,14 @@
   is in the note. Reproduce the whole of any demonstration program an
   answer rests on in the note itself, or commit it.
 
+## 2026-11-10
+
+- Before saying that a statement is pinned to closed syntax, check how it
+  is derived. Is it a computation on closed terms, or a primitive rule at a
+  variable? F16 said `H°` is pinned by closedness. A one-minute probe showed
+  that its body is rejected by computation and accepted only through `H`.
+  Probe the typing rule before building an analogy on it.
+
 ## 2026-09-30
 
 - When citing a cost for an implication between consistency statements,

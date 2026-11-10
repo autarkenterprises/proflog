@@ -4,9 +4,10 @@
   review R4-02), the definable destructor of §4.7 (review R4-03),
   Proposition 4.9 at depth 0 (bounded code consistency with no tokens), and
   the form of H° that Addendum D1 of the 2026-09-28 self-justification note
-  relies on (one sentence, one term, at every budget), and Addendum F5's
+  relies on (one sentence, one term, at every budget), Addendum F5's
   claim that an interpreter written in λᶜᵉʳᵗ for a language that breaks
-  λᶜᵉʳᵗ's rules breaks them only in data."
+  λᶜᵉʳᵗ's rules breaks them only in data, and Addendum F17's: each closed
+  instance of code consistency computes, while the generic instance does not."
   (:require [clojure.test :refer [deftest is testing]]
             [clojure.walk :as walk]
             [lcert.core :as lc]
@@ -91,6 +92,34 @@
     (is (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) c-bot))]
                                    (fn [f 1 (T (chk (print r) c-bot))]
                                      (pair (Sigma [x 1 Void] Void) (H r e) (H r f)))))))))
+
+;; Addendum F17 of the 2026-09-28 note: Rasiowa–Sikorski's quantifier clause,
+;; in which ∀ is the infimum over *variables* and not over closed terms,
+;; located in λᶜᵉʳᵗ. Each closed instance of "this code is no refutation" is
+;; derivable by computation alone: δ evaluates chk′ to ff, and T(ff) is 0. It
+;; needs no tokens and no H. At a variable, chk′ does not compute. So the body
+;; of Con′_ω is rejected, and H°'s body is accepted only through the
+;; primitive H, never by computation. These tests pin existing behaviour
+;; (green when written). Mutation checks made them fail: see LOG.md,
+;; 2026-11-10.
+(deftest closed-instances-compute-the-generic-one-does-not
+  (let [instance (fn [c] (list 'fn ['e 'w (list 'T (list 'chk c 'c-bot))] '(abort Void e)))
+        literal (fn [code] (list 'code-literal code))
+        codes {:a-program (:code (lc/certify 0 ex/not-form))
+               :a-leaf [:sl :a]
+               :a-certificate (:code (lc/certify 2 '(node $1 :a (node $2 :b (leaf :c) (leaf :c))
+                                                            (leaf :c))))}]
+    (testing "every closed instance is derivable by computation, at budget 0, without H"
+      (doseq [[k code] codes]
+        (is (= (s/parse-type [] (list '-> (list 'T (list 'chk (literal code) 'c-bot)) 'Void))
+               (:type (t/check-top 0 (s/parse-term [] (instance (literal code))))))
+            (str k))))
+    (testing "at a generic code, chk′ does not compute: the body of Con′_ω is rejected"
+      (doseq [n [0 40]]
+        (is (rejects? n (list 'fn '[c w Syn] (instance 'c))))))
+    (testing "at a generic certificate, computation fails too; only the primitive H derives H°"
+      (is (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) c-bot))] (abort Void e)))))
+      (is (not (rejects? 0 '(fn [r 1 R] (fn [e 1 (T (chk (print r) c-bot))] (H r e)))))))))
 
 (deftest parsing-a-runtime-code-into-a-certificate
   (testing "review RR2-10: a typed parser threads a supply of tokens through a code"
